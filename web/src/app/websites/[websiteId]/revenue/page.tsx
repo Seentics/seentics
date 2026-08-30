@@ -316,7 +316,7 @@ export default function RevenuePage() {
         <CardContent className="p-0">
           <Tabs defaultValue="source" className="w-full">
             <div className="border-b border-border overflow-x-auto">
-              <TabsList className="h-auto w-full justify-start rounded-lg-none bg-transparent p-0 min-w-max">
+              <TabsList className="h-auto w-full justify-start rounded-none bg-transparent p-0 min-w-max">
                 {([
                   ['source', 'Source / referrer'],
                   ['medium', 'Medium'],
@@ -327,7 +327,7 @@ export default function RevenuePage() {
                   <TabsTrigger
                     key={val}
                     value={val}
-                    className="-mb-px rounded-lg-none border-b-2 border-transparent px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                    className="-mb-px rounded-none border-b-2 border-transparent px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     {label}
                   </TabsTrigger>

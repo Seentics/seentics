@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ApiKeysPanel } from '@/components/developers/ApiKeysPanel';
+import { ApiReferencePanel } from '@/components/developers/ApiReferencePanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,286 +15,19 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn, isValidId } from '@/lib/utils';
-import { apiKeysAPI, type APIKey } from '@/lib/apikeys-api';
 import {
   Code2, KeyRound, Layers, BookOpen, Plus, Copy, Check,
   Clock, Shield, AlertTriangle, Zap,
+  Terminal,
 } from 'lucide-react';
 
-const SCOPE_LABELS: Record<string, { label: string; color: string }> = {
-  'ingest:write':   { label: 'Ingest Write',   color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300' },
-  'analytics:read': { label: 'Analytics Read', color: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300' },
-  'events:write':   { label: 'Events Write',   color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300' },
-  'errors:write':   { label: 'Errors Write',   color: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300' },
-  'admin':          { label: 'Admin',           color: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300' },
-};
-
-function timeAgo(iso: string): string {
-  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-// ─── New Key Dialog ───────────────────────────────────────────────────────────
-
-function NewKeyDialog({ open, onOpenChange, onCreated }: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onCreated: (name: string, scopes: string[]) => void;
-}) {
-  const [name, setName] = useState('');
-  const [scopes, setScopes] = useState<string[]>(['ingest:write']);
-  const allScopes = ['ingest:write', 'analytics:read', 'events:write', 'errors:write'];
-  const toggle = (s: string) =>
-    setScopes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-
-  const create = () => {
-    if (!name.trim()) return;
-    onCreated(name.trim(), scopes);
-    setName(''); setScopes(['ingest:write']); onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
-        <DialogHeader className="px-6 py-5 border-b border-border">
-          <DialogTitle className="text-base font-semibold">Create API Key</DialogTitle>
-        </DialogHeader>
-        <div className="p-6 space-y-5">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Key Name</Label>
-            <Input placeholder="e.g. Production Backend" value={name}
-              onChange={e => setName(e.target.value)} className="h-9 text-sm" />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Permissions</Label>
-            <div className="space-y-2">
-              {allScopes.map(s => (
-                <label key={s} className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={scopes.includes(s)} onChange={() => toggle(s)}
-                    className="rounded-lg border-border accent-primary h-4 w-4" />
-                  <span className="text-sm text-foreground">{SCOPE_LABELS[s]?.label ?? s}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button size="sm" onClick={create} disabled={!name.trim() || scopes.length === 0}>Create Key</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function RevealDialog({ secret, onClose }: { secret: string; onClose: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(secret);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg bg-card border border-border rounded-lg p-0 gap-0">
-        <DialogHeader className="px-6 py-5 border-b border-border">
-          <DialogTitle className="text-base font-semibold flex items-center gap-2">
-            <Check className="h-4 w-4 text-green-500" />
-            API Key Created
-          </DialogTitle>
-        </DialogHeader>
-        <div className="p-6 space-y-4">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              Copy this key now. It will not be shown again for security reasons.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs font-mono bg-muted px-3 py-2.5 rounded-lg border border-border text-foreground break-all">
-              {secret}
-            </code>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={copy}>
-              {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
-          <div className="flex justify-end">
-            <Button onClick={onClose}>Done</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── API Keys Tab ─────────────────────────────────────────────────────────────
-
-function ApiKeysTab({ websiteId }: { websiteId: string }) {
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const [showNew, setShowNew] = useState(false);
-  const [newSecret, setNewSecret] = useState<string | null>(null);
-
-  const { data: keys = [], isLoading } = useQuery({
-    queryKey: ['apikeys', websiteId],
-    queryFn: () => apiKeysAPI.list(websiteId),
-    enabled: isValidId(websiteId),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: ({ name, scopes }: { name: string; scopes: string[] }) =>
-      apiKeysAPI.create(websiteId, name, scopes),
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ['apikeys', websiteId] });
-      if (result.key) setNewSecret(result.key);
-    },
-    onError: () => toast({ title: 'Failed to create API key', variant: 'destructive' }),
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: (keyId: string) => apiKeysAPI.revoke(websiteId, keyId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['apikeys', websiteId] });
-      toast({ title: 'Key revoked' });
-    },
-    onError: () => toast({ title: 'Failed to revoke key', variant: 'destructive' }),
-  });
-
-  const copyPrefix = async (prefix: string) => {
-    await navigator.clipboard.writeText(prefix);
-    toast({ title: 'Copied to clipboard' });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">API Keys</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Manage authentication keys for the Seentics Ingest &amp; Analytics APIs.
-          </p>
-        </div>
-        <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowNew(true)}>
-          <Plus className="h-3.5 w-3.5" />
-          New Key
-        </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Total Keys', value: keys.length,                            icon: KeyRound,      color: 'text-foreground' },
-          { label: 'Active',     value: keys.filter(k => k.isActive).length,    icon: Shield,        color: 'text-green-600' },
-          { label: 'Revoked',    value: keys.filter(k => !k.isActive).length,   icon: AlertTriangle, color: 'text-muted-foreground' },
-        ].map(s => (
-          <Card key={s.label} className="border border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <s.icon className={cn('h-5 w-5 shrink-0', s.color)} />
-              <div>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Keys list */}
-      <Card className="border border-border">
-        <CardHeader className="px-5 py-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Keys</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-16 text-center">
-              <p className="text-sm text-muted-foreground">Loading...</p>
-            </div>
-          ) : keys.length === 0 ? (
-            <div className="py-16 text-center">
-              <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No API keys yet.</p>
-            </div>
-          ) : keys.map(key => (
-            <div key={key.id} className={cn(
-              'flex items-start gap-4 px-5 py-4 border-b border-border last:border-0',
-              !key.isActive && 'opacity-50',
-            )}>
-              <div className={cn(
-                'mt-1.5 h-2 w-2 rounded-full shrink-0',
-                key.isActive ? 'bg-green-500' : 'bg-muted-foreground/40',
-              )} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-foreground">{key.name}</span>
-                  {!key.isActive && (
-                    <Badge className="text-[10px] px-1.5 py-0 h-4 bg-muted text-muted-foreground border border-border">revoked</Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">{key.keyPrefix}...</code>
-                  <button onClick={() => copyPrefix(key.keyPrefix)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-                    <Copy className="h-3 w-3" />
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {key.scopes.map(s => (
-                    <Badge key={s} className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal', SCOPE_LABELS[s]?.color)}>
-                      {SCOPE_LABELS[s]?.label ?? s}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Created {timeAgo(key.createdAt)}</span>
-                  {key.lastUsedAt && <span>Last used {timeAgo(key.lastUsedAt)}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {key.isActive && (
-                  <Button
-                    variant="ghost" size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground"
-                    onClick={() => revokeMutation.mutate(key.id)}
-                    disabled={revokeMutation.isPending}
-                  >
-                    Revoke
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Usage */}
-      <Card className="border border-border">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4 text-primary" />
-            Usage
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">Authorization</code> header:
-          </p>
-          <pre className="text-xs font-mono bg-muted/60 border border-border rounded-lg px-4 py-3 text-foreground overflow-x-auto">
-{`curl https://api.seentics.com/raw/v1/${websiteId}/analytics/dashboard \\
-  -H "Authorization: Bearer snc_live_..." \\
-  -H "Content-Type: application/json"`}
-          </pre>
-        </CardContent>
-      </Card>
-
-      <NewKeyDialog
-        open={showNew}
-        onOpenChange={setShowNew}
-        onCreated={(name, scopes) => createMutation.mutate({ name, scopes })}
-      />
-      {newSecret && <RevealDialog secret={newSecret} onClose={() => setNewSecret(null)} />}
-    </div>
-  );
-}
+/**
+ * API keys and the public API reference now come from shared panels.
+ *
+ * What used to live here documented `Authorization: Bearer`, a hard-coded host, and four
+ * scopes the backend has never accepted — all of it drifting because nothing tied it to
+ * the server. Both panels are now driven by the API itself.
+ */
 
 // ─── UI Blocks Tab ────────────────────────────────────────────────────────────
 
@@ -644,7 +379,7 @@ export default function DevelopersPage() {
       <DashboardPageHeader
         websiteId={websiteId}
         title="Developers"
-        description="API keys, embeddable widgets, and SDK documentation."
+        description="Create API keys and read this site's data from your own tools."
       />
 
       <Tabs defaultValue="api-keys">
@@ -652,6 +387,10 @@ export default function DevelopersPage() {
           <TabsTrigger value="api-keys" className="gap-1.5">
             <KeyRound className="h-3.5 w-3.5" />
             API Keys
+          </TabsTrigger>
+          <TabsTrigger value="reference" className="gap-1.5">
+            <Terminal className="h-3.5 w-3.5" />
+            API Reference
           </TabsTrigger>
           <TabsTrigger value="ui-blocks" className="gap-1.5">
             <Layers className="h-3.5 w-3.5" />
@@ -664,7 +403,11 @@ export default function DevelopersPage() {
         </TabsList>
 
         <TabsContent value="api-keys">
-          <ApiKeysTab websiteId={websiteId} />
+          <ApiKeysPanel websiteId={websiteId} />
+        </TabsContent>
+
+        <TabsContent value="reference">
+          <ApiReferencePanel websiteId={websiteId} />
         </TabsContent>
 
         <TabsContent value="ui-blocks">

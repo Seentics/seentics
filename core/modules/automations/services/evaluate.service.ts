@@ -25,7 +25,6 @@ import type {
   IdentifyPayload,
 } from '../interfaces';
 import { listActiveAutomationsByPriority } from '../repositories/postgres-automation.repository';
-import type { Conditions } from './condition-evaluator';
 import { evaluateConditions } from './condition-evaluator';
 import {
   getImpressionStats,
@@ -37,6 +36,8 @@ import {
 } from './frequency-caps';
 import { executeWebhook, type WebhookAction } from './webhook-executor';
 import { renderTemplateDeep } from './template-engine';
+import type { AutomationGraph } from './automation-graph';
+import { walkGraph, type Continuation } from './automation-graph-walk';
 
 // The request/result contract now lives in `../interfaces` — it is the module's
 // public surface, not an implementation detail. Re-exported because the tracker
@@ -45,11 +46,16 @@ export type { ClientAction, EvaluateRequest, EvaluateResult, IdentifyPayload };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * A stored automation definition.
+ *
+ * Two lists and two option bags: the triggers that can start it, and the steps that
+ * make up its body. Conditions and actions are not separate fields — they are step
+ * kinds, which is what lets them interleave.
+ */
 type AutomationDef = {
-  trigger?: { type?: string; [k: string]: unknown };
   triggers?: Array<{ type?: string; [k: string]: unknown }>;
-  conditions?: Conditions;
-  actions?: Array<{ type: string; [k: string]: unknown }>;
+  graph?: AutomationGraph;
   frequency?: FrequencyCapSpec;
   abTest?: {
     enabled?: boolean;
@@ -61,16 +67,28 @@ function castDef(raw: Record<string, unknown>): AutomationDef {
   return raw as AutomationDef;
 }
 
-/** All triggers for a definition — supports new `triggers[]` and legacy single `trigger`. */
-function defTriggers(def: AutomationDef): Array<{ type?: string; [k: string]: unknown }> {
-  if (Array.isArray(def.triggers) && def.triggers.length) return def.triggers;
-  if (def.trigger) return [def.trigger];
-  return [];
-}
-
 /** An automation matches when ANY of its triggers has the incoming type. */
 function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger']): boolean {
-  return defTriggers(def).some((t) => !!t?.type && t.type === incoming.type);
+  const triggers = Array.isArray(def.triggers) ? def.triggers : [];
+  return triggers.some((t) => !!t?.type && t.type === incoming.type);
+}
+
+/**
+ * Render a continuation's actions, recursively.
+ *
+ * The browser cannot resolve `{{ user.name }}` — the facts live on the server — so every
+ * branch is rendered up front against the same context the immediate actions used.
+ */
+function renderContinuation(c: Continuation, context: Record<string, unknown>): Continuation {
+  return {
+    ...c,
+    met: c.met.map((a) => renderTemplateDeep(a, context) as typeof a),
+    timeout: c.timeout.map((a) => renderTemplateDeep(a, context) as typeof a),
+    ...(c.metContinuation ? { metContinuation: renderContinuation(c.metContinuation, context) } : {}),
+    ...(c.timeoutContinuation
+      ? { timeoutContinuation: renderContinuation(c.timeoutContinuation, context) }
+      : {}),
+  };
 }
 
 function pickVariant(abTest: AutomationDef['abTest']): string | null {
@@ -183,10 +201,40 @@ type FiredAutomation = { automationId: string; runId: string; visitorId: string 
  * The bus arrives by constructor injection so nothing here knows whether it is
  * in-process or a broker.
  */
+/**
+ * The collaborators the evaluation path calls out to.
+ *
+ * Injectable so this service can be exercised without a database and without module
+ * mocks. Reaching for them through imports made it untestable in isolation: the only
+ * way to stub the webhook executor was `mock.module`, whose registry is process-global,
+ * so this file's stubs silently became the executor's own tests' executor.
+ *
+ * Production passes nothing and gets {@link defaultEvaluationDependencies}.
+ */
+export type EvaluationDependencies = {
+  listActiveAutomationsByPriority: typeof listActiveAutomationsByPriority;
+  getImpressionStats: typeof getImpressionStats;
+  executeWebhook: typeof executeWebhook;
+};
+
+export const defaultEvaluationDependencies: EvaluationDependencies = {
+  listActiveAutomationsByPriority,
+  getImpressionStats,
+  executeWebhook,
+};
+
 export class AutomationEvaluationService
   implements AutomationEvaluation
 {
-  constructor(private readonly eventBus: EventBus) {}
+  private readonly deps: EvaluationDependencies;
+
+  /** `deps` is a partial override; anything unnamed stays the real implementation. */
+  constructor(
+    private readonly eventBus: EventBus,
+    deps: Partial<EvaluationDependencies> = {},
+  ) {
+    this.deps = { ...defaultEvaluationDependencies, ...deps };
+  }
 
   async evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
     const { websiteId, anonymousId, userId, sessionId, trigger, context } = req;
@@ -202,29 +250,42 @@ export class AutomationEvaluationService
     };
 
     // Load active automations sorted by priority
-    const rows = await listActiveAutomationsByPriority(websiteId);
+    const rows = await this.deps.listActiveAutomationsByPriority(websiteId);
 
     // First pass (no DB): narrow to automations whose trigger + conditions match.
     // Cache the parsed definition so we don't castDef twice per automation.
-    const candidates: { auto: (typeof rows)[number]; def: AutomationDef; caps: FrequencyCapSpec }[] = [];
+    const candidates: {
+      auto: (typeof rows)[number];
+      def: AutomationDef;
+      caps: FrequencyCapSpec;
+      walked: ReturnType<typeof walkGraph>;
+    }[] = [];
     for (const auto of rows) {
       const def = castDef(auto.definition);
       if (!triggerMatches(def, trigger)) continue;
-      if (!evaluateConditions(def.conditions ?? null, fullContext)) continue;
-      candidates.push({ auto, def, caps: def.frequency ?? {} });
+
+      // Walked before the cap lookup so an automation whose route reaches nothing can
+      // be discarded without paying for its impression stats. Walking is pure and
+      // cheap — no database, no clock — so doing it twice would be the greater cost.
+      const walked = def.graph ? walkGraph(def.graph, fullContext) : null;
+      if (!walked || (!walked.actions.length && !walked.webhooks.length && !walked.continuation)) {
+        continue;
+      }
+
+      candidates.push({ auto, def, caps: def.frequency ?? {}, walked });
     }
 
     // One batched impression-stats query for every candidate that has a cap needing a
     // lookup — replaces up to 3 sequential COUNT queries PER automation.
     const cappedIds = candidates.filter((c) => capsRequireLookup(c.caps)).map((c) => c.auto.id);
-    const stats = await getImpressionStats(cappedIds, anonymousId, sessionId);
+    const stats = await this.deps.getImpressionStats(cappedIds, anonymousId, sessionId);
 
     const clientActions: ClientAction[] = [];
     const impressions: ImpressionMeta[] = [];
     const fired: FiredAutomation[] = [];
     let matched = 0;
 
-    for (const { auto, def, caps } of candidates) {
+    for (const { auto, def, caps, walked } of candidates) {
       if (isCappedFromStats(stats.get(auto.id), caps)) continue;
 
       matched++;
@@ -238,40 +299,56 @@ export class AutomationEvaluationService
       impressions.push({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
       fired.push({ automationId: auto.id, runId, visitorId: anonymousId });
 
-      // Process actions
-      for (let i = 0; i < (def.actions ?? []).length; i++) {
-        const action = def.actions![i]!;
-        const actionKey = `${action.type}_${i}`;
+      // The route was decided by `walkGraph`; what remains is dispatching it. Actions
+      // are keyed by their position in the *walked* order, so the run log reads as the
+      // path the visitor actually took rather than as positions in the stored graph.
+      let actionIndex = 0;
 
-        if (action.type === 'webhook') {
-          const t0 = Date.now();
-          void executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
-            .then(() => {
-              const ms = Date.now() - t0;
-              void logActionResult(auto.id, runId, actionKey, 'success', ms);
-              this.announceAction(websiteId, auto.id, runId, actionKey, 'success', ms);
-            })
-            .catch((err: unknown) => {
-              const ms = Date.now() - t0;
-              log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
-              void logActionResult(auto.id, runId, actionKey, 'failed', ms, String(err));
-              this.announceAction(websiteId, auto.id, runId, actionKey, 'failed', ms);
-            });
-          continue;
-        }
+      for (const action of walked.webhooks) {
+        const actionKey = `${action.type}_${actionIndex++}`;
+        const t0 = Date.now();
+        void this.deps.executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
+          .then(() => {
+            const ms = Date.now() - t0;
+            void logActionResult(auto.id, runId, actionKey, 'success', ms);
+            this.announceAction(websiteId, auto.id, runId, actionKey, 'success', ms);
+          })
+          .catch((err: unknown) => {
+            const ms = Date.now() - t0;
+            log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
+            void logActionResult(auto.id, runId, actionKey, 'failed', ms, String(err));
+            this.announceAction(websiteId, auto.id, runId, actionKey, 'failed', ms);
+          });
+      }
 
-        // Client-side actions: render templates and return to tracker
+      for (const planned of walked.actions) {
+        const { delayMs, ...action } = planned;
+        const actionKey = `${action.type}_${actionIndex++}`;
         const rendered = renderTemplateDeep(action, fullContext) as Record<string, unknown>;
+
         clientActions.push({
           ...rendered,
-          type:          action.type,
+          type:          String(action.type),
           automation_id: auto.id,
           variant,
           run_id:        runId,
+          ...(delayMs > 0 ? { delay_ms: delayMs } : {}),
         });
 
         void logActionResult(auto.id, runId, actionKey, 'success', 0);
         this.announceAction(websiteId, auto.id, runId, actionKey, 'success', 0);
+      }
+
+      // Work the page finishes after a wait. Rendered here rather than in the walker so
+      // templates resolve against the same context every other action saw.
+      if (walked.continuation) {
+        clientActions.push({
+          type:          'continue_when',
+          automation_id: auto.id,
+          variant,
+          run_id:        runId,
+          continuation:  renderContinuation(walked.continuation, fullContext),
+        });
       }
     }
 

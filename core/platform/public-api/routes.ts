@@ -12,10 +12,11 @@
  */
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { rawApiAuthMiddleware } from "../../platform/middleware/raw-api-auth";
+import { rawApiAuthMiddleware, requireScope } from "../../platform/middleware/raw-api-auth";
 import type { AnalyticsReads } from "../../modules/analytics/interfaces";
 import * as raw from "./raw-data.service";
 import { parseQuery } from "../../platform/validation";
+import { API_BASE_PATH, API_CATALOGUE } from "./api-catalogue";
 import {
   rawEventsQuerySchema,
   rawHeatmapPointsQuerySchema,
@@ -39,7 +40,21 @@ export function createRawDataRoutes(deps: {
 const { analytics, ports } = deps;
 const r = new Hono();
 
-/** Every path on this router requires a valid website API key (defense in depth vs per-route middleware). */
+/**
+ * What this API offers.
+ *
+ * Registered *before* the auth middleware on purpose: a developer has to be able to read
+ * the reference in order to decide they want a key, and requiring a key to discover what
+ * the key is for is a loop. It exposes no data — only paths, parameters and scopes.
+ */
+r.get("/v1/catalogue", (c) =>
+  c.json({
+    meta: { base_path: API_BASE_PATH, auth: "X-API-Key", count: API_CATALOGUE.length },
+    data: API_CATALOGUE,
+  }),
+);
+
+/** Every other path on this router requires a valid website API key (defense in depth vs per-route middleware). */
 r.use("*", rawApiAuthMiddleware);
 
 /** Path param `:website_id` is always set for these routes. */
@@ -112,40 +127,40 @@ const RAW_ANALYTICS_DEFAULT_WINDOW: [string, QsHandler][] = [
 ];
 
 for (const [path, fn] of RAW_ANALYTICS_WITH_QS) {
-  r.get(path, async (c) => {
+  r.get(path, requireScope("analytics:read"), async (c) => {
     const data = await fn(websiteId(c), rawAnalyticsQs(c));
     return jsonWithMeta(c, data);
   });
 }
 
 for (const [path, fn] of RAW_ANALYTICS_SITE_ONLY) {
-  r.get(path, async (c) => {
+  r.get(path, requireScope("analytics:read"), async (c) => {
     const data = await fn(websiteId(c));
     return jsonWithMeta(c, data);
   });
 }
 
 for (const [path, fn] of RAW_ANALYTICS_DEFAULT_WINDOW) {
-  r.get(path, async (c) => {
+  r.get(path, requireScope("analytics:read"), async (c) => {
     // Empty bag, not `rawAnalyticsQs(c)` — see the table's note.
     const data = await fn(websiteId(c), {});
     return jsonWithMeta(c, data);
   });
 }
 
-r.get("/v1/websites/:website_id/analytics/dashboard", async (c) => {
+r.get("/v1/websites/:website_id/analytics/dashboard", requireScope("analytics:read"), async (c) => {
   const data = await analytics.getDashboard(websiteId(c), rawAnalyticsQs(c));
   return jsonWithMeta(c, data);
 });
 
-r.get("/v1/websites/:website_id/analytics/recent-activity", async (c) => {
+r.get("/v1/websites/:website_id/analytics/recent-activity", requireScope("analytics:read"), async (c) => {
   const q = parseQuery(c, rawRecentActivityQuerySchema);
   if (!q.ok) return q.res;
   const data = await analytics.getRecentActivity(websiteId(c), q.data.limit);
   return jsonWithMeta(c, data);
 });
 
-r.get("/v1/websites/:website_id/analytics/events", async (c) => {
+r.get("/v1/websites/:website_id/analytics/events", requireScope("analytics:read"), async (c) => {
   const ctx = c.get("rawApi");
   try {
     const q = parseQuery(c, rawEventsQuerySchema);
@@ -173,7 +188,7 @@ r.get("/v1/websites/:website_id/analytics/events", async (c) => {
   }
 });
 
-r.get("/v1/websites/:website_id/sessions", async (c) => {
+r.get("/v1/websites/:website_id/sessions", requireScope("replays:read"), async (c) => {
   const ctx = c.get("rawApi");
   const q = parseQuery(c, rawSessionsQuerySchema);
   if (!q.ok) return q.res;
@@ -185,7 +200,7 @@ r.get("/v1/websites/:website_id/sessions", async (c) => {
   });
 });
 
-r.get("/v1/websites/:website_id/heatmap/pages", async (c) => {
+r.get("/v1/websites/:website_id/heatmap/pages", requireScope("heatmaps:read"), async (c) => {
   const ctx = c.get("rawApi");
   const out = await raw.rawHeatmapPages(ports, ctx.websiteId);
   return c.json({
@@ -194,7 +209,7 @@ r.get("/v1/websites/:website_id/heatmap/pages", async (c) => {
   });
 });
 
-r.get("/v1/websites/:website_id/heatmap/points", async (c) => {
+r.get("/v1/websites/:website_id/heatmap/points", requireScope("heatmaps:read"), async (c) => {
   const ctx = c.get("rawApi");
   const q = parseQuery(c, rawHeatmapPointsQuerySchema);
   if (!q.ok) return q.res;

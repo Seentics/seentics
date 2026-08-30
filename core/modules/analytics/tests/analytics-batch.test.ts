@@ -1,4 +1,5 @@
 import { describe, it, expect, mock, beforeAll, beforeEach } from "bun:test";
+import { fakeDbModule } from "./helpers/fake-db";
 
 // mock.module must be called before any dynamic import of the module under test.
 // Use dynamic import in beforeAll so these mocks are in place when analytics-batch loads.
@@ -17,13 +18,15 @@ const fakeTx = { insert: mockInsert };
 // process-global, so an incomplete stub here is not a local shortcut — it becomes the
 // `db` module for every test file that runs after this one, and anything importing a
 // missing export fails to load entirely.
+// The table stubs come from the shared fake so this registration exports everything
+// `db/index.ts` does. Bun materialises a mocked module namespace once and the first
+// registration to be resolved wins for the whole run, so a partial stub here became
+// every later module's `db` — and any module importing a table this list omitted failed
+// to load at all. Only the pieces this file actually asserts on are overridden.
 mock.module("../../../db", () => ({
+  ...fakeDbModule(),
   db: { insert: mockInsert },
   sql: mock(async () => []),
-  analyticsEvents: {},
-  outbox: {},
-  websites: {},
-  websiteMembers: {},
 }));
 
 // A complete `Logger`: `child` must exist and must itself return a logger, because

@@ -292,7 +292,7 @@ export interface HeatmapSettings {
  * Reads for the raw API.
  *
  * Separate from `HeatmapQuery` because the raw API returns unmerged, unnormalised rows
- * — it is a data-export surface, not the dashboard's. `platform/raw-data` used to import
+ * — it is a data-export surface, not the dashboard's. `platform/public-api` used to import
  * `services/page-query.service` directly to get at these.
  */
 export interface HeatmapRawReads {

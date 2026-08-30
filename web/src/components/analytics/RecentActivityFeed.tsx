@@ -39,7 +39,7 @@ function MetaIcon({ src, label }: { src: string; label: string }) {
       role="img"
       aria-label={label}
       title={label}
-      className="h-3.5 w-3.5 shrink-0 rounded-lg-[3px] object-contain opacity-90"
+      className="h-3.5 w-3.5 shrink-0 rounded-[3px] object-contain opacity-90"
     />
   );
 }
@@ -250,7 +250,7 @@ export function RecentActivityFeed({
         </div>
         {activities.length > 6 && (
           <div
-            className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-card to-transparent rounded-lg-b-md"
+            className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-card to-transparent rounded-b-md"
             aria-hidden
           />
         )}
@@ -275,9 +275,9 @@ export function RecentActivityFeed({
                 <Skeleton className="h-3 w-12 rounded-lg ml-auto" />
               </div>
               <div className="flex items-center gap-1.5">
-                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
-                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
-                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
                 <Skeleton className="h-3 w-24 rounded-lg ml-1" />
               </div>
             </div>

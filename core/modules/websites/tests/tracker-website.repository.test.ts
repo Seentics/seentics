@@ -1,15 +1,21 @@
 import { describe, it, expect, mock, beforeAll } from "bun:test";
+import { fakeDbModule } from "../../../app/tests/helpers/fake-db";
 import type { WebsiteTrackerRow, TrackerGoal } from "../interfaces";
 
 // website-for-tracker.ts imports `sql` from "../../../db" at the module level.
 // Mock the DB before dynamically importing the module.
+// Table stubs come from the shared fake so this registration exports everything
+// `db/index.ts` does. Bun materialises a mocked module namespace once and the first
+// registration to be resolved wins for the whole run, so a partial stub here becomes
+// every later module's `db`, and any module importing a table it omits fails to load.
+// Only the pieces this file asserts on are overridden below.
 mock.module("../../../db", () => ({
+  ...fakeDbModule(),
   sql: mock(async () => []),
   db: {
     insert: mock(() => ({ values: mock(async () => {}) })),
     transaction: mock(async (fn: (tx: any) => Promise<void>) => fn({ insert: mock(() => ({ values: mock(async () => {}) })) })),
   },
-  analyticsEvents: {},
 }));
 
 let buildPublicTrackerConfig: (w: WebsiteTrackerRow, goals: TrackerGoal[]) => Promise<Record<string, unknown>>;

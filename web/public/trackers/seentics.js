@@ -6,6 +6,8 @@
 
 // ─── Config from script tag ───────────────────────────────────────────────────
 
+import { runContinuation } from './automation-runtime.js';
+
 const script = document.currentScript;
 
 /** Website UUID — same value as the dashboard project id (data-website-id). */
@@ -83,11 +85,37 @@ const RRWEB_MOUSE_INTERACTION = {
 
 // ─── Runtime state ────────────────────────────────────────────────────────────
 
+/**
+ * When the current page view began.
+ *
+ * Reset on SPA navigation, so `timeOnPage` measures the view rather than the tab's
+ * lifetime — a condition like "waited 30s on this page" means the page they are on.
+ */
+let pageEnterMs = Date.now();
+
 /** Config, funnels, and automations loaded from /tracker/init on boot. */
 let cfg         = {};
 let funnels     = [];
 let automations = [];
 let flushInterval = null;
+
+/**
+ * The set of trigger types any loaded automation listens for.
+ *
+ * Built once when automations load so the hot path — every click, every scroll
+ * threshold, every visibility change — answers "is anything listening?" with one Set
+ * lookup instead of scanning every automation's every trigger on every event.
+ */
+let automationTriggerTypes = new Set();
+
+/**
+ * Trigger types with an evaluate request already in flight.
+ *
+ * Rapid triggers (clicks, scroll thresholds) can fire several times before the first
+ * response lands. Without this, each one costs a round trip and the actions from all of
+ * them render on top of each other.
+ */
+const automationInFlight = new Set();
 
 /**
  * True only while rrweb is actively recording a session that was sampled in.
@@ -1178,6 +1206,7 @@ const deviceInfo = () => ({
  * Also resets per-page heatmap state (scroll depth, throttle timestamps, pointer bridge).
  */
 const trackPage = () => {
+  pageEnterMs                = Date.now();
   heatmapScrollMax           = 0;
   heatmapScrollThrottleAt    = 0;
   lastPointerDocForHeatmap   = null;
@@ -1313,24 +1342,66 @@ const writeCapCache = (automationId) => {
   } catch { /* private mode */ }
 };
 
-/** Client-side action renderer — handles all on-site action types. */
+/**
+ * The wait/condition runtime lives in its own module so it can be tested; esbuild
+ * inlines it, so this is a source-level split rather than an extra request.
+ */
+const MAX_ACTION_DELAY_MS = 300_000;
+
+/** Perform one action now. Never throws — a broken action must not break the page. */
+const performClientAction = (action) => {
+  try {
+    switch (action.type) {
+      case 'show_modal':    renderModal(action);   break;
+      case 'show_toast':    renderToast(action);   break;
+      case 'show_banner':   renderBanner(action);  break;
+      case 'highlight_element': renderHighlight(action); break;
+      case 'show_tooltip':  renderTooltip(action); break;
+      case 'personalize_content': renderPersonalize(action); break;
+      case 'redirect':      renderRedirect(action); break;
+      case 'tag_session':
+        pushAnalytics('custom', { name: 'session_tag', tag: action.tag, automation_id: action.automation_id });
+        break;
+      case 'continue_when':
+        // Not a visible action: the remainder of the graph, for the page to finish once
+        // the wait resolves.
+        runContinuation(action.continuation, action.delay_ms, executeClientActions, { pageEnterMs });
+        break;
+      default: break;
+    }
+  } catch { /* never crash the page */ }
+};
+
+/**
+ * Run a batch of client actions, honouring the `delay_ms` a chain's delay steps produced.
+ *
+ * Actions are grouped by offset rather than scheduled individually: a chain of five
+ * actions behind one delay costs one timer, not five, and the actions in a group still
+ * run in the order the server sent them. Anything at offset zero runs synchronously, so
+ * the common case — no delays at all — allocates nothing and schedules nothing.
+ */
 const executeClientActions = (actions) => {
-  for (const action of (actions ?? [])) {
-    try {
-      switch (action.type) {
-        case 'show_modal':    renderModal(action);   break;
-        case 'show_toast':    renderToast(action);   break;
-        case 'show_banner':   renderBanner(action);  break;
-        case 'highlight_element': renderHighlight(action); break;
-        case 'show_tooltip':  renderTooltip(action); break;
-        case 'personalize_content': renderPersonalize(action); break;
-        case 'redirect':      renderRedirect(action); break;
-        case 'tag_session':
-          pushAnalytics('custom', { name: 'session_tag', tag: action.tag, automation_id: action.automation_id });
-          break;
-        default: break;
-      }
-    } catch { /* never crash the page */ }
+  if (!actions || !actions.length) return;
+
+  let deferred = null;
+
+  for (const action of actions) {
+    const delay = Math.min(Math.max(0, action.delay_ms | 0), MAX_ACTION_DELAY_MS);
+    if (delay === 0) {
+      performClientAction(action);
+      continue;
+    }
+    if (!deferred) deferred = new Map();
+    const group = deferred.get(delay);
+    if (group) group.push(action);
+    else deferred.set(delay, [action]);
+  }
+
+  if (!deferred) return;
+  for (const [delay, group] of deferred) {
+    setTimeout(() => {
+      for (const action of group) performClientAction(action);
+    }, delay);
   }
 };
 
@@ -1477,11 +1548,18 @@ const renderRedirect = (action) => {
   else open();
 };
 
-/** All triggers for an automation (new `triggers[]`, legacy single `trigger`, or flat). */
-const automationTriggers = (a) => {
-  if (a && Array.isArray(a.triggers) && a.triggers.length) return a.triggers;
-  if (a && a.trigger) return [a.trigger];
-  return a ? [a] : [];
+/** The triggers an automation listens for. */
+const automationTriggers = (a) => (a && Array.isArray(a.triggers) ? a.triggers : []);
+
+/** Rebuild the trigger-type index. Called once per automations load. */
+const indexAutomationTriggers = () => {
+  const types = new Set();
+  for (const auto of automations) {
+    for (const t of automationTriggers(auto)) {
+      if (t && t.type) types.add(t.type);
+    }
+  }
+  automationTriggerTypes = types;
 };
 
 /**
@@ -1489,14 +1567,19 @@ const automationTriggers = (a) => {
  * parse response, execute client-side actions.
  */
 const fireAutomationTrigger = async (triggerType, triggerData) => {
-  if (!websiteId || !automations.length) return;
+  if (!websiteId) return;
 
-  // An automation fires when ANY of its triggers matches. Supports the new
-  // `triggers[]` shape and the legacy single `trigger` (and very old flat shape).
-  const relevant = automations.filter((a) => automationTriggers(a).some((t) => (t.type ?? t.event) === triggerType));
-  if (!relevant.length) return;
+  // One Set lookup, not a scan of every automation's every trigger. This runs on the
+  // hot path — clicks, scroll thresholds, visibility changes — so the answer for a
+  // trigger nobody listens for has to be free.
+  if (!automationTriggerTypes.has(triggerType)) return;
 
-  // Also queue analytics trigger event for backwards compat
+  // Collapse a burst into one round trip. Rapid triggers can fire several times before
+  // the first response lands; without this each costs a request and the actions from
+  // all of them render on top of each other.
+  if (automationInFlight.has(triggerType)) return;
+  automationInFlight.add(triggerType);
+
   pushAnalytics('automation_trigger', { event: triggerType, props: triggerData });
 
   try {
@@ -1519,10 +1602,18 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
     if (!res.ok) return;
     const { actions } = await res.json();
     if (actions?.length) {
-      for (const a of actions) writeCapCache(a.automation_id);
+      // Charge the client-side cap once per automation, not once per action — a chain
+      // of four actions is still one impression.
+      const charged = new Set();
+      for (const a of actions) {
+        if (charged.has(a.automation_id)) continue;
+        charged.add(a.automation_id);
+        writeCapCache(a.automation_id);
+      }
       executeClientActions(actions);
     }
   } catch { /* best-effort */ }
+  finally { automationInFlight.delete(triggerType); }
 };
 
 // ─── Exit-intent trigger ──────────────────────────────────────────────────────
@@ -1679,28 +1770,35 @@ const installTabVisibility = () => {
 // ─── Click trigger (delegated, CSS-selector-based) ────────────────────────────
 
 const installClickTrigger = () => {
+  // Selectors are collected once at install rather than rebuilt on every click. The
+  // listener is delegated to the document, so it runs for every click on the page —
+  // walking each automation's triggers there is work paid on the interaction path.
+  const selectors = [];
+  const seenSelectors = new Set();
+  for (const auto of automations) {
+    for (const t of automationTriggers(auto)) {
+      if (!t || t.type !== 'click' || !t.selector || seenSelectors.has(t.selector)) continue;
+      seenSelectors.add(t.selector);
+      selectors.push(t.selector);
+    }
+  }
+  if (!selectors.length) return;
+
   document.addEventListener('click', (ev) => {
     const el = ev.target;
     if (!el) return;
-    const seen = new Set();
-    for (const auto of automations) {
-      for (const t of automationTriggers(auto)) {
-        if ((t.type ?? t.event) !== 'click') continue;
-        const sel = t.selector;
-        if (!sel || seen.has(sel)) continue;
-        try {
-          if (el.matches(sel) || el.closest(sel)) {
-            seen.add(sel);
-            void fireAutomationTrigger('click', {
-              path:     location.pathname,
-              selector: sel,
-              text:     (el.textContent ?? '').trim().slice(0, 100),
-            });
-          }
-        } catch { /* invalid selector */ }
-      }
+    for (const sel of selectors) {
+      try {
+        if (el.matches(sel) || el.closest(sel)) {
+          void fireAutomationTrigger('click', {
+            path:     location.pathname,
+            selector: sel,
+            text:     (el.textContent ?? '').trim().slice(0, 100),
+          });
+        }
+      } catch { /* invalid selector */ }
     }
-  });
+  }, { passive: true });
 };
 
 // ─── Performance timing ───────────────────────────────────────────────────────
@@ -1791,6 +1889,7 @@ const init = () => {
       cfg         = data.config      ?? {};
       funnels     = data.funnels     ?? [];
       automations = data.automations ?? [];
+      indexAutomationTriggers();
 
       if (autoTrack) trackPage();
 

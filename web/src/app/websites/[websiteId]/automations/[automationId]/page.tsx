@@ -117,17 +117,17 @@ export default function AutomationDetailPage() {
   const TriggerIcon = TRIGGER_ICONS[automation.triggerType] ?? Zap;
   const runHistory  = dailyStatsData ?? Array.from({ length: 14 }, (_, i) => ({ day: `D${i + 1}`, runs: 0 }));
 
-  // Use the stored definition JSON directly — it contains the full state including conditions, frequency, abTest, priority
+  // The stored definition is used directly: it is the full state, including the step
+  // chain, frequency caps, A/B configuration and priority.
   const def = automation.definition ?? {};
   const rawDefinition: AutomationDefinition = {
-    trigger:    (def.trigger as AutomationDefinition['trigger'] | undefined) ?? { type: automation.triggerType },
-    conditions: (def.conditions as AutomationDefinition['conditions'] | undefined) ?? null,
-    actions:    Array.isArray(def.actions)
-      ? (def.actions as AutomationDefinition['actions'])
-      : automation.actions.map(a => ({ type: a.actionType, ...a.actionConfig })),
-    frequency:  (def.frequency as AutomationDefinition['frequency'] | undefined) ?? {},
-    abTest:     (def.abTest as AutomationDefinition['abTest'] | undefined) ?? { enabled: false, variants: [] },
-    priority:   typeof def.priority === 'number' ? def.priority : 50,
+    triggers: Array.isArray(def.triggers)
+      ? (def.triggers as AutomationDefinition['triggers'])
+      : [{ type: automation.triggerType }],
+    graph: (def.graph as AutomationDefinition['graph'] | undefined) ?? { entry: '', nodes: [], edges: [] },
+    frequency: (def.frequency as AutomationDefinition['frequency'] | undefined) ?? {},
+    abTest: (def.abTest as AutomationDefinition['abTest'] | undefined) ?? { enabled: false, variants: [] },
+    priority: typeof def.priority === 'number' ? def.priority : 50,
   };
 
   const handleEditSave = (definition: AutomationDefinition) => {

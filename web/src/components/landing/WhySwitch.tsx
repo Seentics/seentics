@@ -98,7 +98,7 @@ export default function WhySwitch() {
               <tr>
                 <th className="w-[34%] p-3 text-left align-bottom" />
                 <th className="p-3 text-center align-bottom">
-                  <div className="rounded-lg-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
+                  <div className="rounded-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
                     <span className="text-sm font-bold text-primary">Seentics</span>
                   </div>
                 </th>
@@ -123,7 +123,7 @@ export default function WhySwitch() {
                   </td>
                   <td
                     className={`border-b border-border dark:border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
-                      i === ROWS.length - 1 ? 'rounded-lg-b-xl' : ''
+                      i === ROWS.length - 1 ? 'rounded-b-xl' : ''
                     }`}
                   >
                     <div className="flex justify-center">

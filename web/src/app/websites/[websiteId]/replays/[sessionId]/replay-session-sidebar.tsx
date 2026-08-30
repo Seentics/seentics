@@ -257,7 +257,7 @@ function ErrorDetailsCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0 px-0 pb-0">
-        <ul className="divide-y-0 rounded-lg-b-lg overflow-hidden">
+        <ul className="divide-y-0 rounded-b-lg overflow-hidden">
           {errors.map((err, i) => (
             <ErrorRow key={i} error={err} idx={i} durationMs={durationMs} player={player} />
           ))}

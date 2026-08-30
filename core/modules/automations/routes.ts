@@ -10,10 +10,11 @@ import type {
   CreateAutomationInput,
   UpdateAutomationInput,
 } from "./interfaces";
-// Imported from the schema module rather than a barrel: `automationsUpsertBodySchema`
-// is a `.passthrough()` schema whose inferred output widens when re-exported.
+// Imported from the schema module rather than a barrel: these carry `.superRefine`
+// and lazy recursion, whose inferred output widens when re-exported.
 import {
   automationsBulkDeleteSchema,
+  automationsPatchBodySchema,
   automationsUpsertBodySchema,
 } from "./validators/automation.schema";
 
@@ -112,15 +113,12 @@ export function createAutomationRoutes(deps: {
   /**
    * POST /:website_id — create.
    *
-   * The body schema is `.passthrough()` with every field optional: it exists to
-   * validate the webhook actions (URL allow-list, forbidden headers), not to
-   * guarantee a complete automation. That is why the parsed body is cast rather than
-   * matching `CreateAutomationInput` structurally — tightening it here would start
-   * rejecting request shapes the builder sends today.
+   * The definition is validated in full, not passed through: it names webhook URLs the
+   * server will call and conditions that decide who sees what, so a malformed one has
+   * to be refused here rather than discovered at evaluate time.
    *
-   * Parsed inline rather than with `parseJson` because that helper answers malformed
-   * JSON with its own message; this endpoint has always returned the schema's issue
-   * list for a null body.
+   * Parsed inline rather than with `parseJson` so a null or unparseable body answers
+   * with the schema's issue list, which is what the builder renders against its fields.
    */
   r.post(
     "/:website_id",
@@ -160,12 +158,18 @@ export function createAutomationRoutes(deps: {
   // GET /:website_id/:id — one automation. `null` from the service becomes a 404.
   r.get("/:website_id/:id", guarded((c, w) => automations.get(w, automationId(c))));
 
-  // PUT /:website_id/:id — update. Same body schema as create; see the note there.
+  /**
+   * PUT /:website_id/:id — update.
+   *
+   * A patch: every field is optional, but a definition that *is* supplied is validated
+   * as strictly as one on create. Renaming an automation must not require resending its
+   * body, and sending a broken body must not be accepted just because it is a partial.
+   */
   r.put(
     "/:website_id/:id",
     guarded(async (c, w) => {
       const raw = await c.req.json().catch(() => null);
-      const ok = automationsUpsertBodySchema.safeParse(raw);
+      const ok = automationsPatchBodySchema.safeParse(raw);
       if (!ok.success) return validationErrorResponse(c, ok.error);
 
       return automations.update(

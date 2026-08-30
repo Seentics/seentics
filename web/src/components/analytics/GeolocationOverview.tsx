@@ -142,7 +142,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                 <div key={country.name} className={cn("flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border">
+                                        <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
                                             <Image
                                                 src={getCountryFlag(country.name)}
                                                 alt={`${country.name} flag`}
@@ -155,7 +155,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                                     if (fallback) fallback.style.display = 'flex';
                                                 }}
                                             />
-                                            <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-lg-sm text-[8px] font-bold items-center justify-center">
+                                            <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-sm text-[8px] font-bold items-center justify-center">
                                                 {country.name.substring(0, 2).toUpperCase()}
                                             </div>
                                         </div>
@@ -189,7 +189,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         {city.code ? (
-                                            <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border">
+                                            <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
                                                 <Image
                                                     src={`/images/country/${city.code.toLowerCase()}.png`}
                                                     alt={`${city.code} flag`}
@@ -202,7 +202,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                                         if (fallback) fallback.style.display = 'flex';
                                                     }}
                                                 />
-                                                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-lg-sm text-[8px] font-bold items-center justify-center">
+                                                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-sm text-[8px] font-bold items-center justify-center">
                                                     {city.code}
                                                 </div>
                                             </div>

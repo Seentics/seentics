@@ -254,21 +254,21 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
         <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} type="countries" />
       </div>
 
-      <div className="mt-6  rounded-lg overflow-hidden bg-card">
+      <div className="surface mt-6 overflow-hidden">
         <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border">
           <h3 className="text-base font-medium tracking-tight text-foreground">Activity log</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Page URL, country, device, OS, browser, source, and time. Updates about every 12 seconds.
           </p>
         </div>
-        <div className="p-4 md:p-5 bg-card">
+        <div className="p-4 md:p-5">
           <RecentActivityFeed
             embed
             rowLayout="table"
             websiteId={websiteId}
             data={recentActivityData}
             isLoading={recentLoading}
-            tableScrollClassName="border-0 bg-card rounded-lg-none shadow-none  max-h-[min(32rem,60vh)]"
+            tableScrollClassName="border-0 bg-transparent rounded-none shadow-none max-h-[min(32rem,60vh)]"
           />
         </div>
       </div>

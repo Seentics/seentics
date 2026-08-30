@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { fakeDbModule } from "../../../app/tests/helpers/fake-db";
 
 /**
  * The gate for phase 0: a redelivered batch must change nothing.
@@ -54,7 +55,13 @@ const fakeTx = {
   }),
 };
 
+// Table stubs come from the shared fake so this registration exports everything
+// `db/index.ts` does. Bun materialises a mocked module namespace once and the first
+// registration to be resolved wins for the whole run, so a partial stub here becomes
+// every later module's `db`, and any module importing a table it omits fails to load.
+// Only the pieces this file asserts on are overridden below.
 mock.module("../../../db", () => ({
+  ...fakeDbModule(),
   db: {
     transaction: async (fn: (tx: unknown) => Promise<unknown>) => {
       txCount += 1;
@@ -63,10 +70,6 @@ mock.module("../../../db", () => ({
   },
   sql: mock(async () => []),
   ingestAppliedBatches: { batchId: "batch_id", appliedAt: "applied_at" },
-  analyticsEvents: {},
-  outbox: {},
-  websites: {},
-  websiteMembers: {},
 }));
 
 let applyBatchOnce: typeof import("../applied-batches").applyBatchOnce;

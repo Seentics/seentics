@@ -9,6 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
+  Code2,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,6 +36,9 @@ function buildMainNav(websiteId: string): NavItem[] {
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
+    // Linked explicitly: the developer tools existed but were reachable only by typing
+    // the URL, which is the same as not existing.
+    { label: 'Developers', href: `/websites/${websiteId}/settings/developers`, icon: Code2 },
     { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
   ];
 }
@@ -108,7 +112,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       // bg-sidebar, not bg-card: the sidebar is app chrome and belongs on the
       // deepest layer. On bg-card it sat level with the panels it frames, which
       // collapsed sidebar, page and cards into one flat surface.
-      'bg-sidebar border-r border-sidebar-border',
+      'bg-sidebar border-r border-sidebar-border dark:border-none',
       'transition-[width] duration-200 ease-in-out',
       collapsed ? 'w-[64px]' : 'w-[248px]',
     )}>
@@ -131,9 +135,11 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             <Logo size="sm" className="shrink-0" />
           </button>
         ) : (
+          <div className='flex items-center justify-between w-full'>
           <Link href="/" className="flex items-center gap-2.5 w-full">
             <Logo size="sm" className="shrink-0" />
             <span className="flex-1 text-[16px] font-bold tracking-tight text-primary">Seentics</span>
+          </Link>
             <button
               type="button"
               onClick={() => persist(true)}
@@ -143,7 +149,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
-          </Link>
+           </div>
         )}
       </div>
 

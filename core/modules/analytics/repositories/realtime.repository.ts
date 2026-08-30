@@ -6,11 +6,21 @@ export const REALTIME_WINDOW_MS = 30 * 60_000;
 /** Window for "Live Visitors" badge — people with a pageview in the last 30 seconds. */
 export const LIVE_VISITOR_WINDOW_MS = 30_000;
 
-function utcMinuteKey(d: Date): string {
+/** Bucket label for a minute, matching the query's `to_char(grp_at, 'HH24:MI')`. */
+export function utcMinuteKey(d: Date): string {
   return `${d.getUTCHours().toString().padStart(2, "0")}:${d.getUTCMinutes().toString().padStart(2, "0")}`;
 }
 
-function buildUtcTimeline(
+/**
+ * Pad the query's sparse minute buckets out to a continuous 30-minute series.
+ *
+ * Exported for its own tests: the scaffold is where a realtime chart goes wrong —
+ * a missing minute has to render as a zero rather than as a gap that the chart
+ * interpolates across, and the series has to run oldest-to-newest regardless of
+ * what order the aggregate came back in. Both are invisible from `getRealtimeStats`
+ * without a database.
+ */
+export function buildUtcTimeline(
   rows: { minute: string; views: number; visitors: number }[],
 ): { minute: string; views: number; visitors: number }[] {
   const map = new Map(rows.map((r) => [r.minute, r]));

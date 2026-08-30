@@ -165,7 +165,7 @@ function StatGrid({ rows, columns }: { rows: Record<string, unknown>[]; columns:
             key={col.key}
             className="relative overflow-hidden rounded-lg border border-border bg-muted/40 p-4 flex flex-col gap-2 dark:bg-muted/20"
           >
-            <div className="absolute top-0 right-0 h-16 w-16 rounded-lg-bl-full opacity-10" style={{ background: color }} />
+            <div className="absolute top-0 right-0 h-16 w-16 rounded-bl-full opacity-10" style={{ background: color }} />
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{col.label}</p>
             <p className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums" style={{ color }}>
               {display}

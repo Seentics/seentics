@@ -58,13 +58,13 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
       <div className="absolute inset-2 flex gap-1">
         {mode === 'sidebar' && (
           <>
-            <div className="w-5 h-full rounded-lg-sm bg-primary/20 border border-primary/30" />
+            <div className="w-5 h-full rounded-sm bg-primary/20 border border-primary/30" />
             <div className="flex-1 space-y-1 pt-1">
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </>
@@ -75,8 +75,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-full bg-primary/20 border border-primary/30" />
@@ -84,13 +84,13 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
         )}
         {mode === 'header' && (
           <div className="flex-1 flex flex-col">
-            <div className="w-full h-3 rounded-lg-sm bg-primary/20 border border-primary/30 mb-1.5" />
+            <div className="w-full h-3 rounded-sm bg-primary/20 border border-primary/30 mb-1.5" />
             <div className="space-y-1">
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </div>
@@ -102,8 +102,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </div>

@@ -408,7 +408,7 @@ function ClientUserRow({ user, onResetPassword, onDelete }: ClientUserRowProps) 
             <span
               key={f.key}
               className={cn(
-                'text-[10px] px-1.5 py-0 rounded-lg-sm border',
+                'text-[10px] px-1.5 py-0 rounded-sm border',
                 user.featuresEnabled[f.key]
                   ? 'bg-primary/10 text-primary border-primary/20'
                   : 'bg-muted/30 text-muted-foreground/40 border-border/30 line-through',

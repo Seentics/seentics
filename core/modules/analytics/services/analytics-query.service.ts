@@ -70,6 +70,78 @@ export class UnknownWebsiteError extends Error {
  * to a repository. This service existing as the *only* caller of the repositories
  * is what enforces it — routes must not import from `../repositories`.
  */
+/**
+ * The repository functions the read path delegates to.
+ *
+ * Injectable so the service can be exercised without a database and without module
+ * mocks. Reaching for these through imports made the service untestable in isolation:
+ * the only way to stub them was `mock.module`, whose registry is process-global, so one
+ * test file's stubs silently became every later file's repositories.
+ *
+ * Production passes nothing and gets {@link defaultAnalyticsRepositories}.
+ */
+export type AnalyticsRepositories = {
+  getDashboardStats: typeof getDashboardStats;
+  getTrafficSummaryStats: typeof getTrafficSummaryStats;
+  getDailyStatsAnalytics: typeof getDailyStatsAnalytics;
+  getHourlyStatsAnalytics: typeof getHourlyStatsAnalytics;
+  getPagesAnalytics: typeof getPagesAnalytics;
+  getReferrersAnalytics: typeof getReferrersAnalytics;
+  getSourcesAnalytics: typeof getSourcesAnalytics;
+  getBrowsersAnalytics: typeof getBrowsersAnalytics;
+  getDevicesAnalytics: typeof getDevicesAnalytics;
+  getOsAnalytics: typeof getOsAnalytics;
+  getCountriesAnalytics: typeof getCountriesAnalytics;
+  getCitiesAnalytics: typeof getCitiesAnalytics;
+  getLanguagesAnalytics: typeof getLanguagesAnalytics;
+  getResolutionsAnalytics: typeof getResolutionsAnalytics;
+  getGeolocationAnalytics: typeof getGeolocationAnalytics;
+  getPageUtmBreakdownAnalytics: typeof getPageUtmBreakdownAnalytics;
+  getDimensionsBulkAnalytics: typeof getDimensionsBulkAnalytics;
+  getRealtimeStats: typeof getRealtimeStats;
+  getRealtimeGeoAnalytics: typeof getRealtimeGeoAnalytics;
+  getLiveVisitorsStats: typeof getLiveVisitorsStats;
+  getRecentActivityAnalytics: typeof getRecentActivityAnalytics;
+  getActivityTrendsStats: typeof getActivityTrendsStats;
+  getPathAnalysisAnalytics: typeof getPathAnalysisAnalytics;
+  getVisitorInsightsAnalytics: typeof getVisitorInsightsAnalytics;
+  getCustomEventsAnalytics: typeof getCustomEventsAnalytics;
+  getGoalsStats: typeof getGoalsStats;
+  getRevenueDashboard: typeof getRevenueDashboard;
+  getExportAnalytics: typeof getExportAnalytics;
+};
+
+export const defaultAnalyticsRepositories: AnalyticsRepositories = {
+  getDashboardStats,
+  getTrafficSummaryStats,
+  getDailyStatsAnalytics,
+  getHourlyStatsAnalytics,
+  getPagesAnalytics,
+  getReferrersAnalytics,
+  getSourcesAnalytics,
+  getBrowsersAnalytics,
+  getDevicesAnalytics,
+  getOsAnalytics,
+  getCountriesAnalytics,
+  getCitiesAnalytics,
+  getLanguagesAnalytics,
+  getResolutionsAnalytics,
+  getGeolocationAnalytics,
+  getPageUtmBreakdownAnalytics,
+  getDimensionsBulkAnalytics,
+  getRealtimeStats,
+  getRealtimeGeoAnalytics,
+  getLiveVisitorsStats,
+  getRecentActivityAnalytics,
+  getActivityTrendsStats,
+  getPathAnalysisAnalytics,
+  getVisitorInsightsAnalytics,
+  getCustomEventsAnalytics,
+  getGoalsStats,
+  getRevenueDashboard,
+  getExportAnalytics,
+};
+
 export class AnalyticsQueryService
   implements
     AnalyticsDashboard,
@@ -80,7 +152,18 @@ export class AnalyticsQueryService
     AnalyticsRevenue,
     AnalyticsExport
 {
-  constructor(private readonly websites: WebsiteQuery) {}
+  private readonly repos: AnalyticsRepositories;
+
+  /**
+   * `repos` is a partial override, so a test replaces only the queries it cares about
+   * and everything else stays real.
+   */
+  constructor(
+    private readonly websites: WebsiteQuery,
+    repos: Partial<AnalyticsRepositories> = {},
+  ) {
+    this.repos = { ...defaultAnalyticsRepositories, ...repos };
+  }
 
   /**
    * Reject a query for a website that does not exist.
@@ -99,96 +182,96 @@ export class AnalyticsQueryService
 
   async getDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getDashboardStats(websiteId, query);
+    return this.repos.getDashboardStats(websiteId, query);
   }
 
   async getTrafficSummary(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getTrafficSummaryStats(websiteId, query);
+    return this.repos.getTrafficSummaryStats(websiteId, query);
   }
 
   async getDailyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getDailyStatsAnalytics(websiteId, query);
+    return this.repos.getDailyStatsAnalytics(websiteId, query);
   }
 
   async getHourlyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getHourlyStatsAnalytics(websiteId, query);
+    return this.repos.getHourlyStatsAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsDimensions ─────────────────────────────────────────────────
 
   async getPages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getPagesAnalytics(websiteId, query);
+    return this.repos.getPagesAnalytics(websiteId, query);
   }
 
   async getReferrers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getReferrersAnalytics(websiteId, query);
+    return this.repos.getReferrersAnalytics(websiteId, query);
   }
 
   async getSources(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getSourcesAnalytics(websiteId, query);
+    return this.repos.getSourcesAnalytics(websiteId, query);
   }
 
   async getBrowsers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getBrowsersAnalytics(websiteId, query);
+    return this.repos.getBrowsersAnalytics(websiteId, query);
   }
 
   async getDevices(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getDevicesAnalytics(websiteId, query);
+    return this.repos.getDevicesAnalytics(websiteId, query);
   }
 
   async getOperatingSystems(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getOsAnalytics(websiteId, query);
+    return this.repos.getOsAnalytics(websiteId, query);
   }
 
   async getCountries(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getCountriesAnalytics(websiteId, query);
+    return this.repos.getCountriesAnalytics(websiteId, query);
   }
 
   async getCities(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getCitiesAnalytics(websiteId, query);
+    return this.repos.getCitiesAnalytics(websiteId, query);
   }
 
   async getLanguages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getLanguagesAnalytics(websiteId, query);
+    return this.repos.getLanguagesAnalytics(websiteId, query);
   }
 
   async getResolutions(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getResolutionsAnalytics(websiteId, query);
+    return this.repos.getResolutionsAnalytics(websiteId, query);
   }
 
   async getGeolocation(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getGeolocationAnalytics(websiteId, query);
+    return this.repos.getGeolocationAnalytics(websiteId, query);
   }
 
   async getPageUtmBreakdown(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getPageUtmBreakdownAnalytics(websiteId, query);
+    return this.repos.getPageUtmBreakdownAnalytics(websiteId, query);
   }
 
   async getDimensionsBulk(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getDimensionsBulkAnalytics(websiteId, query);
+    return this.repos.getDimensionsBulkAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsRealtime ───────────────────────────────────────────────────
 
   async getRealtime(websiteId: string): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getRealtimeStats(websiteId);
+    return this.repos.getRealtimeStats(websiteId);
   }
 
   async getRealtimeGeo(
@@ -196,12 +279,12 @@ export class AnalyticsQueryService
     opts?: { withinMinutes?: number },
   ): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getRealtimeGeoAnalytics(websiteId, opts);
+    return this.repos.getRealtimeGeoAnalytics(websiteId, opts);
   }
 
   async getLiveVisitors(websiteId: string): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getLiveVisitorsStats(websiteId);
+    return this.repos.getLiveVisitorsStats(websiteId);
   }
 
   async getRecentActivity(
@@ -210,29 +293,29 @@ export class AnalyticsQueryService
     opts?: { withinMinutes?: number },
   ): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getRecentActivityAnalytics(websiteId, limit, opts);
+    return this.repos.getRecentActivityAnalytics(websiteId, limit, opts);
   }
 
   async getActivityTrends(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getActivityTrendsStats(websiteId, query);
+    return this.repos.getActivityTrendsStats(websiteId, query);
   }
 
   // ─── AnalyticsBehaviour ──────────────────────────────────────────────────
 
   async getPathAnalysis(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getPathAnalysisAnalytics(websiteId, query);
+    return this.repos.getPathAnalysisAnalytics(websiteId, query);
   }
 
   async getVisitorInsights(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getVisitorInsightsAnalytics(websiteId, query);
+    return this.repos.getVisitorInsightsAnalytics(websiteId, query);
   }
 
   async getCustomEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getCustomEventsAnalytics(websiteId, query);
+    return this.repos.getCustomEventsAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsGoals ──────────────────────────────────────────────────────
@@ -247,20 +330,20 @@ export class AnalyticsQueryService
    */
   async getGoals(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getGoalsStats(websiteId, query);
+    return this.repos.getGoalsStats(websiteId, query);
   }
 
   // ─── AnalyticsRevenue ────────────────────────────────────────────────────
 
   async getRevenueDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getRevenueDashboard(websiteId, query);
+    return this.repos.getRevenueDashboard(websiteId, query);
   }
 
   // ─── AnalyticsExport ─────────────────────────────────────────────────────
 
   async exportEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
     await this.assertExists(websiteId);
-    return getExportAnalytics(websiteId, query);
+    return this.repos.getExportAnalytics(websiteId, query);
   }
 }

@@ -7,7 +7,7 @@ import { countFunnelStepVisitors } from "../repositories/funnel-events.repositor
  * Backs `AnalyticsRawEvents` and `AnalyticsFunnelEvents`.
  *
  * Both queries moved here from the modules that used to run them against this module's
- * table — the raw API from `platform/raw-data`, the funnel step counts from
+ * table — the raw API from `platform/public-api`, the funnel step counts from
  * `modules/funnels/repositories/funnel-report.repository.ts`. Neither projection
  * changed; what changed is that a column rename in `analytics_events` is now a
  * compile-or-test failure in the module that owns it rather than a silent wrong answer

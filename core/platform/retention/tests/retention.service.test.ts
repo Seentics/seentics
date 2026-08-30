@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { fakeDbModule } from "../../../app/tests/helpers/fake-db";
 import type { AppConfig } from "../../../config";
 import type {
   RetentionCutoffs,
@@ -27,13 +28,15 @@ const siteSource = {
   },
 };
 
+// Table stubs come from the shared fake so this registration exports everything
+// `db/index.ts` does. Bun materialises a mocked module namespace once and the first
+// registration to be resolved wins for the whole run, so a partial stub here becomes
+// every later module's `db`, and any module importing a table it omits fails to load.
+// Only the pieces this file asserts on are overridden below.
 mock.module("../../../db", () => ({
+  ...fakeDbModule(),
   sql: mock(async () => websiteRows),
   db: {},
-  analyticsEvents: {},
-  outbox: {},
-  websites: {},
-  websiteMembers: {},
 }));
 
 const overrideRows = new Map<string, Record<string, number>>();

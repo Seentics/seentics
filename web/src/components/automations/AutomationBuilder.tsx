@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,41 +18,131 @@ import {
   Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2,
   Settings, ZoomIn, ZoomOut, Maximize2, X, Save, Filter, Layers,
   GripVertical, ChevronDown, ChevronRight, ListChecks, Braces, CheckCircle2, AlertCircle,
+  GitBranch,
+  Hourglass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  MAX_DELAY_SECONDS,
+  MAX_SWITCH_CASES,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  connectNode,
+  edgeFor,
+  indexGraph,
+  isBranchNode,
+  layoutGraph,
+  newNodeId,
+  outletLabel,
+  outletsFor,
+  removeNode,
+  validateGraph,
+  type AutomationAction,
+  type AutomationGraph,
+  type ConditionGroup,
+  type ConditionRule,
+  type GraphNode,
+  type NodeId,
+  type SwitchCase,
+} from '@/lib/automation-graph';
 
 // ─── Exported Types ──────────────────────────────────────────────────────────
 
 export interface TriggerConfig { type: string; [k: string]: unknown }
 
+/**
+ * The graph model lives in `@/lib/automation-graph` and is re-exported here.
+ *
+ * The builder is not its only consumer — the detail page reads a stored definition and
+ * the templates page writes them — and a model that lives inside a component forces
+ * everyone to import the component to touch it.
+ */
+export type {
+  AutomationAction,
+  AutomationGraph,
+  ConditionGroup,
+  ConditionRule,
+  GraphEdge,
+  GraphNode,
+  GraphNodeKind,
+  NodeId,
+  SwitchCase,
+} from '@/lib/automation-graph';
+
+export {
+  MAX_DELAY_SECONDS,
+  MAX_SWITCH_CASES,
+  layoutGraph,
+  outletLabel,
+  outletsFor,
+  validateGraph,
+} from '@/lib/automation-graph';
+
 export interface AutomationDefinition {
-  /** Legacy single trigger — kept for backward compatibility on load/save. */
-  trigger?: TriggerConfig;
   /** One or more triggers; the automation fires when ANY of them matches. */
-  triggers?: TriggerConfig[];
-  conditions?: ConditionGroup | null;
-  actions: Array<{ type: string; [k: string]: unknown }>;
+  triggers: TriggerConfig[];
+  /** The body, as a directed acyclic graph. */
+  graph: AutomationGraph;
   frequency?: { maxPerSession?: number; maxPerUser?: number; cooldownDays?: number };
   abTest?: { enabled: boolean; variants: Array<{ id: string; weight: number }> };
   priority?: number;
 }
 
-/** Normalise a definition (legacy `trigger` or new `triggers[]`) into an array. */
-export function normalizeTriggers(def: AutomationDefinition): TriggerConfig[] {
-  if (def.triggers?.length) return def.triggers;
-  if (def.trigger?.type) return [def.trigger];
-  return [];
+/**
+ * How often an automation may fire for one visitor, as a single choice.
+ *
+ * The server takes three independent caps — per session, per visitor, and a cooldown —
+ * but the combinations anyone actually wants are these three, and exposing the raw
+ * fields invited settings that contradict each other. Each mode maps to exactly one
+ * cap shape, so the choice round-trips cleanly.
+ */
+export type FrequencyMode = 'every_trigger' | 'once_per_session' | 'once_every';
+
+export const FREQUENCY_MODES: Array<{ value: FrequencyMode; label: string; hint: string }> = [
+  {
+    value: 'every_trigger',
+    label: 'Every trigger',
+    hint: 'Fires as often as the trigger happens. No limit.',
+  },
+  {
+    value: 'once_per_session',
+    label: 'Once per session',
+    hint: 'Fires at most once per visit, however many times the trigger happens.',
+  },
+  {
+    value: 'once_every',
+    label: 'Once every…',
+    hint: 'Fires once, then stays quiet for the visitor until the cooldown elapses.',
+  },
+];
+
+/** The mode a stored cap set represents. A cooldown wins, being the stricter rule. */
+export function frequencyMode(frequency: AutomationDefinition['frequency']): FrequencyMode {
+  if (frequency?.cooldownDays && frequency.cooldownDays > 0) return 'once_every';
+  if (frequency?.maxPerSession != null) return 'once_per_session';
+  return 'every_trigger';
 }
 
-export interface ConditionGroup {
-  operator: 'AND' | 'OR' | 'NOT';
-  rules: ConditionRule[];
+/** The caps a mode maps to. Only one cap is ever set, so the modes stay round-trippable. */
+export function frequencyToCaps(
+  mode: FrequencyMode,
+  cooldownDays = 7,
+): AutomationDefinition['frequency'] {
+  if (mode === 'once_per_session') return { maxPerSession: 1 };
+  if (mode === 'once_every') return { cooldownDays: Math.max(1, Math.min(365, cooldownDays || 1)) };
+  return {};
 }
 
-export interface ConditionRule {
-  fact: string;
-  operator: string;
-  value?: unknown;
+/**
+ * Everything wrong with a definition, as messages the canvas can show at once.
+ *
+ * The graph's own rules come from the shared validator, which mirrors the server's; this
+ * adds only what the graph does not know about — that an automation needs a trigger.
+ */
+export function validateDefinition(def: AutomationDefinition): string[] {
+  const errors: string[] = [];
+  if (!def.triggers?.length) errors.push('Add at least one trigger.');
+  return [...errors, ...validateGraph(def.graph)];
 }
 
 interface AutomationBuilderProps {
@@ -62,11 +152,19 @@ interface AutomationBuilderProps {
   className?: string;
 }
 
+/**
+ * What the node editor is currently open on.
+ *
+ * `outlet` is set when the palette was opened from a specific branch, so whatever is
+ * added next gets wired to it rather than appended somewhere arbitrary.
+ */
 type SelectedNode =
   | { kind: 'trigger'; index: number }
-  | { kind: 'condition' }
-  | { kind: 'action'; index: number }
+  | { kind: 'node'; id: NodeId }
   | { kind: 'settings' };
+
+/** Where a newly added node should attach. `null` means "the graph is empty". */
+type AddTarget = { from: NodeId | null; branch?: string };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -119,6 +217,62 @@ function getTriggerType(type: string): TriggerType {
 
 function getActionType(type: string): ActionType {
   return ACTION_TYPES.find(a => a.value === type) ?? ACTION_TYPES[0]!;
+}
+
+/** Card styling and title for a step, so the canvas can draw all three kinds uniformly. */
+function nodeVisual(node: GraphNode): {
+  strip: string; iconBg: string; iconColor: string; icon: React.ElementType; title: string;
+} {
+  if (node.kind === 'if') {
+    return {
+      strip: 'bg-amber-500', iconBg: 'bg-amber-500/15', iconColor: 'text-amber-400',
+      icon: Filter, title: 'If / else',
+    };
+  }
+  if (node.kind === 'switch') {
+    return {
+      strip: 'bg-fuchsia-500', iconBg: 'bg-fuchsia-500/15', iconColor: 'text-fuchsia-400',
+      icon: GitBranch, title: 'Switch',
+    };
+  }
+  if (node.kind === 'wait_until') {
+    return {
+      strip: 'bg-cyan-500', iconBg: 'bg-cyan-500/15', iconColor: 'text-cyan-400',
+      icon: Hourglass, title: 'Wait until',
+    };
+  }
+  if (node.kind === 'delay') {
+    return {
+      strip: 'bg-sky-500', iconBg: 'bg-sky-500/15', iconColor: 'text-sky-400',
+      icon: Clock, title: 'Delay',
+    };
+  }
+  const at = getActionType(node.action.type);
+  return { strip: at.strip, iconBg: at.iconBg, iconColor: at.iconColor, icon: at.icon, title: at.label };
+}
+
+/** A one-line description of a node, for its canvas card. */
+function nodeSummary(node: GraphNode): string {
+  if (node.kind === 'delay') {
+    return node.seconds === 1 ? 'Wait 1 second' : `Wait ${node.seconds} seconds`;
+  }
+  if (node.kind === 'wait_until') {
+    const n = node.group.rules.length;
+    return n === 0
+      ? `No rules — waits the full ${node.timeoutSeconds}s`
+      : `${n} rule${n === 1 ? '' : 's'} · up to ${node.timeoutSeconds}s`;
+  }
+  if (node.kind === 'if') {
+    const n = node.group.rules.length;
+    return n === 0
+      ? 'No rules — always takes Yes'
+      : `${n} rule${n === 1 ? '' : 's'} · ${node.group.operator}`;
+  }
+  if (node.kind === 'switch') {
+    const n = node.cases.length;
+    return `${n} case${n === 1 ? '' : 's'} + otherwise`;
+  }
+  return actionSummary(node.action);
 }
 
 function actionSummary(action: { type: string; [k: string]: unknown }): string {
@@ -454,119 +608,225 @@ function ActionConfigForm({
   return <p className="text-xs text-muted-foreground italic">No configuration for this action type.</p>;
 }
 
-// ─── Node Connector ───────────────────────────────────────────────────────────
+// ─── Canvas Node Card ─────────────────────────────────────────────────────────
 
-function NodeConnector({ onAdd }: { onAdd: () => void }) {
-  const [hovered, setHovered] = useState(false);
+/**
+ * One node, positioned absolutely at its laid-out coordinates.
+ *
+ * Absolute rather than in flow because the canvas is a graph now: two branches sit side
+ * by side at the same depth, and a convergence node has to line up under both. Flow
+ * layout can express a list; it cannot express that.
+ */
+function NodeCard({
+  node, x, y, selected, invalid, onClick, onDelete,
+}: {
+  node: GraphNode;
+  x: number;
+  y: number;
+  selected: boolean;
+  invalid: boolean;
+  onClick: () => void;
+  onDelete: () => void;
+}) {
+  const meta = nodeVisual(node);
+  const Icon = meta.icon;
+
   return (
     <div
-      className="relative flex h-14 w-full items-center justify-center"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      data-node="true"
+      data-node-id={node.id}
+      style={{ left: x, top: y, width: NODE_WIDTH, minHeight: NODE_HEIGHT }}
+      className={cn(
+        'group absolute cursor-pointer select-none overflow-hidden rounded-lg border bg-card p-4 pl-5 shadow-sm transition-all duration-150',
+        selected
+          ? 'border-primary ring-2 ring-primary/20'
+          : invalid
+            ? 'border-amber-500/60 ring-2 ring-amber-500/15'
+            : 'border-border hover:border-primary/40 hover:shadow-md',
+      )}
+      onClick={e => { e.stopPropagation(); onClick(); }}
     >
-      {/* Animated flowing connection */}
-      <svg
-        className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2"
-        width="12"
-        height="100%"
-        viewBox="0 0 12 56"
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <line x1="6" y1="0" x2="6" y2="56" className="stroke-primary/20" strokeWidth="2" />
-        <line
-          x1="6"
-          y1="0"
-          x2="6"
-          y2="56"
-          className="stroke-primary"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeDasharray="1 9"
-          style={{ animation: 'seenticsFlowDown 0.9s linear infinite' }}
-        />
-        <path d="M2.5 47 L6 52 L9.5 47" className="stroke-primary/70" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      {/* Add button */}
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); onAdd(); }}
-        className={cn(
-          'relative z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-all duration-150',
-          hovered ? 'scale-110 border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground',
-        )}
-      >
-        <Plus className="h-3.5 w-3.5" />
-      </button>
+      {/* The kind's colour, as a full-height edge — the cheapest way to tell four node
+          kinds apart without reading the label on each. */}
+      <span className={cn('absolute inset-y-0 left-0 w-1.5', meta.strip)} aria-hidden />
+
+      <div className="flex items-start gap-3">
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', meta.iconBg)}>
+          <Icon className={cn('h-5 w-5', meta.iconColor)} style={{ width: 20, height: 20 }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              {meta.title}
+            </span>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onDelete(); }}
+              className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+              aria-label={`Remove ${meta.title}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
+            {nodeSummary(node)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── Canvas Node Cards ────────────────────────────────────────────────────────
+// ─── Edge layer ───────────────────────────────────────────────────────────────
 
-function NodeCard({
-  strip, iconBg, iconColor, icon: Icon, label, title, subtitle,
-  selected, onClick, onDelete, draggable,
-  onDragStart, onDragOver, onDrop, dragIndicator,
+/**
+ * The connections, drawn as one SVG behind the nodes.
+ *
+ * A single SVG sized to the whole canvas rather than one per edge: the paths have to
+ * cross node boundaries freely, and a per-edge element would need its own bounding box
+ * computed and would clip anything that left it.
+ *
+ * Each edge is a cubic curve from the bottom of `from` to the top of `to`, with the
+ * control points pushed vertically so a branch fans out sideways before descending —
+ * which is what keeps two edges leaving the same node visually distinct.
+ */
+function EdgeLayer({
+  graph, positions, width, height,
 }: {
-  strip: string;
-  iconBg: string;
-  iconColor: string;
-  icon: React.ElementType;
-  label: string;
-  title: string;
-  subtitle: string;
-  selected: boolean;
-  onClick: () => void;
-  onDelete?: () => void;
-  draggable?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragOver?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent) => void;
-  dragIndicator?: boolean;
+  graph: AutomationGraph;
+  positions: Map<NodeId, { x: number; y: number }>;
+  width: number;
+  height: number;
 }) {
+  const { byId } = indexGraph(graph);
+
   return (
-    <div
-      data-node="true"
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      className={cn(
-        'group relative w-72 cursor-pointer select-none rounded-lg border bg-card p-4 shadow-sm transition-all duration-150',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
-        dragIndicator && 'border-emerald-500/60 ring-2 ring-emerald-500/20',
-      )}
-      onClick={onClick}
+    <svg
+      className="pointer-events-none absolute left-0 top-0 overflow-visible"
+      width={width}
+      height={height}
+      aria-hidden
     >
-      <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', iconBg)}>
-          <Icon className={cn('h-5 w-5', iconColor)} style={{ width: 20, height: 20 }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              <span className={cn('h-1.5 w-1.5 rounded-full', strip)} />
-              {label}
-            </span>
-            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              {draggable && <GripVertical className="h-3.5 w-3.5 text-muted-foreground/60" />}
-              {onDelete && (
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); onDelete(); }}
-                  className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500"
+      <defs>
+        <marker id="snc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" className="fill-primary/60" />
+        </marker>
+      </defs>
+
+      {graph.edges.map((edge, i) => {
+        const from = positions.get(edge.from);
+        const to = positions.get(edge.to);
+        if (!from || !to) return null;
+
+        const x1 = from.x + NODE_WIDTH / 2;
+        const y1 = from.y + NODE_HEIGHT;
+        const x2 = to.x + NODE_WIDTH / 2;
+        const y2 = to.y;
+        const mid = Math.max(24, (y2 - y1) / 2);
+
+        const node = byId.get(edge.from);
+        const label = node && edge.branch ? outletLabel(node, edge.branch) : null;
+
+        return (
+          <g key={`${edge.from}-${edge.branch ?? ''}-${edge.to}-${i}`}>
+            <path
+              d={`M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2}`}
+              className="stroke-primary/40"
+              strokeWidth={2}
+              fill="none"
+              markerEnd="url(#snc-arrow)"
+            />
+            {label && (
+              <>
+                {/* A plate behind the text so a label crossing another edge stays legible. */}
+                <rect
+                  x={x1 - 30}
+                  y={y1 + 10}
+                  width={60}
+                  height={18}
+                  rx={9}
+                  className="fill-background stroke-border"
+                  strokeWidth={1}
+                />
+                <text
+                  x={x1}
+                  y={y1 + 22}
+                  textAnchor="middle"
+                  className="fill-muted-foreground text-[10px] font-semibold"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
-          <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-foreground">{title}</p>
-          <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{subtitle}</p>
-        </div>
-      </div>
-    </div>
+                  {label}
+                </text>
+              </>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── Outlet buttons ───────────────────────────────────────────────────────────
+
+/**
+ * A "+" under each unconnected outlet.
+ *
+ * How connections are made. Drag-to-connect is the obvious alternative and it is worse
+ * here: it needs hit targets, a drag preview, and a rule for what happens when you drop
+ * on empty space. A button that says "something goes here" is discoverable, works on
+ * touch, and makes the unfinished branches on a busy canvas obvious rather than hidden.
+ */
+function OutletButtons({
+  node, x, y, connected, onAdd,
+}: {
+  node: GraphNode;
+  x: number;
+  y: number;
+  connected: (outlet?: string) => boolean;
+  onAdd: (outlet?: string) => void;
+}) {
+  const outlets = outletsFor(node);
+
+  if (outlets === null) {
+    if (connected()) return null;
+    return (
+      <button
+        type="button"
+        data-node="true"
+        style={{ left: x + NODE_WIDTH / 2 - 14, top: y + NODE_HEIGHT + 10 }}
+        className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+        onClick={e => { e.stopPropagation(); onAdd(); }}
+        aria-label="Add next node"
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
+
+  const open = outlets.filter(o => !connected(o));
+  if (!open.length) return null;
+
+  return (
+    <>
+      {open.map((outlet, i) => {
+        // Spread the open outlets across the node's width so two unconnected branches
+        // do not stack on top of each other.
+        const slot = (i + 1) / (open.length + 1);
+        return (
+          <button
+            key={outlet}
+            type="button"
+            data-node="true"
+            style={{ left: x + NODE_WIDTH * slot - 14, top: y + NODE_HEIGHT + 10 }}
+            className="absolute flex h-7 items-center gap-1 rounded-full border border-dashed border-border bg-card px-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            onClick={e => { e.stopPropagation(); onAdd(outlet); }}
+            aria-label={`Add to the ${outletLabel(node, outlet)} branch`}
+          >
+            <Plus className="h-3 w-3" />
+            {outletLabel(node, outlet)}
+          </button>
+        );
+      })}
+    </>
   );
 }
 
@@ -584,7 +844,8 @@ function TriggerPanel({
   const td = getTriggerType(trigger.type);
   const { type, ...config } = trigger;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
-  const setFreq = (key: string, val: number | undefined) => onFrequencyChange?.({ ...frequency, [key]: val });
+  /** The day count to show while "once every" is selected; the default when switching to it. */
+  const cooldownDays = frequency?.cooldownDays && frequency.cooldownDays > 0 ? frequency.cooldownDays : 7;
   return (
     <div className="space-y-5">
       <div>
@@ -614,18 +875,46 @@ function TriggerPanel({
       {onFrequencyChange && (
         <div className="border-t border-border pt-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Frequency</p>
-          <p className="mb-3 text-[11px] text-muted-foreground">How often this automation can fire per visitor. Leave blank for no limit.</p>
-          <div className="space-y-3">
-            <FieldGroup label="Max per session" hint="e.g. 1">
-              <Input type="number" min={0} value={String(frequency?.maxPerSession ?? '')} onChange={e => setFreq('maxPerSession', e.target.value ? Number(e.target.value) : undefined)} placeholder="Unlimited" className={inp} />
-            </FieldGroup>
-            <FieldGroup label="Max per user">
-              <Input type="number" min={0} value={String(frequency?.maxPerUser ?? '')} onChange={e => setFreq('maxPerUser', e.target.value ? Number(e.target.value) : undefined)} placeholder="Unlimited" className={inp} />
-            </FieldGroup>
-            <FieldGroup label="Cooldown (days)">
-              <Input type="number" min={0} value={String(frequency?.cooldownDays ?? '')} onChange={e => setFreq('cooldownDays', e.target.value ? Number(e.target.value) : undefined)} placeholder="None" className={inp} />
-            </FieldGroup>
-          </div>
+          <p className="mb-3 text-[11px] text-muted-foreground">
+            How often this automation may fire for the same visitor.
+          </p>
+
+          {/*
+            One choice, not three number fields.
+
+            The three caps the server understands are not independent in practice — the
+            combinations people actually want are "every time", "once a session" and
+            "once every N days", and exposing the raw fields invited contradictory
+            settings (a per-session cap of 3 alongside a 7-day cooldown) that are
+            impossible to reason about. The select names the intent; the mapping to caps
+            is {@link frequencyToCaps}.
+          */}
+          <Select value={frequencyMode(frequency)} onValueChange={v => onFrequencyChange(frequencyToCaps(v as FrequencyMode, cooldownDays))}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {FREQUENCY_MODES.map(m => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {FREQUENCY_MODES.find(m => m.value === frequencyMode(frequency))?.hint}
+          </p>
+
+          {frequencyMode(frequency) === 'once_every' && (
+            <div className="mt-3 flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={String(cooldownDays)}
+                onChange={e => onFrequencyChange(frequencyToCaps('once_every', Number(e.target.value)))}
+                className={cn(inp, 'w-24')}
+              />
+              <span className="text-sm text-muted-foreground">days</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -646,16 +935,28 @@ function TriggerPanel({
   );
 }
 
+/** A leaf rule, as opposed to a nested group. */
+function isRule(node: ConditionRule | ConditionGroup): node is ConditionRule {
+  return 'fact' in node;
+}
+
 function ConditionPanel({
-  conditions, onChange,
-}: { conditions: ConditionGroup | null | undefined; onChange: (c: ConditionGroup | null) => void }) {
-  const rules = conditions?.rules ?? [];
-  const operator = conditions?.operator ?? 'AND';
+  group, onChange, onDelete, deleteLabel = 'Delete node',
+}: {
+  group: ConditionGroup;
+  onChange: (c: ConditionGroup) => void;
+  onDelete?: () => void;
+  deleteLabel?: string;
+}) {
+  const rules = group.rules;
+  const operator = group.operator;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs';
 
-  const addRule = () => onChange({ operator: operator as 'AND' | 'OR' | 'NOT', rules: [...rules, { fact: '', operator: 'equals', value: '' }] });
-  const removeRule = (i: number) => { const r = rules.filter((_, idx) => idx !== i); onChange(r.length ? { operator: operator as 'AND' | 'OR' | 'NOT', rules: r } : null); };
-  const updateRule = (i: number, rule: ConditionRule) => onChange({ operator: operator as 'AND' | 'OR' | 'NOT', rules: rules.map((r, idx) => idx === i ? rule : r) });
+  // A condition is its own step now, so emptying its rules no longer deletes it — the
+  // node stays on the canvas until it is deleted deliberately.
+  const addRule = () => onChange({ operator, rules: [...rules, { fact: '', operator: 'equals', value: '' }] });
+  const removeRule = (i: number) => onChange({ operator, rules: rules.filter((_, idx) => idx !== i) });
+  const updateRule = (i: number, rule: ConditionRule) => onChange({ operator, rules: rules.map((r, idx) => idx === i ? rule : r) });
 
   return (
     <div className="space-y-4">
@@ -676,7 +977,19 @@ function ConditionPanel({
         </div>
       )}
       <div className="space-y-2">
-        {rules.map((rule, i) => (
+        {rules.map((rule, i) => !isRule(rule) ? (
+          // Nested groups are preserved but not edited here — the inline editor is a
+          // flat list, and silently dropping a group the JSON editor created would lose
+          // configuration the engine happily evaluates.
+          <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/50 p-2.5">
+            <span className="text-[11px] text-muted-foreground">
+              Nested {rule.operator} group ({rule.rules.length} rules) — edit via JSON
+            </span>
+            <button type="button" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-400">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
           <div key={i} className="rounded-lg border border-border bg-muted p-2.5 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">Rule {i + 1}</span>
@@ -703,7 +1016,75 @@ function ConditionPanel({
         <Plus className="h-3 w-3" />
         Add Rule
       </Button>
-      {rules.length === 0 && <p className="text-[11px] text-muted-foreground italic">No rules — automation fires for all users.</p>}
+      {rules.length === 0 && (
+        <p className="text-[11px] italic text-amber-600 dark:text-amber-400">
+          No rules — this checkpoint passes for everyone and gates nothing.
+        </p>
+      )}
+
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {deleteLabel}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function DelayPanel({
+  seconds, onChange, onDelete,
+}: { seconds: number; onChange: (s: number) => void; onDelete: () => void }) {
+  const invalid = !Number.isFinite(seconds) || seconds <= 0 || seconds > MAX_DELAY_SECONDS;
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Wait for</p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            max={MAX_DELAY_SECONDS}
+            value={String(seconds)}
+            onChange={e => onChange(Number(e.target.value))}
+            className="h-9 w-32 bg-muted border-border text-foreground"
+          />
+          <span className="text-sm text-muted-foreground">seconds</span>
+        </div>
+        {invalid && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+            Enter between 1 and {MAX_DELAY_SECONDS} seconds.
+          </p>
+        )}
+      </div>
+
+      {/*
+        Stated plainly because it is the one surprising thing about a delay: evaluation
+        happens in one request, so a delay schedules the visitor's browser, not the
+        server. A webhook or condition placed after it still runs immediately.
+      */}
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          The visitor&apos;s browser waits this long before performing the next on-page
+          action. Webhooks and conditions after this step still run immediately — the
+          delay schedules what people see, not server-side work.
+        </p>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDelete}
+        className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete node
+      </Button>
     </div>
   );
 }
@@ -745,6 +1126,179 @@ function ActionPanel({
           Delete Action
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The `if` editor: one condition group, two branches.
+ *
+ * The branches themselves are wired on the canvas, not here — a panel that also listed
+ * "what happens next" would duplicate the graph in a worse form.
+ */
+function IfPanel({
+  node, onChange, onDelete,
+}: { node: Extract<GraphNode, { kind: 'if' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Everything wired to <strong className="text-foreground">Yes</strong> runs when these
+          rules pass; everything on <strong className="text-foreground">No</strong> runs when they
+          do not. Both branches can rejoin later.
+        </p>
+      </div>
+      <ConditionPanel
+        group={node.group}
+        onChange={g => onChange({ ...node, group: g })}
+        onDelete={onDelete}
+        deleteLabel="Delete node"
+      />
+    </div>
+  );
+}
+
+/**
+ * The `switch` editor: several named cases plus a fallback.
+ *
+ * Cases are matched in order, which the panel states outright — a set of guards whose
+ * precedence you have to work out from the canvas is exactly what a switch is meant to
+ * avoid.
+ */
+function SwitchPanel({
+  node, onChange, onDelete,
+}: { node: Extract<GraphNode, { kind: 'switch' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  const setCase = (i: number, patch: Partial<SwitchCase>) =>
+    onChange({ ...node, cases: node.cases.map((c, idx) => (idx === i ? { ...c, ...patch } : c)) });
+
+  const addCase = () =>
+    onChange({
+      ...node,
+      cases: [
+        ...node.cases,
+        {
+          id: `case_${Date.now().toString(36)}_${node.cases.length}`,
+          label: `Case ${node.cases.length + 1}`,
+          group: { operator: 'AND', rules: [] },
+        },
+      ],
+    });
+
+  const removeCase = (i: number) =>
+    onChange({ ...node, cases: node.cases.filter((_, idx) => idx !== i) });
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Cases are checked <strong className="text-foreground">in order</strong>. The first that
+          matches wins, so put the most specific one first. If none match, the
+          <strong className="text-foreground"> Otherwise</strong> branch runs.
+        </p>
+      </div>
+
+      {node.cases.map((c, i) => (
+        <div key={c.id} className="space-y-3 rounded-lg border border-border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <Input
+              value={c.label ?? ''}
+              placeholder={`Case ${i + 1}`}
+              onChange={e => setCase(i, { label: e.target.value })}
+              className="h-8 flex-1 bg-muted text-xs"
+            />
+            {node.cases.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeCase(i)}
+                className="shrink-0 text-muted-foreground transition-colors hover:text-red-400"
+                aria-label={`Remove case ${i + 1}`}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <ConditionPanel group={c.group} onChange={g => setCase(i, { group: g })} />
+        </div>
+      ))}
+
+      {node.cases.length < MAX_SWITCH_CASES && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addCase}
+          className="h-7 gap-1.5 border-border bg-muted text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Plus className="h-3 w-3" />
+          Add case
+        </Button>
+      )}
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onDelete}
+        className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete node
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The `wait_until` editor.
+ *
+ * The constraint it has to state plainly: the server has already answered the tracker by
+ * the time this resolves, so the branches run in the browser and a webhook cannot go
+ * after one. Saying it here is the difference between a considered design and a
+ * surprising validation error.
+ */
+function WaitPanel({
+  node, onChange, onDelete,
+}: { node: Extract<GraphNode, { kind: 'wait_until' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  const invalid =
+    !Number.isFinite(node.timeoutSeconds) || node.timeoutSeconds <= 0 || node.timeoutSeconds > MAX_DELAY_SECONDS;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          Give up after
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            max={MAX_DELAY_SECONDS}
+            value={String(node.timeoutSeconds)}
+            onChange={e => onChange({ ...node, timeoutSeconds: Number(e.target.value) })}
+            className="h-9 w-32 border-border bg-muted text-foreground"
+          />
+          <span className="text-sm text-muted-foreground">seconds</span>
+        </div>
+        {invalid && (
+          <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+            Enter between 1 and {MAX_DELAY_SECONDS} seconds.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          The page watches these rules and takes <strong className="text-foreground">When true</strong> as
+          soon as they pass, or <strong className="text-foreground">On timeout</strong> if they never do.
+          Because the wait happens in the browser, a webhook cannot come after it — put
+          any webhook before the wait.
+        </p>
+      </div>
+
+      <ConditionPanel
+        group={node.group}
+        onChange={g => onChange({ ...node, group: g })}
+        onDelete={onDelete}
+        deleteLabel="Delete node"
+      />
     </div>
   );
 }
@@ -827,7 +1381,9 @@ function AddNodeModal({
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
+        // rounded-xl, not lg: these are full-height panels, and 8px reads square at
+        // that size — the same rule the plan cards follow.
+        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -935,8 +1491,15 @@ function JsonEditorModal({
   const handleApply = () => {
     try {
       const parsed = JSON.parse(text) as AutomationDefinition;
-      if (!parsed.trigger || !Array.isArray(parsed.actions)) {
-        setError('JSON must have "trigger" and "actions" fields.');
+      if (!Array.isArray(parsed.triggers) || !parsed.graph) {
+        setError('JSON must have a "triggers" array and a "graph" object.');
+        return;
+      }
+      // Run the same checks the canvas does, so hand-edited JSON cannot smuggle in a
+      // chain the save button would have refused.
+      const problems = validateDefinition(parsed);
+      if (problems.length) {
+        setError(problems.join(' '));
         return;
       }
       onApply(parsed);
@@ -1064,16 +1627,31 @@ function PaletteRow({
   );
 }
 
+/** The sidebar's tabs. Conditions is its own tab, not a footnote under Actions. */
+export type PaletteTab = 'triggers' | 'conditions' | 'actions';
+
 function NodePalette({
-  tab, onTab, onAddTrigger, onAddAction, onDragStart, onClose, onAddCondition,
+  tab, onTab, onAddTrigger, onAddAction, onDragStart, onClose,
+  onAddCondition, onAddSwitch, onAddWait, onAddDelay,
+  addTargetLabel, onClearTarget,
 }: {
-  tab: 'triggers' | 'actions';
-  onTab: (t: 'triggers' | 'actions') => void;
+  tab: PaletteTab;
+  onTab: (t: PaletteTab) => void;
   onAddTrigger: (type: string) => void;
   onAddAction: (type: string) => void;
-  onDragStart: (e: React.DragEvent, kind: 'trigger' | 'action', type: string) => void;
+  onDragStart: (
+    e: React.DragEvent,
+    kind: 'trigger' | 'action' | 'condition' | 'delay' | 'switch' | 'wait',
+    type: string,
+  ) => void;
   onClose?: () => void;
   onAddCondition?: () => void;
+  onAddSwitch?: () => void;
+  onAddWait?: () => void;
+  onAddDelay?: () => void;
+  /** What the next node will attach to, when an outlet's "+" opened the palette. */
+  addTargetLabel?: string | null;
+  onClearTarget?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -1094,8 +1672,28 @@ function NodePalette({
             </button>
           )}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          {(['triggers', 'actions'] as const).map(t => (
+        {addTargetLabel && (
+          // Which outlet the "+" was pressed on. Without it, clicking a palette row after
+          // opening a branch looks like it appended somewhere arbitrary.
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5">
+            <span className="truncate text-[11px] text-primary">
+              Connecting to {addTargetLabel}
+            </span>
+            {onClearTarget && (
+              <button
+                type="button"
+                onClick={onClearTarget}
+                className="shrink-0 text-primary/70 transition-colors hover:text-primary"
+                aria-label="Cancel connection"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          {(['triggers', 'conditions', 'actions'] as const).map(t => (
             <button
               key={t}
               type="button"
@@ -1111,8 +1709,8 @@ function NodePalette({
         </div>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-        {tab === 'triggers'
-          ? TRIGGER_TYPES.map(t => (
+        {tab === 'triggers' &&
+          TRIGGER_TYPES.map(t => (
               <PaletteRow
                 key={t.value}
                 icon={t.icon}
@@ -1123,35 +1721,94 @@ function NodePalette({
                 onDragStart={e => onDragStart(e, 'trigger', t.value)}
                 onClick={() => onAddTrigger(t.value)}
               />
-            ))
-          : ACTION_TYPES.map(a => (
-              <PaletteRow
-                key={a.value}
-                icon={a.icon}
-                iconBg={a.iconBg}
-                iconColor={a.iconColor}
-                label={a.label}
-                hint={a.description}
-                onDragStart={e => onDragStart(e, 'action', a.value)}
-                onClick={() => onAddAction(a.value)}
-              />
             ))}
 
-        {tab === 'actions' && onAddCondition && (
-          <button
-            type="button"
-            onClick={onAddCondition}
-            className="mt-2 flex w-full items-center gap-3 rounded-lg border border-dashed border-border bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-              <Filter className="h-4 w-4 text-amber-500" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground">Add condition</p>
-              <p className="truncate text-[11px] text-muted-foreground">Gate the flow with rules (optional)</p>
-            </div>
-          </button>
+        {tab === 'actions' &&
+          ACTION_TYPES.map(a => (
+            <PaletteRow
+              key={a.value}
+              icon={a.icon}
+              iconBg={a.iconBg}
+              iconColor={a.iconColor}
+              label={a.label}
+              hint={a.description}
+              onDragStart={e => onDragStart(e, 'action', a.value)}
+              onClick={() => onAddAction(a.value)}
+            />
+          ))}
+
+        {/*
+          Conditions get their own tab rather than a footnote under Actions.
+
+          They are first-class steps in the chain — an automation can have several,
+          anywhere — so burying them under the action list understated them and made a
+          second one hard to find. Delay sits here too: it is flow control, not
+          something the visitor sees.
+        */}
+        {/*
+          Conditions get their own tab rather than a footnote under Actions.
+
+          They are first-class nodes — an automation can have several, anywhere, and each
+          one splits the flow — so burying them under the action list understated them.
+          Delay sits here too: it is flow control, not something the visitor sees.
+        */}
+        {tab === 'conditions' && (
+          <>
+            {onAddCondition && (
+              <PaletteRow
+                icon={Filter}
+                iconBg="bg-amber-500/10"
+                iconColor="text-amber-500"
+                label="If / else"
+                hint="Split the flow on a set of rules"
+                onDragStart={e => onDragStart(e, 'condition', 'if')}
+                onClick={onAddCondition}
+              />
+            )}
+
+            {onAddSwitch && (
+              <PaletteRow
+                icon={GitBranch}
+                iconBg="bg-fuchsia-500/10"
+                iconColor="text-fuchsia-500"
+                label="Switch"
+                hint="Several cases, first match wins"
+                onDragStart={e => onDragStart(e, 'switch', 'switch')}
+                onClick={onAddSwitch}
+              />
+            )}
+
+            {onAddWait && (
+              <PaletteRow
+                icon={Hourglass}
+                iconBg="bg-cyan-500/10"
+                iconColor="text-cyan-500"
+                label="Wait until"
+                hint="Hold until rules pass, or time out"
+                onDragStart={e => onDragStart(e, 'wait', 'wait_until')}
+                onClick={onAddWait}
+              />
+            )}
+
+            {onAddDelay && (
+              <PaletteRow
+                icon={Clock}
+                iconBg="bg-sky-500/10"
+                iconColor="text-sky-500"
+                label="Delay"
+                hint="Pause before the next on-page action"
+                onDragStart={e => onDragStart(e, 'delay', 'delay')}
+                onClick={onAddDelay}
+              />
+            )}
+
+            <p className="px-1 pt-2 text-[11px] leading-relaxed text-muted-foreground">
+              Branches can rejoin: point two of them at the same node and it runs once,
+              whichever way the visitor got there.
+            </p>
+          </>
         )}
+
       </div>
     </div>
   );
@@ -1160,31 +1817,55 @@ function NodePalette({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const DEFAULT_DEFINITION: AutomationDefinition = {
-  triggers: [], // empty = no trigger yet; canvas prompts to add one
-  conditions: null,
-  actions: [],
+  triggers: [],
+  graph: { entry: '', nodes: [], edges: [] },
   frequency: {},
   abTest: { enabled: false, variants: [] },
   priority: 50,
 };
 
+/** A fresh node of each kind, as the palette adds them. */
+function newNode(kind: GraphNode['kind'], actionType?: string): GraphNode {
+  const id = newNodeId(kind);
+  switch (kind) {
+    case 'if':
+      return { id, kind: 'if', group: { operator: 'AND', rules: [] } };
+    case 'switch':
+      return {
+        id,
+        kind: 'switch',
+        cases: [{ id: `case_${Date.now().toString(36)}`, label: 'Case 1', group: { operator: 'AND', rules: [] } }],
+      };
+    case 'wait_until':
+      return { id, kind: 'wait_until', group: { operator: 'AND', rules: [] }, timeoutSeconds: 30 };
+    case 'delay':
+      return { id, kind: 'delay', seconds: 5 };
+    default:
+      return { id, kind: 'action', action: defaultAction(actionType ?? 'show_modal') };
+  }
+}
+
 export function AutomationBuilder({ initialDefinition, onSave, isSaving, className }: AutomationBuilderProps) {
   const [definition, setDefinition] = useState<AutomationDefinition>(() => {
     const base = initialDefinition ?? DEFAULT_DEFINITION;
-    return { ...base, triggers: normalizeTriggers(base), trigger: undefined };
+    return {
+      ...base,
+      triggers: base.triggers ?? [],
+      graph: base.graph ?? { entry: '', nodes: [], edges: [] },
+    };
   });
   const [selected, setSelected] = useState<SelectedNode | null>(null);
-  const [paletteTab, setPaletteTab] = useState<'triggers' | 'actions'>('triggers');
+  const [paletteTab, setPaletteTab] = useState<PaletteTab>('triggers');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [dragSrc, setDragSrc] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
+  /** Where the next node from the palette attaches. Set by an outlet's "+". */
+  const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, fromX: 0, fromY: 0 });
 
-  // non-passive wheel for zoom
+  // Non-passive so the zoom gesture can preventDefault the page scroll.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -1198,6 +1879,26 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     return () => el.removeEventListener('wheel', handler);
   }, []);
 
+  const graph = definition.graph;
+  const triggers = definition.triggers ?? [];
+  const hasTrigger = triggers.length > 0;
+  const errors = validateDefinition(definition);
+
+  // Recomputed only when the graph changes: layout walks every node and edge twice, and
+  // the canvas re-renders on pan, zoom and selection as well.
+  const layout = useMemo(() => layoutGraph(graph), [graph]);
+  const { outgoing } = useMemo(() => indexGraph(graph), [graph]);
+
+  /** Nodes the validator complained about, so the canvas can mark them. */
+  const invalidNodes = useMemo(() => {
+    const ids = new Set<NodeId>();
+    for (const node of graph.nodes) {
+      const outlets = outletsFor(node);
+      if (outlets && outlets.some(o => !edgeFor(outgoing, node.id, o))) ids.add(node.id);
+    }
+    return ids;
+  }, [graph, outgoing]);
+
   const onCanvasMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-node]')) return;
     panRef.current = { active: true, startX: e.clientX, startY: e.clientY, fromX: pan.x, fromY: pan.y };
@@ -1209,59 +1910,85 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   };
   const onCanvasMouseUp = () => { panRef.current.active = false; };
 
-  const hasCondition = !!definition.conditions?.rules?.length;
-  const triggers = definition.triggers ?? [];
-  const hasTrigger = triggers.length > 0;
+  // ── Triggers ──────────────────────────────────────────────────────────────
 
   const updateTrigger = (index: number, t: TriggerConfig) =>
-    setDefinition(d => ({ ...d, triggers: (d.triggers ?? []).map((x, i) => (i === index ? t : x)) }));
+    setDefinition(d => ({ ...d, triggers: d.triggers.map((x, i) => (i === index ? t : x)) }));
+
   const deleteTrigger = (index: number) => {
-    setDefinition(d => ({ ...d, triggers: (d.triggers ?? []).filter((_, i) => i !== index) }));
-    if (selected?.kind === 'trigger' && selected.index === index) setSelected(null);
-  };
-  const updateConditions = (c: ConditionGroup | null) => setDefinition(d => ({ ...d, conditions: c }));
-  const updateAction = (i: number, a: { type: string; [k: string]: unknown }) => setDefinition(d => ({ ...d, actions: d.actions.map((x, idx) => idx === i ? a : x) }));
-  const deleteAction = (i: number) => {
-    setDefinition(d => ({ ...d, actions: d.actions.filter((_, idx) => idx !== i) }));
-    if (selected?.kind === 'action' && selected.index === i) setSelected(null);
-  };
-  const deleteCondition = () => {
-    setDefinition(d => ({ ...d, conditions: null }));
-    if (selected?.kind === 'condition') setSelected(null);
+    setDefinition(d => ({ ...d, triggers: d.triggers.filter((_, i) => i !== index) }));
+    setSelected(sel => (sel?.kind === 'trigger' && sel.index === index ? null : sel));
   };
 
-  // Add nodes from the palette (click or drop).
-  const addTriggerType = (type: string) => {
+  // Adding never opens the editor: placing a node and configuring it are separate
+  // intents, and a modal per drop would interrupt building the shape of the graph.
+  const addTriggerType = (type: string) =>
+    setDefinition(d => ({ ...d, triggers: [...d.triggers, { type } as TriggerConfig] }));
+
+  // ── Graph editing ─────────────────────────────────────────────────────────
+
+  const updateNode = (node: GraphNode) =>
     setDefinition(d => {
-      const next = { ...d, triggers: [...(d.triggers ?? []), { type } as TriggerConfig] };
-      setSelected({ kind: 'trigger', index: next.triggers.length - 1 });
-      return next;
+      const nodes = d.graph.nodes.map(n => (n.id === node.id ? node : n));
+
+      // Editing can remove an outlet — dropping a switch case is the case that matters.
+      // The edge on that outlet would then name a branch the node no longer has, and
+      // fail validation with a complaint about a branch the user just deleted.
+      const outlets = outletsFor(node);
+      const edges = d.graph.edges.filter(e => {
+        if (e.from !== node.id) return true;
+        if (outlets === null) return e.branch === undefined;
+        return e.branch !== undefined && outlets.includes(e.branch);
+      });
+
+      return { ...d, graph: { ...d.graph, nodes, edges } };
     });
+
+  const deleteNode = (id: NodeId) => {
+    setDefinition(d => ({ ...d, graph: removeNode(d.graph, id) }));
+    setSelected(sel => (sel?.kind === 'node' && sel.id === id ? null : sel));
   };
-  const addActionType = (type: string) => {
+
+  /**
+   * Add a node, wired to whatever outlet the palette was opened from.
+   *
+   * With no target, it attaches to the single leaf of a linear graph — the common case
+   * of building straight down — and otherwise lands unattached for the user to wire.
+   */
+  const addNode = (kind: GraphNode['kind'], actionType?: string) => {
     setDefinition(d => {
-      const next = { ...d, actions: [...d.actions, defaultAction(type)] };
-      setSelected({ kind: 'action', index: next.actions.length - 1 });
-      return next;
+      const node = newNode(kind, actionType);
+      const target = addTarget ?? defaultAddTarget(d.graph);
+      return { ...d, graph: connectNode(d.graph, node, target.from, target.branch) };
     });
+    setAddTarget(null);
   };
 
-  /** Emit both `triggers[]` and legacy `trigger` (first) so the backend stays compatible. */
-  const handleSave = () => onSave({ ...definition, trigger: (definition.triggers ?? [])[0] });
-
-  // Switch the always-visible palette tab (and close any open node modal).
-  const openPalette = (tab: 'triggers' | 'actions') => {
+  const openOutlet = (from: NodeId, branch?: string) => {
+    setAddTarget({ from, branch });
     setSelected(null);
+    setPaletteTab('actions');
+  };
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+
+  const handleSave = () => {
+    if (errors.length) return;
+    onSave(definition);
+  };
+
+  const openPalette = (tab: PaletteTab) => {
+    setSelected(null);
+    setAddTarget(null);
     setPaletteTab(tab);
   };
-  const addCondition = () => {
-    setDefinition(d => ({ ...d, conditions: { operator: 'AND', rules: [] } }));
-    setSelected({ kind: 'condition' });
-  };
 
-  // Palette → canvas drag & drop.
+  // ── Palette drag & drop ───────────────────────────────────────────────────
+
   const PALETTE_MIME = 'application/x-seentics-node';
-  const onPaletteDragStart = (e: React.DragEvent, kind: 'trigger' | 'action', type: string) => {
+  type PaletteKind = 'trigger' | 'action' | 'condition' | 'delay' | 'switch' | 'wait';
+
+  const onPaletteDragStart = (e: React.DragEvent, kind: PaletteKind, type: string) => {
     e.dataTransfer.setData(PALETTE_MIME, JSON.stringify({ kind, type }));
     e.dataTransfer.effectAllowed = 'copy';
   };
@@ -1276,32 +2003,21 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     if (!raw) return;
     e.preventDefault();
     try {
-      const { kind, type } = JSON.parse(raw) as { kind: 'trigger' | 'action'; type: string };
+      const { kind, type } = JSON.parse(raw) as { kind: PaletteKind; type: string };
       if (kind === 'trigger') addTriggerType(type);
-      else addActionType(type);
-    } catch { /* ignore */ }
+      else if (kind === 'condition') addNode('if');
+      else if (kind === 'switch') addNode('switch');
+      else if (kind === 'wait') addNode('wait_until');
+      else if (kind === 'delay') addNode('delay');
+      else addNode('action', type);
+    } catch { /* ignore a malformed payload */ }
   };
 
-
-  const handleDragStart = (i: number) => setDragSrc(i);
-  const handleDragOver = (e: React.DragEvent, i: number) => { e.preventDefault(); setDragOver(i); };
-  const handleDrop = (i: number) => {
-    if (dragSrc === null || dragSrc === i) { setDragSrc(null); setDragOver(null); return; }
-    const actions = [...definition.actions];
-    const [moved] = actions.splice(dragSrc, 1);
-    actions.splice(i, 0, moved!);
-    setDefinition(d => ({ ...d, actions }));
-    if (selected?.kind === 'action') {
-      if (selected.index === dragSrc) setSelected({ kind: 'action', index: i });
-      else if (selected.index === i) setSelected({ kind: 'action', index: dragSrc });
-    }
-    setDragSrc(null);
-    setDragOver(null);
-  };
+  const selectedNode =
+    selected?.kind === 'node' ? graph.nodes.find(n => n.id === selected.id) : undefined;
 
   return (
     <div className={cn('flex h-full min-h-0 overflow-hidden', className)}>
-      <style>{`@keyframes seenticsFlowDown { to { stroke-dashoffset: -20; } }`}</style>
       {/* Canvas */}
       <div
         ref={canvasRef}
@@ -1317,60 +2033,68 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         onDragOver={onCanvasDragOver}
         onDrop={onCanvasDrop}
       >
-        {/* Toolbar — stop mousedown propagation so canvas pan/select-null don't fire on toolbar clicks */}
+        {/* Toolbar — stops mousedown so canvas pan and deselect do not fire on it. */}
         <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 backdrop-blur px-2 py-1.5 shadow-2xl"
+          className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-border bg-card/95 px-2 py-1.5 shadow-2xl backdrop-blur"
           onMouseDown={e => e.stopPropagation()}
         >
           <button
             type="button"
             onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             title="Zoom in (Ctrl+scroll)"
           >
             <ZoomIn className="h-4 w-4" />
           </button>
-          <span className="text-[11px] text-muted-foreground tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <span className="w-10 text-center text-[11px] tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
           <button
             type="button"
             onClick={() => setZoom(z => Math.max(0.3, z - 0.1))}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Zoom out"
           >
             <ZoomOut className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-muted mx-1" />
+          <div className="mx-1 h-4 w-px bg-muted" />
           <button
             type="button"
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title="Fit to center"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Reset view"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-muted mx-1" />
+          <div className="mx-1 h-4 w-px bg-muted" />
           <button
             type="button"
             onClick={() => setSelected({ kind: 'settings' })}
-            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', selected?.kind === 'settings' ? 'text-foreground bg-muted' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              selected?.kind === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
             title="Workflow settings"
           >
             <Settings className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-muted mx-1" />
+          <div className="mx-1 h-4 w-px bg-muted" />
           <button
             type="button"
             onClick={() => setShowJson(v => !v)}
-            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', showJson ? 'text-violet-400 bg-violet-500/15' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              showJson ? 'bg-violet-500/15 text-violet-400' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
             title="View / edit JSON config"
           >
             <Braces className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-muted mx-1" />
+          <div className="mx-1 h-4 w-px bg-muted" />
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground border-0 text-xs px-3"
+            className="h-8 gap-1.5 border-0 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-500"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || errors.length > 0}
+            title={errors.length ? errors[0] : 'Save automation'}
           >
             <Save className="h-3.5 w-3.5" />
             {isSaving ? 'Saving…' : 'Save'}
@@ -1378,21 +2102,21 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         </div>
 
         {/* Canvas content */}
-        <div
-          className="absolute inset-0 flex items-start justify-center pt-20 pb-12 overflow-auto"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'center top',
-          }}
-        >
-          <div className="flex flex-col items-center py-8" style={{ minHeight: '100%' }}>
-
+        <div className="absolute inset-0 overflow-auto pb-12 pt-20">
+          <div
+            className="relative mx-auto"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'top center',
+              width: Math.max(layout.width, NODE_WIDTH),
+            }}
+          >
             {!hasTrigger ? (
               <button
                 type="button"
                 data-node="true"
                 onClick={() => openPalette('triggers')}
-                className="group flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
+                className="group mx-auto flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
                   <Zap className="h-7 w-7" />
@@ -1408,129 +2132,159 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                 </span>
               </button>
             ) : (
-            <>
-            {/* Trigger Nodes (any of them fires the automation) */}
-            {triggers.map((trg, ti) => {
-              const tdef = getTriggerType(trg.type);
-              return (
-                <React.Fragment key={ti}>
-                  {ti > 0 && (
-                    <div className="my-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      <span className="h-px w-6 bg-border" /> or <span className="h-px w-6 bg-border" />
-                    </div>
-                  )}
-                  <NodeCard
-                    strip="bg-emerald-500"
-                    iconBg="bg-emerald-500/15"
-                    iconColor="text-emerald-400"
-                    icon={tdef.icon}
-                    label={triggers.length > 1 ? `Trigger ${ti + 1}` : 'Trigger'}
-                    title={tdef.label}
-                    subtitle={trg.type === 'page_view' && trg.path ? String(trg.path) : tdef.description}
-                    selected={selected?.kind === 'trigger' && selected.index === ti}
-                    onClick={() => setSelected({ kind: 'trigger', index: ti })}
-                    onDelete={triggers.length > 1 ? () => deleteTrigger(ti) : undefined}
-                  />
-                </React.Fragment>
-              );
-            })}
-
-            {/* Add another trigger */}
-            <button
-              type="button"
-              onClick={() => openPalette('triggers')}
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
-            >
-              <Plus className="h-3 w-3" /> Add trigger
-            </button>
-
-            <NodeConnector onAdd={() => openPalette('actions')} />
-
-            {/* Condition node */}
-            {hasCondition && (
               <>
-                <NodeCard
-                  strip="bg-amber-500"
-                  iconBg="bg-amber-500/15"
-                  iconColor="text-amber-400"
-                  icon={Filter}
-                  label="Condition"
-                  title="Filter Rules"
-                  subtitle={`${definition.conditions!.rules.length} rule${definition.conditions!.rules.length !== 1 ? 's' : ''} · ${definition.conditions!.operator}`}
-                  selected={selected?.kind === 'condition'}
-                  onClick={() => setSelected({ kind: 'condition' })}
-                  onDelete={deleteCondition}
-                />
-                <NodeConnector onAdd={() => openPalette('actions')} />
+                {/* Triggers, stacked above the graph. Any of them starts it. */}
+                <div className="mb-6 flex flex-col items-center gap-2">
+                  {triggers.map((trg, ti) => {
+                    const tdef = getTriggerType(trg.type);
+                    const TIcon = tdef.icon;
+                    return (
+                      <React.Fragment key={ti}>
+                        {ti > 0 && (
+                          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <span className="h-px w-6 bg-border" /> or <span className="h-px w-6 bg-border" />
+                          </div>
+                        )}
+                        <div
+                          data-node="true"
+                          style={{ width: NODE_WIDTH }}
+                          className={cn(
+                            'group relative cursor-pointer overflow-hidden rounded-lg border bg-card p-4 pl-5 shadow-sm transition-all',
+                            selected?.kind === 'trigger' && selected.index === ti
+                              ? 'border-primary ring-2 ring-primary/20'
+                              : 'border-border hover:border-primary/40',
+                          )}
+                          onClick={e => { e.stopPropagation(); setSelected({ kind: 'trigger', index: ti }); }}
+                        >
+                          <span className="absolute inset-y-0 left-0 w-1.5 bg-emerald-500" aria-hidden />
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
+                              <TIcon className="h-5 w-5 text-emerald-400" style={{ width: 20, height: 20 }} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                  {triggers.length > 1 ? `Trigger ${ti + 1}` : 'Trigger'}
+                                </span>
+                                {triggers.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); deleteTrigger(ti); }}
+                                    className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+                                    aria-label="Delete trigger"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-foreground">{tdef.label}</p>
+                              <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{tdef.description}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    data-node="true"
+                    onClick={() => openPalette('triggers')}
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
+                  >
+                    <Plus className="h-3 w-3" /> Add trigger
+                  </button>
+                </div>
+
+                {/* The graph */}
+                {graph.nodes.length === 0 ? (
+                  <div
+                    data-node="true"
+                    className="mx-auto flex w-64 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-7 transition-colors hover:border-violet-500/40 hover:bg-violet-500/5"
+                    onClick={() => openPalette('actions')}
+                  >
+                    <Layers className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Add an action, condition or delay</p>
+                  </div>
+                ) : (
+                  <div className="relative mx-auto" style={{ width: layout.width, height: layout.height + 60 }}>
+                    <EdgeLayer
+                      graph={graph}
+                      positions={layout.positions}
+                      width={layout.width}
+                      height={layout.height + 60}
+                    />
+                    {graph.nodes.map(node => {
+                      const pos = layout.positions.get(node.id);
+                      if (!pos) return null;
+                      return (
+                        <React.Fragment key={node.id}>
+                          <NodeCard
+                            node={node}
+                            x={pos.x}
+                            y={pos.y}
+                            selected={selected?.kind === 'node' && selected.id === node.id}
+                            invalid={invalidNodes.has(node.id)}
+                            onClick={() => setSelected({ kind: 'node', id: node.id })}
+                            onDelete={() => deleteNode(node.id)}
+                          />
+                          <OutletButtons
+                            node={node}
+                            x={pos.x}
+                            y={pos.y}
+                            connected={outlet => !!edgeFor(outgoing, node.id, outlet)}
+                            onAdd={outlet => openOutlet(node.id, outlet)}
+                          />
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
-
-            {/* Action nodes */}
-            {definition.actions.map((action, i) => {
-              const at = getActionType(action.type);
-              return (
-                <React.Fragment key={i}>
-                  <NodeCard
-                    strip={at.strip}
-                    iconBg={at.iconBg}
-                    iconColor={at.iconColor}
-                    icon={at.icon}
-                    label={`Action ${definition.actions.length > 1 ? i + 1 : ''}`}
-                    title={at.label}
-                    subtitle={actionSummary(action)}
-                    selected={selected?.kind === 'action' && selected.index === i}
-                    onClick={() => setSelected({ kind: 'action', index: i })}
-                    onDelete={() => deleteAction(i)}
-                    draggable
-                    onDragStart={() => handleDragStart(i)}
-                    onDragOver={e => handleDragOver(e, i)}
-                    onDrop={() => handleDrop(i)}
-                    dragIndicator={dragOver === i && dragSrc !== i}
-                  />
-                  <NodeConnector onAdd={() => openPalette('actions')} />
-                </React.Fragment>
-              );
-            })}
-
-            {/* Empty actions state */}
-            {definition.actions.length === 0 && (
-              <div
-                data-node="true"
-                className="w-64 rounded-lg border-2 border-dashed border-border bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
-                onClick={() => openPalette('actions')}
-              >
-                <Layers className="h-6 w-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Click + to add an action</p>
-              </div>
-            )}
-
-            </>
-            )}
-
           </div>
         </div>
 
-        {/* Node count badge */}
+        {/* Node count */}
         <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>{triggers.length + (hasCondition ? 1 : 0) + definition.actions.length} nodes</span>
+          <span>{triggers.length + graph.nodes.length} nodes</span>
           <span>·</span>
           <span>Drag canvas to pan · Ctrl+scroll to zoom</span>
         </div>
+
+        {/* Why the save is disabled, spelled out next to the button that will not work. */}
+        {errors.length > 0 && (
+          <div
+            role="alert"
+            className="absolute bottom-4 right-4 max-w-sm rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300"
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <p className="font-semibold">Not ready to save</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
+              {errors.map(e => <li key={e}>{e}</li>)}
+            </ul>
+          </div>
+        )}
       </div>
 
-      {/* Right sidebar — node palette (triggers & actions) */}
+      {/* Right sidebar — node palette */}
       <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-l border-border bg-card lg:w-[320px]">
         <NodePalette
           tab={paletteTab}
           onTab={setPaletteTab}
+          addTargetLabel={addTargetLabel(graph, addTarget)}
+          onClearTarget={() => setAddTarget(null)}
           onAddTrigger={addTriggerType}
-          onAddAction={addActionType}
+          onAddAction={type => addNode('action', type)}
+          onAddCondition={() => addNode('if')}
+          onAddSwitch={() => addNode('switch')}
+          onAddWait={() => addNode('wait_until')}
+          onAddDelay={() => addNode('delay')}
           onDragStart={onPaletteDragStart}
-          onAddCondition={hasCondition ? undefined : addCondition}
         />
       </aside>
 
-      {/* Node config modal — opens when a node is clicked */}
+      {/* Node editor */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -1538,22 +2292,28 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Node settings"
+            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
               {(() => {
-                const at = selected.kind === 'action' ? getActionType(definition.actions[selected.index]?.type ?? '') : null;
+                const nv = selectedNode ? nodeVisual(selectedNode) : null;
                 const tdSel = selected.kind === 'trigger' ? getTriggerType(triggers[selected.index]?.type ?? '') : null;
+                const sub =
+                  selectedNode?.kind === 'if' ? 'Branches on whether these rules pass'
+                  : selectedNode?.kind === 'switch' ? 'Takes the first matching case'
+                  : selectedNode?.kind === 'wait_until' ? 'Holds until the rules pass, or times out'
+                  : selectedNode?.kind === 'delay' ? 'Holds the next on-page action back'
+                  : 'What happens when it fires';
                 const meta =
                   selected.kind === 'trigger'
                     ? { icon: tdSel!.icon, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: tdSel!.label, sub: 'When this event happens…' }
-                    : selected.kind === 'condition'
-                      ? { icon: Filter, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Conditions', sub: 'Rules that gate the automation' }
-                      : selected.kind === 'action'
-                        ? { icon: at!.icon, color: at!.iconColor, bg: at!.iconBg, title: at!.label, sub: 'What happens when it fires' }
-                        : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Workflow settings', sub: 'Priority & A/B testing' };
+                    : selected.kind === 'node' && nv
+                      ? { icon: nv.icon, color: nv.iconColor, bg: nv.iconBg, title: nv.title, sub }
+                      : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Workflow settings', sub: 'Priority & A/B testing' };
                 const Icon = meta.icon;
                 return (
                   <div className="flex min-w-0 items-center gap-3">
@@ -1577,7 +2337,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               </button>
             </div>
 
-            {/* Body */}
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
               {selected.kind === 'trigger' && triggers[selected.index] && (
                 <TriggerPanel
@@ -1588,16 +2347,31 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                   onFrequencyChange={f => setDefinition(d => ({ ...d, frequency: f }))}
                 />
               )}
-              {selected.kind === 'condition' && (
-                <ConditionPanel conditions={definition.conditions} onChange={updateConditions} />
+
+              {selectedNode?.kind === 'if' && (
+                <IfPanel node={selectedNode} onChange={updateNode} onDelete={() => deleteNode(selectedNode.id)} />
               )}
-              {selected.kind === 'action' && definition.actions[selected.index] && (
-                <ActionPanel
-                  action={definition.actions[selected.index]!}
-                  onChange={a => updateAction(selected.index, a)}
-                  onDelete={() => { deleteAction(selected.index); setSelected(null); }}
+              {selectedNode?.kind === 'switch' && (
+                <SwitchPanel node={selectedNode} onChange={updateNode} onDelete={() => deleteNode(selectedNode.id)} />
+              )}
+              {selectedNode?.kind === 'wait_until' && (
+                <WaitPanel node={selectedNode} onChange={updateNode} onDelete={() => deleteNode(selectedNode.id)} />
+              )}
+              {selectedNode?.kind === 'delay' && (
+                <DelayPanel
+                  seconds={selectedNode.seconds}
+                  onChange={sec => updateNode({ ...selectedNode, seconds: sec })}
+                  onDelete={() => deleteNode(selectedNode.id)}
                 />
               )}
+              {selectedNode?.kind === 'action' && (
+                <ActionPanel
+                  action={selectedNode.action}
+                  onChange={a => updateNode({ ...selectedNode, action: a })}
+                  onDelete={() => deleteNode(selectedNode.id)}
+                />
+              )}
+
               {selected.kind === 'settings' && (
                 <SettingsPanel
                   definition={definition}
@@ -1607,7 +2381,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               )}
             </div>
 
-            {/* Footer */}
             <div className="shrink-0 border-t border-border bg-muted/20 p-3">
               <Button className="h-10 w-full font-semibold" onClick={() => setSelected(null)}>Done</Button>
             </div>
@@ -1615,7 +2388,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         </div>
       )}
 
-      {/* JSON editor modal */}
       {showJson && (
         <JsonEditorModal
           definition={definition}
@@ -1625,4 +2397,27 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       )}
     </div>
   );
+}
+
+/**
+ * Where a node lands when the palette was used without picking an outlet.
+ *
+ * A linear graph has exactly one node with nothing after it, and appending there is what
+ * someone building straight down expects. Anything else is ambiguous, so the node lands
+ * unattached and the unconnected-node error tells the user to wire it.
+ */
+function defaultAddTarget(graph: AutomationGraph): AddTarget {
+  if (!graph.nodes.length) return { from: null };
+
+  const { outgoing } = indexGraph(graph);
+  const leaves = graph.nodes.filter(n => !isBranchNode(n) && !(outgoing.get(n.id) ?? []).length);
+  return leaves.length === 1 ? { from: leaves[0]!.id } : { from: null };
+}
+
+/** What the palette says it is about to connect to, or null when it is just appending. */
+function addTargetLabel(graph: AutomationGraph, target: AddTarget | null): string | null {
+  if (!target?.from) return null;
+  const node = graph.nodes.find(n => n.id === target.from);
+  if (!node) return null;
+  return target.branch ? `the ${outletLabel(node, target.branch)} branch` : 'the end of the flow';
 }

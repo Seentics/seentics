@@ -14,10 +14,19 @@ export interface WebhookAction {
   body?: unknown;
 }
 
-const MAX_ATTEMPTS = 4;
-const BASE_DELAY_MS = 1_000;
+/**
+ * How hard to try before giving up on a delivery.
+ *
+ * A parameter rather than a module constant so the retry behaviour is reachable from a
+ * test without waiting out seven real seconds of back-off. Production passes nothing
+ * and gets {@link DEFAULT_WEBHOOK_RETRY}.
+ */
+export type WebhookRetryPolicy = { maxAttempts: number; baseDelayMs: number };
+
+export const DEFAULT_WEBHOOK_RETRY: WebhookRetryPolicy = { maxAttempts: 4, baseDelayMs: 1_000 };
 
 async function sleep(ms: number) {
+  if (ms <= 0) return;
   return new Promise((r) => setTimeout(r, ms));
 }
 
@@ -26,7 +35,9 @@ export async function executeWebhook(
   action: WebhookAction,
   context: Record<string, unknown>,
   runId?: string,
+  policy: WebhookRetryPolicy = DEFAULT_WEBHOOK_RETRY,
 ): Promise<void> {
+  const { maxAttempts, baseDelayMs } = policy;
   const url     = String(action.url ?? '');
   const method  = (action.method ?? 'POST').toUpperCase();
   const headers = (action.headers ?? {}) as Record<string, string>;
@@ -57,8 +68,11 @@ export async function executeWebhook(
   let lastError: string | null = null;
   let success = false;
   let responseMs = 0;
+  /** Attempts actually made — not the ceiling. See the delivery-log write below. */
+  let attemptsMade = 0;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    attemptsMade = attempt;
     const start = Date.now();
     try {
       const res = await fetch(url, {
@@ -78,8 +92,8 @@ export async function executeWebhook(
       lastCode   = null;
     }
 
-    if (attempt < MAX_ATTEMPTS) {
-      await sleep(BASE_DELAY_MS * 2 ** (attempt - 1));
+    if (attempt < maxAttempts) {
+      await sleep(baseDelayMs * 2 ** (attempt - 1));
     }
   }
 
@@ -90,7 +104,10 @@ export async function executeWebhook(
       url,
       statusCode: lastCode,
       success,
-      attemptCount: MAX_ATTEMPTS,
+      // The count actually made. This used to be hard-coded to the ceiling, so every
+      // delivery — including one that succeeded first time — was logged as four
+      // attempts, which made the retry column useless for spotting a flaky endpoint.
+      attemptCount: attemptsMade,
       lastAttemptAt: new Date(),
       responseMs,
       error: lastError,

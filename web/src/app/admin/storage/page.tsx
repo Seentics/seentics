@@ -155,7 +155,7 @@ export default function AdminStoragePage() {
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                   {data.tables.filter(t => totalTrackedBytes > 0 && (t.totalBytes / totalTrackedBytes) >= 0.005).map((t) => (
                     <div key={t.name} className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-lg-sm ${TABLE_COLORS[t.name] ?? 'bg-gray-500'}`} />
+                      <div className={`w-2 h-2 rounded-sm ${TABLE_COLORS[t.name] ?? 'bg-gray-500'}`} />
                       <span className="text-[11px] text-gray-500">{TABLE_LABELS[t.name] ?? t.name}</span>
                     </div>
                   ))}
@@ -192,7 +192,7 @@ export default function AdminStoragePage() {
                       >
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-2 h-2 rounded-lg-sm shrink-0 ${color}`} />
+                            <div className={`w-2 h-2 rounded-sm shrink-0 ${color}`} />
                             <span className="text-white font-medium">{TABLE_LABELS[t.name] ?? t.name}</span>
                             <span className="text-[11px] text-gray-600 font-mono">{t.name}</span>
                           </div>

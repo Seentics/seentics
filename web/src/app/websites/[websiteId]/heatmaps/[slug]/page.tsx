@@ -969,7 +969,7 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setHeatType(type)}
                   className={cn(
-                    'flex items-center gap-1 rounded-lg-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
                     heatType === type
                       ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -1004,7 +1004,7 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setPreviewUnderlay(mode)}
                   className={cn(
-                    'flex items-center gap-1 rounded-lg-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
                     previewUnderlay === mode
                       ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground',

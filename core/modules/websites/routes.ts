@@ -350,9 +350,8 @@ export function createWebsiteRoutes(deps: {
   );
   r.put("/:websiteId/privacy", (c) => c.json({ data: { ok: true } }));
 
-  r.get("/:websiteId/api-keys", (c) => c.json({ data: [] }));
-  r.post("/:websiteId/api-keys", (c) => c.json({ error: "not implemented" }, 501));
-  r.delete("/:websiteId/api-keys/:keyId", (c) => c.body(null, 204));
+  // API keys are not here: `api_keys` is a platform-owned table, and the real surface
+  // lives in `platform/public-api/keys/routes.ts`, mounted at these same paths.
 
   return r;
 }

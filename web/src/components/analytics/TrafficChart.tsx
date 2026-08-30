@@ -79,7 +79,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
   if (isLoading) {
     return (
       <div className="h-full flex flex-col justify-end gap-0 px-6 pb-8 pt-6">
-        <Skeleton className="w-full rounded-lg-t-2xl" style={{ height: '60%', opacity: 0.15 }} />
+        <Skeleton className="w-full rounded-t-2xl" style={{ height: '60%', opacity: 0.15 }} />
       </div>
     );
   }

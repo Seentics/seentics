@@ -174,7 +174,7 @@ export default function ForgotPasswordPage() {
                             key="success"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-card p-8 md:p-10 rounded-lg-[2.5rem] border border-border shadow-2xl relative"
+                            className="bg-card p-8 md:p-10 rounded-[2.5rem] border border-border shadow-2xl relative"
                         >
                             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-primary" />
                             

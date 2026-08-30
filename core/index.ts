@@ -8,7 +8,8 @@ import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
 import { requestLogMiddleware } from "./platform/middleware/request-log";
 import { privacyRoutes } from "./platform/http/privacy";
-import { createRawDataRoutes } from "./platform/raw-data/routes";
+import { createRawDataRoutes } from "./platform/public-api/routes";
+import { createApiKeyRoutes } from "./platform/public-api/keys/routes";
 import { createUserBranchRoutes } from "./platform/http/user-branch";
 
 
@@ -83,6 +84,9 @@ app.route("/api/v1/internal", application.routes.internal);
 
 app.route("/api/v1/funnels", application.routes.funnels.publicRoutes);
 app.route("/api/v1/websites", application.routes.websites);
+// Mounted alongside the websites router rather than inside it: `api_keys` is a
+// platform-owned table, so the websites module must not reach it.
+app.route("/api/v1/websites", createApiKeyRoutes({ websites: application.modules.websites.query }));
 app.route("/api/v1/websites", application.routes.funnels.authRoutes);
 app.route("/api/v1/automations", application.routes.automations);
 

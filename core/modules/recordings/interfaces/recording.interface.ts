@@ -98,7 +98,7 @@ export interface RecordingIngest {
  * Reads for the raw API.
  *
  * Separate from `RecordingQuery` for the same reason as `HeatmapRawReads`: the raw API
- * is a data-export surface with its own projection. `platform/raw-data` used to import
+ * is a data-export surface with its own projection. `platform/public-api` used to import
  * `services/session-list.service` directly.
  */
 export interface RecordingRawReads {

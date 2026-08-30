@@ -311,7 +311,7 @@ export default function AgencyOverviewPage() {
                     {FEATURE_LABELS.filter(f => client.featuresEnabled[f.key]).map(f => (
                       <span
                         key={f.key}
-                        className="text-[10px] px-1.5 py-0 rounded-lg-sm bg-muted text-muted-foreground border border-border/60"
+                        className="text-[10px] px-1.5 py-0 rounded-sm bg-muted text-muted-foreground border border-border/60"
                       >
                         {f.label}
                       </span>

@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import type { ApiScope } from "../public-api/keys/scopes";
 import { env } from "../../config";
 import type { VerifiedApiKeyContext } from "../lib/api-key-verify";
 import { verifyWebsiteApiKey } from "../lib/api-key-verify";
@@ -8,6 +9,33 @@ declare module "hono" {
   interface ContextVariableMap {
     rawApi: VerifiedApiKeyContext;
   }
+}
+
+/**
+ * Require a scope on an already-authenticated raw API request.
+ *
+ * A separate middleware from the one below because the scope depends on the route, and
+ * a key that may read analytics has no business reading session replays. A key with no
+ * scopes at all is treated as unrestricted: it predates scoping, and silently locking
+ * such a key out of everything would be a breaking change dressed as a security fix.
+ */
+export function requireScope(scope: ApiScope): MiddlewareHandler {
+  return async (c, next) => {
+    const ctx = c.get("rawApi");
+    if (!ctx) return c.json({ error: "unauthorized", code: "missing_api_key" }, 401);
+
+    if (ctx.scopes.length > 0 && !ctx.scopes.includes(scope)) {
+      return c.json(
+        {
+          error: `This API key does not have the "${scope}" scope.`,
+          code: "insufficient_scope",
+          required_scope: scope,
+        },
+        403,
+      );
+    }
+    return next();
+  };
 }
 
 /**

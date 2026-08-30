@@ -251,7 +251,7 @@ export function WebsiteGoalsSection({
         </CardHeader>
         <CardContent className="p-0">
           <DataTable
-            className="border-0 rounded-lg-none shadow-none bg-transparent [&_thead]:bg-muted/30"
+            className="border-0 rounded-none shadow-none bg-transparent [&_thead]:bg-muted/30"
             data={goals as Record<string, unknown>[]}
             columns={columns}
             isLoading={isLoading}

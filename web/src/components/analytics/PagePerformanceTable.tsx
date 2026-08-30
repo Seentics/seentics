@@ -124,7 +124,7 @@ export function PagePerformanceTable({ data, isLoading }: PagePerformanceTablePr
             >
               {/* Background bar */}
               <div
-                className="absolute inset-y-0 left-0 bg-primary/[0.04] group-hover:bg-primary/[0.07] transition-colors rounded-lg-r"
+                className="absolute inset-y-0 left-0 bg-primary/[0.04] group-hover:bg-primary/[0.07] transition-colors rounded-r"
                 style={{ width: `${barWidth}%` }}
               />
 

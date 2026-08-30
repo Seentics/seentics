@@ -379,7 +379,7 @@ export function FilterModal({
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-8 px-3 font-medium gap-1.5 relative border-none bg-card hover:bg-card text-muted-foreground hover:text-foreground"
+          className="h-8 px-3 font-medium gap-1.5 relative border dark:border-none bg-card hover:bg-card text-muted-foreground hover:text-foreground"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Filters</span>

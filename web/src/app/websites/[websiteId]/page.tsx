@@ -466,7 +466,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={handleWebsiteChange}>
-            <SelectTrigger className="w-[180px] h-8 bg-card hover:bg-card transition-colors rounded-lg border-none ">
+            <SelectTrigger className="w-[180px] h-8 bg-card hover:bg-card transition-colors rounded-lg border dark:border-none ">
               <div className="flex items-center truncate">
                 <Globe className="mr-1.5 h-3 w-3 text-primary shrink-0" />
                 <span className="truncate font-medium text-foreground">{currentWebsite?.name || 'Select website'}</span>
@@ -520,7 +520,7 @@ export default function WebsiteDashboardPage() {
           />
 
 {/* Theme — same box as row controls; compact icon matches Filter button height */}
-          <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-card transition-colors hover:bg-card">
+          <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-card transition-colors hover:bg-card border dark:border-none">
             <ThemeToggle />
           </div>
         </div>

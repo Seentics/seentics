@@ -712,7 +712,15 @@ export type UseRecentActivityOptions = {
   staleTimeMs?: number;
 };
 
-function normalizeRecentActivityApiPayload(
+/**
+ * Reshape the recent-activity payload into the flat rows the feed renders.
+ *
+ * Exported for its own tests. It absorbs three separate variations the server has
+ * shipped — rows under `activity` or `activities`, and a timestamp under `occurred_at`
+ * or `timestamp` — and it drops non-pageview rows whenever a rolling window was
+ * requested. None of that is observable from the hook without a query client.
+ */
+export function normalizeRecentActivityApiPayload(
   raw: unknown,
   withinMinutes?: number,
 ): { activities: Array<{
@@ -836,14 +844,27 @@ export const useVisitorInsights = (websiteId: string, days: number = 7) => {
 // HELPER FUNCTIONS
 // =============================================================================
 
-// Helper function to format large numbers
+/**
+ * Abbreviate a count for a KPI tile.
+ *
+ * Two things the obvious ladder gets wrong. It compares against the tier floor rather
+ * than against the *rounded* result, so 999,999 renders as "1000.0K" — four digits and
+ * a K, wider than the tile and a tier behind where it belongs. And it tests `num`
+ * rather than its magnitude, so every negative falls through unabbreviated: -1,500,000
+ * came out as "-1500000".
+ *
+ * Thresholds are therefore the point at which `toFixed(1)` would round up into the next
+ * tier (999,950 → "1.0M"), and the sign is carried separately from the magnitude.
+ */
 export const formatNumber = (num: number): string => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
+  if (!Number.isFinite(num)) return '0';
+
+  const sign = num < 0 ? '-' : '';
+  const abs = Math.abs(num);
+
+  if (abs >= 999_999_950) return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 999_950) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}K`;
   return num.toString();
 };
 
@@ -867,8 +888,14 @@ export const formatDuration = (seconds: number): string => {
   return `${secs}s`;
 };
 
-// Helper function to format percentage
+/**
+ * Render a rate for a KPI tile.
+ *
+ * Guarded like {@link formatDuration}: a bounce rate is absent on a site with no
+ * sessions, and "NaN%" in a tile reads as a crash rather than as no data.
+ */
 export const formatPercentage = (value: number): string => {
+  if (!Number.isFinite(value)) return '0.0%';
   return `${value.toFixed(1)}%`;
 };
 

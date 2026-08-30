@@ -12,9 +12,10 @@ core/
 ├── config.ts
 ├── app/
 │   └── bootstrap.ts          Composition root — the only place the graph is wired
-├── infrastructure/
+├── infrastructure/           Technical capability, swappable implementation
 │   ├── events/               EventBus interface, typed EventMap, InMemoryEventBus
-│   └── outbox/               Transactional outbox for events that must not be lost
+│   ├── outbox/               Transactional outbox for events that must not be lost
+│   └── idempotency/          Applied-batch markers, so a retried flush cannot double-write
 ├── modules/                  Owns a table
 │   ├── websites/             Websites, membership, public share links
 │   ├── analytics/            Dashboard read models + the analytics_events writer
@@ -25,21 +26,35 @@ core/
 │   ├── automations/
 │   ├── ai/                   Natural-language querying (owns ai_queries)
 │   └── auth/                 Identity (owns users)
-├── platform/                 Owns no table
+├── platform/                 Shared application concern, no business domain
 │   ├── middleware/           Cross-cutting HTTP middleware
 │   ├── validation/           Shared zod helpers
 │   ├── lib/                  Shared utilities (s3, logger, geo, ids, types)
 │   ├── scheduler.ts
 │   ├── retention/            Data-retention policy; modules do their own deletes
-│   ├── raw-data/             Machine-facing API over other modules' reads
+│   ├── public-api/           The machine-facing API and the keys that open it
 │   ├── internal/             Operational endpoints behind the global API key
 │   └── http/                 Small composite routers (privacy, profiles, user branch)
 └── db/                       Schema and migrations
 ```
 
-**Placement rule:** a concern that owns a table is a module; one that owns none is
-platform. Auth owns `users`, so it is a module — but JWT *verification* owns nothing
-and lives in `platform/middleware/auth.ts`.
+**Placement rule.** Three questions, in order:
+
+1. **Is it a business domain?** Then it is a module, and it owns its table. Auth owns
+   `users`, so it is a module — but JWT *verification* is not a domain and lives in
+   `platform/middleware/auth.ts`.
+2. **Is it a technical capability whose implementation you would swap?** Then it is
+   infrastructure. The event bus is in-memory today and could be Kafka tomorrow; the
+   outbox could become a real queue. Code depending only on their interfaces would not
+   change.
+3. **Otherwise it is platform** — shared machinery with no domain of its own: middleware,
+   validation, retention policy, the public API.
+
+Owning a table does *not* decide this, though an earlier version of this document said it
+did. `infrastructure` owns `outbox_events`, and `platform` owns `api_keys`; neither is a
+business domain. What decides it is whether the concern *is* a domain, and whether you
+would replace its implementation wholesale. `app/tests/table-ownership.test.ts` is the
+authority on who may query what, and it lists both.
 
 Each module follows the same shape. Not every module needs every directory — an
 empty `repositories/` that only re-exports is worse than no directory at all.
