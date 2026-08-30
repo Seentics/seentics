@@ -192,9 +192,11 @@ export type AnalyticsReads = AnalyticsDashboard &
  * whose own comment called itself "one import to delete when analytics grows a port
  * for it". This is that port.
  *
- * Takes `websiteId`: `analytics_events.website_id` stores the short public id, not the
- * website UUID. Passing a UUID returns an empty array rather than an error, which is
- * exactly the silent-empty failure this parameter name exists to prevent.
+ * Takes the website UUID — the same id the tracker is installed with and every other
+ * table is keyed by. An earlier version of this comment said `analytics_events.website_id`
+ * held a separate short public id; that stopped being true when websites were unified
+ * onto one identifier, and the note survived long enough to be worth correcting rather
+ * than deleting.
  */
 export interface AnalyticsPageviewUrls {
   listRecentPageviewUrls(websiteId: string): Promise<string[]>;
@@ -208,7 +210,7 @@ export interface AnalyticsPageviewUrls {
  * to hold this query itself, which put a Drizzle projection of this module's table in
  * shared code where a schema change would break it silently.
  *
- * `websiteId`, not the UUID: `analytics_events.website_id` stores the short public id.
+ * Takes the website UUID, like every other read on this table.
  */
 export interface AnalyticsRawEvents {
   listRawEvents(

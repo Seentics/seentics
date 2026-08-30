@@ -28,12 +28,26 @@ export interface ConditionGroup {
 
 export type SwitchCase = { id: string; label?: string; group: ConditionGroup };
 
+/**
+ * Where a node sits on the canvas.
+ *
+ * Stored with the definition rather than derived, because arrangement carries meaning
+ * the graph itself does not: which branch a person thinks of as the main path, what sits
+ * beside what. Auto-layout is a starting point and a "tidy up" button, not the law.
+ *
+ * Optional so a graph written by hand, or by a template, still opens — anything without
+ * a position gets one from the layout pass.
+ */
+export type NodePosition = { x: number; y: number };
+
+type NodeBase = { id: NodeId; position?: NodePosition };
+
 export type GraphNode =
-  | { id: NodeId; kind: 'action'; action: AutomationAction }
-  | { id: NodeId; kind: 'delay'; seconds: number }
-  | { id: NodeId; kind: 'if'; group: ConditionGroup }
-  | { id: NodeId; kind: 'switch'; cases: SwitchCase[] }
-  | { id: NodeId; kind: 'wait_until'; group: ConditionGroup; timeoutSeconds: number };
+  | (NodeBase & { kind: 'action'; action: AutomationAction })
+  | (NodeBase & { kind: 'delay'; seconds: number })
+  | (NodeBase & { kind: 'if'; group: ConditionGroup })
+  | (NodeBase & { kind: 'switch'; cases: SwitchCase[] })
+  | (NodeBase & { kind: 'wait_until'; group: ConditionGroup; timeoutSeconds: number });
 
 export type GraphNodeKind = GraphNode['kind'];
 
@@ -416,6 +430,79 @@ let idCounter = 0;
 export function newNodeId(kind: GraphNodeKind): NodeId {
   idCounter += 1;
   return `${kind}_${idCounter}_${Date.now().toString(36).slice(-4)}`;
+}
+
+/**
+ * Positions for every node: its own where it has one, the computed layout where it does
+ * not.
+ *
+ * The two are merged rather than one winning outright, so adding a node to a graph
+ * someone has already arranged drops it in a sensible place instead of at the origin.
+ */
+export function resolvePositions(graph: AutomationGraph): Map<NodeId, NodePosition> {
+  const { positions } = layoutGraph(graph);
+  const out = new Map<NodeId, NodePosition>();
+
+  for (const node of graph.nodes) {
+    const own = node.position;
+    const laid = positions.get(node.id);
+    out.set(node.id, own ?? (laid ? { x: laid.x, y: laid.y } : { x: 0, y: 0 }));
+  }
+  return out;
+}
+
+/** The graph with every node's position written down — what "tidy up" produces. */
+export function applyLayout(graph: AutomationGraph): AutomationGraph {
+  const { positions } = layoutGraph(graph);
+  return {
+    ...graph,
+    nodes: graph.nodes.map(n => {
+      const p = positions.get(n.id);
+      return p ? { ...n, position: { x: p.x, y: p.y } } : n;
+    }),
+  };
+}
+
+/** Move one node, leaving everything else alone. */
+export function moveNode(graph: AutomationGraph, id: NodeId, position: NodePosition): AutomationGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map(n => (n.id === id ? { ...n, position } : n)),
+  };
+}
+
+/**
+ * Connect two nodes.
+ *
+ * An outlet holds one connection, so a second on the same outlet replaces the first
+ * rather than creating an ambiguous run. Self-edges and duplicates are dropped here
+ * rather than left for the validator, because the drag that produced them was a slip
+ * and an error message would be noise.
+ */
+export function connectNodes(
+  graph: AutomationGraph,
+  from: NodeId,
+  to: NodeId,
+  branch?: string,
+): AutomationGraph {
+  if (from === to) return graph;
+
+  const edges = graph.edges.filter(e => !(e.from === from && e.branch === branch));
+  edges.push({ from, to, ...(branch !== undefined ? { branch } : {}) });
+  return { ...graph, edges };
+}
+
+/** Drop one connection, identified the way an edge is addressed on the canvas. */
+export function disconnect(
+  graph: AutomationGraph,
+  from: NodeId,
+  to: NodeId,
+  branch?: string,
+): AutomationGraph {
+  return {
+    ...graph,
+    edges: graph.edges.filter(e => !(e.from === from && e.to === to && e.branch === branch)),
+  };
 }
 
 /** Remove a node and every edge touching it, keeping the graph connected-ish. */
