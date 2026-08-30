@@ -22,6 +22,7 @@ import {
   Hourglass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AutomationCanvas } from './canvas/AutomationCanvas';
 import {
   MAX_DELAY_SECONDS,
   MAX_SWITCH_CASES,
@@ -150,6 +151,19 @@ interface AutomationBuilderProps {
   onSave: (definition: AutomationDefinition) => void;
   isSaving?: boolean;
   className?: string;
+  /**
+   * Reports the definition and everything wrong with it, on every edit.
+   *
+   * The Save button lives in the page's own header, not over the canvas — a toolbar
+   * floating on top of the thing you are arranging is in the way of it. The page needs
+   * the current definition and its errors to render that button, and this is how it
+   * gets them without the builder becoming a controlled component.
+   */
+  onChange?: (definition: AutomationDefinition, errors: string[]) => void;
+  /** Opens the settings editor. Handed out so the header can offer it. */
+  onRequestSettings?: (open: () => void) => void;
+  /** Opens the JSON editor, same reason. */
+  onRequestJson?: (open: () => void) => void;
 }
 
 /**
@@ -162,9 +176,6 @@ type SelectedNode =
   | { kind: 'trigger'; index: number }
   | { kind: 'node'; id: NodeId }
   | { kind: 'settings' };
-
-/** Where a newly added node should attach. `null` means "the graph is empty". */
-type AddTarget = { from: NodeId | null; branch?: string };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -606,228 +617,6 @@ function ActionConfigForm({
   }
 
   return <p className="text-xs text-muted-foreground italic">No configuration for this action type.</p>;
-}
-
-// ─── Canvas Node Card ─────────────────────────────────────────────────────────
-
-/**
- * One node, positioned absolutely at its laid-out coordinates.
- *
- * Absolute rather than in flow because the canvas is a graph now: two branches sit side
- * by side at the same depth, and a convergence node has to line up under both. Flow
- * layout can express a list; it cannot express that.
- */
-function NodeCard({
-  node, x, y, selected, invalid, onClick, onDelete,
-}: {
-  node: GraphNode;
-  x: number;
-  y: number;
-  selected: boolean;
-  invalid: boolean;
-  onClick: () => void;
-  onDelete: () => void;
-}) {
-  const meta = nodeVisual(node);
-  const Icon = meta.icon;
-
-  return (
-    <div
-      data-node="true"
-      data-node-id={node.id}
-      style={{ left: x, top: y, width: NODE_WIDTH, minHeight: NODE_HEIGHT }}
-      className={cn(
-        'group absolute cursor-pointer select-none overflow-hidden rounded-lg border bg-card p-4 pl-5 shadow-sm transition-all duration-150',
-        selected
-          ? 'border-primary ring-2 ring-primary/20'
-          : invalid
-            ? 'border-amber-500/60 ring-2 ring-amber-500/15'
-            : 'border-border hover:border-primary/40 hover:shadow-md',
-      )}
-      onClick={e => { e.stopPropagation(); onClick(); }}
-    >
-      {/* The kind's colour, as a full-height edge — the cheapest way to tell four node
-          kinds apart without reading the label on each. */}
-      <span className={cn('absolute inset-y-0 left-0 w-1.5', meta.strip)} aria-hidden />
-
-      <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', meta.iconBg)}>
-          <Icon className={cn('h-5 w-5', meta.iconColor)} style={{ width: 20, height: 20 }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {meta.title}
-            </span>
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onDelete(); }}
-              className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
-              aria-label={`Remove ${meta.title}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-          <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
-            {nodeSummary(node)}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Edge layer ───────────────────────────────────────────────────────────────
-
-/**
- * The connections, drawn as one SVG behind the nodes.
- *
- * A single SVG sized to the whole canvas rather than one per edge: the paths have to
- * cross node boundaries freely, and a per-edge element would need its own bounding box
- * computed and would clip anything that left it.
- *
- * Each edge is a cubic curve from the bottom of `from` to the top of `to`, with the
- * control points pushed vertically so a branch fans out sideways before descending —
- * which is what keeps two edges leaving the same node visually distinct.
- */
-function EdgeLayer({
-  graph, positions, width, height,
-}: {
-  graph: AutomationGraph;
-  positions: Map<NodeId, { x: number; y: number }>;
-  width: number;
-  height: number;
-}) {
-  const { byId } = indexGraph(graph);
-
-  return (
-    <svg
-      className="pointer-events-none absolute left-0 top-0 overflow-visible"
-      width={width}
-      height={height}
-      aria-hidden
-    >
-      <defs>
-        <marker id="snc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" className="fill-primary/60" />
-        </marker>
-      </defs>
-
-      {graph.edges.map((edge, i) => {
-        const from = positions.get(edge.from);
-        const to = positions.get(edge.to);
-        if (!from || !to) return null;
-
-        const x1 = from.x + NODE_WIDTH / 2;
-        const y1 = from.y + NODE_HEIGHT;
-        const x2 = to.x + NODE_WIDTH / 2;
-        const y2 = to.y;
-        const mid = Math.max(24, (y2 - y1) / 2);
-
-        const node = byId.get(edge.from);
-        const label = node && edge.branch ? outletLabel(node, edge.branch) : null;
-
-        return (
-          <g key={`${edge.from}-${edge.branch ?? ''}-${edge.to}-${i}`}>
-            <path
-              d={`M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2}`}
-              className="stroke-primary/40"
-              strokeWidth={2}
-              fill="none"
-              markerEnd="url(#snc-arrow)"
-            />
-            {label && (
-              <>
-                {/* A plate behind the text so a label crossing another edge stays legible. */}
-                <rect
-                  x={x1 - 30}
-                  y={y1 + 10}
-                  width={60}
-                  height={18}
-                  rx={9}
-                  className="fill-background stroke-border"
-                  strokeWidth={1}
-                />
-                <text
-                  x={x1}
-                  y={y1 + 22}
-                  textAnchor="middle"
-                  className="fill-muted-foreground text-[10px] font-semibold"
-                >
-                  {label}
-                </text>
-              </>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ─── Outlet buttons ───────────────────────────────────────────────────────────
-
-/**
- * A "+" under each unconnected outlet.
- *
- * How connections are made. Drag-to-connect is the obvious alternative and it is worse
- * here: it needs hit targets, a drag preview, and a rule for what happens when you drop
- * on empty space. A button that says "something goes here" is discoverable, works on
- * touch, and makes the unfinished branches on a busy canvas obvious rather than hidden.
- */
-function OutletButtons({
-  node, x, y, connected, onAdd,
-}: {
-  node: GraphNode;
-  x: number;
-  y: number;
-  connected: (outlet?: string) => boolean;
-  onAdd: (outlet?: string) => void;
-}) {
-  const outlets = outletsFor(node);
-
-  if (outlets === null) {
-    if (connected()) return null;
-    return (
-      <button
-        type="button"
-        data-node="true"
-        style={{ left: x + NODE_WIDTH / 2 - 14, top: y + NODE_HEIGHT + 10 }}
-        className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        onClick={e => { e.stopPropagation(); onAdd(); }}
-        aria-label="Add next node"
-      >
-        <Plus className="h-3.5 w-3.5" />
-      </button>
-    );
-  }
-
-  const open = outlets.filter(o => !connected(o));
-  if (!open.length) return null;
-
-  return (
-    <>
-      {open.map((outlet, i) => {
-        // Spread the open outlets across the node's width so two unconnected branches
-        // do not stack on top of each other.
-        const slot = (i + 1) / (open.length + 1);
-        return (
-          <button
-            key={outlet}
-            type="button"
-            data-node="true"
-            style={{ left: x + NODE_WIDTH * slot - 14, top: y + NODE_HEIGHT + 10 }}
-            className="absolute flex h-7 items-center gap-1 rounded-full border border-dashed border-border bg-card px-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-            onClick={e => { e.stopPropagation(); onAdd(outlet); }}
-            aria-label={`Add to the ${outletLabel(node, outlet)} branch`}
-          >
-            <Plus className="h-3 w-3" />
-            {outletLabel(node, outlet)}
-          </button>
-        );
-      })}
-    </>
-  );
 }
 
 // ─── Right Sidebar Panels ─────────────────────────────────────────────────────
@@ -1633,7 +1422,6 @@ export type PaletteTab = 'triggers' | 'conditions' | 'actions';
 function NodePalette({
   tab, onTab, onAddTrigger, onAddAction, onDragStart, onClose,
   onAddCondition, onAddSwitch, onAddWait, onAddDelay,
-  addTargetLabel, onClearTarget,
 }: {
   tab: PaletteTab;
   onTab: (t: PaletteTab) => void;
@@ -1649,9 +1437,6 @@ function NodePalette({
   onAddSwitch?: () => void;
   onAddWait?: () => void;
   onAddDelay?: () => void;
-  /** What the next node will attach to, when an outlet's "+" opened the palette. */
-  addTargetLabel?: string | null;
-  onClearTarget?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -1659,7 +1444,9 @@ function NodePalette({
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">Drag onto the canvas, or click to add.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Drag onto the canvas to place it, then drag between handles to connect.
+            </p>
           </div>
           {onClose && (
             <button
@@ -1672,26 +1459,6 @@ function NodePalette({
             </button>
           )}
         </div>
-        {addTargetLabel && (
-          // Which outlet the "+" was pressed on. Without it, clicking a palette row after
-          // opening a branch looks like it appended somewhere arbitrary.
-          <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5">
-            <span className="truncate text-[11px] text-primary">
-              Connecting to {addTargetLabel}
-            </span>
-            {onClearTarget && (
-              <button
-                type="button"
-                onClick={onClearTarget}
-                className="shrink-0 text-primary/70 transition-colors hover:text-primary"
-                aria-label="Cancel connection"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        )}
-
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
           {(['triggers', 'conditions', 'actions'] as const).map(t => (
             <button
@@ -1845,7 +1612,9 @@ function newNode(kind: GraphNode['kind'], actionType?: string): GraphNode {
   }
 }
 
-export function AutomationBuilder({ initialDefinition, onSave, isSaving, className }: AutomationBuilderProps) {
+export function AutomationBuilder({
+  initialDefinition, onSave, isSaving, className, onChange, onRequestSettings, onRequestJson,
+}: AutomationBuilderProps) {
   const [definition, setDefinition] = useState<AutomationDefinition>(() => {
     const base = initialDefinition ?? DEFAULT_DEFINITION;
     return {
@@ -1856,28 +1625,9 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   });
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [paletteTab, setPaletteTab] = useState<PaletteTab>('triggers');
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+
   const [showJson, setShowJson] = useState(false);
   /** Where the next node from the palette attaches. Set by an outlet's "+". */
-  const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef({ active: false, startX: 0, startY: 0, fromX: 0, fromY: 0 });
-
-  // Non-passive so the zoom gesture can preventDefault the page scroll.
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        setZoom(z => Math.min(2, Math.max(0.3, z - e.deltaY * 0.002)));
-      }
-    };
-    el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-  }, []);
 
   const graph = definition.graph;
   const triggers = definition.triggers ?? [];
@@ -1898,17 +1648,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     }
     return ids;
   }, [graph, outgoing]);
-
-  const onCanvasMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-node]')) return;
-    panRef.current = { active: true, startX: e.clientX, startY: e.clientY, fromX: pan.x, fromY: pan.y };
-    setSelected(null);
-  };
-  const onCanvasMouseMove = (e: React.MouseEvent) => {
-    if (!panRef.current.active) return;
-    setPan({ x: panRef.current.fromX + e.clientX - panRef.current.startX, y: panRef.current.fromY + e.clientY - panRef.current.startY });
-  };
-  const onCanvasMouseUp = () => { panRef.current.active = false; };
 
   // ── Triggers ──────────────────────────────────────────────────────────────
 
@@ -1950,24 +1689,21 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   };
 
   /**
-   * Add a node, wired to whatever outlet the palette was opened from.
+   * Add a node.
    *
-   * With no target, it attaches to the single leaf of a linear graph — the common case
-   * of building straight down — and otherwise lands unattached for the user to wire.
+   * Unwired on purpose. Connections are made by dragging from the outlet you mean to the
+   * node you mean, so guessing an attachment point here would produce an edge the user
+   * did not ask for and then have to find and delete. An unconnected node is visibly
+   * unfinished, which is the honest state of a node nobody has wired yet.
    */
-  const addNode = (kind: GraphNode['kind'], actionType?: string) => {
+  const addNode = (kind: GraphNode['kind'], actionType?: string, position?: { x: number; y: number }) => {
     setDefinition(d => {
-      const node = newNode(kind, actionType);
-      const target = addTarget ?? defaultAddTarget(d.graph);
-      return { ...d, graph: connectNode(d.graph, node, target.from, target.branch) };
+      const node = { ...newNode(kind, actionType), ...(position ? { position } : {}) };
+      const nodes = [...d.graph.nodes, node];
+      // The first node is also the entry; there is nothing else it could be.
+      const entry = d.graph.entry || node.id;
+      return { ...d, graph: { ...d.graph, nodes, entry } };
     });
-    setAddTarget(null);
-  };
-
-  const openOutlet = (from: NodeId, branch?: string) => {
-    setAddTarget({ from, branch });
-    setSelected(null);
-    setPaletteTab('actions');
   };
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -1977,9 +1713,21 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     onSave(definition);
   };
 
+  // The page's header renders Save, so it needs the current definition and its errors.
+  useEffect(() => {
+    onChange?.(definition, errors);
+    // `errors` is derived from `definition`, so it is not an independent dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definition, onChange]);
+
+  // Handed out once so the header can open the editors the builder owns.
+  useEffect(() => {
+    onRequestSettings?.(() => setSelected({ kind: 'settings' }));
+    onRequestJson?.(() => setShowJson(true));
+  }, [onRequestSettings, onRequestJson]);
+
   const openPalette = (tab: PaletteTab) => {
     setSelected(null);
-    setAddTarget(null);
     setPaletteTab(tab);
   };
 
@@ -1998,19 +1746,17 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       e.dataTransfer.dropEffect = 'copy';
     }
   };
-  const onCanvasDrop = (e: React.DragEvent) => {
-    const raw = e.dataTransfer.getData(PALETTE_MIME);
-    if (!raw) return;
-    e.preventDefault();
-    try {
-      const { kind, type } = JSON.parse(raw) as { kind: PaletteKind; type: string };
-      if (kind === 'trigger') addTriggerType(type);
-      else if (kind === 'condition') addNode('if');
-      else if (kind === 'switch') addNode('switch');
-      else if (kind === 'wait') addNode('wait_until');
-      else if (kind === 'delay') addNode('delay');
-      else addNode('action', type);
-    } catch { /* ignore a malformed payload */ }
+  const handlePaletteDrop = (
+    payload: { kind: string; type: string },
+    position: { x: number; y: number },
+  ) => {
+    const { kind, type } = payload;
+    if (kind === 'trigger') addTriggerType(type);
+    else if (kind === 'condition') addNode('if', undefined, position);
+    else if (kind === 'switch') addNode('switch', undefined, position);
+    else if (kind === 'wait') addNode('wait_until', undefined, position);
+    else if (kind === 'delay') addNode('delay', undefined, position);
+    else addNode('action', type, position);
   };
 
   const selectedNode =
@@ -2019,245 +1765,57 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   return (
     <div className={cn('flex h-full min-h-0 overflow-hidden', className)}>
       {/* Canvas */}
-      <div
-        ref={canvasRef}
-        className="relative flex-1 cursor-grab overflow-hidden bg-muted/20 active:cursor-grabbing"
-        style={{
-          backgroundImage: 'radial-gradient(circle, hsl(var(--muted-foreground) / 0.15) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-        onMouseDown={onCanvasMouseDown}
-        onMouseMove={onCanvasMouseMove}
-        onMouseUp={onCanvasMouseUp}
-        onMouseLeave={onCanvasMouseUp}
-        onDragOver={onCanvasDragOver}
-        onDrop={onCanvasDrop}
-      >
-        {/* Toolbar — stops mousedown so canvas pan and deselect do not fire on it. */}
-        <div
-          className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-border bg-card/95 px-2 py-1.5 shadow-2xl backdrop-blur"
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Zoom in (Ctrl+scroll)"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <span className="w-10 text-center text-[11px] tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
-          <button
-            type="button"
-            onClick={() => setZoom(z => Math.max(0.3, z - 0.1))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Zoom out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <div className="mx-1 h-4 w-px bg-muted" />
-          <button
-            type="button"
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Reset view"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-          <div className="mx-1 h-4 w-px bg-muted" />
-          <button
-            type="button"
-            onClick={() => setSelected({ kind: 'settings' })}
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-              selected?.kind === 'settings' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-            title="Workflow settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-          <div className="mx-1 h-4 w-px bg-muted" />
-          <button
-            type="button"
-            onClick={() => setShowJson(v => !v)}
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-              showJson ? 'bg-violet-500/15 text-violet-400' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-            title="View / edit JSON config"
-          >
-            <Braces className="h-4 w-4" />
-          </button>
-          <div className="mx-1 h-4 w-px bg-muted" />
-          <Button
-            size="sm"
-            className="h-8 gap-1.5 border-0 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-500"
-            onClick={handleSave}
-            disabled={isSaving || errors.length > 0}
-            title={errors.length ? errors[0] : 'Save automation'}
-          >
-            <Save className="h-3.5 w-3.5" />
-            {isSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-
-        {/* Canvas content */}
-        <div className="absolute inset-0 overflow-auto pb-12 pt-20">
-          <div
-            className="relative mx-auto"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: 'top center',
-              width: Math.max(layout.width, NODE_WIDTH),
-            }}
-          >
-            {!hasTrigger ? (
-              <button
-                type="button"
-                data-node="true"
-                onClick={() => openPalette('triggers')}
-                className="group mx-auto flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
-                  <Zap className="h-7 w-7" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Start with a trigger</p>
-                  <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
-                    Every automation begins with a trigger. Drag one from the panel, or click below.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-emerald-500">
-                  <Plus className="h-4 w-4" /> Add trigger
-                </span>
-              </button>
-            ) : (
-              <>
-                {/* Triggers, stacked above the graph. Any of them starts it. */}
-                <div className="mb-6 flex flex-col items-center gap-2">
-                  {triggers.map((trg, ti) => {
-                    const tdef = getTriggerType(trg.type);
-                    const TIcon = tdef.icon;
-                    return (
-                      <React.Fragment key={ti}>
-                        {ti > 0 && (
-                          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            <span className="h-px w-6 bg-border" /> or <span className="h-px w-6 bg-border" />
-                          </div>
-                        )}
-                        <div
-                          data-node="true"
-                          style={{ width: NODE_WIDTH }}
-                          className={cn(
-                            'group relative cursor-pointer overflow-hidden rounded-lg border bg-card p-4 pl-5 shadow-sm transition-all',
-                            selected?.kind === 'trigger' && selected.index === ti
-                              ? 'border-primary ring-2 ring-primary/20'
-                              : 'border-border hover:border-primary/40',
-                          )}
-                          onClick={e => { e.stopPropagation(); setSelected({ kind: 'trigger', index: ti }); }}
-                        >
-                          <span className="absolute inset-y-0 left-0 w-1.5 bg-emerald-500" aria-hidden />
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
-                              <TIcon className="h-5 w-5 text-emerald-400" style={{ width: 20, height: 20 }} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                  {triggers.length > 1 ? `Trigger ${ti + 1}` : 'Trigger'}
-                                </span>
-                                {triggers.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={e => { e.stopPropagation(); deleteTrigger(ti); }}
-                                    className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
-                                    aria-label="Delete trigger"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </div>
-                              <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-foreground">{tdef.label}</p>
-                              <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{tdef.description}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    data-node="true"
-                    onClick={() => openPalette('triggers')}
-                    className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
-                  >
-                    <Plus className="h-3 w-3" /> Add trigger
-                  </button>
-                </div>
-
-                {/* The graph */}
-                {graph.nodes.length === 0 ? (
-                  <div
-                    data-node="true"
-                    className="mx-auto flex w-64 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-7 transition-colors hover:border-violet-500/40 hover:bg-violet-500/5"
-                    onClick={() => openPalette('actions')}
-                  >
-                    <Layers className="h-6 w-6 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">Add an action, condition or delay</p>
-                  </div>
-                ) : (
-                  <div className="relative mx-auto" style={{ width: layout.width, height: layout.height + 60 }}>
-                    <EdgeLayer
-                      graph={graph}
-                      positions={layout.positions}
-                      width={layout.width}
-                      height={layout.height + 60}
-                    />
-                    {graph.nodes.map(node => {
-                      const pos = layout.positions.get(node.id);
-                      if (!pos) return null;
-                      return (
-                        <React.Fragment key={node.id}>
-                          <NodeCard
-                            node={node}
-                            x={pos.x}
-                            y={pos.y}
-                            selected={selected?.kind === 'node' && selected.id === node.id}
-                            invalid={invalidNodes.has(node.id)}
-                            onClick={() => setSelected({ kind: 'node', id: node.id })}
-                            onDelete={() => deleteNode(node.id)}
-                          />
-                          <OutletButtons
-                            node={node}
-                            x={pos.x}
-                            y={pos.y}
-                            connected={outlet => !!edgeFor(outgoing, node.id, outlet)}
-                            onAdd={outlet => openOutlet(node.id, outlet)}
-                          />
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
+      <div className="relative min-h-0 flex-1">
+        {!hasTrigger ? (
+          <div className="flex h-full items-center justify-center bg-muted/20 p-6">
+            <button
+              type="button"
+              onClick={() => openPalette('triggers')}
+              className="group flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
+                <Zap className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Start with a trigger</p>
+                <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
+                  Every automation begins with a trigger. Pick one from the panel to start.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-emerald-500">
+                <Plus className="h-4 w-4" /> Add trigger
+              </span>
+            </button>
           </div>
-        </div>
+        ) : (
+          <AutomationCanvas
+            graph={graph}
+            onGraphChange={g => setDefinition(d => ({ ...d, graph: g }))}
+            triggers={triggers}
+            triggerMeta={type => {
+              const td = getTriggerType(type);
+              return { label: td.label, description: td.description, icon: td.icon };
+            }}
+            onDeleteTrigger={deleteTrigger}
+            onSelectTrigger={index => setSelected({ kind: 'trigger', index })}
+            nodeVisual={nodeVisual}
+            nodeSummary={nodeSummary}
+            invalidNodes={invalidNodes}
+            onSelectNode={id => setSelected({ kind: 'node', id })}
+            onDeleteNode={deleteNode}
+            onPaletteDrop={handlePaletteDrop}
+            paletteMime={PALETTE_MIME}
+          />
+        )}
 
-        {/* Node count */}
-        <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>{triggers.length + graph.nodes.length} nodes</span>
-          <span>·</span>
-          <span>Drag canvas to pan · Ctrl+scroll to zoom</span>
-        </div>
-
-        {/* Why the save is disabled, spelled out next to the button that will not work. */}
-        {errors.length > 0 && (
+        {/*
+          Why the save is disabled, next to the canvas rather than over it. Anchored
+          bottom-right so it clears ReactFlow's zoom controls at bottom-left.
+        */}
+        {errors.length > 0 && hasTrigger && (
           <div
             role="alert"
-            className="absolute bottom-4 right-4 max-w-sm rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300"
-            onMouseDown={e => e.stopPropagation()}
+            className="pointer-events-none absolute bottom-4 right-4 max-w-sm rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 shadow-lg dark:text-amber-300"
           >
             <p className="font-semibold">Not ready to save</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-4">
@@ -2272,8 +1830,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         <NodePalette
           tab={paletteTab}
           onTab={setPaletteTab}
-          addTargetLabel={addTargetLabel(graph, addTarget)}
-          onClearTarget={() => setAddTarget(null)}
           onAddTrigger={addTriggerType}
           onAddAction={type => addNode('action', type)}
           onAddCondition={() => addNode('if')}
@@ -2406,18 +1962,5 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
  * someone building straight down expects. Anything else is ambiguous, so the node lands
  * unattached and the unconnected-node error tells the user to wire it.
  */
-function defaultAddTarget(graph: AutomationGraph): AddTarget {
-  if (!graph.nodes.length) return { from: null };
-
-  const { outgoing } = indexGraph(graph);
-  const leaves = graph.nodes.filter(n => !isBranchNode(n) && !(outgoing.get(n.id) ?? []).length);
-  return leaves.length === 1 ? { from: leaves[0]!.id } : { from: null };
-}
 
 /** What the palette says it is about to connect to, or null when it is just appending. */
-function addTargetLabel(graph: AutomationGraph, target: AddTarget | null): string | null {
-  if (!target?.from) return null;
-  const node = graph.nodes.find(n => n.id === target.from);
-  if (!node) return null;
-  return target.branch ? `the ${outletLabel(node, target.branch)} branch` : 'the end of the flow';
-}

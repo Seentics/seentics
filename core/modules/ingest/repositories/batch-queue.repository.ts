@@ -43,16 +43,20 @@ export async function claimPendingBatches(
   limit: number,
   maxAttempts: number,
 ): Promise<QueuedBatch[]> {
-  // `DISTINCT ON (partition_key)` is what actually enforces the ordering guarantee: at
-  // most one batch per key comes back, so two batches for the same replay session can
-  // never be applied concurrently however many workers are running. An earlier version
-  // used `NOT IN (… WHERE attempts > 0)`, which only excluded keys that had already
-  // failed — two *fresh* batches for one session were still claimed together, and the
-  // guarantee it was supposed to provide did not hold.
+  // One batch per partition key, locked.
   //
-  // The outer ordering re-sorts by age, because `DISTINCT ON` must sort by its own key
-  // first. `FOR UPDATE SKIP LOCKED` on the inner select lets several workers share a
-  // category without coordination — each takes rows the others have not locked.
+  // These two requirements cannot be met by one SELECT: Postgres rejects `FOR UPDATE`
+  // alongside `DISTINCT`, because it cannot know which of the rows collapsed into a
+  // group it is supposed to lock. An earlier version asked for both together and threw
+  // "FOR UPDATE is not allowed with DISTINCT clause" on every poll — the queue never
+  // claimed anything through this path.
+  //
+  // So the two steps are separated. The CTE picks the oldest batch per key and locks
+  // nothing; the outer select locks exactly those rows, and `SKIP LOCKED` lets several
+  // workers share a category without coordination. A worker that finds a key's batch
+  // already locked skips the key entirely rather than moving to that key's next batch,
+  // which is precisely the ordering guarantee: at most one batch per partition is ever
+  // in flight, however many workers are running.
   const rows = await db.execute<{
     batch_id: string;
     category: string;
@@ -61,18 +65,20 @@ export async function claimPendingBatches(
     row_count: number;
     attempts: number;
   }>(raw`
-    SELECT * FROM (
-      SELECT DISTINCT ON (partition_key)
-        batch_id, category, partition_key, payload, row_count, attempts, created_at
+    WITH oldest_per_key AS (
+      SELECT DISTINCT ON (partition_key) batch_id
       FROM ingest_batches
       WHERE category = ${category}
         AND completed_at IS NULL
         AND attempts < ${maxAttempts}
       ORDER BY partition_key, created_at ASC
-      FOR UPDATE SKIP LOCKED
-    ) claimed
-    ORDER BY created_at ASC
+    )
+    SELECT b.batch_id, b.category, b.partition_key, b.payload, b.row_count, b.attempts
+    FROM ingest_batches b
+    WHERE b.batch_id IN (SELECT batch_id FROM oldest_per_key)
+    ORDER BY b.created_at ASC
     LIMIT ${limit}
+    FOR UPDATE SKIP LOCKED
   `);
 
   return [...rows].map((r) => ({
