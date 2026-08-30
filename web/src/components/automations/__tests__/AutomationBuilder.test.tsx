@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import {
@@ -472,3 +473,62 @@ describe('frequency', () => {
     expect(MAX_DELAY_SECONDS).toBe(300);
   });
 });
+
+// -- The loop this nearly shipped with -------------------------------------
+
+describe('reporting to a parent that stores it', () => {
+  /**
+   * The real page, in miniature.
+   *
+   * The earlier tests here pushed to an array in `onChange`, which never re-renders —
+   * so they passed while the actual page crashed with "Maximum update depth exceeded"
+   * on load. What matters is that the parent *sets state* from the report and passes an
+   * inline arrow, because that is what every caller does.
+   */
+  function Host({ def }: { def: AutomationDefinition }) {
+    const [draft, setDraft] = React.useState<AutomationDefinition | null>(null);
+    const [errors, setErrors] = React.useState<string[]>([]);
+
+    return (
+      <>
+        <button type="button" disabled={!draft || errors.length > 0}>
+          Save
+        </button>
+        <span data-testid="error-count">{errors.length}</span>
+        <AutomationBuilder
+          initialDefinition={def}
+          onSave={() => {}}
+          onChange={(d, e) => { setDraft(d); setErrors(e); }}
+        />
+      </>
+    );
+  }
+
+  it('settles instead of looping when the parent stores what it reports', () => {
+    // A new inline `onChange` identity per render, feeding state that causes the next
+    // render. With the callback in the effect's dependencies this never terminated.
+    expect(() => render(<Host def={definition()} />)).not.toThrow();
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+  });
+
+  it('reports errors to the parent, so the header can disable Save', () => {
+    const broken = definition({
+      graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] },
+    });
+    render(<Host def={broken} />);
+
+    expect(Number(screen.getByTestId('error-count').textContent)).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('keeps reporting after an edit', () => {
+    render(<Host def={definition({ graph: { entry: '', nodes: [], edges: [] } })} />);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    fireEvent.click(screen.getByText('Show Toast'));
+
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+  });
+});
+

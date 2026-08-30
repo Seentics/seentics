@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1657,15 +1657,28 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
     return ids;
   }, [graph, outgoing]);
 
+  const setGraph = useCallback(
+    (g: AutomationGraph) => setDefinition(d => ({ ...d, graph: g })),
+    [],
+  );
+
+  const triggerMeta = useCallback((type: string) => {
+    const td = getTriggerType(type);
+    return { label: td.label, description: td.description, icon: td.icon };
+  }, []);
+
+  const selectTrigger = useCallback((index: number) => setSelected({ kind: 'trigger', index }), []);
+  const selectNode = useCallback((id: NodeId) => setSelected({ kind: 'node', id }), []);
+
   // ── Triggers ──────────────────────────────────────────────────────────────
 
   const updateTrigger = (index: number, t: TriggerConfig) =>
     setDefinition(d => ({ ...d, triggers: d.triggers.map((x, i) => (i === index ? t : x)) }));
 
-  const deleteTrigger = (index: number) => {
+  const deleteTrigger = useCallback((index: number) => {
     setDefinition(d => ({ ...d, triggers: d.triggers.filter((_, i) => i !== index) }));
     setSelected(sel => (sel?.kind === 'trigger' && sel.index === index ? null : sel));
-  };
+  }, []);
 
   // Adding never opens the editor: placing a node and configuring it are separate
   // intents, and a modal per drop would interrupt building the shape of the graph.
@@ -1691,10 +1704,10 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
       return { ...d, graph: { ...d.graph, nodes, edges } };
     });
 
-  const deleteNode = (id: NodeId) => {
+  const deleteNode = useCallback((id: NodeId) => {
     setDefinition(d => ({ ...d, graph: removeNode(d.graph, id) }));
     setSelected(sel => (sel?.kind === 'node' && sel.id === id ? null : sel));
-  };
+  }, []);
 
   /**
    * Add a node.
@@ -1721,12 +1734,27 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
     onSave(definition);
   };
 
-  // The page's header renders Save, so it needs the current definition and its errors.
+  /**
+   * Report the definition to the page, which renders Save from it.
+   *
+   * The callback is held in a ref and deliberately kept out of the effect's
+   * dependencies. Every caller passes an inline arrow — `onChange={(d, e) => …}` is the
+   * obvious way to write it — which is a new function identity on every render. With
+   * `onChange` as a dependency, the page setting state from it re-rendered the page,
+   * produced a new identity, re-ran the effect, and the loop only stopped when React
+   * gave up with "Maximum update depth exceeded".
+   *
+   * Keeping the latest callback in a ref makes the component immune to that, rather
+   * than making every caller remember to `useCallback`.
+   */
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    onChange?.(definition, errors);
-    // `errors` is derived from `definition`, so it is not an independent dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [definition, onChange]);
+    onChangeRef.current = onChange;
+  });
+
+  useEffect(() => {
+    onChangeRef.current?.(definition, validateDefinition(definition));
+  }, [definition]);
 
   useImperativeHandle(
     ref,
@@ -1801,18 +1829,15 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
         ) : (
           <AutomationCanvas
             graph={graph}
-            onGraphChange={g => setDefinition(d => ({ ...d, graph: g }))}
+            onGraphChange={setGraph}
             triggers={triggers}
-            triggerMeta={type => {
-              const td = getTriggerType(type);
-              return { label: td.label, description: td.description, icon: td.icon };
-            }}
+            triggerMeta={triggerMeta}
             onDeleteTrigger={deleteTrigger}
-            onSelectTrigger={index => setSelected({ kind: 'trigger', index })}
+            onSelectTrigger={selectTrigger}
             nodeVisual={nodeVisual}
             nodeSummary={nodeSummary}
             invalidNodes={invalidNodes}
-            onSelectNode={id => setSelected({ kind: 'node', id })}
+            onSelectNode={selectNode}
             onDeleteNode={deleteNode}
             onPaletteDrop={handlePaletteDrop}
             paletteMime={PALETTE_MIME}
