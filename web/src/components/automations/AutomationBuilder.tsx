@@ -1857,8 +1857,19 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           keep it pointer-events-none so it never eats a drag.
         */}
         {emptyHint && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">{emptyHint}</p>
+          <div
+            className={cn(
+              'pointer-events-none absolute inset-x-0 flex justify-center',
+              // Dead centre while the canvas is genuinely blank. Once a trigger is on it,
+              // centring leaves the text floating in open space beside the node instead of
+              // reading as guidance, so it drops to the bottom edge and behaves as a status
+              // line. Bottom-*centre* specifically: ReactFlow's zoom controls own bottom-left.
+              hasTrigger ? 'bottom-6' : 'inset-y-0 items-center',
+            )}
+          >
+            <p className="rounded-lg bg-background/80 px-3 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
+              {emptyHint}
+            </p>
           </div>
         )}
 
