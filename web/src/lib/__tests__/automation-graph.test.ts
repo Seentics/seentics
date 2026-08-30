@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_DELAY_SECONDS,
   NODE_HEIGHT,
+  applyLayout,
   connectNode,
+  connectNodes,
+  disconnect,
   edgeFor,
   findCycle,
   indexGraph,
   isBranchNode,
   layoutGraph,
+  moveNode,
   outletLabel,
   outletsFor,
   removeNode,
+  resolvePositions,
   validateGraph,
   type AutomationGraph,
   type GraphNode,
@@ -371,3 +376,107 @@ describe('removeNode', () => {
     expect(g.entry).toBe('');
   });
 });
+
+// -- Positions ---------------------------------------------------------------
+
+describe('node positions', () => {
+  it('keeps a position a node already has', () => {
+    // Arrangement carries meaning the graph does not — which branch reads as the main
+    // path, what sits beside what — so layout must not overrule a deliberate placement.
+    const g: AutomationGraph = {
+      entry: 'a',
+      nodes: [{ ...action('a'), position: { x: 400, y: 250 } }],
+      edges: [],
+    };
+    expect(resolvePositions(g).get('a')).toEqual({ x: 400, y: 250 });
+  });
+
+  it('lays out a node that has never been placed', () => {
+    const positions = resolvePositions(diamond());
+    expect(positions.size).toBe(4);
+    for (const p of positions.values()) {
+      expect(Number.isFinite(p.x)).toBe(true);
+      expect(Number.isFinite(p.y)).toBe(true);
+    }
+  });
+
+  it('mixes the two, so a new node lands sensibly in an arranged graph', () => {
+    const g = diamond();
+    g.nodes[0] = { ...g.nodes[0]!, position: { x: 999, y: 111 } };
+    const positions = resolvePositions(g);
+
+    expect(positions.get(g.nodes[0]!.id)).toEqual({ x: 999, y: 111 });
+    expect(positions.get('tail')).not.toEqual({ x: 999, y: 111 });
+  });
+
+  it('moves one node and leaves the rest alone', () => {
+    // What a drag persists. Without it the node snapped back to its laid-out position
+    // the moment the graph re-rendered.
+    const before = diamond();
+    const after = moveNode(before, 'yes', { x: 120, y: 340 });
+
+    expect(after.nodes.find(n => n.id === 'yes')!.position).toEqual({ x: 120, y: 340 });
+    expect(after.nodes.find(n => n.id === 'no')!.position).toBeUndefined();
+    expect(after.edges).toEqual(before.edges);
+  });
+
+  it('ignores a move for a node that is not there', () => {
+    const g = diamond();
+    expect(moveNode(g, 'ghost', { x: 1, y: 1 }).nodes).toEqual(g.nodes);
+  });
+
+  it('writes every position down when tidying up', () => {
+    const tidied = applyLayout(diamond());
+    expect(tidied.nodes.every(n => n.position !== undefined)).toBe(true);
+  });
+
+  it('overrules a hand placement when tidying, which is the point of the button', () => {
+    const g = diamond();
+    g.nodes[1] = { ...g.nodes[1]!, position: { x: 9999, y: 9999 } };
+    expect(applyLayout(g).nodes[1]!.position).not.toEqual({ x: 9999, y: 9999 });
+  });
+});
+
+describe('connectNodes', () => {
+  it('adds an edge between two nodes', () => {
+    const g = connectNodes(diamond(), 'tail', 'yes');
+    expect(g.edges.some(e => e.from === 'tail' && e.to === 'yes')).toBe(true);
+  });
+
+  it('labels the edge with the outlet it left by', () => {
+    const g: AutomationGraph = { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [] };
+    expect(connectNodes(g, 'if1', 'a', 'true').edges).toEqual([{ from: 'if1', to: 'a', branch: 'true' }]);
+  });
+
+  it('replaces whatever was on that outlet, since an outlet holds one connection', () => {
+    // Two edges on one outlet would make the run ambiguous.
+    const g = connectNodes(diamond(), 'if1', 'tail', 'true');
+    expect(g.edges.filter(e => e.from === 'if1' && e.branch === 'true')).toHaveLength(1);
+    expect(g.edges.find(e => e.from === 'if1' && e.branch === 'true')!.to).toBe('tail');
+  });
+
+  it('refuses to connect a node to itself', () => {
+    // The drag that produced it was a slip; an error message would be noise.
+    const g = diamond();
+    expect(connectNodes(g, 'yes', 'yes').edges).toEqual(g.edges);
+  });
+});
+
+describe('disconnect', () => {
+  it('removes exactly the edge addressed', () => {
+    const g = disconnect(diamond(), 'if1', 'yes', 'true');
+    expect(g.edges.some(e => e.from === 'if1' && e.branch === 'true')).toBe(false);
+    expect(g.edges.some(e => e.from === 'if1' && e.branch === 'false')).toBe(true);
+  });
+
+  it('leaves the graph alone when the edge is not there', () => {
+    const g = diamond();
+    expect(disconnect(g, 'if1', 'nowhere', 'true').edges).toEqual(g.edges);
+  });
+
+  it('keeps the nodes', () => {
+    const g = diamond();
+    expect(disconnect(g, 'yes', 'tail').nodes).toEqual(g.nodes);
+  });
+});
+

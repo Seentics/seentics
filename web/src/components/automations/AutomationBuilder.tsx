@@ -1857,7 +1857,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
               <p className="mt-2 text-sm font-semibold text-foreground">Add an action, condition or delay</p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                 Drag one from the panel, then drag between the handles on each node to
-                connect them.
+                connect them. Double-click a connection to remove it.
               </p>
             </div>
           </div>

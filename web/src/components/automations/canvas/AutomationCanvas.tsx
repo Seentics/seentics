@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, {
+  useEdgesState,
+  useNodesState,
   useReactFlow,
   Background,
   BackgroundVariant,
@@ -12,7 +14,7 @@ import ReactFlow, {
   type Edge,
   type EdgeChange,
   type Node,
-  type NodeChange,
+  type NodeDragHandler,
   type NodeMouseHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -43,6 +45,60 @@ import { nodeTypes, type NodeVisual } from './AutomationNodes';
  * in the direction of flow, which is the cheapest way to make a branch readable: you can
  * see which way the automation runs without tracing arrowheads.
  */
+
+/**
+ * Every edge the canvas draws, for a graph and a number of triggers.
+ *
+ * Pure and exported because this is where the trigger connection went missing: the
+ * canvas repointed `entry` on a drag from a trigger but drew nothing, so triggers looked
+ * unconnectable. A function returning a list is something a test can check; an inline
+ * `useMemo` inside a ReactFlow tree is not.
+ */
+export function buildCanvasEdges(graph: AutomationGraph, triggerCount: number): Edge[] {
+  const byId = new Map(graph.nodes.map(n => [n.id, n]));
+
+  // Triggers connect to the graph's entry, and that connection has to be visible: it is
+  // the one edge whose meaning is immediate — "this is where the automation starts".
+  // Synthesised rather than stored, because `entry` is a single node and every trigger
+  // leads to it; storing one edge per trigger would be the same fact written several
+  // times, and the copies could then disagree.
+  const entryEdges: Edge[] =
+    graph.entry && byId.has(graph.entry)
+      ? Array.from({ length: triggerCount }, (_unused, i) => ({
+          id: `trigger:${i}->${graph.entry}`,
+          source: `trigger:${i}`,
+          target: graph.entry,
+          animated: true,
+          // Not deletable: the way to change where an automation starts is to drag a
+          // trigger onto a different node, not to leave it starting nowhere.
+          deletable: false,
+          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+          style: { strokeWidth: 2, stroke: 'hsl(var(--muted-foreground))' },
+        }))
+      : [];
+
+  const graphEdges: Edge[] = graph.edges.map(e => {
+    const from = byId.get(e.from);
+    return {
+      id: `${e.from}:${e.branch ?? ''}:${e.to}`,
+      source: e.from,
+      target: e.to,
+      sourceHandle: e.branch ?? null,
+      // Animated in the direction of flow — the cheapest way to read a branching graph
+      // without tracing arrowheads.
+      animated: true,
+      label: from && e.branch ? outletLabel(from, e.branch) : undefined,
+      labelBgPadding: [6, 3] as [number, number],
+      labelBgBorderRadius: 8,
+      labelBgStyle: { fill: 'hsl(var(--background))', stroke: 'hsl(var(--border))' },
+      labelStyle: { fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 600 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+      style: { strokeWidth: 2 },
+    };
+  });
+
+  return entryEdges.concat(graphEdges);
+}
 
 export type AutomationCanvasProps = {
   graph: AutomationGraph;
@@ -93,7 +149,7 @@ function AutomationCanvasInner({
   const { screenToFlowPosition } = useReactFlow();
   const positions = useMemo(() => resolvePositions(graph), [graph]);
 
-  const nodes: Node[] = useMemo(() => {
+  const builtNodes: Node[] = useMemo(() => {
     const triggerNodes: Node[] = triggers.map((t, i) => {
       const meta = triggerMeta(t.type);
       return {
@@ -133,71 +189,85 @@ function AutomationCanvasInner({
     return [...triggerNodes, ...graphNodes];
   }, [graph, positions, triggers, triggerMeta, onDeleteTrigger, nodeVisual, nodeSummary, invalidNodes, onDeleteNode]);
 
-  const edges: Edge[] = useMemo(() => {
-    const byId = new Map(graph.nodes.map(n => [n.id, n]));
-
-    return graph.edges.map(e => {
-      const from = byId.get(e.from);
-      return {
-        id: `${e.from}:${e.branch ?? ''}:${e.to}`,
-        source: e.from,
-        target: e.to,
-        sourceHandle: e.branch ?? null,
-        // Animated in the direction of flow — the cheapest way to make a branching
-        // graph readable without tracing arrowheads.
-        animated: true,
-        label: from && e.branch ? outletLabel(from, e.branch) : undefined,
-        labelBgPadding: [6, 3] as [number, number],
-        labelBgBorderRadius: 8,
-        labelBgStyle: { fill: 'hsl(var(--background))', stroke: 'hsl(var(--border))' },
-        labelStyle: { fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 600 },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-        style: { strokeWidth: 2 },
-      };
-    });
-  }, [graph]);
-
   /**
-   * Persist a node's new home when a drag ends.
+   * ReactFlow owns node positions while a drag is in flight.
    *
-   * Only on `dragging === false`: writing every intermediate position would put a
-   * hundred entries through the definition for one gesture, and re-render the whole
-   * graph on each.
+   * They were derived straight from the graph before, and the graph was only written on
+   * drag *end* — so throughout the gesture the node re-rendered at its old position and
+   * simply would not move. Local state lets ReactFlow apply each intermediate change;
+   * `onNodeDragStop` is where the result becomes part of the definition.
    */
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      let next = graph;
-      let touched = false;
+  const [nodes, setNodes, onNodesChange] = useNodesState(builtNodes);
 
-      for (const change of changes) {
-        if (change.type !== 'position' || change.dragging || !change.position) continue;
-        if (change.id.startsWith('trigger:')) continue;
+  // Re-seed whenever the graph itself changes — a node added, deleted, or edited
+  // elsewhere. Position changes flow the other way, through `onNodeDragStop`.
+  useEffect(() => {
+    setNodes(builtNodes);
+  }, [builtNodes, setNodes]);
 
-        next = moveNode(next, change.id, {
-          x: change.position.x,
-          y: change.position.y - GRAPH_OFFSET_Y,
-        });
-        touched = true;
-      }
-
-      if (touched) onGraphChange(next);
+  const onNodeDragStop: NodeDragHandler = useCallback(
+    (_event, node) => {
+      if (node.id.startsWith('trigger:')) return;
+      onGraphChange(
+        moveNode(graph, node.id, { x: node.position.x, y: node.position.y - GRAPH_OFFSET_Y }),
+      );
     },
     [graph, onGraphChange],
   );
 
+  const builtEdges = useMemo(() => buildCanvasEdges(graph, triggers.length), [graph, triggers.length]);
+
+  /**
+   * ReactFlow owns edge selection, for the same reason it owns node positions.
+   *
+   * A fully controlled edge list threw away the selection on every render, so clicking
+   * an edge never made it look selected and Delete had nothing to act on — the
+   * connection could not be removed at all. Local state keeps the selection; removals
+   * are persisted to the graph below.
+   */
+  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(builtEdges);
+
+  useEffect(() => {
+    setEdges(builtEdges);
+  }, [builtEdges, setEdges]);
+
+
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
+      // Selection, hover and the rest are ReactFlow's to track.
+      onEdgesChangeInternal(changes);
+
       let next = graph;
       let touched = false;
 
       for (const change of changes) {
         if (change.type !== 'remove') continue;
+        // Trigger edges are synthesised and marked undeletable, so they never appear
+        // here; their id shape would not survive this split anyway.
+        if (change.id.startsWith('trigger:')) continue;
+
         const [from, branch, to] = change.id.split(':');
         next = disconnect(next, from!, to!, branch || undefined);
         touched = true;
       }
 
       if (touched) onGraphChange(next);
+    },
+    [graph, onGraphChange, onEdgesChangeInternal],
+  );
+
+  /**
+   * Double-click to remove a connection.
+   *
+   * Select-then-Delete works, but it is not discoverable — nothing on the canvas says
+   * an edge can be selected. A double-click is deliberate enough not to fire by
+   * accident and needs no keyboard, which select-and-Delete does.
+   */
+  const onEdgeDoubleClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      if (edge.source.startsWith('trigger:')) return;
+      const [from, branch, to] = edge.id.split(':');
+      onGraphChange(disconnect(graph, from!, to!, branch || undefined));
     },
     [graph, onGraphChange],
   );
@@ -214,7 +284,11 @@ function AutomationCanvasInner({
       const { source, target, sourceHandle } = connection;
       if (!source || !target) return;
 
+      // Dragging from a trigger repoints where the automation starts. Every trigger
+      // leads to the same entry, so this moves all of them at once — which is what
+      // "any of these triggers starts it" means.
       if (source.startsWith('trigger:')) {
+        if (target.startsWith('trigger:')) return;
         onGraphChange({ ...graph, entry: target });
         return;
       }
@@ -286,7 +360,10 @@ function AutomationCanvasInner({
       edges={edges}
       nodeTypes={nodeTypes}
       onNodesChange={onNodesChange}
+      onNodeDragStop={onNodeDragStop}
       onEdgesChange={onEdgesChange}
+      onEdgeDoubleClick={onEdgeDoubleClick}
+      edgesFocusable
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       onNodeClick={onNodeClick}
