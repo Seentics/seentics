@@ -149,18 +149,28 @@ describe('validateDefinition', () => {
 describe('canvas', () => {
   it('prompts for a trigger when there is none', () => {
     setup(definition({ triggers: [], graph: { entry: '', nodes: [], edges: [] } }));
-    expect(screen.getByText('Start with a trigger')).toBeInTheDocument();
+    expect(screen.getByText('Drag a trigger from the panel to start.')).toBeInTheDocument();
   });
 
   it('prompts for a node when the graph is empty', () => {
     // A trigger and a blank canvas looks the same as a broken canvas without this.
     setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
-    expect(screen.getByText('Add an action, condition or delay')).toBeInTheDocument();
+    expect(screen.getByText('Drag an action, condition or delay from the panel.')).toBeInTheDocument();
   });
 
-  it('tells you how nodes are connected, since it is no longer automatic', () => {
-    setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
-    expect(screen.getByText(/drag between the handles on each node/i)).toBeInTheDocument();
+  it('keeps the canvas mounted with no trigger, so the first one can be dragged in', () => {
+    // The empty state used to replace the canvas, which removed the drop target the hint
+    // points at: the first trigger could only ever be added by clicking, never by dragging.
+    setup(definition({ triggers: [], graph: { entry: '', nodes: [], edges: [] } }));
+    expect(document.querySelector('.react-flow')).not.toBeNull();
+  });
+
+  it('does not let the empty hint swallow a drag', () => {
+    setup(definition({ triggers: [], graph: { entry: '', nodes: [], edges: [] } }));
+    const hint = screen.getByText('Drag a trigger from the panel to start.');
+    // The overlay covers the whole canvas; if it took pointer events, nothing could be
+    // dropped through it.
+    expect(hint.closest('.pointer-events-none')).not.toBeNull();
   });
 
   it('renders a card per node', () => {

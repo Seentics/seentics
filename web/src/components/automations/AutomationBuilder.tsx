@@ -16,7 +16,7 @@ import {
   Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap,
   AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout,
   Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2,
-  Settings, ZoomIn, ZoomOut, Maximize2, X, Save, Filter, Layers,
+  Settings, ZoomIn, ZoomOut, Maximize2, X, Save, Filter,
   GripVertical, ChevronDown, ChevronRight, ListChecks, Braces, CheckCircle2, AlertCircle,
   GitBranch,
   Hourglass,
@@ -1820,6 +1820,12 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
     else addNode('action', type, position);
   };
 
+  const emptyHint = !hasTrigger
+    ? 'Drag a trigger from the panel to start.'
+    : graph.nodes.length === 0
+      ? 'Drag an action, condition or delay from the panel.'
+      : null;
+
   const selectedNode =
     selected?.kind === 'node' ? graph.nodes.find(n => n.id === selected.id) : undefined;
 
@@ -1827,61 +1833,32 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
     <div className={cn('flex h-full min-h-0 overflow-hidden', className)}>
       {/* Canvas */}
       <div className="relative min-h-0 flex-1">
-        {!hasTrigger ? (
-          <div className="flex h-full items-center justify-center bg-muted/20 p-6">
-            <button
-              type="button"
-              onClick={() => openPalette('triggers')}
-              className="group flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
-                <Zap className="h-7 w-7" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Start with a trigger</p>
-                <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
-                  Every automation begins with a trigger. Pick one from the panel to start.
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-emerald-500">
-                <Plus className="h-4 w-4" /> Add trigger
-              </span>
-            </button>
-          </div>
-        ) : (
-          <AutomationCanvas
-            graph={graph}
-            onGraphChange={setGraph}
-            triggers={triggers}
-            triggerMeta={triggerMeta}
-            onDeleteTrigger={deleteTrigger}
-            onSelectTrigger={selectTrigger}
-            nodeVisual={nodeVisual}
-            nodeSummary={nodeSummary}
-            invalidNodes={invalidNodes}
-            onSelectNode={selectNode}
-            onDeleteNode={deleteNode}
-            onPaletteDrop={handlePaletteDrop}
-            paletteMime={PALETTE_MIME}
-          />
-        )}
+        <AutomationCanvas
+          graph={graph}
+          onGraphChange={setGraph}
+          triggers={triggers}
+          triggerMeta={triggerMeta}
+          onDeleteTrigger={deleteTrigger}
+          onSelectTrigger={selectTrigger}
+          nodeVisual={nodeVisual}
+          nodeSummary={nodeSummary}
+          invalidNodes={invalidNodes}
+          onSelectNode={selectNode}
+          onDeleteNode={deleteNode}
+          onPaletteDrop={handlePaletteDrop}
+          paletteMime={PALETTE_MIME}
+        />
 
         {/*
-          A trigger but no nodes is a blank canvas, which looks the same as a broken one.
-          Overlaid rather than replacing the canvas so the palette's drop target is still
-          there underneath — the hint says to drag, so dragging has to work while it is
-          showing.
+          An empty canvas looks the same as a broken one, so it gets a hint — but only a
+          hint. This used to *replace* the canvas before the first trigger existed, which
+          removed the very drop target the hint tells you to drag onto: the first trigger
+          could only be added by clicking. Always mount the canvas; overlay the text, and
+          keep it pointer-events-none so it never eats a drag.
         */}
-        {hasTrigger && graph.nodes.length === 0 && (
+        {emptyHint && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="rounded-lg border-2 border-dashed border-border bg-background/80 px-6 py-5 text-center backdrop-blur-sm">
-              <Layers className="mx-auto h-6 w-6 text-muted-foreground" />
-              <p className="mt-2 text-sm font-semibold text-foreground">Add an action, condition or delay</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Drag one from the panel, then drag between the handles on each node to
-                connect them. Double-click a connection to remove it.
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">{emptyHint}</p>
           </div>
         )}
 
