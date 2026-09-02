@@ -130,17 +130,16 @@ const FEATURES: Feature[] = [
 ];
 
 function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
-  // Bands alternate with the sides, giving four rows a rhythm rather than one long
-  // undifferentiated run.
-  const banded = index % 2 === 1;
+  // Every row carries the two-tone band; the direction flips row to row so the
+  // sloped divide zigzags down the page rather than repeating the same fall.
   const mockFirst = index % 2 === 1;
 
   return (
     <section
       id={feature.id}
       className={cn(
-        'landing-section',
-        banded && 'landing-band',
+        'landing-section landing-band',
+        index % 2 === 1 && 'landing-band-reverse',
       )}
     >
       <div className="landing-container">

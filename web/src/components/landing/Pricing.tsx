@@ -93,7 +93,7 @@ export default function Pricing() {
   }
 
   return (
-    <section id="pricing" className="landing-section landing-band">
+    <section id="pricing" className="landing-section landing-band landing-band-reverse">
       <div className="landing-container">
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-10">

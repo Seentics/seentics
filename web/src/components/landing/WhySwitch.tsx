@@ -60,7 +60,7 @@ function ToolCell({ label, value, highlight }: { label: string; value: Cell; hig
 
 export default function WhySwitch() {
   return (
-    <section className="landing-section bg-background">
+    <section className="landing-section landing-band">
       <div className="landing-container">
         {/* Header */}
         <div className="mx-auto mb-16 max-w-4xl text-center">

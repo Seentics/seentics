@@ -53,7 +53,7 @@ export default function LifetimeDeal() {
   };
 
   return (
-    <section id="lifetime-deal" className="landing-section relative overflow-hidden bg-background">
+    <section id="lifetime-deal" className="landing-section landing-band overflow-hidden">
       {/* Ambient glow */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[720px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
 

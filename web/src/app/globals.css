@@ -303,6 +303,17 @@
     );
   }
 
+  /* Mirrored: tint on the bottom half, slope tilted the other way. Consecutive
+     sections alternate between this and the base, so the divide zigzags down the
+     page instead of every section falling the same direction. */
+  .landing-band-reverse::before {
+    background-image: linear-gradient(
+      175deg,
+      transparent 0 50%,
+      hsl(var(--muted)) 50% 100%
+    );
+  }
+
   /* Dark mode reads the split at a lower alpha: `--muted` (215 17% 13%) is only a few
      points off the page colour, so the full token gives almost no separation, while
      lifting it toward the foreground does. */
@@ -311,6 +322,14 @@
       185deg,
       hsl(var(--muted-foreground) / 0.07) 0 50%,
       transparent 50% 100%
+    );
+  }
+
+  .dark .landing-band-reverse::before {
+    background-image: linear-gradient(
+      175deg,
+      transparent 0 50%,
+      hsl(var(--muted-foreground) / 0.07) 50% 100%
     );
   }
 
