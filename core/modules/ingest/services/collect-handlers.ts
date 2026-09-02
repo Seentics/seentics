@@ -7,6 +7,7 @@ import type {
 } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
+import { upsertVisitorProfile } from "../../automations/services/visitor-profile.service";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { IngestQueue } from "../interfaces";
 import { log as baseLog } from "../../../platform/lib/logger";
@@ -113,6 +114,64 @@ export function handleEvents(ctx: CollectHandlerContext): void {
   const forDb = withIngestMeta(sortByTs(filtered), ctx.ingestMeta);
   ctx.queue.enqueueEvents(ctx.website.id, forDb);
   log.debug({ msg: "events_queued", website_id: ctx.website.id, n: forDb.length });
+}
+
+/**
+ * Keep the visitor profile current from the batch we already have.
+ *
+ * The profile is what gives automation conditions anything to say about the *person*
+ * rather than the page. It was never written — see `visitor-profile.service` — so
+ * conditions on country, device or visit count could not be true.
+ *
+ * Everything used here was already computed for the analytics rows: `ctx.ingestMeta`
+ * carries the MaxMind geography and the parsed user agent, and the visitor id rides on
+ * the events. No extra lookup, no extra request.
+ *
+ * `void`, not awaited: the request exists to accept analytics rows, and a profile
+ * write failing must not fail that.
+ */
+export function handleVisitorProfile(ctx: CollectHandlerContext): void {
+  const events = parseCollectEvents(Array.isArray(ctx.body.events) ? ctx.body.events : []);
+  if (!events.length) return;
+
+  // Any event carries the visitor id; the first one that has it is enough.
+  const anonymousId = events.find((e) => e.vid)?.vid ?? "";
+  if (!anonymousId) return;
+
+  let pageViews = 0;
+  let userId: string | undefined;
+  let traits: Record<string, unknown> | undefined;
+
+  for (const e of events) {
+    if (e.type === "pageview") pageViews++;
+    if (e.type !== "identify") continue;
+
+    // `seentics.identify(userId, traits)` sends `{ user_id, traits }`. Until now those
+    // landed in the event stream and stopped there, so a trait could never be a fact.
+    const d = e.data ?? {};
+    const uid = typeof d.user_id === "string" ? d.user_id.trim() : "";
+    if (uid) userId = uid;
+    const t = d.traits;
+    if (t && typeof t === "object" && !Array.isArray(t)) {
+      traits = { ...(traits ?? {}), ...(t as Record<string, unknown>) };
+    }
+  }
+
+  const meta = ctx.ingestMeta;
+  void upsertVisitorProfile({
+    websiteId: ctx.website.id,
+    anonymousId,
+    userId,
+    traits,
+    pageViews,
+    country: meta?.country ?? null,
+    region: meta?.region ?? null,
+    city: meta?.city ?? null,
+    device: meta?.device ?? null,
+    browser: meta?.browser ?? null,
+    os: meta?.os ?? null,
+    language: meta?.languageHint ?? null,
+  });
 }
 
 export function handleFunnels(ctx: CollectHandlerContext): void {

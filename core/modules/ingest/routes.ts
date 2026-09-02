@@ -21,6 +21,7 @@ import {
   handleFunnels,
   handleHeatmaps,
   handleRecordings,
+  handleVisitorProfile,
 } from "./services/collect-handlers";
 import { buildAnalyticsIngestMeta } from "../../platform/lib/analytics-ingest-meta";
 import type { IngestQueue } from "./interfaces";
@@ -303,6 +304,7 @@ export function createTrackerRoutes(deps: {
     }
 
     handleEvents(ctx);
+    handleVisitorProfile(ctx);
     handleFunnels(ctx);
     handleAutomations(ctx);
     handleRecordings(ctx);
