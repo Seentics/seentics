@@ -4,7 +4,11 @@ import type { RecordingsModule } from "./interfaces";
 import { RecordingUsageCounter } from "./services/usage-count.service";
 import { createRecordingRoutes } from "./routes";
 import { RecordingRawReadService } from "./services/raw-reads.service";
-import { getReplayEngine, initReplayEngine } from "./services/recording-engine.service";
+import {
+  getReplayEngine,
+  initReplayEngine,
+  stopReplayEngine,
+} from "./services/recording-engine.service";
 import { RecordingService } from "./services/recording.service";
 import { RecordingRetentionPurge } from "./services/retention-purge.service";
 
@@ -28,13 +32,16 @@ export function initRecordingsModule(deps: {
     }),
 
     // Constructing the engine arms flush timers and opens an S3 client, so it happens
-    // here rather than at build time — same reason as the heatmap engine.
+    // here rather than at build time — same reason as the heatmap engine. Idempotent:
+    // an ingest that beat `start()` already built one, and replacing it would strand
+    // that engine's timer and its buffered events.
     start() {
       initReplayEngine();
     },
 
+    // Never constructs one just to tear it down — `getReplayEngine().shutdown()` would.
     async stop() {
-      await getReplayEngine().shutdown();
+      await stopReplayEngine();
     },
   };
 }

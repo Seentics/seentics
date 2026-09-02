@@ -10,6 +10,8 @@ export type {
   RecordingMutations,
   RecordingQuery,
   RecordingSummary,
+  SessionListFilters,
+  SessionListSummary,
 } from "./recording.interface";
 
 /** The whole module surface, as a peer receives it at composition time. */

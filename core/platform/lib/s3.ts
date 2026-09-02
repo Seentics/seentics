@@ -225,15 +225,18 @@ export async function deleteSessionPrefix(bucket: string, websiteId: string, ses
   } while (token);
 }
 
+/**
+ * The legacy single-bundle object for a session, or `null`.
+ *
+ * One key, not two: this used to probe a second prefix for the other website identifier,
+ * from when a bundle could be written under either. There is one identifier now, and the
+ * second lookup had degenerated into comparing a variable with itself.
+ */
 export async function locateBundle(
   bucket: string,
   websiteId: string,
   sessionId: string,
 ): Promise<string | null> {
-  const keys = [sessionBundleKey(websiteId, sessionId)];
-  if (websiteId && websiteId !== websiteId) keys.push(sessionBundleKey(websiteId, sessionId));
-  for (const k of keys) {
-    if (await objectExists(bucket, k)) return k;
-  }
-  return null;
+  const key = sessionBundleKey(websiteId, sessionId);
+  return (await objectExists(bucket, key)) ? key : null;
 }

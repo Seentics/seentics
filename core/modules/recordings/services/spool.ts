@@ -1,4 +1,3 @@
-import type { ReplayChunk } from "../../../platform/lib/types";
 import { compareReplayEnvelopeEvents } from "./event-order";
 import { log as baseLog } from "../../../platform/lib/logger";
 
@@ -28,7 +27,19 @@ function approximateBytes(ev: Record<string, unknown>): number {
 }
 
 /** Drop idle empty sessions so the spool map cannot grow forever after visitors leave. */
-const EMPTY_SESSION_IDLE_PURGE_MS = 45 * 60 * 1000;
+const DEFAULT_IDLE_PURGE_MS = 45 * 60 * 1000;
+
+/**
+ * The unflushed tail of one session, plus where storage had got to when it was read.
+ *
+ * `flushedThrough` is the next sequence this process would write. The detail endpoint
+ * compares it against the highest chunk it listed to notice a flush that landed after
+ * the listing — the one case where the tail it is holding is already in object storage.
+ */
+export type WarmTail = {
+  events: Record<string, unknown>[];
+  flushedThrough: number | null;
+};
 
 type SessionState = {
   websiteId: string;
@@ -63,6 +74,7 @@ function sortEvents(events: Record<string, unknown>[]): void {
 export class ReplaySpool {
   private sessions = new Map<string, SessionState>();
   private chunkFlushMs: number;
+  private idlePurgeMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
   private onChunkFlush: (
     websiteId: string,
@@ -74,6 +86,8 @@ export class ReplaySpool {
 
   constructor(opts: {
     chunkFlushMs: number;
+    /** How long an empty session may sit before it is dropped. Defaults to 45 minutes. */
+    idlePurgeMs?: number;
     getInitialSequence: (websiteId: string, sessionId: string) => Promise<number>;
     onChunkFlush: (
       websiteId: string,
@@ -83,6 +97,9 @@ export class ReplaySpool {
     ) => Promise<void>;
   }) {
     this.chunkFlushMs = Math.max(5_000, opts.chunkFlushMs);
+    // Never below the flush window: purging a session that has not had a chance to flush
+    // would throw away its `nextChunkSeq` and re-cold-start the sequence from a listing.
+    this.idlePurgeMs = Math.max(this.chunkFlushMs, opts.idlePurgeMs ?? DEFAULT_IDLE_PURGE_MS);
     this.getInitialSequence = opts.getInitialSequence;
     this.onChunkFlush = opts.onChunkFlush;
   }
@@ -130,6 +147,9 @@ export class ReplaySpool {
       this.sessions.set(k, st);
     }
     if (st.approxBytes >= maxBytesPerSession) {
+      // Touched even though nothing was kept: the visitor is demonstrably still active,
+      // and letting the idle sweep collect the row would drop `nextChunkSeq` with it.
+      st.lastTouchedMs = Date.now();
       log.warn({
         msg: "replay_spool_byte_overflow_drop",
         session_id: sessionId,
@@ -141,6 +161,7 @@ export class ReplaySpool {
 
     const room = maxEventsPerSession - st.events.length;
     if (room <= 0) {
+      st.lastTouchedMs = Date.now();
       log.warn({ msg: "replay_spool_overflow_drop", session_id: sessionId, dropped: events.length });
       return;
     }
@@ -159,16 +180,17 @@ export class ReplaySpool {
   }
 
   /** Unflushed tail only; detail API assigns sequence using max S3 chunk index + 1. */
-  warmChunks(websiteId: string, sessionId: string): ReplayChunk[] | null {
+  warmChunks(websiteId: string, sessionId: string): WarmTail | null {
     const st = this.sessions.get(mapKey(websiteId, sessionId));
     if (!st) return null;
     if (st.dirty) {
       sortEvents(st.events);
       st.dirty = false;
     }
-    if (st.finalizing && st.events.length === 0) return null;
     if (st.events.length === 0) return null;
-    return [{ sequence: 0, data: st.events as unknown[], timestamp: new Date() }];
+    // Copied rather than handed out: the caller reads it asynchronously and a concurrent
+    // flush replaces `st.events` wholesale, so the reference would go stale mid-read.
+    return { events: [...st.events], flushedThrough: st.nextChunkSeq };
   }
 
   remove(websiteId: string, sessionId: string): void {
@@ -181,7 +203,7 @@ export class ReplaySpool {
       if (
         st.events.length === 0 &&
         !st.finalizing &&
-        now - st.lastTouchedMs > EMPTY_SESSION_IDLE_PURGE_MS
+        now - st.lastTouchedMs > this.idlePurgeMs
       ) {
         this.sessions.delete(key);
       }
@@ -214,6 +236,7 @@ export class ReplaySpool {
     if (st.events.length === 0) return;
     st.finalizing = true;
     const batch = st.events;
+    const batchBytes = st.approxBytes;
     st.events = [];
     st.approxBytes = 0;
     st.dirty = false;
@@ -228,8 +251,12 @@ export class ReplaySpool {
       st.nextChunkSeq = seq + 1;
       st.lastTouchedMs = Date.now();
     } catch (e) {
-      // Restore events so the next tick can retry rather than silently dropping them.
+      // Restore events so the next tick can retry rather than silently dropping them —
+      // and restore their byte cost with them. Leaving `approxBytes` at zero here meant
+      // one failed flush permanently un-enforced the memory cap for that session.
       st.events = [...batch, ...st.events];
+      st.approxBytes = batchBytes + st.approxBytes;
+      st.dirty = true;
       st.chunkWindowStart = Date.now();
       throw e;
     } finally {

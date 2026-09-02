@@ -20,7 +20,7 @@ import {
   Play,
   MousePointerClick,
 } from 'lucide-react';
-import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
 import {
@@ -93,6 +93,38 @@ type DeviceFilter = 'all' | 'desktop' | 'mobile' | 'tablet';
 const SEARCH_DEBOUNCE_MS = 300;
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+/** A two-state filter chip. `aria-pressed` is what makes it a toggle to a screen reader. */
+function SignalFilter({
+  pressed,
+  onPressedChange,
+  label,
+  title,
+  icon,
+  activeClass,
+}: {
+  pressed: boolean;
+  onPressedChange: (next: boolean) => void;
+  label: string;
+  title: string;
+  icon: React.ReactNode;
+  activeClass: string;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-pressed={pressed}
+      title={title}
+      onClick={() => onPressedChange(!pressed)}
+      className={cn('h-8 gap-1.5 px-2.5 text-xs', pressed && activeClass)}
+    >
+      {icon}
+      {label}
+    </Button>
+  );
+}
 
 // Unified row type
 interface SessionRow {
@@ -195,8 +227,8 @@ export default function ReplaysPage() {
     gcTime: 15 * 60 * 1000,
   });
 
-  // Normalise to common row shape
-  const allSessions: SessionRow[] = useMemo(() => {
+  // Normalise to common row shape. These are the rows of the CURRENT page only.
+  const rows: SessionRow[] = useMemo(() => {
     if (isDemoMode) {
       return demoReplays().sessions.map(s => ({
         id: s.id,
@@ -230,27 +262,44 @@ export default function ReplaysPage() {
 
   }, [isDemoMode, apiData]);
 
-  const filtered = useMemo(() =>
-    allSessions.filter(s => {
-      if (deviceFilter !== 'all' && s.device.toLowerCase() !== deviceFilter) return false;
-      if (
-        search &&
-        ![s.country, s.browser, s.os, s.device, s.entry_page, s.session_id].some(v =>
-          v.toLowerCase().includes(search.toLowerCase()),
-        )
-      ) {
-        return false;
-      }
-      return true;
-    }),
-    [allSessions, deviceFilter, search],
-  );
+  /**
+   * Headline figures for the whole filtered set, computed by the database.
+   *
+   * Deriving these from `rows` would make each one a statistic about the page being
+   * looked at — "Total Sessions: 25" on a site with thousands. Demo mode has no server
+   * to ask, so it sums its own fixture.
+   */
+  const stats = useMemo(() => {
+    if (isDemoMode) {
+      const withDuration = rows.filter(r => r.duration_seconds > 0);
+      return {
+        total: rows.length,
+        withErrors: rows.filter(r => r.has_errors).length,
+        withRageClicks: rows.filter(r => r.has_rage_clicks).length,
+        avgDurationSeconds: withDuration.length
+          ? Math.round(withDuration.reduce((a, r) => a + r.duration_seconds, 0) / withDuration.length)
+          : 0,
+      };
+    }
+    return apiData?.summary ?? {
+      total: apiData?.total ?? 0,
+      withErrors: 0,
+      withRageClicks: 0,
+      avgDurationSeconds: 0,
+    };
+  }, [isDemoMode, rows, apiData]);
 
-  const withErrors = allSessions.filter(s => s.has_errors).length;
-  const withRage = allSessions.filter(s => s.has_rage_clicks).length;
-  const avgDuration = allSessions.length && allSessions.some(s => s.duration_seconds > 0)
-    ? Math.round(allSessions.reduce((s, r) => s + r.duration_seconds, 0) / allSessions.length)
-    : 0;
+  const totalRows = isDemoMode ? rows.length : (apiData?.total ?? 0);
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
+  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly;
+
+  const clearFilters = useCallback(() => {
+    setSearch('');
+    setCommittedSearch('');
+    setDeviceFilter('all');
+    setErrorsOnly(false);
+    setRageOnly(false);
+  }, []);
 
   const columns = useMemo<ColumnDef<SessionRow>[]>(() => [
     selectionColumn<SessionRow>(),
@@ -410,17 +459,39 @@ export default function ReplaysPage() {
       </DashboardPageHeader>
 
       <StatCards cards={[
-        { label: 'Total Sessions', value: allSessions.length, icon: Users, tone: 'info' },
-        { label: 'Avg Duration', value: avgDuration > 0 ? formatDuration(avgDuration) : '—', icon: Clock, tone: 'accent' },
-        { label: 'With Errors', value: withErrors, icon: AlertTriangle, tone: 'danger', toneWhen: withErrors > 0 },
-        { label: 'Rage clicks', value: withRage, icon: MousePointerClick, tone: 'warning', toneWhen: withRage > 0 },
+        {
+          label: filtersActive ? 'Matching Sessions' : 'Total Sessions',
+          value: stats.total,
+          icon: Users,
+          tone: 'info',
+        },
+        {
+          label: 'Avg Duration',
+          value: stats.avgDurationSeconds > 0 ? formatDuration(stats.avgDurationSeconds) : '—',
+          icon: Clock,
+          tone: 'accent',
+        },
+        {
+          label: 'With Errors',
+          value: stats.withErrors,
+          icon: AlertTriangle,
+          tone: 'danger',
+          toneWhen: stats.withErrors > 0,
+        },
+        {
+          label: 'Rage clicks',
+          value: stats.withRageClicks,
+          icon: MousePointerClick,
+          tone: 'warning',
+          toneWhen: stats.withRageClicks > 0,
+        },
       ]} />
 
       <DataTable
         className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-3.5 [&_th]:!py-3.5"
-        data={filtered}
+        data={rows}
         columns={columns}
-        isLoading={isLoading}
+        isLoading={isLoading || isFetching}
         rowClassName={() => 'hover:bg-muted/35'}
         enableRowSelection={true}
         selectionActions={(selectedRows) => (
@@ -448,9 +519,9 @@ export default function ReplaysPage() {
           <div>
             <h3 className="text-sm font-semibold text-foreground">Recorded sessions</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {filtered.length === allSessions.length
-                ? `${allSessions.length} session${allSessions.length === 1 ? '' : 's'} recorded`
-                : `${filtered.length} of ${allSessions.length} shown`}
+              {filtersActive
+                ? `${stats.total} matching session${stats.total === 1 ? '' : 's'}`
+                : `${stats.total} session${stats.total === 1 ? '' : 's'} recorded`}
             </p>
           </div>
         }
@@ -465,7 +536,33 @@ export default function ReplaysPage() {
                 className="h-8 w-52 pl-8 text-xs"
               />
             </div>
-            <Select value={deviceFilter} onValueChange={setDeviceFilter}>
+
+            {/*
+              "Show me the sessions that broke" in one click — the two signals the
+              Signals column already surfaces, as filters rather than something to
+              scroll for.
+            */}
+            <SignalFilter
+              pressed={errorsOnly}
+              onPressedChange={setErrorsOnly}
+              label="Errors"
+              title="Only sessions where a JavaScript error or unhandled rejection fired"
+              icon={<AlertTriangle className="h-3.5 w-3.5" />}
+              activeClass="border-red-500/40 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300"
+            />
+            <SignalFilter
+              pressed={rageOnly}
+              onPressedChange={setRageOnly}
+              label="Rage"
+              title="Only sessions with a rage-click cluster"
+              icon={<MousePointerClick className="h-3.5 w-3.5" />}
+              activeClass="border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+            />
+
+            <Select
+              value={deviceFilter}
+              onValueChange={(v) => setDeviceFilter(v as DeviceFilter)}
+            >
               <SelectTrigger className="w-[130px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -476,15 +573,41 @@ export default function ReplaysPage() {
                 <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
               </SelectContent>
             </Select>
+
+            {filtersActive && (
+              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
+                Clear
+              </Button>
+            )}
           </>
         }
         onRowClick={row => router.push(`/websites/${websiteId}/replays/${row.session_id}`)}
         emptyIcon={<Video className="h-6 w-6" />}
-        emptyTitle="No sessions yet"
-        emptyDescription={isDemoMode
-          ? 'No sessions match your filters.'
-          : 'Install the Seentics tracker with recording enabled to capture sessions.'}
-        pageSize={10}
+        emptyTitle={filtersActive ? 'No matching sessions' : 'No sessions yet'}
+        emptyDescription={
+          filtersActive
+            ? 'No session matches these filters. The search covers every recorded session, not just this page.'
+            : isDemoMode
+              ? 'Demo mode has no sessions to show.'
+              : 'Install the Seentics tracker with recording enabled to capture sessions.'
+        }
+        emptyAction={
+          filtersActive ? (
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          ) : undefined
+        }
+        paginationMode={isDemoMode ? 'client' : 'server'}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        totalRowCount={totalRows}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        onPaginationChange={({ pageIndex: nextIndex, pageSize: nextSize }) => {
+          setPageIndex(nextIndex);
+          setPageSize(nextSize);
+        }}
       />
 
     </div>

@@ -34,8 +34,9 @@ export default function PrivacyPage() {
             resolved at ingest; the address is not kept with the event.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">No typed input.</strong> Every input is
-            masked in recordings, always — it is not a setting that can be turned off.
+            <strong className="font-medium text-foreground">No typed input.</strong> Form fields and
+            rich-text editors (anything <C>contenteditable</C>) are masked in recordings, always —
+            it is not a setting that can be turned off.
           </Li>
           <Li>
             <strong className="font-medium text-foreground">No cross-site tracking.</strong> A
@@ -45,14 +46,66 @@ export default function PrivacyPage() {
         </Ul>
       </DocSection>
 
+      <DocSection title="What a recording does include">
+        <P>
+          A recording is more than the DOM. Alongside the replay itself, Seentics stores the
+          annotations that make one worth watching — and it is worth knowing what those are before
+          you enable recording on a page that handles personal data.
+        </P>
+        <Ul>
+          <Li>
+            <strong className="font-medium text-foreground">Console output.</strong> Calls to{' '}
+            <C>console.log/info/warn/error/debug</C>, up to ten arguments each, truncated at
+            1,000 characters.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">Network requests.</strong> Method, URL,
+            status and duration for every <C>fetch</C> and <C>XMLHttpRequest</C>. Request and
+            response <em>bodies</em> are never read.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">JavaScript errors.</strong> Message,
+            stack, file and line for uncaught errors and unhandled rejections.
+          </Li>
+        </Ul>
+        <P>
+          All three are scrubbed before they leave the browser. URL credentials and fragments are
+          dropped; query values under keys that look sensitive (<C>token</C>, <C>password</C>,{' '}
+          <C>api_key</C>, <C>email</C>, <C>otp</C>, and similar) are replaced with{' '}
+          <C>redacted</C>; and anything shaped like an email address or a bearer token is removed
+          from console arguments, error messages and stack traces wherever it appears.
+        </P>
+        <Callout kind="warning" title="Scrubbing is a safety net, not a guarantee">
+          It matches patterns. It cannot know that your own <C>?ref=</C> parameter identifies a
+          person, or that a log line prints a customer record. If a page handles data you would
+          not want a teammate reading back, turn the sidecars off for the site or exclude the page.
+        </Callout>
+        <P>
+          Both sidecars can be switched off on the tracker script tag, in which case the override
+          is never installed at all — <C>console</C> and <C>fetch</C> are left untouched:
+        </P>
+        <Ul>
+          <Li>
+            <C>data-capture-console=&quot;off&quot;</C> — no console capture.
+          </Li>
+          <Li>
+            <C>data-capture-network=&quot;off&quot;</C> — no request capture.
+          </Li>
+        </Ul>
+      </DocSection>
+
       <DocSection title="Keeping things out of recordings">
         <P>
-          Beyond input masking, mark elements you do not want captured. Both attributes are read
-          from the DOM by the recorder:
+          Beyond input masking, mark elements you do not want captured. All three attributes are
+          read from the DOM by the recorder:
         </P>
         <Ul>
           <Li>
             <C>data-seentics-block</C> — replaced by a placeholder; contents never captured.
+          </Li>
+          <Li>
+            <C>data-seentics-mask</C> — the element still renders and animates, but its text is
+            replaced with asterisks. Use it where the layout matters and the words do not.
           </Li>
           <Li>
             <C>data-seentics-ignore</C> — captured once, then changes inside it are not tracked.

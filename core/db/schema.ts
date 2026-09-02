@@ -384,7 +384,13 @@ export const apiKeys = pgTable(
 export const sessionReplays = pgTable(
   "session_replays",
   {
-    websiteId: uuid("website_id").notNull(),
+    /**
+     * `text`, not `uuid`. Every deployed database has this column as text, and the
+     * declaration said `uuid` — harmless while Drizzle emits no cast, but a
+     * `drizzle-kit push` would have tried to alter a populated column to a type its
+     * historical values do not all satisfy.
+     */
+    websiteId: text("website_id").notNull(),
     sessionId: text("session_id").notNull(),
     sequence: integer("sequence").notNull(),
     data: jsonb("data").notNull().$type<Record<string, unknown>>(),

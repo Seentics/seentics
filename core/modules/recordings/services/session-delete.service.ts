@@ -6,8 +6,9 @@ import { deleteSessionPrefix } from "../../../platform/lib/s3";
 /**
  * Delete recordings and their stored chunks.
  *
- * Takes both resolved identifiers: spools, S3 prefixes and rows may all be
- * written under either, so cleaning up only one leaves orphans behind.
+ * Best-effort across the batch: object storage and the database can disagree after a
+ * partial failure, and refusing to delete the rest because one object is already gone
+ * would leave the user unable to clear anything.
  */
 export async function batchDeleteReplaySessions(
   websiteId: string,
@@ -19,7 +20,6 @@ export async function batchDeleteReplaySessions(
   // Remove all in-memory spools first (synchronous, no await)
   for (const sid of sessionIds) {
     engine.removeSpool(websiteId, sid);
-    if (websiteId !== websiteId) engine.removeSpool(websiteId, sid);
   }
 
   // Delete S3 objects and DB records for all sessions in parallel

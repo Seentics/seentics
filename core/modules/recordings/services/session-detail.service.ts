@@ -5,23 +5,17 @@ import { presignGet, locateBundle, getJsonGzip, listSessionReplayChunks } from "
 import { compareReplayEnvelopeEvents } from "./event-order";
 import { replayNotReady, timestampToIso } from "./shared";
 
-/** Merge chunk listings from canonical site id and uuid folder (legacy paths). */
-async function collectSessionChunkRows(
+/** Chunk objects stored for one session, lowest sequence first. */
+async function listSessionChunkRows(
   bucket: string,
   websiteId: string,
   sessionId: string,
 ): Promise<{ sequence: number; key: string }[]> {
+  const rows = await listSessionReplayChunks(bucket, websiteId, sessionId);
   const bySeq = new Map<number, string>();
-  const ingest = async (wid: string) => {
-    const rows = await listSessionReplayChunks(bucket, wid, sessionId);
-    for (const r of rows) {
-      if (!bySeq.has(r.sequence)) bySeq.set(r.sequence, r.key);
-    }
-  };
-  await Promise.all([
-    ingest(websiteId),
-    ...(websiteId !== websiteId ? [ingest(websiteId)] : []),
-  ]);
+  for (const r of rows) {
+    if (!bySeq.has(r.sequence)) bySeq.set(r.sequence, r.key);
+  }
   return [...bySeq.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([sequence, key]) => ({ sequence, key }));
@@ -33,26 +27,31 @@ export type ReplayChunkUrlRow = {
   expires_at: string;
 };
 
+/** The session-list projection, as the player's header renders it. */
+export type ReplayDetailMeta = {
+  sessionId: string;
+  websiteId: string;
+  browser: string;
+  device: string;
+  os: string;
+  country: string;
+  entryPage: string;
+  startedAt: string;
+  hasRageClicks: boolean;
+  hasErrors: boolean;
+  durationSeconds: number;
+  pagesViewed: number;
+};
+
+type WarmChunkRow = { sequence: number; data: unknown; timestamp: string };
+
 export type ReplaySessionDetail =
   | {
       status: 200;
       body: {
         session_id: string;
-        meta: {
-          sessionId: string;
-          websiteId: string;
-          browser: string;
-          device: string;
-          os: string;
-          country: string;
-          entryPage: string;
-          startedAt: string;
-          hasRageClicks: boolean;
-          hasErrors: boolean;
-          durationSeconds: number;
-          pagesViewed: number;
-        } | null;
-        warm_chunks: { sequence: number; data: unknown; timestamp: string }[];
+        meta: ReplayDetailMeta | null;
+        warm_chunks: WarmChunkRow[];
         recording_pending: false;
         replay_storage?: "legacy_inline";
       };
@@ -61,20 +60,7 @@ export type ReplaySessionDetail =
       status: 200;
       body: {
         session_id: string;
-        meta: {
-          sessionId: string;
-          websiteId: string;
-          browser: string;
-          device: string;
-          os: string;
-          country: string;
-          entryPage: string;
-          startedAt: string;
-          hasRageClicks: boolean;
-          hasErrors: boolean;
-          durationSeconds: number;
-          pagesViewed: number;
-        } | null;
+        meta: ReplayDetailMeta | null;
         recording_pending: true;
         replay_storage?: "pending";
       };
@@ -83,24 +69,11 @@ export type ReplaySessionDetail =
       status: 200;
       body: {
         session_id: string;
-        meta: {
-          sessionId: string;
-          websiteId: string;
-          browser: string;
-          device: string;
-          os: string;
-          country: string;
-          entryPage: string;
-          startedAt: string;
-          hasRageClicks: boolean;
-          hasErrors: boolean;
-          durationSeconds: number;
-          pagesViewed: number;
-        } | null;
+        meta: ReplayDetailMeta | null;
         replay_storage: "chunks";
         replay_chunk_count: number;
         replay_chunk_urls: ReplayChunkUrlRow[];
-        warm_chunks?: { sequence: number; data: unknown; timestamp: string }[];
+        warm_chunks?: WarmChunkRow[];
         recording_pending: false;
       };
     }
@@ -108,20 +81,7 @@ export type ReplaySessionDetail =
       status: 200;
       body: {
         session_id: string;
-        meta: {
-          sessionId: string;
-          websiteId: string;
-          browser: string;
-          device: string;
-          os: string;
-          country: string;
-          entryPage: string;
-          startedAt: string;
-          hasRageClicks: boolean;
-          hasErrors: boolean;
-          durationSeconds: number;
-          pagesViewed: number;
-        } | null;
+        meta: ReplayDetailMeta | null;
         replay_storage: "bundle";
         replay_url: string;
         replay_url_expires_at: string;
@@ -133,8 +93,11 @@ export type ReplaySessionDetail =
 /**
  * One recording with its ordered event stream.
  *
- * Takes both resolved identifiers because chunks may live under either prefix;
- * see `collectSessionChunkRows`.
+ * The in-memory tail is read **after** the object listing, never before. A spool flush
+ * between the two used to hand the same events back twice — once as a listed chunk and
+ * once as `warm_chunks` — and the player appends the warm tail last via rrweb's live-mode
+ * `addEvent`, which assumes chronologically increasing input. Reading in this order means
+ * anything already flushed is out of the buffer, so the two sets cannot overlap.
  */
 export async function getReplaySessionDetail(
   websiteId: string,
@@ -145,7 +108,7 @@ export async function getReplaySessionDetail(
   const cfg = env();
 
   const metaRow = await getSessionMeta(websiteId, sid);
-  const meta = metaRow
+  const meta: ReplayDetailMeta | null = metaRow
     ? {
         sessionId: metaRow.sessionId,
         websiteId: metaRow.websiteId,
@@ -162,21 +125,26 @@ export async function getReplaySessionDetail(
       }
     : null;
 
-  const warm =
-    engine.warmChunks(websiteId, sid) ?? (websiteId !== websiteId ? engine.warmChunks(websiteId, sid) : null);
-
   const bucket = cfg.s3.bucket;
   const expMs = cfg.presignTtlMs;
   const deadline = new Date(Date.now() + expMs).toISOString();
 
-  const chunkRows = await collectSessionChunkRows(bucket, websiteId, sid);
+  let chunkRows = await listSessionChunkRows(bucket, websiteId, sid);
+  const warm = engine.warmChunks(websiteId, sid);
 
-  const warmFlat: Record<string, unknown>[] = [];
-  if (warm) {
-    for (const ch of warm) {
-      if (Array.isArray(ch.data)) warmFlat.push(...(ch.data as Record<string, unknown>[]));
+  /**
+   * A flush that landed between the listing and the tail read leaves a chunk in storage
+   * that this response would not mention — a gap in the middle of playback. One re-list
+   * closes it; the tail is already known not to contain those events.
+   */
+  if (warm?.flushedThrough != null) {
+    const highestListed = chunkRows.length > 0 ? chunkRows[chunkRows.length - 1]!.sequence : -1;
+    if (warm.flushedThrough > highestListed + 1) {
+      chunkRows = await listSessionChunkRows(bucket, websiteId, sid);
     }
   }
+
+  const warmFlat: Record<string, unknown>[] = warm ? warm.events : [];
 
   /** Time-based immutable chunks + optional in-memory tail. */
   if (chunkRows.length > 0) {

@@ -26,12 +26,22 @@ export interface ReplayListParams {
   hasRageClicks?:  boolean;
 }
 
+/** Headline figures over every session matching the filters, computed server-side. */
+export interface ReplayListSummary {
+  total:              number;
+  withErrors:         number;
+  withRageClicks:     number;
+  /** Mean over sessions that have a duration at all; 0 when none do. */
+  avgDurationSeconds: number;
+}
+
 export interface ReplayListPage {
   sessions: ReplaySession[];
   limit:    number;
   offset:   number;
   /** Sessions matching the filters in total, not just on this page. */
   total:    number;
+  summary:  ReplayListSummary;
 }
 
 /** A single rrweb eventWithTime object */
@@ -252,12 +262,21 @@ export async function listSessions(
 
   const res = await api.get(`/replays/${encodeURIComponent(websiteId)}`, { params: query });
   const body = res.data as Partial<ReplayListPage>;
+  const sessions = body.sessions ?? [];
+  // A core that predates these fields says nothing; the page itself is the honest
+  // fallback, and it is at least not a number presented as something it is not.
+  const total = typeof body.total === 'number' ? body.total : sessions.length;
   return {
-    sessions: body.sessions ?? [],
-    limit:    body.limit  ?? Number(query.limit),
-    offset:   body.offset ?? Number(query.offset),
-    // A core that predates the total says nothing; the page length is the honest fallback.
-    total:    typeof body.total === 'number' ? body.total : (body.sessions?.length ?? 0),
+    sessions,
+    limit:   body.limit  ?? Number(query.limit),
+    offset:  body.offset ?? Number(query.offset),
+    total,
+    summary: body.summary ?? {
+      total,
+      withErrors:     sessions.filter(s => s.hasErrors).length,
+      withRageClicks: sessions.filter(s => s.hasRageClicks).length,
+      avgDurationSeconds: 0,
+    },
   };
 }
 

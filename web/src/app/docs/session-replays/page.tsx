@@ -75,11 +75,16 @@ export default function SessionReplaysPage() {
 
       <DocSection title="Privacy">
         <P>
-          Every input is masked — always, not as a setting. Typed values never leave the browser. For
-          anything else you do not want captured, mark the element with{' '}
-          <C>data-seentics-block</C>; see the{' '}
-          <Link href="/docs/tracker" className="text-primary hover:underline">tracker reference</Link>{' '}
-          for both element attributes.
+          Form fields and rich-text editors are masked — always, not as a setting. Typed values
+          never leave the browser. For anything else you do not want captured, mark the element
+          with <C>data-seentics-block</C> or <C>data-seentics-mask</C>.
+        </P>
+        <P>
+          A recording also stores console output, request URLs and JavaScript errors, scrubbed for
+          credentials and addresses on the way out. What that covers — and how to switch either
+          sidecar off — is in{' '}
+          <Link href="/docs/privacy" className="text-primary hover:underline">privacy</Link>, along
+          with the element attributes.
         </P>
       </DocSection>
 

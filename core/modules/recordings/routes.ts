@@ -4,7 +4,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 import { log } from "../../platform/lib/logger";
 import { parseJson, parseQuery } from "../../platform/validation";
-import type { WebsiteQuery } from "../websites/interfaces";
+import { roleCanDeleteData, type WebsiteQuery, type WebsiteRole } from "../websites/interfaces";
 import type { RecordingMutations, RecordingQuery } from "./interfaces";
 // Imported from the schema module rather than a barrel: these are `z.preprocess`
 // schemas whose inferred output widens when re-exported, which silently costs the
@@ -29,27 +29,27 @@ export function createRecordingRoutes(deps: {
   r.use(authMiddleware);
 
   /**
-   * Authenticate and confirm the caller may see this website's recordings.
+   * Authenticate and resolve the caller's role on this website.
    *
-   * Returns a `Response` to short-circuit with, or `null` to proceed. Answers 403
-   * for an unknown website as well as a forbidden one, so the endpoint cannot be
-   * used to probe which site ids exist.
+   * Returns either a `Response` to short-circuit with, or the role to proceed with.
+   * Answers 403 for an unknown website as well as a forbidden one, so the endpoint
+   * cannot be used to probe which site ids exist.
    *
    * Recordings are among the most sensitive data in the product — they replay what
    * a real visitor did on screen — so this guard runs on every route here,
    * including the delete.
    */
-  async function denyUnlessPermitted(
+  async function permittedRole(
     c: Context<{ Variables: AuthVars }>,
     websiteRef: string,
-  ): Promise<Response | null> {
+  ): Promise<{ role: WebsiteRole } | { denied: Response }> {
     const userId = requireUser(c);
-    if (!userId) return c.json({ error: "forbidden" }, 403);
+    if (!userId) return { denied: c.json({ error: "forbidden" }, 403) };
 
     const role = await websites.getRole(websiteRef, userId);
-    if (!role) return c.json({ error: "forbidden" }, 403 as ContentfulStatusCode);
+    if (!role) return { denied: c.json({ error: "forbidden" }, 403 as ContentfulStatusCode) };
 
-    return null;
+    return { role };
   }
 
   /**
@@ -70,7 +70,13 @@ export function createRecordingRoutes(deps: {
   }
 
   function guarded(
-    handle: (c: Context<{ Variables: AuthVars }>, websiteRef: string) => Promise<Response>,
+    handle: (
+      c: Context<{ Variables: AuthVars }>,
+      websiteRef: string,
+      role: WebsiteRole,
+    ) => Promise<Response>,
+    /** Set on routes that destroy data, so read access alone is not enough. */
+    opts: { requireDelete?: boolean } = {},
   ) {
     return async (c: Context<{ Variables: AuthVars }>) => {
       // Typed optional because this handler is generic over the path; Hono only
@@ -78,20 +84,38 @@ export function createRecordingRoutes(deps: {
       const websiteRef = c.req.param("website_id");
       if (!websiteRef) return c.json({ error: "not found" }, 404);
 
-      const denied = await denyUnlessPermitted(c, websiteRef);
-      if (denied) return denied;
+      const outcome = await permittedRole(c, websiteRef);
+      if ("denied" in outcome) return outcome.denied;
 
-      return handle(c, websiteRef);
+      if (opts.requireDelete && !roleCanDeleteData(outcome.role)) {
+        return c.json(
+          { error: "your role on this website cannot delete recordings" },
+          403 as ContentfulStatusCode,
+        );
+      }
+
+      return handle(c, websiteRef, outcome.role);
     };
   }
 
-  // GET /:website_id — recorded sessions, newest first.
+  /**
+   * GET /:website_id — one page of recorded sessions, newest first.
+   *
+   * Narrowing happens here rather than in the browser. The dashboard used to pull a
+   * fixed 100 rows and filter them client-side, which made "no results" mean "not in
+   * the first 100" and made the page's totals count only what had been downloaded.
+   */
   r.get("/:website_id", guarded(async (c, websiteRef) => {
 
     const q = parseQuery(c, replayListQuerySchema);
     if (!q.ok) return q.res;
 
-    const out = await recordings.listSessions(websiteRef, q.data.limit, q.data.offset);
+    const out = await recordings.listSessions(websiteRef, q.data.limit, q.data.offset, {
+      search: q.data.search,
+      device: q.data.device,
+      hasErrors: q.data.has_errors,
+      hasRageClicks: q.data.has_rage_clicks,
+    });
     return c.json(out);
   }));
 
@@ -122,7 +146,7 @@ export function createRecordingRoutes(deps: {
     }
 
     return c.json({ message: "sessions deleted" });
-  }));
+  }, { requireDelete: true }));
 
   // GET /:website_id/:session_id — one recording with its event stream.
   r.get("/:website_id/:session_id", guarded(async (c, websiteRef) => {

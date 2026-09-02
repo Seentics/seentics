@@ -12,6 +12,12 @@
  */
 
 import type { TrackerEvent } from "../../../platform/lib/types";
+import type {
+  SessionListFilters,
+  SessionListSummary,
+} from "../repositories/recording.repository";
+
+export type { SessionListFilters, SessionListSummary };
 
 /** Summary of one recorded session, as the session list renders it. */
 export type RecordingSummary = {
@@ -44,16 +50,28 @@ export type { ReplaySessionDetail as RecordingDetail } from "../services/session
 /** Read access to recordings, for the dashboard. */
 export interface RecordingQuery {
   /**
-   * Recorded sessions for a website, newest first.
+   * One page of recorded sessions, newest first.
    *
    * `limit` and `offset` are clamped by the implementation rather than trusted —
    * this is a paginated endpoint over a table that grows without bound.
+   *
+   * `total` counts every session matching `filters`, not just the returned page, so a
+   * client can page and report a real count instead of the size of its own buffer.
+   * Filtering is server-side for the same reason.
    */
   listSessions(
     websiteRef: string,
     limit: number,
     offset: number,
-  ): Promise<{ sessions: RecordingSummary[]; limit: number; offset: number }>;
+    filters?: SessionListFilters,
+  ): Promise<{
+    sessions: RecordingSummary[];
+    limit: number;
+    offset: number;
+    total: number;
+    /** Errors, rage clicks and mean duration over the whole filtered set. */
+    summary: SessionListSummary;
+  }>;
 
   /**
    * One recording, with a `status` the route passes straight through.
@@ -110,6 +128,8 @@ export interface RecordingRawReads {
     /** Echoed back clamped, so the caller can see what it actually got. */
     limit: number;
     offset: number;
+    /** Every session matching, not just this page. */
+    total: number;
     /** Wire shape (snake_case) — this is a data-export surface. */
     sessions: Array<{
       session_id: string;

@@ -53,8 +53,42 @@ export type WebsiteSettings = {
   allowRawDataExport: boolean;
 };
 
-/** A user's relationship to a website. `null` means no access. */
-export type WebsiteRole = "owner" | "member";
+/**
+ * A user's relationship to a website. `null` means no access.
+ *
+ * `website_members.role` is a free-form `varchar(32)` with no database enum, so this is
+ * the set the code recognises rather than a constraint the table enforces. Anything
+ * stored that is not recognised normalises to `viewer` — the least privileged value —
+ * because these strings gate destructive operations.
+ */
+export type WebsiteRole = "owner" | "admin" | "member" | "viewer";
+
+/** Map a stored `website_members.role` onto a known role, failing closed. */
+export function normalizeWebsiteRole(raw: string | null | undefined): WebsiteRole {
+  switch ((raw ?? "").trim().toLowerCase()) {
+    case "owner":
+      return "owner";
+    case "admin":
+      return "admin";
+    case "member":
+      return "member";
+    default:
+      return "viewer";
+  }
+}
+
+/**
+ * May this role destroy collected data — delete recordings, heatmaps, or analytics?
+ *
+ * Read access and delete access used to be the same check: every route asked only
+ * whether `getRole` returned non-null, and the repository collapsed every stored role to
+ * `"member"`, so a collaborator invited as a viewer could permanently delete a site's
+ * session recordings. Recordings are the sharpest case — they replay what a real visitor
+ * did on screen and there is no undo — but the predicate is deliberately shared.
+ */
+export function roleCanDeleteData(role: WebsiteRole): boolean {
+  return role === "owner" || role === "admin" || role === "member";
+}
 
 export type CreateWebsiteInput = {
   name: string;

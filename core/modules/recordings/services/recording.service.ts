@@ -1,6 +1,12 @@
 import type { EventBus } from "../../../infrastructure/events";
 import type { WebsiteQuery } from "../../websites/interfaces";
-import type { RecordingMutations, RecordingQuery, RecordingSummary } from "../interfaces";
+import type {
+  RecordingMutations,
+  RecordingQuery,
+  RecordingSummary,
+  SessionListFilters,
+  SessionListSummary,
+} from "../interfaces";
 import { batchDeleteReplaySessions } from "./session-delete.service";
 import { getReplaySessionDetail, type ReplaySessionDetail } from "./session-detail.service";
 import { listReplaySessions } from "./session-list.service";
@@ -55,9 +61,16 @@ export class RecordingService implements RecordingQuery, RecordingMutations {
     websiteRef: string,
     limit: number,
     offset: number,
-  ): Promise<{ sessions: RecordingSummary[]; limit: number; offset: number }> {
+    filters: SessionListFilters = {},
+  ): Promise<{
+    sessions: RecordingSummary[];
+    limit: number;
+    offset: number;
+    total: number;
+    summary: SessionListSummary;
+  }> {
     const websiteId = await this.resolve(websiteRef);
-    return listReplaySessions(websiteId, limit, offset);
+    return listReplaySessions(websiteId, limit, offset, filters);
   }
 
   async getSessionDetail(websiteRef: string, sessionId: string): Promise<ReplaySessionDetail> {

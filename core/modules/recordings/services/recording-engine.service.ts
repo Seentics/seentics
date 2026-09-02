@@ -1,8 +1,8 @@
 import { env } from "../../../config";
 import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../platform/lib/s3";
-import { ReplaySpool } from "./spool";
+import { ReplaySpool, type WarmTail } from "./spool";
+import { applyBatchOnce } from "../../../infrastructure/idempotency";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "../repositories/recording.repository";
-import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { compareReplayEnvelopeEvents } from "./event-order";
 import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
 import type { TrackerEvent } from "../../../platform/lib/types";
@@ -12,20 +12,38 @@ import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "replay" });
 
-const pgQueueCap = 16384;
-const pgBatchSize = 64;
-const pgBatchMs = 500;
+/** Sessions per metadata statement. One `applyBatchOnce` marker still covers the whole batch. */
+const pgStatementSize = 64;
 
 type RageClick = { ts: number; x: number; y: number };
+
+/**
+ * Widest epoch-ms this module will carry out of a client payload.
+ *
+ * `Number.isFinite` is not a tight enough filter on its own: the value ends up in the
+ * `data` jsonb as `_snc_re_end` and is cast to `bigint` in the metadata upsert, so a
+ * fractional or out-of-range timestamp aborts the whole statement and takes every other
+ * session in the same batch down with it. `1e21` and `1700000000000.5` both reach that
+ * cast unharmed without this.
+ */
+const MAX_EPOCH_MS = 8_640_000_000_000_000;
+
+/** An integral, in-range epoch-ms, or null when the value cannot be one. */
+function sanitizeEpochMs(v: number): number | null {
+  if (!Number.isFinite(v)) return null;
+  const n = Math.trunc(v);
+  if (n < 0 || n > MAX_EPOCH_MS) return null;
+  return n;
+}
 
 /** rrweb `eventWithTime.timestamp` on tracker payloads (`type: 'rrweb'`, `data` = emit object). */
 function rrwebPayloadTimelineMs(data: unknown): number | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const raw = (data as Record<string, unknown>).timestamp;
-  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "number") return sanitizeEpochMs(raw);
   if (typeof raw === "string") {
     const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
+    return Number.isFinite(n) ? sanitizeEpochMs(n) : null;
   }
   return null;
 }
@@ -50,7 +68,7 @@ function replayActivitySpanMs(batch: SessionBatch): { min: number; max: number }
     let t = e.type === "rrweb" ? rrwebPayloadTimelineMs(e.data) : null;
     if (t == null) {
       const n = typeof e.ts === "number" ? e.ts : Number(e.ts);
-      t = Number.isFinite(n) ? n : null;
+      t = sanitizeEpochMs(n);
     }
     if (t == null) continue;
     if (t < min) min = t;
@@ -69,7 +87,8 @@ function replayDurationSecondsFromBatch(batch: SessionBatch): number {
 
 function replayLatestEventMsForStorage(batch: SessionBatch, fallbackEnd: number): number {
   const span = replayActivitySpanMs(batch);
-  return span ? span.max : fallbackEnd;
+  if (span) return span.max;
+  return sanitizeEpochMs(fallbackEnd) ?? 0;
 }
 
 type SessionBatch = {
@@ -84,25 +103,19 @@ type SessionBatch = {
   ingestMeta?: AnalyticsIngestMeta;
 };
 
-type SessionMetaLite = {
-  sessionId: string;
-  websiteId: string;
+/** The request-level context the list view renders, resolved once per session. */
+type SessionEnvironment = {
   browser: string;
   device: string;
   os: string;
   country: string;
   entryPage: string;
-  startedAt: Date;
-  hasRageClicks: boolean;
-  hasErrors: boolean;
-  durationSeconds: number;
-  pagesViewed: number;
 };
 
 type SessionWork = {
   sessionId: string;
   batch: SessionBatch;
-  meta: SessionMetaLite;
+  env: SessionEnvironment;
   urlTransitions: number;
   firstUrl: string;
   lastUrl: string;
@@ -124,32 +137,14 @@ function normalizeReplayPageUrl(u: unknown): string {
 
 export class ReplayEngine implements RecordingIngest {
   private spool: ReplaySpool;
-  private pgBuf: SessionUpsertRow[] = [];
-
-  /**
-   * The batch currently being ingested, stamped onto buffered metadata rows.
-   *
-   * Empty when a row was buffered outside a `processEvents` call, in which case the
-   * upsert runs unguarded — acceptable because session metadata is an upsert on
-   * (website, session, sequence), so a repeat overwrites rather than accumulates.
-   */
-  private currentBatchId = "";
-  private pgTimer: ReturnType<typeof setInterval>;
   private bucket: string;
 
-  /**
-   * `websites` resolves the identifier pair per flush.
-   *
-   * Injected rather than imported: the lookup used to come from
-   * `platform/lib/website-resolve`, so this engine did raw resolution against a table
-   * the websites module owns. That injection is gone with the second identifier: every
-   * table keys on `website_id`, so the flush needs no lookup to know what to write.
-   */
   constructor() {
     const c = env();
     this.bucket = c.s3.bucket;
     this.spool = new ReplaySpool({
       chunkFlushMs: c.replayChunkFlushMs,
+      idlePurgeMs: c.spoolIdleMs,
       getInitialSequence: async (websiteId, sessionId) =>
         getNextReplayChunkSequence(this.bucket, websiteId, sessionId),
       onChunkFlush: async (websiteId, sessionId, sequence, events) => {
@@ -157,59 +152,24 @@ export class ReplayEngine implements RecordingIngest {
       },
     });
     this.spool.start();
-    this.pgTimer = setInterval(() => void this.flushPg(), pgBatchMs);
-  }
-
-  /**
-   * Lenient resolution: the reference stands in for both identifiers when the lookup
-   * fails or no resolver was injected. A flush must not be dropped because one website
-   * row is missing.
-   */
-  /**
-   * Kept as a seam even though it is now the identity: the flush maps a batch's website
-   * reference to the id its rows are keyed by, and that used to be a lookup. One
-   * identifier makes it a no-op rather than making the concept disappear.
-   */
-  private async resolveIds(websiteId: string): Promise<{ websiteId: string }> {
-    return { websiteId };
   }
 
   async shutdown(): Promise<void> {
-    clearInterval(this.pgTimer);
-    await this.flushPg();
     await this.spool.flushAll();
     this.spool.stop();
   }
 
-  private async flushPg(): Promise<void> {
-    if (this.pgBuf.length === 0) return;
-    const all = this.pgBuf.splice(0);
-    const chunks: SessionUpsertRow[][] = [];
-    for (let i = 0; i < all.length; i += pgBatchSize) chunks.push(all.slice(i, i + pgBatchSize));
-    await Promise.all(
-      chunks.map((chunk) =>
-        upsertSessionMetaBatch(chunk).catch((e: unknown) =>
-          log.error({ msg: "replay_pg_batch_failed", err: String(e) }),
-        ),
-      ),
-    );
-  }
-
-  private enqueuePg(row: SessionUpsertRow): void {
-    if (this.pgBuf.length >= pgQueueCap) {
-      log.warn({ msg: "replay_pg_buffer_full_drop", session_id: row.sessionId });
-      return;
-    }
-    this.pgBuf.push(row);
-    if (this.pgBuf.length >= pgBatchSize) void this.flushPg();
-  }
-
-  /** Ingest tracker-shaped events (same envelope as Go TrackerEvent). */
+  /**
+   * Ingest tracker-shaped events (same envelope as Go TrackerEvent).
+   *
+   * Throws when the metadata write fails, so the ingest worker retries the batch rather
+   * than marking it applied. The write used to be buffered onto a timer and awaited by
+   * nobody: a dropped or failed flush left chunks in object storage with no `sequence = 0`
+   * row, and a recording with no row is invisible to the session list, undeletable from
+   * the dashboard, and unreachable by retention — which enumerates its work from that
+   * very table.
+   */
   async processEvents(batchId: string, events: TrackerEvent[]): Promise<void> {
-    // Tag the batch so the metadata upsert can skip a redelivery. The chunk uploads
-    // themselves need no marker: an S3 key is (session, sequence), so replaying one
-    // overwrites the same object rather than adding a second.
-    this.currentBatchId = batchId;
     // Which types make up a recording is this module's answer, so the filter is here
     // rather than in ingest.
     events = recordingEventsIn(events);
@@ -254,8 +214,8 @@ export class ReplayEngine implements RecordingIngest {
             if (src === 2 && ct === 2) {
               const x = Number(inner.x);
               const y = Number(inner.y);
-              const ts = Number(ev.data.timestamp);
-              b.clicks.push({ ts: Number.isFinite(ts) ? ts : ev.ts, x, y });
+              const ts = rrwebPayloadTimelineMs(ev.data);
+              b.clicks.push({ ts: ts ?? ev.ts, x, y });
             }
           }
         }
@@ -298,19 +258,12 @@ export class ReplayEngine implements RecordingIngest {
           ? (batch.events[0]!.url as string)
           : "";
       const im = batch.ingestMeta;
-      const meta: SessionMetaLite = {
-        sessionId,
-        websiteId: batch.websiteId,
+      const environment: SessionEnvironment = {
         browser: (im?.browser ?? "").trim() || "Unknown",
         device: (im?.device ?? "").trim() || "Unknown",
         os: (im?.os ?? "").trim() || "Unknown",
         country: (im?.country ?? "").trim(),
         entryPage: entryURL,
-        startedAt: new Date(clampClientTs(batch.startTs)),
-        hasRageClicks: false,
-        hasErrors: batch.hasErrors,
-        durationSeconds: 0,
-        pagesViewed: 0,
       };
 
       let tsToUse = batch.endTs;
@@ -319,7 +272,7 @@ export class ReplayEngine implements RecordingIngest {
       work.push({
         sessionId,
         batch,
-        meta,
+        env: environment,
         urlTransitions,
         firstUrl,
         lastUrl,
@@ -329,45 +282,59 @@ export class ReplayEngine implements RecordingIngest {
       });
     }
 
-    // Resolve all unique website IDs in parallel rather than sequentially.
-    const uniqueWids = [...new Set(work.map((w) => w.batch.websiteId))];
-    const resolved = await Promise.all(uniqueWids.map((wid) => this.resolveIds(wid)));
-    const ctx = new Map(uniqueWids.map((wid, i) => [wid, resolved[i]!]));
+    if (work.length === 0) return;
+
+    const rows: SessionUpsertRow[] = work.map((w) => ({
+      websiteId: w.batch.websiteId,
+      sessionId: w.sessionId,
+      tsMs: w.tsToUse,
+      latestEventMs: replayLatestEventMsForStorage(w.batch, w.batch.endTs),
+      browser: w.env.browser,
+      device: w.env.device,
+      os: w.env.os,
+      country: w.env.country,
+      entryPage: w.env.entryPage,
+      urlTransitions: w.urlTransitions,
+      firstUrl: w.firstUrl,
+      lastUrl: w.lastUrl,
+      durationSeconds: w.durationSeconds,
+      hasRageClicks: w.rageClicks,
+      hasErrors: w.batch.hasErrors,
+    }));
+
+    /**
+     * Metadata first, chunks second.
+     *
+     * `pages_viewed` accumulates, so a redelivered batch inflates it — the marker is what
+     * stops that. Writing the rows before spooling also means a failed write leaves nothing
+     * buffered: the retry re-does both halves from a clean slate instead of appending the
+     * same events to the spool a second time.
+     */
+    const { applied } = await applyBatchOnce(batchId, "recordings", async (tx) => {
+      let written = 0;
+      for (let i = 0; i < rows.length; i += pgStatementSize) {
+        written += await upsertSessionMetaBatch(tx, batchId, rows.slice(i, i + pgStatementSize));
+      }
+      return written;
+    });
+
+    if (!applied) {
+      log.debug({ msg: "replay_batch_redelivered", batch_id: batchId, sessions: work.length });
+      return;
+    }
 
     for (const w of work) {
-      const wid = w.batch.websiteId;
-      const { websiteId: storageWebsiteId } = ctx.get(wid)!;
-
       try {
-        this.spool.push(storageWebsiteId, w.sessionId, w.batch.events);
+        this.spool.push(w.batch.websiteId, w.sessionId, w.batch.events);
       } catch (e) {
+        // The metadata row is already committed, so the session stays visible and
+        // deletable — it just has fewer events than it should.
         log.error({ msg: "replay_spool_push_failed", session_id: w.sessionId, err: String(e) });
-        continue;
       }
-
-      const m = w.meta;
-      const row: SessionUpsertRow = {
-        websiteId: storageWebsiteId,
-        sessionId: w.sessionId,
-        tsMs: w.tsToUse,
-        latestEventMs: replayLatestEventMsForStorage(w.batch, w.batch.endTs),
-        browser: m.browser,
-        device: m.device,
-        os: m.os,
-        country: m.country,
-        entryPage: m.entryPage,
-        urlTransitions: w.urlTransitions,
-        firstUrl: w.firstUrl,
-        lastUrl: w.lastUrl,
-        durationSeconds: w.durationSeconds,
-        hasRageClicks: w.rageClicks,
-        hasErrors: w.batch.hasErrors,
-      };
-      this.enqueuePg(row);
     }
   }
 
-  warmChunks(websiteId: string, sessionId: string) {
+  warmChunks(websiteId: string, sessionId: string): WarmTail | null {
     return this.spool.warmChunks(websiteId, sessionId);
   }
 
@@ -399,8 +366,8 @@ let _engine: ReplayEngine | null = null;
 /**
  * The process-wide engine.
  *
- * Creates a resolver-less engine if nothing initialised one first, so an early ingest
- * degrades to lenient resolution rather than throwing.
+ * Creates one on first use if nothing initialised it, so an early ingest still has
+ * somewhere to go.
  */
 export function getReplayEngine(): ReplayEngine {
   if (!_engine) _engine = new ReplayEngine();
@@ -408,10 +375,19 @@ export function getReplayEngine(): ReplayEngine {
 }
 
 /**
- * Create the engine with its website resolver. Called by `initRecordingsModule().start`
- * before anything can ingest; returns the same instance `getReplayEngine()` hands out.
+ * Create the engine. Called by `initRecordingsModule().start`.
+ *
+ * Idempotent: constructing an engine arms a flush timer and opens an S3 client, so
+ * replacing a live one would strand both along with whatever it had buffered. An early
+ * `getReplayEngine()` therefore wins, and this returns that same instance.
  */
 export function initReplayEngine(): ReplayEngine {
-  _engine = new ReplayEngine();
-  return _engine;
+  return getReplayEngine();
+}
+
+/** Shut down and forget the engine, if one was ever built. Constructs nothing. */
+export async function stopReplayEngine(): Promise<void> {
+  const engine = _engine;
+  _engine = null;
+  if (engine) await engine.shutdown();
 }

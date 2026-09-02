@@ -29,11 +29,16 @@ function affectedRows(result: unknown): number {
  * object-storage deletes; an unbounded pass would hold a transaction open across
  * thousands of network round trips.
  *
- * Storage is cleared *before* the rows, deliberately. If it failed after, the row
- * would be gone and the objects orphaned with nothing left pointing at them; this way
- * a failure leaves the row in place and the next sweep retries it. The cost is that a
- * crash between the two can delete objects for a session whose row survives, which
- * reads as an empty recording — recoverable, unlike an unreferenced object.
+ * Storage is cleared *before* the rows, and only the sessions whose storage delete
+ * actually succeeded have their rows removed. The row is the sole pointer to the objects
+ * — retention enumerates its work from this table — so deleting it after a failed prefix
+ * delete strands those objects permanently. Leaving it means the next sweep retries.
+ *
+ * The cost is that a crash between the two can delete objects for a session whose row
+ * survives, which reads as an empty recording — recoverable, unlike an unreferenced object.
+ *
+ * A session whose prefix delete keeps failing is therefore re-selected every pass. The
+ * loop tracks that: a pass that clears nothing stops rather than spinning on the same rows.
  */
 export class RecordingRetentionPurge implements RetentionPurge {
   readonly name = "recordings";
@@ -46,27 +51,28 @@ export class RecordingRetentionPurge implements RetentionPurge {
     let sessionsPurged = 0;
     let rowsDeleted = 0;
 
+    let storageFailures = 0;
+
     for (;;) {
-      // Rows may be written under either identifier, so match both — see the
-      // repository's list query for the same reason.
       const oldSessions = await sql<{ website_id: string; session_id: string }[]>`
         SELECT website_id, session_id
         FROM session_replays
         WHERE sequence = 0
           AND timestamp < ${cutoffs.replay}
-          AND (website_id = ${target.websiteId} OR website_id = ${target.websiteId})
+          AND website_id = ${target.websiteId}
         LIMIT ${options.batchSize}
       `;
       if (oldSessions.length === 0) break;
 
-      sessionsPurged += oldSessions.length;
-
+      const cleared: { website_id: string; session_id: string }[] = [];
       for (const row of oldSessions) {
         try {
           await deleteSessionPrefix(options.bucket, row.website_id, row.session_id);
+          cleared.push(row);
         } catch (e) {
-          // Logged and skipped: an unreachable prefix must not stop the sweep. The row
-          // stays, so the next run retries this session.
+          // Logged and skipped: an unreachable prefix must not stop the sweep, and the
+          // row must outlive it so the next run can retry this session.
+          storageFailures += 1;
           log.warn({
             msg: "retention_s3_replay_delete_failed",
             session_id: row.session_id,
@@ -75,8 +81,16 @@ export class RecordingRetentionPurge implements RetentionPurge {
         }
       }
 
+      /**
+       * Nothing cleared: every row in this page is one whose objects could not be
+       * deleted, so the same page comes back next time. Stop instead of spinning.
+       */
+      if (cleared.length === 0) break;
+
+      sessionsPurged += cleared.length;
+
       await sql.begin(async (tx) => {
-        for (const row of oldSessions) {
+        for (const row of cleared) {
           const deleted = await tx`
             DELETE FROM session_replays
             WHERE website_id = ${row.website_id} AND session_id = ${row.session_id}
@@ -84,11 +98,16 @@ export class RecordingRetentionPurge implements RetentionPurge {
           rowsDeleted += affectedRows(deleted);
         }
       });
+
+      // A short page means the cutoff is exhausted apart from rows we deliberately kept.
+      if (oldSessions.length < options.batchSize) break;
     }
 
     return {
       replaySessionsPurged: sessionsPurged,
       sessionReplayPgRows: rowsDeleted,
+      /** Non-zero means objects were left in place on purpose; the next sweep retries them. */
+      replayStorageDeleteFailures: storageFailures,
     };
   }
 }

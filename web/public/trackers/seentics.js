@@ -47,6 +47,19 @@ const apiHost   = normalizeApiBase(script?.getAttribute('data-api-host') ?? defa
 const autoTrack = script?.getAttribute('data-auto-track') !== 'false';
 const domain    = window.location.hostname;
 
+/**
+ * Per-feature opt-outs for the two recording sidecars, set on the script tag.
+ *
+ *   data-capture-console="off"   stop overriding console.* entirely
+ *   data-capture-network="off"   stop wrapping fetch / XMLHttpRequest entirely
+ *
+ * Off means the patch is never installed, not merely that events are discarded: the
+ * override itself is observable to the host page (it changes the source line DevTools
+ * attributes every log to), so "disabled" has to mean absent.
+ */
+const captureConsoleAllowed = script?.getAttribute('data-capture-console') !== 'off';
+const captureNetworkAllowed = script?.getAttribute('data-capture-network') !== 'off';
+
 if (!websiteId) {
   console.warn(
     '[Seentics] data-website-id is missing or empty. ' +
@@ -445,13 +458,15 @@ const installSessionClientErrorCapture = () => {
     });
   };
 
+  // Messages and stacks routinely quote the value that broke and the URL it came from,
+  // so both go through the same scrub as everything else stored in a recording.
   window.addEventListener('error', (ev) => {
     enqueueError({
-      message:  ev.message  || 'Script error',
-      filename: ev.filename || undefined,
+      message:  redactText(ev.message) || 'Script error',
+      filename: ev.filename ? redactUrl(ev.filename) : undefined,
       lineno:   ev.lineno   || undefined,
       colno:    ev.colno    || undefined,
-      stack:    ev.error?.stack || undefined,
+      stack:    ev.error?.stack ? redactText(ev.error.stack) : undefined,
     });
   }, true);
 
@@ -459,10 +474,74 @@ const installSessionClientErrorCapture = () => {
     const reason = ev.reason;
     const isErr  = reason instanceof Error;
     enqueueError({
-      message: isErr ? reason.message : String(reason ?? 'Unhandled rejection'),
-      stack:   isErr ? reason.stack   : undefined,
+      message: redactText(isErr ? reason.message : String(reason ?? 'Unhandled rejection')),
+      stack:   isErr && reason.stack ? redactText(reason.stack) : undefined,
     });
   });
+};
+
+// ─── Redaction ────────────────────────────────────────────────────────────────
+
+/**
+ * Query keys whose values never leave the browser intact.
+ *
+ * Recordings are replayed by whoever can see the dashboard, so a password-reset link or
+ * a bearer token in a request URL becomes a durable credential sitting in storage. The
+ * match is a substring, case-insensitive, so `X-Api-Key`, `access_token` and
+ * `resetPasswordCode` are all covered by the short list below.
+ */
+const SENSITIVE_KEY_RE =
+  /(pass|pwd|secret|token|auth|bearer|session|sid|api[-_]?key|signature|\bsig\b|credential|otp|code|email|phone|ssn)/i;
+
+const REDACTED = '[redacted]';
+/** URL-safe, so a scrubbed query parameter reads as `?token=redacted`, not `%5B…%5D`. */
+const REDACTED_PARAM = 'redacted';
+
+/** Anything shaped like an address or a long opaque credential, wherever it appears. */
+const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+const JWT_RE = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
+const LONG_OPAQUE_RE = /\b[A-Za-z0-9_-]{40,}\b/g;
+
+/** Scrub free text — console arguments, error messages, stack frames. */
+const redactText = (text) => {
+  if (typeof text !== 'string' || !text) return text;
+  return text
+    .replace(JWT_RE, REDACTED)
+    .replace(EMAIL_RE, REDACTED)
+    .replace(LONG_OPAQUE_RE, REDACTED);
+};
+
+/**
+ * A URL safe to store: no credentials, no fragment, sensitive query values replaced.
+ *
+ * Keys are kept because "which parameter" is most of the debugging value and the key
+ * itself is rarely the secret. Non-sensitive values are kept but scrubbed for addresses
+ * and token-shaped strings, since a `?next=` or `?q=` routinely carries both.
+ */
+const redactUrl = (raw) => {
+  if (typeof raw !== 'string' || !raw) return '';
+  let u;
+  try {
+    u = new URL(raw, location.href);
+  } catch {
+    // Not parseable (a relative path on a page with an odd base, say) — scrub as text.
+    return redactText(raw).slice(0, 1000);
+  }
+  // `https://user:pass@host` — never worth keeping.
+  u.username = '';
+  u.password = '';
+  // Fragments are client-only and disproportionately carry tokens (implicit OAuth flows).
+  u.hash = '';
+  for (const key of [...u.searchParams.keys()]) {
+    if (SENSITIVE_KEY_RE.test(key)) {
+      u.searchParams.set(key, REDACTED_PARAM);
+    } else {
+      const value = u.searchParams.get(key);
+      const scrubbed = redactText(value);
+      if (scrubbed !== value) u.searchParams.set(key, scrubbed);
+    }
+  }
+  return u.toString().slice(0, 1000);
 };
 
 // ─── Session console capture ──────────────────────────────────────────────────
@@ -489,6 +568,9 @@ const installSessionConsoleCapture = () => {
       if (typeof a === 'string') s = a;
       else { try { s = JSON.stringify(a); } catch { s = String(a); } }
       s = String(s ?? '');
+      // Applications log user objects, API responses and auth headers as a matter of
+      // course. Whatever the reason, none of it should become a durable recording.
+      s = redactText(s);
       return s.length > MAX_CONSOLE_ARG_LEN ? s.slice(0, MAX_CONSOLE_ARG_LEN) + '…' : s;
     });
     queues.session.push({
@@ -525,7 +607,9 @@ const installSessionNetworkCapture = () => {
     if (!sessionCaptureActive) return;
     queues.session.push({
       type: 'network_event',
-      data,
+      // Scrubbed here rather than at each call site, so a new one cannot forget: request
+      // URLs carry reset keys, one-time codes and bearer tokens as query parameters.
+      data: { ...data, url: redactUrl(data.url), error: redactText(data.error) },
       ts:   data.startTs,
       url:  location.href,
       sid:  getSessionId(),
@@ -1100,6 +1184,14 @@ const RRWEB_OPTIONS = {
   recordAfter:      'load',
   checkoutEveryNms: 60_000, // full DOM snapshot every 60 s — shorter helps mobile tab resume recovery
   maskAllInputs:    true,
+  /**
+   * `maskAllInputs` covers <input>, <textarea> and <select> — not `contenteditable`,
+   * which is what every rich-text editor, comment box and in-app chat widget uses. The
+   * promise this product makes is that typed input never leaves the browser, so the
+   * editors have to be covered too. `data-seentics-mask` is the opt-in for anything
+   * else that should render as asterisks rather than be blocked outright.
+   */
+  maskTextSelector: '[contenteditable]:not([contenteditable="false"]), [data-seentics-mask], [data-seentics-mask] *',
   blockSelector:    '[data-seentics-block]',
   ignoreSelector:   '[data-seentics-ignore]',
   recordShadowDOM:  true,
@@ -1116,9 +1208,21 @@ const RRWEB_OPTIONS = {
   errorHandler:     (_err) => { /* keep the emit pipeline alive on bad DOM mutations */ },
 };
 
+/**
+ * Is session recording switched on for this site?
+ *
+ * Fails closed. This used to read `replay_enabled !== false`, which treats an absent
+ * field as consent: a config response that omitted it — a partial payload, a renamed
+ * column, an older core — silently started recording every visitor on a site where the
+ * feature was off. `/tracker/init` always sends the flag, so requiring it costs nothing.
+ *
+ * `cfg.recording` stays as an explicit server-side kill switch layered on top.
+ */
+const replayEnabledForSite = () => cfg.replay_enabled === true && cfg.recording !== false;
+
 /** Returns true when this visitor's session should be shipped as session recording rows. */
 const computeReplaySessionEnabled = () => {
-  if (cfg.replay_enabled === false || cfg.recording === false) return false;
+  if (!replayEnabledForSite()) return false;
   const samplingRate = typeof cfg.replay_sampling_rate === 'number' ? cfg.replay_sampling_rate : 1.0;
   if (samplingRate < 1.0 && Math.random() > samplingRate) return false;
   if (hasEffectivePatterns(cfg.replay_include_patterns) && !matchesPatterns(cfg.replay_include_patterns)) return false;
@@ -1165,13 +1269,31 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
   if (typeof stop === 'function') stopRecording = stop;
 };
 
+/**
+ * Start recording, if this visitor is being recorded at all.
+ *
+ * The console and network sidecars are installed **here**, after the sampling decision,
+ * and not at init. They used to go in for every visitor on any site with replay enabled,
+ * so at a 5% sampling rate 100% of visitors had `console.*` and `window.fetch`
+ * permanently overridden for events that were then discarded — and every log the host
+ * application writes is attributed to seentics.js in DevTools for the trouble.
+ */
 const initRecording = async () => {
-  if (cfg.replay_enabled === false || cfg.recording === false) return;
-  const shouldRecordSession = computeReplaySessionEnabled();
-  if (!shouldRecordSession) return;
+  if (!computeReplaySessionEnabled()) return;
+
+  if (captureConsoleAllowed) installSessionConsoleCapture();
+  if (captureNetworkAllowed) installSessionNetworkCapture();
+  installSessionClientErrorCapture();
+
+  // Open the gate before awaiting rrweb, not after. The sidecars all check this flag,
+  // and rrweb is a separate network fetch — everything logged or requested while it
+  // loads is exactly the early-page activity worth having. If rrweb never loads, these
+  // signals arrive without a DOM stream, which is the case the player already explains.
+  sessionCaptureActive = true;
+
   const record = await loadRrweb();
   if (!record) return;
-  startRrweb(record, getSessionId(), shouldRecordSession);
+  startRrweb(record, getSessionId(), true);
 };
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -1893,13 +2015,10 @@ const init = () => {
 
       if (autoTrack) trackPage();
 
-      // Session recording setup.
-      if (cfg.replay_enabled !== false && cfg.recording !== false) {
-        installSessionClientErrorCapture();
-        installSessionConsoleCapture();
-        installSessionNetworkCapture();
-        await initRecording();
-      }
+      // Session recording setup. `initRecording` decides whether this visitor is
+      // recorded and installs the capture hooks only if so — nothing is patched for a
+      // visitor who was sampled out.
+      await initRecording();
 
       // Heatmap screenshot scheduling.
       if (cfg.heatmap_layout_enabled !== false) {

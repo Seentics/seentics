@@ -1,21 +1,6 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
-
-// The spool logs through the shared logger at import time, so the stub must be a
-// complete Logger — `mock.module` is process-global in Bun and a partial stub would
-// become the logger for every test file that runs after this one.
-const warnings: Record<string, unknown>[] = [];
-mock.module("../../../platform/lib/logger", () => {
-  const logger: Record<string, unknown> = {
-    debug: mock(() => {}),
-    info: mock(() => {}),
-    warn: mock((fields: Record<string, unknown>) => {
-      warnings.push(fields);
-    }),
-    error: mock(() => {}),
-  };
-  logger.child = () => logger;
-  return { log: logger };
-});
+import { describe, it, expect, beforeEach } from "bun:test";
+// Registers the shared infrastructure stubs. Must come before the module under test.
+import { warnings, resetStubs } from "./support/stubs";
 
 const { ReplaySpool } = await import("../services/spool");
 
@@ -41,7 +26,7 @@ function envelope(bytes: number, ts = 1): Record<string, unknown> {
 
 describe("ReplaySpool", () => {
   beforeEach(() => {
-    warnings.length = 0;
+    resetStubs();
   });
 
   describe("buffering", () => {
@@ -170,6 +155,106 @@ describe("ReplaySpool", () => {
     it("returns null for an unknown session", () => {
       const { spool } = makeSpool();
       expect(spool.warmChunks("w1", "nope")).toBeNull();
+    });
+
+    it("returns null once the tail has been flushed away", async () => {
+      const { spool } = makeSpool();
+      spool.push("w1", "s1", [envelope(10, 5)]);
+      await spool.flushAll();
+
+      expect(spool.warmChunks("w1", "s1")).toBeNull();
+    });
+
+    /**
+     * The detail endpoint reads the tail asynchronously; a flush in the meantime
+     * replaces `events` wholesale, so handing out the live array went stale mid-read.
+     */
+    it("hands out a copy, not the live buffer", async () => {
+      const { spool } = makeSpool();
+      spool.push("w1", "s1", [envelope(10, 5)]);
+
+      const warm = spool.warmChunks("w1", "s1")!;
+      await spool.flushAll();
+
+      expect(warm.events).toHaveLength(1);
+    });
+
+    /**
+     * How the detail endpoint notices a flush that landed after it listed storage —
+     * the one case where the tail it is holding is already in an object it did not see.
+     */
+    it("reports how far storage has been written", async () => {
+      const { spool } = makeSpool();
+      spool.push("w1", "s1", [envelope(10, 1)]);
+      expect(spool.warmChunks("w1", "s1")!.flushedThrough).toBeNull();
+
+      await spool.flushAll();
+      spool.push("w1", "s1", [envelope(10, 2)]);
+
+      expect(spool.warmChunks("w1", "s1")!.flushedThrough).toBe(1);
+    });
+  });
+
+  describe("failed flush", () => {
+    function failingSpool(failures: number) {
+      let attempts = 0;
+      const spool = new ReplaySpool({
+        chunkFlushMs: 60_000,
+        getInitialSequence: async () => 0,
+        onChunkFlush: async () => {
+          attempts += 1;
+          if (attempts <= failures) throw new Error("s3 down");
+        },
+      });
+      return { spool, attempts: () => attempts };
+    }
+
+    it("keeps the events for the next attempt", async () => {
+      const { spool } = failingSpool(1);
+      spool.push("w1", "s1", [envelope(10, 1), envelope(10, 2)]);
+
+      await spool.flushAll().catch(() => {});
+
+      expect(spool.warmChunks("w1", "s1")!.events).toHaveLength(2);
+    });
+
+    /**
+     * The byte budget is what stops a canvas-heavy page exhausting the process. Zeroing
+     * the counter while putting the events back left that session permanently
+     * un-capped: every later push was measured against a total of zero.
+     */
+    it("keeps charging the restored events against the byte budget", async () => {
+      const { spool } = failingSpool(1);
+      // Two pushes of ~4MB, so the retained total is well clear of rounding.
+      spool.push("w1", "s1", [envelope(4_000_000, 1)]);
+      await spool.flushAll().catch(() => {});
+      spool.push("w1", "s1", [envelope(4_000_000, 2)]);
+
+      // 32MB budget: eight more of these must trip the drop, which cannot happen if the
+      // failed flush reset the count.
+      for (let i = 0; i < 8; i++) spool.push("w1", "s1", [envelope(4_000_000, 3 + i)]);
+
+      expect(warnings.some((w) => w.msg === "replay_spool_byte_overflow_drop")).toBe(true);
+    });
+
+    it("succeeds on a later attempt without losing the original events", async () => {
+      const flushes: Flush[] = [];
+      let attempts = 0;
+      const spool = new ReplaySpool({
+        chunkFlushMs: 60_000,
+        getInitialSequence: async () => 0,
+        onChunkFlush: async (websiteId, sessionId, sequence, events) => {
+          attempts += 1;
+          if (attempts === 1) throw new Error("s3 down");
+          flushes.push({ websiteId, sessionId, sequence, count: events.length });
+        },
+      });
+      spool.push("w1", "s1", [envelope(10, 1), envelope(10, 2)]);
+
+      await spool.flushAll().catch(() => {});
+      await spool.flushAll();
+
+      expect(flushes).toEqual([{ websiteId: "w1", sessionId: "s1", sequence: 0, count: 2 }]);
     });
   });
 });

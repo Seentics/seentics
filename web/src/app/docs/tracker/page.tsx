@@ -74,6 +74,24 @@ export default function TrackerPage() {
               </span>,
               'Where to load the session recorder from. Only needed if you serve the two files from different places.',
             ],
+            [
+              <C>data-capture-console</C>,
+              <C>on</C>,
+              <span>
+                Set to <C>&quot;off&quot;</C> to leave <C>console</C> untouched. On, recordings
+                include console output (scrubbed for credentials); off, the override is never
+                installed.
+              </span>,
+            ],
+            [
+              <C>data-capture-network</C>,
+              <C>on</C>,
+              <span>
+                Set to <C>&quot;off&quot;</C> to leave <C>fetch</C> and <C>XMLHttpRequest</C>{' '}
+                untouched. On, recordings include request method, URL, status and duration —
+                never bodies.
+              </span>,
+            ],
           ]}
         />
         <Callout kind="warning" title="Two attributes that used to be documented do not exist">
@@ -192,6 +210,10 @@ seentics.page();`}
               'The element is replaced by a placeholder of the same size in the recording. Its contents are never captured. Use this for anything genuinely sensitive.',
             ],
             [
+              <C>data-seentics-mask</C>,
+              'The element still renders and animates in the recording, but its text is replaced with asterisks. Use it where the layout matters and the words do not. Rich-text editors (contenteditable) are masked this way already, without the attribute.',
+            ],
+            [
               <C>data-seentics-ignore</C>,
               'The element is recorded, but changes inside it are not tracked. Use this for noisy widgets — tickers, clocks, live counters.',
             ],
@@ -204,6 +226,9 @@ seentics.page();`}
 <div data-seentics-block>
   <p>Card ending 4242 · Balance $1,204.55</p>
 </div>
+
+<!-- Shape kept, words replaced with asterisks. -->
+<p data-seentics-mask>Hi Dana, your order ships Tuesday.</p>
 
 <!-- Captured once, then left alone. -->
 <div data-seentics-ignore>

@@ -10,6 +10,7 @@ import {
 } from "../../../db";
 import { enqueueEvent } from "../../../infrastructure/outbox";
 import { newTrackingId, newVerificationToken } from "../lib/ids";
+import { normalizeWebsiteRole } from "../interfaces/website.interface";
 import type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
@@ -90,6 +91,7 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       .select({
         isOwner: sql<boolean>`${websites.userId} = ${userId}`,
         memberId: websiteMembers.id,
+        memberRole: websiteMembers.role,
       })
       .from(websites)
       .leftJoin(
@@ -101,7 +103,10 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
     if (!row) return null;
     if (row.isOwner) return "owner";
-    return row.memberId ? "member" : null;
+    if (!row.memberId) return null;
+    // The stored role, not a flat "member". Collapsing it here is what let a viewer
+    // through every route that only checked for access at all.
+    return normalizeWebsiteRole(row.memberRole);
   }
 
   async findByPublicShareId(

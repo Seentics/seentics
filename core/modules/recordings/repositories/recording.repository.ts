@@ -1,5 +1,6 @@
-import { sql as pgSql, db, sessionReplays } from "../../../db";
+import { sql as pgSql, sessionReplays } from "../../../db";
 import { sql as dsql } from "drizzle-orm";
+import type { BatchTx } from "../../../infrastructure/idempotency";
 import type { SessionMetaRow } from "../../../platform/lib/types";
 
 export type SessionUpsertRow = {
@@ -50,9 +51,40 @@ function mergeSessionRows(a: SessionUpsertRow, b: SessionUpsertRow): SessionUpse
   };
 }
 
-/** Mirrors Go UpsertSessionMetaBatch (sequence=0 metadata row). Batch insert/upsert in one query. */
-export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Promise<void> {
-  if (inputRows.length === 0) return;
+/**
+ * Largest epoch-ms this module will persist.
+ *
+ * `_snc_re_end` is cast to `bigint` in the conflict clause below, so a value that is
+ * fractional or wider than a bigint aborts the whole statement — taking every other
+ * session in the same batch with it. The engine already truncates and clamps, and this
+ * is the second line of defence at the point where the cast actually happens.
+ */
+const MAX_EPOCH_MS = 8_640_000_000_000_000;
+
+function safeEpochMs(v: number): number {
+  if (!Number.isFinite(v)) return 0;
+  const n = Math.trunc(v);
+  if (n < 0) return 0;
+  return n > MAX_EPOCH_MS ? MAX_EPOCH_MS : n;
+}
+
+/**
+ * Mirrors Go UpsertSessionMetaBatch (sequence=0 metadata row). Batch insert/upsert in one query.
+ *
+ * Runs on the caller's transaction so it can share `applyBatchOnce`'s marker: `pages_viewed`
+ * accumulates rather than being overwritten, so a redelivered batch would inflate it. The
+ * marker and this write have to commit together for that guard to mean anything.
+ *
+ * `batchId` is also stamped into the row's `data` jsonb. The marker alone covers redelivery
+ * of the *same* batch; the stamp covers the case where two different batches carrying the
+ * same events reach the row, which the marker cannot see.
+ */
+export async function upsertSessionMetaBatch(
+  tx: BatchTx,
+  batchId: string,
+  inputRows: SessionUpsertRow[],
+): Promise<number> {
+  if (inputRows.length === 0) return 0;
 
   const byKey = new Map<string, SessionUpsertRow>();
   for (const row of inputRows) {
@@ -63,7 +95,7 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
   const rows = [...byKey.values()];
 
   const values = rows.map((row) => {
-    const endMs = row.latestEventMs || row.tsMs;
+    const endMs = safeEpochMs(row.latestEventMs || row.tsMs);
     return {
       websiteId: String(row.websiteId ?? ""),
       sessionId: String(row.sessionId ?? ""),
@@ -72,13 +104,14 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
         _snc_re_end: endMs,
         _snc_re_fu: String(row.firstUrl ?? ""),
         _snc_re_lu: String(row.lastUrl ?? ""),
+        _snc_re_b: batchId,
       } as Record<string, unknown>,
       browser: String(row.browser ?? ""),
       device: String(row.device ?? ""),
       os: String(row.os ?? ""),
       country: String(row.country ?? ""),
       entryPage: String(row.entryPage ?? ""),
-      timestamp: new Date(row.tsMs),
+      timestamp: new Date(safeEpochMs(row.tsMs)),
       // New session: entry page + URL transitions within the batch.
       pagesViewed: (Number(row.urlTransitions) || 0) + 1,
       durationSeconds: Number(row.durationSeconds) || 0,
@@ -87,12 +120,16 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
     };
   });
 
-  await db
+  await tx
     .insert(sessionReplays)
     .values(values)
     .onConflictDoUpdate({
       target: [sessionReplays.websiteId, sessionReplays.sessionId, sessionReplays.sequence],
       set: {
+        /**
+         * Safe to apply unguarded on a repeat: every term is a max over values the
+         * previous apply already folded in, so re-running it is a no-op.
+         */
         durationSeconds: dsql.raw(`LEAST(86400, GREATEST(
           session_replays.duration_seconds,
           excluded.duration_seconds,
@@ -109,13 +146,21 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
          * Existing session: add this batch's transitions (excluded.pages_viewed − 1;
          * the +1 entry page only applies on first insert) plus 1 if the page changed
          * exactly at the batch boundary (previous batch's last URL ≠ this batch's first).
+         *
+         * The outer CASE is the redelivery guard. This is the one accumulating column in
+         * the table, so a batch applied twice does not duplicate a row — it inflates a
+         * number, with nothing in the result to distinguish it from real traffic.
          */
-        pagesViewed: dsql.raw(`session_replays.pages_viewed
-          + GREATEST(excluded.pages_viewed - 1, 0)
-          + CASE WHEN COALESCE(session_replays.data->>'_snc_re_lu','') <> ''
-                  AND COALESCE(excluded.data->>'_snc_re_fu','') <> ''
-                  AND session_replays.data->>'_snc_re_lu' <> excluded.data->>'_snc_re_fu'
-             THEN 1 ELSE 0 END`),
+        pagesViewed: dsql.raw(`CASE
+          WHEN session_replays.data->>'_snc_re_b' IS NOT DISTINCT FROM excluded.data->>'_snc_re_b'
+            THEN session_replays.pages_viewed
+          ELSE session_replays.pages_viewed
+            + GREATEST(excluded.pages_viewed - 1, 0)
+            + CASE WHEN COALESCE(session_replays.data->>'_snc_re_lu','') <> ''
+                    AND COALESCE(excluded.data->>'_snc_re_fu','') <> ''
+                    AND session_replays.data->>'_snc_re_lu' <> excluded.data->>'_snc_re_fu'
+               THEN 1 ELSE 0 END
+        END`),
         /** Carry _snc_re_lu/_snc_re_fu forward so the next batch's boundary check compares against THIS batch. */
         data: dsql.raw("excluded.data"),
         hasRageClicks: dsql.raw(
@@ -139,42 +184,134 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
         ),
       },
     });
+
+  return rows.length;
 }
 
+/** Server-side narrowing for the session list. Every field is optional. */
+export type SessionListFilters = {
+  /** Substring match across session id, country, browser, os, device and entry page. */
+  search?: string;
+  /** Lower-cased device class, e.g. `desktop`. */
+  device?: string;
+  hasErrors?: boolean;
+  hasRageClicks?: boolean;
+};
+
+/** `%` and `_` are ILIKE wildcards; a user typing them means the literal character. */
+function likeTerm(term: string): string {
+  return `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * The predicate shared by the page query and its count.
+ *
+ * Built once rather than written twice: the two have to agree or the total is a lie
+ * about the rows being paged through.
+ */
+function sessionListWhere(websiteId: string, filters: SessionListFilters) {
+  const parts = [pgSql`website_id = ${websiteId}`, pgSql`sequence = 0`];
+
+  if (filters.device) {
+    parts.push(pgSql`lower(COALESCE(device,'')) = ${filters.device.toLowerCase()}`);
+  }
+  if (filters.hasErrors) parts.push(pgSql`has_errors = TRUE`);
+  if (filters.hasRageClicks) parts.push(pgSql`has_rage_clicks = TRUE`);
+
+  const search = filters.search?.trim();
+  if (search) {
+    const t = likeTerm(search);
+    parts.push(pgSql`(
+      session_id ILIKE ${t} ESCAPE '\\'
+      OR COALESCE(country,'') ILIKE ${t} ESCAPE '\\'
+      OR COALESCE(browser,'') ILIKE ${t} ESCAPE '\\'
+      OR COALESCE(os,'') ILIKE ${t} ESCAPE '\\'
+      OR COALESCE(device,'') ILIKE ${t} ESCAPE '\\'
+      OR COALESCE(entry_page,'') ILIKE ${t} ESCAPE '\\'
+    )`);
+  }
+
+  return parts.reduce((acc, part) => pgSql`${acc} AND ${part}`);
+}
+
+/**
+ * One page of recorded sessions, newest first.
+ *
+ * No `DISTINCT ON`: `(website_id, session_id, sequence)` is the primary key, so
+ * `sequence = 0` already yields exactly one row per session. The dedup that used to be
+ * here forced two sorts over every session on the site before the `LIMIT` could apply;
+ * without it the plan is an index scan backwards over `ix_session_replays_site_seq_ts`.
+ */
 export async function listSessions(
   websiteId: string,
   limit: number,
   offset: number,
+  filters: SessionListFilters = {},
 ): Promise<SessionMetaRow[]> {
   return pgSql<SessionMetaRow[]>`
-    SELECT * FROM (
-      SELECT DISTINCT ON ("sessionId")
-        session_id AS "sessionId", website_id AS "websiteId",
-        COALESCE(browser,'') AS browser, COALESCE(device,'') AS device, COALESCE(os,'') AS os,
-        COALESCE(country,'') AS country, COALESCE(entry_page,'') AS "entryPage",
-        timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
-        duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed"
-      FROM (
-        SELECT * FROM session_replays WHERE website_id = ${websiteId} AND sequence = 0
-        UNION ALL
-        SELECT * FROM session_replays WHERE website_id = ${websiteId} AND sequence = 0 AND ${websiteId} <> ${websiteId}
-      ) raw
-      ORDER BY "sessionId", timestamp DESC
-    ) deduped
-    ORDER BY "startedAt" DESC
+    SELECT
+      session_id AS "sessionId", website_id AS "websiteId",
+      COALESCE(browser,'') AS browser, COALESCE(device,'') AS device, COALESCE(os,'') AS os,
+      COALESCE(country,'') AS country, COALESCE(entry_page,'') AS "entryPage",
+      timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
+      duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed"
+    FROM session_replays
+    WHERE ${sessionListWhere(websiteId, filters)}
+    ORDER BY timestamp DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
+}
+
+/** Totals over every session matching the filters, not just the page being shown. */
+export type SessionListSummary = {
+  total: number;
+  withErrors: number;
+  withRageClicks: number;
+  /** Mean over sessions that have a duration at all; 0 when none do. */
+  avgDurationSeconds: number;
+};
+
+/**
+ * Aggregate over the whole filtered set, ignoring the page window.
+ *
+ * A separate statement rather than `COUNT(*) OVER ()` on the page query: the window
+ * function would have to materialise every matching row before the `LIMIT`, which is
+ * exactly the full scan the page query was rewritten to avoid.
+ *
+ * All four numbers come from one scan, so the errors and rage counts are free next to
+ * the total. That matters because the dashboard renders them as headline figures, and
+ * computing them from the rows it happened to download made each one a statistic about
+ * the first page rather than about the site.
+ */
+export async function summarizeSessions(
+  websiteId: string,
+  filters: SessionListFilters = {},
+): Promise<SessionListSummary> {
+  const rows = await pgSql<
+    { total: number; with_errors: number; with_rage: number; avg_duration: number }[]
+  >`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE has_errors)::int AS with_errors,
+      COUNT(*) FILTER (WHERE has_rage_clicks)::int AS with_rage,
+      COALESCE(ROUND(AVG(duration_seconds) FILTER (WHERE duration_seconds > 0)), 0)::int
+        AS avg_duration
+    FROM session_replays
+    WHERE ${sessionListWhere(websiteId, filters)}
+  `;
+  const row = rows[0];
+  return {
+    total: row?.total ?? 0,
+    withErrors: row?.with_errors ?? 0,
+    withRageClicks: row?.with_rage ?? 0,
+    avgDurationSeconds: row?.avg_duration ?? 0,
+  };
 }
 
 export async function getSessionMeta(
   websiteId: string,
   sessionId: string,
 ): Promise<SessionMetaRow | null> {
-  /**
-   * One row per (website_id, session_id, sequence=0). Match either resolved id
-   * (short `website_id` or UUID) so list + detail never disagree. Avoid `UNION … LIMIT 1`
-   * edge cases with driver/PLAN behavior.
-   */
   const rows = await pgSql<SessionMetaRow[]>`
     SELECT session_id as "sessionId", website_id as "websiteId",
       COALESCE(browser,'') as browser, COALESCE(device,'') as device, COALESCE(os,'') as os,
@@ -189,13 +326,7 @@ export async function getSessionMeta(
   return rows[0] ?? null;
 }
 
-/**
- * Delete one session's rows.
- *
- * Was `deleteSessionByEitherId`, matching two identifier forms because
- * `session_replays.website_id` had historically been written as either the short public
- * id or the UUID. One column, one form, one predicate.
- */
+/** Delete one session's rows. */
 export async function deleteSession(websiteId: string, sessionId: string): Promise<void> {
   await pgSql`
     DELETE FROM session_replays

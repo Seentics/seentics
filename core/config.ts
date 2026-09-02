@@ -30,13 +30,27 @@ export function env() {
   const accessKey = process.env.S3_ACCESS_KEY ?? process.env.AWS_ACCESS_KEY_ID ?? "";
   const secretKey = process.env.S3_SECRET_KEY ?? process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
-  const presignTtlSec = Number(
-    process.env.HEATMAP_PRESIGN_TTL_SECONDS ??
-      process.env.REPLAY_PRESIGN_TTL_SECONDS ??
-      "3600",
+  /**
+   * Presigned GET lifetime, in seconds.
+   *
+   * Both names are accepted for compatibility, but neither shadows the other: setting
+   * `REPLAY_PRESIGN_TTL_SECONDS` used to be silently ignored whenever
+   * `HEATMAP_PRESIGN_TTL_SECONDS` was also set, because the first `??` won.
+   */
+  const presignTtlSec = parseIntEnv(
+    process.env.REPLAY_PRESIGN_TTL_SECONDS ?? process.env.HEATMAP_PRESIGN_TTL_SECONDS,
+    3600,
   );
-  const spoolIdleMs = Number(process.env.REPLAY_SPOOL_IDLE_MS ?? "60000");
-  const spoolMaxAgeMs = Number(process.env.REPLAY_SPOOL_MAX_AGE_MS ?? String(30 * 60 * 1000));
+  /**
+   * How long a session with an empty spool buffer is kept before it is dropped.
+   *
+   * Kept (not dropped) rather than purged eagerly so `nextChunkSeq` survives between
+   * flush windows — see the note at the end of `ReplaySpool.doFlushChunk`. The spool
+   * floors this at the flush window for the same reason. It defaults high because the
+   * cost of holding an idle entry is one small object, and the cost of dropping one too
+   * early is a cold S3 listing that can overwrite chunk 0.
+   */
+  const spoolIdleMs = parseIntEnv(process.env.REPLAY_SPOOL_IDLE_MS, 45 * 60 * 1000);
   // 30s, not 10s. The flush window sets how many immutable S3 objects a recording
 // becomes: at 10s a one-hour session produced ~360 chunks, and the playback endpoint
 // presigns every one of them, so the player issued ~360 GETs. 30s cuts that 3x. The
@@ -124,7 +138,6 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     s3: { bucket, region, endpoint, publicEndpoint: s3PublicEndpoint, accessKey, secretKey },
     presignTtlMs: Math.max(60, presignTtlSec) * 1000,
     spoolIdleMs,
-    spoolMaxAgeMs,
     replayChunkFlushMs: Math.max(5_000, replayChunkFlushMs),
     port: Number(process.env.PORT ?? "8080"),
     trustProxy: parseBool(process.env.TRUST_PROXY, false),
