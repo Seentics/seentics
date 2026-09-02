@@ -239,6 +239,28 @@ const ACTION_TYPES: ActionType[] = [
   { value: 'webhook',             label: 'Webhook',             icon: Webhook,       strip: 'bg-slate-400',   iconBg: 'bg-slate-400/15',   iconColor: 'text-slate-300',   description: 'POST data to an external endpoint' },
 ];
 
+/**
+ * Facts a condition can actually name.
+ *
+ * The field was free text whose placeholder suggested `user.plan` — a fact that
+ * resolved to nothing until the visitor profile was wired, so the example in the
+ * input was itself a rule that could never be true. A `datalist` suggests the real
+ * ones while still accepting a custom path, which `identify()` traits need.
+ *
+ * Sources: `page`/`url`/`title`/`referrer` come from the tracker on every trigger;
+ * `scrollPercent`/`timeOnPage` are observed by the page during a Wait until; the
+ * rest come from the visitor profile, which ingest now fills from the same request.
+ */
+const FACT_SUGGESTIONS: { group: string; facts: string[] }[] = [
+  { group: 'Page', facts: ['page', 'url', 'title', 'referrer'] },
+  { group: 'Visitor', facts: ['country', 'region', 'city', 'device', 'browser', 'os', 'language'] },
+  { group: 'History', facts: ['visitCount', 'totalPageViews', 'firstSeenAt', 'lastSeenAt'] },
+  { group: 'During a wait', facts: ['scrollPercent', 'timeOnPage'] },
+  { group: 'This trigger', facts: ['trigger.type', 'session.id'] },
+];
+
+const ALL_FACT_SUGGESTIONS = FACT_SUGGESTIONS.flatMap(g => g.facts);
+
 const CONDITION_OPERATORS = [
   'equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual',
   'contains', 'notContains', 'startsWith', 'endsWith', 'matches', 'isSet', 'isNotSet',
@@ -809,7 +831,18 @@ function ConditionPanel({
               <span className="text-[10px] text-muted-foreground">Rule {i + 1}</span>
               <button type="button" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
             </div>
-            <Input placeholder="fact (e.g. user.plan)" value={rule.fact} onChange={e => updateRule(i, { ...rule, fact: e.target.value })} className={inp} />
+            <Input
+              list="seentics-fact-suggestions"
+              placeholder="what to check (e.g. country)"
+              value={rule.fact}
+              onChange={e => updateRule(i, { ...rule, fact: e.target.value })}
+              className={inp}
+            />
+            {/* Rendered once per rule rather than per builder: a duplicate id is
+                harmless for `list=`, and it keeps the list beside its input. */}
+            <datalist id="seentics-fact-suggestions">
+              {ALL_FACT_SUGGESTIONS.map(f => <option key={f} value={f} />)}
+            </datalist>
             <Select value={rule.operator} onValueChange={v => updateRule(i, { ...rule, operator: v })}>
               <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-40">

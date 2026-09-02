@@ -11,7 +11,18 @@ import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function LandingHeader({ alwaysBordered = false }: { alwaysBordered?: boolean }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated: authed } = useAuth();
+  /*
+   * The auth store hydrates from localStorage, so the server renders the signed-out
+   * header and the client can render the signed-in one — a different subtree, a
+   * different number of `useId` calls, and Radix's DropdownMenu id no longer matching
+   * between the two. That was the hydration warning on this page.
+   *
+   * Treat auth as unknown until mounted so both passes render the same tree.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isAuthenticated = mounted && authed;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
