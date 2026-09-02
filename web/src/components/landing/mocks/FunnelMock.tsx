@@ -85,7 +85,7 @@ export function FunnelMock() {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-sm font-semibold">Steps</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Bar width is the share of everyone who entered the funnel
+                  Bar width is the share of all entries
                 </p>
               </div>
             </CardHeader>
@@ -94,14 +94,17 @@ export function FunnelMock() {
                 {steps.map((step, i) => {
                   const metric = metrics.find((m) => m.step === i + 1);
                   const count = metric?.count ?? 0;
-                  const prev = i === 0 ? null : (metrics.find((m) => m.step === i)?.count ?? 0);
                   const entryRate = (count / analytics.total_starts) * 100;
-                  const stepRate = prev == null ? null : prev > 0 ? (count / prev) * 100 : 0;
                   const isLast = i === steps.length - 1;
+                  const nextCount = metrics.find((m) => m.step === i + 2)?.count ?? 0;
+                  // Share of *this* step that carried on — what the band below splits.
+                  const continued = !isLast && count > 0 ? (nextCount / count) * 100 : 0;
+                  // The demo funnel's worst transition is the first one.
+                  const isWorst = i === 0;
 
                   return (
-                    <li key={step.id} className="px-5 py-5">
-                      <div className="flex items-start gap-4">
+                    <li key={step.id} className={cn(!isLast && 'border-b border-border')}>
+                      <div className="flex items-start gap-4 px-5 py-4">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-bold text-primary">
                           {i + 1}
                         </span>
@@ -140,27 +143,46 @@ export function FunnelMock() {
                             />
                           </div>
 
-                          <div className="mt-2.5 flex items-center gap-4 text-xs">
-                            {stepRate != null && (
-                              <span className="text-muted-foreground">
-                                <span className="font-semibold tabular-nums text-foreground">
-                                  {stepRate.toFixed(1)}%
-                                </span>{' '}
-                                continued from the previous step
-                              </span>
-                            )}
-                            {!isLast && (metric?.drop_off ?? 0) > 0 && (
-                              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                <TrendingDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                                <span className="font-medium text-foreground">
-                                  {metric!.drop_off.toLocaleString()} left here
-                                </span>
-                                <span className="tabular-nums">({metric!.drop_off_rate.toFixed(1)}%)</span>
-                              </span>
-                            )}
-                          </div>
                         </div>
                       </div>
+
+                      {/* The loss between two steps, on one line — matching the real
+                          page, where this is the element the design is built around. */}
+                      {!isLast && (
+                        <div
+                          className={cn(
+                            'flex items-center gap-3 border-t border-border py-2 pl-16 pr-5',
+                            isWorst ? 'bg-amber-500/[0.06]' : 'bg-muted/25',
+                          )}
+                        >
+                          <TrendingDown
+                            className={cn(
+                              'h-3.5 w-3.5 shrink-0',
+                              isWorst ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/50',
+                            )}
+                          />
+                          <div className="flex h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-muted-foreground/15">
+                            <div
+                              className={cn(isWorst ? 'bg-amber-500/70' : 'bg-primary/55')}
+                              style={{ width: `${continued}%` }}
+                            />
+                          </div>
+                          <p className="min-w-0 text-xs text-muted-foreground">
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {continued.toFixed(1)}%
+                            </span>{' '}
+                            continued
+                            {(metric?.drop_off ?? 0) > 0 && (
+                              <>
+                                {' · '}
+                                <span className="tabular-nums">
+                                  {metric!.drop_off.toLocaleString()} dropped off
+                                </span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
