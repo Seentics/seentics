@@ -207,11 +207,12 @@ export function ReplayMock() {
 
         {/* Player */}
         <div className="w-full shrink-0 px-5 pt-4">
-          {/* Capped narrower than the space allows, and deliberately so: the real page
-              caps the player too (`calc(68dvh * 16 / 9)`), and the pixels saved here are
-              what let the summary card below show a few rows instead of being sliced
-              through its own description line by the bottom of the screen. */}
-          <div className="mx-auto mb-4 w-full max-w-[620px] overflow-hidden rounded-lg border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+          {/* Full width. It was capped at 620px to leave room for the summary card
+              below, but that put an empty margin down both sides of the one thing the
+              section is about. A 16:9 player at full width is taller, so the summary
+              is mostly below the screen edge now — which reads as a page continuing
+              rather than as a gap. */}
+          <div className="mb-4 w-full overflow-hidden rounded-lg border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
             <div
               className="relative w-full overflow-hidden rounded-t-xl bg-black outline outline-1 -outline-offset-1 outline-white/[0.06]"
               style={{ aspectRatio: '16/9' }}

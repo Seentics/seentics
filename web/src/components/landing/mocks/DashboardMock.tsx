@@ -20,7 +20,7 @@ import { MockSidebar } from './MockSidebar';
  * copies of the real ones (website switcher, Ask Seentics AI, filters, theme).
  */
 /** How far the dashboard is zoomed out inside the lid. See the note in the render. */
-const INNER_SCALE = 0.84;
+const INNER_SCALE = 0.86;
 
 export function DashboardMock() {
   const demoData = useMemo(() => demoAnalyticsData(), []);
@@ -78,10 +78,16 @@ export function DashboardMock() {
       <MockSidebar active="Overview" />
 
       <main className="min-w-0 flex-1 overflow-hidden bg-background">
-        {/* No `mx-auto max-w-[1200px]` here, unlike the real page. Laying out at
-            1/INNER_SCALE makes this column ~1600px wide, so a 1200px cap centred the
-            content and left a wide empty gutter against the sidebar. */}
-        <div className="w-full space-y-6 p-8">
+        {/*
+          Capped, but wider than the real page's 1200.
+
+          Laying out at 1/INNER_SCALE makes this column ~1400px, so leaving it
+          uncapped stretched the cards and charts far wider than the dashboard ever
+          is. A 1200 cap fixed that but centred the content and left a visible gutter
+          against the sidebar. 1290 is the compromise: the stretch is gone and the
+          leftover margin is small enough not to read as a gap.
+        */}
+        <div className="mx-auto w-full max-w-[1290px] space-y-6 p-8">
           {/* Header — the real page's single compact control row */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 w-[180px] items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm dark:border-none">

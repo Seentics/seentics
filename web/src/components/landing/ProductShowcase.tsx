@@ -21,16 +21,23 @@ export default function ProductShowcase() {
           which put a blue cast on the one element that has to read as a photograph of
           a screen — the laptop's own shadow is what should separate it from the page. */}
       <div className="landing-container relative z-10">
-        {/* No width of its own — the shot shares the page's measure, so the laptop
-            lines up with the headings above and the sections below instead of being
-            the one element that runs wider than everything else. */}
-        <MacbookFrame
-          designWidth={1560}
-          designHeight={975}
-          url="app.seentics.com/websites/acme-store"
-        >
-          <LazyDashboardMock />
-        </MacbookFrame>
+        {/*
+          1440x1010 rather than 1560x975.
+
+          At 16:10 the shot read as a wide letterbox — a lot of width for the height,
+          which made the dashboard inside feel small however big the frame got. Pulling
+          the width in and the height up lands near 3:2: less wide, and the same page
+          gets more vertical room, so the content reads larger at the same frame size.
+        */}
+        <div className="mx-auto max-w-[1150px]">
+          <MacbookFrame
+            designWidth={1440}
+            designHeight={1010}
+            url="app.seentics.com/websites/acme-store"
+          >
+            <LazyDashboardMock />
+          </MacbookFrame>
+        </div>
       </div>
     </section>
   );

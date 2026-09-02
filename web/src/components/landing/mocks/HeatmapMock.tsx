@@ -26,22 +26,29 @@ import { MockSidebar } from './MockSidebar';
  * canvas renderer and a point set to a marketing page.
  */
 
-/** One heat blob, in the ramp the canvas pass produces: red core out to cool blue. */
+/**
+ * One heat blob, in the ramp the canvas pass produces: red core out to cool blue.
+ *
+ * `left`/`top` default to the centre so it can be dropped straight inside the element
+ * it belongs to — see `HotSpot`. Absolute coordinates were the first approach and they
+ * drifted every time the page's length changed, which put clicks in the gaps between
+ * buttons rather than on them.
+ */
 function Blob({
-  left,
-  top,
+  left = '50%',
+  top = '50%',
   size,
   strength = 1,
 }: {
-  left: string;
-  top: string;
+  left?: string;
+  top?: string;
   size: number;
   /** Scales the core opacity — a proxy for the point's intensity. */
   strength?: number;
 }) {
   return (
     <span
-      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+      className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full"
       style={{
         left,
         top,
@@ -74,23 +81,44 @@ function Blob({
  */
 
 const PLANS = [
-  { name: 'Starter', price: '$0', note: 'For side projects', cta: 'Start free', featured: false },
-  { name: 'Growth', price: '$29', note: 'For growing teams', cta: 'Choose Growth', featured: true },
-  { name: 'Scale', price: '$99', note: 'For high traffic', cta: 'Choose Scale', featured: false },
+  { name: 'Starter', price: '$0', note: 'For side projects', cta: 'Start free', featured: false, heat: 0.5 },
+  { name: 'Growth', price: '$29', note: 'For growing teams', cta: 'Choose Growth', featured: true, heat: 1 },
+  { name: 'Scale', price: '$99', note: 'For high traffic', cta: 'Choose Scale', featured: false, heat: 0.24 },
 ];
+
+/**
+ * A click cluster sitting on the element it belongs to.
+ *
+ * The parent needs `relative`. Rendering the blob as a child rather than positioning
+ * it against the page is what makes the placement exact: lengthening the page moves
+ * the element and the heat together, instead of leaving the heat behind.
+ */
+function HotSpot({ size, strength = 1 }: { size: number; strength?: number }) {
+  return <Blob size={size} strength={strength} />;
+}
 
 function PreviewPage() {
   return (
-    <div className="relative bg-white text-black" style={{ height: 1180 }}>
-      {/* Nav */}
+    <div className="relative bg-white text-black" style={{ height: 1560 }}>
+      {/* Nav — every link and the CTA carries its own cluster */}
       <div className="flex items-center gap-4 border-b border-black/[0.07] px-6 py-4">
         <span className="text-[13px] font-black tracking-[0.18em] text-black/85">NORTHBOUND</span>
         <div className="flex-1" />
-        <span className="text-[11px] font-medium text-black/55">Product</span>
-        <span className="text-[11px] font-medium text-black/55">Pricing</span>
-        <span className="text-[11px] font-medium text-black/55">Docs</span>
-        <span className="rounded-lg bg-black px-3.5 py-1.5 text-[11px] font-semibold text-white">
+        <span className="relative text-[11px] font-medium text-black/55">
+          Product
+          <HotSpot size={46} strength={0.3} />
+        </span>
+        <span className="relative text-[11px] font-medium text-black/55">
+          Pricing
+          <HotSpot size={72} strength={0.62} />
+        </span>
+        <span className="relative text-[11px] font-medium text-black/55">
+          Docs
+          <HotSpot size={40} strength={0.22} />
+        </span>
+        <span className="relative rounded-lg bg-black px-3.5 py-1.5 text-[11px] font-semibold text-white">
           Get started
+          <HotSpot size={104} />
         </span>
       </div>
 
@@ -104,9 +132,16 @@ function PreviewPage() {
           Every plan includes the full product. Pay for the traffic you actually get, and
           change plan whenever you like.
         </p>
+        {/* Both halves of the billing toggle get clicked — people flip it to compare */}
         <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/[0.03] p-0.5">
-          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold shadow-sm">Monthly</span>
-          <span className="px-3 py-1 text-[10px] font-medium text-black/50">Yearly · save 20%</span>
+          <span className="relative rounded-full bg-white px-3 py-1 text-[10px] font-semibold shadow-sm">
+            Monthly
+            <HotSpot size={62} strength={0.42} />
+          </span>
+          <span className="relative px-3 py-1 text-[10px] font-medium text-black/50">
+            Yearly · save 20%
+            <HotSpot size={78} strength={0.66} />
+          </span>
         </div>
       </div>
 
@@ -134,13 +169,16 @@ function PreviewPage() {
                 </div>
               ))}
             </div>
+            {/* Each plan's own click volume — `heat` on the plan, so the featured
+                one running hot and Scale barely being touched is data, not decoration */}
             <div
               className={cn(
-                'mt-4 rounded-lg py-2 text-center text-[10px] font-semibold',
+                'relative mt-4 rounded-lg py-2 text-center text-[10px] font-semibold',
                 plan.featured ? 'bg-black text-white' : 'border border-black/15 text-black/70',
               )}
             >
               {plan.cta}
+              <HotSpot size={plan.featured ? 132 : 92} strength={plan.heat} />
             </div>
           </div>
         ))}
