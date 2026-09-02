@@ -223,13 +223,26 @@ export default function FunnelDetailPage() {
         </div>
       )}
 
-      {/* The funnel */}
+      {/*
+        The funnel.
+
+        Rebuilt around the transition rather than the step. Every funnel view — ours
+        included, and every competitor's — draws a row per step with a bar that gets
+        shorter, and files the loss away as a line of text underneath. But nobody
+        loses visitors *at* a step; they lose them *between* two. So the band between
+        each pair of steps is now the loudest element on the page: one bar split into
+        the people who carried on and the people who did not, both labelled.
+
+        The step rows keep a share-of-entries bar, which is the absolute view and the
+        thing a decreasing-bar chart is actually good at. Two views, each doing the
+        job it is suited to, instead of one doing both badly.
+      */}
       <Card className="overflow-hidden border border-border bg-card">
         <CardHeader className="border-b border-border px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-sm font-semibold">Steps</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Bar width is the share of everyone who entered the funnel
+              Step bars show share of all entries · bands between them show who continued
             </p>
           </div>
         </CardHeader>
@@ -240,16 +253,21 @@ export default function FunnelDetailPage() {
               This funnel has no steps yet.
             </p>
           ) : (
-            <ol className="divide-y divide-border">
+            <ol>
               {rows.map((row, i) => {
                 const isLast = i === rows.length - 1;
+                const next = rows[i + 1];
                 // A floor so a step that almost nobody reached is still a visible bar
                 // rather than a sliver indistinguishable from zero.
                 const width = Math.max(row.entryRate, 1.5);
+                // The share of *this* step that carried on, which is what the band
+                // below splits. Distinct from `row.stepRate`, which looks backwards.
+                const continued = next && row.count > 0 ? (next.count / row.count) * 100 : 0;
+                const isWorst = worst?.step.id === row.id;
 
                 return (
-                  <li key={row.id} className="px-5 py-5">
-                    <div className="flex items-start gap-4">
+                  <li key={row.id} className={cn(!isLast && 'border-b border-border')}>
+                    <div className="flex items-start gap-4 px-5 py-4">
                       {/* The step number. There was a connector line here too, but
                           `flex-1` inside an `items-start` parent gave it no height, so
                           it rendered nothing — and the row dividers already carry the
@@ -303,31 +321,81 @@ export default function FunnelDetailPage() {
                           />
                         </div>
 
-                        {/* Step-to-step conversion, and what was lost getting here */}
-                        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                          {row.stepRate != null && (
-                            <span className="text-muted-foreground">
-                              {/* Was graded green/amber/orange. Eleven steps meant
-                                  eleven coloured percentages competing with the bars;
-                                  the figure itself already says whether it is bad. */}
-                              <span className="font-semibold tabular-nums text-foreground">
-                                {row.stepRate.toFixed(1)}%
-                              </span>{' '}
-                              continued from the previous step
+                      </div>
+                    </div>
+
+                    {/*
+                      The transition. Indented to line up under the step it leaves, so
+                      it reads as belonging between the two rather than to either one.
+                    */}
+                    {next && (
+                      <div
+                        className={cn(
+                          'border-t border-border px-5 py-3.5 pl-16',
+                          isWorst ? 'bg-amber-500/[0.06]' : 'bg-muted/25',
+                        )}
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <p className="text-xs text-muted-foreground">
+                            Of the{' '}
+                            <span className="font-medium text-foreground">
+                              {row.count.toLocaleString()}
+                            </span>{' '}
+                            who reached {row.name}
+                          </p>
+                          {isWorst && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                              <TrendingDown className="h-3 w-3" />
+                              Worst drop-off
                             </span>
                           )}
-                          {!isLast && row.dropOff > 0 && (
-                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                              <TrendingDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                              <span className="font-medium text-foreground">
-                                {row.dropOff.toLocaleString()} left here
+                        </div>
+
+                        {/*
+                          One bar, two segments. This is the whole idea: the split is
+                          the picture, so "half of them left here" needs no reading.
+                        */}
+                        <div className="mt-2 flex h-6 overflow-hidden rounded-md bg-muted">
+                          <div
+                            className="flex items-center justify-start bg-primary/55 px-2 transition-[width] duration-500"
+                            style={{ width: `${continued}%` }}
+                          >
+                            {continued >= 18 && (
+                              <span className="whitespace-nowrap text-[11px] font-semibold tabular-nums text-foreground">
+                                {continued.toFixed(1)}% continued
                               </span>
-                              <span className="tabular-nums">({row.dropOffRate.toFixed(1)}%)</span>
+                            )}
+                          </div>
+                          <div
+                            className={cn(
+                              'flex items-center justify-end px-2',
+                              isWorst ? 'bg-amber-500/25' : 'bg-muted-foreground/[0.12]',
+                            )}
+                            style={{ width: `${Math.max(100 - continued, 0)}%` }}
+                          >
+                            {100 - continued >= 18 && (
+                              <span className="whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground">
+                                {(100 - continued).toFixed(1)}% left
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-muted-foreground">
+                          <span>
+                            <span className="font-semibold tabular-nums text-foreground">
+                              {next.count.toLocaleString()}
+                            </span>{' '}
+                            went on to {next.name}
+                          </span>
+                          {row.dropOff > 0 && (
+                            <span className="tabular-nums">
+                              {row.dropOff.toLocaleString()} did not
                             </span>
                           )}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </li>
                 );
               })}
