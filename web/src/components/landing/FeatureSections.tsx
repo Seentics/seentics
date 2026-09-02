@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, MoveHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MacbookFrame } from './mocks/MacbookFrame';
 import { AutomationBuilderMock } from './mocks/AutomationBuilderMock';
@@ -22,7 +22,7 @@ import { HeatmapMock } from './mocks/HeatmapMock';
  *
  * Sides alternate, and the mock column is the wider of the two: the text is three
  * lines and a list, the screen needs every pixel it can get to stay legible once
- * scaled.
+ * scaled. Below `lg` the screen keeps a fixed width and the row scrolls sideways.
  */
 
 /** Mocks are 16:10 laptop screens laid out at 1100px — see `MacbookFrame`. */
@@ -161,7 +161,7 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.5 }}
-            className={cn('max-w-2xl', mockFirst && 'xl:col-start-2 xl:row-start-1')}
+            className={cn('min-w-0 max-w-2xl', mockFirst && 'xl:col-start-2 xl:row-start-1')}
           >
             {/* No icon tile. Four rows each carried one, and since they had to share a
                 single neutral treatment to stop the page turning into a colour chart,
@@ -193,18 +193,34 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
             </Link>
           </motion.div>
 
-          {/* Screen. Hidden below `lg`, where the scale factor turns every label into
-              a grey smear — see `ProductShowcase` for the same trade. */}
+          {/*
+            Screen. Below `lg` it no longer disappears — it keeps a fixed 860px width
+            and the row scrolls sideways.
+
+            Shrinking it to fit instead put the scale factor near 0.3, which turns an
+            11px label into three grey pixels; at 860px the same label lands around
+            8px, which is small but actually legible. The trade is a swipe, so the
+            hint below says so. `-mx-6 px-6` lets the scroller bleed to the screen
+            edges rather than sitting in a boxed frame inside the padding.
+          */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className={cn('hidden lg:block', mockFirst && 'xl:col-start-1 xl:row-start-1')}
+            className={cn('min-w-0', mockFirst && 'xl:col-start-1 xl:row-start-1')}
           >
-            <MacbookFrame designWidth={MOCK_W} designHeight={MOCK_H} url={feature.url}>
-              {feature.mock}
-            </MacbookFrame>
+            <div className="-mx-6 w-full min-w-0 overflow-x-auto px-6 pb-3 lg:mx-0 lg:overflow-visible lg:px-0 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="w-[860px] lg:w-auto">
+                <MacbookFrame designWidth={MOCK_W} designHeight={MOCK_H} url={feature.url}>
+                  {feature.mock}
+                </MacbookFrame>
+              </div>
+            </div>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground lg:hidden">
+              <MoveHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Swipe to see the whole screen
+            </p>
           </motion.div>
         </div>
       </div>

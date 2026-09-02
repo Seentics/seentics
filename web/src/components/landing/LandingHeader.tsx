@@ -66,33 +66,36 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
         {/* Right section */}
         <div className="flex items-center gap-2 ml-auto">
           <Link href="https://github.com/Seentics/seentics" target="_blank" className="hidden sm:block">
-            <Button variant="ghost" size="lg" className="h-8 px-3 text-xs font-semibold gap-1.5 border-border">
-              <Github className="h-4.5 w-4.5" />
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Seentics on GitHub">
+              <Github className="h-4 w-4" />
             </Button>
           </Link>
           <ThemeToggle />
           {isAuthenticated ? (
             <Link href="/websites">
-              <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-lg">
+              <Button className="h-9 rounded-lg px-4 text-sm font-semibold">
                 Dashboard
               </Button>
             </Link>
           ) : (
             <>
               <Link href="/signin" className="hidden sm:block">
-                <Button variant="ghost" size="lg" className="h-10 px-4 text font-semibold rounded-lg">
+                <Button variant="ghost" className="h-9 rounded-lg px-4 text-sm font-semibold">
                   Sign in
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="lg" className="h-10 px-4 text font-semibold rounded-lg">
+                <Button className="h-9 rounded-lg px-4 text-sm font-semibold">
                   Get Started
                 </Button>
               </Link>
             </>
           )}
           <button
-            className="lg:hidden p-1.5 hover:bg-accent rounded-lg transition-colors"
+            type="button"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            className="rounded-lg p-1.5 transition-colors hover:bg-accent lg:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -108,7 +111,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-xl md:hidden"
+            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
           >
             <div className="landing-container py-6 flex flex-col gap-4">
               <nav className="flex flex-col gap-1">
