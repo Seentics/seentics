@@ -269,22 +269,24 @@
     @apply mx-auto w-full max-w-[1240px] px-6;
   }
 
-  /* Alternating section band, with a faint diagonal hatch.
-     Two problems in one: the bands were written out as literals in three files with
-     two different dark-mode values (`dark:bg-muted/10` on the feature rows but
+  /* Alternating section band: two tones, split by a slope through the middle.
+     The band was a flat grey fill written out as literals in three files, with two
+     different dark-mode values — `dark:bg-muted/10` on the feature rows but
      `dark:bg-background` on Pricing and FAQ, so those two lost their band entirely
-     in dark mode), and a flat grey fill made every other section read as a slab.
+     in dark mode. `.landing-band` owns it now, and instead of one flat tone the
+     section carries the tint across roughly its top half and the page colour across
+     the bottom, divided by a slanted hard edge.
 
-     The hatch is a `repeating-linear-gradient` rather than a tiled SVG, which means
-     the line colour can come straight from a token and track the theme — a data-URI
-     SVG cannot read CSS custom properties. 135deg so the lines slope top-left to
-     bottom-right; 14px apart so it reads as texture rather than as stripes.
+     A `linear-gradient` with two stops at the same position is what makes the edge
+     crisp rather than a fade. 185deg — five degrees off straight down — puts the
+     divide close to horizontal with a visible fall to the right; over a 1400px
+     section that is about 120px of drop. Steeper reads as a wedge rather than a
+     slope.
 
-     The mask fades the hatch out at the top and bottom so it never collides with the
-     section seam, and `isolation` + a negative z-index put it over the band's own
-     background but under its content. */
+     No `border-y`: a straight rule top and bottom would argue with the diagonal it
+     is meant to frame. */
   .landing-band {
-    @apply relative border-y border-border bg-muted/60 dark:border-transparent dark:bg-muted/20;
+    @apply relative;
     isolation: isolate;
   }
 
@@ -294,22 +296,21 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background-image: repeating-linear-gradient(
-      135deg,
-      hsl(var(--muted-foreground) / 0.11) 0 1px,
-      transparent 1px 14px
+    background-image: linear-gradient(
+      185deg,
+      hsl(var(--muted)) 0 50%,
+      transparent 50% 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
   }
 
-  /* The same alpha that reads as texture on a near-white band is barely there on a
-     dark one, so dark mode gets a stronger line. */
+  /* Dark mode reads the split at a lower alpha: `--muted` (215 17% 13%) is only a few
+     points off the page colour, so the full token gives almost no separation, while
+     lifting it toward the foreground does. */
   .dark .landing-band::before {
-    background-image: repeating-linear-gradient(
-      135deg,
-      hsl(var(--muted-foreground) / 0.16) 0 1px,
-      transparent 1px 14px
+    background-image: linear-gradient(
+      185deg,
+      hsl(var(--muted-foreground) / 0.07) 0 50%,
+      transparent 50% 100%
     );
   }
 
