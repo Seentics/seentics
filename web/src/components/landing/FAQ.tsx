@@ -72,7 +72,7 @@ export default function FAQ() {
   return (
     // Only a top border: the footer's own border-t closes this band, and a
     // border-y here would stack against it into a 2px rule.
-    <section id="faq" className="landing-section border-t border-border bg-muted/50 dark:border-transparent dark:bg-background">
+    <section id="faq" className="landing-section landing-band">
       <div className="landing-container">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.p

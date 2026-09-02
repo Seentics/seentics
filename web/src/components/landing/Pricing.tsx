@@ -93,7 +93,7 @@ export default function Pricing() {
   }
 
   return (
-    <section id="pricing" className="landing-section border-y border-border bg-muted/50 dark:border-transparent dark:bg-background">
+    <section id="pricing" className="landing-section landing-band">
       <div className="landing-container">
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-10">

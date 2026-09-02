@@ -140,7 +140,7 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
       id={feature.id}
       className={cn(
         'landing-section',
-        banded && 'border-y border-border bg-muted/50 dark:border-transparent dark:bg-muted/10',
+        banded && 'landing-band',
       )}
     >
       <div className="landing-container">
