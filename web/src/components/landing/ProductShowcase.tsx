@@ -1,5 +1,5 @@
 import { MacbookFrame } from './mocks/MacbookFrame';
-import { DashboardMock } from './mocks/DashboardMock';
+import { LazyDashboardMock } from './mocks/lazy';
 
 /**
  * The product, immediately after the promise.
@@ -29,7 +29,7 @@ export default function ProductShowcase() {
           designHeight={975}
           url="app.seentics.com/websites/acme-store"
         >
-          <DashboardMock />
+          <LazyDashboardMock />
         </MacbookFrame>
       </div>
     </section>

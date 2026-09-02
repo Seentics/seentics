@@ -3,6 +3,7 @@ import { QueryProvider } from '@/components/query-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeCustomizationProvider } from '@/contexts/ThemeCustomizationContext';
 import { cn } from '@/lib/utils';
+import { SITE_URL } from '@/lib/site';
 import type { Metadata } from 'next';
 import './globals.css';
 
@@ -28,6 +29,7 @@ import LemonSqueezyScript from '@/components/lemon-squeezy-script';
 // });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'Seentics | Analytics that actually drives growth',
   description: 'Privacy-focused real-time website analytics with built-in behavioral automations. Understand your traffic and act on it automatically.',
   openGraph: {

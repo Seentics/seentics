@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MacbookFrame } from './mocks/MacbookFrame';
-import { AutomationBuilderMock } from './mocks/AutomationBuilderMock';
-import { FunnelMock } from './mocks/FunnelMock';
-import { ReplayMock } from './mocks/ReplayMock';
-import { HeatmapMock } from './mocks/HeatmapMock';
+import {
+  LazyAutomationBuilderMock,
+  LazyFunnelMock,
+  LazyHeatmapMock,
+  LazyReplayMock,
+} from './mocks/lazy';
 
 /**
  * One section per capability: the claim on one side, the screen that backs it on the
@@ -62,7 +64,7 @@ const FEATURES: Feature[] = [
     href: '/docs/automations',
     linkLabel: 'How automations work',
     url: 'app.seentics.com/websites/acme-store/automations/exit-offer',
-    mock: <AutomationBuilderMock />,
+    mock: <LazyAutomationBuilderMock />,
   },
   {
     id: 'funnels',
@@ -83,7 +85,7 @@ const FEATURES: Feature[] = [
     href: '/docs/funnels',
     linkLabel: 'Read the funnels guide',
     url: 'app.seentics.com/websites/acme-store/funnels/main-conversion-path',
-    mock: <FunnelMock />,
+    mock: <LazyFunnelMock />,
   },
   {
     id: 'replays',
@@ -104,7 +106,7 @@ const FEATURES: Feature[] = [
     href: '/docs/analytics',
     linkLabel: 'See what gets recorded',
     url: 'app.seentics.com/websites/acme-store/replays/sess_8f2c41ab9de07',
-    mock: <ReplayMock />,
+    mock: <LazyReplayMock />,
   },
   {
     id: 'heatmaps',
@@ -125,7 +127,7 @@ const FEATURES: Feature[] = [
     href: '/docs/analytics',
     linkLabel: 'Explore heatmaps',
     url: 'app.seentics.com/websites/acme-store/heatmaps/pricing',
-    mock: <HeatmapMock />,
+    mock: <LazyHeatmapMock />,
   },
 ];
 
