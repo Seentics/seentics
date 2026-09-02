@@ -37,7 +37,10 @@ export default async function SocialProof() {
   return (
     <section className="border-y border-border bg-muted/50 py-6 dark:border-border/40 dark:bg-muted/20">
       <div className="landing-container">
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
+        {/* On a phone one centred `flex-wrap` put the GitHub pill and four trust
+            items in a ragged run. Below `sm` the pill gets its own row and the four
+            items sit in a 2x2 grid; from `sm` it is one inline row again. */}
+        <div className="flex flex-col items-center gap-4 text-sm sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-8 sm:gap-y-3">
           <Link
             href={`https://github.com/${GITHUB_REPO}`}
             target="_blank"
@@ -55,12 +58,14 @@ export default async function SocialProof() {
 
           <span className="hidden h-4 w-px bg-border sm:block" />
 
-          {TRUST_ITEMS.map((item) => (
-            <span key={item.label} className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
-              <item.icon className="h-4 w-4 text-emerald-500" />
-              {item.label}
-            </span>
-          ))}
+          <ul className="grid w-max grid-cols-2 gap-x-6 gap-y-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-3">
+            {TRUST_ITEMS.map((item) => (
+              <li key={item.label} className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                <item.icon className="h-4 w-4 shrink-0 text-emerald-500" />
+                {item.label}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

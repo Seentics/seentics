@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import { Check, X, Minus } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 type Cell = true | false | 'partial';
 
@@ -44,23 +43,17 @@ function CellMark({ value }: { value: Cell }) {
   );
 }
 
-function ToolCell({ label, value, highlight }: { label: string; value: Cell; highlight?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
-        highlight ? 'border-primary/30 bg-primary/[0.06]' : 'border-border dark:border-border/50',
-      )}
-    >
-      <span className={cn('text-xs font-medium', highlight ? 'text-primary' : 'text-muted-foreground')}>{label}</span>
-      <CellMark value={value} />
-    </div>
-  );
-}
-
+/**
+ * The comparison table.
+ *
+ * Desktop only. A five-column comparison of eleven features is a desktop artefact:
+ * the mobile fallback was eleven cards of four cells each — 44 tiles of ticks and
+ * crosses — which is a great deal of scrolling to make a point the feature rows
+ * above already make with screenshots.
+ */
 export default function WhySwitch() {
   return (
-    <section className="landing-section landing-band">
+    <section className="landing-section landing-band hidden md:block">
       <div className="landing-container">
         {/* Header */}
         <div className="mx-auto mb-16 max-w-4xl text-center">
@@ -74,21 +67,6 @@ export default function WhySwitch() {
             GA4, Plausible, Hotjar — each solves one piece of the puzzle. Seentics unifies analytics,
             recordings, heatmaps, funnels, and automations. Self-hosted, open source, no cookies.
           </p>
-        </div>
-
-        {/* Comparison matrix — mobile (stacked cards) */}
-        <div className="mx-auto max-w-md space-y-3 md:hidden">
-          {ROWS.map((row) => (
-            <div key={row.feature} className="rounded-lg border border-border bg-card p-4 shadow-sm dark:border-border/60">
-              <p className="mb-3 text-sm font-semibold text-foreground">{row.feature}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <ToolCell label="Seentics" value={row.seentics} highlight />
-                <ToolCell label="GA4" value={row.ga4} />
-                <ToolCell label="Plausible" value={row.plausible} />
-                <ToolCell label="Hotjar" value={row.hotjar} />
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* Comparison matrix — desktop table */}
