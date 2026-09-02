@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  AlertTriangle,
   ArrowLeft,
   Video,
   Copy,
@@ -18,8 +19,10 @@ import {
   getSessionApiResponse,
   fetchGzipJsonArray,
   eventsFromChunkList,
+  chunkLoadHint,
   type ReplaySession,
   type RRWebEvent,
+  type SessionCustomEvent,
 } from '@/lib/replays-api';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +35,50 @@ import {
 import { ReplaySessionSidebar } from './replay-session-sidebar';
 
 export type { SessionReplaySurfaceAPI as ReplayPlayerAPI } from './session-replay-surface';
+
+/** Chunks fetched before the player is mounted. Enough for playback to start immediately. */
+const INITIAL_BATCH = 2;
+
+/** Parallel chunk downloads. Bounded so a long session does not open 60 sockets at once. */
+const CHUNK_CONCURRENCY = 5;
+
+/** Stable identities: `events` drives a mount effect, so a fresh [] each render remounts. */
+const EMPTY_EVENTS: RRWebEvent[] = [];
+const EMPTY_CUSTOM_EVENTS: SessionCustomEvent[] = [];
+
+type ChunkProgress = {
+  loaded: number;
+  /** Chunks that failed twice and were skipped — the replay has gaps this many chunks wide. */
+  failed: number;
+  total: number;
+};
+
+/** Chunks that will not change again — downloaded, or skipped after retrying. */
+function settledChunks(p: ChunkProgress): number {
+  return p.loaded + p.failed;
+}
+
+/** Progress over settled chunks, so a skipped one advances the bar instead of stalling it. */
+function progressPercent(p: ChunkProgress): number {
+  if (p.total <= 0) return 0;
+  return Math.min(100, Math.round((settledChunks(p) / p.total) * 100));
+}
+
+/** Runs at most `max` tasks at a time, preserving each caller's own promise. */
+function createLimiter(max: number) {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return async function run<T>(task: () => Promise<T>): Promise<T> {
+    if (active >= max) await new Promise<void>(resolve => waiting.push(resolve));
+    active += 1;
+    try {
+      return await task();
+    } finally {
+      active -= 1;
+      waiting.shift()?.();
+    }
+  };
+}
 
 export default function ReplayDetailPage() {
   const params = useParams();
@@ -57,8 +104,8 @@ export default function ReplayDetailPage() {
 
   // Phase 2: progressive chunk loading state
   const [initialEvents, setInitialEvents] = useState<RRWebEvent[]>([]);
-  const [initialCustomEvents, setInitialCustomEvents] = useState<ReturnType<typeof eventsFromChunkList>['customEvents']>([]);
-  const [chunkProgress, setChunkProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const [customEvents, setCustomEvents] = useState<SessionCustomEvent[]>([]);
+  const [chunkProgress, setChunkProgress] = useState<ChunkProgress | null>(null);
   const [chunksError, setChunksError] = useState<string | null>(null);
   /** True once the initial S3 batch has been fetched and processed (success, empty, or error). */
   const [initialBatchDone, setInitialBatchDone] = useState(false);
@@ -83,7 +130,7 @@ export default function ReplayDetailPage() {
     const total      = urlRows.length;
 
     setInitialEvents([]);
-    setInitialCustomEvents([]);
+    setCustomEvents([]);
     setChunkProgress(null);
     setChunksError(null);
     setInitialBatchDone(false);
@@ -93,7 +140,6 @@ export default function ReplayDetailPage() {
     if (total === 0 && !warmChunks?.length && !bundleUrl) return;
 
     let cancelled = false;
-    const INITIAL_BATCH = 2;
 
     (async () => {
       // Warm-chunks-only or legacy bundle: load everything at once (no incremental gain)
@@ -106,17 +152,17 @@ export default function ReplayDetailPage() {
             chunks = [{ sequence: 0, data: raw as unknown[] }];
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            const hint = msg.includes('404')
-              ? 'Got 404 on legacy bundle URL — if S3_PUBLIC_ENDPOINT is set to a Cloudflare R2 custom domain, unset it. Use the R2 API endpoint directly.'
-              : 'Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.';
-            if (!cancelled) { setChunksError(`Could not load replay bundle (${msg}). ${hint}`); setInitialBatchDone(true); }
+            if (!cancelled) {
+              setChunksError(`Could not load replay bundle (${msg}). ${chunkLoadHint(msg)}`);
+              setInitialBatchDone(true);
+            }
             return;
           }
         }
         if (cancelled) return;
-        const { events, customEvents } = eventsFromChunkList(chunks);
+        const { events, customEvents: cevs } = eventsFromChunkList(chunks);
         setInitialEvents(events);
-        setInitialCustomEvents(customEvents);
+        setCustomEvents(cevs);
         setInitialBatchDone(true);
         return;
       }
@@ -133,33 +179,28 @@ export default function ReplayDetailPage() {
       };
 
       // Fetch initial batch to unblock the player
-      if (total > 0) setChunkProgress({ loaded: 0, total });
+      setChunkProgress({ loaded: 0, failed: 0, total });
       const initBatch = urlRows.slice(0, INITIAL_BATCH);
       const initResults = await Promise.allSettled(initBatch.map(fetchChunkWithRetry));
       if (cancelled) return;
-
-      let loaded = initBatch.length;
-      setChunkProgress({ loaded, total });
 
       const initChunks = initResults
         .filter((r): r is PromiseFulfilledResult<{ sequence: number; data: unknown[] }> => r.status === 'fulfilled')
         .map(r => r.value);
 
+      // Only successes count. Advancing the bar for a chunk that never arrived reported
+      // a replay as fully loaded while it was missing whole stretches of the session.
+      let loaded = initChunks.length;
+      let failed = initResults.length - initChunks.length;
+      setChunkProgress({ loaded, failed, total });
+
       // The lowest-sequence chunk carries the initial FullSnapshot — without it the
       // player renders a blank page, so treat its loss as fatal, not partial.
       const firstChunkFailed = initResults[0]?.status === 'rejected';
       if (initChunks.length === 0 || firstChunkFailed) {
-        const failed = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
-        const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? 'failed');
-        const lmsg = msg.toLowerCase();
-        const hint = msg.includes('404')
-          ? 'Got 404 — check S3_PUBLIC_ENDPOINT. If using Cloudflare R2 custom domain, unset it.'
-          : msg.includes('403')
-          ? 'Got 403 — CORS or signature mismatch. Check S3_PUBLIC_ENDPOINT and CORS settings.'
-          : lmsg.includes('failed to fetch') || lmsg.includes('networkerror') || lmsg.includes('network error') || lmsg.includes('load')
-          ? 'Network or CORS error — check that MinIO/S3 CORS is configured for browser access (see docker-compose.yml createbuckets) and that S3_PUBLIC_ENDPOINT is a hostname the browser can reach.'
-          : 'Check S3_PUBLIC_ENDPOINT and CORS settings.';
-        setChunksError(`Could not load replay from storage (${msg}). ${hint}`);
+        const failure = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+        const msg = failure?.reason instanceof Error ? failure.reason.message : String(failure?.reason ?? 'failed');
+        setChunksError(`Could not load replay from storage (${msg}). ${chunkLoadHint(msg)}`);
         setInitialBatchDone(true);
         return;
       }
@@ -171,36 +212,62 @@ export default function ReplayDetailPage() {
       // appended last, after every S3 chunk has streamed in.
       const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(initChunks);
       setInitialEvents(initEvs);
-      setInitialCustomEvents(initCevs);
+      setCustomEvents(initCevs);
       setInitialBatchDone(true);
 
-      const appendStreamed = (newEvs: RRWebEvent[]) => {
-        if (newEvs.length === 0) return;
-        if (addEventsRef.current) addEventsRef.current(newEvs);
-        else pendingEventsRef.current.push(...newEvs);
+      /**
+       * Hand a streamed chunk to the player and the sidebar.
+       *
+       * Both halves, not just the rrweb events: `customEvents` is what the Console,
+       * Network and Errors panels render, and dropping it here meant those panels only
+       * ever showed the initial batch — roughly the first minute of a session, silently.
+       */
+      const appendStreamed = (evs: RRWebEvent[], cevs: SessionCustomEvent[]) => {
+        if (evs.length > 0) {
+          if (addEventsRef.current) addEventsRef.current(evs);
+          else pendingEventsRef.current.push(...evs);
+        }
+        if (cevs.length > 0) setCustomEvents(prev => [...prev, ...cevs]);
       };
 
-      // Stream remaining chunks in sequence; append via addEvent so player doesn't re-mount
-      for (let i = INITIAL_BATCH; i < total; i++) {
-        if (cancelled) break;
-        const row = urlRows[i];
-        try {
-          const { data } = await fetchChunkWithRetry(row);
-          if (!cancelled) {
-            const { events: newEvs } = eventsFromChunkList([{ sequence: row.sequence, data }]);
-            appendStreamed(newEvs);
-          }
-        } catch {
-          // Skip chunks that failed twice — partial replay is better than nothing
+      /**
+       * Fetch the rest concurrently but append strictly in sequence order.
+       *
+       * Sequential awaits meant one round trip per chunk: at the 30s flush window a
+       * half-hour session is ~60 objects, so time-to-complete was ~60 serial fetches.
+       * The append order still has to be monotonic — `addEvent` is rrweb's live-mode
+       * path — so the results are awaited in order even though they race.
+       */
+      const runLimited = createLimiter(CHUNK_CONCURRENCY);
+      const rest = urlRows.slice(INITIAL_BATCH);
+      const inFlight = rest.map(row =>
+        runLimited(() => fetchChunkWithRetry(row)).then(
+          value => ({ ok: true as const, value }),
+          () => ({ ok: false as const, value: null }),
+        ),
+      );
+
+      for (const pending of inFlight) {
+        const result = await pending;
+        if (cancelled) return;
+        if (result.ok) {
+          const { events: newEvs, customEvents: newCevs } = eventsFromChunkList([
+            { sequence: result.value.sequence, data: result.value.data },
+          ]);
+          appendStreamed(newEvs, newCevs);
+          loaded += 1;
+        } else {
+          // Skipped after two attempts. Partial playback beats none, but the gap is
+          // reported rather than hidden behind a progress bar that reaches 100%.
+          failed += 1;
         }
-        loaded++;
-        if (!cancelled) setChunkProgress({ loaded, total });
+        setChunkProgress({ loaded, failed, total });
       }
 
       // Finally append the warm in-memory tail (newest events, sequence > all S3 chunks)
       if (!cancelled && warmChunks?.length) {
-        const { events: warmEvs } = eventsFromChunkList(warmChunks);
-        appendStreamed(warmEvs);
+        const { events: warmEvs, customEvents: warmCevs } = eventsFromChunkList(warmChunks);
+        appendStreamed(warmEvs, warmCevs);
       }
     })();
 
@@ -241,9 +308,11 @@ export default function ReplayDetailPage() {
       } as ReplaySession)
     : sessionApiResp?.meta ?? undefined;
 
-  const events            = isDemoMode ? [] : initialEvents;
-  const customEvents      = isDemoMode ? [] : initialCustomEvents;
+  const events            = isDemoMode ? EMPTY_EVENTS : initialEvents;
+  const sessionSignals    = isDemoMode ? EMPTY_CUSTOM_EVENTS : customEvents;
   const recordingPending  = !isDemoMode && (sessionApiResp?.recording_pending === true);
+  /** Chunks that never arrived. Playback still works; it just has holes in it. */
+  const missingChunks     = chunkProgress?.failed ?? 0;
 
   const handlePlayerReady = useCallback((api: SessionReplaySurfaceAPI) => {
     playerApiRef.current = api;
@@ -272,7 +341,7 @@ export default function ReplayDetailPage() {
   const listHref = `/websites/${websiteId}/replays`;
   const hasRecording = events.length > 0;
   /** Session queue payloads without a parseable rrweb DOM stream (e.g. only client errors, or empty bundle). */
-  const hasNonRrwebSignals = !isDemoMode && !hasRecording && customEvents.length > 0;
+  const hasNonRrwebSignals = !isDemoMode && !hasRecording && sessionSignals.length > 0;
 
   useEffect(() => {
     setReplayBridge(null);
@@ -409,7 +478,7 @@ export default function ReplayDetailPage() {
                   <div className="w-40 h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full transition-all duration-200"
-                      style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
+                      style={{ width: `${progressPercent(chunkProgress)}%` }}
                     />
                   </div>
                 )}
@@ -496,12 +565,12 @@ export default function ReplayDetailPage() {
             ) : (
               <>
                 {/* Non-blocking streaming progress bar — shows while background chunks load */}
-                {chunkProgress && chunkProgress.loaded < chunkProgress.total && (
+                {chunkProgress && settledChunks(chunkProgress) < chunkProgress.total && (
                   <div className="mb-2 flex items-center gap-2 px-1">
                     <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full bg-primary/60 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
+                        style={{ width: `${progressPercent(chunkProgress)}%` }}
                       />
                     </div>
                     <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
@@ -509,10 +578,29 @@ export default function ReplayDetailPage() {
                     </span>
                   </div>
                 )}
+
+                {/*
+                  Chunks that failed twice are skipped so the rest of the session still
+                  plays — but silently skipping them showed a complete-looking replay with
+                  stretches missing from the middle. Say so.
+                */}
+                {missingChunks > 0 && (
+                  <div
+                    role="status"
+                    className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2"
+                  >
+                    <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <p className="text-[11px] leading-snug text-amber-800 dark:text-amber-200">
+                      {missingChunks} of {chunkProgress?.total ?? missingChunks} segments couldn&apos;t be
+                      loaded, so this replay has gaps. Reloading may recover them; if it does not,
+                      check object storage access for this session.
+                    </p>
+                  </div>
+                )}
                 <SessionReplaySurface
                   className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
                   events={events}
-                  customEvents={customEvents}
+                  customEvents={sessionSignals}
                   websiteId={websiteId}
                   knownDurationMs={(session?.durationSeconds ?? 0) * 1000 || undefined}
                   sessionSummary={

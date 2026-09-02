@@ -16,6 +16,23 @@ export interface ReplaySession {
   pagesViewed:     number;
 }
 
+/** Narrowing applied by the server, not the browser. */
+export interface ReplayListParams {
+  limit?:  number;
+  offset?: number;
+  search?: string;
+  device?: 'desktop' | 'mobile' | 'tablet';
+  hasErrors?:      boolean;
+  hasRageClicks?:  boolean;
+}
+
+export interface ReplayListPage {
+  sessions: ReplaySession[];
+  limit:    number;
+  offset:   number;
+  /** Sessions matching the filters in total, not just on this page. */
+  total:    number;
+}
 
 /** A single rrweb eventWithTime object */
 export interface RRWebEvent {
@@ -117,7 +134,38 @@ export async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
   return parseJsonArray('plain replay payload', asText);
 }
 
-/** Converts warm-chunk / bundle rows into rrweb `eventWithTime` list + sidecar custom events. */
+/**
+ * What to tell the operator about a chunk that would not load.
+ *
+ * The 404 and 403 cases are each almost always one specific misconfiguration, and saying
+ * which is worth more than the status code on its own. Shared so the caller does not
+ * carry three near-identical copies of this prose.
+ */
+export function chunkLoadHint(message: string): string {
+  const lower = message.toLowerCase();
+  if (message.includes('404')) {
+    return 'Got 404 — the presigned URL path is wrong. If S3_PUBLIC_ENDPOINT points at a custom domain (e.g. a Cloudflare R2 custom domain), unset it: R2’s API endpoint is already public, and custom domains add a bucket prefix that causes 404. Only set S3_PUBLIC_ENDPOINT for MinIO, where the internal Docker hostname differs from the host-accessible address.';
+  }
+  if (message.includes('403')) {
+    return 'Got 403 — CORS or signature mismatch. R2 does not support presigned-URL auth via custom domains; unset S3_PUBLIC_ENDPOINT and use the R2 API endpoint directly.';
+  }
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('network error')
+  ) {
+    return 'Network or CORS error — check that MinIO/S3 CORS allows browser access (see docker-compose.yml createbuckets) and that S3_PUBLIC_ENDPOINT is a hostname the browser can reach.';
+  }
+  return 'Check S3_PUBLIC_ENDPOINT and CORS settings.';
+}
+
+/**
+ * Converts warm-chunk / bundle rows into rrweb `eventWithTime` list + sidecar custom events.
+ *
+ * Both halves matter to the caller. `customEvents` carries the console, network and error
+ * annotations the sidebar renders; a caller that destructures only `events` silently
+ * drops everything those panels show.
+ */
 export function eventsFromChunkList(
   chunks: Array<{ sequence: number; data: unknown[] }>,
 ): { events: RRWebEvent[]; customEvents: SessionCustomEvent[] } {
@@ -182,90 +230,35 @@ export function eventsFromChunkList(
   return { events, customEvents };
 }
 
-export async function listSessions(websiteId: string, limit = 20, offset = 0) {
-  const res = await api.get(`/replays/${websiteId}`, {
-    params: { limit, offset },
-  });
-  return res.data as { sessions: ReplaySession[]; limit: number; offset: number };
-}
-
-export async function getSessionWithEvents(
+/**
+ * One page of recorded sessions.
+ *
+ * Filters go to the server. The dashboard used to request a fixed 100 rows and search
+ * within them, which made "no results" mean "not in the newest 100" and made every
+ * derived stat on the page a statistic about the first page rather than about the site.
+ */
+export async function listSessions(
   websiteId: string,
-  sessionId: string,
-  onProgress?: (loaded: number, total: number) => void,
-): Promise<{
-  meta: ReplaySession | null;
-  events: RRWebEvent[];
-  customEvents: SessionCustomEvent[];
-  recordingPending: boolean;
-}> {
-  const sid = sessionId.trim();
-  const res = await api.get(
-    `/replays/${encodeURIComponent(websiteId)}/${encodeURIComponent(sid)}`,
-  );
-  const body = res.data as SessionReplayApiResponse;
-
-  const urlRows = [...(body.replay_chunk_urls ?? [])].sort((a, b) => a.sequence - b.sequence);
-  const total = urlRows.length;
-  let loaded = 0;
-  if (total > 0) onProgress?.(0, total);
-  // Retry each chunk once: a silently skipped middle chunk is a replay gap, and a
-  // skipped first chunk (FullSnapshot) makes playback blank.
-  const fetchChunk = async (row: { sequence: number; url: string }) => {
-    let data: unknown[];
-    try {
-      data = await fetchGzipJsonArray(row.url);
-    } catch {
-      data = await fetchGzipJsonArray(row.url);
-    }
-    onProgress?.(++loaded, total);
-    return { sequence: row.sequence, data };
+  params: ReplayListParams = {},
+): Promise<ReplayListPage> {
+  const query: Record<string, string | number> = {
+    limit:  params.limit  ?? 20,
+    offset: params.offset ?? 0,
   };
-  const chunkResults = await Promise.allSettled(urlRows.map(fetchChunk));
-  const fromUrls: Array<{ sequence: number; data: unknown[] }> = [];
-  for (const r of chunkResults) {
-    if (r.status === "fulfilled") fromUrls.push(r.value);
-  }
-  if (urlRows.length > 0 && fromUrls.length === 0) {
-    const failed = chunkResults.find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
-    const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? "failed");
-    const hint = msg.includes("404")
-      ? "Got 404 — the presigned URL path is wrong. If you set S3_PUBLIC_ENDPOINT to a custom domain (e.g. Cloudflare R2 custom domain), unset it — R2's API endpoint is already public and custom domains add an extra bucket prefix that causes 404. Only set S3_PUBLIC_ENDPOINT for MinIO where the internal Docker hostname differs from the host-accessible address."
-      : msg.includes("403")
-      ? "Got 403 — CORS or signature mismatch. If using a custom domain for presigned URLs, R2 does not support presigned URL auth via custom domains — unset S3_PUBLIC_ENDPOINT and use the R2 API endpoint directly."
-      : "Check S3_PUBLIC_ENDPOINT and CORS settings.";
-    throw new Error(`Could not load replay from storage (${msg}). ${hint}`);
-  }
+  if (params.search?.trim()) query.search = params.search.trim();
+  if (params.device)         query.device = params.device;
+  if (params.hasErrors)      query.has_errors = '1';
+  if (params.hasRageClicks)  query.has_rage_clicks = '1';
 
-  let chunks: Array<{ sequence: number; data: unknown[] }> = [...fromUrls];
-  if (body.warm_chunks?.length) {
-    chunks = [...chunks, ...body.warm_chunks];
-  }
-
-  if ((!chunks || chunks.length === 0) && body.replay_url) {
-    try {
-      const raw = await fetchGzipJsonArray(body.replay_url);
-      chunks = [{ sequence: 0, data: raw as unknown[] }];
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const hint = msg.includes("404")
-        ? "Got 404 on legacy bundle URL — if S3_PUBLIC_ENDPOINT is set to a Cloudflare R2 custom domain, unset it (custom domains prepend the bucket name to the path, causing 404). Use the R2 API endpoint directly."
-        : "Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.";
-      throw new Error(`Could not load replay bundle (${msg}). ${hint}`);
-    }
-  }
-
-  if (!chunks?.length) {
-    return {
-      meta: body.meta ?? null,
-      events: [],
-      customEvents: [],
-      recordingPending: body.recording_pending === true,
-    };
-  }
-
-  const { events, customEvents } = eventsFromChunkList(chunks);
-  return { meta: body.meta ?? null, events, customEvents, recordingPending: false };
+  const res = await api.get(`/replays/${encodeURIComponent(websiteId)}`, { params: query });
+  const body = res.data as Partial<ReplayListPage>;
+  return {
+    sessions: body.sessions ?? [],
+    limit:    body.limit  ?? Number(query.limit),
+    offset:   body.offset ?? Number(query.offset),
+    // A core that predates the total says nothing; the page length is the honest fallback.
+    total:    typeof body.total === 'number' ? body.total : (body.sessions?.length ?? 0),
+  };
 }
 
 /**
@@ -284,7 +277,7 @@ export async function getSessionApiResponse(
 }
 
 export async function deleteSessions(websiteId: string, sessionIds: string[]) {
-  const res = await api.delete(`/replays/${websiteId}/batch`, {
+  const res = await api.delete(`/replays/${encodeURIComponent(websiteId)}/batch`, {
     data: { sessionIds },
   });
   return res.data;

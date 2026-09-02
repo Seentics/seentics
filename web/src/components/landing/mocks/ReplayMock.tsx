@@ -69,15 +69,24 @@ function ReplayedPage() {
           <span className="rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">Cart · 2</span>
         </div>
 
-        <div className="grid grid-cols-[1.15fr_1fr] gap-5 px-5 py-5">
+        {/*
+          Calmer than it was.
+
+          The replayed page had an orange eyebrow, a three-colour gradient panel and a
+          gradient thumbnail inside it — and this sits *inside* a laptop, inside a
+          section, so every one of those competed with the product it is meant to
+          demonstrate. A near-monochrome storefront still reads as a real page, and
+          leaves the player's own controls as the only thing carrying colour.
+        */}
+        <div className="grid grid-cols-[1.2fr_1fr] gap-6 px-5 py-6">
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-orange-600">New season</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-black/35">New season</p>
             <p className="mt-1.5 text-[19px] font-extrabold leading-[1.15] tracking-tight text-black/90">
               Built for the
               <br />
               long way round.
             </p>
-            <p className="mt-2 max-w-[15rem] text-[10px] leading-relaxed text-black/55">
+            <p className="mt-2 max-w-[15rem] text-[10px] leading-relaxed text-black/50">
               Weatherproof packs and layers, made to be repaired rather than replaced.
             </p>
             <div className="mt-4 flex items-center gap-2">
@@ -90,28 +99,31 @@ function ReplayedPage() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-gradient-to-br from-orange-100 via-amber-50 to-sky-100 p-3">
-            <div className="h-full rounded-lg border border-black/[0.06] bg-white/70 p-2.5">
-              <div className="h-16 rounded-lg bg-gradient-to-br from-stone-300 to-stone-400/70" />
+          <div className="rounded-lg border border-black/[0.07] bg-black/[0.02] p-3">
+            <div className="h-full rounded-lg bg-white p-2.5">
+              <div className="h-16 rounded-lg bg-black/[0.07]" />
               <p className="mt-2 text-[10px] font-semibold text-black/80">Trailhead 32L</p>
-              <p className="text-[9px] text-black/50">Recycled ripstop · 3 colours</p>
+              <p className="text-[9px] text-black/45">Recycled ripstop · 3 colours</p>
               <p className="mt-1 text-[11px] font-bold text-black/85">$168</p>
             </div>
           </div>
         </div>
 
-        {/* Product row */}
+        {/* Product row. Four saturated gradient tiles — emerald, sky, amber, rose —
+            were the single loudest thing in the section; a real storefront's
+            thumbnails are photographs, and grey stands in for one better than four
+            unrelated hues do. */}
         <div className="grid grid-cols-4 gap-2.5 border-t border-black/[0.06] px-5 py-4">
           {[
-            { name: 'Fell Shell', price: '$240', tint: 'from-emerald-200 to-emerald-400/60' },
-            { name: 'Ridge Mid', price: '$185', tint: 'from-sky-200 to-sky-400/60' },
-            { name: 'Cairn Vest', price: '$120', tint: 'from-amber-200 to-amber-400/60' },
-            { name: 'Moor Cap', price: '$45', tint: 'from-rose-200 to-rose-400/60' },
+            { name: 'Fell Shell', price: '$240' },
+            { name: 'Ridge Mid', price: '$185' },
+            { name: 'Cairn Vest', price: '$120' },
+            { name: 'Moor Cap', price: '$45' },
           ].map((item) => (
             <div key={item.name}>
-              <div className={cn('h-12 rounded-lg bg-gradient-to-br', item.tint)} />
+              <div className="h-12 rounded-lg bg-black/[0.07]" />
               <p className="mt-1.5 text-[9px] font-semibold text-black/75">{item.name}</p>
-              <p className="text-[9px] font-bold text-black/55">{item.price}</p>
+              <p className="text-[9px] font-bold text-black/50">{item.price}</p>
             </div>
           ))}
         </div>

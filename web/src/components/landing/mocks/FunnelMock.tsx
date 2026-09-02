@@ -57,22 +57,24 @@ export function FunnelMock() {
 
           <StatCards
             cards={[
+              // Only the conversion rate keeps a tone, matching the real page. Four
+              // coloured figures in a row read as four warnings, not one summary.
               { label: 'Entered funnel', value: analytics.total_starts, icon: Users },
-              { label: 'Completed', value: analytics.total_conversions, icon: Target, tone: 'success' },
+              { label: 'Completed', value: analytics.total_conversions, icon: Target },
               { label: 'Conversion rate', value: `${analytics.conversion_rate.toFixed(1)}%`, icon: TrendingUp, tone: 'accent' },
-              { label: 'Drop-off rate', value: `${analytics.drop_off_rate.toFixed(1)}%`, icon: TrendingDown, tone: 'warning' },
+              { label: 'Drop-off rate', value: `${analytics.drop_off_rate.toFixed(1)}%`, icon: TrendingDown },
             ]}
           />
 
-          {/* Biggest drop-off callout */}
+          {/* Biggest drop-off — the one place colour is left on this screen */}
           <div className="surface mb-6 flex items-center gap-2 px-5 py-3.5 text-sm">
-            <ArrowDownRight className="h-4 w-4 shrink-0 text-orange-500" />
+            <ArrowDownRight className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span className="font-semibold text-foreground">Biggest drop-off</span>
             <span className="text-muted-foreground">
               between <span className="font-medium text-foreground">Home Page</span> and{' '}
               <span className="font-medium text-foreground">Feature Explore</span> —
             </span>
-            <span className="font-semibold text-orange-600 dark:text-orange-400">
+            <span className="font-semibold text-amber-700 dark:text-amber-400">
               43,245 people (50.6%)
             </span>
           </div>
@@ -128,9 +130,12 @@ export function FunnelMock() {
                             </div>
                           </div>
 
+                          {/* One soft tone, last step a shade stronger — matching the
+                              real page, where full primary on every bar plus an
+                              emerald endpoint left nothing quiet to read against. */}
                           <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
                             <div
-                              className={cn('h-full rounded-full', isLast ? 'bg-emerald-500' : 'bg-primary')}
+                              className={cn('h-full rounded-full', isLast ? 'bg-primary/80' : 'bg-primary/45')}
                               style={{ width: `${Math.max(entryRate, 1.5)}%` }}
                             />
                           </div>
@@ -138,16 +143,7 @@ export function FunnelMock() {
                           <div className="mt-2.5 flex items-center gap-4 text-xs">
                             {stepRate != null && (
                               <span className="text-muted-foreground">
-                                <span
-                                  className={cn(
-                                    'font-semibold tabular-nums',
-                                    stepRate >= 66
-                                      ? 'text-emerald-600 dark:text-emerald-400'
-                                      : stepRate >= 33
-                                        ? 'text-amber-600 dark:text-amber-400'
-                                        : 'text-orange-600 dark:text-orange-400',
-                                  )}
-                                >
+                                <span className="font-semibold tabular-nums text-foreground">
                                   {stepRate.toFixed(1)}%
                                 </span>{' '}
                                 continued from the previous step
@@ -155,8 +151,8 @@ export function FunnelMock() {
                             )}
                             {!isLast && (metric?.drop_off ?? 0) > 0 && (
                               <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                <TrendingDown className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-                                <span className="font-medium text-orange-600 dark:text-orange-400">
+                                <TrendingDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                                <span className="font-medium text-foreground">
                                   {metric!.drop_off.toLocaleString()} left here
                                 </span>
                                 <span className="tabular-nums">({metric!.drop_off_rate.toFixed(1)}%)</span>

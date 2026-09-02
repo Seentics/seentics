@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -20,9 +20,15 @@ import {
   Play,
   MousePointerClick,
 } from 'lucide-react';
+import { Toggle } from '@/components/ui/toggle';
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
-import { listSessions, deleteSessions, type ReplaySession } from '@/lib/replays-api';
+import {
+  listSessions,
+  deleteSessions,
+  type ReplayListParams,
+  type ReplaySession,
+} from '@/lib/replays-api';
 import { useToast } from '@/hooks/use-toast';
 import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 
@@ -75,6 +81,19 @@ function entryPathDisplay(raw: string, websiteId: string): { display: string; ti
   return { display, title };
 }
 
+/** Device classes the server will filter on. */
+type DeviceFilter = 'all' | 'desktop' | 'mobile' | 'tablet';
+
+/**
+ * How long to wait after the last keystroke before searching.
+ *
+ * The search runs on the server now, so every character would otherwise be a query
+ * against a table that grows without bound.
+ */
+const SEARCH_DEBOUNCE_MS = 300;
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
 // Unified row type
 interface SessionRow {
   id: string;
@@ -99,8 +118,32 @@ export default function ReplaysPage() {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
   const [search, setSearch] = useState('');
-  const [deviceFilter, setDeviceFilter] = useState('all');
+  /** What the server is actually filtering on; trails `search` by the debounce. */
+  const [committedSearch, setCommittedSearch] = useState('');
+  const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
+  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [rageOnly, setRageOnly] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setCommittedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const filters: ReplayListParams = useMemo(() => ({
+    search: committedSearch || undefined,
+    device: deviceFilter === 'all' ? undefined : deviceFilter,
+    hasErrors: errorsOnly || undefined,
+    hasRageClicks: rageOnly || undefined,
+  }), [committedSearch, deviceFilter, errorsOnly, rageOnly]);
+
+  /** Narrowing the set changes what page 1 means, so never keep the old offset. */
+  useEffect(() => {
+    setPageIndex(0);
+  }, [filters, pageSize]);
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => {
@@ -129,12 +172,26 @@ export default function ReplaysPage() {
 
 
 
-  // Real API
-  const { data: apiData, isLoading, refetch } = useQuery({
-    queryKey: ['sessions', websiteId],
-    queryFn: () => listSessions(websiteId, 100, 0),
+  /**
+   * One page from the server, filtered by the server.
+   *
+   * This used to request a fixed 100 rows and do the paging, searching and filtering in
+   * the browser. Everything derived from it was therefore a fact about the newest 100
+   * sessions while being labelled as a fact about the site — and a search for an older
+   * session reported "no results" for a session that exists.
+   */
+  const { data: apiData, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['sessions', websiteId, pageIndex, pageSize, filters],
+    queryFn: () => listSessions(websiteId, {
+      ...filters,
+      limit: pageSize,
+      offset: pageIndex * pageSize,
+    }),
     enabled: !isDemoMode,
-    staleTime: 5 * 60 * 1000,
+    // Keeps the previous page on screen while the next one loads, instead of flashing
+    // the empty state between pages.
+    placeholderData: (prev) => prev,
+    staleTime: 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 
