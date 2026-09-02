@@ -60,15 +60,15 @@ function ToolCell({ label, value, highlight }: { label: string; value: Cell; hig
 
 export default function WhySwitch() {
   return (
-    <section className="bg-background py-24 md:py-32">
-      <div className="container mx-auto px-6">
+    <section className="landing-section bg-background">
+      <div className="landing-container">
         {/* Header */}
         <div className="mx-auto mb-16 max-w-4xl text-center">
-          <div className="mb-6 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
-            <span className="text-xs font-bold uppercase tracking-widest text-primary">Why switch</span>
+          <div className="mb-4 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
+            <span className="landing-eyebrow">Why switch</span>
           </div>
           <h2 className="landing-h2 mb-4">
-            Seentics Gives <span className="text-primary">Everything</span>
+            Seentics gives you <span className="landing-accent">everything</span>
           </h2>
           <p className="landing-lead">
             GA4, Plausible, Hotjar — each solves one piece of the puzzle. Seentics unifies analytics,

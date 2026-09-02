@@ -53,19 +53,19 @@ export default function LifetimeDeal() {
   };
 
   return (
-    <section id="lifetime-deal" className="relative overflow-hidden bg-background py-24 md:py-32">
+    <section id="lifetime-deal" className="landing-section relative overflow-hidden bg-background">
       {/* Ambient glow */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[720px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
 
       <div className="container relative mx-auto px-6">
         {/* Header */}
         <div className="mx-auto mb-14 max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Limited Time</span>
+            <span className="landing-eyebrow text-amber-600 dark:text-amber-400">Limited Time</span>
           </div>
           <h2 className="landing-h2 mb-4">
-            Pay once. Use <span className="text-primary">forever.</span>
+            Pay once. <span className="landing-accent">Use forever.</span>
           </h2>
           <p className="landing-lead">
             A one-time payment for lifetime access — no subscriptions, no recurring charges, ever.
@@ -92,7 +92,7 @@ export default function LifetimeDeal() {
                 </div>
                 <div>
                   <p className="mb-0.5 text-xs font-bold uppercase tracking-widest text-blue-500">Lifetime Access</p>
-                  <h3 className="text-xl font-bold text-foreground">Everything, forever.</h3>
+                  <h3 className="landing-h3">Everything, forever.</h3>
                 </div>
               </div>
 

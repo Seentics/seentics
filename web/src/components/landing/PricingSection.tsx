@@ -20,8 +20,8 @@ export default function PricingSection() {
   };
 
   return (
-    <section id="pricing" className="py-24 md:py-32 bg-background">
-      <div className="container mx-auto px-6">
+    <section id="pricing" className="landing-section bg-background">
+      <div className="landing-container">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <motion.p
@@ -29,7 +29,7 @@ export default function PricingSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+            className="landing-eyebrow"
           >
             Pricing
           </motion.p>
@@ -38,7 +38,7 @@ export default function PricingSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+            className="landing-h2 mb-4"
           >
             Simple, transparent pricing
           </motion.h2>

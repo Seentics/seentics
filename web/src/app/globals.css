@@ -194,23 +194,91 @@
     @apply border-b border-border;
   }
 
-  /* ── Marketing type & surfaces ────────────────────────────────────────────
-     Six landing sections repeated the same heading string verbatim, so the type
-     scale could only be changed in six places at once. These own it.
+  /* ── Marketing type & rhythm ──────────────────────────────────────────────
+     One type scale and one vertical rhythm for the whole landing page.
 
-     Sizes are a step down from where they were (h1 topped out at text-7xl/72px,
-     h2 at text-6xl/60px), which read as oversized next to the product screenshots
-     the page is built around. */
+     Three scales used to coexist: these classes, a set of ad-hoc `text-[2.05rem]`
+     headings on the newer sections, and `text-2xl md:text-3xl` on the older ones —
+     so "the same" heading rendered at three sizes depending on which section you
+     scrolled into. Same story for the eyebrows: three weights and two colours.
+
+     The sizes below are a step up from where they were. The page is built around
+     full-width product screenshots now, and against a 1180px laptop a 36px section
+     heading read as a caption for the picture rather than the claim it introduces. */
   .landing-h1 {
-    @apply text-3xl font-extrabold leading-[1.1] tracking-tighter text-foreground sm:text-4xl md:text-5xl;
+    @apply text-balance text-[2.5rem] font-extrabold leading-[1.05] tracking-tighter text-foreground sm:text-5xl md:text-6xl lg:text-[4rem];
   }
 
   .landing-h2 {
-    @apply text-2xl font-extrabold leading-[1.15] tracking-tighter text-foreground sm:text-3xl md:text-4xl;
+    /* `text-balance`: at this size in a ~490px column the browser's greedy line
+       breaking orphaned two-letter words ("Act on / it."). Balancing spreads the
+       lines evenly instead, which is what a designer would do by hand. */
+    @apply text-balance text-[2rem] font-extrabold leading-[1.12] tracking-tighter text-foreground sm:text-4xl md:text-[2.75rem];
+  }
+
+  /* Heading emphasis — tone, not hue.
+     The accent clause used to be `text-primary`. At 44–68px an 83%-saturation blue
+     sitting directly against a 4%-lightness near-black vibrates: two high-contrast
+     hues competing inside one sentence. Stepping lightness instead (4% → 42% in
+     light, 89% → 53% in dark) gives the same emphasis without a second colour, and
+     leaves blue to mean exactly one thing on the page: something you can click.
+
+     Both steps clear 4.5:1 against their background, so the quiet half is still
+     ordinary readable text rather than decoration. */
+  .landing-accent {
+    @apply text-muted-foreground;
+  }
+
+  /* Sub-headings inside a section — feature names, card titles, the FAQ's closing ask. */
+  .landing-h3 {
+    @apply text-xl font-bold tracking-tight text-foreground sm:text-2xl;
   }
 
   .landing-lead {
-    @apply text-base leading-relaxed text-muted-foreground sm:text-lg;
+    @apply text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl;
+  }
+
+  /* Body copy — bullet lists, feature descriptions. Distinct from `landing-lead`,
+     which is the one paragraph directly under a heading. */
+  .landing-body {
+    @apply text-[17px] leading-relaxed;
+  }
+
+  /* Section label above the heading.
+     A softened primary rather than `muted-foreground`. At full strength it competed
+     with the CTA; at muted-foreground it was the same grey as the lead paragraph and
+     the accent clause, so three different roles in one block all looked alike and
+     the label stopped reading as a label. 70% keeps it unmistakably a different
+     thing without pulling the eye off the button. Override where a section means
+     something by the colour (LifetimeDeal's amber). */
+  .landing-eyebrow {
+    /* 12px, and the margin lives here rather than at the call sites — those were
+       carrying four different values (mb-2, mb-3, mb-5, none), so the label sat a
+       different distance from its heading in every section. 10px reads as a label
+       attached to the heading; 20px read as a separate line of text. */
+    @apply mb-2.5 text-xs font-bold uppercase tracking-[0.14em] text-primary/70;
+  }
+
+  /* Horizontal measure — one value, everywhere.
+     Tailwind's `.container` tops out at 1536px, and several sections then wrapped
+     their content in a further `max-w-[1400px]`, so at a 1600px window the page ran
+     nearly edge to edge with ~100px of margin. 1240 gives the content a visible
+     margin and keeps line lengths readable, and the hero screenshot now shares it
+     rather than being its own width. */
+  .landing-container {
+    @apply mx-auto w-full max-w-[1240px] px-6;
+  }
+
+  /* Vertical rhythm — one value, everywhere.
+     Padding used to be about a quarter of the page's scroll height and was split
+     across three different values (py-24/md:py-32, py-20/md:py-28, and the hero's
+     own), which made the page read as a stack of oversized boxes.
+
+     96px rather than 80: four consecutive laptop shots at 80 ran together into one
+     long strip of screenshots with nothing between them. The extra 16px per side is
+     what separates "four things" from "one thing that keeps going". */
+  .landing-section {
+    @apply py-16 md:py-24;
   }
 
   /* Marketing panels are 3–4× the size of a dashboard card, and rounded-lg (8px)

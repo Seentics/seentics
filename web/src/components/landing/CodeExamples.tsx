@@ -57,7 +57,7 @@ export default function APISection() {
 
   return (
     <section className="py-16 md:py-20 bg-muted/20">
-      <div className="container mx-auto px-6">
+      <div className="landing-container">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
@@ -66,7 +66,7 @@ export default function APISection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="text-xs font-semibold uppercase tracking-widest text-primary mb-2"
+              className="landing-eyebrow"
             >
               API Examples
             </motion.p>
@@ -75,7 +75,7 @@ export default function APISection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.05 }}
-              className="text-2xl md:text-3xl font-bold text-foreground"
+              className="landing-h2"
             >
               Simple REST APIs
             </motion.h2>

@@ -36,7 +36,7 @@ export default async function SocialProof() {
 
   return (
     <section className="border-y border-border bg-muted/50 py-6 dark:border-border/40 dark:bg-muted/20">
-      <div className="container mx-auto px-6">
+      <div className="landing-container">
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
           <Link
             href={`https://github.com/${GITHUB_REPO}`}

@@ -43,7 +43,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
           : 'top-0 bg-transparent h-16'
       }`}
     >
-      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+      <div className="landing-container h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <Logo size="lg" />
@@ -110,7 +110,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             transition={{ duration: 0.15 }}
             className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-xl md:hidden"
           >
-            <div className="container mx-auto px-6 py-6 flex flex-col gap-4">
+            <div className="landing-container py-6 flex flex-col gap-4">
               <nav className="flex flex-col gap-1">
                 {navLinks.map((link) => (
                   <Link

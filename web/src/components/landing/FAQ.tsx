@@ -72,15 +72,15 @@ export default function FAQ() {
   return (
     // Only a top border: the footer's own border-t closes this band, and a
     // border-y here would stack against it into a 2px rule.
-    <section id="faq" className="py-24 md:py-32 border-t border-border bg-muted/50 dark:border-transparent dark:bg-background">
-      <div className="container mx-auto px-6">
+    <section id="faq" className="landing-section border-t border-border bg-muted/50 dark:border-transparent dark:bg-background">
+      <div className="landing-container">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+            className="landing-eyebrow"
           >
             FAQ
           </motion.p>
@@ -138,7 +138,7 @@ export default function FAQ() {
           transition={{ duration: 0.5 }}
           className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-border bg-card bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center shadow-sm dark:border-border/60 dark:bg-transparent dark:shadow-none sm:px-12"
         >
-          <h3 className="mb-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h3 className="landing-h3 mb-3">
             Still have questions?
           </h3>
           <p className="mx-auto mb-7 max-w-md text-muted-foreground">

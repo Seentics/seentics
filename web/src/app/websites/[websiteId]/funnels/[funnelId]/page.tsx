@@ -1,19 +1,67 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFunnels, useFunnelAnalytics } from '@/lib/analytics-api';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  ArrowLeft, GitBranch, TrendingUp, TrendingDown, Users,
-  Target, BarChart3, Clock, ArrowRight,
+  ArrowLeft,
+  ArrowDownRight,
+  GitBranch,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+import { useFunnelAnalytics, useFunnels } from '@/lib/analytics-api';
+import { cn } from '@/lib/utils';
+
+/**
+ * A funnel's analytics.
+ *
+ * The previous version showed each step as an isolated progress bar, then repeated
+ * the same percentages in a "Step Conversion" card beside it, then dumped each step's
+ * condition as `JSON.stringify(..., null, 2)` in a third card. Three panels, two of
+ * them saying the same thing and one of them unreadable.
+ *
+ * This is one funnel instead. Every step carries its own numbers inline, and the two
+ * figures that actually matter are both present: what share of *entrants* reached this
+ * step, and what share of the *previous* step continued. The second one was never
+ * shown, and it is the one that tells you which transition is broken — a step can look
+ * healthy against total entries while losing most of the people who reached it.
+ */
+
+/** A step's condition, as something readable rather than a JSON blob. */
+function conditionLabel(step: { type?: string; condition?: { page?: string; event?: string; custom?: string } }): string | null {
+  const c = step.condition;
+  if (!c) return null;
+  return c.page || c.event || c.custom || null;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m ${Math.round(seconds % 60)}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
+}
+
+type StepRow = {
+  id: string;
+  name: string;
+  type: string;
+  condition: string | null;
+  count: number;
+  /** Share of everyone who entered the funnel. */
+  entryRate: number;
+  /** Share of the previous step that continued — undefined on the first step. */
+  stepRate?: number;
+  dropOff: number;
+  dropOffRate: number;
+};
 
 export default function FunnelDetailPage() {
   const params = useParams();
@@ -26,83 +74,131 @@ export default function FunnelDetailPage() {
 
   const funnel = funnels.find(f => f.id === funnelId);
   const analytics = analyticsData?.analytics?.[0];
+  const totalStarts = analytics?.total_starts || 0;
+
+  /**
+   * Steps joined to their metrics once, here, rather than a `metrics.find()` inside
+   * three separate render loops. `stepRate` is derived from the previous step's count,
+   * which is why this needs to be a single pass over the ordered list.
+   */
+  const rows = useMemo<StepRow[]>(() => {
+    const steps = funnel?.steps ?? [];
+    const metrics = analytics?.step_metrics ?? [];
+
+    return steps.map((step: any, i: number) => {
+      const metric = metrics.find((m: any) => m.step === i + 1);
+      const count = metric?.count ?? 0;
+      const prev = i === 0 ? null : (metrics.find((m: any) => m.step === i)?.count ?? 0);
+
+      return {
+        id: step.id || `step-${i}`,
+        name: step.name,
+        type: step.type,
+        condition: conditionLabel(step),
+        count,
+        entryRate: totalStarts > 0 ? (count / totalStarts) * 100 : 0,
+        stepRate: prev == null ? undefined : prev > 0 ? (count / prev) * 100 : 0,
+        dropOff: metric?.drop_off ?? 0,
+        dropOffRate: metric?.drop_off_rate ?? 0,
+      };
+    });
+  }, [funnel, analytics, totalStarts]);
+
+  /** The transition that loses the most people — the reason you opened this page. */
+  const worst = useMemo(() => {
+    const candidates = rows.slice(0, -1).filter(r => r.dropOff > 0);
+    if (!candidates.length) return null;
+    const step = candidates.reduce((a, b) => (b.dropOff > a.dropOff ? b : a));
+    const next = rows[rows.indexOf(step) + 1];
+    return next ? { step, next } : null;
+  }, [rows]);
 
   if (funnelsLoading) {
     return (
-      <div className="p-8 space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <StatCards cards={[]} isLoading={true} />
-        <Skeleton className="h-64 rounded-lg" />
+      <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 md:p-6 lg:p-8">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <StatCards cards={[]} isLoading />
+        <Skeleton className="h-96 rounded-lg" />
       </div>
     );
   }
 
   if (!funnel) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        <p className="text-sm">Funnel not found.</p>
-        <Button variant="ghost" size="sm" className="mt-4" onClick={() => router.back()}>
-          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back
-        </Button>
+      <div className="mx-auto w-full max-w-[1440px] p-8">
+        <div className="surface flex flex-col items-center justify-center px-6 py-16 text-center">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <GitBranch className="h-6 w-6" />
+          </span>
+          <p className="text-sm font-semibold text-foreground">Funnel not found</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            It may have been deleted, or it belongs to another website.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-6 gap-1.5"
+            onClick={() => router.push(`/websites/${websiteId}/funnels`)}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to funnels
+          </Button>
+        </div>
       </div>
     );
   }
 
-  const steps = funnel.steps || [];
-  const metrics = analytics?.step_metrics || [];
-
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+      {/* Header */}
+      <div className="mb-6">
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+          className="-ml-2 mb-3 h-8 gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={() => router.push(`/websites/${websiteId}/funnels`)}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Funnels
+          Back to funnels
         </Button>
-      </div>
 
-      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <GitBranch className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">{funnel.name}</h1>
-            <Badge variant={funnel.is_active ? 'default' : 'secondary'} className="text-[10px]">
-              {funnel.is_active ? 'Active' : 'Paused'}
-            </Badge>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{funnel.name}</h1>
+              <Badge variant={funnel.is_active ? 'default' : 'secondary'} className="shrink-0 text-[10px]">
+                {funnel.is_active ? 'Active' : 'Paused'}
+              </Badge>
+            </div>
+            {funnel.description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{funnel.description}</p>
+            ) : null}
           </div>
-          {funnel.description && (
-            <p className="text-sm text-muted-foreground">{funnel.description}</p>
-          )}
+          <p className="shrink-0 pt-1.5 text-xs text-muted-foreground">Last 30 days</p>
         </div>
       </div>
 
-      {/* Summary Stats */}
       <StatCards
         isLoading={analyticsLoading}
         cards={[
+          { label: 'Entered funnel', value: totalStarts, icon: Users },
           {
-            label: 'Total Entries',
-            value: analytics?.total_starts || 0,
-            icon: Users
-          },
-          {
-            label: 'Conversions',
+            label: 'Completed',
             value: analytics?.total_conversions || 0,
             icon: Target,
             tone: 'success',
+            subtext: analytics?.avg_time_to_convert
+              ? `${formatDuration(analytics.avg_time_to_convert)} to convert on average`
+              : undefined,
           },
           {
-            label: 'Avg Conv. Rate',
+            label: 'Conversion rate',
             value: `${(analytics?.conversion_rate || 0).toFixed(1)}%`,
             icon: TrendingUp,
             tone: 'accent',
           },
           {
-            label: 'Drop-off Rate',
+            label: 'Drop-off rate',
             value: `${(analytics?.drop_off_rate || 0).toFixed(1)}%`,
             icon: TrendingDown,
             tone: 'warning',
@@ -110,130 +206,135 @@ export default function FunnelDetailPage() {
         ]}
       />
 
-      {/* Funnel Visualization */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border border-border bg-card overflow-hidden">
-          <CardHeader className="px-5 py-4 border-b border-border bg-muted/20">
-            <CardTitle className="text-sm font-semibold">Funnel Steps Visualization</CardTitle>
-          </CardHeader>
-          <CardContent className="p-5">
-            <div className="space-y-4">
-              {steps.map((step, i) => {
-                const metric = metrics.find((m: any) => m.step === (i + 1));
-                const count = metric?.count || 0;
-                const drop_off = metric?.drop_off || 0;
-                const drop_off_rate = metric?.drop_off_rate || 0;
-                
-                const isLast = i === steps.length - 1;
-                const totalStarts = analytics?.total_starts || 1;
-                const widthPct = Math.max((count / totalStarts) * 100, 3);
-                
+      {/* The single worst transition, called out rather than left to be spotted. */}
+      {worst && (
+        <div className="surface mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-3.5 text-sm">
+          <ArrowDownRight className="h-4 w-4 shrink-0 text-orange-500" />
+          <span className="font-semibold text-foreground">Biggest drop-off</span>
+          <span className="text-muted-foreground">
+            between <span className="font-medium text-foreground">{worst.step.name}</span> and{' '}
+            <span className="font-medium text-foreground">{worst.next.name}</span> —
+          </span>
+          <span className="font-semibold text-orange-600 dark:text-orange-400">
+            {worst.step.dropOff.toLocaleString()} people ({worst.step.dropOffRate.toFixed(1)}%)
+          </span>
+        </div>
+      )}
+
+      {/* The funnel */}
+      <Card className="overflow-hidden border border-border bg-card">
+        <CardHeader className="border-b border-border px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm font-semibold">Steps</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Bar width is the share of everyone who entered the funnel
+            </p>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {rows.length === 0 ? (
+            <p className="px-5 py-14 text-center text-sm text-muted-foreground">
+              This funnel has no steps yet.
+            </p>
+          ) : (
+            <ol className="divide-y divide-border">
+              {rows.map((row, i) => {
+                const isLast = i === rows.length - 1;
+                // A floor so a step that almost nobody reached is still a visible bar
+                // rather than a sliver indistinguishable from zero.
+                const width = Math.max(row.entryRate, 1.5);
+
                 return (
-                  <div key={step.id || i} className="group">
+                  <li key={row.id} className="px-5 py-5">
                     <div className="flex items-start gap-4">
-                      {/* Step index */}
-                      <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                      {/* The step number. There was a connector line here too, but
+                          `flex-1` inside an `items-start` parent gave it no height, so
+                          it rendered nothing — and the row dividers already carry the
+                          sequence. */}
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-bold text-primary">
                         {i + 1}
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{step.name}</span>
-                            <Badge variant="outline" className="text-[10px] h-4.5 bg-background uppercase font-bold tracking-tighter opacity-70">
-                              {step.type}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        {/* Name, what it matches, and the figures */}
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">{row.name}</span>
+                            <Badge
+                              variant="outline"
+                              className="h-[18px] shrink-0 bg-background px-1.5 text-[10px] font-bold uppercase tracking-tight opacity-70"
+                            >
+                              {row.type}
                             </Badge>
+                            {row.condition && (
+                              // Replaces the JSON dump: the one thing anyone wanted
+                              // out of it was the path or event name.
+                              <code className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                                {row.condition}
+                              </code>
+                            )}
                           </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold">{count.toLocaleString()}</span>
-                            <span className="text-[10px] text-muted-foreground ml-1.5 font-medium">hits</span>
+
+                          <div className="flex shrink-0 items-baseline gap-2">
+                            <span className="text-base font-bold tabular-nums text-foreground">
+                              {row.count.toLocaleString()}
+                            </span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {row.entryRate.toFixed(1)}% of entries
+                            </span>
                           </div>
                         </div>
-                        
-                        {/* Progress Bar Container */}
-                        <div className="relative h-2.5 bg-muted rounded-full overflow-hidden mb-2">
+
+                        {/* Bar */}
+                        <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="absolute inset-y-0 left-0 bg-primary/80 group-hover:bg-primary transition-all duration-500 rounded-full"
-                            style={{ width: `${widthPct}%` }}
+                            className={cn(
+                              'h-full rounded-full transition-[width] duration-500',
+                              isLast ? 'bg-emerald-500' : 'bg-primary',
+                            )}
+                            style={{ width: `${width}%` }}
                           />
                         </div>
 
-                        {/* Drop-off Info */}
-                        {!isLast && drop_off > 0 && (
-                          <div className="flex items-center gap-2 mt-2 px-1 text-[11px] font-medium animate-in fade-in slide-in-from-left-2">
-                            <TrendingDown size={12} className="text-orange-500" />
-                            <span className="text-orange-600">{drop_off.toLocaleString()} users dropped off</span>
-                            <span className="text-muted-foreground/40 text-[10px]">—</span>
-                            <span className="text-muted-foreground">{drop_off_rate.toFixed(1)}% drop-off rate</span>
-                          </div>
-                        )}
+                        {/* Step-to-step conversion, and what was lost getting here */}
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                          {row.stepRate != null && (
+                            <span className="text-muted-foreground">
+                              <span
+                                className={cn(
+                                  'font-semibold tabular-nums',
+                                  row.stepRate >= 66
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : row.stepRate >= 33
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-orange-600 dark:text-orange-400',
+                                )}
+                              >
+                                {row.stepRate.toFixed(1)}%
+                              </span>{' '}
+                              continued from the previous step
+                            </span>
+                          )}
+                          {!isLast && row.dropOff > 0 && (
+                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                              <TrendingDown className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                              <span className="font-medium text-orange-600 dark:text-orange-400">
+                                {row.dropOff.toLocaleString()} left here
+                              </span>
+                              <span className="tabular-nums">({row.dropOffRate.toFixed(1)}%)</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
-                    {!isLast && (
-                        <div className="ml-4 pl-4 py-2 border-l-2 border-dashed border-border">
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest pl-2">
-                                <ArrowRight size={10} /> Next step
-                            </div>
-                        </div>
-                    )}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="border border-border bg-card">
-            <CardHeader className="px-5 py-4 border-b border-border">
-              <CardTitle className="text-sm font-semibold">Step Conversion</CardTitle>
-            </CardHeader>
-            <CardContent className="p-5">
-              <div className="space-y-4">
-                {steps.map((step, i) => {
-                  const metric = metrics.find((m: any) => m.step === (i + 1));
-                  const percentage = analytics?.total_starts ? (metric?.count || 0) / analytics.total_starts * 100 : 0;
-                  return (
-                    <div key={step.id || i} className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-[11px] font-bold text-muted-foreground w-4 shrink-0">#{i + 1}</span>
-                        <span className="text-xs truncate font-medium">{step.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="h-1 w-12 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
-                        </div>
-                        <span className="text-xs font-bold tabular-nums w-10 text-right">{percentage.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-border bg-card">
-            <CardHeader className="px-5 py-4 border-b border-border">
-              <CardTitle className="text-sm font-semibold font-mono">Conditions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {steps.map((step, i) => (
-                <div key={step.id || i} className="px-5 py-4 border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-[10px] font-bold text-primary/70">{i + 1}</span>
-                    <span className="text-xs font-semibold">{step.name}</span>
-                  </div>
-                   <div className="font-mono text-[10px] p-2 rounded-lg bg-muted/30 border border-border overflow-x-auto whitespace-pre">
-                    {JSON.stringify(step.condition, null, 2)}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </ol>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

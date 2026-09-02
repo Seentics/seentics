@@ -201,24 +201,8 @@ export default function ReplaysPage() {
       id: 'country',
       accessorKey: 'country',
       header: ({ column }) => <SortableHeader column={column}>Location</SortableHeader>,
-      size: 148,
-      cell: ({ row }) => {
-        const s = row.original;
-        return (
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <SessionCountryVisual country={s.country} compact />
-            {(s.has_errors || s.has_rage_clicks) && (
-              <span
-                className="flex shrink-0 flex-col gap-1 pt-0.5"
-                title={[s.has_rage_clicks && 'Rage clicks', s.has_errors && 'Issues'].filter(Boolean).join(' · ')}
-              >
-                {s.has_rage_clicks && <span className="size-1.5 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
-                {s.has_errors && <span className="size-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden />}
-              </span>
-            )}
-          </div>
-        );
-      },
+      size: 140,
+      cell: ({ row }) => <SessionCountryVisual country={row.original.country} compact />,
     },
     {
       id: 'client',
@@ -251,13 +235,51 @@ export default function ReplaysPage() {
       id: 'duration',
       header: ({ column }) => <SortableHeader column={column}>Duration</SortableHeader>,
       accessorKey: 'duration_seconds',
-      size: 100,
-      cell: ({ getValue }) => {
-        const v = getValue() as number;
+      size: 118,
+      cell: ({ row }) => {
+        const v = row.original.duration_seconds;
         return (
-          <span className="text-sm font-semibold tabular-nums tracking-tight text-foreground">
-            {v > 0 ? formatDuration(v) : '—'}
-          </span>
+          <div>
+            <span className="text-sm font-semibold tabular-nums tracking-tight text-foreground">
+              {v > 0 ? formatDuration(v) : '—'}
+            </span>
+            {/* `pages_viewed` was already on the row type and simply never rendered.
+                It is what separates a one-page bounce from a real journey of the
+                same length. */}
+            <p className="text-[11px] text-muted-foreground">
+              {row.original.pages_viewed} {row.original.pages_viewed === 1 ? 'page' : 'pages'}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'signals',
+      header: 'Signals',
+      accessorFn: row => (row.has_errors ? 2 : 0) + (row.has_rage_clicks ? 1 : 0),
+      size: 132,
+      cell: ({ row }) => {
+        const s = row.original;
+        if (!s.has_errors && !s.has_rage_clicks) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
+        /* Two 6px dots stacked in the Location column used to carry this, which
+           needed a tooltip to mean anything. Labelled chips say it outright. */
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            {s.has_errors && (
+              <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                Errors
+              </span>
+            )}
+            {s.has_rage_clicks && (
+              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                <MousePointerClick className="h-3 w-3 shrink-0" />
+                Rage
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -365,25 +387,24 @@ export default function ReplaysPage() {
             </Button>
           </>
         )}
+        /* No title: `DashboardPageHeader` above already says "Session Replays", and
+           "Recorded sessions" under it was the page's second heading for one list. */
         toolbarLeft={
-          <div>
-            <h3 className=" font-semibold text-foreground">Recorded sessions</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {filtered.length === 0
-                ? 'No recordings match filters.'
-                : `${filtered.length} session${filtered.length !== 1 ? 's' : ''} recorded`}
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            {filtered.length === allSessions.length
+              ? `${allSessions.length} session${allSessions.length === 1 ? '' : 's'} recorded`
+              : `${filtered.length} of ${allSessions.length} shown`}
+          </p>
         }
         toolbarRight={
           <>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search country, browser, OS, page…"
+                placeholder="Search sessions…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 h-8 text-xs w-56"
+                className="h-8 w-52 pl-8 text-xs"
               />
             </div>
             <Select value={deviceFilter} onValueChange={setDeviceFilter}>

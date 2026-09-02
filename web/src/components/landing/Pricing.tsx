@@ -78,7 +78,7 @@ export default function Pricing() {
 
   if (waitingForPayment) {
     return (
-      <section id="pricing" className="py-24 md:py-32 bg-background flex items-center justify-center min-h-[400px]">
+      <section id="pricing" className="landing-section bg-background flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-sm px-6">
           <div className="flex justify-center mb-4">
             <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -93,8 +93,8 @@ export default function Pricing() {
   }
 
   return (
-    <section id="pricing" className="py-24 md:py-32 border-y border-border bg-muted/50 dark:border-transparent dark:bg-background">
-      <div className="container mx-auto px-6">
+    <section id="pricing" className="landing-section border-y border-border bg-muted/50 dark:border-transparent dark:bg-background">
+      <div className="landing-container">
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-10">
           <motion.p
@@ -102,7 +102,7 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+            className="landing-eyebrow"
           >
             Pricing
           </motion.p>
@@ -113,7 +113,7 @@ export default function Pricing() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="landing-h2 mb-4"
           >
-            Simple, transparent <span className="text-primary">pricing</span>
+            Simple, <span className="landing-accent">transparent pricing</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
