@@ -186,7 +186,6 @@ export default function FunnelDetailPage() {
             label: 'Completed',
             value: analytics?.total_conversions || 0,
             icon: Target,
-            tone: 'success',
             subtext: analytics?.avg_time_to_convert
               ? `${formatDuration(analytics.avg_time_to_convert)} to convert on average`
               : undefined,
@@ -201,21 +200,24 @@ export default function FunnelDetailPage() {
             label: 'Drop-off rate',
             value: `${(analytics?.drop_off_rate || 0).toFixed(1)}%`,
             icon: TrendingDown,
-            tone: 'warning',
           },
         ]}
       />
 
-      {/* The single worst transition, called out rather than left to be spotted. */}
+      {/*
+        The single worst transition, called out rather than left to be spotted — and
+        the one place colour is left on this page, because it is the one thing worth
+        pulling the eye to. Amber rather than orange, and only here.
+      */}
       {worst && (
         <div className="surface mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-3.5 text-sm">
-          <ArrowDownRight className="h-4 w-4 shrink-0 text-orange-500" />
+          <ArrowDownRight className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span className="font-semibold text-foreground">Biggest drop-off</span>
           <span className="text-muted-foreground">
             between <span className="font-medium text-foreground">{worst.step.name}</span> and{' '}
             <span className="font-medium text-foreground">{worst.next.name}</span> —
           </span>
-          <span className="font-semibold text-orange-600 dark:text-orange-400">
+          <span className="font-semibold text-amber-700 dark:text-amber-400">
             {worst.step.dropOff.toLocaleString()} people ({worst.step.dropOffRate.toFixed(1)}%)
           </span>
         </div>
@@ -288,10 +290,14 @@ export default function FunnelDetailPage() {
 
                         {/* Bar */}
                         <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
+                          {/* One soft tone for every step, with the last a shade
+                              stronger. Full-strength primary on nine bars plus an
+                              emerald endpoint was the loudest thing on the page and
+                              made the numbers beside it harder to read. */}
                           <div
                             className={cn(
                               'h-full rounded-full transition-[width] duration-500',
-                              isLast ? 'bg-emerald-500' : 'bg-primary',
+                              isLast ? 'bg-primary/80' : 'bg-primary/45',
                             )}
                             style={{ width: `${width}%` }}
                           />
@@ -301,16 +307,10 @@ export default function FunnelDetailPage() {
                         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                           {row.stepRate != null && (
                             <span className="text-muted-foreground">
-                              <span
-                                className={cn(
-                                  'font-semibold tabular-nums',
-                                  row.stepRate >= 66
-                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                    : row.stepRate >= 33
-                                      ? 'text-amber-600 dark:text-amber-400'
-                                      : 'text-orange-600 dark:text-orange-400',
-                                )}
-                              >
+                              {/* Was graded green/amber/orange. Eleven steps meant
+                                  eleven coloured percentages competing with the bars;
+                                  the figure itself already says whether it is bad. */}
+                              <span className="font-semibold tabular-nums text-foreground">
                                 {row.stepRate.toFixed(1)}%
                               </span>{' '}
                               continued from the previous step
@@ -318,8 +318,8 @@ export default function FunnelDetailPage() {
                           )}
                           {!isLast && row.dropOff > 0 && (
                             <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                              <TrendingDown className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-                              <span className="font-medium text-orange-600 dark:text-orange-400">
+                              <TrendingDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                              <span className="font-medium text-foreground">
                                 {row.dropOff.toLocaleString()} left here
                               </span>
                               <span className="tabular-nums">({row.dropOffRate.toFixed(1)}%)</span>

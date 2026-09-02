@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Bot, Play, Pause, Trash2, TrendingUp, Pencil,
+  ArrowDown, ArrowLeft, Bot, Play, Pause, Trash2, TrendingUp, Pencil,
   CheckCircle2, XCircle, Activity, Zap, Webhook,
   MessageSquare, Bell, Megaphone, Highlighter, Info, Feather,
   ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX,
@@ -197,8 +197,10 @@ export default function AutomationDetailPage() {
                 <Badge className={cn(
                   'text-xs border',
                   automation.isActive
-                    ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300'
-                    : 'bg-muted text-muted-foreground border-border',
+                    // Was bg-green-50/dark:bg-green-950 — an uneven pair that read
+                    // as a different colour in each theme.
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                    : 'border-border bg-muted text-muted-foreground',
                 )}>
                   {automation.isActive ? 'active' : 'paused'}
                 </Badge>
@@ -295,10 +297,12 @@ export default function AutomationDetailPage() {
         <>
           <StatCards
             cards={[
-              { label: 'Total Runs',   value: automation.stats?.totalExecutions ?? 0,  icon: Activity, tone: 'info' },
-              { label: 'Success Rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%`, icon: CheckCircle2, tone: 'success' },
-              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0,        icon: TrendingUp, tone: 'accent' },
-              { label: 'Failures',     value: automation.stats?.failureCount ?? 0,      icon: XCircle, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
+              // Only failures keep a tone, and only when there are any. Four
+              // coloured figures in a row read as four warnings, not one summary.
+              { label: 'Total runs',   value: automation.stats?.totalExecutions ?? 0, icon: Activity },
+              { label: 'Success rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%`, icon: CheckCircle2 },
+              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0, icon: TrendingUp },
+              { label: 'Failures',     value: automation.stats?.failureCount ?? 0, icon: XCircle, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
             ]}
           />
 
@@ -306,7 +310,8 @@ export default function AutomationDetailPage() {
             {/* Chart */}
             <Card className="lg:col-span-2 border border-border">
               <CardHeader className="px-5 py-4 border-b border-border">
-                <CardTitle className="text-sm font-semibold">Run History (last 14 days)</CardTitle>
+                <CardTitle className="text-sm font-semibold">Run history</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">Last 14 days</p>
               </CardHeader>
               <CardContent className="p-5">
                 <ResponsiveContainer width="100%" height={200}>
@@ -315,45 +320,79 @@ export default function AutomationDetailPage() {
                     <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="runs" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                    {/* Softened: fourteen full-primary bars beside coloured stat
+                        tiles left nothing quiet on the page. */}
+                    <Bar dataKey="runs" fill="hsl(var(--primary) / 0.55)" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Config */}
+            {/*
+              What it does, as a flow.
+
+              This card used to be a three-row table — Trigger, Actions, Status —
+              which told you the parts but not the shape, and Status was already in
+              the badge beside the title. Reading it top to bottom now matches the
+              order the automation runs in, which is the thing you came to check.
+            */}
             <Card className="border border-border">
               <CardHeader className="px-5 py-4 border-b border-border">
-                <CardTitle className="text-sm font-semibold">Configuration</CardTitle>
+                <CardTitle className="text-sm font-semibold">What it does</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">In the order it runs</p>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="flex items-start justify-between px-5 py-3 border-b border-border">
-                  <span className="text-xs text-muted-foreground">Trigger</span>
-                  <div className="flex items-center gap-1.5 text-right">
-                    <TriggerIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-xs font-medium">{TRIGGER_LABELS[automation.triggerType] ?? automation.triggerType}</span>
+              <CardContent className="space-y-3 p-5">
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    When
+                  </p>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    <TriggerIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">
+                      {TRIGGER_LABELS[automation.triggerType] ?? automation.triggerType}
+                    </span>
                   </div>
                 </div>
-                <div className="px-5 py-3 border-b border-border">
-                  <span className="text-xs text-muted-foreground block mb-2">Actions</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {automation.actions.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : automation.actions.map((a, i) => {
-                      const Icon = ACTION_ICONS[a.actionType] ?? Zap;
-                      return (
-                        <Badge key={i} variant="secondary" className="gap-1 text-[10px] h-5">
-                          <Icon className="h-2.5 w-2.5" />
-                          {ACTION_LABELS[a.actionType] ?? a.actionType}
-                        </Badge>
-                      );
-                    })}
-                  </div>
+
+                <div className="flex justify-center">
+                  <ArrowDown className="h-4 w-4 text-muted-foreground/40" aria-hidden />
                 </div>
-                <div className="flex items-start justify-between px-5 py-3">
-                  <span className="text-xs text-muted-foreground">Status</span>
-                  <span className="text-xs font-medium">{automation.isActive ? 'Active' : 'Paused'}</span>
+
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Then
+                  </p>
+                  {automation.actions.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
+                      No action yet — this automation will do nothing.
+                    </p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {automation.actions.map((a, i) => {
+                        const Icon = ACTION_ICONS[a.actionType] ?? Zap;
+                        return (
+                          <li
+                            key={i}
+                            className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                          >
+                            <span className="w-4 shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                              {i + 1}
+                            </span>
+                            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 truncate text-sm font-medium text-foreground">
+                              {ACTION_LABELS[a.actionType] ?? a.actionType}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
                 </div>
+
+                <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                  Branches and delays are not shown here — open{' '}
+                  <span className="font-medium text-foreground">Edit</span> to see the full graph.
+                </p>
               </CardContent>
             </Card>
           </div>

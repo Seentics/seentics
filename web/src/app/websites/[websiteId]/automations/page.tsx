@@ -366,7 +366,6 @@ export default function AutomationsPage() {
             value: withRuns.length ? `${avgSuccess.toFixed(1)}%` : '—',
             icon: TrendingUp,
             tone: 'accent',
-            subtext: withRuns.length ? `across ${withRuns.length} that have run` : 'nothing has run yet',
           },
         ]}
       />
@@ -398,14 +397,15 @@ export default function AutomationsPage() {
             </Button>
           </>
         )}
-        // No title here: `DashboardPageHeader` above already says "Automations", and
-        // repeating it inside the panel was the page's second <h> saying the same word.
         toolbarLeft={
-          <p className="text-xs text-muted-foreground">
-            {filtered.length === automations.length
-              ? `${automations.length} automation${automations.length === 1 ? '' : 's'}`
-              : `${filtered.length} of ${automations.length} shown`}
-          </p>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">All automations</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {filtered.length === automations.length
+                ? `${automations.length} automation${automations.length === 1 ? '' : 's'}`
+                : `${filtered.length} of ${automations.length} shown`}
+            </p>
+          </div>
         }
         toolbarRight={
           <div className="relative">

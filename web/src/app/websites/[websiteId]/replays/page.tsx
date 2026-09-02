@@ -387,14 +387,15 @@ export default function ReplaysPage() {
             </Button>
           </>
         )}
-        /* No title: `DashboardPageHeader` above already says "Session Replays", and
-           "Recorded sessions" under it was the page's second heading for one list. */
         toolbarLeft={
-          <p className="text-xs text-muted-foreground">
-            {filtered.length === allSessions.length
-              ? `${allSessions.length} session${allSessions.length === 1 ? '' : 's'} recorded`
-              : `${filtered.length} of ${allSessions.length} shown`}
-          </p>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Recorded sessions</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {filtered.length === allSessions.length
+                ? `${allSessions.length} session${allSessions.length === 1 ? '' : 's'} recorded`
+                : `${filtered.length} of ${allSessions.length} shown`}
+            </p>
+          </div>
         }
         toolbarRight={
           <>
