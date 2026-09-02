@@ -16,10 +16,9 @@ import { DashboardMock } from './mocks/DashboardMock';
 export default function ProductShowcase() {
   return (
     <section className="landing-section relative hidden !pt-0 lg:block">
-      {/* Soft wash carrying down from the hero, so the shot sits in light rather
-          than on a flat band. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-primary/[0.05] to-transparent" />
-
+      {/* No wash behind the shot. There was a `from-primary/[0.05]` gradient here,
+          which put a blue cast on the one element that has to read as a photograph of
+          a screen — the laptop's own shadow is what should separate it from the page. */}
       <div className="landing-container relative z-10">
         {/* No width of its own — the shot shares the page's measure, so the laptop
             lines up with the headings above and the sections below instead of being

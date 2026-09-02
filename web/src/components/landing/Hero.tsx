@@ -9,8 +9,10 @@ export default function Hero() {
     // two are one unit — the claim and the evidence for it.
     <section className="relative overflow-hidden pt-28 pb-12 md:pt-36 md:pb-16">
       {/* Soft wash behind the headline — on the white canvas a flat section reads
-          as unfinished, so the colour comes from a tint rather than a fill. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[640px] bg-gradient-to-b from-primary/[0.06] via-primary/[0.02] to-transparent" />
+          as unfinished, so the colour comes from a tint rather than a fill.
+          `inset-0` rather than a fixed 640px: at that height it ran ~70px past the
+          hero and tinted the top of the dashboard shot below. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-primary/[0.02] to-transparent" />
 
       <div className="landing-container relative z-10">
         <div className="mx-auto max-w-5xl text-center">
