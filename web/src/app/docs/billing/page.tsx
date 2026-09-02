@@ -1,118 +1,88 @@
-'use client';
-
-import { CreditCard, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { C, Callout, DocPage, DocSection, Li, P, Ul } from '@/components/docs/DocsKit';
 
-export default function BillingDocs() {
-    return (
-        <div className="space-y-12">
-            <header className="space-y-4">
-                <div className="flex items-center gap-3 text-green-500">
-                    <CreditCard className="w-8 h-8" />
-                    <h1 className="text-3xl font-bold tracking-tight">Billing & Plans</h1>
-                </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                    Seentics grows with you. Choose the plan that fits your traffic and automation needs.
-                </p>
-            </header>
+export const metadata = {
+  title: 'Billing & plans · Seentics docs',
+  description: 'What counts against your limits, what happens when you reach them, and how to change plan.',
+};
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold text-foreground">Usage Tracking</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                    Every plan has specific soft and hard limits. You can monitor your current usage in real-time
-                    on the <span className="font-medium text-foreground italic">Billing Dashboard</span> for each website.
-                </p>
+/**
+ * Deliberately carries no price or limit numbers.
+ *
+ * They live in `components/subscription/PlanBuilder`, which renders on /pricing and
+ * in billing settings. A third copy in prose would be a third thing to update, and
+ * the one most likely to be forgotten.
+ */
+export default function BillingPage() {
+  return (
+    <DocPage
+      eyebrow="Platform"
+      title="Billing & plans"
+      lead="What counts against a limit, and what happens when you reach one."
+    >
+      <DocSection title="Where the numbers are">
+        <P>
+          Current plans, prices and limits are on the{' '}
+          <Link href="/pricing" className="font-medium text-primary hover:underline">pricing page</Link>,
+          and your own usage against them is in <C>Settings → Billing</C>. They are not repeated here
+          on purpose — a copy in documentation is a copy that goes stale.
+        </P>
+      </DocSection>
 
-                <div className="grid md:grid-cols-3 gap-6">
-                    <UsageCard icon={Activity} title="Events" desc="Total pageviews and custom tracked events." />
-                    <UsageCard icon={Filter} title="Funnels" desc="Active conversion journeys being tracked." />
-                    <UsageCard icon={Workflow} title="Workflows" desc="Running behavioral automation sequences." />
-                </div>
-            </section>
+      <DocSection title="What counts as an event">
+        <P>
+          Every pageview is an event, and so is every custom event you send with{' '}
+          <C>seentics.track()</C>. That is the figure your monthly allowance is measured against.
+        </P>
+        <Ul>
+          <Li>A single-page app route change counts as a pageview, because it is one.</Li>
+          <Li>
+            Session recordings are counted separately, as recordings — not as events.
+          </Li>
+          <Li>
+            AI questions have their own monthly allowance, counted per question asked.
+          </Li>
+        </Ul>
+        <Callout kind="tip" title="If events are climbing faster than traffic">
+          A <C>seentics.track()</C> call inside a component that re-renders is the usual cause. The
+          Custom Events page shows counts per event name, which makes the culprit obvious.
+        </Callout>
+      </DocSection>
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold">Tiered Limits</h2>
-                <div className="rounded-lg border bg-card overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-muted/50 border-b">
-                                <th className="p-4 text-left font-semibold">Resource</th>
-                                <th className="p-4 text-center font-semibold">Free ($0)</th>
-                                <th className="p-4 text-center font-semibold">Basic ($15)</th>
-                                <th className="p-4 text-center font-semibold text-primary">Pro ($49)</th>
-                                <th className="p-4 text-center font-semibold">Enterprise ($0 base + usage)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr className="border-b">
-                                <td className="p-4 font-medium">Monthly Events</td>
-                                <td className="p-4 text-center text-muted-foreground">10K</td>
-                                <td className="p-4 text-center text-muted-foreground">100K</td>
-                                <td className="p-4 text-center font-bold text-primary">1M</td>
-                                <td className="p-4 text-center text-muted-foreground">100K incl., then $1.50/1K</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-4 font-medium">Session Recordings</td>
-                                <td className="p-4 text-center text-muted-foreground">5</td>
-                                <td className="p-4 text-center text-muted-foreground">3K</td>
-                                <td className="p-4 text-center font-bold text-primary">25K</td>
-                                <td className="p-4 text-center text-muted-foreground">5K incl., then $5/1K</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-4 font-medium">Websites</td>
-                                <td className="p-4 text-center text-muted-foreground">1</td>
-                                <td className="p-4 text-center text-muted-foreground">3</td>
-                                <td className="p-4 text-center font-bold text-primary">15</td>
-                                <td className="p-4 text-center text-muted-foreground">5 incl., then $2/site/mo</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-4 font-medium">Analytics Retention</td>
-                                <td className="p-4 text-center text-muted-foreground">30 Days</td>
-                                <td className="p-4 text-center text-muted-foreground">1 Year</td>
-                                <td className="p-4 text-center font-bold text-primary">3 Years</td>
-                                <td className="p-4 text-center text-muted-foreground">7 Years</td>
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-medium">Recording Retention</td>
-                                <td className="p-4 text-center text-muted-foreground">30 Days</td>
-                                <td className="p-4 text-center text-muted-foreground">1 Month</td>
-                                <td className="p-4 text-center font-bold text-primary">3 Months</td>
-                                <td className="p-4 text-center text-muted-foreground">3 Months</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 px-1">
-                    Enterprise is pure pay-as-you-go with no base fee. Overage rates: $2/additional website/mo, $1.50/1K additional events, $5/1K additional recordings.
-                </p>
-            </section>
+      <DocSection title="Reaching a limit">
+        <P>
+          Collection does not stop the moment you cross a threshold, and you are never billed for
+          overage without choosing to upgrade. <C>Settings → Billing</C> shows usage against each
+          limit as the month runs, so there is warning before it matters.
+        </P>
+      </DocSection>
 
-            <section className="p-10 rounded-lg bg-card border flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="space-y-3 max-w-xl text-center md:text-left">
-                    <h3 className="text-2xl font-bold">Managing Subscriptions</h3>
-                    <p className="text-muted-foreground">
-                        Update payment methods, download invoices, and upgrade tiers instantly through
-                        our secure checkout powered by Lemon Squeezy.
-                    </p>
-                </div>
-                <Link href="/pricing" className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-bold hover:scale-105 transition active:scale-95 shadow-xl shadow-primary/20 shrink-0">
-                    View Upgrade Options
-                </Link>
-            </section>
-        </div>
-    );
+      <DocSection title="Changing plan">
+        <Ul>
+          <Li>Upgrade from <C>Settings → Billing</C>; it takes effect immediately.</Li>
+          <Li>Downgrades apply at the end of the current period.</Li>
+          <Li>
+            Cancelling stops future charges. Your data stays until its retention period expires — see{' '}
+            <Link href="/docs/privacy" className="text-primary hover:underline">Privacy &amp; security</Link>{' '}
+            for exporting it first.
+          </Li>
+        </Ul>
+      </DocSection>
+
+      <DocSection title="Self-hosting">
+        <P>
+          None of this applies if you run Seentics yourself. The platform is AGPL-3.0 and has no
+          limits of its own — your infrastructure is the constraint. Billing exists only on the
+          hosted service.
+        </P>
+      </DocSection>
+
+      <DocSection title="Refunds">
+        <P>
+          See the{' '}
+          <Link href="/refund-policy" className="text-primary hover:underline">refund policy</Link>.
+        </P>
+      </DocSection>
+    </DocPage>
+  );
 }
-
-function UsageCard({ icon: Icon, title, desc }: any) {
-    return (
-        <div className="p-6 rounded-lg border bg-muted/20 space-y-2">
-            <Icon className="w-5 h-5 text-primary mb-2" />
-            <h4 className="font-semibold">{title}</h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-        </div>
-    );
-}
-
-const Activity = (props: any) => (<svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>);
-const Filter = (props: any) => (<svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>);
-const Workflow = (props: any) => (<svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><path d="M10 6h4" /><path d="M6 10v4" /><path d="M14 10V6" /><path d="M10 18H6" /></svg>);

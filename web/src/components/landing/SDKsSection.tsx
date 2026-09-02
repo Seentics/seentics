@@ -6,42 +6,38 @@ import { Copy, Check } from 'lucide-react';
 
 const components = [
   {
-    name: 'SummaryCards',
-    code: `import { SummaryCards } from '@seentics/react';
+    name: 'AnalyticsSummary',
+    code: `import { SeenticsProvider, AnalyticsSummary } from '@seentics/ui';
 
 export default function Dashboard() {
   return (
-    <SummaryCards
-      websiteId="abc123"
-      dateRange={{ start: '2026-03-01', end: '2026-03-17' }}
-    />
+    <SeenticsProvider websiteId="abc123" apiKey={process.env.SEENTICS_API_KEY!}>
+      <AnalyticsSummary />
+    </SeenticsProvider>
   );
 }`,
   },
   {
     name: 'TrafficChart',
-    code: `import { TrafficOverview } from '@seentics/react';
+    code: `import { SeenticsProvider, TrafficChart } from '@seentics/ui';
 
 export default function Dashboard() {
   return (
-    <TrafficOverview
-      websiteId="abc123"
-      granularity="daily"
-    />
+    <SeenticsProvider websiteId="abc123" apiKey={process.env.SEENTICS_API_KEY!}>
+      <TrafficChart granularity="daily" />
+    </SeenticsProvider>
   );
 }`,
   },
   {
     name: 'TopPages',
-    code: `import { TopPagesChart } from '@seentics/react';
+    code: `import { SeenticsProvider, TopPages } from '@seentics/ui';
 
 export default function Dashboard() {
   return (
-    <TopPagesChart
-      websiteId="abc123"
-      limit={10}
-      sortBy="pageviews"
-    />
+    <SeenticsProvider websiteId="abc123" apiKey={process.env.SEENTICS_API_KEY!}>
+      <TopPages limit={10} />
+    </SeenticsProvider>
   );
 }`,
   },

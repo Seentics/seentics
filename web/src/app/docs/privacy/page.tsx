@@ -1,71 +1,117 @@
-'use client';
+import Link from 'next/link';
+import { C, Callout, DocPage, DocSection, Endpoint, Li, P, Ul } from '@/components/docs/DocsKit';
 
-import { ShieldCheck, Lock, EyeOff, Scale, FileText, CheckCircle2 } from 'lucide-react';
+export const metadata = {
+  title: 'Privacy & security · Seentics docs',
+  description: 'What Seentics stores, what it does not, and how to export or delete it.',
+};
 
-export default function PrivacyDocs() {
-    return (
-        <div className="space-y-12">
-            <header className="space-y-4">
-                <div className="flex items-center gap-3 text-indigo-500">
-                    <ShieldCheck className="w-8 h-8" />
-                    <h1 className="text-3xl font-bold tracking-tight">Privacy & Security</h1>
-                </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                    At Seentics, privacy isn't a feature—it's the foundation. We build tools that respect
-                    user rights and simplify regulatory compliance.
-                </p>
-            </header>
+export default function PrivacyPage() {
+  return (
+    <DocPage
+      eyebrow="Platform"
+      title="Privacy & security"
+      lead="What is stored, what is not, and how to get it out or remove it."
+    >
+      <DocSection title="No cookies">
+        <P>
+          The tracker never touches <C>document.cookie</C>. It does use browser storage: a visitor ID
+          in <C>localStorage</C>, so a returning visitor is recognised, and <C>sessionStorage</C> for
+          per-tab state such as funnel progress.
+        </P>
+        <Callout kind="warning" title="Storage is not the same as “no consent needed”">
+          A persistent identifier in <C>localStorage</C> is generally treated like a cookie under
+          ePrivacy and the GDPR, even though it is not one. &ldquo;Seentics sets no
+          cookies&rdquo; is accurate and worth saying. Whether your site still needs a consent
+          notice is a question for your own legal advice, not something these docs can answer.
+        </Callout>
+      </DocSection>
 
-            <section className="grid sm:grid-cols-2 gap-8">
-                <div className="space-y-4 p-8 rounded-lg border bg-card/50">
-                    <EyeOff className="w-6 h-6 text-primary" />
-                    <h2 className="text-xl font-semibold">Zero PII Storage</h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                        By default, Seentics masks all potential personally identifiable information.
-                        IP addresses are hashed and never stored in plain text, and we automatically
-                        strip emails from URL parameters.
-                    </p>
-                </div>
-                <div className="space-y-4 p-8 rounded-lg border bg-card/50">
-                    <Lock className="w-6 h-6 text-primary" />
-                    <h2 className="text-xl font-semibold">Data Encryption</h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                        All data is encrypted at rest using AES-256 and in transit via TLS 1.3.
-                        Our infrastructure is isolated and monitored 24/7 for security anomalies.
-                    </p>
-                </div>
-            </section>
+      <DocSection title="What is not collected">
+        <Ul>
+          <Li>
+            <strong className="font-medium text-foreground">No IP storage.</strong> Country is
+            resolved at ingest; the address is not kept with the event.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">No typed input.</strong> Every input is
+            masked in recordings, always — it is not a setting that can be turned off.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">No cross-site tracking.</strong> A
+            visitor ID is per site. There is no shared identity graph between the sites you track,
+            or between customers.
+          </Li>
+        </Ul>
+      </DocSection>
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold">Compliance Readiness</h2>
-                <div className="space-y-2">
-                    {[
-                        { title: 'GDPR (Europe)', desc: 'Full support for Right to be Forgotten and Data Portability requests.' },
-                        { title: 'CCPA (California)', desc: 'Clear opt-out mechanisms and transparent data usage disclosures.' },
-                        { title: 'PECR (UK)', desc: 'Cookie-less tracking options to avoid complex consent banners.' },
-                    ].map((law, i) => (
-                        <div key={i} className="flex gap-4 p-4 rounded-lg hover:bg-muted/30 transition-colors border-b last:border-0">
-                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                            <div>
-                                <h4 className="font-medium">{law.title}</h4>
-                                <p className="text-sm text-muted-foreground">{law.desc}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
+      <DocSection title="Keeping things out of recordings">
+        <P>
+          Beyond input masking, mark elements you do not want captured. Both attributes are read
+          from the DOM by the recorder:
+        </P>
+        <Ul>
+          <Li>
+            <C>data-seentics-block</C> — replaced by a placeholder; contents never captured.
+          </Li>
+          <Li>
+            <C>data-seentics-ignore</C> — captured once, then changes inside it are not tracked.
+          </Li>
+        </Ul>
+        <P>
+          See the{' '}
+          <Link href="/docs/tracker" className="text-primary hover:underline">tracker reference</Link>{' '}
+          for examples.
+        </P>
+      </DocSection>
 
-            <section className="p-8 rounded-lg bg-muted/20 border-2 border-dashed text-center space-y-4">
-                <Scale className="w-10 h-10 text-muted-foreground mx-auto" />
-                <h3 className="text-xl font-semibold">Data Processing Agreement</h3>
-                <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-                    Need a signed DPA for your legal team? Our standard DPA is integrated into our Terms of Service
-                    and applies to all customers automatically.
-                </p>
-                <a href="/terms" className="inline-flex items-center gap-2 text-primary font-medium hover:underline">
-                    Read Terms & DPA <FileText className="w-4 h-4" />
-                </a>
-            </section>
-        </div>
-    );
+      <DocSection title="Turning features off">
+        <P>
+          Session recording and heatmaps are off until enabled per site in{' '}
+          <C>Settings → Features</C>. While recording is off the recorder file is never downloaded,
+          so nothing about a visitor&apos;s session is captured at all.
+        </P>
+      </DocSection>
+
+      <DocSection title="Data subject requests">
+        <P>
+          Export and deletion are available from <C>Settings → Privacy</C> and over the API, so you
+          can wire them into your own request process.
+        </P>
+        <Endpoint method="POST" path="/api/v1/privacy/export">
+          Returns the data held for a visitor.
+        </Endpoint>
+        <Endpoint method="POST" path="/api/v1/privacy/delete">
+          Removes the data held for a visitor.
+        </Endpoint>
+        <P>
+          Both need an <Link href="/docs/api-keys" className="text-primary hover:underline">API key</Link>.
+          The exact request shape is in the catalogue described on the{' '}
+          <Link href="/docs/api" className="text-primary hover:underline">REST API</Link> page.
+        </P>
+      </DocSection>
+
+      <DocSection title="Retention">
+        <P>
+          How long data is kept depends on your plan; the figure is on the{' '}
+          <Link href="/pricing" className="text-primary hover:underline">pricing page</Link>. Older
+          data is removed automatically once it passes that window.
+        </P>
+      </DocSection>
+
+      <DocSection title="Self-hosting">
+        <P>
+          The strongest privacy answer is that the data never leaves your infrastructure. Point the
+          tracker at your own host with <C>data-api-host</C> and no third party is involved at all.
+        </P>
+      </DocSection>
+
+      <DocSection title="Our own policies">
+        <P>
+          <Link href="/privacy" className="text-primary hover:underline">Privacy notice</Link> ·{' '}
+          <Link href="/terms" className="text-primary hover:underline">Terms of service</Link>
+        </P>
+      </DocSection>
+    </DocPage>
+  );
 }

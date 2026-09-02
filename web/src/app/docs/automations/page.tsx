@@ -1,108 +1,135 @@
-'use client';
+import Link from 'next/link';
+import { C, Callout, CodeBlock, DocPage, DocSection, Li, P, RefTable, Ul } from '@/components/docs/DocsKit';
 
-import { Workflow, MousePointer2, Clock, MoveUpRight, Settings, Plus, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+export const metadata = {
+  title: 'Automations · Seentics docs',
+  description: 'Triggers, conditions and actions that run in the visitor’s browser the moment something happens.',
+};
 
-export default function AutomationDocs() {
-    return (
-        <div className="space-y-12">
-            <header className="space-y-4">
-                <div className="flex items-center gap-3 text-orange-500">
-                    <Workflow className="w-8 h-8" />
-                    <h1 className="text-3xl font-bold tracking-tight">Automation Engine</h1>
-                </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                    Transform insights into action. Automate user engagement based on real-time behavior
-                    and precise conditions.
-                </p>
-            </header>
+/**
+ * The trigger and action tables are transcribed from `TRIGGER_TYPES` and
+ * `ACTION_TYPES` in `components/automations/AutomationBuilder.tsx`, and the flow
+ * nodes from `nodeVisual`. If the builder gains a type, this page is wrong until it
+ * is updated — which is why each table says where it comes from.
+ */
+export default function AutomationsPage() {
+  return (
+    <DocPage
+      eyebrow="Core features"
+      title="Automations"
+      lead="See a behaviour, act on it — in the page, while the visitor is still there."
+    >
+      <DocSection title="The shape of an automation">
+        <P>
+          A trigger starts it, conditions decide which way it goes, and actions do something. You
+          build it on a canvas by dragging nodes and connecting handles; branches can rejoin, so two
+          paths can end at the same action and it runs once either way.
+        </P>
+        <P>
+          Everything runs in the visitor&apos;s browser, which is what makes an exit-intent popup
+          possible at all — there is no round trip to wait for.
+        </P>
+      </DocSection>
 
-            <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-6 space-y-3">
-                <div className="flex items-center gap-2 font-semibold">
-                    <Info className="w-5 h-5 text-primary" />
-                    <span>Core Concept</span>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                    Automations follow a <span className="text-foreground font-medium">Trigger → Condition → Action</span> flow.
-                    When a trigger event occurs, Seentics checks your defined conditions. If they pass, the
-                    configured actions are executed immediately.
-                </p>
-            </div>
+      <DocSection title="Triggers">
+        <P>Thirteen, all evaluated client-side.</P>
+        <RefTable
+          columns={['Trigger', 'Fires when']}
+          rows={[
+            [<C>Page View</C>, 'A visitor lands on a page you specify.'],
+            [<C>Click</C>, 'A visitor clicks an element you select.'],
+            [<C>Scroll Depth</C>, 'A visitor scrolls past a depth.'],
+            [<C>Time on Page</C>, 'A visitor has been on the page for a set time.'],
+            [<C>Exit Intent</C>, 'The cursor moves as though leaving the page.'],
+            [<C>Inactivity</C>, 'No interaction for a set period.'],
+            [<C>Rage Click</C>, 'Repeated rapid clicks in one spot.'],
+            [<C>Form Abandonment</C>, 'A form is started and left unsubmitted.'],
+            [<C>JS Error</C>, 'A JavaScript error fires.'],
+            [<C>Tab Hidden</C>, 'The tab is backgrounded.'],
+            [<C>Tab Visible</C>, 'The tab is brought back.'],
+            [<C>Custom Event</C>, <span>You call <C>seentics.track()</C> with a matching name.</span>],
+            [<C>Identify</C>, <span>You call <C>seentics.identify()</C>.</span>],
+          ]}
+        />
+      </DocSection>
 
-            <section className="space-y-8">
-                <h2 className="text-2xl font-semibold">1. Triggers</h2>
-                <div className="space-y-4">
-                    {[
-                        { name: 'Element Click', desc: 'Fires when a user clicks a specific CSS selector (e.g., .buy-button).', icon: MousePointer2 },
-                        { name: 'Page Visit', desc: 'Fires when a user enters a specific section of your site.', icon: MoveUpRight },
-                        { name: 'Time Spent', desc: 'Trigger after a user has been idle or active on a page for X seconds.', icon: Clock },
-                        { name: 'Exit Intent', desc: 'Detects when a user is about to leave the site based on mouse velocity.', icon: Plus },
-                    ].map((trigger, i) => (
-                        <div key={i} className="flex gap-6 p-6 rounded-lg border bg-card hover:bg-muted/10 transition-colors">
-                            <div className="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                                <trigger.icon className="w-6 h-6 text-orange-500" />
-                            </div>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold">{trigger.name}</h3>
-                                    <Badge variant="secondary">Real-time</Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{trigger.desc}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
+      <DocSection title="Flow control">
+        <RefTable
+          columns={['Node', 'Does']}
+          rows={[
+            [<C>If / else</C>, 'Splits on a set of rules. Two outlets, Yes and No.'],
+            [<C>Switch</C>, 'Several cases, first match wins, plus an “otherwise” outlet.'],
+            [<C>Wait until</C>, 'Holds until its rules pass, or until a timeout you set.'],
+            [<C>Delay</C>, 'Pauses before the next on-page action.'],
+          ]}
+        />
+      </DocSection>
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold">2. Smart Conditions</h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                    <CardSimple
-                        title="New vs Returning"
-                        content="Tailor your message based on whether it's the user's first visit or tenth."
-                    />
-                    <CardSimple
-                        title="Device Intelligence"
-                        content="Only show specific banners to mobile users or those with high-resolution screens."
-                    />
-                    <CardSimple
-                        title="Traffic Source"
-                        content="Change the experience for users arriving from a specific marketing campaign (UTM)."
-                    />
-                    <CardSimple
-                        title="Historical Behavior"
-                        content="Trigger actions based on whether the user has previously completed a conversion funnel."
-                    />
-                </div>
-            </section>
+      <DocSection title="Actions">
+        <P>Nine. Seven happen in the page; two leave it.</P>
+        <RefTable
+          columns={['Action', 'Does']}
+          rows={[
+            [<C>Show Modal</C>, 'A popup with a title, body and optional button.'],
+            [<C>Show Toast</C>, 'A small notification, positioned and timed.'],
+            [<C>Show Banner</C>, 'A full-width banner, top or bottom.'],
+            [<C>Show Tooltip</C>, 'A tooltip attached to any element.'],
+            [<C>Highlight Element</C>, 'Draws attention to an element, optionally scrolling it into view.'],
+            [<C>Personalize Content</C>, 'Swaps the text or HTML of an element.'],
+            [<C>Redirect</C>, 'Sends the visitor to another URL.'],
+            [<C>Tag Session</C>, 'Labels the session so you can filter on it later.'],
+            [<C>Webhook</C>, 'POSTs to an endpoint you choose — Slack, your own API, anything.'],
+          ]}
+        />
+        <Callout kind="note" title="Tag Session is quieter than it looks">
+          It changes nothing the visitor can see, but it makes “sessions where X happened” a filter
+          in replays. Useful as a branch of a larger automation.
+        </Callout>
+      </DocSection>
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold">3. Actions</h2>
-                <p className="text-muted-foreground">What happens when your conditions are met?</p>
-                <div className="grid md:grid-cols-3 gap-4">
-                    <div className="p-5 rounded-lg border bg-card space-y-2">
-                        <h4 className="font-medium">Show Modal</h4>
-                        <p className="text-xs text-muted-foreground">Interactive overlays for signups or feedback.</p>
-                    </div>
-                    <div className="p-5 rounded-lg border bg-card space-y-2">
-                        <h4 className="font-medium">Notification</h4>
-                        <p className="text-xs text-muted-foreground">Subtle push-style notifications at corner.</p>
-                    </div>
-                    <div className="p-5 rounded-lg border bg-card space-y-2">
-                        <h4 className="font-medium">Webhook</h4>
-                        <p className="text-xs text-muted-foreground">Send data to Slack, Discord, or your own server.</p>
-                    </div>
-                </div>
-            </section>
-        </div>
-    );
-}
+      <DocSection title="Keeping it from becoming annoying">
+        <Ul>
+          <Li>
+            <strong className="font-medium text-foreground">Frequency caps</strong> — how often a
+            visitor may see this automation at all.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">Cooldowns</strong> — a minimum gap
+            between firings.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">Priority</strong> — which automation
+            wins when two could fire at once.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">A/B variants</strong> — split traffic
+            between versions and compare.
+          </Li>
+        </Ul>
+      </DocSection>
 
-function CardSimple({ title, content }: { title: string, content: string }) {
-    return (
-        <div className="p-6 rounded-lg border bg-card/60 backdrop-blur-sm space-y-2">
-            <h3 className="font-semibold text-primary">{title}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{content}</p>
-        </div>
-    );
+      <DocSection title="Firing one from your own code">
+        <P>
+          A custom event trigger is the general-purpose hook. The same call also records the event
+          and advances any matching{' '}
+          <Link href="/docs/funnels" className="text-primary hover:underline">funnel</Link> step.
+        </P>
+        <CodeBlock
+          language="js"
+          filename="cart.js"
+          code={`// Records the event, advances the funnel, and fires any
+// automation with a Custom Event trigger for this name.
+seentics.track('cart_abandoned', { value: 168 });`}
+        />
+      </DocSection>
+
+      <DocSection title="Checking it works">
+        <P>
+          The automations list shows runs and a success rate per automation, so a webhook that
+          started failing is visible without opening it. An automation with no runs has either never
+          been triggered or is paused.
+        </P>
+      </DocSection>
+    </DocPage>
+  );
 }

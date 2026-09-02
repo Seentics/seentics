@@ -1,116 +1,216 @@
-'use client';
+import Link from 'next/link';
+import { C, Callout, CodeBlock, DocPage, DocSection, Li, P, RefTable, Ul } from '@/components/docs/DocsKit';
 
-import { Zap, Code2, Globe, Shield, Terminal, Cpu } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+export const metadata = {
+  title: 'Tracker script · Seentics docs',
+  description: 'Every Seentics script attribute and the browser API: track, identify, page and flush.',
+};
 
-export default function TrackerDocs() {
-    return (
-        <div className="space-y-12">
-            <header className="space-y-4">
-                <div className="flex items-center gap-3 text-cyan-500">
-                    <Zap className="w-8 h-8" />
-                    <h1 className="text-3xl font-bold tracking-tight">Tracker Integration</h1>
-                </div>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                    Install the lightweight Seentics script to begin collecting insights. Our tracker is
-                    built for the modern web—modular, asynchronous, and fast.
-                </p>
-            </header>
-
-            <section className="space-y-8">
-                <h2 className="text-2xl font-semibold">Standard Installation</h2>
-                <p className="text-muted-foreground">
-                    Paste this script into the <code>{`<head>`}</code> of your website. Replace
-                    {' '}<code className="text-foreground">YOUR_SITE_ID</code> with your actual Site ID.
-                </p>
-                <div className="rounded-lg border bg-slate-950 overflow-hidden shadow-2xl">
-                    <div className="px-4 py-2 border-b border-white/10 bg-white/5 flex items-center justify-between">
-                        <span className="text-xs font-mono text-white/40 italic flex items-center gap-2">
-                            <Code2 className="w-3 h-3" /> main-tracker.html
-                        </span>
-                    </div>
-                    <pre className="p-6 text-sm font-mono overflow-x-auto text-cyan-500">
-                        <code>
-                            {`<!-- Seentics Analytics -->
-<script 
-  async 
-  src="https://api.seentics.com/track/v2.js" 
-  data-site-id="YOUR_SITE_ID"
+/**
+ * Every claim here is read off `public/trackers/seentics.js`.
+ *
+ * The page this replaces documented four attributes, of which one was misspelled
+ * (`data-site-id` for `data-website-id`) and two did not exist at all (`data-debug`,
+ * `data-mask-pii`), while the two that matter for self-hosting — `data-api-host` and
+ * `data-rrweb-src` — were missing. The browser API was not documented anywhere.
+ */
+export default function TrackerPage() {
+  return (
+    <DocPage
+      eyebrow="Integration"
+      title="Tracker script"
+      lead="One file, about 11 KB gzipped, covering analytics, funnels, heatmaps and automations."
+    >
+      <DocSection title="The tag">
+        <CodeBlock
+          filename="index.html"
+          language="html"
+          code={`<script
+  defer
+  data-website-id="YOUR_WEBSITE_ID"
+  src="https://app.seentics.com/trackers/seentics.min.js"
 ></script>`}
-                        </code>
-                    </pre>
-                </div>
-            </section>
+        />
+        <P>
+          <C>defer</C> matters: the tracker reads its own <C>&lt;script&gt;</C> element to find its
+          configuration, so it needs the tag to exist in the document.
+        </P>
+      </DocSection>
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold">Technical Architecture</h2>
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                        <div className="flex gap-4 p-4 rounded-lg border bg-card">
-                            <div className="mt-1"><Cpu className="w-5 h-5 text-primary" /></div>
-                            <div className="space-y-1">
-                                <h4 className="font-medium">Zero Main-thread Block</h4>
-                                <p className="text-xs text-muted-foreground">Ues <code>requestIdleCallback</code> to ensure tracking never interferes with user interactions.</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4 p-4 rounded-lg border bg-card">
-                            <div className="mt-1"><Globe className="w-5 h-5 text-primary" /></div>
-                            <div className="space-y-1">
-                                <h4 className="font-medium">Batch Processing</h4>
-                                <p className="text-xs text-muted-foreground">Auto-aggregates high-frequency events to reduce HTTP overhead and battery drain.</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-4 p-4 rounded-lg border bg-card">
-                            <div className="mt-1"><Terminal className="w-5 h-5 text-primary" /></div>
-                            <div className="space-y-1">
-                                <h4 className="font-medium">SPA Support Built-in</h4>
-                                <p className="text-xs text-muted-foreground">Works out of the box with Next.js, React, Vue, and Angular without additional config.</p>
-                            </div>
-                        </div>
-                    </div>
+      <DocSection title="Script attributes">
+        <P>
+          Four attributes, and only the first is required. Anything not listed here is ignored — the
+          tracker reads exactly these.
+        </P>
+        <RefTable
+          columns={['Attribute', 'Default', 'What it does']}
+          rows={[
+            [
+              <C>data-website-id</C>,
+              <span className="text-muted-foreground/60">required</span>,
+              'The website UUID from Settings → Tracking. Without it the tracker logs a console error and sends nothing.',
+            ],
+            [
+              <C>data-api-host</C>,
+              <span>the script&apos;s own origin</span>,
+              <span>
+                Where events are sent. Derived from the <C>src</C> origin when omitted, so a
+                self-hosted install usually needs nothing. Set it when your API lives on a different
+                host. A trailing <C>/api/v1</C> is stripped, so either form works.
+              </span>,
+            ],
+            [
+              <C>data-auto-track</C>,
+              <C>true</C>,
+              <span>
+                Set to <C>&quot;false&quot;</C> to stop automatic pageviews and send them yourself with{' '}
+                <C>seentics.page()</C>.
+              </span>,
+            ],
+            [
+              <C>data-rrweb-src</C>,
+              <span>
+                <C>rrweb.min.js</C> beside the tracker
+              </span>,
+              'Where to load the session recorder from. Only needed if you serve the two files from different places.',
+            ],
+          ]}
+        />
+        <Callout kind="warning" title="Two attributes that used to be documented do not exist">
+          <C>data-debug</C> and <C>data-mask-pii</C> appeared in earlier versions of these docs and
+          were never read by the tracker. There is no masking attribute because masking is not
+          optional — see below.
+        </Callout>
+      </DocSection>
 
-                    <div className="bg-muted/20 border rounded-lg p-8 flex flex-col justify-center text-center space-y-4">
-                        <Shield className="w-16 h-16 text-primary/40 mx-auto" />
-                        <h3 className="font-semibold">Privacy First</h3>
-                        <p className="text-sm text-muted-foreground">
-                            We never store persistent cookies. Our session matching uses cryptographic signatures
-                            that expire every 24 hours.
-                        </p>
-                    </div>
-                </div>
-            </section>
+      <DocSection title="Browser API">
+        <P>
+          The tracker exposes four methods on <C>window.seentics</C>. They are safe to call as soon
+          as the script has run.
+        </P>
+        <RefTable
+          columns={['Method', 'What it does']}
+          rows={[
+            [
+              <C>seentics.track(name, props?)</C>,
+              'Records a custom event. Also evaluates any funnel step matching that event name, and fires automations with a Custom Event trigger — one call, three effects.',
+            ],
+            [
+              <C>seentics.identify(userId, traits?)</C>,
+              'Attaches your own user ID to this visitor. Persisted, so it survives reloads, and fires automations with an Identify trigger.',
+            ],
+            [
+              <C>seentics.page()</C>,
+              <span>
+                Sends a pageview manually. Useful when you have set{' '}
+                <C>data-auto-track=&quot;false&quot;</C>.
+              </span>,
+            ],
+            [
+              <C>seentics.flush()</C>,
+              'Sends anything still queued immediately, rather than waiting for the next batch.',
+            ],
+          ]}
+        />
+        <CodeBlock
+          filename="checkout.js"
+          language="js"
+          code={`// A custom event with properties.
+seentics.track('add_to_cart', {
+  sku: 'TRAILHEAD-32L',
+  value: 168,
+});
 
-            <section className="space-y-6">
-                <h2 className="text-2xl font-semibold text-center">Script Options</h2>
-                <div className="rounded-lg border bg-card">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b bg-muted/30">
-                                <th className="p-4 text-left font-medium">Attribute</th>
-                                <th className="p-4 text-left font-medium">Description</th>
-                                <th className="p-4 text-left font-medium">Default</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr className="border-b">
-                                <td className="p-4 font-mono text-primary">data-auto-track</td>
-                                <td className="p-4 text-muted-foreground">Automatically track pageviews on load</td>
-                                <td className="p-4">true</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-4 font-mono text-primary">data-mask-pii</td>
-                                <td className="p-4 text-muted-foreground">Strip potential emails/numbers from URLs</td>
-                                <td className="p-4">true</td>
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-mono text-primary">data-debug</td>
-                                <td className="p-4 text-muted-foreground">Log events to browser console for dev</td>
-                                <td className="p-4">false</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
-    );
+// Tie this visitor to your own user record.
+seentics.identify('user_8412', { plan: 'growth' });
+
+// Manual pageview, for data-auto-track="false".
+seentics.page();`}
+        />
+      </DocSection>
+
+      <DocSection title="Single-page apps">
+        <P>
+          Nothing to wire up. The tracker hooks <C>pushState</C>, <C>replaceState</C> and{' '}
+          <C>popstate</C>, so a client-side route change is recorded as a pageview on its own. React
+          Router, Next.js and Vue Router all work with the plain tag.
+        </P>
+        <P>
+          If you would rather control it yourself, set <C>data-auto-track=&quot;false&quot;</C> and
+          call <C>seentics.page()</C> from your router.
+        </P>
+      </DocSection>
+
+      <DocSection title="What it costs the page">
+        <RefTable
+          columns={['File', 'Gzipped', 'When it loads']}
+          rows={[
+            [<C>seentics.min.js</C>, '~11 KB', 'Always. Analytics, funnels, heatmaps and automations are all in here.'],
+            [
+              <C>rrweb.min.js</C>,
+              '~56 KB',
+              'On demand — only when session recording is enabled for the site and this visitor is sampled in.',
+            ],
+          ]}
+        />
+        <P>
+          If recording is off, the recorder is never fetched. If it is on but a visitor is not
+          sampled, it is still never fetched for them.
+        </P>
+      </DocSection>
+
+      <DocSection title="Storage and cookies">
+        <P>
+          The tracker sets no cookies — it never touches <C>document.cookie</C>. It does use browser
+          storage: a visitor ID in <C>localStorage</C> so returning visitors are recognised, and{' '}
+          <C>sessionStorage</C> for per-tab session state such as funnel progress.
+        </P>
+        <Callout kind="note" title="Worth knowing for your consent notice">
+          A persistent identifier in <C>localStorage</C> is generally treated the same as a cookie
+          under ePrivacy and the GDPR, even though it is not one. &ldquo;No cookies&rdquo; is
+          accurate; &ldquo;nothing to consent to&rdquo; is a legal question for your own counsel.
+          See <Link href="/docs/privacy" className="text-primary hover:underline">Privacy &amp;
+          security</Link> for what is stored.
+        </Callout>
+      </DocSection>
+
+      <DocSection title="Excluding elements from recordings">
+        <P>
+          Every input is masked in recordings, always. It is not a setting —{' '}
+          <C>maskAllInputs</C> is fixed on in the recorder&apos;s configuration, so typed values
+          never leave the browser.
+        </P>
+        <P>
+          For anything else you do not want captured, mark the element. Both attributes are read
+          straight from the DOM by the recorder, so they work on any element at any time.
+        </P>
+        <RefTable
+          columns={['Attribute', 'Effect']}
+          rows={[
+            [
+              <C>data-seentics-block</C>,
+              'The element is replaced by a placeholder of the same size in the recording. Its contents are never captured. Use this for anything genuinely sensitive.',
+            ],
+            [
+              <C>data-seentics-ignore</C>,
+              'The element is recorded, but changes inside it are not tracked. Use this for noisy widgets — tickers, clocks, live counters.',
+            ],
+          ]}
+        />
+        <CodeBlock
+          filename="account.html"
+          language="html"
+          code={`<!-- Never captured. -->
+<div data-seentics-block>
+  <p>Card ending 4242 · Balance $1,204.55</p>
+</div>
+
+<!-- Captured once, then left alone. -->
+<div data-seentics-ignore>
+  <span id="live-clock">14:22:07</span>
+</div>`}
+        />
+      </DocSection>
+    </DocPage>
+  );
 }
