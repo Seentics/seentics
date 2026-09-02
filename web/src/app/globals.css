@@ -202,18 +202,23 @@
      so "the same" heading rendered at three sizes depending on which section you
      scrolled into. Same story for the eyebrows: three weights and two colours.
 
-     The sizes below are a step up from where they were. The page is built around
-     full-width product screenshots now, and against a 1180px laptop a 36px section
-     heading read as a caption for the picture rather than the claim it introduces. */
+     The desktop sizes are a step up from where they were: the page is built around
+     full-width product screenshots, and against a 1180px laptop a 36px section
+     heading read as a caption for the picture rather than the claim it introduces.
+
+     Every step also has a distinctly smaller phone value. Running the desktop sizes
+     down to 390px wrapped the hero into four lines before the lead even started, and
+     put every section heading on three — the type was sized for the width it had, not
+     the width it got. */
   .landing-h1 {
-    @apply text-balance text-[2.5rem] font-extrabold leading-[1.05] tracking-tighter text-foreground sm:text-5xl md:text-6xl lg:text-[4rem];
+    @apply text-balance text-[1.75rem] font-extrabold leading-[1.1] tracking-tighter text-foreground sm:text-4xl md:text-5xl lg:text-6xl xl:text-[4rem];
   }
 
   .landing-h2 {
     /* `text-balance`: at this size in a ~490px column the browser's greedy line
        breaking orphaned two-letter words ("Act on / it."). Balancing spreads the
        lines evenly instead, which is what a designer would do by hand. */
-    @apply text-balance text-[2rem] font-extrabold leading-[1.12] tracking-tighter text-foreground sm:text-4xl md:text-[2.75rem];
+    @apply text-balance text-2xl font-extrabold leading-[1.15] tracking-tighter text-foreground sm:text-[2rem] md:text-4xl lg:text-[2.75rem];
   }
 
   /* Heading emphasis — tone, not hue.
@@ -231,17 +236,17 @@
 
   /* Sub-headings inside a section — feature names, card titles, the FAQ's closing ask. */
   .landing-h3 {
-    @apply text-xl font-bold tracking-tight text-foreground sm:text-2xl;
+    @apply text-lg font-bold tracking-tight text-foreground sm:text-xl md:text-2xl;
   }
 
   .landing-lead {
-    @apply text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl;
+    @apply text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-lg md:text-xl;
   }
 
   /* Body copy — bullet lists, feature descriptions. Distinct from `landing-lead`,
      which is the one paragraph directly under a heading. */
   .landing-body {
-    @apply text-[17px] leading-relaxed;
+    @apply text-[15px] leading-relaxed sm:text-base md:text-[17px];
   }
 
   /* Section label above the heading.
@@ -256,7 +261,7 @@
        carrying four different values (mb-2, mb-3, mb-5, none), so the label sat a
        different distance from its heading in every section. 10px reads as a label
        attached to the heading; 20px read as a separate line of text. */
-    @apply mb-2.5 text-xs font-bold uppercase tracking-[0.14em] text-primary/70;
+    @apply mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary/70 sm:mb-2.5 sm:text-xs;
   }
 
   /* Horizontal measure — one value, everywhere.
@@ -342,7 +347,7 @@
      long strip of screenshots with nothing between them. The extra 16px per side is
      what separates "four things" from "one thing that keeps going". */
   .landing-section {
-    @apply py-16 md:py-24;
+    @apply py-12 sm:py-16 md:py-24;
   }
 
   /* Marketing panels are 3–4× the size of a dashboard card, and rounded-lg (8px)

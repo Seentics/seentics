@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Check, MoveHorizontal } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MacbookFrame } from './mocks/MacbookFrame';
 import { AutomationBuilderMock } from './mocks/AutomationBuilderMock';
@@ -194,14 +194,11 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
           </motion.div>
 
           {/*
-            Screen. Below `lg` it no longer disappears — it keeps a fixed 860px width
-            and the row scrolls sideways.
-
-            Shrinking it to fit instead put the scale factor near 0.3, which turns an
-            11px label into three grey pixels; at 860px the same label lands around
-            8px, which is small but actually legible. The trade is a swipe, so the
-            hint below says so. `-mx-6 px-6` lets the scroller bleed to the screen
-            edges rather than sitting in a boxed frame inside the padding.
+            Screen. It scales to whatever column it gets, phone included — so on a
+            390px screen the laptop is small and the labels inside it are not really
+            readable. That is the deliberate trade: a complete, correctly-proportioned
+            shot of the product at a glance beats either hiding it or making the page
+            scroll sideways to read it.
           */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -210,17 +207,9 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className={cn('min-w-0', mockFirst && 'xl:col-start-1 xl:row-start-1')}
           >
-            <div className="-mx-6 w-full min-w-0 overflow-x-auto px-6 pb-3 lg:mx-0 lg:overflow-visible lg:px-0 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="w-[860px] lg:w-auto">
-                <MacbookFrame designWidth={MOCK_W} designHeight={MOCK_H} url={feature.url}>
-                  {feature.mock}
-                </MacbookFrame>
-              </div>
-            </div>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground lg:hidden">
-              <MoveHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Swipe to see the whole screen
-            </p>
+            <MacbookFrame designWidth={MOCK_W} designHeight={MOCK_H} url={feature.url}>
+              {feature.mock}
+            </MacbookFrame>
           </motion.div>
         </div>
       </div>

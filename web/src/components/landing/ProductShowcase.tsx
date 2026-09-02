@@ -1,4 +1,3 @@
-import { MoveHorizontal } from 'lucide-react';
 import { MacbookFrame } from './mocks/MacbookFrame';
 import { DashboardMock } from './mocks/DashboardMock';
 
@@ -10,9 +9,10 @@ import { DashboardMock } from './mocks/DashboardMock';
  * page's single most persuasive element, which is why it gets the full container
  * width and nothing else competes with it.
  *
- * Below `lg` it keeps its width and scrolls sideways rather than being shrunk to fit.
- * A 1560px screen squeezed into a phone puts the scale factor under 0.25, where every
- * label is 3px of grey — a smear that says less than no image at all.
+ * It scales to the column at every width, phone included, so on a small screen the
+ * laptop is small and the numbers inside it are not readable. That is on purpose: the
+ * shot is there to show the shape of the product, and a whole dashboard at a glance
+ * does that better than a fragment of one blown up, or a page that scrolls sideways.
  */
 export default function ProductShowcase() {
   return (
@@ -24,24 +24,13 @@ export default function ProductShowcase() {
         {/* No width of its own — the shot shares the page's measure, so the laptop
             lines up with the headings above and the sections below instead of being
             the one element that runs wider than everything else. */}
-        {/* Below `lg` the shot keeps a fixed 1180px width and scrolls sideways
-            rather than vanishing. Fitting a 1560px dashboard into a phone puts the
-            scale under 0.25, where every label is a smear. */}
-        <div className="-mx-6 overflow-x-auto px-6 pb-3 lg:mx-0 lg:overflow-visible lg:px-0 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="w-[1180px] lg:w-auto">
-            <MacbookFrame
-              designWidth={1560}
-              designHeight={975}
-              url="app.seentics.com/websites/acme-store"
-            >
-              <DashboardMock />
-            </MacbookFrame>
-          </div>
-        </div>
-        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-muted-foreground lg:hidden">
-          <MoveHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          Swipe to see the whole dashboard
-        </p>
+        <MacbookFrame
+          designWidth={1560}
+          designHeight={975}
+          url="app.seentics.com/websites/acme-store"
+        >
+          <DashboardMock />
+        </MacbookFrame>
       </div>
     </section>
   );
