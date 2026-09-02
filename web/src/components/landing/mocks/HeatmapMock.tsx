@@ -81,7 +81,7 @@ const PLANS = [
 
 function PreviewPage() {
   return (
-    <div className="relative bg-white text-black" style={{ height: 600 }}>
+    <div className="relative bg-white text-black" style={{ height: 1180 }}>
       {/* Nav */}
       <div className="flex items-center gap-4 border-b border-black/[0.07] px-6 py-4">
         <span className="text-[13px] font-black tracking-[0.18em] text-black/85">NORTHBOUND</span>
@@ -146,17 +146,81 @@ function PreviewPage() {
         ))}
       </div>
 
-      {/* Heat layer — sits over the page, as the canvas does */}
+      {/* Comparison strip */}
+      <div className="mt-9 border-t border-black/[0.06] px-6 pt-7">
+        <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-black/40">
+          Compare plans
+        </p>
+        <div className="mt-4 space-y-2">
+          {['Websites', 'Events per month', 'Data retention', 'Session recordings', 'Team members'].map(
+            (row) => (
+              <div key={row} className="flex items-center gap-3 rounded border border-black/[0.05] px-3 py-2">
+                <span className="w-40 shrink-0 text-[10px] font-medium text-black/70">{row}</span>
+                <span className="h-1.5 flex-1 rounded-full bg-black/[0.06]" />
+                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06]" />
+                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06]" />
+              </div>
+            ),
+          )}
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div className="mt-9 px-6">
+        <p className="text-[13px] font-bold tracking-tight text-black/80">Common questions</p>
+        <div className="mt-3 space-y-2">
+          {['Can I change plan later?', 'What counts as an event?', 'Do you offer refunds?'].map((q) => (
+            <div key={q} className="flex items-center justify-between rounded border border-black/[0.06] px-3 py-2.5">
+              <span className="text-[11px] font-medium text-black/70">{q}</span>
+              <span className="text-[13px] leading-none text-black/25">+</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer — the bottom of a real page, which is why the scroll map matters */}
+      <div className="mt-9 border-t border-black/[0.07] bg-black/[0.015] px-6 py-6">
+        <div className="grid grid-cols-4 gap-6">
+          <div>
+            <span className="text-[11px] font-black tracking-[0.16em] text-black/70">NORTHBOUND</span>
+            <div className="mt-2 space-y-1.5">
+              <div className="h-1.5 w-24 rounded-full bg-black/[0.07]" />
+              <div className="h-1.5 w-20 rounded-full bg-black/[0.07]" />
+            </div>
+          </div>
+          {['Product', 'Company', 'Legal'].map((col) => (
+            <div key={col}>
+              <p className="text-[10px] font-semibold text-black/60">{col}</p>
+              <div className="mt-2 space-y-1.5">
+                <div className="h-1.5 w-16 rounded-full bg-black/[0.06]" />
+                <div className="h-1.5 w-14 rounded-full bg-black/[0.06]" />
+                <div className="h-1.5 w-16 rounded-full bg-black/[0.06]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/*
+        Heat layer — sits over the page, as the canvas does.
+
+        Placement carries the story the section claims: hot on the nav CTA and the
+        featured plan's button, cooler on the plan either side of it, and almost
+        nothing past the comparison strip — which is the point of a scroll map.
+      */}
       <div className="pointer-events-none absolute inset-0">
         {/* Nav CTA and the pricing link: the two things people reach for first. */}
-        <Blob left="90%" top="4.5%" size={104} />
-        <Blob left="72%" top="4.5%" size={72} strength={0.55} />
+        <Blob left="90%" top="2.6%" size={104} />
+        <Blob left="72%" top="2.6%" size={72} strength={0.55} />
         {/* The billing toggle. */}
-        <Blob left="47%" top="28%" size={76} strength={0.5} />
+        <Blob left="47%" top="16%" size={76} strength={0.5} />
         {/* Plan CTAs — the featured one runs hot, Scale barely gets touched. */}
-        <Blob left="50%" top="72%" size={132} strength={0.95} />
-        <Blob left="17%" top="72%" size={86} strength={0.45} />
-        <Blob left="83%" top="72%" size={58} strength={0.22} />
+        <Blob left="50%" top="41%" size={132} strength={0.95} />
+        <Blob left="17%" top="41%" size={86} strength={0.45} />
+        <Blob left="83%" top="41%" size={58} strength={0.22} />
+        {/* Below the plans attention falls away fast. */}
+        <Blob left="30%" top="58%" size={62} strength={0.22} />
+        <Blob left="52%" top="76%" size={54} strength={0.16} />
       </div>
     </div>
   );

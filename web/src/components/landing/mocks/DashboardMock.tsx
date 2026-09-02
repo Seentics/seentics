@@ -19,6 +19,9 @@ import { MockSidebar } from './MockSidebar';
  * page padding mirror `app/websites/[websiteId]/page.tsx`; the controls are inert
  * copies of the real ones (website switcher, Ask Seentics AI, filters, theme).
  */
+/** How far the dashboard is zoomed out inside the lid. See the note in the render. */
+const INNER_SCALE = 0.84;
+
 export function DashboardMock() {
   const demoData = useMemo(() => demoAnalyticsData(), []);
 
@@ -50,11 +53,35 @@ export function DashboardMock() {
   );
 
   return (
-    <div className="flex h-full w-full bg-background text-foreground">
+    /*
+     * The dashboard is laid out wider than the screen and scaled down, so more of the
+     * page fits in the same 16:10 lid.
+     *
+     * At 1:1 the shot stopped just as Top Pages and Traffic Sources came into view,
+     * which made the dashboard look like it ended at the traffic chart. `INNER_SCALE`
+     * buys about 190px more vertical page — enough for both cards to be half visible,
+     * which reads as a page that continues rather than one that stops.
+     *
+     * The width compensation is what keeps it filling the frame: laying out at
+     * `100 / INNER_SCALE` percent and then scaling by `INNER_SCALE` lands back on the
+     * frame's own width.
+     */
+    <div
+      className="flex bg-background text-foreground"
+      style={{
+        transform: `scale(${INNER_SCALE})`,
+        transformOrigin: 'top left',
+        width: `${100 / INNER_SCALE}%`,
+        height: `${100 / INNER_SCALE}%`,
+      }}
+    >
       <MockSidebar active="Overview" />
 
       <main className="min-w-0 flex-1 overflow-hidden bg-background">
-        <div className="mx-auto w-full max-w-[1200px] space-y-6 p-8">
+        {/* No `mx-auto max-w-[1200px]` here, unlike the real page. Laying out at
+            1/INNER_SCALE makes this column ~1600px wide, so a 1200px cap centred the
+            content and left a wide empty gutter against the sidebar. */}
+        <div className="w-full space-y-6 p-8">
           {/* Header — the real page's single compact control row */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 w-[180px] items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm dark:border-none">
