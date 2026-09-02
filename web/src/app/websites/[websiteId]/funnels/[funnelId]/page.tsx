@@ -241,9 +241,7 @@ export default function FunnelDetailPage() {
         <CardHeader className="border-b border-border px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-sm font-semibold">Steps</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Step bars show share of all entries · bands between them show who continued
-            </p>
+            <p className="text-xs text-muted-foreground">Bar width is the share of all entries</p>
           </div>
         </CardHeader>
 
@@ -329,71 +327,55 @@ export default function FunnelDetailPage() {
                       it reads as belonging between the two rather than to either one.
                     */}
                     {next && (
+                      /*
+                        One line, two numbers.
+                        The first version of this band said five things: how many
+                        reached this step, the percentage that continued, the
+                        percentage that left, how many went on, and how many did not.
+                        Only two of those are new — the step counts are already on the
+                        rows above and below, and each percentage is the other's
+                        complement. So it restated two facts five ways, which is what
+                        made it hard to read.
+                      */
                       <div
                         className={cn(
-                          'border-t border-border px-5 py-3.5 pl-16',
+                          'flex items-center gap-3 border-t border-border py-2 pl-16 pr-5',
                           isWorst ? 'bg-amber-500/[0.06]' : 'bg-muted/25',
                         )}
                       >
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                          <p className="text-xs text-muted-foreground">
-                            Of the{' '}
-                            <span className="font-medium text-foreground">
-                              {row.count.toLocaleString()}
-                            </span>{' '}
-                            who reached {row.name}
-                          </p>
-                          {isWorst && (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                              <TrendingDown className="h-3 w-3" />
-                              Worst drop-off
-                            </span>
+                        <TrendingDown
+                          className={cn(
+                            'h-3.5 w-3.5 shrink-0',
+                            isWorst ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/50',
                           )}
-                        </div>
+                          aria-hidden
+                        />
 
-                        {/*
-                          One bar, two segments. This is the whole idea: the split is
-                          the picture, so "half of them left here" needs no reading.
-                        */}
-                        <div className="mt-2 flex h-6 overflow-hidden rounded-md bg-muted">
-                          <div
-                            className="flex items-center justify-start bg-primary/55 px-2 transition-[width] duration-500"
-                            style={{ width: `${continued}%` }}
-                          >
-                            {continued >= 18 && (
-                              <span className="whitespace-nowrap text-[11px] font-semibold tabular-nums text-foreground">
-                                {continued.toFixed(1)}% continued
-                              </span>
-                            )}
-                          </div>
+                        {/* The split, as a picture rather than a sentence. */}
+                        <div className="flex h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-muted-foreground/15">
                           <div
                             className={cn(
-                              'flex items-center justify-end px-2',
-                              isWorst ? 'bg-amber-500/25' : 'bg-muted-foreground/[0.12]',
+                              'transition-[width] duration-500',
+                              isWorst ? 'bg-amber-500/70' : 'bg-primary/55',
                             )}
-                            style={{ width: `${Math.max(100 - continued, 0)}%` }}
-                          >
-                            {100 - continued >= 18 && (
-                              <span className="whitespace-nowrap text-[11px] font-medium tabular-nums text-muted-foreground">
-                                {(100 - continued).toFixed(1)}% left
-                              </span>
-                            )}
-                          </div>
+                            style={{ width: `${continued}%` }}
+                          />
                         </div>
 
-                        <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-muted-foreground">
-                          <span>
-                            <span className="font-semibold tabular-nums text-foreground">
-                              {next.count.toLocaleString()}
-                            </span>{' '}
-                            went on to {next.name}
-                          </span>
+                        <p className="min-w-0 text-xs text-muted-foreground">
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {continued.toFixed(1)}%
+                          </span>{' '}
+                          continued
                           {row.dropOff > 0 && (
-                            <span className="tabular-nums">
-                              {row.dropOff.toLocaleString()} did not
-                            </span>
+                            <>
+                              {' · '}
+                              <span className="tabular-nums">
+                                {row.dropOff.toLocaleString()} dropped off
+                              </span>
+                            </>
                           )}
-                        </div>
+                        </p>
                       </div>
                     )}
                   </li>
