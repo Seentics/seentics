@@ -9,7 +9,7 @@ let activeBrowserPages = 0;
  * Get or create a singleton browser instance.
  * Uses Chromium for consistent behavior across environments.
  */
-export async function getBrowser(): Promise<Browser> {
+async function getBrowser(): Promise<Browser> {
   if (browserInstance) {
     return browserInstance;
   }
@@ -121,12 +121,4 @@ export async function closeBrowser(): Promise<void> {
       activeBrowserPages = 0;
     }
   }
-}
-
-/**
- * Get current number of active page instances in the pool.
- * Useful for monitoring and debugging.
- */
-export function getActivePagesCount(): number {
-  return activeBrowserPages;
 }

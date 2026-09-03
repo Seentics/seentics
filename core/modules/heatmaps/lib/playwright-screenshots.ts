@@ -3,7 +3,7 @@ import type { Page } from "playwright";
 import { createScreenshotPage, closeBrowser } from "./playwright-browser";
 import { putJpeg } from "../../../platform/lib/s3";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
-import { getScreenshotCache } from "../../../modules/heatmaps/services/screenshot-cache";
+import { getScreenshotCache } from "../services/screenshot-cache";
 import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "playwright" });
@@ -74,7 +74,7 @@ function rewriteLocalhostForDocker(url: string): string {
   return url;
 }
 
-export async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
+async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
   let page: Page | null = null;
 
   try {
@@ -368,12 +368,4 @@ export async function captureAndStoreScreenshot(
       stored: true,
     };
   }
-}
-
-/**
- * Clean shutdown of browser resources.
- * Should be called during application shutdown.
- */
-export async function shutdownPlaywrightBrowser(): Promise<void> {
-  await closeBrowser();
 }

@@ -38,18 +38,3 @@ export function requireUser(c: Context<{ Variables: AuthVars }>): string | null 
   if (!id) return null;
   return id;
 }
-
-/** Optional JWT: sets userId when valid Bearer present; never401. */
-export async function optionalAuthMiddleware(c: Context<{ Variables: AuthVars }>, next: Next) {
-  const auth = c.req.header("Authorization");
-  if (auth?.startsWith("Bearer ") && env().jwtSecret) {
-    const token = auth.slice(7).trim();
-    try {
-      const { userId } = await verifyAccessToken(token);
-      c.set("userId", userId);
-    } catch {
-      /* ignore */
-    }
-  }
-  return next();
-}

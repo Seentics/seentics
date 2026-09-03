@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { fakeDbModule, fakeLogger } from "../../../app/tests/helpers/fake-db";
 import { API_BASE_PATH, API_CATALOGUE } from "../api-catalogue";
 import { API_SCOPES } from "../keys/scopes";
+import { testConfig } from "../../../app/tests/helpers/test-config";
 
 /**
  * The public API reference, checked against the router that serves it.
@@ -17,9 +18,8 @@ mock.module("../../../platform/lib/logger", fakeLogger);
 
 // The auth middleware reads rate-limit config on every request; without it the 401 path
 // throws before it can answer, which would make an auth test look like a server error.
-mock.module("../../../config", () => ({
-  env: () => ({ rateLimit: { enabled: false, rawPerKeyMax: 0, windowMs: 60_000 } }),
-}));
+// Global to the whole run — see `testConfig` for why it must be complete.
+mock.module("../../../config", () => ({ env: () => testConfig() }));
 
 let createRawDataRoutes: typeof import("../routes").createRawDataRoutes;
 // Loaded here rather than imported at the top: a static import is hoisted above the

@@ -8,7 +8,11 @@ import { clientIpForIngest } from "../../platform/lib/client-ip";
 import { log } from "../../platform/lib/logger";
 import { originFromRequest, validateOriginDomain, validateScreenshotTargetUrl } from "../../platform/lib/origin";
 import { validationErrorResponse } from "../../platform/validation";
-import type { AutomationEvaluation, AutomationTrackerSettings } from "../automations/interfaces";
+import type {
+  AutomationEvaluation,
+  AutomationTrackerSettings,
+  VisitorProfileWriter,
+} from "../automations/interfaces";
 import type { FunnelTrackerConfig } from "../funnels/interfaces";
 import type { HeatmapScreenshotCapture } from "../heatmaps/interfaces";
 import type { TrackerWebsites } from "../websites/interfaces";
@@ -68,6 +72,8 @@ export function createTrackerRoutes(deps: {
    * no longer depends on the queue being a module-level singleton.
    */
   queue: IngestQueue;
+  /** Where `/collect` sends the visitor profile it built from the batch. */
+  visitorProfiles: VisitorProfileWriter;
   /** Active automations for `/init`. One indexed read per session start. */
   automations: AutomationTrackerSettings;
   /** Server-side trigger evaluation for `/automations/evaluate`. */
@@ -91,7 +97,7 @@ export function createTrackerRoutes(deps: {
    */
   trackerWebsites: TrackerWebsites;
 }) {
-  const { queue, automations, automationEvaluation, funnels, screenshots } = deps;
+  const { queue, visitorProfiles, automations, automationEvaluation, funnels, screenshots } = deps;
   const {
     resolve: resolveWebsiteForTracker,
     listGoals: listTrackerGoals,
@@ -264,7 +270,7 @@ export function createTrackerRoutes(deps: {
       acceptLanguage: c.req.header("Accept-Language") ?? "",
       headers: c.req.raw.headers,
     });
-    const ctx = { body, website, userAgent: ua, ingestMeta, queue };
+    const ctx = { body, website, userAgent: ua, ingestMeta, queue, visitorProfiles };
 
     const lenEvents = Array.isArray(body.events) ? body.events.length : 0;
     const lenSession = Array.isArray(body.session) ? body.session.length : 0;

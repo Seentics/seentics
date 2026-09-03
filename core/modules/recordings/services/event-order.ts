@@ -3,7 +3,7 @@
  * Prefer rrweb's own `data.timestamp` (replay timeline); envelope `ts` alone mixes
  * relative rrweb time with `session_error`'s `Date.now()` and breaks sort order.
  */
-export function replayEventOrderingMs(ev: Record<string, unknown>): number {
+function replayEventOrderingMs(ev: Record<string, unknown>): number {
   if (ev.type === "rrweb" && ev.data && typeof ev.data === "object" && !Array.isArray(ev.data)) {
     const raw = (ev.data as Record<string, unknown>).timestamp;
     if (typeof raw === "number" && Number.isFinite(raw)) return raw;

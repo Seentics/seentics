@@ -5,6 +5,7 @@ import type {
   AutomationEvaluation,
   AutomationTrackerSettings,
   AutomationTriggerWriter,
+  VisitorProfileWriter,
 } from "./index";
 
 /** Everything the automations module offers. */
@@ -22,6 +23,14 @@ export interface AutomationsModule {
 
   /** Where ingest hands a flushed batch of trigger rows. */
   triggers: AutomationTriggerWriter;
+
+  /**
+   * Where ingest hands the visitor profile built from a `/collect` batch.
+   *
+   * Separate from `triggers` because it is written per request rather than per flush,
+   * and it is what gives conditions anything to say about the person rather than the page.
+   */
+  visitorProfiles: VisitorProfileWriter;
 
   /** Deletion of this module's own rows. */
   retention: RetentionPurge;

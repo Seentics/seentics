@@ -40,6 +40,11 @@ export type { AutomationTrackerSettings } from "./automation-settings.interface"
 export type { AutomationTriggerWriter } from "./automation-ingest.interface";
 
 export type {
+  VisitorProfileWrite,
+  VisitorProfileWriter,
+} from "./visitor-profile.interface";
+
+export type {
   AutomationEvaluation,
   ClientAction,
   EvaluateRequest,

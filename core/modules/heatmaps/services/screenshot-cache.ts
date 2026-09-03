@@ -181,36 +181,3 @@ export function getScreenshotCache(): ScreenshotCache {
 export function initializeScreenshotCache(ttlMs?: number, maxEntries?: number): void {
   _cache = new ScreenshotCache(ttlMs, maxEntries);
 }
-
-/**
- * Apply the app's screenshot-cache configuration. Call once at startup, before
- * anything can capture — this is the heatmaps module's counterpart to
- * `configureTrackerWebsiteCache`.
- *
- * When the cache is disabled this is a no-op rather than a teardown, which
- * preserves existing behaviour: `getScreenshotCache()` lazily creates a
- * default-configured cache on first use either way, so `SCREENSHOT_CACHE_ENABLED=false`
- * has only ever meant "don't apply the configured TTL and size".
- */
-export function configureHeatmapScreenshotCache(cfg: AppConfig): void {
-  if (!cfg.screenshotCache.enabled) return;
-  initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
-}
-
-/**
- * Get current cache statistics.
- * Useful for monitoring and debugging.
- */
-export function getScreenshotCacheStats() {
-  return getScreenshotCache().getStats();
-}
-
-/**
- * Reset cache (for testing).
- */
-export function resetScreenshotCache(): void {
-  if (_cache) {
-    _cache.clear();
-  }
-  _cache = null;
-}

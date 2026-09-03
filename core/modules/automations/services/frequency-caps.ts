@@ -16,17 +16,6 @@ export interface ImpressionMeta {
   variant?: string | null;
 }
 
-export async function recordImpression(meta: ImpressionMeta): Promise<void> {
-  await db.insert(automationImpressions).values({
-    automationId: meta.automationId,
-    anonymousId:  meta.anonymousId,
-    userId:       meta.userId ?? null,
-    websiteId:    meta.websiteId,
-    sessionId:    meta.sessionId,
-    variant:      meta.variant ?? null,
-  });
-}
-
 /**
  * Batch-insert impressions in a single round trip.
  *

@@ -8,6 +8,7 @@ import { AutomationIngestService } from "./services/automation-ingest.service";
 import { AutomationService } from "./services/automation.service";
 import { AutomationEvaluationService } from "./services/evaluate.service";
 import { AutomationRetentionPurge } from "./services/retention-purge.service";
+import { VisitorProfileService } from "./services/visitor-profile.service";
 
 /** Build the automations module. */
 export function initAutomationsModule(deps: {
@@ -25,6 +26,7 @@ export function initAutomationsModule(deps: {
     // own bus would fire `automation.action_executed` at nobody.
     evaluation: new AutomationEvaluationService(deps.eventBus),
     triggers: new AutomationIngestService(),
+    visitorProfiles: new VisitorProfileService(),
     retention: new AutomationRetentionPurge(),
     usage: new AutomationUsageCounter(),
     routes: createAutomationRoutes({

@@ -18,29 +18,10 @@
 import { sql as rawSql } from 'drizzle-orm';
 import { db, userProfiles } from '../../../db';
 import { log } from '../../../platform/lib/logger';
+import type { VisitorProfileWrite, VisitorProfileWriter } from '../interfaces';
 
 /** Session window used to decide whether a batch begins a new visit. */
 const VISIT_GAP_MINUTES = 30;
-
-export type VisitorProfileWrite = {
-  websiteId: string;
-  /** The tracker's visitor id (`snc_vid`), which is what conditions are keyed on. */
-  anonymousId: string;
-  /** Set by `seentics.identify()`; left alone when absent so a later batch cannot clear it. */
-  userId?: string | null;
-  /** Traits from `seentics.identify()`. Merged into `properties`, not replacing it. */
-  traits?: Record<string, unknown>;
-  /** Pageviews in this batch, added to the running total. */
-  pageViews: number;
-  /** From `ingestMeta` — already resolved for the analytics rows. */
-  country?: string | null;
-  region?: string | null;
-  city?: string | null;
-  device?: string | null;
-  browser?: string | null;
-  os?: string | null;
-  language?: string | null;
-};
 
 /** Drop keys with no value so a null never overwrites a good stored value. */
 function present(o: Record<string, unknown>): Record<string, unknown> {
@@ -70,7 +51,7 @@ function present(o: Record<string, unknown>): Record<string, unknown> {
  *    arrives without a resolvable IP should not blank a country already known.
  *  - `firstSeenAt` is only written on insert.
  */
-export async function upsertVisitorProfile(w: VisitorProfileWrite): Promise<void> {
+async function upsertVisitorProfile(w: VisitorProfileWrite): Promise<void> {
   if (!w.websiteId || !w.anonymousId) return;
 
   /*
@@ -132,5 +113,19 @@ export async function upsertVisitorProfile(w: VisitorProfileWrite): Promise<void
       });
   } catch (err) {
     log.warn({ msg: 'upsert_visitor_profile_failed', websiteId: w.websiteId, err });
+  }
+}
+
+/**
+ * The visitor-profile write path, as ingest receives it.
+ *
+ * A class wrapping the function for the same reason `AutomationIngestService` wraps
+ * `ingestAutomationTriggersBatch`: ingest used to import the function directly, which
+ * is a compile-time edge into this module's internals and made the collect path
+ * untestable without a live database. Behind the port, a test drives it with a fake.
+ */
+export class VisitorProfileService implements VisitorProfileWriter {
+  async upsert(profile: VisitorProfileWrite): Promise<void> {
+    await upsertVisitorProfile(profile);
   }
 }

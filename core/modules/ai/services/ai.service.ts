@@ -1,6 +1,6 @@
 import type { WebsiteQuery } from "../../websites/interfaces";
 import type { AiAccessCheck, AiQuery, AIDomain, AIHistoryItem, AIQueryResult } from "../interfaces";
-import { getAIQueryHistory, runAIQuery } from "./ai-query.service";
+import type { AiQueryRunner } from "./ai-query.service";
 
 /**
  * The ai module's facade.
@@ -12,7 +12,10 @@ import { getAIQueryHistory, runAIQuery } from "./ai-query.service";
  * `getRole` rather than a hand-rolled owner-or-member query that reproduced it.
  */
 export class AiService implements AiQuery, AiAccessCheck {
-  constructor(private readonly websites: WebsiteQuery) {}
+  constructor(
+    private readonly websites: WebsiteQuery,
+    private readonly runner: AiQueryRunner,
+  ) {}
 
   /**
    * Resolve a website reference to both identifiers.
@@ -40,13 +43,13 @@ export class AiService implements AiQuery, AiAccessCheck {
     // silently answering "no data" for a website that does not exist would spend
     // the user's daily quota on nothing.
     if (!resolved) throw new Error("website not found");
-    return runAIQuery(userId, resolved, prompt, domain);
+    return this.runner.run(userId, resolved, prompt, domain);
   }
 
   async getHistory(userId: string, websiteRef: string, limit = 8): Promise<AIHistoryItem[]> {
     const resolved = await this.resolve(websiteRef);
     if (!resolved) return [];
-    return getAIQueryHistory(userId, resolved, limit);
+    return this.runner.history(userId, resolved, limit);
   }
 
   /**

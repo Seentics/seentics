@@ -91,6 +91,11 @@ RESPONSE FORMAT — return ONLY this JSON, no extra keys
 SQL RULES
 ═══════════════════════════════════════════════════════════════
 • First WHERE condition MUST be: website_id::text = $1  (website_id is UUID type — always cast)
+• NEVER use OR or NOT — express alternatives with IN (...); both are rejected
+• Repeat the website_id filter in EVERY CTE and subquery that reads a table — a
+  filter on the outer query does not scope an inner one, and unscoped inner reads
+  are rejected
+• Self-joins must filter BOTH sides
 • Only SELECT — never INSERT/UPDATE/DELETE/DROP/CREATE/ALTER/TRUNCATE
 • Always include LIMIT (max 500 rows)
 • ALWAYS cast UUID columns to text when selecting: id::text AS id

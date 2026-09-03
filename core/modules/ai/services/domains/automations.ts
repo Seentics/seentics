@@ -155,6 +155,11 @@ RESPONSE FORMAT — return ONLY this JSON, no extra keys
 SQL RULES
 ═══════════════════════════════════════════════════════════════
 • ALWAYS join automation_events with automations and filter: a.website_id::text = $1
+• NEVER use OR or NOT — express alternatives with IN (...); both are rejected
+• Repeat the website_id filter in EVERY CTE and subquery that reads a table — a
+  filter on the outer query does not scope an inner one, and unscoped inner reads
+  are rejected
+• Self-joins must filter BOTH sides
 • Only SELECT — never INSERT/UPDATE/DELETE/DROP/CREATE/ALTER/TRUNCATE
 • Always include LIMIT (max 500 rows)
 • ALWAYS use ROUND(..., 2) for rates, percentages, and averages

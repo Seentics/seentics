@@ -1,92 +1,117 @@
-import { count, eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
-import { db, users } from "../../../db";
-import { signAccessToken, signRefreshToken } from "../../../platform/lib/auth-jwt";
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../../../platform/lib/auth-jwt";
 import { toFrontendUser } from "./user-mapper";
 import type { LoginUserInput, RegisterUserInput } from "../../../platform/lib/api-types";
+import type { FrontendUser } from "../interfaces";
+import type { PasswordHasher } from "../interfaces/password-hasher.interface";
+import type { UserRepository, UserRow } from "../interfaces/user-repository.interface";
 
-export async function countUsers(): Promise<number> {
-  const [r] = await db.select({ c: count() }).from(users);
-  return Number(r?.c ?? 0);
-}
+/**
+ * Registration, sign-in and session refresh.
+ *
+ * A class taking a `UserRepository` and a `PasswordHasher`, where this used to be a set
+ * of module-level functions holding `db` and `bcrypt` directly. That is what makes the
+ * rules below testable — every one of them was unverified before, on the only
+ * unauthenticated write path in the product.
+ *
+ * Token signing stays a direct import: `platform/lib/auth-jwt` is a platform library
+ * like the logger, not a peer module, and it holds no state a test needs to steer.
+ */
 
-export async function registerUser(input: RegisterUserInput) {
-  const email = input.email.trim().toLowerCase();
+export type AuthTokens = { access_token: string; refresh_token: string };
+export type AuthResult = { data: { user: FrontendUser; tokens: AuthTokens } };
 
-  try {
-    const row = await db.transaction(async (tx) => {
-      const existing = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-      if (existing.length) throw new Error("registration failed");
+/** The first account in an empty install administers it; everyone after is a user. */
+const FIRST_USER_ROLE = "admin";
+const DEFAULT_ROLE = "user";
 
-      const [{ c }] = await tx.select({ c: count() }).from(users);
-      const isFirst = Number(c ?? 0) === 0;
-      const passwordHash = await bcrypt.hash(input.password, 12);
-      const [inserted] = await tx
-        .insert(users)
-        .values({
-          email,
-          passwordHash,
-          name: input.name.trim() || email.split("@")[0]!,
-          role: isFirst ? "admin" : "user",
-        })
-        .returning();
-      return inserted!;
+export class AuthService {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly hasher: PasswordHasher,
+  ) {}
+
+  async countUsers(): Promise<number> {
+    return this.users.countAll();
+  }
+
+  /**
+   * Create an account and return it signed in.
+   *
+   * Every failure surfaces as the same `registration failed`, deliberately: a distinct
+   * "email already registered" turns this endpoint into an oracle for which addresses
+   * hold accounts, and it is unauthenticated.
+   */
+  async register(input: RegisterUserInput): Promise<AuthResult> {
+    const email = input.email.trim().toLowerCase();
+    const passwordHash = await this.hasher.hash(input.password);
+
+    const row = await this.users.create({
+      email,
+      passwordHash,
+      // Falling back to the local part keeps the display name non-empty without asking
+      // for one at signup.
+      name: input.name.trim() || email.split("@")[0]!,
+      firstUserRole: FIRST_USER_ROLE,
+      role: DEFAULT_ROLE,
     });
 
-    const access_token = await signAccessToken(row.id);
-    const refresh_token = await signRefreshToken(row.id);
-    return {
-      data: {
-        user: toFrontendUser(row),
-        tokens: { access_token, refresh_token },
-      },
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (msg === "registration failed") throw err;
-    throw new Error("registration failed");
+    if (!row) throw new Error("registration failed");
+    return this.issue(row);
   }
-}
 
-export async function loginUser(input: LoginUserInput) {
-  const email = input.email.trim().toLowerCase();
-  const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!row?.passwordHash) throw new Error("invalid credentials");
-  const ok = await bcrypt.compare(input.password, row.passwordHash);
-  if (!ok) throw new Error("invalid credentials");
-  if (!row.isActive) throw new Error("account disabled");
+  /**
+   * Verify credentials and start a session.
+   *
+   * The password is checked before `isActive`, so a disabled account and a wrong
+   * password are indistinguishable to someone who does not already hold the password.
+   */
+  async login(input: LoginUserInput): Promise<AuthResult> {
+    const email = input.email.trim().toLowerCase();
+    const row = await this.users.findByEmail(email);
+    if (!row?.passwordHash) throw new Error("invalid credentials");
 
-  await db
-    .update(users)
-    .set({
-      loginCount: row.loginCount + 1,
-      lastLoginAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, row.id));
+    const ok = await this.hasher.verify(input.password, row.passwordHash);
+    if (!ok) throw new Error("invalid credentials");
+    if (!row.isActive) throw new Error("account disabled");
 
-  const [fresh] = await db.select().from(users).where(eq(users.id, row.id)).limit(1);
-  const access_token = await signAccessToken(fresh!.id);
-  const refresh_token = await signRefreshToken(fresh!.id);
-  return {
-    data: {
-      user: toFrontendUser(fresh!),
-      tokens: { access_token, refresh_token },
-    },
-  };
-}
+    // The updated row carries the incremented `loginCount` the response reports.
+    const fresh = (await this.users.recordLogin(row.id)) ?? row;
+    return this.issue(fresh);
+  }
 
-export async function refreshSession(refreshToken: string) {
-  const { verifyRefreshToken } = await import("../../../platform/lib/auth-jwt");
-  const { userId } = await verifyRefreshToken(refreshToken);
-  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-  if (!row?.isActive) throw new Error("account disabled");
-  const access_token = await signAccessToken(row.id);
-  const refresh_token = await signRefreshToken(row.id);
-  return { access_token, refresh_token };
-}
+  /**
+   * Exchange a refresh token for a new pair.
+   *
+   * `isActive` is re-read here rather than trusted from the token: a token issued
+   * before an account was disabled stays cryptographically valid for its full seven
+   * days, so this is the only place that deactivation takes effect on an existing
+   * session.
+   */
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    const { userId } = await verifyRefreshToken(refreshToken);
+    const row = await this.users.findById(userId);
+    if (!row?.isActive) throw new Error("account disabled");
+    return this.tokensFor(row.id);
+  }
 
-export async function getUserById(id: string) {
-  const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return row ?? null;
+  /** The whole row, for the module's own `/me` handler. */
+  async getById(id: string): Promise<UserRow | null> {
+    return this.users.findById(id);
+  }
+
+  private async issue(row: UserRow): Promise<AuthResult> {
+    return { data: { user: toFrontendUser(row), tokens: await this.tokensFor(row.id) } };
+  }
+
+  private async tokensFor(userId: string): Promise<AuthTokens> {
+    const [access_token, refresh_token] = await Promise.all([
+      signAccessToken(userId),
+      signRefreshToken(userId),
+    ]);
+    return { access_token, refresh_token };
+  }
 }

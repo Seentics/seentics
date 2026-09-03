@@ -1,4 +1,5 @@
 import { mock } from "bun:test";
+import { testConfig } from "../../../../app/tests/helpers/test-config";
 
 /**
  * The one place this module's tests stub shared infrastructure.
@@ -40,15 +41,8 @@ mock.module("../../../../platform/lib/logger", () => {
 
 // ─── config ───────────────────────────────────────────────────────────────────
 
-mock.module("../../../../config", () => ({
-  env: () => ({
-    s3: { bucket: "test-bucket" },
-    // Long enough that no background flush fires while a test is running.
-    replayChunkFlushMs: 600_000,
-    spoolIdleMs: 600_000,
-    presignTtlMs: 60_000,
-  }),
-}));
+// Global to the whole run — see `testConfig` for why it must be complete.
+mock.module("../../../../config", () => ({ env: () => testConfig() }));
 
 // ─── object storage ───────────────────────────────────────────────────────────
 

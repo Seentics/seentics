@@ -56,7 +56,7 @@ function toIsoString(value: Date | string): string {
  *
  * @param websiteId resolved `websites.id` UUID — a `websiteId` here matches nothing.
  */
-export async function listActiveAutomations(websiteId: string): Promise<AutomationRow[]> {
+async function listActiveAutomations(websiteId: string): Promise<AutomationRow[]> {
   return db
     .select()
     .from(automations)

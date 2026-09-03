@@ -28,7 +28,7 @@ function createS3ClientForEndpoint(endpoint: string | undefined): S3Client {
   return new S3Client(cfg);
 }
 
-export function createS3(): S3Client {
+function createS3(): S3Client {
   return createS3ClientForEndpoint(env().s3.endpoint);
 }
 
@@ -54,7 +54,7 @@ function s3ForPresign(): S3Client {
   return _presignClient;
 }
 
-export async function objectExists(bucket: string, key: string): Promise<boolean> {
+async function objectExists(bucket: string, key: string): Promise<boolean> {
   try {
     await s3().send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     return true;
@@ -72,7 +72,7 @@ export async function getJsonGzip(bucket: string, key: string): Promise<Record<s
   return parsed as Record<string, unknown>[];
 }
 
-export async function putGzipJson(bucket: string, key: string, value: unknown[]): Promise<void> {
+async function putGzipJson(bucket: string, key: string, value: unknown[]): Promise<void> {
   const body = gzipSync(Buffer.from(JSON.stringify(value), "utf8"));
   await s3().send(
     new PutObjectCommand({
@@ -165,21 +165,6 @@ export async function uploadSessionChunkGzip(
   if (events.length === 0) return;
   const key = sessionChunkKey(websiteId, sessionId, sequence);
   await putGzipJson(bucket, key, events);
-}
-
-/** Serialize read-modify-write per bundle key (same idea as Go fnv shard mutex). */
-export function createBundleLocks(shardCount = 32) {
-  const mutexes = Array.from({ length: shardCount }, () => new Mutex());
-  return {
-    lockFor(bundleKey: string) {
-      let h = 2166136261;
-      for (let i = 0; i < bundleKey.length; i++) {
-        h ^= bundleKey.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return mutexes[(h >>> 0) % shardCount]!;
-    },
-  };
 }
 
 class Mutex {

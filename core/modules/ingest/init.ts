@@ -58,6 +58,7 @@ export function initIngestModule(deps: {
     sinks,
     routes: createTrackerRoutes({
       queue,
+      visitorProfiles: deps.automationsModule.visitorProfiles,
       automations: deps.automationsModule.trackerSettings,
       automationEvaluation: deps.automationsModule.evaluation,
       funnels: deps.funnelsModule.trackerConfig,

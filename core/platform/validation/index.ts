@@ -54,20 +54,7 @@ export function parseQuery<T extends ZodTypeAny>(
   return { ok: true, data: out.data };
 }
 
-export function parseParams<T extends ZodTypeAny>(
-  c: Pick<Context, "req" | "json">,
-  schema: T,
-): { ok: true; data: z.infer<T> } | { ok: false; res: Response } {
-  // Hono supports `c.req.param()` returning all params (Bun runtime).
-  const raw = (c.req as unknown as { param: () => Record<string, string> }).param();
-  const out = schema.safeParse(raw);
-  if (!out.success) return { ok: false, res: validationErrorResponse(c, out.error) };
-  return { ok: true, data: out.data };
-}
-
 // ---- Shared schema helpers (sanitization/constraints) ----
-
-export const zTrimmed = z.string().trim();
 
 export const zNonEmptyString = z.string().trim().min(1);
 

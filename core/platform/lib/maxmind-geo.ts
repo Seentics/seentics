@@ -11,7 +11,7 @@ const log = baseLog.child({ category: "geo" });
 const BUNDLED_MAXMIND_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "db", "maxmind");
 
 /** Prefer `MAXMIND_DB_PATH` when it exists; otherwise any `*.mmdb` under `core/db/maxmind/`. */
-export function resolveCityMmdbPath(optionalEnvPath: string): string {
+function resolveCityMmdbPath(optionalEnvPath: string): string {
   const env = (optionalEnvPath ?? "").trim();
   if (env && existsSync(env)) return env;
   for (const name of ["GeoLite2-City.mmdb", "GeoIP2-City.mmdb"]) {

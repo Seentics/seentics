@@ -1,5 +1,5 @@
-import { sql } from "../../../db";
 import type { UsageCounter, UsageScope } from "../../../platform/usage";
+import type { AiRepository } from "../interfaces/ai-repository.interface";
 
 /**
  * Successful AI analyses this calendar month.
@@ -11,14 +11,9 @@ import type { UsageCounter, UsageScope } from "../../../platform/usage";
 export class AiUsageCounter implements UsageCounter {
   readonly key = "ai_analyses";
 
+  constructor(private readonly repo: AiRepository) {}
+
   async countForUser(scope: UsageScope): Promise<number> {
-    const rows = await sql<[{ c: number }]>`
-      SELECT COUNT(*)::int AS c
-      FROM ai_queries
-      WHERE user_id = ${scope.userId}::uuid
-        AND status = 'success'
-        AND created_at >= ${scope.monthStart}
-    `;
-    return rows[0]?.c ?? 0;
+    return this.repo.countSuccessfulSince(scope.userId, scope.monthStart);
   }
 }

@@ -203,18 +203,12 @@ with folders.
 
 ## Known gaps
 
-Two places still call `lib/website-resolve` directly instead of going through the
-`WebsiteQuery` port, and both have the same cause: their only caller is the tracker
-path, which is a module-level router not composed through `app/bootstrap.ts` and so
-has nowhere to receive an injected port from.
-
-| Where | Called by |
-|---|---|
-| `captureHeatmapScreenshot` in `modules/heatmaps/services/screenshot.service.ts` | `modules/ingest/routes.ts` |
-| the batch flush in `modules/recordings/services/recording-engine.service.ts` | the ingest flush |
-
-Both are marked in their own doc comments. Modularising ingest and the tracker is
-what closes them — until then, do not copy the pattern into new code.
+The two `lib/website-resolve` callers this section used to list are gone: `createTrackerRoutes`
+is a factory now, so the tracker receives `TrackerWebsites` like anything else, and the
+module itself has been deleted. The private-bus gap below it is closed too. Both are
+recorded here only because the shapes are worth recognising if they come back — a
+capability reached for through a module-level import because the router had no injection
+point, and a service constructing its own `EventBus`.
 
 ### Event coverage
 
@@ -253,12 +247,13 @@ a subscriber with no publisher.
 
 ### A private bus that swallows events
 
-`legacyEvaluation()` in `modules/automations/services/evaluate.service.ts`
-constructs its own `InMemoryEventBus`, so `automation.action_executed` published
-through that path reaches nobody. It survives because the event that matters,
-`automation.triggered`, goes through the outbox instead. The fix is to construct
-`AutomationEvaluationService` in `app/bootstrap.ts` and inject it once the tracker
-routes are composed.
+Closed. `legacyEvaluation()` and the `InMemoryEventBus` it constructed for itself are
+gone; `AutomationEvaluationService` is built in `app/bootstrap.ts` and injected, so
+`automation.action_executed` is published onto the real bus.
+
+The failure mode is worth keeping in mind, because nothing about it is visible at the
+call site: a service that constructs its own bus publishes successfully, to nobody. If a
+module needs a bus, it takes one.
 
 ## Session recordings: what is and is not optimised
 

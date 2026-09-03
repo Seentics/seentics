@@ -25,8 +25,3 @@ export const memberAddSchema = z.object({
 export const memberRoleSchema = z.object({
   role: zNonEmptyString.max(32),
 });
-
-export const shareToggleSchema = z.object({
-  enabled: z.boolean().optional().default(true),
-});
-

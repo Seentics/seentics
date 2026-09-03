@@ -7,7 +7,7 @@ import type {
 } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
-import { upsertVisitorProfile } from "../../automations/services/visitor-profile.service";
+import type { VisitorProfileWriter } from "../../automations/interfaces";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { IngestQueue } from "../interfaces";
 import { log as baseLog } from "../../../platform/lib/logger";
@@ -38,7 +38,7 @@ function asDataMap(v: unknown): Record<string, unknown> {
   return {};
 }
 
-export function parseCollectEvents(raw: unknown[]): TrackerEvent[] {
+function parseCollectEvents(raw: unknown[]): TrackerEvent[] {
   const out: TrackerEvent[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
@@ -95,6 +95,15 @@ export type CollectHandlerContext = {
    * fake and the routes pass whichever queue the composition root built.
    */
   queue: IngestQueue;
+  /**
+   * Where the visitor profile goes.
+   *
+   * On the context for the same reason as `queue`: this used to be a direct import of
+   * `automations/services/visitor-profile.service`, which reached past that module's
+   * interfaces into its implementation — and pulled `db` in at import time, so these
+   * handlers could not be exercised without a database.
+   */
+  visitorProfiles: VisitorProfileWriter;
 };
 
 /**
@@ -158,7 +167,7 @@ export function handleVisitorProfile(ctx: CollectHandlerContext): void {
   }
 
   const meta = ctx.ingestMeta;
-  void upsertVisitorProfile({
+  void ctx.visitorProfiles.upsert({
     websiteId: ctx.website.id,
     anonymousId,
     userId,

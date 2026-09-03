@@ -24,8 +24,8 @@ import type {
   WebsiteTrafficReads,
   WebsiteUserMutations,
 } from "./interfaces";
-import { toUpdateWebsiteInput } from "./routes/patch-mapping";
-import { presentWebsite, presentWebsites } from "./routes/website-presenter";
+import { toUpdateWebsiteInput } from "./lib/patch-mapping";
+import { presentWebsite, presentWebsites } from "./lib/website-presenter";
 
 /**
  * HTTP surface for websites, mounted at `/api/v1/websites`.

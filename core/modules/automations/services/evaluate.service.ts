@@ -217,7 +217,7 @@ export type EvaluationDependencies = {
   executeWebhook: typeof executeWebhook;
 };
 
-export const defaultEvaluationDependencies: EvaluationDependencies = {
+const defaultEvaluationDependencies: EvaluationDependencies = {
   listActiveAutomationsByPriority,
   getImpressionStats,
   executeWebhook,

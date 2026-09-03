@@ -1,48 +1,36 @@
-import { eq, inArray } from "drizzle-orm";
-import { db, users } from "../../../db";
 import type { FrontendUser, UserDirectory, UserProfile } from "../interfaces";
+import type { UserRepository } from "../interfaces/user-repository.interface";
 import { toFrontendUser } from "./user-mapper";
-
-/** Only the fields `UserProfile` exposes — never the password hash. */
-const PROFILE_COLUMNS = {
-  id: users.id,
-  email: users.email,
-  name: users.name,
-  createdAt: users.createdAt,
-} as const;
 
 /**
  * `UserDirectory` over the `users` table.
  *
- * Deliberately a narrow projection: `getUserById` in `auth.service.ts` returns the
- * whole row, password hash included, and two callers outside this module were using it.
+ * A mapper over `UserRepository` — the narrow-projection queries it used to hold
+ * directly now live in the repository beside every other `users` read, which is what
+ * keeps `db` confined to a single file in this module.
+ *
+ * The projection still matters: `getProfileForClient` is the only method here that
+ * reads a whole row, and it exists because the signed-in user's own client needs the
+ * wide shape. Everything a *peer* module sees goes through `UserProfile`, which has no
+ * password hash to leak.
  */
 export class UserDirectoryService implements UserDirectory {
+  constructor(private readonly users: UserRepository) {}
+
   async getById(userId: string): Promise<UserProfile | null> {
-    const [row] = await db.select(PROFILE_COLUMNS).from(users).where(eq(users.id, userId)).limit(1);
-    return row ?? null;
+    return this.users.profileById(userId);
   }
 
   async getProfileForClient(userId: string): Promise<FrontendUser | null> {
-    const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const row = await this.users.findById(userId);
     return row ? toFrontendUser(row) : null;
   }
 
   async findByEmail(email: string): Promise<UserProfile | null> {
-    const [row] = await db
-      .select(PROFILE_COLUMNS)
-      .from(users)
-      .where(eq(users.email, email.trim().toLowerCase()))
-      .limit(1);
-    return row ?? null;
+    return this.users.profileByEmail(email.trim().toLowerCase());
   }
 
   async listByIds(userIds: readonly string[]): Promise<Map<string, UserProfile>> {
-    if (userIds.length === 0) return new Map();
-    const rows = await db
-      .select(PROFILE_COLUMNS)
-      .from(users)
-      .where(inArray(users.id, [...userIds]));
-    return new Map(rows.map((r) => [r.id, r]));
+    return this.users.profilesByIds(userIds);
   }
 }

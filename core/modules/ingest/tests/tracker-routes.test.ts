@@ -14,6 +14,7 @@ import type {
   CaptureScreenshotResult,
   HeatmapScreenshotCapture,
 } from "../../heatmaps/interfaces";
+import { testConfig } from "../../../app/tests/helpers/test-config";
 
 // ─── Mocks — must be declared before dynamic import ─────────────────────────
 //
@@ -31,9 +32,15 @@ const mockHandleFunnels    = mock(() => {});
 const mockHandleAutomations = mock(() => {});
 const mockHandleRecordings  = mock(() => {});
 const mockHandleHeatmaps    = mock(() => {});
+const mockHandleVisitorProfile = mock(() => {});
 
+// Every named export `routes.ts` imports must appear here. Bun resolves the mock as
+// the whole module, so a handler added to `collect-handlers` and left out of this
+// object fails as `SyntaxError: Export named '...' not found` — pointing at the real
+// file, which does export it.
 mock.module("../services/collect-handlers", () => ({
   handleEvents: mockHandleEvents,
+  handleVisitorProfile: mockHandleVisitorProfile,
   handleFunnels: mockHandleFunnels,
   handleAutomations: mockHandleAutomations,
   handleRecordings: mockHandleRecordings,
@@ -54,15 +61,9 @@ mock.module("../../../platform/lib/logger", () => {
   return { log: logger };
 });
 
-// dev environment → empty origin always passes, localhost always passes
-mock.module("../../../config", () => ({
-  env: () => ({
-    environment: "development",
-    trustProxy: false,
-    isProduction: false,
-    diagnosticLog: false,
-  }),
-}));
+// dev environment → empty origin always passes, localhost always passes.
+// Global to the whole run — see `testConfig` for why it must be complete.
+mock.module("../../../config", () => ({ env: () => testConfig() }));
 
 mock.module("../services/ingest-meta.service", () => ({
   buildAnalyticsIngestMeta: mock(() => ({
@@ -194,6 +195,7 @@ let funnels: FakeFunnelConfig;
 let automations: FakeAutomationSettings;
 let automationEvaluation: FakeAutomationEvaluation;
 let screenshots: FakeScreenshotCapture;
+let visitorProfiles: { upsert: ReturnType<typeof mock<() => Promise<void>>> };
 
 beforeAll(async () => {
   ({ createTrackerRoutes } = await import("../routes"));
@@ -214,8 +216,10 @@ beforeEach(() => {
 
   // Requested at the paths `index.ts` mounts under `/api/v1/tracker`.
   queue = makeFakeQueue();
+  visitorProfiles = { upsert: mock(async () => {}) };
   app = createTrackerRoutes({
     queue,
+    visitorProfiles,
     automations,
     automationEvaluation,
     funnels,
