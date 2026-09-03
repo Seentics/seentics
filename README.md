@@ -35,15 +35,14 @@ Your data stays on your infrastructure.
 
 ## Features
 
-- **Seentics AI** — ask questions in plain English; generates SQL and renders charts across analytics, revenue, replays, heatmaps, funnels and automations (`⌘K`)
 - **Real-time analytics** — live visitor map, active pages, traffic as it happens
+- **Behavioral automations** — modals, banners, webhooks and redirects from behaviour
 - **Session replays** — full recordings with rage-click and JS error detection
 - **Heatmaps** — click maps, scroll depth, captured page screenshots
 - **Funnels** — multi-step conversion analysis with drop-off rates
 - **Revenue** — orders, AOV, ARPU, UTM channel attribution
-- **Custom events and goals** — typed properties; page, event or CSS-selector conversions
-- **Behavioral automations** — modals, banners, toasts, tooltips, content personalisation, redirects and webhooks, fired from visitor behaviour
-- **Path analysis** — how users move between pages
+- **Events and goals** — page, event or CSS-selector conversions
+- **Seentics AI** — ask questions in plain English, get charts back (`⌘K`)
 
 ## Quick Start
 
