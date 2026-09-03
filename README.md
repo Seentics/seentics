@@ -93,23 +93,14 @@ in the dashboard rather than in code.
 
 ```
 seentics/
-├── core/          Bun + Hono API — a modular monolith
-│   ├── app/       Composition root: the one place the graph is wired
-│   ├── modules/   Domain modules, each owning a table
-│   │              websites · analytics · ingest · recordings
-│   │              heatmaps · funnels · automations · ai · auth
-│   ├── platform/  Cross-cutting, owns no table
-│   │              middleware · validation · lib · scheduler
-│   │              retention · raw-data · internal
+├── core/            Bun + Hono API — a modular monolith
+│   ├── app/         Composition root, where the graph is wired
+│   ├── modules/     Domain modules, one table each
+│   ├── platform/    Cross-cutting; owns no table
 │   ├── infrastructure/  Event bus, transactional outbox
-│   └── db/        Drizzle schema and migrations
-│
-├── web/           Next.js dashboard
-│   ├── public/trackers/   seentics.js — the tracking script
-│   └── src/app/websites/[websiteId]/   analytics, replays, heatmaps,
-│                                       funnels, revenue, automations, settings
-│
-└── ui/blocks/     @seentics/ui — embeddable React blocks (MIT)
+│   └── db/          Drizzle schema and migrations
+├── web/             Next.js dashboard, plus public/trackers/seentics.js
+└── ui/blocks/       @seentics/ui — embeddable React blocks (MIT)
 ```
 
 Modules talk to each other through explicit interfaces for synchronous calls and
