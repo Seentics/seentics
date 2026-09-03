@@ -29,6 +29,7 @@ import {
   Lock, ExternalLink,
   Camera,
 } from 'lucide-react';
+import { DemoHeatmapPage } from '@/components/heatmaps/DemoHeatmapPage';
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import {
@@ -437,6 +438,39 @@ function HeatmapPreviewBrowserChrome({
 }
 
 // ─── Canvas overlay ───────────────────────────────────────────────────────────
+/**
+ * The stage, in demo mode.
+ *
+ * Deliberately not `HeatmapViewer`. That component's whole job is to line recorded
+ * points up with a captured snapshot — it measures the snapshot's natural size, picks
+ * a document height from stored `doc_height`, and paints two canvas passes at those
+ * dimensions. Demo mode has no snapshot and no real points, so every one of those
+ * inputs would be a guess, and the guess is what produced the old screen: blobs
+ * scattered over an empty grid under the words "No screenshot yet".
+ *
+ * Here the page is a component of known size carrying its own heat, so there is
+ * nothing to align and no canvas to paint. The Clicks/Scroll toggle still works — it
+ * swaps the layer inside `DemoHeatmapPage` — while the device selector does not,
+ * since there is only one rendering of the page.
+ */
+function DemoHeatmapStage({ pageUrl, heatType }: { pageUrl: string; heatType: HeatType }) {
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
+      <HeatmapPreviewBrowserChrome
+        pageUrl={pageUrl}
+        underlay="screenshot"
+        loadState="loaded"
+        usingPageVisual
+      />
+      <div className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto p-5">
+        <div className="mx-auto w-full max-w-[860px] overflow-hidden rounded-lg border border-border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.45)]">
+          <DemoHeatmapPage heat={heatType === 'scroll' ? 'scroll' : 'click'} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HeatmapViewer({
   pageUrl,
   points,
@@ -1098,15 +1132,19 @@ export default function HeatmapDetailPage() {
             </div>
           ) : (
             <div className="relative min-h-0 flex-1">
-              <HeatmapViewer
-                key={`${websiteId}:${urlPath}`}
-                pageUrl={activePreviewUrl || heatmapPathLine}
-                points={points}
-                heatType={heatType}
-                underlay={previewUnderlay}
-                preferredViewportWidth={preferredViewportWidth}
-                pageScreenshot={isDemoMode ? null : (pageScreenshot ?? null)}
-              />
+              {isDemoMode ? (
+                <DemoHeatmapStage pageUrl={heatmapPathLine} heatType={heatType} />
+              ) : (
+                <HeatmapViewer
+                  key={`${websiteId}:${urlPath}`}
+                  pageUrl={activePreviewUrl || heatmapPathLine}
+                  points={points}
+                  heatType={heatType}
+                  underlay={previewUnderlay}
+                  preferredViewportWidth={preferredViewportWidth}
+                  pageScreenshot={pageScreenshot ?? null}
+                />
+              )}
               {points.length === 0 && !isLoading && !isDemoMode && (
                 <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
                   <div className="rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-sm">

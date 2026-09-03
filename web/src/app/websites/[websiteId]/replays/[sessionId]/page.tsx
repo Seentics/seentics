@@ -24,6 +24,7 @@ import {
   type RRWebEvent,
   type SessionCustomEvent,
 } from '@/lib/replays-api';
+import { DemoReplayPlayer } from '@/components/replays/DemoReplayStage';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -286,10 +287,15 @@ export default function ReplayDetailPage() {
     (sessionApiResp?.warm_chunks?.length ?? 0) > 0
   );
   const isLoading =
-    metaLoading ||
-    (!sessionApiResp && !isError) ||
-    // API responded with chunk data but initial S3 batch not yet fetched/processed
-    (chunkDataAvailable && !initialBatchDone && !chunksError && !sessionApiResp?.recording_pending);
+    // Never in demo mode. The metadata query is disabled there, so `sessionApiResp`
+    // stays undefined and `isError` stays false forever — which made the second
+    // clause permanently true and left the demo player spinning on
+    // "Loading recording…" instead of showing the demo session.
+    !isDemoMode &&
+    (metaLoading ||
+      (!sessionApiResp && !isError) ||
+      // API responded with chunk data but initial S3 batch not yet fetched/processed
+      (chunkDataAvailable && !initialBatchDone && !chunksError && !sessionApiResp?.recording_pending));
 
   const session = isDemoMode
     ? ({
@@ -463,7 +469,11 @@ export default function ReplayDetailPage() {
           <div
             className={cn(
               'flex min-w-0 w-full flex-col',
-              hasRecording ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4' : 'min-h-0 flex-1 basis-0 px-3 pb-3 pt-2 sm:px-4',
+              // Demo counts as having a recording for layout: it renders a player, so
+              // it wants the player's padding rather than the empty state's centring.
+              hasRecording || isDemoMode
+                ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4'
+                : 'min-h-0 flex-1 basis-0 px-3 pb-3 pt-2 sm:px-4',
             )}
           >
             {isLoading ? (
@@ -527,6 +537,17 @@ export default function ReplayDetailPage() {
                   </Button>
                 </div>
               </div>
+            ) : isDemoMode ? (
+              /*
+               * The demo session, playing.
+               *
+               * Demo mode has no rrweb bytes in object storage, so this used to be an
+               * empty state apologising for the missing recording — which meant the
+               * one visitor most likely to be evaluating replays was the one who never
+               * saw what they look like. Shared with the landing page's preview, so
+               * both stay the same screen.
+               */
+              <DemoReplayPlayer />
             ) : !hasRecording ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
                 <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
@@ -535,9 +556,7 @@ export default function ReplayDetailPage() {
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-semibold text-foreground">No recording for this session</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isDemoMode ? (
-                      'Demo mode has no sample recording. Enable replay on a live site to see playback here.'
-                    ) : hasNonRrwebSignals ? (
+                    {hasNonRrwebSignals ? (
                       <>
                         We stored client-side signals (for example JavaScript errors) for this visit, but there is no
                         rrweb DOM recording. Usually{' '}
@@ -619,7 +638,10 @@ export default function ReplayDetailPage() {
             )}
           </div>
 
-          {hasRecording ? (
+          {/* Demo included: the tabs carry the session summary, which is the half of
+              this screen that explains who the visitor was. Without it the demo shows
+              a player floating on an empty page. */}
+          {hasRecording || isDemoMode ? (
             <ReplaySessionSidebar
               replayBridge={replayBridge}
               session={session ?? null}
