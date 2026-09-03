@@ -1,7 +1,6 @@
 import type { AppConfig } from "../../config";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { AnalyticsModule, TrafficSummary } from "./interfaces";
-import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
 import { createAnalyticsRoutes } from "./routes";
 import { AnalyticsIngestService } from "./services/analytics-ingest.service";
 import { AnalyticsQueryService } from "./services/analytics-query.service";
@@ -53,8 +52,7 @@ export function initAnalyticsModule(deps: {
       publicDashboard,
       // Access checks read through the uncached view on purpose — see `WebsitesModule`.
       websites: websitesModule.accessChecks,
+      cfg: deps.cfg,
     }),
-
-    cacheMiddleware: analyticsCacheMiddleware(deps.cfg),
   };
 }

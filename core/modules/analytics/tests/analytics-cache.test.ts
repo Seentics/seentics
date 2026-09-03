@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import type { Context } from "hono";
+import type { AuthVars } from "../../../platform/middleware/auth";
 import type { AppConfig } from "../../../config";
-import { analyticsCacheMiddleware } from "../middleware/analytics-cache";
+import { analyticsCacheMiddleware, PUBLIC_IDENTITY } from "../middleware/analytics-cache";
 
 /**
  * The read-through cache in front of the analytics router.
  *
- * Two properties carry the risk here. The first is that the key is derived from the
- * JWT *subject* rather than the raw header, so a token refresh does not cold-start the
- * cache — and, more importantly, so two different users can never share an entry. The
- * second is what must never be cached: exports, non-200s, and anything carrying a
- * Set-Cookie. Both are tested by observation through a real Hono app rather than by
- * reaching into the cache.
+ * Identity now arrives through `identify`, and the caller is responsible for passing
+ * something already authenticated. An earlier version derived it here by base64-decoding
+ * the JWT payload without checking the signature, which — combined with the cache being
+ * mounted globally, ahead of `authMiddleware` — meant a forged `alg: none` token carrying
+ * a victim's id was served the victim's cached response. The tests for that behaviour
+ * described it as a feature ("survives a token refresh"), so they are gone with it.
+ * `analytics-cache-auth.test.ts` covers the ordering end to end.
+ *
+ * What remains risky and is tested here: two identities must never share an entry, a
+ * request with no identity must not be cached at all, and exports, non-200s and
+ * Set-Cookie responses must never be stored. All observed through a real Hono app rather
+ * than by reaching into the cache.
  */
 
 function config(over: Partial<AppConfig["analyticsCache"]> = {}): AppConfig {
@@ -21,15 +28,23 @@ function config(over: Partial<AppConfig["analyticsCache"]> = {}): AppConfig {
   } as AppConfig;
 }
 
-/** A base64url JWT carrying just the claims a key derivation would read. */
-function jwt(claims: Record<string, unknown>, signature = "sig"): string {
-  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
-  return `${b64({ alg: "HS256" })}.${b64(claims)}.${signature}`;
+/**
+ * Stands in for `authMiddleware`: sets a *verified* user on the context.
+ *
+ * The header is trusted here because this file tests the cache, not authentication —
+ * in the real router the value comes from `verifyAccessToken`.
+ */
+function withUser(a: Hono<{ Variables: AuthVars }>) {
+  a.use("*", async (c, next) => {
+    const u = c.req.header("x-test-user");
+    if (u) c.set("userId", u);
+    await next();
+  });
 }
 
 describe("analyticsCacheMiddleware", () => {
   let hits: number;
-  let app: Hono;
+  let app: Hono<{ Variables: AuthVars }>;
 
   /**
    * An app whose handler counts invocations, so a cache hit is observable as the
@@ -40,8 +55,9 @@ describe("analyticsCacheMiddleware", () => {
     handler?: (c: Context) => Response | Promise<Response>,
   ) {
     hits = 0;
-    const a = new Hono();
-    a.use("*", analyticsCacheMiddleware(cfg));
+    const a = new Hono<{ Variables: AuthVars }>();
+    withUser(a);
+    a.use("*", analyticsCacheMiddleware(cfg, (c) => c.get("userId") ?? null));
     a.all("*", (c) => {
       hits++;
       return handler ? handler(c) : c.json({ served: hits });
@@ -53,8 +69,20 @@ describe("analyticsCacheMiddleware", () => {
     app = makeApp();
   });
 
-  function get(path: string, auth?: string) {
-    return app.request(path, { headers: auth ? { authorization: auth } : {} });
+  /**
+   * `user` is the identity `authMiddleware` would have resolved.
+   *
+   * Defaulted, because almost every test here is about *what* gets cached rather than
+   * for whom, and an unidentified request is now deliberately never cached — see the
+   * "no resolved identity" block. Use `getAnonymous` to exercise that path.
+   */
+  function get(path: string, user = "default_user") {
+    return app.request(path, { headers: { "x-test-user": user } });
+  }
+
+  /** A request that reached the cache without a resolved user. */
+  function getAnonymous(path: string) {
+    return app.request(path, { headers: {} });
   }
 
   // ─── What gets cached ─────────────────────────────────────────────────────
@@ -91,11 +119,19 @@ describe("analyticsCacheMiddleware", () => {
       expect(hits).toBe(2);
     });
 
-    it("ignores paths outside the analytics router", async () => {
-      await get("/api/v1/websites/site_1");
-      const second = await get("/api/v1/websites/site_1");
-      expect(hits).toBe(2);
-      expect(second.headers.get("X-Cache")).toBeNull();
+    /**
+     * Scope is the mount point now, not a string check.
+     *
+     * The middleware used to test for an `/api/v1/analytics` prefix because it was
+     * mounted globally in `index.ts` and saw every request in the process. Mounting it
+     * inside the analytics router is what fixed the auth-ordering bug, and it also means
+     * a path outside that router never reaches this code at all.
+     */
+    it("caches whatever the router it is mounted in receives", async () => {
+      await get("/api/v1/analytics/anything");
+      const second = await get("/api/v1/analytics/anything");
+      expect(hits).toBe(1);
+      expect(second.headers.get("X-Cache")).toBe("HIT");
     });
 
     it("never caches an export — the payload is large and one-shot", async () => {
@@ -135,8 +171,8 @@ describe("analyticsCacheMiddleware", () => {
 
     it("does not cache a 403", async () => {
       app = makeApp(config(), (c) => c.json({ error: "forbidden" }, 403));
-      await get("/api/v1/analytics/dashboard/site_1", `Bearer ${jwt({ sub: "u1" })}`);
-      await get("/api/v1/analytics/dashboard/site_1", `Bearer ${jwt({ sub: "u1" })}`);
+      await get("/api/v1/analytics/dashboard/site_1", "u1");
+      await get("/api/v1/analytics/dashboard/site_1", "u1");
       expect(hits).toBe(2);
     });
 
@@ -189,63 +225,61 @@ describe("analyticsCacheMiddleware", () => {
     });
 
     it("never shares an entry between two users", async () => {
-      const a = `Bearer ${jwt({ sub: "user_a" })}`;
-      const b = `Bearer ${jwt({ sub: "user_b" })}`;
-
-      await get("/api/v1/analytics/dashboard/site_1", a);
-      const second = await get("/api/v1/analytics/dashboard/site_1", b);
+      await get("/api/v1/analytics/dashboard/site_1", "user_a");
+      const second = await get("/api/v1/analytics/dashboard/site_1", "user_b");
 
       expect(hits).toBe(2);
       expect(second.headers.get("X-Cache")).toBe("MISS");
     });
 
-    it("survives a token refresh — same subject, different signature", async () => {
-      // This is why the key uses the decoded subject rather than the header: a client
-      // that refreshes its JWT every few minutes would otherwise never hit the cache.
-      const before = `Bearer ${jwt({ sub: "user_a" }, "signature-one")}`;
-      const after = `Bearer ${jwt({ sub: "user_a", iat: 999 }, "signature-two")}`;
-
-      await get("/api/v1/analytics/dashboard/site_1", before);
-      const second = await get("/api/v1/analytics/dashboard/site_1", after);
+    it("hits for the same user regardless of which token they presented", async () => {
+      // The key is the resolved user, not the credential, so a client that refreshes
+      // its JWT every few minutes still hits the cache. That was the original goal of
+      // decoding the token here; taking the id from `authMiddleware` gets it without
+      // parsing anything unverified.
+      await get("/api/v1/analytics/dashboard/site_1", "user_a");
+      const second = await get("/api/v1/analytics/dashboard/site_1", "user_a");
 
       expect(second.headers.get("X-Cache")).toBe("HIT");
       expect(hits).toBe(1);
     });
 
-    it("falls back to alternate identity claims", async () => {
-      for (const claims of [{ user_id: "u9" }, { id: "u9" }]) {
-        app = makeApp();
-        const token = `Bearer ${jwt(claims, "sig-a")}`;
-        const refreshed = `Bearer ${jwt(claims, "sig-b")}`;
-        await get("/api/v1/analytics/dashboard/site_1", token);
-        expect((await get("/api/v1/analytics/dashboard/site_1", refreshed)).headers.get("X-Cache")).toBe(
-          "HIT",
-        );
-      }
+    describe("a request with no resolved identity", () => {
+      /**
+       * Fail closed. Serving a cached body to a request that never proved who it is
+       * repeats the original bug, and storing one under a shared placeholder key would
+       * pool unrelated callers into a single entry.
+       */
+      it("is never served from the cache", async () => {
+        await get("/api/v1/analytics/dashboard/site_1", "user_a");
+        const anon = await getAnonymous("/api/v1/analytics/dashboard/site_1");
+
+        expect(anon.headers.get("X-Cache")).toBeNull();
+        expect(hits).toBe(2);
+      });
+
+      it("is never stored in the cache", async () => {
+        await getAnonymous("/api/v1/analytics/dashboard/site_1");
+        const again = await getAnonymous("/api/v1/analytics/dashboard/site_1");
+
+        expect(again.headers.get("X-Cache")).toBeNull();
+        expect(hits).toBe(2);
+      });
     });
 
-    it("keys on the whole header when the token is not a decodable JWT", async () => {
-      // Degrading to the raw value keeps two different opaque tokens apart, which is
-      // the safe direction to fail in.
-      await get("/api/v1/analytics/dashboard/site_1", "Bearer opaque-token-one");
-      const other = await get("/api/v1/analytics/dashboard/site_1", "Bearer opaque-token-two");
-      expect(hits).toBe(2);
-      expect(other.headers.get("X-Cache")).toBe("MISS");
-    });
+    it("gives the public scope one entry shared by every holder of the link", async () => {
+      // `PUBLIC_IDENTITY` is a constant: a share link has no viewer, and the response
+      // is the same for everyone who opens it.
+      const a = new Hono();
+      let served = 0;
+      a.use("*", analyticsCacheMiddleware(config(), PUBLIC_IDENTITY));
+      a.all("*", (c) => c.json({ served: ++served }));
 
-    it("does not let an anonymous request read an authenticated entry", async () => {
-      await get("/api/v1/analytics/public/dashboard/share_1", `Bearer ${jwt({ sub: "u1" })}`);
-      const anon = await get("/api/v1/analytics/public/dashboard/share_1");
-      expect(anon.headers.get("X-Cache")).toBe("MISS");
-      expect(hits).toBe(2);
-    });
+      await a.request("/api/v1/analytics/public/dashboard/share_1");
+      const second = await a.request("/api/v1/analytics/public/dashboard/share_1");
 
-    it("accepts a lower-case bearer prefix", async () => {
-      const token = jwt({ sub: "u1" });
-      await get("/api/v1/analytics/dashboard/site_1", `bearer ${token}`);
-      expect(
-        (await get("/api/v1/analytics/dashboard/site_1", `Bearer ${token}`)).headers.get("X-Cache"),
-      ).toBe("HIT");
+      expect(second.headers.get("X-Cache")).toBe("HIT");
+      expect(served).toBe(1);
     });
   });
 

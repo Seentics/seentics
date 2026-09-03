@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import type { Context, Next } from "hono";
 import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfaces";
 import type { AnalyticsPublicDashboard, AnalyticsQueryParams, AnalyticsReads } from "../interfaces";
+import { testConfig } from "../../../app/tests/helpers/test-config";
 
 // ─── Mocks — registered before the dynamic import at the bottom ──────────────
 //
@@ -175,7 +176,7 @@ describe("analytics routes", () => {
 
     app = new Hono();
     // Mounted at the base path the app uses, so the paths under test are the real ones.
-    app.route("/api/v1/analytics", createAnalyticsRoutes({ analytics, publicDashboard, websites }));
+    app.route("/api/v1/analytics", createAnalyticsRoutes({ analytics, publicDashboard, websites, cfg: testConfig() }));
   });
 
   function request(path: string, user?: string, init: RequestInit = {}) {
@@ -556,7 +557,7 @@ describe("analytics routes", () => {
       // The guard against a new endpoint shipping untested — and, more importantly,
       // shipping unguarded, since the 401/403 sweeps above are driven off the same table.
       const registered = new Set(
-        createAnalyticsRoutes({ analytics, publicDashboard, websites })
+        createAnalyticsRoutes({ analytics, publicDashboard, websites, cfg: testConfig() })
           .routes.filter((r) => r.method !== "ALL")
           .map((r) => `${r.method} ${r.path}`),
       );
@@ -568,7 +569,7 @@ describe("analytics routes", () => {
 
     it("does not claim coverage of routes that no longer exist", async () => {
       const registered = new Set(
-        createAnalyticsRoutes({ analytics, publicDashboard, websites })
+        createAnalyticsRoutes({ analytics, publicDashboard, websites, cfg: testConfig() })
           .routes.filter((r) => r.method !== "ALL")
           .map((r) => `${r.method} ${r.path}`),
       );

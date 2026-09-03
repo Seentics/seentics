@@ -18,18 +18,15 @@ export class AiService implements AiQuery, AiAccessCheck {
   ) {}
 
   /**
-   * Resolve a website reference to both identifiers.
+   * Resolve a website reference to its id.
    *
    * `null` when unknown. Callers turn that into an empty result rather than an
    * error: the routes check access first, so an unresolvable reference here means
    * the website disappeared between the guard and the call.
    */
-  private async resolve(
-    websiteRef: string,
-  ): Promise<{ websiteId: string; uuid: string } | null> {
+  private async resolve(websiteRef: string): Promise<string | null> {
     const website = await this.websites.getById(websiteRef);
-    if (!website) return null;
-    return { websiteId: website.id, uuid: website.id };
+    return website?.id ?? null;
   }
 
   async runQuery(

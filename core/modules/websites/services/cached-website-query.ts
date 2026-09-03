@@ -26,7 +26,7 @@ type CacheEntry = { website: Website | null; expiresAt: number };
  * still has access is not a trade worth making for one indexed lookup.
  */
 export class CachedWebsiteQuery implements WebsiteQuery {
-  /** Keyed by the caller's reference, since both a UUID and a websiteId resolve here. */
+  /** Keyed by the caller's reference, which may be the id or another accepted form. */
   private readonly cache = new Map<string, CacheEntry>();
 
   constructor(
@@ -45,11 +45,12 @@ export class CachedWebsiteQuery implements WebsiteQuery {
     // otherwise hit the database on every request forever.
     this.cache.set(websiteRef, { website, expiresAt: now + this.ttlMs });
 
-    // Both identifiers point at the same entity, so warm the other key as well —
-    // the tracker uses websiteId while the dashboard uses the UUID.
-    if (website) {
-      const alias = websiteRef === website.id ? website.id : website.id;
-      this.cache.set(alias, { website, expiresAt: now + this.ttlMs });
+    // A reference that is not already the id gets the id cached too, so a later lookup
+    // by either reaches the same entry. (This used to read `websiteRef === website.id ?
+    // website.id : website.id` — both branches identical — left over from when a website
+    // had a second `site_id` identifier. That column is gone.)
+    if (website && websiteRef !== website.id) {
+      this.cache.set(website.id, { website, expiresAt: now + this.ttlMs });
     }
 
     if (Math.random() < SWEEP_PROBABILITY) this.sweep(now);

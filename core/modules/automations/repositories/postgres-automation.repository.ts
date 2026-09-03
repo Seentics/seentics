@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { automationEvents, automations, db, sql as pgSql } from "../../../db";
 import type {
   AutomationDailyRuns,
@@ -209,10 +209,37 @@ export class PostgresAutomationRepository implements AutomationRepository {
   }
 
   async delete(websiteId: string, automationId: string): Promise<void> {
-    await db.delete(automationEvents).where(eq(automationEvents.automationId, automationId));
-    await db
-      .delete(automations)
-      .where(and(eq(automations.id, automationId), eq(automations.websiteId, websiteId)));
+    await this.deleteMany(websiteId, [automationId]);
+  }
+
+  /**
+   * Two statements for any number of ids, in one transaction.
+   *
+   * The events delete is scoped **through the parent automation**, not by
+   * `automation_id` alone. Deleting by id alone — which is what this did before — is not
+   * confined to `websiteId` at all: the route guard checks access to the website, not to
+   * each automation, so passing another website's automation id destroyed that
+   * automation's history while its row (correctly scoped) survived. The subquery makes
+   * the two deletes agree on what this website owns.
+   *
+   * Transactional because the pair is not independent: events outliving their automation
+   * are unreachable rows, and an automation outliving its events reads as one that never
+   * ran.
+   */
+  async deleteMany(websiteId: string, automationIds: string[]): Promise<void> {
+    if (automationIds.length === 0) return;
+
+    const owned = db
+      .select({ id: automations.id })
+      .from(automations)
+      .where(and(inArray(automations.id, automationIds), eq(automations.websiteId, websiteId)));
+
+    await db.transaction(async (tx) => {
+      await tx.delete(automationEvents).where(inArray(automationEvents.automationId, owned));
+      await tx
+        .delete(automations)
+        .where(and(inArray(automations.id, automationIds), eq(automations.websiteId, websiteId)));
+    });
   }
 
   async listExecutions(automationId: string, limit: number): Promise<AutomationExecutionRow[]> {

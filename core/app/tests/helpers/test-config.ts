@@ -26,6 +26,9 @@ export function testConfig(overrides: Record<string, unknown> = {}): AppConfig {
     trustProxy: false,
     diagnosticLog: false,
     rateLimit: { enabled: false, rawPerKeyMax: 0, windowMs: 60_000 },
+    // Off by default: a route test asserting handler behaviour should not have a second
+    // identical request answered from cache. Tests that exercise the cache turn it on.
+    analyticsCache: { enabled: false, ttlMs: 45_000, maxEntries: 512 },
     s3: { bucket: "test-bucket" },
     // Long enough that no background flush fires while a test is running.
     replayChunkFlushMs: 600_000,

@@ -122,17 +122,14 @@ export class AutomationService
   /**
    * Delete several automations.
    *
-   * Sequential, and deliberately not wrapped in a transaction: each delete spans
-   * two statements, and the endpoint answers 204 whether it removed all of them or
-   * none. Failing the whole batch because one id was already gone would leave the
-   * user unable to clear the rest.
+   * One repository call, where this used to loop and pay two statements per id. The
+   * loop existed so that one already-deleted id could not fail the whole batch — which
+   * `deleteMany` preserves for free: ids that do not exist simply match nothing.
    */
   async bulkDelete(websiteRef: string, automationIds: string[]): Promise<void> {
     const websiteId = await this.resolve(websiteRef);
     if (!websiteId) return;
-    for (const automationId of automationIds) {
-      await this.repository.delete(websiteId, automationId);
-    }
+    await this.repository.deleteMany(websiteId, automationIds);
   }
 
   async toggle(websiteRef: string, automationId: string): Promise<AutomationRow | null> {

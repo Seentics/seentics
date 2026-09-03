@@ -15,7 +15,7 @@ HOW THE DATA IS STRUCTURED:
 
 AUTOMATIONS TABLE — rule definitions:
   • Stores the automation name, active status, and full rule config (in definition JSONB — do NOT query)
-  • website_id is UUID type; filter with: WHERE website_id::text = $1
+  • website_id is UUID type; filter with: WHERE website_id = $1::uuid
 
 AUTOMATION_EVENTS TABLE — execution log:
   Every automation execution is recorded as multiple rows linked by run_id:
@@ -42,7 +42,7 @@ AUTOMATION_EVENTS TABLE — execution log:
 IMPORTANT ID FORMAT:
 • automations.website_id is UUID (NOT the text website_id)
 • Always join automation_events to automations to apply the website filter:
-  JOIN automations a ON ae.automation_id = a.id WHERE a.website_id::text = $1
+  JOIN automations a ON ae.automation_id = a.id WHERE a.website_id = $1::uuid
 
 ═══════════════════════════════════════════════════════════════
 DATABASE TABLES
@@ -51,7 +51,7 @@ TABLE: automations
 Column              Type                  Notes
 ─────────────────── ───────────────────── ───────────────────────────────────────────────────
 id                  UUID PRIMARY KEY      Always cast: id::text AS id when selecting
-website_id          UUID NOT NULL         ALWAYS filter via JOIN: a.website_id::text = $1
+website_id          UUID NOT NULL         ALWAYS filter via JOIN: a.website_id = $1::uuid
 name                TEXT NOT NULL         Automation rule name, e.g. 'Cart Abandonment Email'
 is_active           BOOLEAN NOT NULL      true = currently active
 definition          JSONB NOT NULL        Full rule config — DO NOT QUERY
@@ -95,7 +95,7 @@ SELECT a.name,
              / NULLIF(COUNT(*), 0), 2)                                       AS success_rate_pct
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1 AND ae.record_type = 'server_run'
+WHERE a.website_id = $1::uuid AND ae.record_type = 'server_run'
 GROUP BY a.id, a.name
 ORDER BY total_runs DESC LIMIT 20;
 
@@ -103,14 +103,14 @@ ORDER BY total_runs DESC LIMIT 20;
 SELECT COUNT(*) AS value
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1 AND ae.record_type = 'server_run'
+WHERE a.website_id = $1::uuid AND ae.record_type = 'server_run'
   AND ae.created_at >= date_trunc('month', NOW());
 
 -- Automation runs per day (trend)
 SELECT date_trunc('day', ae.created_at) AS day, COUNT(*) AS count
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1 AND ae.record_type = 'server_run'
+WHERE a.website_id = $1::uuid AND ae.record_type = 'server_run'
   AND ae.created_at >= date_trunc('day', NOW() - INTERVAL '30 days')
 GROUP BY day ORDER BY day;
 
@@ -118,7 +118,7 @@ GROUP BY day ORDER BY day;
 SELECT a.name, ae.error_code, ae.error_message, ae.created_at
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1 AND ae.record_type = 'server_run' AND ae.status = 'failed'
+WHERE a.website_id = $1::uuid AND ae.record_type = 'server_run' AND ae.status = 'failed'
   AND ae.created_at >= date_trunc('day', NOW() - INTERVAL '7 days')
 ORDER BY ae.created_at DESC LIMIT 50;
 
@@ -126,14 +126,14 @@ ORDER BY ae.created_at DESC LIMIT 50;
 SELECT a.name, ROUND(AVG(ae.duration_ms), 2) AS avg_duration_ms
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1 AND ae.record_type = 'server_run' AND ae.duration_ms IS NOT NULL
+WHERE a.website_id = $1::uuid AND ae.record_type = 'server_run' AND ae.duration_ms IS NOT NULL
 GROUP BY a.id, a.name ORDER BY avg_duration_ms DESC LIMIT 20;
 
 -- Trigger volume vs actual runs (client triggers vs server runs)
 SELECT ae.record_type, COUNT(*) AS count
 FROM automation_events ae
 JOIN automations a ON ae.automation_id = a.id
-WHERE a.website_id::text = $1
+WHERE a.website_id = $1::uuid
   AND ae.record_type IN ('client_trigger','server_run')
 GROUP BY ae.record_type;
 
@@ -141,7 +141,7 @@ GROUP BY ae.record_type;
 RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 {
-  "sql": "SELECT ... FROM automation_events ae JOIN automations a ON ae.automation_id = a.id WHERE a.website_id::text = $1 ...",
+  "sql": "SELECT ... FROM automation_events ae JOIN automations a ON ae.automation_id = a.id WHERE a.website_id = $1::uuid ...",
   "viz_type": "table|bar_chart|line_chart|pie_chart|number",
   "title": "Short descriptive title (max 60 chars)",
   "insight": "1-2 sentences interpreting automation performance findings",
@@ -154,7 +154,9 @@ RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 SQL RULES
 ═══════════════════════════════════════════════════════════════
-• ALWAYS join automation_events with automations and filter: a.website_id::text = $1
+• ALWAYS join automation_events with automations and filter: a.website_id = $1::uuid
+  Cast the PARAMETER, never the column. "a.website_id::text = $1" cannot use the index
+  on automations.website_id and scans the whole table.
 • NEVER use OR or NOT — express alternatives with IN (...); both are rejected
 • Repeat the website_id filter in EVERY CTE and subquery that reads a table — a
   filter on the outer query does not scope an inner one, and unscoped inner reads

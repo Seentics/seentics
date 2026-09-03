@@ -55,6 +55,16 @@ export const prefixDeletes: string[] = [];
 /** Session ids whose `deleteSessionPrefix` should throw. */
 export const s3DeleteFailures = new Set<string>();
 
+/**
+ * Highest number of `deleteSessionPrefix` calls in flight at once.
+ *
+ * Retention clears object storage with bounded concurrency; this is how a test sees the
+ * bound without reaching into the sweep. The stub yields before resolving so overlap is
+ * observable at all — a stub that returns synchronously never has two in flight.
+ */
+export let maxConcurrentPrefixDeletes = 0;
+let inFlightPrefixDeletes = 0;
+
 /** Chunk rows `listSessionReplayChunks` returns, keyed by session id. */
 export const storedChunks = new Map<string, { sequence: number; key: string }[]>();
 
@@ -71,7 +81,16 @@ mock.module("../../../../platform/lib/s3", () => ({
   },
   deleteSessionPrefix: async (_bucket: string, _websiteId: string, sessionId: string) => {
     prefixDeletes.push(sessionId);
-    if (s3DeleteFailures.has(sessionId)) throw new Error("storage unreachable");
+    inFlightPrefixDeletes += 1;
+    maxConcurrentPrefixDeletes = Math.max(maxConcurrentPrefixDeletes, inFlightPrefixDeletes);
+    try {
+      // Yield, so concurrent callers actually overlap here rather than running to
+      // completion one at a time.
+      await new Promise((r) => setTimeout(r, 0));
+      if (s3DeleteFailures.has(sessionId)) throw new Error("storage unreachable");
+    } finally {
+      inFlightPrefixDeletes -= 1;
+    }
   },
   listSessionReplayChunks: async (_bucket: string, _websiteId: string, sessionId: string) =>
     storedChunks.get(sessionId) ?? [],
@@ -87,6 +106,8 @@ export function resetStubs(): void {
   errors.length = 0;
   uploads.length = 0;
   prefixDeletes.length = 0;
+  maxConcurrentPrefixDeletes = 0;
+  inFlightPrefixDeletes = 0;
   s3DeleteFailures.clear();
   storedChunks.clear();
 }

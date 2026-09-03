@@ -1,9 +1,9 @@
-import { and, count, desc, eq, gte, or } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { aiQueries, db, sql } from "../../../db";
 import type {
   AiRepository,
   AiSuccessRecord,
-  WebsiteIds,
+  WebsiteId,
 } from "../interfaces/ai-repository.interface";
 import type { AIHistoryItem } from "../services/shared";
 
@@ -94,7 +94,7 @@ export class PostgresAiRepository implements AiRepository {
     return row?.n ?? 0;
   }
 
-  async history(userId: string, ids: WebsiteIds, limit: number): Promise<AIHistoryItem[]> {
+  async history(userId: string, websiteId: WebsiteId, limit: number): Promise<AIHistoryItem[]> {
     const rows = await db
       .select({
         id: aiQueries.id,
@@ -105,12 +105,7 @@ export class PostgresAiRepository implements AiRepository {
         created_at: aiQueries.createdAt,
       })
       .from(aiQueries)
-      .where(
-        and(
-          eq(aiQueries.userId, userId),
-          or(eq(aiQueries.websiteId, ids.uuid), eq(aiQueries.websiteId, ids.websiteId)),
-        ),
-      )
+      .where(and(eq(aiQueries.userId, userId), eq(aiQueries.websiteId, websiteId)))
       .orderBy(desc(aiQueries.createdAt))
       .limit(Math.min(limit, 20));
 

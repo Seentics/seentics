@@ -18,8 +18,15 @@ export type AiSuccessRecord = {
   executionTimeMs: number;
 };
 
-/** The two identifiers a website is reachable by. See `AiRepository.history`. */
-export type WebsiteIds = { websiteId: string; uuid: string };
+/**
+ * A resolved website id.
+ *
+ * A pair of `{ websiteId, uuid }` until recently, from when `websites.site_id` was a
+ * separate short public id. That column is gone — `websites` has one `id`, and every
+ * `website_id` column holds it — so the pair was two names for the same value, and the
+ * code branching on which one to use was choosing between identical strings.
+ */
+export type WebsiteId = string;
 
 /**
  * Storage for the AI module.
@@ -67,11 +74,12 @@ export interface AiRepository {
   /**
    * Recent prompts for a user and website, newest first.
    *
-   * Matches on either identifier: new rows are written under the canonical UUID, but
-   * rows predating that carry whichever form the client sent, so keying on the UUID
-   * alone would silently hide a user's existing history.
+   * One equality, not the `website_id = uuid OR website_id = websiteId` this used to
+   * be: both sides of that OR were the same value, and an OR of two equalities on one
+   * column costs a BitmapOr where a plain equality uses
+   * `ix_ai_queries_user_website_created` directly.
    */
-  history(userId: string, ids: WebsiteIds, limit: number): Promise<AIHistoryItem[]>;
+  history(userId: string, websiteId: WebsiteId, limit: number): Promise<AIHistoryItem[]>;
 
   /**
    * Successful analyses by this user since `since`, for the usage report.

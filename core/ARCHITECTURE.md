@@ -178,17 +178,26 @@ singletons, so the same handlers can run against stubbed services in a test.
 
 ## Two patterns worth knowing before you change anything
 
-### The two website identifiers
+### One website identifier
 
-`websites.id` is the UUID primary key — it keys `website_members`, `funnels`,
-`goals`, `automations`. `websites.site_id` is the short public id in the tracker
-snippet — it keys `analytics_events` and `session_replays`.
+`websites.id` is the UUID primary key, and every `website_id` column holds it —
+`website_members`, `funnels`, `goals`, `automations`, `analytics_events`,
+`session_replays`, `heatmap_points`. Resolution happens once per request at the service
+boundary; repositories receive an already-resolved id and never resolve for themselves.
 
-Most API paths accept either and resolve to the pair. **Both are `string`, so
-mixing them up is invisible to the compiler and shows up as an endpoint that
-silently returns nothing.** Resolution happens once per request at the service
-boundary; repositories receive already-resolved ids and never resolve for
-themselves.
+This section used to describe a second identifier, `websites.site_id` — a short public
+id in the tracker snippet, keying `analytics_events` and `session_replays`. That column
+is gone, but code kept branching on the distinction long after: a `{ websiteId, uuid }`
+pair whose two fields were assigned the same value, a per-domain table in the AI module
+choosing between them, a cache warming "the other key" via
+`ref === w.id ? w.id : w.id`, and a history query filtering
+`website_id = uuid OR website_id = websiteId` — an OR of one value against itself, which
+costs a BitmapOr instead of an index scan. All removed.
+
+The lesson worth keeping is the one the old text ended on: both were `string`, so the
+compiler could not tell them apart, and neither could it tell that they had stopped
+being two things at all. A distinction carried in a type that cannot express it survives
+its own deletion.
 
 ### Ports point inward
 

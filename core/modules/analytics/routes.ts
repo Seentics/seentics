@@ -1,7 +1,9 @@
 import { Hono } from "hono";
+import type { AppConfig } from "../../config";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
+import { analyticsCacheMiddleware, PUBLIC_IDENTITY } from "./middleware/analytics-cache";
 import { parseQuery } from "../../platform/validation";
 // From the schema module, not the `./validators` barrel: these are `z.preprocess`
 // schemas whose inferred output widens to `{}` when re-exported, which silently
@@ -30,8 +32,10 @@ export function createAnalyticsRoutes(deps: {
   analytics: AnalyticsReads;
   publicDashboard: AnalyticsPublicDashboard;
   websites: WebsiteQuery;
+  /** For the response cache's TTL and size limits — see the two mounts below. */
+  cfg: AppConfig;
 }) {
-  const { analytics, publicDashboard, websites } = deps;
+  const { analytics, publicDashboard, websites, cfg } = deps;
   const r = new Hono<{ Variables: AuthVars }>();
 
   /** The three query parameters the windowed endpoints share. */
@@ -94,7 +98,9 @@ export function createAnalyticsRoutes(deps: {
   // Registered before the auth middleware, since the whole point of a share link
   // is that it works without a session.
 
-  r.get("/public/dashboard/:public_id", async (c) => {
+  // Cached by URL alone: a share link has no viewer identity, and every holder of the
+  // link gets the same response.
+  r.get("/public/dashboard/:public_id", analyticsCacheMiddleware(cfg, PUBLIC_IDENTITY), async (c) => {
     const data = await publicDashboard.getPublicDashboard(c.req.param("public_id"), qs(c));
     if (!data) return c.json({ error: "not found" }, 404);
     return c.json(data);
@@ -103,6 +109,16 @@ export function createAnalyticsRoutes(deps: {
   // ─── Authenticated ────────────────────────────────────────────────────────
 
   r.use("*", authMiddleware);
+
+  /**
+   * The response cache, mounted *after* `authMiddleware` and never before it.
+   *
+   * A hit short-circuits the chain, so anything registered later — including the
+   * authentication this line sits below — is skipped. Keyed on the `userId` that
+   * `authMiddleware` resolved through `verifyAccessToken`, so a request that got here
+   * proved who it is before its key was computed. See `analytics-cache.ts`.
+   */
+  r.use("*", analyticsCacheMiddleware(cfg, (c) => c.get("userId") ?? null));
 
   // Headline figures and time series.
   r.get("/dashboard/:website_id", guarded((c, w) => analytics.getDashboard(w, qs(c))));

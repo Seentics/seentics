@@ -1,4 +1,4 @@
-import type { AiRepository, WebsiteIds } from "../interfaces/ai-repository.interface";
+import type { AiRepository, WebsiteId } from "../interfaces/ai-repository.interface";
 import type { LlmClient } from "../interfaces/llm-client.interface";
 import {
   AI_MODEL,
@@ -46,22 +46,6 @@ const DOMAIN_CONFIG: Record<AIDomain, { prompt: string; tables: string[] }> = {
 
 const VALID_DOMAINS = Object.keys(DOMAIN_CONFIG) as AIDomain[];
 
-/**
- * Which identifier each domain's tables are keyed by.
- *
- * `analytics_events`, `session_replays` and the revenue views carry the legacy string
- * id; the newer tables carry the UUID. Getting this wrong returns an empty result
- * rather than an error, which is why it is a table rather than a conditional.
- */
-const ID_STRATEGY: Record<AIDomain, "website_id" | "uuid"> = {
-  analytics: "website_id",
-  revenue: "website_id",
-  replays: "website_id",
-  heatmaps: "uuid",
-  funnels: "uuid",
-  automations: "uuid",
-};
-
 const CLASSIFIER_PROMPT =
   "You are a routing assistant. Classify the analytics query inside <question> tags into ONE of these domains: " +
   "'analytics', 'revenue', 'replays', 'heatmaps', 'funnels', 'automations'. " +
@@ -89,7 +73,7 @@ export class AiQueryRunner {
 
   async run(
     userId: string,
-    resolved: WebsiteIds,
+    websiteId: WebsiteId,
     prompt: string,
     initialDomain: AIDomain | "auto" = "auto",
   ): Promise<AIQueryResult> {
@@ -100,11 +84,8 @@ export class AiQueryRunner {
     const { prompt: systemPrompt, tables: allowedTables } =
       DOMAIN_CONFIG[domain] ?? DOMAIN_CONFIG.analytics;
 
-    const boundId =
-      ID_STRATEGY[domain] === "website_id" ? resolved.websiteId : resolved.uuid;
-
     // Fast path: identical recent question → cached result, no LLM and no DB scan.
-    const cacheKey = this.cacheKey(boundId, domain, prompt);
+    const cacheKey = this.cacheKey(websiteId, domain, prompt);
     const cached = this.getCached(cacheKey);
     if (cached) return { ...cached, execution_time_ms: Date.now() - startedAt };
 
@@ -115,7 +96,7 @@ export class AiQueryRunner {
     // against the cap.
     const queryId = await this.repo.createPending({
       userId,
-      websiteUuid: resolved.uuid,
+      websiteUuid: websiteId,
       prompt,
       model: AI_MODEL,
     });
@@ -139,7 +120,7 @@ export class AiQueryRunner {
 
       let rows: Record<string, unknown>[];
       try {
-        rows = await this.repo.runGuarded(safeSql, boundId);
+        rows = await this.repo.runGuarded(safeSql, websiteId);
       } catch (dbErr) {
         const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
         throw new Error(`Query execution failed: ${msg}`);
@@ -180,8 +161,8 @@ export class AiQueryRunner {
     }
   }
 
-  async history(userId: string, resolved: WebsiteIds, limit = 8): Promise<AIHistoryItem[]> {
-    return this.repo.history(userId, resolved, limit);
+  async history(userId: string, websiteId: WebsiteId, limit = 8): Promise<AIHistoryItem[]> {
+    return this.repo.history(userId, websiteId, limit);
   }
 
   // ─── Internals ───────────────────────────────────────────────────────────────
@@ -238,8 +219,8 @@ export class AiQueryRunner {
     };
   }
 
-  private cacheKey(boundId: string, domain: AIDomain, prompt: string): string {
-    return `${boundId}|${domain}|${prompt.trim().toLowerCase().replace(/\s+/g, " ")}`;
+  private cacheKey(websiteId: string, domain: AIDomain, prompt: string): string {
+    return `${websiteId}|${domain}|${prompt.trim().toLowerCase().replace(/\s+/g, " ")}`;
   }
 
   private getCached(key: string): AIQueryResult | null {

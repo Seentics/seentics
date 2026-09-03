@@ -25,15 +25,15 @@ INTERACTION TYPES (event_type column):
   'mousemove' — mouse movement (used in move heatmaps)
   'scroll'    — scroll position tracking
 
-IMPORTANT: website_id in this table is UUID type (not the text website_id).
-The $1 parameter is already the correct UUID — use: WHERE website_id::text = $1
+IMPORTANT: website_id in this table is UUID type.
+The $1 parameter is already the correct UUID — use: WHERE website_id = $1::uuid
 
 ═══════════════════════════════════════════════════════════════
 DATABASE TABLE: heatmap_points
 ═══════════════════════════════════════════════════════════════
 Column              Type              Notes
 ─────────────────── ───────────────── ────────────────────────────────────────────────────
-website_id          UUID NOT NULL     ALWAYS filter: WHERE website_id::text = $1
+website_id          UUID NOT NULL     ALWAYS filter: WHERE website_id = $1::uuid
 page_path           TEXT NOT NULL     URL path: '/pricing', '/', '/blog/post-1'
 event_type          TEXT NOT NULL     'click', 'mousemove', 'scroll' — filter for specific map type
 device_type         TEXT NOT NULL     'desktop', 'mobile', 'tablet'
@@ -56,38 +56,38 @@ COMMON QUERY PATTERNS
 -- Total clicks across all pages
 SELECT SUM(intensity) AS value
 FROM heatmap_points
-WHERE website_id::text = $1 AND event_type = 'click';
+WHERE website_id = $1::uuid AND event_type = 'click';
 
 -- Top 10 pages by total click intensity
 SELECT page_path, SUM(intensity) AS total_clicks
 FROM heatmap_points
-WHERE website_id::text = $1 AND event_type = 'click'
+WHERE website_id = $1::uuid AND event_type = 'click'
 GROUP BY page_path ORDER BY total_clicks DESC LIMIT 10;
 
 -- Top clicked elements (by CSS selector) on a specific page
 SELECT target_selector, SUM(intensity) AS clicks
 FROM heatmap_points
-WHERE website_id::text = $1 AND event_type = 'click' AND page_path = '/pricing'
+WHERE website_id = $1::uuid AND event_type = 'click' AND page_path = '/pricing'
   AND target_selector != ''
 GROUP BY target_selector ORDER BY clicks DESC LIMIT 20;
 
 -- Click distribution by device type
 SELECT device_type, SUM(intensity) AS clicks
 FROM heatmap_points
-WHERE website_id::text = $1 AND event_type = 'click'
+WHERE website_id = $1::uuid AND event_type = 'click'
 GROUP BY device_type ORDER BY clicks DESC;
 
 -- Pages with highest mobile click intensity
 SELECT page_path, SUM(intensity) AS mobile_clicks
 FROM heatmap_points
-WHERE website_id::text = $1 AND event_type = 'click' AND device_type = 'mobile'
+WHERE website_id = $1::uuid AND event_type = 'click' AND device_type = 'mobile'
 GROUP BY page_path ORDER BY mobile_clicks DESC LIMIT 10;
 
 ═══════════════════════════════════════════════════════════════
 RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 {
-  "sql": "SELECT ... FROM heatmap_points WHERE website_id::text = $1 ...",
+  "sql": "SELECT ... FROM heatmap_points WHERE website_id = $1::uuid ...",
   "viz_type": "table|bar_chart|line_chart|pie_chart|number",
   "title": "Short descriptive title (max 60 chars)",
   "insight": "1-2 sentences interpreting the interaction pattern findings",
@@ -100,7 +100,9 @@ RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 SQL RULES
 ═══════════════════════════════════════════════════════════════
-• First WHERE condition MUST be: website_id::text = $1  (website_id is UUID type — always cast with ::text)
+• First WHERE condition MUST be: website_id = $1::uuid
+  Cast the PARAMETER, never the column. "website_id::text = $1" cannot use the index
+  on website_id and scans the whole table.
 • NEVER use OR or NOT — express alternatives with IN (...); both are rejected
 • Repeat the website_id filter in EVERY CTE and subquery that reads a table — a
   filter on the outer query does not scope an inner one, and unscoped inner reads

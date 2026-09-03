@@ -5,46 +5,62 @@ import { MemoryCache } from "../../../platform/lib/memory-cache";
 
 type Cached = { body: Uint8Array; headers: [string, string][] };
 
-/** Extract stable user identity from JWT without full verification (cache key only). */
-function jwtSub(authHeader: string): string {
-  try {
-    const token = authHeader.replace(/^[Bb]earer\s+/, "").trim();
-    const [, payload] = token.split(".");
-    if (!payload) return token;
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return String(decoded.sub ?? decoded.user_id ?? decoded.id ?? token);
-  } catch {
-    return authHeader;
-  }
+/**
+ * Response cache for the analytics read endpoints.
+ *
+ * **Mount it behind whatever authorises the request, never globally.** A cache hit
+ * returns without calling `next()`, so every middleware after this one — including
+ * `authMiddleware` — is skipped. Mounted globally in `index.ts`, that made the cache an
+ * authentication bypass: the key was derived from the JWT payload decoded *without
+ * verifying the signature*, so an unsigned `alg: none` token carrying a victim's user id
+ * produced the victim's cache key and was served the victim's data, 200 and all. It is
+ * mounted inside the analytics router now, after `authMiddleware`, and the identity comes
+ * from `c.get("userId")` — set by that middleware only after `verifyAccessToken` succeeds.
+ *
+ * `identify` is what keeps the two scopes apart:
+ *
+ * - authenticated routes pass the verified `userId`, so one user's response can never be
+ *   served to another;
+ * - the public share-link route passes a constant, because it has no viewer identity by
+ *   design and its response is the same for everyone holding the link.
+ *
+ * Returning `null` from `identify` disables the cache for that request entirely — no
+ * read, no write. That is the fail-closed path for an authenticated route that somehow
+ * reached here without a resolved user: serving a cached body would repeat the original
+ * bug, and caching under a placeholder key would pool unrelated users together.
+ */
+export type CacheIdentity = (c: Context) => string | null;
+
+/** For the share-link route: no viewer identity, one response for every holder. */
+export const PUBLIC_IDENTITY: CacheIdentity = () => "public";
+
+function cacheKey(c: Pick<Context, "req">, identity: string): string {
+  return createHash("sha256").update(`${c.req.url}\n${identity}`).digest("base64url");
 }
 
-function cacheKey(c: Pick<Context, "req">): string {
-  const url = c.req.url;
-  const auth = c.req.header("authorization") ?? "";
-  // Use stable user subject so the cache survives JWT refreshes.
-  // Auth is still validated by authMiddleware on every cache miss.
-  const userCtx = jwtSub(auth);
-  return createHash("sha256").update(`${url}\n${userCtx}`).digest("base64url");
-}
-
+/** Exports are point-in-time downloads and can be large; never cached. */
 function shouldCachePath(path: string): boolean {
-  if (!path.startsWith("/api/v1/analytics")) return false;
-  if (path.includes("/export")) return false;
-  return true;
+  return !path.includes("/export");
 }
 
-export function analyticsCacheMiddleware(cfg: AppConfig): MiddlewareHandler {
+export function analyticsCacheMiddleware(
+  cfg: AppConfig,
+  identify: CacheIdentity,
+): MiddlewareHandler {
   const inner = new MemoryCache<Cached>(cfg.analyticsCache.maxEntries);
   const ttlMs = cfg.analyticsCache.ttlMs;
 
   return async (c, next) => {
     if (!cfg.analyticsCache.enabled || c.req.method !== "GET") return next();
-    const path = new URL(c.req.url).pathname;
-    if (!shouldCachePath(path)) return next();
+    if (!shouldCachePath(new URL(c.req.url).pathname)) return next();
+
+    // No resolved identity → no caching at all. See the note above.
+    const identity = identify(c);
+    if (identity === null) return next();
 
     if (Math.random() < 0.05) inner.sweepExpired();
 
-    const key = cacheKey(c);
+    const key = cacheKey(c, identity);
     const hit = inner.get(key);
     if (hit) {
       c.header("X-Cache", "HIT");

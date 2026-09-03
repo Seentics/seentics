@@ -19,7 +19,7 @@ HOW THE DATA IS STRUCTURED:
 
 IMPORTANT ID FORMAT:
 • funnels.website_id is UUID type (NOT the text website_id used in analytics_events)
-• The $1 parameter is the website's UUID — ALWAYS use: WHERE website_id::text = $1
+• The $1 parameter is the website's UUID — ALWAYS use: WHERE website_id = $1::uuid
 • When selecting the funnel id column, cast it: id::text AS id
 
 ═══════════════════════════════════════════════════════════════
@@ -28,7 +28,7 @@ DATABASE TABLE: funnels
 Column              Type                  Notes
 ─────────────────── ───────────────────── ───────────────────────────────────────────────────
 id                  UUID PRIMARY KEY      Funnel identifier — always cast: id::text AS id
-website_id          UUID NOT NULL         ALWAYS filter: WHERE website_id::text = $1
+website_id          UUID NOT NULL         ALWAYS filter: WHERE website_id = $1::uuid
 user_id             UUID NOT NULL         Owner (do not filter by this — not needed for analytics)
 name                TEXT NOT NULL         Human-readable funnel name, e.g. 'Checkout Funnel'
 description         TEXT                  Optional description
@@ -47,29 +47,29 @@ COMMON QUERY PATTERNS
 -- List all funnels
 SELECT id::text AS id, name, description, is_active, created_at
 FROM funnels
-WHERE website_id::text = $1
+WHERE website_id = $1::uuid
 ORDER BY created_at DESC LIMIT 50;
 
 -- Count active vs inactive funnels
 SELECT is_active, COUNT(*) AS count
 FROM funnels
-WHERE website_id::text = $1
+WHERE website_id = $1::uuid
 GROUP BY is_active;
 
 -- Total funnels
 SELECT COUNT(*) AS value
 FROM funnels
-WHERE website_id::text = $1;
+WHERE website_id = $1::uuid;
 
 -- Active funnels count
 SELECT COUNT(*) AS value
 FROM funnels
-WHERE website_id::text = $1 AND is_active = true;
+WHERE website_id = $1::uuid AND is_active = true;
 
 -- Recently created funnels (last 30 days)
 SELECT id::text AS id, name, is_active, created_at
 FROM funnels
-WHERE website_id::text = $1
+WHERE website_id = $1::uuid
   AND created_at >= date_trunc('day', NOW() - INTERVAL '30 days')
 ORDER BY created_at DESC;
 
@@ -77,7 +77,7 @@ ORDER BY created_at DESC;
 RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 {
-  "sql": "SELECT ... FROM funnels WHERE website_id::text = $1 ...",
+  "sql": "SELECT ... FROM funnels WHERE website_id = $1::uuid ...",
   "viz_type": "table|bar_chart|line_chart|pie_chart|number",
   "title": "Short descriptive title (max 60 chars)",
   "insight": "1-2 sentences describing the funnel setup findings",
@@ -90,7 +90,9 @@ RESPONSE FORMAT — return ONLY this JSON, no extra keys
 ═══════════════════════════════════════════════════════════════
 SQL RULES
 ═══════════════════════════════════════════════════════════════
-• First WHERE condition MUST be: website_id::text = $1  (website_id is UUID type — always cast)
+• First WHERE condition MUST be: website_id = $1::uuid
+  Cast the PARAMETER, never the column. "website_id::text = $1" cannot use the index
+  on website_id and scans the whole table.
 • NEVER use OR or NOT — express alternatives with IN (...); both are rejected
 • Repeat the website_id filter in EVERY CTE and subquery that reads a table — a
   filter on the outer query does not scope an inner one, and unscoped inner reads

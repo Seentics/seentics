@@ -137,9 +137,18 @@ class FakeAutomationRepository implements AutomationRepository {
     return row;
   }
   async delete(websiteId: string, automationId: string): Promise<void> {
+    await this.deleteMany(websiteId, [automationId]);
+  }
+  /** Counts calls, so a test can tell one batched delete from a loop of them. */
+  deleteManyCalls = 0;
+  async deleteMany(websiteId: string, automationIds: string[]): Promise<void> {
+    this.deleteManyCalls += 1;
     this.record(websiteId);
-    this.deleted.push([websiteId, automationId]);
-    this.rows = this.rows.filter((r) => r.id !== automationId);
+    for (const id of automationIds) this.deleted.push([websiteId, id]);
+    // Scoped like the real one: another website's id matches nothing.
+    this.rows = this.rows.filter(
+      (r) => !(automationIds.includes(r.id) && r.websiteId === websiteId),
+    );
   }
   async listExecutions(automationId: string, limit: number): Promise<AutomationExecutionRow[]> {
     return this.executions.filter((e) => e.automationId === automationId).slice(0, limit);
@@ -303,6 +312,47 @@ describe("AutomationService", () => {
     it("resolves the website once for the whole batch", async () => {
       await service.bulkDelete(WEBSITE_UUID, ["a", "b", "c"]);
       expect(websites.lookups).toEqual([WEBSITE_UUID]);
+    });
+
+    /**
+     * One repository call for the batch.
+     *
+     * This used to loop, and each iteration cost two statements — so clearing fifty
+     * automations was a hundred round trips. The count is asserted rather than the
+     * timing because that is what the loop actually cost.
+     */
+    it("hands the whole batch to the repository in one call", async () => {
+      repo.rows.push(makeRow({ id: "a" }), makeRow({ id: "b" }), makeRow({ id: "c" }));
+
+      await service.bulkDelete(WEBSITE_UUID, ["a", "b", "c"]);
+
+      expect(repo.deleteManyCalls).toBe(1);
+    });
+
+    it("does not call the repository for an empty list", async () => {
+      await service.bulkDelete(WEBSITE_UUID, []);
+      expect(repo.deleteManyCalls).toBe(1);
+      expect(repo.deleted).toEqual([]);
+    });
+
+    /**
+     * An id belonging to another website must delete nothing.
+     *
+     * The route guard checks access to the *website*, not to each automation, so this is
+     * the only thing standing between a caller and another tenant's rows. The real
+     * enforcement is in `deleteMany`'s SQL, which scopes the event delete through the
+     * parent automation rather than by `automation_id` alone — before that, passing a
+     * foreign id destroyed that automation's event history while its row survived.
+     */
+    it("leaves an automation belonging to another website alone", async () => {
+      repo.rows.push(
+        makeRow({ id: "mine", websiteId: WEBSITE_UUID } as Partial<AutomationRow>),
+        makeRow({ id: "theirs", websiteId: "someone-elses-website" } as Partial<AutomationRow>),
+      );
+
+      await service.bulkDelete(WEBSITE_UUID, ["mine", "theirs"]);
+
+      expect(repo.rows.map((r) => r.id)).toEqual(["theirs"]);
     });
 
     // The endpoint answers 204 whether it removed all or none, so one already-gone

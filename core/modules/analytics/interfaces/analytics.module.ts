@@ -1,4 +1,3 @@
-import type { MiddlewareHandler } from "hono";
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
 import type { RetentionPurge } from "../../../platform/retention";
@@ -56,12 +55,4 @@ export interface AnalyticsModule {
   usage: UsageCounter;
 
   routes: AuthedRouter;
-
-  /**
-   * Response cache for the read endpoints, mounted globally by the entry point.
-   *
-   * Owned here rather than imported by `index.ts`: which endpoints are safe to cache
-   * and for how long is a fact about this module's query semantics.
-   */
-  cacheMiddleware: MiddlewareHandler;
 }

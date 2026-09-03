@@ -44,15 +44,16 @@ const app = new Hono();
 // module is handed another's service, repository or engine. Nothing reaches back into a
 // registry at call time. See app/bootstrap.ts.
 //
-// Before the middleware, not after: the analytics response cache is one of the things
-// the graph provides, and composing is side-effect free, so there is nothing to gain
-// by deferring it.
+// Composing is side-effect free, so it happens before the middleware rather than after.
+// Note what is deliberately *not* mounted here: the analytics response cache. A cache
+// hit short-circuits the middleware chain, so mounting it globally placed it ahead of
+// the router's own `authMiddleware` and turned it into an authentication bypass. It now
+// lives inside the analytics router, behind auth — see `middleware/analytics-cache.ts`.
 const application = bootstrap(cfg, core_log);
 
 app.use("*", requestLogMiddleware(cfg));
 app.use("*", rateLimitMiddleware(cfg));
 app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
-app.use("*", application.modules.analytics.cacheMiddleware);
 
 // Return 503 while migrations are running so the healthcheck waits without counting failures
 app.get("/health", (c) => ready ? c.text("ok") : c.text("starting", 503));

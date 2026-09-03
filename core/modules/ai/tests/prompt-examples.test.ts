@@ -81,4 +81,37 @@ describe("domain prompt examples", () => {
       }
     });
   }
+
+  describe("tenant filters stay index-usable", () => {
+    /**
+     * Cast the parameter, not the column.
+     *
+     * `funnels`, `heatmap_points` and `automations` all have btree indexes on a `uuid`
+     * `website_id`. Writing `website_id::text = $1` puts an expression on the indexed
+     * column, which Postgres cannot match against a plain btree index — so the query
+     * sequentially scans. Every worked example in three of the six prompts did exactly
+     * that, which meant the model was being taught the slow form.
+     *
+     * `heatmap_points` is the one that hurts: a row per recorded cell, per page.
+     */
+    for (const domain of DOMAINS) {
+      it(`${domain.name} never casts the website_id column`, () => {
+        // The worked examples only — the rules prose quotes the slow form on purpose,
+        // to tell the model not to write it.
+        const offending = examplesIn(domain.prompt).filter((sql) =>
+          /website_id\s*::\s*text\s*=\s*\$1/i.test(sql),
+        );
+
+        expect(offending).toEqual([]);
+      });
+    }
+
+    it("uses the parameter-side cast where the column is a uuid", () => {
+      // The three uuid-keyed domains; the others compare against a text column.
+      for (const name of ["funnels", "heatmaps", "automations"]) {
+        const domain = DOMAINS.find((d) => d.name === name)!;
+        expect(domain.prompt).toContain("$1::uuid");
+      }
+    });
+  });
 });

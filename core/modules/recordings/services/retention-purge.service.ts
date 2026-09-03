@@ -10,6 +10,15 @@ import type {
 
 const log = baseLog.child({ category: "retention" });
 
+/**
+ * Prefix deletes in flight at once.
+ *
+ * High enough to hide per-request latency, low enough not to look like a burst to the
+ * storage provider. The sweep is a background job — throughput matters, arrival rate
+ * does not.
+ */
+const STORAGE_CONCURRENCY = 8;
+
 function affectedRows(result: unknown): number {
   if (
     result &&
@@ -64,22 +73,44 @@ export class RecordingRetentionPurge implements RetentionPurge {
       `;
       if (oldSessions.length === 0) break;
 
+      /*
+       * Prefix deletes run `STORAGE_CONCURRENCY` at a time rather than one after another.
+       * Each is a network round trip that the database is not waiting on, so a serial
+       * loop made the sweep take `batchSize` round trips per page — the dominant cost of
+       * the whole job, and the reason a large backlog could not be worked through in one
+       * nightly window.
+       *
+       * Bounded rather than `Promise.all` over the page: an unbounded fan-out at a large
+       * `batchSize` opens that many sockets at once and invites throttling from the
+       * storage provider, which shows up as failures that strand objects for another day.
+       *
+       * Failure handling is unchanged and still per session — an unreachable prefix must
+       * not stop the sweep, and its row must outlive the attempt so the next run retries.
+       */
       const cleared: { website_id: string; session_id: string }[] = [];
-      for (const row of oldSessions) {
-        try {
-          await deleteSessionPrefix(options.bucket, row.website_id, row.session_id);
-          cleared.push(row);
-        } catch (e) {
-          // Logged and skipped: an unreachable prefix must not stop the sweep, and the
-          // row must outlive it so the next run can retry this session.
-          storageFailures += 1;
-          log.warn({
-            msg: "retention_s3_replay_delete_failed",
-            session_id: row.session_id,
-            err: String(e),
-          });
+      let cursor = 0;
+
+      async function clearNext(): Promise<void> {
+        for (;;) {
+          const row = oldSessions[cursor++];
+          if (!row) return;
+          try {
+            await deleteSessionPrefix(options.bucket, row.website_id, row.session_id);
+            cleared.push(row);
+          } catch (e) {
+            storageFailures += 1;
+            log.warn({
+              msg: "retention_s3_replay_delete_failed",
+              session_id: row.session_id,
+              err: String(e),
+            });
+          }
         }
       }
+
+      await Promise.all(
+        Array.from({ length: Math.min(STORAGE_CONCURRENCY, oldSessions.length) }, clearNext),
+      );
 
       /**
        * Nothing cleared: every row in this page is one whose objects could not be
@@ -89,15 +120,19 @@ export class RecordingRetentionPurge implements RetentionPurge {
 
       sessionsPurged += cleared.length;
 
-      await sql.begin(async (tx) => {
-        for (const row of cleared) {
-          const deleted = await tx`
-            DELETE FROM session_replays
-            WHERE website_id = ${row.website_id} AND session_id = ${row.session_id}
-          `;
-          rowsDeleted += affectedRows(deleted);
-        }
-      });
+      /*
+       * One statement for the page, not one per session. The pairs are matched with
+       * `IN (VALUES …)` because a session id is only unique within its website, so the
+       * two columns have to be compared together — and `(website_id, session_id)` is the
+       * leading pair of the primary key, so the join finds each group by index.
+       */
+      const deleted = await sql`
+        DELETE FROM session_replays
+        WHERE (website_id, session_id) IN ${sql(
+          cleared.map((r) => [r.website_id, r.session_id] as const),
+        )}
+      `;
+      rowsDeleted += affectedRows(deleted);
 
       // A short page means the cutoff is exhausted apart from rows we deliberately kept.
       if (oldSessions.length < options.batchSize) break;

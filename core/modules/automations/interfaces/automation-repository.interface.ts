@@ -69,6 +69,18 @@ export interface AutomationRepository {
    */
   delete(websiteId: string, automationId: string): Promise<void>;
 
+  /**
+   * Delete several automations owned by this website, and their events.
+   *
+   * One call rather than a loop over `delete`: that cost two statements per id, and a
+   * bulk delete of fifty automations meant a hundred round trips.
+   *
+   * Ids that do not exist, or that belong to another website, match nothing — so a
+   * caller cannot use this to reach outside `websiteId`, and a stale id in the list does
+   * not fail the rest.
+   */
+  deleteMany(websiteId: string, automationIds: string[]): Promise<void>;
+
   /** Most recent execution rows, newest first, capped by `limit`. */
   listExecutions(automationId: string, limit: number): Promise<AutomationExecutionRow[]>;
 
