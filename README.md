@@ -17,6 +17,17 @@
   <a href="DEPLOYMENT.md">Deployment</a>
 </p>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/analytics-dashboard-dark.png" />
+    <img src="assets/analytics-dashboard.png" alt="Seentics analytics overview — summary cards, traffic chart, top pages and traffic sources" width="100%" />
+  </picture>
+</p>
+
+<p align="center">
+  <em>The analytics overview. Try it at <a href="https://seentics.com/websites/demo">seentics.com/websites/demo</a> — no account needed.</em>
+</p>
+
 ---
 
 Self-hosted analytics without cookies, fingerprinting, or third-party data sharing.
@@ -31,7 +42,7 @@ Your data stays on your infrastructure.
 - **Funnels** — multi-step conversion analysis with drop-off rates
 - **Revenue** — orders, AOV, ARPU, UTM channel attribution
 - **Custom events and goals** — typed properties; page, event or CSS-selector conversions
-- **Behavioral automations** — trigger webhooks or emails from visitor actions
+- **Behavioral automations** — modals, banners, toasts, tooltips, content personalisation, redirects and webhooks, fired from visitor behaviour
 - **Path analysis** — how users move between pages
 
 ## Quick Start
