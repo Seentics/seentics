@@ -7,6 +7,7 @@ import {
   goalCreateSchema,
   goalPatchSchema,
   memberAddSchema,
+  invitationCreateSchema,
   memberRoleSchema,
   websiteCreateSchema,
   websitePatchSchema,
@@ -305,15 +306,13 @@ export function createWebsiteRoutes(deps: {
   r.post("/:id/invitations", async (c) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
-    const body = await c.req
-      .json<{ email?: string; role?: string }>()
-      .catch((): { email?: string; role?: string } => ({}));
-    if (!body.email) return c.json({ error: "email is required" }, 400);
+    const parsed = await parseJson(c, invitationCreateSchema);
+    if (!parsed.ok) return parsed.res;
     try {
       return c.json(
         await membersSvc.createInvitation(userId, param(c, "id"), {
-          email: body.email,
-          role: body.role ?? "viewer",
+          email: parsed.data.email,
+          role: parsed.data.role,
         }),
         201,
       );
@@ -345,10 +344,24 @@ export function createWebsiteRoutes(deps: {
   // Present so the client gets a shaped answer rather than a 404; unimplemented
   // server-side. Preserved verbatim from the previous router.
 
-  r.get("/:websiteId/privacy", (c) =>
-    c.json({ data: { website_id: c.req.param("websiteId"), settings: {} } }),
-  );
-  r.put("/:websiteId/privacy", (c) => c.json({ data: { ok: true } }));
+  /*
+   * Per-website privacy settings, not implemented.
+   *
+   * These returned `{ settings: {} }` and `{ ok: true }` — a PUT that stored nothing and
+   * reported success, so a caller had no way to tell the setting had not been saved.
+   * 501 for the same reason as `platform/http/privacy.ts`.
+   */
+  const privacyNotImplemented = (c: Context<{ Variables: AuthVars }>) =>
+    c.json(
+      {
+        error: "Per-website privacy settings are not implemented",
+        code: "not_implemented",
+      },
+      501,
+    );
+
+  r.get("/:websiteId/privacy", privacyNotImplemented);
+  r.put("/:websiteId/privacy", privacyNotImplemented);
 
   // API keys are not here: `api_keys` is a platform-owned table, and the real surface
   // lives in `platform/public-api/keys/routes.ts`, mounted at these same paths.

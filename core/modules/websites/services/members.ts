@@ -2,7 +2,40 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db, websiteMembers, websiteInvitations, websites } from "../../../db";
 import type { UserDirectory } from "../../auth/interfaces";
 import type { AddWebsiteMemberBody } from "../../../platform/lib/api-types";
-import { assertWebsiteAccess } from "./access";
+import { assertWebsiteAccess, websiteRoleFor } from "./access";
+import { normalizeWebsiteRole, roleAtLeast, type WebsiteRole } from "../interfaces";
+
+/** 403 for a privilege rule, indistinguishable from having no access at all. */
+function forbiddenRole(): Error & { status: number } {
+  const err = new Error("forbidden") as Error & { status: number };
+  err.status = 403;
+  return err;
+}
+
+/**
+ * Refuse when the target holds a role the actor does not outrank.
+ *
+ * Being an admin is not licence to act on every member: without this an admin could
+ * remove the owner, or demote a peer administrator out of the way. Equal ranks do not
+ * outrank each other, so one admin cannot remove another.
+ *
+ * A target with no membership row is nobody, and acting on them changes nothing —
+ * allowed, so that removing an already-removed member stays idempotent.
+ */
+async function assertOutranks(
+  actor: WebsiteRole,
+  websiteId: string,
+  targetUserId: string,
+): Promise<void> {
+  // The site's owner may act on anyone, including a collaborator they promoted to
+  // owner. Without this the owner could be locked out of undoing their own grant.
+  if (actor === "owner") return;
+
+  const target = await websiteRoleFor(targetUserId, websiteId);
+  if (!target) return;
+  // Strictly outrank: equal ranks do not, so one admin cannot remove another.
+  if (!roleAtLeast(actor, target) || actor === target) throw forbiddenRole();
+}
 
 /**
  * Members of a website, with each person's name and email.
@@ -18,7 +51,7 @@ export async function listMembers(
   websiteId: string,
   directory: UserDirectory,
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "viewer");
   const rows = await db
     .select({
       id: websiteMembers.id,
@@ -52,7 +85,10 @@ export async function addMember(
   body: AddWebsiteMemberBody,
   directory: UserDirectory,
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  const actor = await assertWebsiteAccess(userId, websiteId, "admin");
+  const granted = normalizeWebsiteRole(body.role);
+  // No granting upward: an admin cannot mint an owner.
+  if (!roleAtLeast(actor, granted)) throw forbiddenRole();
   const target = await directory.findByEmail(body.email);
   if (!target) throw new Error("user not found");
   const [existing] = await db
@@ -73,7 +109,8 @@ export async function addMember(
 }
 
 export async function removeMember(userId: string, websiteId: string, memberUserId: string) {
-  await assertWebsiteAccess(userId, websiteId);
+  const actor = await assertWebsiteAccess(userId, websiteId, "admin");
+  await assertOutranks(actor, websiteId, memberUserId);
   await db
     .delete(websiteMembers)
     .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, memberUserId)));
@@ -85,15 +122,33 @@ export async function updateMemberRole(
   memberUserId: string,
   role: string,
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  const actor = await assertWebsiteAccess(userId, websiteId, "admin");
+  const granted = normalizeWebsiteRole(role);
+
+  /*
+   * Three separate rules, because "is an admin" is not enough on its own.
+   *
+   * Without them this endpoint was the escalation: it checked only that the caller was
+   * *some* member, then wrote whatever role the body asked for — so `PUT
+   * /websites/:id/members/<self>/role {"role":"owner"}` promoted a viewer to owner in a
+   * single request.
+   */
+  // 1. Cannot grant a role above your own.
+  if (!roleAtLeast(actor, granted)) throw forbiddenRole();
+  // 2. Cannot modify someone who outranks you.
+  await assertOutranks(actor, websiteId, memberUserId);
+  // 3. Cannot change your own role at all — that is the self-promotion this endpoint
+  //    handed out, and a legitimate change is one another admin makes for you.
+  if (memberUserId === userId) throw forbiddenRole();
+
   await db
     .update(websiteMembers)
-    .set({ role, updatedAt: new Date() })
+    .set({ role: granted, updatedAt: new Date() })
     .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, memberUserId)));
 }
 
 export async function getMyRole(userId: string, websiteId: string) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "viewer");
   const [m] = await db
     .select({ role: websiteMembers.role })
     .from(websiteMembers)
@@ -136,7 +191,11 @@ export async function createInvitation(
   websiteId: string,
   body: { email: string; role: string },
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  const actor = await assertWebsiteAccess(userId, websiteId, "admin");
+  const granted = normalizeWebsiteRole(body.role);
+  // Same rule as `addMember`: an invitation is a deferred membership, so it cannot
+  // confer more than the person writing it holds.
+  if (!roleAtLeast(actor, granted)) throw forbiddenRole();
   const email = body.email.trim().toLowerCase();
 
   // Delete any existing pending invitation for this email+website so the new one replaces it
@@ -155,14 +214,16 @@ export async function createInvitation(
 
   const [inv] = await db
     .insert(websiteInvitations)
-    .values({ websiteId: websiteId, email, role: body.role ?? "viewer", token, invitedBy: userId, expiresAt })
+    .values({ websiteId: websiteId, email, role: granted, token, invitedBy: userId, expiresAt })
     .returning();
 
   return { data: mapInvitation(inv!) };
 }
 
 export async function listInvitations(userId: string, websiteId: string) {
-  await assertWebsiteAccess(userId, websiteId);
+  // Admin, not viewer: `mapInvitation` returns each invitation's `token`, and that token
+  // is a bearer credential redeemable for the role it carries.
+  await assertWebsiteAccess(userId, websiteId, "admin");
   const rows = await db
     .select()
     .from(websiteInvitations)
@@ -176,7 +237,7 @@ export async function revokeInvitation(
   websiteId: string,
   invitationId: string,
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "admin");
   await db
     .delete(websiteInvitations)
     .where(and(eq(websiteInvitations.id, invitationId), eq(websiteInvitations.websiteId, websiteId)));

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { C, Callout, DocPage, DocSection, Endpoint, Li, P, Ul } from '@/components/docs/DocsKit';
+import { C, Callout, DocPage, DocSection, Li, P, Ul } from '@/components/docs/DocsKit';
 
 export const metadata = {
   title: 'Privacy & security · Seentics docs',
@@ -128,19 +128,20 @@ export default function PrivacyPage() {
 
       <DocSection title="Data subject requests">
         <P>
-          Export and deletion are available from <C>Settings → Privacy</C> and over the API, so you
-          can wire them into your own request process.
+          <strong>Per-visitor export and erasure are not available yet.</strong> The{' '}
+          <C>/api/v1/privacy/*</C> paths are reserved and currently answer{' '}
+          <C>501 Not Implemented</C>. This page previously described them as working; they
+          were never wired up, and the endpoints returned empty success responses.
         </P>
-        <Endpoint method="POST" path="/api/v1/privacy/export">
-          Returns the data held for a visitor.
-        </Endpoint>
-        <Endpoint method="POST" path="/api/v1/privacy/delete">
-          Removes the data held for a visitor.
-        </Endpoint>
         <P>
-          Both need an <Link href="/docs/api-keys" className="text-primary hover:underline">API key</Link>.
-          The exact request shape is in the catalogue described on the{' '}
-          <Link href="/docs/api" className="text-primary hover:underline">REST API</Link> page.
+          What you can do today: deleting a website from <C>Settings</C> removes its
+          analytics events, session recordings, heatmap points, funnels and automations.
+          Retention also runs automatically and drops data past your plan&apos;s cutoff — see
+          below.
+        </P>
+        <P>
+          If you need to answer a data subject request before per-visitor tooling ships,
+          contact support and we will run the erasure directly.
         </P>
       </DocSection>
 

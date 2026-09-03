@@ -4,7 +4,7 @@ import type { CreateGoalBody, UpdateGoalPatch } from "../../../platform/lib/api-
 import { assertWebsiteAccess } from "./access";
 
 export async function listGoals(userId: string, websiteId: string) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "viewer");
   const rows = await db
     .select()
     .from(goals)
@@ -27,7 +27,8 @@ export async function listGoals(userId: string, websiteId: string) {
 }
 
 export async function createGoal(userId: string, websiteId: string, body: CreateGoalBody) {
-  await assertWebsiteAccess(userId, websiteId);
+  // A goal changes what the site measures, so it is a `member` action, not a viewer one.
+  await assertWebsiteAccess(userId, websiteId, "member");
   const [g] = await db
     .insert(goals)
     .values({
@@ -47,7 +48,7 @@ export async function updateGoal(
   goalId: string,
   body: UpdateGoalPatch,
 ) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "member");
   const [g] = await db
     .update(goals)
     .set({
@@ -63,6 +64,6 @@ export async function updateGoal(
 }
 
 export async function deleteGoal(userId: string, websiteId: string, goalId: string) {
-  await assertWebsiteAccess(userId, websiteId);
+  await assertWebsiteAccess(userId, websiteId, "member");
   await db.delete(goals).where(and(eq(goals.id, goalId), eq(goals.websiteId, websiteId)));
 }

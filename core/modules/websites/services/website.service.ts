@@ -15,6 +15,7 @@ import type {
   WebsiteUserMutations,
   WebsiteWithTraffic,
 } from "../interfaces";
+import { roleAtLeast } from "../interfaces";
 
 /**
  * Raised when a caller lacks access to a website.
@@ -94,9 +95,22 @@ export class WebsiteService
    * single identifier there is nothing to resolve, and the hazard that ordering guarded
    * against — checking access against an unresolved reference — cannot occur.
    */
-  private async authorize(websiteId: string, userId: string): Promise<void> {
+  /**
+   * Assert the caller holds at least `minimum`, and return their role.
+   *
+   * `minimum` is required for the same reason as in `services/access.ts`: this used to
+   * accept any non-null role, so every operation below was open to every collaborator —
+   * including `deleteForUser`, which removes the website *and* cascades its
+   * `analytics_events`, `automations` and `funnels` in one transaction.
+   */
+  private async authorize(
+    websiteId: string,
+    userId: string,
+    minimum: WebsiteRole,
+  ): Promise<WebsiteRole> {
     const role = await this.repository.findRole(websiteId, userId);
-    if (!role) throw new WebsiteAccessError();
+    if (!role || !roleAtLeast(role, minimum)) throw new WebsiteAccessError();
+    return role;
   }
 
 
@@ -121,7 +135,7 @@ export class WebsiteService
 
   /** One website with traffic, after an access check. */
   async getWithTraffic(websiteId: string, userId: string): Promise<WebsiteWithTraffic | null> {
-    await this.authorize(websiteId, userId);
+    await this.authorize(websiteId, userId, "viewer");
 
     const website = await this.repository.findById(websiteId);
     if (!website) return null;
@@ -164,7 +178,9 @@ export class WebsiteService
     userId: string,
     input: UpdateWebsiteInput,
   ): Promise<Website | null> {
-    await this.authorize(websiteId, userId);
+    // Settings include the tracked domain and retention — administrative, not a
+    // collaborator's to change.
+    await this.authorize(websiteId, userId, "admin");
     return this.repository.update(websiteId, input);
   }
 
@@ -174,7 +190,8 @@ export class WebsiteService
 
   /** Delete after an access check. Used by the authenticated HTTP layer. */
   async deleteForUser(websiteId: string, userId: string): Promise<boolean> {
-    await this.authorize(websiteId, userId);
+    // Owner only. This destroys the website and everything collected under it.
+    await this.authorize(websiteId, userId, "owner");
     return this.repository.delete(websiteId);
   }
 
@@ -188,7 +205,8 @@ export class WebsiteService
     userId: string,
     enabled: boolean,
   ): Promise<string | null> {
-    await this.authorize(websiteId, userId);
+    // Publishing the dashboard to an unauthenticated URL. See `services/share.ts`.
+    await this.authorize(websiteId, userId, "admin");
     return this.applySharing(websiteId, enabled);
   }
 

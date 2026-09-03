@@ -95,7 +95,7 @@ export default function ApiPage() {
             [<C>replays</C>, <C>/api/v1/replays</C>, 'Session lists and recording payloads.'],
             [<C>heatmaps</C>, <C>/api/v1/heatmaps</C>, 'Click and scroll data per page.'],
             [<C>websites</C>, <C>/api/v1/websites</C>, 'Your sites, and the API keys attached to them.'],
-            [<C>privacy</C>, <C>/api/v1/privacy</C>, 'Data export and deletion requests.'],
+            [<C>privacy</C>, <C>/api/v1/privacy</C>, 'Reserved — returns 501, not yet implemented.'],
           ]}
         />
       </DocSection>

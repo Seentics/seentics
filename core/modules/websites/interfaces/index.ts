@@ -22,7 +22,7 @@ export type {
 } from "./website.interface";
 
 /** Values, not types — the role predicates peer modules gate their deletes on. */
-export { normalizeWebsiteRole, roleCanDeleteData } from "./website.interface";
+export { normalizeWebsiteRole, roleAtLeast, roleCanDeleteData } from "./website.interface";
 
 export type { WebsiteRepository } from "./website-repository.interface";
 

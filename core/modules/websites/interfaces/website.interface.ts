@@ -87,7 +87,32 @@ export function normalizeWebsiteRole(raw: string | null | undefined): WebsiteRol
  * did on screen and there is no undo — but the predicate is deliberately shared.
  */
 export function roleCanDeleteData(role: WebsiteRole): boolean {
-  return role === "owner" || role === "admin" || role === "member";
+  return roleAtLeast(role, "member");
+}
+
+/**
+ * The roles in order of privilege, least first.
+ *
+ * Indexes into this array are the comparison — see `roleAtLeast`. Adding a role means
+ * putting it in the right place here and nowhere else.
+ */
+const ROLE_ORDER: readonly WebsiteRole[] = ["viewer", "member", "admin", "owner"];
+
+/**
+ * Does `role` carry at least the privilege of `minimum`?
+ *
+ * The predicate every website-scoped operation is supposed to run, and for most of them
+ * it did not exist. `assertWebsiteAccess` asked whether a membership row existed and
+ * never read its `role` column, so a viewer could delete the website, publish its
+ * analytics, add members, and set their own role to owner — the last of those in a
+ * single request, because nothing compared the caller's role to the one being granted.
+ *
+ * `roleCanDeleteData` was the one place that got this right, and it guarded exactly one
+ * endpoint. Expressing the comparison once, here, is what stops the next operation from
+ * being added without one.
+ */
+export function roleAtLeast(role: WebsiteRole, minimum: WebsiteRole): boolean {
+  return ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(minimum);
 }
 
 export type CreateWebsiteInput = {
