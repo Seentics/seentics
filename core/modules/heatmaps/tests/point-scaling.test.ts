@@ -1,12 +1,11 @@
 import { describe, expect, it } from "bun:test";
-
-process.env.DATABASE_URL ??= "postgres://test-not-connected";
-
 import type { HeatmapIngestEvent } from "../../../platform/lib/types";
+import { eventsToPoints } from "../services/point-mapping";
 
-// Dynamic: a static import is hoisted above the `process.env` line above, and the engine
-// pulls in `db`, which throws at import time without a DATABASE_URL.
-const { eventsToPoints } = await import("../services/heatmap-engine.service");
+// A plain static import, and no `DATABASE_URL` to fake. That is the point of the split:
+// this used to reach these functions through `heatmap-engine.service`, which pulls in
+// `db` and throws while loading, so the test needed a dynamic import and a stub
+// environment to test arithmetic on a plain object.
 
 /**
  * The coordinate scale, pinned.

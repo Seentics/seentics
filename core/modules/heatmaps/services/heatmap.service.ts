@@ -17,7 +17,7 @@ import {
   storeDashboardScreenshot,
 } from "./layout-snapshot.service";
 import { getHeatmapPoints, listHeatmapPages } from "./page-query.service";
-import { deleteHeatmaps } from "../repositories/heatmap.repository";
+import { deleteHeatmaps } from "../repositories/heatmap-writes.repository";
 
 const log = baseLog.child({ category: "heatmap_screenshot" });
 

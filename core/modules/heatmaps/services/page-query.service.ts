@@ -1,5 +1,5 @@
 import { normalizeHeatmapPagePath } from "../lib/paths";
-import { getHeatmapData, listPages } from "../repositories/heatmap.repository";
+import { getHeatmapData, listPages } from "../repositories/heatmap-reads.repository";
 import type { HeatmapPageSummary, HeatmapPointOut } from "../interfaces";
 import { mergeNormalizedPages } from "./shared";
 
