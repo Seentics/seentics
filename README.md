@@ -17,15 +17,43 @@
   <a href="DEPLOYMENT.md">Deployment</a>
 </p>
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/analytics-dashboard-dark.png" />
-    <img src="assets/analytics-dashboard.png" alt="Seentics analytics overview — summary cards, traffic chart, top pages and traffic sources" width="100%" />
-  </picture>
-</p>
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/dashboard-dark.png" />
+        <img src="assets/dashboard.png" alt="Analytics overview — summary cards, traffic chart, top pages and traffic sources" />
+      </picture>
+      <p align="center"><strong>Analytics</strong><br />Traffic, pages, sources, geography</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/automations-dark.png" />
+        <img src="assets/automations.png" alt="Automation builder — triggers, conditions and actions on one canvas" />
+      </picture>
+      <p align="center"><strong>Automations</strong><br />Triggers, conditions and actions on one canvas</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/replay-dark.png" />
+        <img src="assets/replay.png" alt="Session replay — player with transport bar and session summary" />
+      </picture>
+      <p align="center"><strong>Session Replays</strong><br />Watch a real session, with errors and rage clicks flagged</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="assets/heatmaps-dark.png" />
+        <img src="assets/heatmaps.png" alt="Heatmap — click overlay on a captured page snapshot" />
+      </picture>
+      <p align="center"><strong>Heatmaps</strong><br />Clicks and scroll depth over a snapshot of the page</p>
+    </td>
+  </tr>
+</table>
 
 <p align="center">
-  <em>The analytics overview. Try it at <a href="https://seentics.com/websites/demo">seentics.com/websites/demo</a> — no account needed.</em>
+  <em>Try it at <a href="https://seentics.com/websites/demo">seentics.com/websites/demo</a> — no account needed.</em>
 </p>
 
 ---
