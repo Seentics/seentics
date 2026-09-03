@@ -67,7 +67,18 @@ function decodeScreenshotImage(data: Record<string, unknown> | undefined): Uint8
   return buf;
 }
 
-function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
+/**
+ * Turn tracker events into storable cells.
+ *
+ * The two event types share `x_percent`/`y_percent` but not their scale: a click is
+ * stored at 10000× (so the heatmap does not band at 1% granularity) and a scroll depth
+ * at 100×. Readers must divide by the matching factor — see `HeatmapPointOut`.
+ *
+ * Exported only so `tests/point-scaling.test.ts` can pin those two factors. They are a
+ * wire contract the dashboard divides by, written down nowhere the compiler can check,
+ * so a change here needs to fail a test rather than a rendered heatmap.
+ */
+export function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
   const points: HeatmapPointRow[] = [];
   for (const ev of events) {
     const ua = ev.clientUa ?? "";

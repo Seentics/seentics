@@ -1,5 +1,6 @@
 import { env } from "../../../config";
 import type { EventBus } from "../../../infrastructure/events";
+import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
 import { upsertLayoutSnapshot } from "../lib/layout-db";
 import { normalizeHeatmapPagePath } from "../lib/paths";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
@@ -87,6 +88,19 @@ async function captureAndUpsert(
 }
 
 /**
+ * Thrown when a capture target is not on the website's own domain.
+ *
+ * Its own type so the routes can answer 403 rather than the generic 400 they give an
+ * unreachable page — a refused target is a different fact from a broken one.
+ */
+export class ScreenshotTargetNotAllowedError extends Error {
+  constructor(pageUrl: string) {
+    super(`page_url not allowed: ${pageUrl}`);
+    this.name = "ScreenshotTargetNotAllowedError";
+  }
+}
+
+/**
  * On-demand page capture for the dashboard.
  *
  * Resolves the website reference once, through the `HeatmapSettings` port, and
@@ -123,6 +137,29 @@ export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
     resolved: ResolvedWebsite,
     request: CaptureScreenshotRequest,
   ): Promise<CaptureScreenshotResult> {
+    /*
+     * SSRF guard, here rather than at the routes.
+     *
+     * Capture is the one capability in the product that makes the server fetch a URL a
+     * caller supplied, and the result is stored and readable afterwards through
+     * `/layout-snapshot` — so an unchecked target is not just a request, it is
+     * exfiltration. `validateScreenshotTargetUrl` existed and was correct, but only two
+     * of the three entry points called it: the anonymous tracker route and the engine's
+     * auto-trigger. The two authenticated dashboard routes passed `page_url` straight
+     * through, and registration is open, so an account was the only prerequisite.
+     *
+     * Every path reaches capture through this method, which is why the check belongs
+     * here. The callers that already check keep theirs — they can answer with a proper
+     * status code before doing any work, and a guard that only exists at the edge is
+     * exactly what failed.
+     *
+     * `lib/playwright-screenshots` rewrites localhost to `host.docker.internal` for local
+     * development, so without this the loopback case actively reached the Docker host.
+     */
+    if (!validateScreenshotTargetUrl(request.pageUrl, resolved.siteUrl)) {
+      throw new ScreenshotTargetNotAllowedError(request.pageUrl);
+    }
+
     const result = await captureAndUpsert(resolved, request);
 
     // Announced only when an image was actually written. A deduplicated or

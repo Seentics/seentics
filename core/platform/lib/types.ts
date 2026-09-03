@@ -63,12 +63,37 @@ export type HeatmapPointRow = {
   capVh: number | null;
 };
 
+/**
+ * One aggregated heatmap cell, as the dashboard and the raw API receive it.
+ *
+ * **`x_percent` and `y_percent` are not percentages, and their scale depends on
+ * `event_type`.** Both are integers in the same two columns, written by
+ * `eventsToPoints`:
+ *
+ * | `event_type` | `x_percent`        | `y_percent`            | divide by |
+ * |--------------|--------------------|------------------------|-----------|
+ * | `click`      | `nx × 10000`, 0–10000 | `ny × 10000`, 0–10000 | 10000     |
+ * | `scroll`     | always `0`         | `depth × 100`, 0–100   | 100       |
+ *
+ * A click at the centre of the page is `5000`, not `50`. The names predate the
+ * resolution increase — clicks were stored as whole percents once, and rendering a
+ * heatmap at 1% granularity visibly banded, so the multiplier went to 10000 while the
+ * column names stayed. Scroll depth never needed the extra resolution and was left
+ * alone, which is where the split comes from.
+ *
+ * The dashboard divides correctly (`heatmaps/[slug]/page.tsx`). Anyone else consuming
+ * this — including the raw public API, which returns these values unchanged — has to
+ * apply the table above. Renaming the fields would say what they mean, but they are a
+ * published wire contract, so that is a versioned change rather than a fix.
+ */
 export type HeatmapPointOut = {
   page_path: string;
   event_type: string;
-  device_type: string;
+  /** Scaled — see the note above. `0` for every scroll row. */
   x_percent: number;
+  /** Scaled — see the note above. Divide by 10000 for clicks, 100 for scroll. */
   y_percent: number;
+  device_type: string;
   intensity: number;
   target_selector: string;
   cap_vw?: number | null;

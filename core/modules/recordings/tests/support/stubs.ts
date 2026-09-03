@@ -68,7 +68,19 @@ let inFlightPrefixDeletes = 0;
 /** Chunk rows `listSessionReplayChunks` returns, keyed by session id. */
 export const storedChunks = new Map<string, { sequence: number; key: string }[]>();
 
+/**
+ * Every runtime export of `platform/lib/s3`, not just the ones the recordings tests call.
+ *
+ * `mock.module` applies to the whole run, so this stub *is* the s3 module for every file
+ * loaded after it. Omitting `putJpeg` broke the heatmaps screenshot tests, which never
+ * touch replays, with a `SyntaxError` naming the real file that does export it. Same
+ * rule as `app/tests/helpers/test-config.ts`: a global stub has to be complete.
+ */
 mock.module("../../../../platform/lib/s3", () => ({
+  s3: () => ({}),
+  putHtml: async () => {},
+  putJpeg: async () => {},
+  deleteS3Objects: async () => {},
   getNextReplayChunkSequence: async () => 0,
   uploadSessionChunkGzip: async (
     _bucket: string,

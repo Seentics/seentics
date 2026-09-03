@@ -369,3 +369,18 @@ export async function captureAndStoreScreenshot(
     };
   }
 }
+
+/**
+ * Close the shared Chromium instance.
+ *
+ * Called from the heatmaps module's `stop()`. Playwright does register its own
+ * process-exit cleanup, so this is rarely the thing that actually reaps the browser —
+ * but a module that implements `ModuleLifecycle` and leaves a child process running is
+ * lying about having stopped, and the ordering matters if a shutdown ever has to wait
+ * on anything after it.
+ *
+ * Safe to call when no browser was ever launched, and safe to call twice.
+ */
+export async function shutdownScreenshotBrowser(): Promise<void> {
+  await closeBrowser();
+}

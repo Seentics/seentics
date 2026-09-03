@@ -69,6 +69,29 @@ export const fakeSql = ((first: unknown, ...values: unknown[]) => {
 }) as unknown as {
   <T>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T>;
   (ident: string[]): SqlIdentifier;
+  unsafe(text: string): SqlFragment;
+  begin<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
+};
+
+/** What `sql.unsafe(...)` returns: an opaque fragment, spliced into a later template. */
+export type SqlFragment = { __fragment: string };
+
+/**
+ * `sql.unsafe` and `sql.begin`, which `postgres` hangs off the same callable.
+ *
+ * Both are attached rather than omitted because a repository can call `sql.unsafe` at
+ * **module scope** — `heatmap.repository` builds its path-normalisation expression that
+ * way — so a fake without it throws while the module is still loading, from whichever
+ * unrelated test file happens to import it first.
+ */
+(fakeSql as unknown as Record<string, unknown>).unsafe = (text: string): SqlFragment => ({
+  __fragment: text,
+});
+(fakeSql as unknown as Record<string, unknown>).begin = async <T,>(
+  fn: (tx: unknown) => Promise<T>,
+): Promise<T> => {
+  transactions.push(sqlCalls.length);
+  return fn(fakeSql);
 };
 
 // ─── Writes ───────────────────────────────────────────────────────────────────

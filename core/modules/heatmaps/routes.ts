@@ -18,6 +18,7 @@ import {
   heatmapDataQuerySchema,
   heatmapSnapshotQuerySchema,
 } from "./validators/heatmap.schema";
+import { ScreenshotTargetNotAllowedError } from "./services/screenshot.service";
 
 /** Defaults for a capture whose options arrived absent or unparseable. */
 const DEFAULT_VIEWPORT_WIDTH = 1920;
@@ -232,6 +233,12 @@ export function createHeatmapRoutes(deps: {
         data: result,
       });
     } catch (error) {
+      // A refused target is not a broken one: 403 says the URL is off-limits, 400 says
+      // it would not load. Both are the caller's fault, but only one is fixable by
+      // retrying a different page.
+      if (error instanceof ScreenshotTargetNotAllowedError) {
+        return c.json({ error: "page_url not allowed" }, 403);
+      }
       // 400 rather than 502 for an upstream page that would not load: from the
       // caller's side the actionable fact is that the URL they supplied failed.
       return c.json(

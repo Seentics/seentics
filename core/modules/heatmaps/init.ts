@@ -13,6 +13,7 @@ import { initializeScreenshotCache } from "./services/screenshot-cache";
 import { HeatmapScreenshotRefreshService } from "./services/screenshot-refresh.service";
 import { HeatmapScreenshotService } from "./services/screenshot.service";
 import { HeatmapSettingsService } from "./services/settings.service";
+import { shutdownScreenshotBrowser } from "./lib/playwright-screenshots";
 
 /**
  * Build the heatmaps module.
@@ -63,8 +64,18 @@ export function initHeatmapsModule(deps: {
       initHeatmapEngine(eventBus, deps.websitesModule.trackerWebsites);
     },
 
+    /**
+     * Engine first, then the browser.
+     *
+     * The engine's drain can still trigger a capture, so closing Chromium before it has
+     * finished would fail that capture rather than complete it. The browser close was
+     * missing entirely — this module launches a child process on first capture and, for
+     * a module that implements `ModuleLifecycle`, leaving it running is a shutdown that
+     * has not finished.
+     */
     async stop() {
       await getHeatmapEngine().shutdown();
+      await shutdownScreenshotBrowser();
     },
   };
 }

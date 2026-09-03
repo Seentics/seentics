@@ -15,17 +15,36 @@ type WrittenRow = Record<string, unknown>;
 const written: { batchId: string; rows: WrittenRow[] }[] = [];
 let upsertThrows = false;
 
+/**
+ * Every runtime export, not just the one this file drives — see
+ * `app/tests/mock-completeness.test.ts` for why a partial global stub breaks other files.
+ */
 mock.module("../repositories/recording.repository", () => ({
   upsertSessionMetaBatch: async (_tx: unknown, batchId: string, rows: WrittenRow[]) => {
     if (upsertThrows) throw new Error("pg exploded");
     written.push({ batchId, rows });
     return rows.length;
   },
+  listSessions: async () => [],
+  summarizeSessions: async () => [],
+  getSessionMeta: async () => null,
+  deleteSession: async () => 0,
 }));
 
 /** Stands in for the marker table: same batch id twice means the second is a repeat. */
 const seenBatches = new Set<string>();
+/**
+ * Every runtime export of the module, not just `applyBatchOnce`.
+ *
+ * `mock.module` applies to the whole run, so this stub replaces the idempotency module
+ * for every file loaded after it — an omission fails somewhere unrelated with a
+ * `SyntaxError` pointing at the real file that does export the name.
+ */
 mock.module("../../../infrastructure/idempotency", () => ({
+  applyBatchOnceSql: async (_batchId: string, _category: string, write: () => Promise<number>) =>
+    ({ applied: true, rowCount: await write() }),
+  pruneAppliedBatches: async () => 0,
+  batchIdFor: (...parts: unknown[]) => parts.join(":"),
   applyBatchOnce: async (
     batchId: string,
     _category: string,

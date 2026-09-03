@@ -209,6 +209,14 @@ r.get("/v1/websites/:website_id/heatmap/pages", requireScope("heatmaps:read"), a
   });
 });
 
+/**
+ * Aggregated heatmap cells for one page.
+ *
+ * `x_percent` / `y_percent` are scaled integers, not percentages, and the scale depends
+ * on `event_type`: divide by 10000 for `click`, by 100 for `scroll` (whose `x_percent`
+ * is always 0). A click at the centre of a page reads as 5000. The names are a published
+ * contract and are kept as-is; see `HeatmapPointOut` for the full note.
+ */
 r.get("/v1/websites/:website_id/heatmap/points", requireScope("heatmaps:read"), async (c) => {
   const ctx = c.get("rawApi");
   const q = parseQuery(c, rawHeatmapPointsQuerySchema);

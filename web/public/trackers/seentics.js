@@ -1049,7 +1049,12 @@ let heatmapScrollThrottleAt = 0;
  *     data.source === Scroll (3)           → scroll depth update
  */
 const mirrorHeatmapFromRrweb = (ev) => {
-  if (cfg.heatmap_enabled === false) return;
+  // `heatmapAllowed()`, not just `heatmap_enabled` — this path is the *only* one
+  // capturing while replay records, because the DOM listeners below bail out on
+  // `recordingStop != null`. Checking the flag alone meant include/exclude patterns
+  // were silently ignored on every page where a session was being recorded: a site
+  // that excluded /checkout still collected clicks and scroll depth there.
+  if (!heatmapAllowed()) return;
   if (Number(ev?.type) !== RRWEB_EVENT_TYPE.IncrementalSnapshot) return;
 
   const inner = ev.data;
