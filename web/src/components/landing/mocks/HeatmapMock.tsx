@@ -362,8 +362,10 @@ export function HeatmapMock() {
           </div>
         </header>
 
-        {/* Stage — always near-black, as the real preview surface is */}
-        <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-[#09090b] p-5">
+        {/* Stage — darker than the page inside it, in whichever theme */}
+        {/* Follows the theme, like the real stage now does. A hardcoded near-black
+            here put a dark rectangle inside a light section. */}
+        <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-muted p-5 dark:bg-[#09090b]">
           <div className="w-full max-w-[720px] overflow-hidden rounded-lg border border-zinc-800 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]">
             <BrowserChrome />
             <PreviewPage />

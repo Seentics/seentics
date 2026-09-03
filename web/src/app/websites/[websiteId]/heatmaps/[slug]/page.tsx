@@ -585,7 +585,18 @@ function HeatmapViewer({
   const showLoadingOverlay = screenshotActive && loadState === 'loading';
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-[#09090b] dark:bg-[#09090b]">
+    /*
+      The stage the preview sits on follows the theme.
+
+      It was `bg-[#09090b] dark:bg-[#09090b]` — the same near-black in both themes,
+      which meant the one surface on the page that ignored the theme entirely. The
+      intent was sound: the visitor's own page is rendered inside this, and a darker
+      surround makes a white page read as a distinct artifact rather than blending
+      into the dashboard. But that only needs the stage to be *darker than the page
+      inside it*, which a neutral grey achieves in light mode without dropping a
+      black rectangle into a light UI.
+    */
+    <div className="flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
       <HeatmapPreviewBrowserChrome
         pageUrl={pageUrl}
         underlay={underlay}
