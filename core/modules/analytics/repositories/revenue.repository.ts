@@ -61,20 +61,74 @@ type MainRow = {
   }> | null;
 };
 
-export async function getRevenueDashboard(
+/** Most rows any one attribution breakdown returns. */
+const DIMENSION_LIMIT = 25;
+
+/**
+ * The five attribution breakdowns, as data.
+ *
+ * Each was written out longhand three times — once as a CTE, once as a projection in the
+ * final SELECT, once in the response mapping — and the five CTEs differed only in the
+ * expression that produces `name`. That is ~60 of this file's lines saying the same thing
+ * five times, and the failure mode it invites is a dimension added to two of the three
+ * places.
+ *
+ * `expr` is static SQL written here, never anything a caller supplies, which is what
+ * makes `sql.unsafe` below safe — the same pattern and the same reasoning as
+ * `heatmaps/repositories/page-path-normalisation.ts`.
+ */
+const ATTRIBUTION_DIMENSIONS = [
+  { key: "by_source", expr: "final_source" },
+  { key: "by_medium", expr: "final_medium" },
+  { key: "by_campaign", expr: "COALESCE(NULLIF(final_campaign, ''), '(none)')" },
+  { key: "by_product", expr: "COALESCE(NULLIF(product_name, ''), '(unknown)')" },
+  { key: "by_country", expr: "COALESCE(NULLIF(country, ''), 'Unknown')" },
+] as const satisfies readonly { key: keyof MainRow; expr: string }[];
+
+/**
+ * `by_x AS (SELECT <expr> AS name, SUM(...), COUNT(*) FROM enriched GROUP BY 1)`, five times.
+ *
+ * Built once at module load rather than per request: the text never varies.
+ */
+const dimensionCtes = pgSql.unsafe(
+  ATTRIBUTION_DIMENSIONS.map(
+    (d) => `${d.key} AS (
+      SELECT ${d.expr} AS name,
+             COALESCE(SUM(raw_value), 0)::double precision AS revenue,
+             COUNT(*)::int                                 AS orders
+      FROM enriched GROUP BY 1
+    )`,
+  ).join(",\n    "),
+);
+
+/** The matching `json_agg` projections in the final SELECT, in the same order. */
+const dimensionProjections = pgSql.unsafe(
+  ATTRIBUTION_DIMENSIONS.map(
+    (d) => `(SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
+       FROM (SELECT name, revenue, orders FROM ${d.key} ORDER BY revenue DESC LIMIT ${DIMENSION_LIMIT}) s) AS ${d.key}`,
+  ).join(",\n\n      "),
+);
+
+
+/**
+ * The one query.
+ *
+ * Summary, prior period, refunds, sessions, visitors, currency, the daily series, five
+ * attribution breakdowns and the recent transactions — as JSON columns on a single row,
+ * from a single round trip. Splitting it into a query per section would be far easier to
+ * read and would cost nine more round trips on a dashboard load, which is the trade this
+ * file exists to make. `db/sql/004_revenue_indexes.sql` is what makes it fast.
+ *
+ * Separated from `getRevenueDashboard` so that reading the SQL and reading the
+ * orchestration around it are two different acts.
+ */
+async function fetchRevenueRow(
   websiteId: string,
-  query: Record<string, string | undefined>,
-) {
-  const days = parseDays(query.days, 30);
-  const timezone = sanitizeTimezone(query.timezone);
-
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 86_400_000);
-  const prevStart = new Date(start.getTime() - days * 86_400_000);
-  const endIso = end.toISOString();
-  const startIso = start.toISOString();
-  const prevStartIso = prevStart.toISOString();
-
+  startIso: string,
+  endIso: string,
+  prevStartIso: string,
+  timezone: string,
+): Promise<MainRow | undefined> {
   const [row] = await pgSql<MainRow[]>`
     WITH
     -- ── Step 1: all revenue events spanning current + prior window ──────────────
@@ -342,36 +396,7 @@ export async function getRevenueDashboard(
     ),
 
     -- ── Step 7: attribution dimension breakdowns ──────────────────────────────────
-    by_source AS (
-      SELECT final_source AS name,
-             COALESCE(SUM(raw_value), 0)::double precision AS revenue,
-             COUNT(*)::int                                  AS orders
-      FROM enriched GROUP BY 1
-    ),
-    by_medium AS (
-      SELECT final_medium AS name,
-             COALESCE(SUM(raw_value), 0)::double precision AS revenue,
-             COUNT(*)::int                                  AS orders
-      FROM enriched GROUP BY 1
-    ),
-    by_campaign AS (
-      SELECT COALESCE(NULLIF(final_campaign, ''), '(none)') AS name,
-             COALESCE(SUM(raw_value), 0)::double precision   AS revenue,
-             COUNT(*)::int                                    AS orders
-      FROM enriched GROUP BY 1
-    ),
-    by_product AS (
-      SELECT COALESCE(NULLIF(product_name, ''), '(unknown)') AS name,
-             COALESCE(SUM(raw_value), 0)::double precision    AS revenue,
-             COUNT(*)::int                                     AS orders
-      FROM enriched GROUP BY 1
-    ),
-    by_country AS (
-      SELECT COALESCE(NULLIF(country, ''), 'Unknown') AS name,
-             COALESCE(SUM(raw_value), 0)::double precision AS revenue,
-             COUNT(*)::int                                  AS orders
-      FROM enriched GROUP BY 1
-    )
+    ${dimensionCtes}
 
     -- ── Final projection: everything as JSON columns in a single row ──────────────
     SELECT
@@ -385,20 +410,7 @@ export async function getRevenueDashboard(
       (SELECT COALESCE(json_agg(row_to_json(d)), '[]'::json)
        FROM (SELECT day, revenue, orders FROM daily_series ORDER BY day ASC) d)         AS daily,
 
-      (SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
-       FROM (SELECT name, revenue, orders FROM by_source   ORDER BY revenue DESC LIMIT 25) s) AS by_source,
-
-      (SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
-       FROM (SELECT name, revenue, orders FROM by_medium   ORDER BY revenue DESC LIMIT 25) s) AS by_medium,
-
-      (SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
-       FROM (SELECT name, revenue, orders FROM by_campaign ORDER BY revenue DESC LIMIT 25) s) AS by_campaign,
-
-      (SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
-       FROM (SELECT name, revenue, orders FROM by_product  ORDER BY revenue DESC LIMIT 25) s) AS by_product,
-
-      (SELECT COALESCE(json_agg(row_to_json(s)), '[]'::json)
-       FROM (SELECT name, revenue, orders FROM by_country  ORDER BY revenue DESC LIMIT 25) s) AS by_country,
+      ${dimensionProjections},
 
       (SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
        FROM (
@@ -419,116 +431,146 @@ export async function getRevenueDashboard(
          ORDER BY occurred_at DESC
          LIMIT 50
        ) t)                                                                              AS recent_transactions
-  `;
+  `;;
+  return row;
+}
 
-  if (!row) {
-    return emptyRevenueDashboard(websiteId, days);
-  }
+export async function getRevenueDashboard(
+  websiteId: string,
+  query: Record<string, string | undefined>,
+) {
+  const days = parseDays(query.days, 30);
+  const timezone = sanitizeTimezone(query.timezone);
 
-  // ── Shape the response ────────────────────────────────────────────────────────
-  const s = row.summary ?? {
-    total_revenue: 0,
-    orders: 0,
-    orders_with_value: 0,
-    unique_customers: 0,
-    new_cust_revenue: null,
-  };
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 86_400_000);
+  const prevStart = new Date(start.getTime() - days * 86_400_000);
 
-  const totalRevenue      = Number(s.total_revenue ?? 0);
-  const orders            = Number(s.orders ?? 0);
-  const ordersWithValue   = Number(s.orders_with_value ?? 0);
-  const uniqueCustomers   = Number(s.unique_customers ?? 0);
-  const newCustRevenue    = s.new_cust_revenue != null ? Number(s.new_cust_revenue) : null;
-  const refundTotal       = Number(row.refund_total ?? 0);
-  const sessions          = Number(row.sessions ?? 0);
-  const uniqueVisitors    = Number(row.unique_visitors ?? 0);
-  const currency          = String(row.dominant_currency ?? "USD");
+  const row = await fetchRevenueRow(
+    websiteId,
+    start.toISOString(),
+    end.toISOString(),
+    prevStart.toISOString(),
+    timezone,
+  );
 
-  const prior        = row.prior ?? { prior_revenue: 0, prior_orders: 0 };
-  const priorRevenue = Number(prior.prior_revenue ?? 0);
-  const priorOrders  = Number(prior.prior_orders ?? 0);
-  const changePct    =
-    priorRevenue > 0
-      ? Math.round(((totalRevenue - priorRevenue) / priorRevenue) * 1000) / 10
-      : 0;
+  return row ? shapeRevenueDashboard(websiteId, days, row) : emptyRevenueDashboard(websiteId, days);
+}
 
-  const dataQuality: "full" | "partial" | "no_revenue" =
-    orders === 0
-      ? "no_revenue"
-      : ordersWithValue < orders
-        ? "partial"
-        : "full";
+/**
+ * The wide single row into the response the dashboard renders.
+ *
+ * Pure, and lifted out of `getRevenueDashboard` for that reason: it was ~105 lines
+ * trailing a 400-line query, so the two halves — one that talks to Postgres and one that
+ * does arithmetic — could only be read, and only be changed, together.
+ *
+ * The rounding here is contract rather than presentation. Currency amounts go to the
+ * cent, revenue-per-session to four places because it is routinely under a cent, and
+ * share percentages to one. `refund_total` and `new_customer_revenue_pct` are omitted
+ * rather than zeroed, which a client distinguishes from "zero refunds".
+ */
+function shapeRevenueDashboard(websiteId: string, days: number, row: MainRow) {
+const s = row.summary ?? {
+  total_revenue: 0,
+  orders: 0,
+  orders_with_value: 0,
+  unique_customers: 0,
+  new_cust_revenue: null,
+};
 
-  const aov  = orders > 0 ? totalRevenue / orders : 0;
-  const rps  = sessions > 0 ? totalRevenue / sessions : 0;
-  const arpu = uniqueVisitors > 0 ? totalRevenue / uniqueVisitors : 0;
+const totalRevenue      = Number(s.total_revenue ?? 0);
+const orders            = Number(s.orders ?? 0);
+const ordersWithValue   = Number(s.orders_with_value ?? 0);
+const uniqueCustomers   = Number(s.unique_customers ?? 0);
+const newCustRevenue    = s.new_cust_revenue != null ? Number(s.new_cust_revenue) : null;
+const refundTotal       = Number(row.refund_total ?? 0);
+const sessions          = Number(row.sessions ?? 0);
+const uniqueVisitors    = Number(row.unique_visitors ?? 0);
+const currency          = String(row.dominant_currency ?? "USD");
 
-  const newCustRevenuePct =
-    newCustRevenue != null && totalRevenue > 0
-      ? Math.round((newCustRevenue / totalRevenue) * 1000) / 10
+const prior        = row.prior ?? { prior_revenue: 0, prior_orders: 0 };
+const priorRevenue = Number(prior.prior_revenue ?? 0);
+const priorOrders  = Number(prior.prior_orders ?? 0);
+const changePct    =
+  priorRevenue > 0
+    ? Math.round(((totalRevenue - priorRevenue) / priorRevenue) * 1000) / 10
+    : 0;
+
+const dataQuality: "full" | "partial" | "no_revenue" =
+  orders === 0
+    ? "no_revenue"
+    : ordersWithValue < orders
+      ? "partial"
+      : "full";
+
+const aov  = orders > 0 ? totalRevenue / orders : 0;
+const rps  = sessions > 0 ? totalRevenue / sessions : 0;
+const arpu = uniqueVisitors > 0 ? totalRevenue / uniqueVisitors : 0;
+
+const newCustRevenuePct =
+  newCustRevenue != null && totalRevenue > 0
+    ? Math.round((newCustRevenue / totalRevenue) * 1000) / 10
+    : undefined;
+
+const daily = (row.daily ?? []).map((d) => ({
+  date: String(d.day),
+  revenue: Math.round(Number(d.revenue) * 100) / 100,
+  orders: Number(d.orders),
+}));
+
+const toRows = (arr: typeof row.by_source) =>
+  addSharePct(arr ?? [], totalRevenue);
+
+const dataNote =
+  dataQuality === "no_revenue"
+    ? "No purchase events found in this period. Send seentics.track('purchase', { value, currency, ... }) from your checkout flow to populate this dashboard."
+    : dataQuality === "partial"
+      ? "Some purchase events are missing a numeric `value` property. Add value: <number> to your seentics.track('purchase', ...) calls for complete revenue reporting."
       : undefined;
 
-  const daily = (row.daily ?? []).map((d) => ({
-    date: String(d.day),
-    revenue: Math.round(Number(d.revenue) * 100) / 100,
-    orders: Number(d.orders),
-  }));
-
-  const toRows = (arr: typeof row.by_source) =>
-    addSharePct(arr ?? [], totalRevenue);
-
-  const dataNote =
-    dataQuality === "no_revenue"
-      ? "No purchase events found in this period. Send seentics.track('purchase', { value, currency, ... }) from your checkout flow to populate this dashboard."
-      : dataQuality === "partial"
-        ? "Some purchase events are missing a numeric `value` property. Add value: <number> to your seentics.track('purchase', ...) calls for complete revenue reporting."
-        : undefined;
-
-  return {
-    website_id: websiteId,
-    days,
-    data_quality: dataQuality,
-    ...(dataNote ? { data_note: dataNote } : {}),
-    summary: {
-      total_revenue: Math.round(totalRevenue * 100) / 100,
-      currency,
-      orders,
-      aov: Math.round(aov * 100) / 100,
-      sessions,
-      revenue_per_session: Math.round(rps * 10000) / 10000,
-      arpu: Math.round(arpu * 100) / 100,
-      unique_customers: uniqueCustomers,
-      ...(refundTotal > 0 ? { refund_total: Math.round(refundTotal * 100) / 100 } : {}),
-      ...(newCustRevenuePct !== undefined ? { new_customer_revenue_pct: newCustRevenuePct } : {}),
-      prior_period: {
-        total_revenue: Math.round(priorRevenue * 100) / 100,
-        orders: priorOrders,
-        change_pct: changePct,
-      },
+return {
+  website_id: websiteId,
+  days,
+  data_quality: dataQuality,
+  ...(dataNote ? { data_note: dataNote } : {}),
+  summary: {
+    total_revenue: Math.round(totalRevenue * 100) / 100,
+    currency,
+    orders,
+    aov: Math.round(aov * 100) / 100,
+    sessions,
+    revenue_per_session: Math.round(rps * 10000) / 10000,
+    arpu: Math.round(arpu * 100) / 100,
+    unique_customers: uniqueCustomers,
+    ...(refundTotal > 0 ? { refund_total: Math.round(refundTotal * 100) / 100 } : {}),
+    ...(newCustRevenuePct !== undefined ? { new_customer_revenue_pct: newCustRevenuePct } : {}),
+    prior_period: {
+      total_revenue: Math.round(priorRevenue * 100) / 100,
+      orders: priorOrders,
+      change_pct: changePct,
     },
-    daily,
-    by_source: toRows(row.by_source),
-    by_medium: toRows(row.by_medium),
-    by_campaign: toRows(row.by_campaign),
-    by_product: toRows(row.by_product),
-    by_country: toRows(row.by_country),
-    recent_transactions: (row.recent_transactions ?? []).map((tx) => ({
-      id: String(tx.id),
-      occurred_at: String(tx.occurred_at),
-      value: Math.round(Number(tx.value) * 100) / 100,
-      currency: String(tx.currency || "USD"),
-      ...(tx.product_name ? { product_name: tx.product_name } : {}),
-      ...(tx.order_id ? { order_id: tx.order_id } : {}),
-      ...(tx.source ? { source: tx.source } : {}),
-      ...(tx.medium ? { medium: tx.medium } : {}),
-      ...(tx.campaign ? { campaign: tx.campaign } : {}),
-      ...(tx.country ? { country: tx.country } : {}),
-      ...(tx.user_type === "new" || tx.user_type === "returning"
-        ? { user_type: tx.user_type as "new" | "returning" }
-        : {}),
-      ...(Array.isArray(tx.items) ? { items: tx.items } : {}),
-    })),
-  };
+  },
+  daily,
+  ...Object.fromEntries(
+    ATTRIBUTION_DIMENSIONS.map((d) => [d.key, toRows(row[d.key])]),
+  ),
+  recent_transactions: (row.recent_transactions ?? []).map((tx) => ({
+    id: String(tx.id),
+    occurred_at: String(tx.occurred_at),
+    value: Math.round(Number(tx.value) * 100) / 100,
+    currency: String(tx.currency || "USD"),
+    ...(tx.product_name ? { product_name: tx.product_name } : {}),
+    ...(tx.order_id ? { order_id: tx.order_id } : {}),
+    ...(tx.source ? { source: tx.source } : {}),
+    ...(tx.medium ? { medium: tx.medium } : {}),
+    ...(tx.campaign ? { campaign: tx.campaign } : {}),
+    ...(tx.country ? { country: tx.country } : {}),
+    ...(tx.user_type === "new" || tx.user_type === "returning"
+      ? { user_type: tx.user_type as "new" | "returning" }
+      : {}),
+    ...(Array.isArray(tx.items) ? { items: tx.items } : {}),
+  })),
+};
 }
 
 function emptyRevenueDashboard(websiteId: string, days: number) {
