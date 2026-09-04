@@ -5,6 +5,7 @@
  * "recording", the HTTP path and the `session_replays` table still say "replay".
  */
 export type {
+  SessionMetaRow,
   RecordingDetail,
   RecordingIngest,
   RecordingMutations,

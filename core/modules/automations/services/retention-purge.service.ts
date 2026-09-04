@@ -5,18 +5,7 @@ import type {
   RetentionPurge,
   RetentionTarget,
 } from "../../../platform/retention/interfaces";
-
-function affectedRows(result: unknown): number {
-  if (
-    result &&
-    typeof result === "object" &&
-    "count" in result &&
-    typeof (result as { count: unknown }).count === "number"
-  ) {
-    return (result as { count: number }).count;
-  }
-  return 0;
-}
+import { affectedRows } from "../../../platform/retention";
 
 /**
  * Deletes aged execution history from `automation_events`.

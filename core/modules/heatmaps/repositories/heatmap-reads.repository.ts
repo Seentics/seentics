@@ -1,6 +1,7 @@
 import { sql } from "../../../db";
-import type { HeatmapPointOut, PageSummaryRow } from "../../../platform/lib/types";
+import type { HeatmapPointOut } from "../../../platform/lib/types";
 import { NORM_PAGE_PATH_EXPR } from "./page-path-normalisation";
+import type { PageSummaryRow } from "../interfaces";
 
 /**
  * Reads against `heatmap_points`, for the dashboard and the raw API.

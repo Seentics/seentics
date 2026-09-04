@@ -86,14 +86,87 @@ describe("module boundaries", () => {
         if (parts[2]?.startsWith("interfaces")) continue;
         if (parts.length === 3 && parts[2] === "init") continue;
 
-        // Auth is not yet a composed module: it has no `interfaces/` and its router
-        // takes no dependencies, so the entry point still mounts it directly.
-        if (parts[1] === "auth") continue;
+        violations.push(`${relative(CORE, file)} -> ${target}`);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  /**
+   * The blind spot this test used to have.
+   *
+   * Everything above asks whether a *module* reaches somewhere it should not. Nothing
+   * asked the reverse, so `platform/` and `infrastructure/` — which sit *below* the
+   * modules and must not know they exist — could import a module's services or
+   * repositories freely, and a module's own domain types could drift outward into
+   * `platform/lib` where any module could pick them up without going through the owning
+   * module's interfaces. Four had.
+   */
+  it("keeps platform and infrastructure below the modules", () => {
+    const violations: string[] = [];
+
+    for (const file of [
+      ...sourceFiles(join(CORE, "platform")),
+      ...sourceFiles(join(CORE, "infrastructure")),
+    ]) {
+      for (const target of relativeImports(file)) {
+        const parts = target.split("/");
+        if (parts[0] !== "modules") continue;
+
+        // `interfaces/` is allowed, and is how the HTTP composition files in
+        // `platform/http` name the ports the composition root injects into them. What is
+        // not allowed is what modules may not do either: reaching a peer's services,
+        // repositories, routes or engines.
+        if (parts[2]?.startsWith("interfaces")) continue;
 
         violations.push(`${relative(CORE, file)} -> ${target}`);
       }
     }
 
     expect(violations).toEqual([]);
+  });
+
+  /**
+   * A type in `platform/lib/types.ts` must be shared by more than one place.
+   *
+   * A single-consumer type there is that module's own shape sitting in a file everyone
+   * imports — `HeatmapPointRow`, `PageSummaryRow`, `ScreenshotJob` and `SessionMetaRow`
+   * all were, and `ReplayChunk` had no consumer at all. None of them tripped any rule,
+   * because `platform/` is not a module and importing from it is legal from anywhere.
+   */
+  it("keeps single-module types out of platform/lib/types.ts", () => {
+    /**
+     * Moves blocked on concurrent work in `heatmap-engine.service.ts`, which is where
+     * both are consumed. They belong in `modules/heatmaps/interfaces`; this list exists
+     * so the rule can be enforced now rather than deferred with it.
+     */
+    const PENDING_MOVE = new Set(["HeatmapPointRow", "ScreenshotJob"]);
+
+    const shared = readFileSync(join(CORE, "platform", "lib", "types.ts"), "utf8");
+    const names = [...shared.matchAll(/^export type (\w+)/gm)].map((m) => m[1]!);
+    expect(names.length).toBeGreaterThan(0);
+
+    const zones = new Map<string, Set<string>>();
+    for (const dir of ["modules", "platform", "infrastructure", "app"]) {
+      for (const file of sourceFiles(join(CORE, dir))) {
+        const rel = relative(CORE, file);
+        if (rel === join("platform", "lib", "types.ts")) continue;
+        const src = readFileSync(file, "utf8");
+        const zone = rel.startsWith("modules") ? rel.split("/")[1]! : dir;
+        for (const name of names) {
+          if (new RegExp(`\\b${name}\\b`).test(src)) {
+            (zones.get(name) ?? zones.set(name, new Set()).get(name)!).add(zone);
+          }
+        }
+      }
+    }
+
+    const misplaced = names
+      .filter((n) => !PENDING_MOVE.has(n))
+      .filter((n) => (zones.get(n)?.size ?? 0) < 2)
+      .map((n) => `${n} (used by ${[...(zones.get(n) ?? [])].join(", ") || "nothing"})`);
+
+    expect(misplaced).toEqual([]);
   });
 });

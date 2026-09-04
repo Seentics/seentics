@@ -5,19 +5,7 @@ import type {
   RetentionPurge,
   RetentionTarget,
 } from "../../../platform/retention/interfaces";
-
-/** Rows affected, from a driver result that may not report a count. */
-function affectedRows(result: unknown): number {
-  if (
-    result &&
-    typeof result === "object" &&
-    "count" in result &&
-    typeof (result as { count: unknown }).count === "number"
-  ) {
-    return (result as { count: number }).count;
-  }
-  return 0;
-}
+import { affectedRows } from "../../../platform/retention";
 
 /**
  * Deletes aged rows from `analytics_events`, which this module owns.

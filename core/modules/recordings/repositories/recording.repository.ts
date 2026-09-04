@@ -1,7 +1,8 @@
 import { sql as pgSql, sessionReplays } from "../../../db";
 import { sql as dsql } from "drizzle-orm";
 import type { BatchTx } from "../../../infrastructure/idempotency";
-import type { SessionMetaRow } from "../../../platform/lib/types";
+import type { SessionMetaRow } from "../interfaces";
+
 
 export type SessionUpsertRow = {
   websiteId: string;

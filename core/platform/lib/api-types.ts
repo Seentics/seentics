@@ -5,22 +5,6 @@
 
 import type { HeatmapIngestEvent, TrackerEvent } from "./types";
 
-/** Parsed auth JSON bodies (optional fields until validated). */
-export type AuthRegisterJson = {
-  email?: string;
-  password?: string;
-  name?: string;
-};
-
-export type AuthLoginJson = {
-  email?: string;
-  password?: string;
-};
-
-export type AuthRefreshJson = {
-  refresh_token?: string;
-};
-
 /** Service layer — validated register/login inputs. */
 export type RegisterUserInput = {
   email: string;
@@ -70,12 +54,6 @@ export type TrackerCollectBody = {
   automations?: unknown[];
 };
 
-/** Websites service */
-export type CreateWebsiteBody = {
-  name: string;
-  url: string;
-};
-
 export type CreateGoalBody = {
   name: string;
   type: string;
@@ -95,30 +73,3 @@ export type AddWebsiteMemberBody = {
   role?: string;
 };
 
-/** Automations service */
-export type CreateAutomationBody = {
-  name: string;
-  definition: Record<string, unknown>;
-  is_active?: boolean;
-};
-
-export type AutomationUpdatePatch = Partial<{
-  name: string;
-  definition: Record<string, unknown>;
-  is_active: boolean;
-}>;
-
-/** Funnels service */
-export type CreateFunnelBody = {
-  name: string;
-  description?: string;
-  steps?: Record<string, unknown>[];
-  is_active?: boolean;
-};
-
-export type FunnelUpdatePatch = Partial<{
-  name: string;
-  description: string;
-  is_active: boolean;
-  steps: Record<string, unknown>[];
-}>;

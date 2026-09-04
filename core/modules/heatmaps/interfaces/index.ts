@@ -7,6 +7,7 @@
  * (see `HeatmapService`).
  */
 export type {
+  PageSummaryRow,
   BatchCaptureScreenshotResult,
   CaptureScreenshotRequest,
   CaptureScreenshotResult,

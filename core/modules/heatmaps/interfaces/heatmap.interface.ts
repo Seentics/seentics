@@ -310,3 +310,18 @@ export interface HeatmapRawReads {
     points: HeatmapPointOut[];
   }>;
 }
+
+/**
+ * The per-page totals row, as the reads repository returns it.
+ *
+ * Moved here from `platform/lib/types.ts` for the same reason as
+ * `RecordingsModule`'s `SessionMetaRow`: only this module ever read it.
+ */
+export type PageSummaryRow = {
+  page_path: string;
+  click_count: number;
+  scroll_count: number;
+  avg_scroll: number;
+  /** ISO 8601; driver may return timestamps as strings instead of `Date`. */
+  last_seen: string;
+};

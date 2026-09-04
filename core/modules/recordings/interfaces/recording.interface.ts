@@ -147,3 +147,26 @@ export interface RecordingRawReads {
     }>;
   }>;
 }
+
+/**
+ * One session's metadata row, as the repository reads it.
+ *
+ * Lived in `platform/lib/types.ts` with the recordings repository as its only consumer —
+ * a module's own storage shape in a shared file, which the boundary test could not see
+ * because `platform/` is not a module. See `app/tests/module-boundaries.test.ts`.
+ */
+export type SessionMetaRow = {
+  sessionId: string;
+  websiteId: string;
+  browser: string;
+  device: string;
+  os: string;
+  country: string;
+  entryPage: string;
+  /** From SQL: driver may return `Date` or ISO string. */
+  startedAt: Date | string;
+  hasRageClicks: boolean;
+  hasErrors: boolean;
+  durationSeconds: number;
+  pagesViewed: number;
+};

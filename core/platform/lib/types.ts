@@ -1,21 +1,5 @@
 import type { AnalyticsIngestMeta } from "./analytics-ingest-meta";
 
-export type SessionMetaRow = {
-  sessionId: string;
-  websiteId: string;
-  browser: string;
-  device: string;
-  os: string;
-  country: string;
-  entryPage: string;
-  /** From SQL: driver may return `Date` or ISO string. */
-  startedAt: Date | string;
-  hasRageClicks: boolean;
-  hasErrors: boolean;
-  durationSeconds: number;
-  pagesViewed: number;
-};
-
 export type TrackerEvent = {
   type: string;
   data?: Record<string, unknown>;
@@ -28,12 +12,6 @@ export type TrackerEvent = {
   ingestMeta?: AnalyticsIngestMeta;
   doc_w?: number;
   doc_h?: number;
-};
-
-export type ReplayChunk = {
-  sequence: number;
-  data: unknown[];
-  timestamp: Date;
 };
 
 /** Heatmap pipeline ingest row (tracker → heatmap engine). */
@@ -98,15 +76,6 @@ export type HeatmapPointOut = {
   target_selector: string;
   cap_vw?: number | null;
   cap_vh?: number | null;
-};
-
-export type PageSummaryRow = {
-  page_path: string;
-  click_count: number;
-  scroll_count: number;
-  avg_scroll: number;
-  /** ISO 8601; driver may return timestamps as strings instead of `Date`. */
-  last_seen: string;
 };
 
 export type ScreenshotJob = {

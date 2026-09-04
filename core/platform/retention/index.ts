@@ -20,3 +20,6 @@ export type {
 } from "./interfaces";
 export type { WebsiteRetentionOverride } from "./overrides";
 export { fetchRetentionOverrides } from "./overrides";
+
+/** Shared by every `RetentionPurge` implementation — see the file for why. */
+export { affectedRows } from "./affected-rows";

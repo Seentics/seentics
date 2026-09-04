@@ -1,6 +1,6 @@
 import { normalizeHeatmapPagePath } from "../lib/paths";
-import type { PageSummaryRow } from "../../../platform/lib/types";
-import type { HeatmapPageSummary } from "../interfaces";
+
+import type { HeatmapPageSummary, PageSummaryRow } from "../interfaces";
 
 /** JPEG SOI marker. Cheap sanity check before we pay to store an "image". */
 export function isJpeg(b: Uint8Array): boolean {
