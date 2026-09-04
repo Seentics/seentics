@@ -4,28 +4,50 @@ import { log } from "../../../platform/lib/logger";
 import { parseDays } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
 
-export async function getDashboardStats(
-  websiteId: string,
-  query: Record<string, string | undefined>,
-) {
-  const days = parseDays(query.days);
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 86400000);
-  const prevStart = new Date(start.getTime() - days * 86400000);
-  /** Raw `postgres` tagged queries expect string timestamps here, not `Date` (driver byteLength bind). */
-  const endIso = end.toISOString();
-  const startIso = start.toISOString();
-  const prevStartIso = prevStart.toISOString();
+/** The windowed pageview/visitor counts, current period and the one before it. */
+type TrafficAgg = {
+  pv: number;
+  uv: number;
+  prev_pv: number;
+  prev_uv: number;
+};
 
+/** Session counts, duration and bounce rate, current period and the one before it. */
+type SessionAgg = {
+  session_cnt: number;
+  avg_session_sec: number;
+  bounce_pct: number;
+  prev_session_cnt: number;
+  prev_avg_session_sec: number;
+  prev_bounce_pct: number;
+};
+
+/** What the three queries return together. */
+type DashboardRows = {
+  agg: TrafficAgg | undefined;
+  sess: SessionAgg | undefined;
+  liveVisitors: number;
+};
+
+/**
+ * The three queries behind the dashboard's headline numbers.
+ *
+ * Parallel, not combined: the traffic and session aggregates read the same table over the
+ * same window but group differently, and the live-visitor count uses a much shorter
+ * window with its own index. One query would mean either a wider scan or a join that
+ * serves neither.
+ *
+ * Separated from `getDashboardStats` so that reading the SQL and reading the arithmetic
+ * around it are two different acts.
+ */
+async function fetchDashboardRows(
+  websiteId: string,
+  startIso: string,
+  endIso: string,
+  prevStartIso: string,
+): Promise<DashboardRows> {
   const [[agg], [sess], liveRow] = await Promise.all([
-    pgSql<
-      {
-        pv: number;
-        uv: number;
-        prev_pv: number;
-        prev_uv: number;
-      }[]
-    >`
+    pgSql<TrafficAgg[]>`
       SELECT
         COALESCE(
           count(*) FILTER (
@@ -61,19 +83,21 @@ export async function getDashboardStats(
         )::int AS prev_uv
       FROM analytics_events
       WHERE website_id = ${websiteId}
+        -- Redundant against the four FILTERs above, which every one of them already
+        -- applies — and that is the point. Without it the planner sees a query over all
+        -- event types and cannot use ix_analytics_pageview_visitor, the partial covering
+        -- index built for exactly this shape, so it read the heap for every custom event
+        -- and heatmap row in the window before discarding them.
+        AND event_type = 'pageview'
         AND occurred_at >= ${prevStartIso}
         AND occurred_at <= ${endIso}
     `,
-    pgSql<
-      {
-        session_cnt: number;
-        avg_session_sec: number;
-        bounce_pct: number;
-        prev_session_cnt: number;
-        prev_avg_session_sec: number;
-        prev_bounce_pct: number;
-      }[]
-    >`
+    pgSql<SessionAgg[]>`
+      -- Every event type, not just pageviews: session duration is measured from the first
+      -- to the last thing a visitor did, and a session whose only later activity is a
+      -- custom event lasted that long whether or not a page was loaded again. Narrowing
+      -- this to pageviews would make the index work but would quietly redefine the metric,
+      -- so ix_analytics_session_window covers this shape instead.
       WITH e AS (
         SELECT session_id, event_type, occurred_at
         FROM analytics_events
@@ -154,6 +178,25 @@ export async function getDashboardStats(
     `,
   ]);
 
+  return { agg, sess, liveVisitors: Number(liveRow[0]?.c ?? 0) };
+}
+
+/**
+ * The three result rows into the response the dashboard renders.
+ *
+ * Pure apart from its logging, and lifted out for the same reason as the revenue
+ * report's shaping: it was ~85 lines trailing ~145 lines of SQL, so the half that
+ * computes period-over-period change could only be read alongside the half that fetches.
+ *
+ * Every `*_change` is a percentage *difference* except `bounce_change`, which is a
+ * difference in percentage points — bounce rate is already a percentage, and expressing
+ * its movement as a percentage of a percentage is the kind of number nobody can act on.
+ */
+function shapeDashboardStats(
+  websiteId: string,
+  days: number,
+  { agg, sess, liveVisitors }: DashboardRows,
+) {
   const pageViews = Number(agg?.pv ?? 0);
   const uniqueVisitors = Number(agg?.uv ?? 0);
   const prevPv = Number(agg?.prev_pv ?? 0);
@@ -166,7 +209,6 @@ export async function getDashboardStats(
   const prevAvgSessionSec = Number(sess?.prev_avg_session_sec ?? 0);
   const prevBouncePct = Number(sess?.prev_bounce_pct ?? 0);
 
-  const liveVisitors = Number(liveRow[0]?.c ?? 0);
   const pagesPerSession = sessionCnt > 0 ? pageViews / sessionCnt : 0;
 
   const visitorChange = prevUv ? ((uniqueVisitors - prevUv) / prevUv) * 100 : 0;
@@ -239,3 +281,24 @@ export async function getDashboardStats(
     },
   };
 }
+
+export async function getDashboardStats(
+  websiteId: string,
+  query: Record<string, string | undefined>,
+) {
+  const days = parseDays(query.days);
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 86400000);
+  const prevStart = new Date(start.getTime() - days * 86400000);
+
+  /** The driver binds string timestamps, not `Date` (byteLength bind). */
+  const rows = await fetchDashboardRows(
+    websiteId,
+    start.toISOString(),
+    end.toISOString(),
+    prevStart.toISOString(),
+  );
+
+  return shapeDashboardStats(websiteId, days, rows);
+}
+
