@@ -122,10 +122,14 @@ export async function storeDashboardScreenshot(
   // html2canvas occasionally reports 0 for a page it could not measure. Storing
   // that would make the overlay render at zero size, so fall back to a common
   // desktop viewport instead of refusing the screenshot.
+  // Non-finite is checked separately because a `< MIN` comparison is *false* for NaN,
+  // so the fallback was skipped for exactly the input that needed it most. `/save-screenshot`
+  // reaches this with `Number(body.doc_width)`, which is NaN for any non-numeric field,
+  // and the value lands in an integer column.
   let dW = Math.trunc(docWidth ?? 0);
   let dH = Math.trunc(docHeight ?? 0);
-  if (dW < MIN_PLAUSIBLE_DOC_PX) dW = FALLBACK_DOC_WIDTH;
-  if (dH < MIN_PLAUSIBLE_DOC_PX) dH = FALLBACK_DOC_HEIGHT;
+  if (!Number.isFinite(dW) || dW < MIN_PLAUSIBLE_DOC_PX) dW = FALLBACK_DOC_WIDTH;
+  if (!Number.isFinite(dH) || dH < MIN_PLAUSIBLE_DOC_PX) dH = FALLBACK_DOC_HEIGHT;
 
   const key = heatmapScreenshotKey(resolved.websiteId, layoutPathSlot(resolved.websiteId, normalizedPath));
   await putJpeg(cfg.s3.bucket, key, jpeg);

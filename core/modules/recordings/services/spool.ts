@@ -15,6 +15,23 @@ const maxEventsPerSession = 500_000;
  */
 const maxBytesPerSession = 32 * 1024 * 1024;
 
+/**
+ * Size at which a session's tail is flushed early, without waiting for the time window.
+ *
+ * The tail is the one part of a recording that is not durable — it lives in this process
+ * until `chunkFlushMs` elapses, and an ungraceful termination loses it. The time window is
+ * 30s by default because one S3 object per ingest batch would be thirty times the objects
+ * and thirty times the sequence lookups, so shortening it is not free. Bounding it by
+ * *size* is: a session generating enough data to matter flushes on volume long before the
+ * timer, and a quiet one is not holding anything worth protecting.
+ *
+ * It also keeps the hard caps above out of reach in normal operation. Those caps *drop*
+ * events; before this, a burst could reach 32MB inside a single window and start
+ * discarding a live recording.
+ */
+const flushAtBytes = 4 * 1024 * 1024;
+const flushAtEvents = 20_000;
+
 /** Rough retained size of an envelope. JSON length is close enough and cheap. */
 function approximateBytes(ev: Record<string, unknown>): number {
   try {
@@ -177,6 +194,17 @@ export class ReplaySpool {
       st.chunkWindowStart = Date.now();
     }
     st.dirty = true;
+
+    // Detached, like the timer's own flush: `push` is called from the ingest worker's
+    // apply path, which must not wait on S3. `flushChunk` chains per session, so this
+    // cannot race the tick into reusing a chunk sequence.
+    if (st.approxBytes >= flushAtBytes || st.events.length >= flushAtEvents) {
+      void this.flushChunk(st).catch((e: unknown) => {
+        // The failed batch is already restored to `st.events` by `doFlushChunk`, so the
+        // next tick retries it. Logged here only because nothing else awaits this call.
+        log.warn({ msg: "replay_spool_size_flush_failed", session_id: st.sessionId, err: String(e) });
+      });
+    }
   }
 
   /** Unflushed tail only; detail API assigns sequence using max S3 chunk index + 1. */

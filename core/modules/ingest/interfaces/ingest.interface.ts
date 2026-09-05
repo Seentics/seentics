@@ -1,4 +1,5 @@
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
+import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type {
   AutomationTriggerQueued,
   TrackerEvent,
@@ -56,6 +57,15 @@ export interface IngestSinks {
 
   /** Hand raw tracker events to the heatmap engine, which projects and filters them. */
   processHeatmaps(batchId: string, events: readonly HeatmapTrackerEvent[]): Promise<void>;
+
+  /**
+   * Persist visitor profiles built from a `/collect` batch.
+   *
+   * Batched like the rest, and for the same reason plus one: `visit_count` and
+   * `total_page_views` accumulate, so this is one of the three writes where a redelivery
+   * inflates a number rather than duplicating a row.
+   */
+  writeVisitorProfiles(batchId: string, rows: readonly VisitorProfileWrite[]): Promise<number>;
 }
 
 /**
@@ -77,6 +87,15 @@ export interface IngestQueue {
   enqueueRecordings(events: TrackerEvent[]): void;
   enqueueHeatmaps(events: HeatmapTrackerEvent[]): void;
   enqueueAutomations(rows: AutomationTriggerQueued[]): void;
+  /**
+   * One visitor profile per `/collect`, coalesced per visitor at flush time.
+   *
+   * Here rather than written directly because it is a database write, and the whole point
+   * of this interface is that `/collect` makes none. It was the one exception, at one
+   * un-awaited upsert per request; the tracker flushes every five seconds per visitor, so
+   * the exception was also the highest-frequency write in the system.
+   */
+  enqueueProfiles(rows: VisitorProfileWrite[]): void;
 }
 
 /**
@@ -105,16 +124,18 @@ export interface IngestFlusher {
     recordings: number;
     heatmaps: number;
     automations: number;
+    profiles: number;
   };
 }
 
-/** The five write paths a batch can belong to. Also the queue's partitioning unit. */
+/** The six write paths a batch can belong to. Also the queue's partitioning unit. */
 export type IngestCategory =
   | "analytics"
   | "funnels"
   | "automations"
   | "recordings"
-  | "heatmaps";
+  | "heatmaps"
+  | "profiles";
 
 /** A batch as it comes back off the durable queue. */
 export type QueuedBatch = {
@@ -153,6 +174,14 @@ export interface BatchQueueStore {
 
   markCompleted(batchId: string): Promise<void>;
   markFailed(batchId: string, error: string): Promise<void>;
+  /**
+   * Hand back batches that were claimed but never applied, without counting an attempt.
+   *
+   * A claim is a written lease, so a worker that stops mid-drain would otherwise strand
+   * every batch it had claimed — and, because at most one batch per partition key is in
+   * flight, everything queued behind those keys with them — until the lease expired.
+   */
+  releaseClaims(batchIds: string[]): Promise<void>;
   countPending(category: IngestCategory, maxAttempts: number): Promise<number>;
   countParked(maxAttempts: number): Promise<number>;
   pruneCompleted(olderThan: Date): Promise<number>;

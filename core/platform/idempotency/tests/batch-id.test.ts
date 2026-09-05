@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { createHash } from "node:crypto";
 import { batchIdFor } from "../batch-id";
 
 /**
@@ -66,4 +67,34 @@ describe("batchIdFor", () => {
     expect(batchIdFor([pageview()])).toMatch(/^[0-9a-f]{32}$/);
     expect(batchIdFor([])).toMatch(/^[0-9a-f]{32}$/);
   });
+});
+
+/**
+ * The digest is fed row by row rather than as one `JSON.stringify(rows)`, so that a flush
+ * carrying fifty thousand events — or a few megabytes per event, for screenshots — never
+ * builds one enormous string and hashes it on the single thread `/collect` is served from.
+ *
+ * The bytes must stay exactly what serialising the whole array produces. If they drift,
+ * every batch already sitting in `ingest_batches` under its old id, and every marker in
+ * `ingest_applied_batches`, stops matching — and a redelivery that should have been
+ * skipped is applied a second time instead.
+ */
+describe("digest bytes", () => {
+  function wholeArrayDigest(rows: readonly unknown[]): string {
+    return createHash("sha256").update(JSON.stringify(rows)).digest("hex").slice(0, 32);
+  }
+
+  const cases: [string, unknown[]][] = [
+    ["an empty batch", []],
+    ["one row", [pageview()]],
+    ["several rows", [pageview(), pageview({ sid: "sess_2" }), pageview({ page: "/x" })]],
+    ["nested data", [pageview({ data: { nx: 0.5, tags: ["a", "b"], meta: { k: 1 } } })]],
+    ["primitives and holes", [null, undefined, 3, "s", true]],
+  ];
+
+  for (const [name, rows] of cases) {
+    it(`matches whole-array serialisation for ${name}`, () => {
+      expect(batchIdFor(rows)).toBe(wholeArrayDigest(rows));
+    });
+  }
 });

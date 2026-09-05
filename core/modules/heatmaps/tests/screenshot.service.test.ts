@@ -71,19 +71,11 @@ const settings = {
   },
 };
 
-const published: string[] = [];
-const eventBus = {
-  async publish(name: string) {
-    published.push(name);
-  },
-} as never;
-
 let service: InstanceType<typeof HeatmapScreenshotService>;
 
 beforeEach(() => {
   captured.length = 0;
   snapshots.length = 0;
-  published.length = 0;
   captureResult = {
     s3Key: "sites/w1/pages/home.jpg",
     hash: "abc",
@@ -92,7 +84,7 @@ beforeEach(() => {
     sizeBytes: 1000,
     stored: true,
   };
-  service = new HeatmapScreenshotService(settings as never, eventBus);
+  service = new HeatmapScreenshotService(settings as never);
 });
 
 function capture(pageUrl: string) {
@@ -134,9 +126,9 @@ describe("targets that must be refused", () => {
     expect(snapshots).toEqual([]);
   });
 
-  it("never announces a capture that did not happen", async () => {
+  it("stores nothing for a capture that did not happen", async () => {
     await capture("https://evil.example/").catch(() => {});
-    expect(published).toEqual([]);
+    expect(snapshots).toEqual([]);
   });
 
   /**
@@ -176,16 +168,9 @@ describe("targets that must be allowed", () => {
     expect(captured).toHaveLength(1);
   });
 
-  it("records the snapshot and announces the capture", async () => {
+  it("records the snapshot for a capture that stored an image", async () => {
     await capture(`https://${SITE}/pricing`);
     expect(snapshots).toEqual(["/p"]);
-    expect(published).toEqual(["heatmap.screenshot_captured"]);
-  });
-
-  it("does not announce a deduplicated capture", async () => {
-    captureResult = { s3Key: "k", hash: "h", width: 1, height: 1, sizeBytes: 1, stored: false };
-    await capture(`https://${SITE}/pricing`);
-    expect(published).toEqual([]);
   });
 });
 

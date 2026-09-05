@@ -1,6 +1,6 @@
 import { sql as pgSql, sessionReplays } from "../../../db";
 import { sql as dsql } from "drizzle-orm";
-import type { BatchTx } from "../../../infrastructure/idempotency";
+import type { BatchTx } from "../../../platform/idempotency";
 import type { SessionMetaRow } from "../interfaces";
 
 

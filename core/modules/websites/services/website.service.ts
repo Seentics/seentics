@@ -1,5 +1,4 @@
 import { randomHex } from "../lib/ids";
-import type { EventBus } from "../../../infrastructure/events";
 import { emptyTrafficSummary } from "../../analytics/interfaces";
 import type { AnalyticsModule } from "../../analytics/interfaces";
 import type {
@@ -62,7 +61,18 @@ export class WebsiteService
   constructor(
     private readonly repository: WebsiteRepository,
     private readonly analyticsModule: () => AnalyticsModule,
-    private readonly eventBus: EventBus,
+    /**
+     * Called with the website id after any change to it.
+     *
+     * `CachedWebsiteQuery` sits in front of this service, so a mutation here leaves a
+     * stale entry there until its TTL expires. This used to travel the long way round —
+     * the repository wrote a `website.updated` row to a transactional outbox, a publisher
+     * polled that table once a second, handed the event to an in-memory bus, and a
+     * subscriber in `init.ts` called `invalidate`. Four moving parts and a database table
+     * to deliver one function call inside one process, and it was the only thing any of
+     * that machinery actually did.
+     */
+    private readonly onChanged: (websiteId: string) => void,
   ) {}
 
   // ─── WebsitePublicSharing ────────────────────────────────────────────────
@@ -149,27 +159,16 @@ export class WebsiteService
   /**
    * Create a website owned by `ownerId`.
    *
-   * The repository writes the website, the owner membership row, and the
-   * `website.created` outbox entry in one transaction. The bus publish here is a
-   * best-effort fast path for same-process consumers; the outbox publisher is
-   * what actually guarantees the event is delivered, so a failure to publish now
-   * is not a reason to fail the request.
+   * The repository writes the website and the owner membership row in one transaction.
    */
   async create(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
-    const website = await this.repository.create(ownerId, input);
-
-    await this.eventBus.publish("website.created", {
-      websiteId: website.id,
-      ownerId,
-      url: website.url,
-      occurredAt: new Date(),
-    });
-
-    return website;
+    return this.repository.create(ownerId, input);
   }
 
   async update(websiteId: string, input: UpdateWebsiteInput): Promise<Website | null> {
-    return this.repository.update(websiteId, input);
+    const updated = await this.repository.update(websiteId, input);
+    if (updated) this.onChanged(websiteId);
+    return updated;
   }
 
   /** Update after an access check. Used by the authenticated HTTP layer. */
@@ -181,18 +180,24 @@ export class WebsiteService
     // Settings include the tracked domain and retention — administrative, not a
     // collaborator's to change.
     await this.authorize(websiteId, userId, "admin");
-    return this.repository.update(websiteId, input);
+    const updated = await this.repository.update(websiteId, input);
+    if (updated) this.onChanged(websiteId);
+    return updated;
   }
 
   async delete(websiteId: string): Promise<boolean> {
-    return this.repository.delete(websiteId);
+    const deleted = await this.repository.delete(websiteId);
+    if (deleted) this.onChanged(websiteId);
+    return deleted;
   }
 
   /** Delete after an access check. Used by the authenticated HTTP layer. */
   async deleteForUser(websiteId: string, userId: string): Promise<boolean> {
     // Owner only. This destroys the website and everything collected under it.
     await this.authorize(websiteId, userId, "owner");
-    return this.repository.delete(websiteId);
+    const deleted = await this.repository.delete(websiteId);
+    if (deleted) this.onChanged(websiteId);
+    return deleted;
   }
 
   async setPublicSharing(websiteId: string, enabled: boolean): Promise<string | null> {
@@ -216,11 +221,7 @@ export class WebsiteService
   ): Promise<string | null> {
     if (!enabled) {
       const cleared = await this.repository.setPublicShareId(websiteId, null);
-      await this.eventBus.publish("website.share_toggled", {
-        websiteId,
-        enabled: false,
-        occurredAt: new Date(),
-      });
+      this.onChanged(websiteId);
       return cleared;
     }
 
@@ -230,11 +231,7 @@ export class WebsiteService
     if (existing?.publicShareId) return existing.publicShareId;
 
     const shareId = await this.repository.setPublicShareId(websiteId, randomHex(12));
-    await this.eventBus.publish("website.share_toggled", {
-      websiteId,
-      enabled: true,
-      occurredAt: new Date(),
-    });
+    this.onChanged(websiteId);
     return shareId;
   }
 }

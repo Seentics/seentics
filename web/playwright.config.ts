@@ -40,12 +40,18 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    // `PORT` is honoured here as well as in `baseURL`. It used to be hardcoded to 3000
+    // while `baseURL` respected the variable, so `PORT=3100` pointed the tests at one
+    // port and the server at another — and on CI, where `reuseExistingServer` is off,
+    // any process already holding 3000 (a docker-compose stack, say) failed the run
+    // outright with no way to move it.
+    command: `npm run dev -- --port ${PORT}`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
       NEXT_PUBLIC_IS_ENTERPRISE: 'true',
+      PORT: String(PORT),
     },
   },
 });

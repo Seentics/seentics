@@ -8,9 +8,14 @@
  * `VisitorProfileWriter` as the intended seam since the profile write was added, and
  * this is it.
  *
- * The write is fire-and-forget by contract, not by accident: `/collect` exists to
- * accept analytics rows, and a profile failing must not fail that request. The
- * implementation swallows and logs, so callers get a promise that does not reject.
+ * The write is batched and durable, and it did not used to be. `/collect` called it once
+ * per request, un-awaited, so the profile was the only per-request database write on a path
+ * built to avoid exactly that — and being `void`ed, it applied no backpressure when the
+ * pool was already saturated. It now goes through the ingest queue like every other
+ * category: buffered, committed to `ingest_batches`, applied by `IngestWorker`.
+ *
+ * Which is why this rejects on failure rather than swallowing. The caller is a worker that
+ * retries and parks, not an HTTP handler that must answer regardless.
  */
 
 /** One visitor's profile, as ingest has it after parsing a `/collect` batch. */
@@ -36,11 +41,12 @@ export type VisitorProfileWrite = {
 
 export interface VisitorProfileWriter {
   /**
-   * Upsert one visitor's profile.
+   * Apply one queued batch of profiles. Returns the rows written, and 0 for a batch the
+   * marker had already applied.
    *
-   * Resolves even when the write fails — see the note above. Counters advance rather
-   * than being assigned, so calling twice for the same batch double-counts; ingest
-   * calls it once per `/collect`.
+   * `visit_count` and `total_page_views` accumulate, so applying a batch twice inflates
+   * both. `batchId` is what prevents that — the write and its `ingest_applied_batches`
+   * marker share one transaction, exactly as the analytics and heatmap writers do.
    */
-  upsert(profile: VisitorProfileWrite): Promise<void>;
+  writeBatch(batchId: string, rows: readonly VisitorProfileWrite[]): Promise<number>;
 }

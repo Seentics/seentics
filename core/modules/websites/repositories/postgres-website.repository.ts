@@ -8,7 +8,6 @@ import {
   websiteMembers,
   websites,
 } from "../../../db";
-import { enqueueEvent } from "../../../infrastructure/outbox";
 import { newTrackingId, newVerificationToken } from "../lib/ids";
 import { normalizeWebsiteRole } from "../interfaces/website.interface";
 import type {
@@ -153,12 +152,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
         role: "owner",
       });
 
-      await enqueueEvent(tx, "website", created.id, "website.created", {
-        websiteId: created.id,
-        ownerId,
-        url: created.url,
-        occurredAt: new Date(),
-      });
 
       return created;
     });
@@ -181,11 +174,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       if (!row) return null;
       const updated = toDomain(row);
 
-      await enqueueEvent(tx, "website", updated.id, "website.updated", {
-        websiteId: updated.id,
-        changes: patch,
-        occurredAt: new Date(),
-      });
 
       return updated;
     });
@@ -205,11 +193,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       await tx.delete(goals).where(eq(goals.websiteId, websiteId));
       await tx.delete(websiteMembers).where(eq(websiteMembers.websiteId, websiteId));
 
-      await enqueueEvent(tx, "website", websiteId, "website.deleted", {
-        websiteId,
-        ownerId: row.userId,
-        occurredAt: new Date(),
-      });
 
       await tx.delete(websites).where(eq(websites.id, websiteId));
       return true;

@@ -1,0 +1,20 @@
+-- Drop the transactional outbox.
+--
+-- It was created by `017_outbox_table.sql` to guarantee that a domain event survives a
+-- crash between COMMIT and publish. Four call sites ever wrote to it — `website.created`,
+-- `website.updated`, `website.deleted` and `automation.triggered` — and by the time this
+-- ran, exactly one thing consumed any of them: a subscriber that invalidated an in-memory
+-- website cache. That cache has a five-minute TTL, so a lost invalidation costs at most
+-- five minutes of staleness. Durability was being bought for something that did not need it.
+--
+-- The other two event types reached the table, were polled off it once a second, handed to
+-- an in-memory bus, and delivered to nobody.
+--
+-- The cache invalidation is now a direct call from the mutation path — see
+-- `WebsiteService.onChanged` — so nothing that reads this table exists any more.
+--
+-- Safe to drop: every row is one of those four event types, all of them either consumed
+-- synchronously now or consumed by nothing then.
+--
+-- Idempotent, like every file in this directory.
+DROP TABLE IF EXISTS outbox;

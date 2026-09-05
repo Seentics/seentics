@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { automationEvents, automations, db } from "../../../db";
 import type { AutomationTriggerQueued } from "../../../platform/lib/types";
-import type { BatchTx } from "../../../infrastructure/idempotency";
+import type { BatchTx } from "../../../platform/idempotency";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { log as baseLog } from "../../../platform/lib/logger";
 

@@ -4,7 +4,11 @@ import type {
   TrackerEvent,
 } from "../../../platform/lib/types";
 import type { AnalyticsIngestWriter } from "../../analytics/interfaces";
-import type { AutomationTriggerWriter } from "../../automations/interfaces";
+import type {
+  AutomationTriggerWriter,
+  VisitorProfileWrite,
+  VisitorProfileWriter,
+} from "../../automations/interfaces";
 import type { HeatmapIngest, HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { RecordingIngest } from "../../recordings/interfaces";
 import type { IngestSinks } from "../interfaces";
@@ -37,6 +41,7 @@ export class ModuleIngestSinks implements IngestSinks {
   constructor(
     private readonly analytics: AnalyticsIngestWriter,
     private readonly automations: AutomationTriggerWriter,
+    private readonly profiles: VisitorProfileWriter,
     private readonly recordings: Lazy<RecordingIngest>,
     private readonly heatmaps: Lazy<HeatmapIngest>,
   ) {}
@@ -59,5 +64,12 @@ export class ModuleIngestSinks implements IngestSinks {
 
   async processHeatmaps(batchId: string, events: readonly HeatmapTrackerEvent[]): Promise<void> {
     await this.heatmaps().processEvents(batchId, events);
+  }
+
+  async writeVisitorProfiles(
+    batchId: string,
+    rows: readonly VisitorProfileWrite[],
+  ): Promise<number> {
+    return this.profiles.writeBatch(batchId, rows);
   }
 }

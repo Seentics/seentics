@@ -97,19 +97,15 @@ describe("module boundaries", () => {
    * The blind spot this test used to have.
    *
    * Everything above asks whether a *module* reaches somewhere it should not. Nothing
-   * asked the reverse, so `platform/` and `infrastructure/` — which sit *below* the
-   * modules and must not know they exist — could import a module's services or
-   * repositories freely, and a module's own domain types could drift outward into
-   * `platform/lib` where any module could pick them up without going through the owning
-   * module's interfaces. Four had.
+   * asked the reverse, so `platform/` — which sits *below* the modules and must not know
+   * they exist — could import a module's services or repositories freely, and a module's
+   * own domain types could drift outward into `platform/lib` where any module could pick
+   * them up without going through the owning module's interfaces. Four had.
    */
-  it("keeps platform and infrastructure below the modules", () => {
+  it("keeps platform below the modules", () => {
     const violations: string[] = [];
 
-    for (const file of [
-      ...sourceFiles(join(CORE, "platform")),
-      ...sourceFiles(join(CORE, "infrastructure")),
-    ]) {
+    for (const file of sourceFiles(join(CORE, "platform"))) {
       for (const target of relativeImports(file)) {
         const parts = target.split("/");
         if (parts[0] !== "modules") continue;
@@ -148,7 +144,7 @@ describe("module boundaries", () => {
     expect(names.length).toBeGreaterThan(0);
 
     const zones = new Map<string, Set<string>>();
-    for (const dir of ["modules", "platform", "infrastructure", "app"]) {
+    for (const dir of ["modules", "platform", "app"]) {
       for (const file of sourceFiles(join(CORE, dir))) {
         const rel = relative(CORE, file);
         if (rel === join("platform", "lib", "types.ts")) continue;

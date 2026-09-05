@@ -49,7 +49,6 @@ const TABLE_OWNER: Record<string, string> = {
   heatmap_page_snapshots: "heatmaps",
   users: "auth",
   api_keys: "platform",
-  outbox_events: "infrastructure",
 };
 
 /** Drizzle identifier → table name, for the builder form. */
@@ -69,7 +68,6 @@ const DRIZZLE_IDENT: Record<string, string> = {
   heatmapPageSnapshots: "heatmap_page_snapshots",
   users: "users",
   apiKeys: "api_keys",
-  outboxEvents: "outbox_events",
 };
 
 /**
@@ -86,9 +84,7 @@ const ALLOWED: { file: string; tables: string[]; why: string }[] = [
       "Cascade delete. Deleting a website removes its analytics rows, automations and " +
       "funnels in one transaction. Routing those through ports means either a " +
       "distributed transaction or event-driven cleanup, and the latter leaves orphaned " +
-      "rows whenever a consumer fails — a durability regression, not a refactor. The " +
-      "`website.deleted` outbox event is already emitted here for anything that wants " +
-      "to react in addition.",
+      "rows whenever a consumer fails — a durability regression, not a refactor.",
   },
   {
     file: "modules/analytics/repositories/goals.repository.ts",
@@ -154,7 +150,6 @@ describe("table ownership", () => {
   const files = [
     ...sourceFiles(join(CORE, "modules")),
     ...sourceFiles(join(CORE, "platform")),
-    ...sourceFiles(join(CORE, "infrastructure")),
     ...sourceFiles(join(CORE, "app")),
   ];
 

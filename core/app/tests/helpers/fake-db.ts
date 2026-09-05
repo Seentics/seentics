@@ -305,16 +305,31 @@ export function fakeDbModule() {
   return {
     db: fakeDb,
     sql: fakeSql,
+    // Every table in `db/schema.ts`, in its declaration order — not just the ones some
+    // test happens to touch. An omission here does not fail locally; it fails whichever
+    // *other* file the runner happens to load next, with a `SyntaxError: Export named …
+    // not found` pointing at the real module that does export it. `app/tests/
+    // mock-completeness.test.ts` guards inline stubs against exactly this, and cannot see
+    // a helper-returned object like this one, so the list is checked below instead.
+    users: table("users"),
+    websites: table("websites"),
+    ingestBatches: table("ingest_batches"),
+    ingestAppliedBatches: table("ingest_applied_batches"),
+    websiteMembers: table("website_members"),
+    websiteInvitations: table("website_invitations"),
+    goals: table("goals"),
+    funnels: table("funnels"),
+    automations: table("automations"),
+    automationEvents: table("automation_events"),
     analyticsEvents: table("analytics_events"),
     apiKeys: table("api_keys"),
-    automationEvents: table("automation_events"),
+    sessionReplays: table("session_replays"),
+    heatmapPoints: table("heatmap_points"),
+    aiQueries: table("ai_queries"),
+    heatmapPageSnapshots: table("heatmap_page_snapshots"),
     automationImpressions: table("automation_impressions"),
-    automations: table("automations"),
-    goals: table("goals"),
-    outbox: table("outbox"),
     userProfiles: table("user_profiles"),
     webhookDeliveries: table("webhook_deliveries"),
-    websiteMembers: table("website_members"),
-    websites: table("websites"),
+    identityAliases: table("identity_aliases"),
   };
 }

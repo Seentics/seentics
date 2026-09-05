@@ -181,11 +181,13 @@ let createTrackerRoutes: typeof import("../routes").createTrackerRoutes;
 function makeFakeQueue() {
   return {
     events: [] as unknown[],
+    profiles: [] as unknown[],
     enqueueEvents(_s: string, e: unknown[]) { this.events.push(...e); },
     enqueueFunnels() {},
     enqueueRecordings() {},
     enqueueHeatmaps() {},
     enqueueAutomations() {},
+    enqueueProfiles(rows: unknown[]) { this.profiles.push(...rows); },
   };
 }
 
@@ -195,7 +197,6 @@ let funnels: FakeFunnelConfig;
 let automations: FakeAutomationSettings;
 let automationEvaluation: FakeAutomationEvaluation;
 let screenshots: FakeScreenshotCapture;
-let visitorProfiles: { upsert: ReturnType<typeof mock<() => Promise<void>>> };
 
 beforeAll(async () => {
   ({ createTrackerRoutes } = await import("../routes"));
@@ -216,10 +217,8 @@ beforeEach(() => {
 
   // Requested at the paths `index.ts` mounts under `/api/v1/tracker`.
   queue = makeFakeQueue();
-  visitorProfiles = { upsert: mock(async () => {}) };
   app = createTrackerRoutes({
     queue,
-    visitorProfiles,
     automations,
     automationEvaluation,
     funnels,

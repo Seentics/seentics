@@ -22,27 +22,31 @@ test.describe('Heatmaps E2E Tests', () => {
   });
 
   test('should display heatmaps list page', async ({ page }) => {
-    // Mock heatmap pages API response
-    await page.route('**/heatmaps/web-123', async (route) => {
+    // `listHeatmapPages` calls `/heatmaps/:id/pages` and reads `res.data.pages`.
+    // This mock used to answer `/heatmaps/web-123` with a bare array, so it matched no
+    // request and the client rendered an empty list.
+    await page.route('**/heatmaps/web-123/pages', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            page_path: '/pricing',
-            click_count: 150,
-            scroll_count: 100,
-            avg_scroll: 65,
-            last_seen: new Date().toISOString(),
-          },
-          {
-            page_path: '/blog',
-            click_count: 50,
-            scroll_count: 40,
-            avg_scroll: 80,
-            last_seen: new Date().toISOString(),
-          },
-        ]),
+        body: JSON.stringify({
+          pages: [
+            {
+              page_path: '/pricing',
+              click_count: 150,
+              scroll_count: 100,
+              avg_scroll: 65,
+              last_seen: new Date().toISOString(),
+            },
+            {
+              page_path: '/blog',
+              click_count: 50,
+              scroll_count: 40,
+              avg_scroll: 80,
+              last_seen: new Date().toISOString(),
+            },
+          ],
+        }),
       });
     });
 

@@ -2085,13 +2085,22 @@ window.seentics = {
 
   /**
    * Identify the current visitor with a known user ID.
-   * Also persists the ID in localStorage so it survives page reloads.
+   *
+   * The anonymous visitor id is deliberately left alone. This used to overwrite it —
+   * `snc_vid = userId` — which broke two things at once. It split every identified
+   * visitor into two uniques, because the events before the call and the events after
+   * it carried different ids for one person. And it wrote a customer-supplied
+   * identifier, very often an email address, into `analytics_events.visitor_id`, where
+   * it sat in the raw event log and came back out of `/export`.
+   *
+   * Neither was needed to stitch the identity. The id travels in the event's own
+   * payload, ingest reads it there, and `user_profiles.user_id` is the column that
+   * links a person's anonymous ids together — indexed for exactly that.
+   *
    * @param {string} userId - Your internal user ID.
    * @param {object} traits - Optional user traits (name, email, plan, etc.).
    */
   identify(userId, traits) {
-    getStore()?.setItem('snc_vid', userId);
-    visitorId = userId;
     pushAnalytics('identify', { user_id: userId, traits: traits ?? {} });
   },
 

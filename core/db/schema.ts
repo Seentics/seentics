@@ -77,15 +77,19 @@ export const websites = pgTable(
  * a worker claims and applies it. A crash now costs at most one in-flight batch rather
  * than every buffer.
  *
- * Modelled directly on `outbox`: claim with `FOR UPDATE SKIP LOCKED`, count attempts, and
- * park a batch that exhausts them instead of dropping it. That pattern is already proven
- * here by `OutboxPublisher`, and it needs no broker — which for a Postgres-and-MinIO stack
- * is the difference between shipping this and adding Kafka to run it.
+ * Modelled on `outbox`: claim, count attempts, and park a batch that exhausts them instead
+ * of dropping it. That pattern is already proven here by `OutboxPublisher`, and it needs no
+ * broker — which for a Postgres-and-MinIO stack is the difference between shipping this and
+ * adding Kafka to run it.
+ *
+ * A claim is `claimed_at`, not a row lock. The two are not interchangeable: the claim query
+ * is one autocommit statement, so a `FOR UPDATE` taken inside it is gone before the worker
+ * applies anything. See that column.
  *
  * `partition_key` is what keeps ordering-sensitive work correct. Recordings must not be
  * applied concurrently within one session (chunk sequences are assigned per session), so
  * their key is the session id; everything else is commutative and keys on the website.
- * The worker claims at most one batch per key at a time.
+ * At most one batch per key is in flight, enforced by `ux_ingest_batches_one_inflight`.
  */
 export const ingestBatches = pgTable(
   "ingest_batches",
@@ -102,13 +106,38 @@ export const ingestBatches = pgTable(
     rowCount: integer("row_count").notNull().default(0),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
+    /**
+     * When a worker took this batch, and null when no one holds it.
+     *
+     * The claim, written down. It has to be: `claimPendingBatches` runs as one autocommit
+     * statement, so the `FOR UPDATE SKIP LOCKED` it takes is released before the worker
+     * has applied anything — a lock cannot outlive its statement. Without this column two
+     * workers claimed the same row, and two batches for one partition key ran at once,
+     * which is what assigns a replay session two conflicting chunk sequences.
+     *
+     * A lease, not a flag: a worker that dies mid-apply leaves it set, and the claim query
+     * treats anything older than `CLAIM_LEASE_MS` as reclaimable. `markBatchFailed` clears
+     * it so a retry does not wait out the lease.
+     */
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
     /** Null while pending. Set once a worker has applied it. */
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    // The claim query: pending rows of one category, oldest first.
-    index("ix_ingest_batches_claim").on(t.category, t.completedAt, t.createdAt),
+    // The candidate scan: oldest pending batch per partition key, in one category. The
+    // column order is the query's — `DISTINCT ON (partition_key) ORDER BY partition_key,
+    // created_at` — which the previous (category, completed_at, created_at) index could
+    // not serve at all, leaving a full sort of the backlog on a query that runs 5×/second.
+    index("ix_ingest_batches_pending")
+      .on(t.category, t.partitionKey, t.createdAt)
+      .where(sql`completed_at IS NULL`),
+    // "At most one batch per partition key in flight", as a constraint rather than a
+    // property of the claim query — and the index the `leased` CTE reads. See
+    // `db/sql/018_ingest_batch_lease.sql`.
+    uniqueIndex("ux_ingest_batches_one_inflight")
+      .on(t.category, t.partitionKey)
+      .where(sql`completed_at IS NULL AND claimed_at IS NOT NULL`),
     // Pruning completed rows, and finding parked ones.
     index("ix_ingest_batches_completed").on(t.completedAt),
   ],
@@ -143,49 +172,6 @@ export const ingestAppliedBatches = pgTable(
     appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ix_ingest_applied_at").on(t.appliedAt)],
-);
-
-/**
- * Transactional outbox for domain events.
- *
- * A module that must not lose an event inserts it here inside the same
- * transaction as the business write, so the event and the state change commit
- * or roll back together. `infrastructure/outbox` polls unpublished rows and
- * hands them to the event bus after commit — closing the window where a crash
- * between COMMIT and publish would drop the event permanently.
- *
- * Delivery is at-least-once: a crash after publish but before the row is marked
- * published replays that event, so consumers of outboxed events must be
- * idempotent.
- */
-export const outbox = pgTable(
-  "outbox",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    /** Entity the event is about — `websites.id`, `funnels.id`, … */
-    aggregateId: text("aggregate_id").notNull(),
-    /** Entity kind, e.g. "website". Scopes `aggregateId` and aids debugging. */
-    aggregateType: text("aggregate_type").notNull(),
-    /** A key of `EventMap`, e.g. "website.created". */
-    eventType: text("event_type").notNull(),
-    /** The `EventMap` payload, JSON-encoded. Dates revive as ISO strings. */
-    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    /** NULL until handed to the event bus. */
-    publishedAt: timestamp("published_at", { withTimezone: true }),
-    /** Incremented on each failed publish; drives backoff and alerting. */
-    attempts: integer("attempts").notNull().default(0),
-    lastError: text("last_error"),
-  },
-  (t) => [
-    // The polling query is `WHERE published_at IS NULL ORDER BY created_at`.
-    // Partial index keeps it proportional to the backlog, not the table, which
-    // matters because published rows accumulate until they are pruned.
-    index("ix_outbox_unpublished")
-      .on(t.createdAt)
-      .where(sql`${t.publishedAt} IS NULL`),
-    index("ix_outbox_aggregate").on(t.aggregateType, t.aggregateId),
-  ],
 );
 
 export const websiteMembers = pgTable(
@@ -333,7 +319,14 @@ export const analyticsEvents = pgTable(
   "analytics_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    websiteId: uuid("website_id").notNull(),
+    /**
+     * `text`, not `uuid`. The deployed column is `text` — `007_analytics_partitioned.sql`
+     * creates it that way and `003` renamed it from `website_site_id` without changing the
+     * type — and this declaration said `uuid`. Harmless while Drizzle emits no cast, but a
+     * `drizzle-kit push` would have tried to alter a populated, partitioned column. Same
+     * drift, and the same reasoning, as `session_replays.website_id`.
+     */
+    websiteId: text("website_id").notNull(),
     eventType: varchar("event_type", { length: 64 }).notNull(),
     page: text("page"),
     visitorId: text("visitor_id"),
@@ -512,6 +505,11 @@ export const automationImpressions = pgTable(
   },
   (t) => [
     index("ix_auto_imp_auto_anon").on(t.automationId, t.anonymousId),
+    // The other half of the frequency-cap lookup's `OR`. Without it the planner could
+    // index only `automation_id` and then filter, reading every impression an automation
+    // had ever accumulated on a request every visitor triggers. See
+    // `db/sql/020_automation_impression_session_index.sql`.
+    index("ix_auto_imp_auto_session").on(t.automationId, t.sessionId),
     index("ix_auto_imp_website").on(t.websiteId, t.shownAt),
   ],
 );

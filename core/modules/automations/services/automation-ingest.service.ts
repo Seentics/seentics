@@ -1,4 +1,4 @@
-import { applyBatchOnce } from "../../../infrastructure/idempotency";
+import { applyBatchOnce } from "../../../platform/idempotency";
 import type { AutomationTriggerQueued } from "../../../platform/lib/types";
 import { ingestAutomationTriggersBatch } from "../repositories/automation-batch.repository";
 import type { AutomationTriggerWriter } from "../interfaces";

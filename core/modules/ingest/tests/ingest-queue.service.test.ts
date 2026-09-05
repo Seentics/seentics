@@ -7,7 +7,7 @@ import type {
   HeatmapIngestEvent,
   TrackerEvent,
 } from "../../../platform/lib/types";
-import { InMemoryEventBus, type EventName } from "../../../infrastructure/events";
+import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type { BatchQueueStore, IngestCategory } from "../interfaces";
 import { IngestQueueService } from "../services/ingest-queue.service";
 
@@ -45,6 +45,7 @@ class FakeBatchQueue implements BatchQueueStore {
   automationCalls: AutomationTriggerQueued[][] = [];
   recordingCalls: TrackerEvent[][] = [];
   heatmapCalls: HeatmapIngestEvent[][] = [];
+  profileCalls: VisitorProfileWrite[][] = [];
 
   /** Every batch id seen, so a test can assert the same rows reuse one id. */
   batchIds: string[] = [];
@@ -90,6 +91,9 @@ class FakeBatchQueue implements BatchQueueStore {
         this.heatmapCalls.push(batch.payload.events as HeatmapIngestEvent[]);
         if (this.failHeatmaps) throw new Error("heatmap engine down");
         return;
+      case "profiles":
+        this.profileCalls.push(batch.payload.rows as VisitorProfileWrite[]);
+        return;
     }
   }
 
@@ -99,6 +103,8 @@ class FakeBatchQueue implements BatchQueueStore {
   }
   async markCompleted(): Promise<void> {}
   async markFailed(): Promise<void> {}
+
+  async releaseClaims(): Promise<void> {}
   async countPending(): Promise<number> {
     return 0;
   }
@@ -125,6 +131,8 @@ function cfgWith(overrides: Partial<Record<string, number>> = {}): AppConfig {
       maxHeatmapsBeforeForceFlush: 1_000_000,
       maxFunnelsBeforeForceFlush: 1_000_000,
       maxAutomationsBeforeForceFlush: 1_000_000,
+      maxProfilesBeforeForceFlush: 1_000_000,
+      maxHeatmapBytes: 64 * 1024 * 1024,
       ...overrides,
     },
   } as unknown as AppConfig;
@@ -134,23 +142,95 @@ describe("IngestQueueService", () => {
   let sinks: FakeBatchQueue;
   let lines: Record<string, unknown>[];
   let queue: IngestQueueService;
-  let published: { type: EventName; payload: unknown }[];
 
   beforeEach(() => {
     sinks = new FakeBatchQueue();
     const l = makeLogger();
     lines = l.lines;
-    const inner = new InMemoryEventBus(l.logger);
-    published = [];
-    const bus = {
-      publish: async (type: EventName, payload: unknown) => {
-        published.push({ type, payload });
-        await inner.publish(type, payload as never);
-      },
-      subscribe: inner.subscribe.bind(inner),
-    };
-    queue = new IngestQueueService(sinks, bus, l.logger);
+    queue = new IngestQueueService(sinks, l.logger);
     queue.configure(cfgWith());
+  });
+
+  /**
+   * The profile write used to bypass all of this — one un-awaited upsert per `/collect`,
+   * on the only path in the system that is otherwise careful never to touch Postgres per
+   * request. It takes the same route as everything else now.
+   */
+  describe("visitor profiles", () => {
+    function profile(
+      websiteId: string,
+      anonymousId: string,
+      overrides: Partial<VisitorProfileWrite> = {},
+    ): VisitorProfileWrite {
+      return { websiteId, anonymousId, pageViews: 1, ...overrides };
+    }
+
+    it("no-ops for an empty array", async () => {
+      queue.enqueueProfiles([]);
+      await queue.flushNow();
+      expect(sinks.profileCalls).toEqual([]);
+    });
+
+    it("buffers rather than writing on enqueue", () => {
+      queue.enqueueProfiles([profile("site_a", "v1")]);
+      expect(sinks.profileCalls).toEqual([]);
+      expect(queue.depth().profiles).toBe(1);
+    });
+
+    it("queues one batch per website", async () => {
+      queue.enqueueProfiles([profile("site_a", "v1"), profile("site_b", "v2")]);
+      await queue.flushNow();
+
+      expect(sinks.profileCalls).toHaveLength(2);
+      expect(sinks.partitionKeys.sort()).toEqual(["site_a", "site_b"]);
+    });
+
+    it("keeps one website's visitors in a single batch", async () => {
+      queue.enqueueProfiles([profile("site_a", "v1"), profile("site_a", "v2")]);
+      await queue.flushNow();
+
+      expect(sinks.profileCalls).toHaveLength(1);
+      expect(sinks.profileCalls[0]).toHaveLength(2);
+    });
+
+    it("clears the buffer once flushed", async () => {
+      queue.enqueueProfiles([profile("site_a", "v1")]);
+      await queue.flushNow();
+      expect(queue.depth().profiles).toBe(0);
+
+      await queue.flushNow();
+      expect(sinks.profileCalls).toHaveLength(1);
+    });
+  });
+
+  /**
+   * These buffers are flat and accumulate every site sending traffic in the same window,
+   * so a single batch keyed on `rows[0].websiteId` named an arbitrary site — and because
+   * at most one batch per partition key is in flight, every other site's data then queued
+   * behind that arbitrary key.
+   */
+  describe("partitioning flat buffers", () => {
+    it("splits heatmaps by website", async () => {
+      queue.enqueueHeatmaps([
+        { websiteId: "site_a", type: "heatmap_click", ts: 1, url: "/a", data: {} },
+        { websiteId: "site_b", type: "heatmap_click", ts: 2, url: "/b", data: {} },
+      ] as unknown as HeatmapIngestEvent[]);
+      await queue.flushNow();
+
+      expect(sinks.heatmapCalls).toHaveLength(2);
+      expect(sinks.partitionKeys.sort()).toEqual(["site_a", "site_b"]);
+    });
+
+    it("splits automation triggers by website", async () => {
+      queue.enqueueAutomations([
+        { websiteId: "site_a", automationId: "a1", occurredAt: new Date(0), detail: {} },
+        { websiteId: "site_b", automationId: "a2", occurredAt: new Date(0), detail: {} },
+      ] as unknown as AutomationTriggerQueued[]);
+      await queue.flushNow();
+
+      expect(sinks.automationCalls).toHaveLength(2);
+      expect(sinks.partitionKeys.sort()).toEqual(["site_a", "site_b"]);
+    });
   });
 
   describe("analytics events", () => {
@@ -502,12 +582,14 @@ describe("IngestQueueService", () => {
    * nothing.
    */
   describe("announcements", () => {
-    it("publishes nothing on its own", async () => {
+    it("queues one batch per site and writes nothing itself", async () => {
       queue.enqueueEvents("site_a", ev(3));
       queue.enqueueEvents("site_b", ev(1));
       await queue.flushNow();
 
-      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
+      // The queue's whole job is to hand batches to `ingest_batches`; applying them is
+      // the worker's, and this side must not reach a sink directly.
+      expect(sinks.analyticsCalls.map((c) => c.websiteId).sort()).toEqual(["site_a", "site_b"]);
     });
   });
 

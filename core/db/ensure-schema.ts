@@ -40,8 +40,8 @@ export async function applyAnalyticsEventsWebsiteIdMigration(): Promise<void> {
  *
  * Checking only `websites` was a real gap: push is skipped whenever that one table is
  * present, so a table added to `schema.ts` afterwards was never created on any database
- * that already existed. `outbox` and the two ingest tables all hit it — the process
- * started, then logged a missing relation on every poll.
+ * that already existed. The two ingest tables both hit it — the process started, then
+ * logged a missing relation on every poll.
  *
  * Add new tables here as they are introduced. A `db/sql/` migration is still the
  * preferred way to create one; this is the backstop that catches the ones that forget.
@@ -49,7 +49,6 @@ export async function applyAnalyticsEventsWebsiteIdMigration(): Promise<void> {
 const REQUIRED_TABLES = [
   "websites",
   "analytics_events",
-  "outbox",
   "ingest_batches",
   "ingest_applied_batches",
 ] as const;

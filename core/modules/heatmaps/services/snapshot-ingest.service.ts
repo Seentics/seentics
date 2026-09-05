@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import type { EventBus } from "../../../infrastructure/events";
 import {
   getCachedSnapshotSha256,
   getLayoutSnapshot,
@@ -54,7 +53,6 @@ export class SnapshotIngestService {
      * `null` on a bus-less engine — see `getHeatmapEngine`. Publishing is best-effort
      * there rather than a failure.
      */
-    private readonly eventBus: EventBus | null,
     /**
      * Resolves the website so the SSRF guard can check a capture target against the
      * site's registered domain. `null` means auto-capture is skipped rather than
@@ -123,13 +121,6 @@ export class SnapshotIngestService {
       doc_h: docH,
     });
 
-    await this.eventBus?.publish("heatmap.screenshot_captured", {
-      websiteId: job.websiteId,
-      pagePath: norm,
-      s3Key: key,
-      source: "tracker",
-      occurredAt: new Date(),
-    });
   }
 
   /** Store one tracker DOM snapshot, skipping an unchanged one. */
@@ -217,13 +208,18 @@ function plausibleDocSize(
   url: string,
   warn = true,
 ): { w: number; h: number } {
+  // `!Number.isFinite` is not redundant with the `< MIN` check below: that comparison is
+  // *false* for NaN, so without this the fallback is skipped for the one input class that
+  // cannot be stored at all. The tracker schema rejects a non-finite `doc_w` today, so
+  // this half is defence in depth — but `storeDashboardScreenshot` shares this shape and
+  // is reachable with NaN from `/save-screenshot`, so the two stay consistent.
   let w = Math.trunc(docW);
   let h = Math.trunc(docH);
-  if (w < MIN_DOC_PX) {
+  if (!Number.isFinite(w) || w < MIN_DOC_PX) {
     if (warn) log.warn({ msg: "heatmap_screenshot_missing_doc_w", url, fallback: FALLBACK_DOC_W });
     w = FALLBACK_DOC_W;
   }
-  if (h < MIN_DOC_PX) {
+  if (!Number.isFinite(h) || h < MIN_DOC_PX) {
     if (warn) log.warn({ msg: "heatmap_screenshot_missing_doc_h", url, fallback: FALLBACK_DOC_H });
     h = FALLBACK_DOC_H;
   }

@@ -1,14 +1,29 @@
-import { and, asc, eq, isNotNull, isNull, lt, sql as raw } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, sql as raw } from "drizzle-orm";
 import { db, ingestBatches } from "../../../db";
 import type { IngestCategory, QueuedBatch } from "../interfaces";
 
 /**
  * The durable queue, in Postgres.
  *
- * Every query here mirrors `infrastructure/outbox/outbox-repository.ts`, deliberately:
- * that claim-and-park pattern is already running in production in this codebase, and
- * reusing its shape means the failure modes are ones the team has already reasoned about.
+ * Modelled on `platform/outbox/outbox-repository.ts` — same claim-and-park shape,
+ * whose failure modes the team has already reasoned about — with one difference that
+ * matters: a claim here is a written lease, not a row lock. See `claimPendingBatches`.
  */
+
+/**
+ * How long a claim is honoured before another worker may take the batch.
+ *
+ * Sized for the slowest sink rather than the average one: a heatmap batch can spend a
+ * while in S3 puts, and re-claiming a batch that is still being applied is only safe
+ * because of the `ingest_applied_batches` marker — for recordings it would also break the
+ * per-session chunk ordering the partition key exists to protect. Long enough that only a
+ * genuinely dead worker hits it; short enough that its batches are not stranded for the
+ * rest of the day.
+ */
+export const CLAIM_LEASE_MS = 5 * 60_000;
+
+/** Postgres `unique_violation`. See the claim query. */
+const UNIQUE_VIOLATION = "23505";
 
 /**
  * Add a batch to the queue.
@@ -27,91 +42,164 @@ export async function enqueueBatch(batch: {
 }
 
 /**
- * Claim pending batches of one category, oldest first.
+ * Claim pending batches of one category, oldest first, by writing a lease.
  *
- * `FOR UPDATE SKIP LOCKED` lets several workers share a category without coordination —
- * each takes rows the others have not locked. The caller must complete or fail every row
- * it claims inside the same transaction, or the lock is released and another worker picks
- * the batch up while the first is still working on it.
+ * **The claim is `claimed_at`, not a lock.** It has to be. This runs through `db.execute`,
+ * which is a single autocommit statement, so any `FOR UPDATE` it takes is released the
+ * instant the statement returns — before the caller has applied anything. The previous
+ * version relied on exactly that lock to mean "claimed", and so claimed nothing: two
+ * workers would take the same row, and two batches for one partition key would be applied
+ * concurrently. The markers in `ingest_applied_batches` hid the first problem for
+ * analytics, funnels, automations and heatmaps. Recordings had no such cover — chunk
+ * sequences are assigned per session, and two concurrent batches for one session overwrite
+ * each other's chunks in object storage.
  *
- * At most one batch per `partition_key` is returned, which is what preserves ordering
- * within a key: two batches for the same replay session can never be applied
- * concurrently, however many workers are running.
+ * So the whole thing is one atomic `UPDATE … RETURNING`. A row that comes back has its
+ * lease written and committed; nothing else can select it until the lease expires.
+ *
+ * Three parts, in order:
+ *
+ * - `leased` is the set of partition keys with a batch currently in flight. Excluding them
+ *   is what keeps ordering within a key: the next batch for a session waits for the
+ *   current one rather than running beside it.
+ * - `candidates` takes the oldest pending batch per remaining key. `DISTINCT ON` cannot
+ *   carry `FOR UPDATE` — Postgres rejects the combination, and an earlier version that
+ *   asked for both threw on every poll — which is the other reason the lock could not have
+ *   been the claim here even in a transaction.
+ * - `oldest` reapplies age ordering and bounds the poll. The `LIMIT` belongs here and not
+ *   in `candidates`: `DISTINCT ON` must sort by its own key, so limiting inside it would
+ *   take the twenty alphabetically-lowest partition keys every single poll and starve
+ *   every key above them for as long as those twenty kept producing.
+ * - the `UPDATE` re-checks the lease on the row it is about to take. Under READ COMMITTED a
+ *   worker that blocks on a row another has just claimed re-evaluates this predicate
+ *   against the new version, finds the lease set, and returns nothing for it. `SKIP LOCKED`
+ *   means it does not wait to find that out.
+ *
+ * `ix_ingest_batches_pending` is what keeps `candidates` affordable without a `LIMIT`: it
+ * is ordered `(category, partition_key, created_at)` and partial on `completed_at IS NULL`,
+ * so `DISTINCT ON` reads it in the order it already wants and needs no sort. It still walks
+ * the whole backlog for the category — on 40k pending batches that measured 10ms against
+ * the old index's 26ms and 3.7MB sort — so a backlog that never drains is still a backlog,
+ * and `countParked` is the thing to alert on.
  */
 export async function claimPendingBatches(
   category: IngestCategory,
   limit: number,
   maxAttempts: number,
 ): Promise<QueuedBatch[]> {
-  // One batch per partition key, locked.
-  //
-  // These two requirements cannot be met by one SELECT: Postgres rejects `FOR UPDATE`
-  // alongside `DISTINCT`, because it cannot know which of the rows collapsed into a
-  // group it is supposed to lock. An earlier version asked for both together and threw
-  // "FOR UPDATE is not allowed with DISTINCT clause" on every poll — the queue never
-  // claimed anything through this path.
-  //
-  // So the two steps are separated. The CTE picks the oldest batch per key and locks
-  // nothing; the outer select locks exactly those rows, and `SKIP LOCKED` lets several
-  // workers share a category without coordination. A worker that finds a key's batch
-  // already locked skips the key entirely rather than moving to that key's next batch,
-  // which is precisely the ordering guarantee: at most one batch per partition is ever
-  // in flight, however many workers are running.
-  const rows = await db.execute<{
-    batch_id: string;
-    category: string;
-    partition_key: string;
-    payload: Record<string, unknown>;
-    row_count: number;
-    attempts: number;
-  }>(raw`
-    WITH oldest_per_key AS (
-      SELECT DISTINCT ON (partition_key) batch_id
-      FROM ingest_batches
-      WHERE category = ${category}
-        AND completed_at IS NULL
-        AND attempts < ${maxAttempts}
-      ORDER BY partition_key, created_at ASC
-    )
-    SELECT b.batch_id, b.category, b.partition_key, b.payload, b.row_count, b.attempts
-    FROM ingest_batches b
-    WHERE b.batch_id IN (SELECT batch_id FROM oldest_per_key)
-    ORDER BY b.created_at ASC
-    LIMIT ${limit}
-    FOR UPDATE SKIP LOCKED
-  `);
+  const leaseMs = CLAIM_LEASE_MS;
+  try {
+    const rows = await db.execute<{
+      batch_id: string;
+      category: string;
+      partition_key: string;
+      payload: Record<string, unknown>;
+      row_count: number;
+      attempts: number;
+    }>(raw`
+      WITH leased AS (
+        SELECT partition_key
+        FROM ingest_batches
+        WHERE category = ${category}
+          AND completed_at IS NULL
+          AND claimed_at IS NOT NULL
+          AND claimed_at > now() - ${leaseMs} * interval '1 millisecond'
+      ),
+      candidates AS (
+        SELECT DISTINCT ON (b.partition_key) b.batch_id, b.created_at
+        FROM ingest_batches b
+        WHERE b.category = ${category}
+          AND b.completed_at IS NULL
+          AND b.attempts < ${maxAttempts}
+          AND NOT EXISTS (SELECT 1 FROM leased l WHERE l.partition_key = b.partition_key)
+        ORDER BY b.partition_key, b.created_at ASC
+      ),
+      oldest AS (
+        SELECT batch_id FROM candidates ORDER BY created_at ASC LIMIT ${limit}
+      ),
+      locked AS (
+        SELECT batch_id
+        FROM ingest_batches
+        WHERE batch_id IN (SELECT batch_id FROM oldest)
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE ingest_batches t
+      SET claimed_at = now()
+      FROM locked l
+      WHERE t.batch_id = l.batch_id
+        AND t.completed_at IS NULL
+        AND (t.claimed_at IS NULL OR t.claimed_at <= now() - ${leaseMs} * interval '1 millisecond')
+      RETURNING t.batch_id, t.category, t.partition_key, t.payload, t.row_count, t.attempts
+    `);
 
-  return [...rows].map((r) => ({
-    batchId: r.batch_id,
-    category: r.category as IngestCategory,
-    partitionKey: r.partition_key,
-    payload: r.payload,
-    rowCount: r.row_count,
-    attempts: r.attempts,
-  }));
+    return [...rows].map((r) => ({
+      batchId: r.batch_id,
+      category: r.category as IngestCategory,
+      partitionKey: r.partition_key,
+      payload: r.payload,
+      rowCount: r.row_count,
+      attempts: r.attempts,
+    }));
+  } catch (err) {
+    // `ux_ingest_batches_one_inflight` firing means another worker claimed a sibling batch
+    // of the same partition between this statement's snapshot and its write. That is the
+    // constraint doing its job, not an outage: claim nothing and let the next tick pick up
+    // whatever is still free. Reporting it as a failure would trip the worker's backoff.
+    if (isUniqueViolation(err)) return [];
+    throw err;
+  }
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === UNIQUE_VIOLATION
+  );
 }
 
 /** Mark a batch applied. The sink's own marker is what makes this safe to race. */
 export async function markBatchCompleted(batchId: string): Promise<void> {
   await db
     .update(ingestBatches)
-    .set({ completedAt: new Date() })
+    .set({ completedAt: new Date(), claimedAt: null })
     .where(eq(ingestBatches.batchId, batchId));
 }
 
 /**
- * Record a failed attempt.
+ * Record a failed attempt and release the lease.
  *
- * The row stays pending, so the next tick retries it. Once `attempts` reaches the cap the
- * claim query stops returning it and the batch is parked — visible to `countParked`,
+ * The row stays pending, so the next tick retries it — immediately, rather than after the
+ * lease expires, which is what clearing `claimed_at` buys. Once `attempts` reaches the cap
+ * the claim query stops returning it and the batch is parked: visible to `countParked`,
  * replayable by resetting `attempts`, and never silently dropped the way the in-memory
- * flush drops a batch after three tries.
+ * flush drops a batch after three tries. A parked batch holds no lease, so it cannot block
+ * its partition key.
  */
 export async function markBatchFailed(batchId: string, error: string): Promise<void> {
   await db
     .update(ingestBatches)
-    .set({ attempts: raw`${ingestBatches.attempts} + 1`, lastError: error.slice(0, 2000) })
+    .set({
+      attempts: raw`${ingestBatches.attempts} + 1`,
+      lastError: error.slice(0, 2000),
+      claimedAt: null,
+    })
     .where(eq(ingestBatches.batchId, batchId));
+}
+
+/**
+ * Give a claimed batch back without counting an attempt.
+ *
+ * For batches a worker claimed and then did not get to — a shutdown mid-drain is the only
+ * caller. Leaving them leased would strand each one, and its whole partition key behind it,
+ * until the lease expired.
+ */
+export async function releaseBatchClaims(batchIds: string[]): Promise<void> {
+  if (batchIds.length === 0) return;
+  await db
+    .update(ingestBatches)
+    .set({ claimedAt: null })
+    .where(and(isNull(ingestBatches.completedAt), raw`batch_id = ANY(${batchIds})`));
 }
 
 /** Pending batches in one category — the queue depth a health check reports. */

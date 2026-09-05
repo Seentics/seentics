@@ -1,4 +1,3 @@
-import type { EventBus } from "../../infrastructure/events";
 import { log as baseLog, type Logger } from "../../platform/lib/logger";
 import type { AnalyticsModule } from "../analytics/interfaces";
 import type { AutomationsModule } from "../automations/interfaces";
@@ -34,23 +33,22 @@ export function initIngestModule(deps: {
   funnelsModule: FunnelsModule;
   /** For its tracker-facing lookup — anonymous, heavily cached, not `WebsiteQuery`. */
   websitesModule: WebsitesModule;
-  eventBus: EventBus;
   logger?: Logger;
 }): IngestModule {
   const sinks = new ModuleIngestSinks(
     deps.analyticsModule.ingest,
     deps.automationsModule.triggers,
+    deps.automationsModule.visitorProfiles,
     deps.recordingsModule.ingest,
     deps.heatmapsModule.ingest,
   );
   // The queue enqueues; the worker applies. Splitting them is what puts a committed row
   // between the tracker request and the module writes, so a crash costs at most the
   // batches in flight rather than every in-memory buffer.
-  const queue = new IngestQueueService(postgresBatchQueue, deps.eventBus, deps.logger ?? baseLog);
+  const queue = new IngestQueueService(postgresBatchQueue, deps.logger ?? baseLog);
   const worker = new IngestWorker(
     postgresBatchQueue,
     sinks,
-    deps.eventBus,
     deps.logger ?? baseLog,
   );
 
@@ -58,7 +56,6 @@ export function initIngestModule(deps: {
     sinks,
     routes: createTrackerRoutes({
       queue,
-      visitorProfiles: deps.automationsModule.visitorProfiles,
       automations: deps.automationsModule.trackerSettings,
       automationEvaluation: deps.automationsModule.evaluation,
       funnels: deps.funnelsModule.trackerConfig,

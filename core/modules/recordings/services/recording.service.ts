@@ -1,4 +1,3 @@
-import type { EventBus } from "../../../infrastructure/events";
 import type { WebsiteQuery } from "../../websites/interfaces";
 import type {
   RecordingMutations,
@@ -29,7 +28,6 @@ import { listReplaySessions } from "./session-list.service";
 export class RecordingService implements RecordingQuery, RecordingMutations {
   constructor(
     private readonly websites: WebsiteQuery,
-    private readonly eventBus: EventBus,
   ) {}
 
   /**

@@ -12,7 +12,7 @@ import type {
 /**
  * Everything the websites module offers, in one interface.
  *
- * This is what a peer module receives — `initHeatmapsModule({ websites, eventBus })`
+ * This is what a peer module receives — `initHeatmapsModule({ websites })`
  * takes this type, not `WebsiteService`. Every member is itself an interface, so
  * handing a peer the whole module still hands it no implementation: there is no way
  * to reach the Postgres repository, the cache, or the mutation methods from here.

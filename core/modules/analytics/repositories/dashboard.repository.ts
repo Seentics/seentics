@@ -96,8 +96,11 @@ async function fetchDashboardRows(
       -- Every event type, not just pageviews: session duration is measured from the first
       -- to the last thing a visitor did, and a session whose only later activity is a
       -- custom event lasted that long whether or not a page was loaded again. Narrowing
-      -- this to pageviews would make the index work but would quietly redefine the metric,
-      -- so ix_analytics_session_window covers this shape instead.
+      -- this to pageviews would make the index work but would quietly redefine the metric.
+      --
+      -- ix_analytics_session_visitor serves it as it stands. A covering index on
+      -- (website_id, occurred_at) INCLUDE (session_id, event_type) was added for this and
+      -- then removed: the planner never chose it, and dropping it left the plan identical.
       WITH e AS (
         SELECT session_id, event_type, occurred_at
         FROM analytics_events

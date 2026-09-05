@@ -1,25 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, mock } from "bun:test";
 import type { HeatmapTrackerEvent } from "../services/tracker-mapping";
 import type { ScreenshotJob } from "../../../platform/lib/types";
 
 process.env.DATABASE_URL ??= "postgres://test-not-connected";
 
 /**
- * The engine's buffering and flush.
+ * The engine's write path.
  *
- * Untested until the file was split, and not for want of trying: reaching this behaviour
- * meant constructing a class that read `env().s3.bucket`, opened a timer, and pulled S3,
- * Playwright and the layout tables in through its own screenshot path. What was actually
- * interesting — batch grouping, the buffer cap, which points get announced — was three
- * dependencies deep behind all of that.
+ * The property under test throughout is durability: `processEvents` must not resolve
+ * until everything the batch carries has been written, because `IngestWorker` marks the
+ * durable batch completed the moment it does. The engine used to buffer points and drain
+ * them on a 400ms timer, so a restart, a full buffer or a failed flush lost data that the
+ * queue had already recorded as applied — and none of it was visible beyond a log line.
  *
- * Now the snapshot service is injectable and the row mapping lives in `point-mapping`, so
- * the only stubs left are the two things the engine genuinely talks to: the upsert and
- * the batch marker.
- *
- * The property under test throughout is the one the doc comment calls out: a batch must
- * not be split across two guarded writes, because the marker guards a whole batch and the
- * upsert *adds* to intensity. A split batch that half-fails re-inflates on redelivery.
+ * The second property is the one the additive upsert forces: a batch is written whole or
+ * not at all. The marker guards a whole batch, and `intensity` *adds*, so a half-applied
+ * batch re-inflates the number on redelivery.
  */
 
 const upserts: { rows: unknown[] }[] = [];
@@ -36,7 +32,7 @@ mock.module("../repositories/heatmap-writes.repository", () => ({
 /** Batch ids already applied, standing in for the marker table. */
 const applied = new Set<string>();
 
-mock.module("../../../infrastructure/idempotency", () => ({
+mock.module("../../../platform/idempotency", () => ({
   applyBatchOnceSql: async (
     batchId: string,
     _category: string,
@@ -59,20 +55,15 @@ const { HeatmapEngine } = await import("../services/heatmap-engine.service");
 class FakeSnapshots {
   screenshots: ScreenshotJob[] = [];
   domSnapshots: string[] = [];
+  failScreenshots = false;
   async storeScreenshot(job: ScreenshotJob) {
+    if (this.failScreenshots) throw new Error("s3 exploded");
     this.screenshots.push(job);
   }
   async storeDomSnapshot(ev: { url?: string }) {
     this.domSnapshots.push(ev.url ?? "");
   }
 }
-
-const published: { name: string; payload: Record<string, unknown> }[] = [];
-const eventBus = {
-  async publish(name: string, payload: Record<string, unknown>) {
-    published.push({ name, payload });
-  },
-} as never;
 
 const SITE_A = "11111111-1111-4111-8111-111111111111";
 const SITE_B = "22222222-2222-4222-8222-222222222222";
@@ -93,56 +84,80 @@ let snapshots: FakeSnapshots;
 
 beforeEach(() => {
   upserts.length = 0;
-  published.length = 0;
   applied.clear();
   upsertThrowsFor = null;
   snapshots = new FakeSnapshots();
-  engine = new HeatmapEngine(eventBus, null, snapshots as never);
+  engine = new HeatmapEngine({ snapshots: snapshots as never });
 });
 
-afterEach(async () => {
-  // Clears the interval the constructor armed; without it the test process never exits.
-  await engine.shutdown();
-});
-
-describe("buffering", () => {
-  it("does not write until a flush", async () => {
+describe("durability", () => {
+  /**
+   * The regression this file exists for. `IngestWorker` marks the batch completed as
+   * soon as this resolves, so anything not yet written at that moment is unrecoverable —
+   * the batch will never be redelivered.
+   */
+  it("writes the batch before resolving", async () => {
     await engine.processEvents("b1", [clickRow(SITE_A)]);
-    expect(upserts).toEqual([]);
-  });
-
-  it("writes what was buffered on shutdown", async () => {
-    await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
     expect(upserts).toHaveLength(1);
     expect(upserts[0]!.rows).toHaveLength(1);
   });
 
+  it("stores screenshots before resolving", async () => {
+    await engine.processEvents("b1", [screenshotRow(SITE_A)]);
+    expect(snapshots.screenshots).toHaveLength(1);
+  });
+
+  /**
+   * A throw is the only way to tell the worker not to mark the batch applied. Swallowing
+   * it here reads to the worker exactly like success.
+   */
+  it("throws when the point write fails, so the worker can retry", async () => {
+    upsertThrowsFor = "b1";
+    await expect(engine.processEvents("b1", [clickRow(SITE_A)])).rejects.toThrow("pg exploded");
+  });
+
+  it("throws when object storage fails, so the worker can retry", async () => {
+    snapshots.failScreenshots = true;
+    await expect(engine.processEvents("b1", [screenshotRow(SITE_A)])).rejects.toThrow(
+      "s3 exploded",
+    );
+  });
+
+  /**
+   * Points commit before the upload is attempted, so the retry that a failed upload
+   * causes finds the marker and does not add to `intensity` a second time.
+   */
+  it("does not re-apply points when a retry follows a storage failure", async () => {
+    snapshots.failScreenshots = true;
+    await expect(
+      engine.processEvents("b1", [clickRow(SITE_A), screenshotRow(SITE_A)]),
+    ).rejects.toThrow();
+    expect(upserts).toHaveLength(1);
+
+    snapshots.failScreenshots = false;
+    await engine.processEvents("b1", [clickRow(SITE_A), screenshotRow(SITE_A)]);
+
+    expect(upserts).toHaveLength(1);
+    expect(snapshots.screenshots).toHaveLength(1);
+  });
+
   it("ignores a batch with no heatmap events", async () => {
     await engine.processEvents("b1", []);
-    await engine.shutdown();
     expect(upserts).toEqual([]);
   });
 });
 
 describe("batch grouping", () => {
-  /**
-   * One write per originating batch, never one per flush. The marker guards a whole
-   * batch, so a batch split across two writes could half-apply and then re-inflate the
-   * additive upsert on redelivery.
-   */
-  it("writes each ingest batch separately even when flushed together", async () => {
+  it("writes each ingest batch separately", async () => {
     await engine.processEvents("b1", [clickRow(SITE_A), clickRow(SITE_A, 0.1, 0.1)]);
     await engine.processEvents("b2", [clickRow(SITE_A, 0.2, 0.2)]);
-    await engine.shutdown();
 
     expect(upserts).toHaveLength(2);
-    expect(upserts.map((u) => u.rows.length).sort()).toEqual([1, 2]);
+    expect(upserts.map((u) => u.rows.length)).toEqual([2, 1]);
   });
 
   it("keeps points from one batch in a single write, across websites", async () => {
     await engine.processEvents("b1", [clickRow(SITE_A), clickRow(SITE_B)]);
-    await engine.shutdown();
 
     // Grouped by batch, not by website — the marker is per batch.
     expect(upserts).toHaveLength(1);
@@ -151,71 +166,22 @@ describe("batch grouping", () => {
 
   it("skips a batch the marker has already seen", async () => {
     await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
     upserts.length = 0;
 
-    // Same batch id redelivered.
     await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
 
     expect(upserts).toEqual([]);
   });
 });
 
-describe("announcing what was written", () => {
-  it("publishes one event per website, counting that website's points", async () => {
-    await engine.processEvents("b1", [
-      clickRow(SITE_A),
-      clickRow(SITE_A, 0.1, 0.1),
-      clickRow(SITE_B),
-    ]);
-    await engine.shutdown();
-
-    const counts = published
-      .filter((p) => p.name === "heatmap.data_collected")
-      .map((p) => [p.payload.websiteId, p.payload.pointCount]);
-
-    expect(counts).toHaveLength(2);
-    expect(new Map(counts as [string, number][])).toEqual(
-      new Map([
-        [SITE_A, 2],
-        [SITE_B, 1],
-      ]),
-    );
-  });
-
-  it("announces nothing for a batch that was skipped as a repeat", async () => {
-    await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
-    published.length = 0;
-
-    await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
-
-    expect(published).toEqual([]);
-  });
-
-  /**
-   * A failed write must not be announced. A consumer counting collected points would
-   * otherwise count rows that were never stored.
-   */
-  it("announces nothing for a batch whose write failed", async () => {
+describe("failure isolation", () => {
+  it("still applies a later batch after an earlier one failed", async () => {
     upsertThrowsFor = "b1";
-    await engine.processEvents("b1", [clickRow(SITE_A)]);
-    await engine.shutdown();
-
-    expect(published).toEqual([]);
-  });
-
-  it("keeps sibling batches alive when one fails", async () => {
-    upsertThrowsFor = "b1";
-    await engine.processEvents("b1", [clickRow(SITE_A)]);
+    await expect(engine.processEvents("b1", [clickRow(SITE_A)])).rejects.toThrow();
     await engine.processEvents("b2", [clickRow(SITE_B)]);
-    await engine.shutdown();
 
     expect(upserts).toHaveLength(1);
-    const announced = published.map((p) => p.payload.websiteId);
-    expect(announced).toEqual([SITE_B]);
+    expect((upserts[0]!.rows[0] as { websiteId: string }).websiteId).toBe(SITE_B);
   });
 });
 
@@ -230,8 +196,26 @@ describe("routing to the snapshot half", () => {
         data: { html: "<html>".padEnd(200, "x") },
       } as unknown as HeatmapTrackerEvent,
     ]);
-    await engine.shutdown();
 
     expect(snapshots.domSnapshots).toEqual([]);
   });
 });
+
+/** A payload that survives `decodeScreenshotImage`: JPEG magic bytes and over the size floor. */
+const FAKE_JPEG_BASE64 = Buffer.concat([
+  Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  Buffer.alloc(600, 0x41),
+]).toString("base64");
+
+function screenshotRow(websiteId: string): HeatmapTrackerEvent {
+  return {
+    websiteId,
+    type: "heatmap_screenshot",
+    url: "https://example.com/pricing",
+    ts: 1_770_000_000_000,
+    heatmapLayoutEnabled: true,
+    docW: 1280,
+    docH: 900,
+    data: { image: `data:image/jpeg;base64,${FAKE_JPEG_BASE64}` },
+  } as unknown as HeatmapTrackerEvent;
+}

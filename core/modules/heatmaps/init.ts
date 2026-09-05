@@ -1,4 +1,3 @@
-import type { EventBus } from "../../infrastructure/events";
 import type { AnalyticsModule } from "../analytics/interfaces";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { HeatmapsModule } from "./interfaces";
@@ -29,17 +28,15 @@ export function initHeatmapsModule(deps: {
   websitesModule: WebsitesModule;
   /** For the screenshot-target fallback: recent pageview URLs live in analytics. */
   analyticsModule: AnalyticsModule;
-  eventBus: EventBus;
 }): HeatmapsModule {
-  const { eventBus } = deps;
 
   const settings = new HeatmapSettingsService(deps.websitesModule.query);
-  const screenshots = new HeatmapScreenshotService(settings, eventBus);
+  const screenshots = new HeatmapScreenshotService(settings);
   const autoCapture = new HeatmapAutoCapture(
     screenshots.captureForResolved,
     deps.analyticsModule.pageviewUrls,
   );
-  const heatmaps = new HeatmapService(settings, autoCapture, eventBus);
+  const heatmaps = new HeatmapService(settings, autoCapture);
 
   return {
     screenshots,
@@ -61,7 +58,7 @@ export function initHeatmapsModule(deps: {
       // The engine takes the bus, so it has to be built from the composed graph — an
       // engine created lazily on first ingest publishes to nobody. Here rather than
       // above because constructing it arms flush timers.
-      initHeatmapEngine(eventBus, deps.websitesModule.trackerWebsites);
+      initHeatmapEngine(deps.websitesModule.trackerWebsites);
     },
 
     /**

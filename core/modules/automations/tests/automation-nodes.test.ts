@@ -25,7 +25,6 @@ mock.module("../../../platform/lib/logger", fakeLogger);
 let AutomationEvaluationService: typeof import("../services/evaluate.service").AutomationEvaluationService;
 
 let automationRows: Array<{ id: string; definition: Record<string, unknown> }> = [];
-const bus = { publish: async () => {}, subscribe: () => {} };
 
 beforeAll(async () => {
   ({ AutomationEvaluationService } = await import("../services/evaluate.service"));
@@ -54,7 +53,7 @@ function request(over: Partial<EvaluateRequest> = {}): EvaluateRequest {
 }
 
 function service() {
-  return new AutomationEvaluationService(bus as never, {
+  return new AutomationEvaluationService({
     listActiveAutomationsByPriority: listActive as never,
     executeWebhook: executeWebhook as never,
   });

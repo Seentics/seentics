@@ -63,8 +63,14 @@ export function analyticsCacheMiddleware(
     const key = cacheKey(c, identity);
     const hit = inner.get(key);
     if (hit) {
-      c.header("X-Cache", "HIT");
-      return c.json(JSON.parse(new TextDecoder().decode(hit.body)));
+      // The stored bytes and the stored headers, verbatim. Decoding, parsing and
+      // re-serialising the body did two full JSON passes over a response of up to two
+      // megabytes on the path whose entire purpose is to avoid work — and `c.json` built
+      // its own headers, so the `Content-Type` and cache directives the handler set were
+      // present on a miss and quietly gone on a hit.
+      const headers = new Headers(hit.headers);
+      headers.set("X-Cache", "HIT");
+      return new Response(hit.body.slice(), { status: 200, headers });
     }
 
     await next();

@@ -15,30 +15,33 @@ export async function getReferrersAnalytics(
   }[]>`
     WITH pv AS (
       SELECT
-        id,
-        referrer,
-        session_id,
         coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
-        occurred_at
+        -- The session's first referrer, normalised here rather than in the outer SELECT.
+        -- That placement is the fix: grouping on the raw column put NULL, '' and '   ' in
+        -- three separate groups that all rendered as 'direct', so the dashboard showed
+        -- several "direct" rows, each holding part of the real total — and each consuming
+        -- one of the fifty slots below.
+        first_value(coalesce(nullif(trim(referrer), ''), 'direct'))
+          OVER (PARTITION BY session_id ORDER BY occurred_at ASC, id ASC) AS first_ref
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND session_id IS NOT NULL
         AND length(trim(session_id)) > 0
-    ),
-    -- First referrer per session (deterministic via id tiebreaker)
-    first_ref AS (
-      SELECT DISTINCT ON (session_id) session_id, referrer
-      FROM pv ORDER BY session_id, occurred_at ASC, id ASC
     )
+    -- One pass. The previous shape referenced pv twice — once to pick the first referrer
+    -- per session, once to join it back to every pageview of that session — which made
+    -- Postgres materialise the CTE and sort it twice. first_value labels every row with
+    -- its session's first referrer in the same window, so the join disappears. It measured
+    -- no faster (the sort by session is the cost either way), but it is a smaller query
+    -- with one fewer place for the grouping to go wrong.
     SELECT
-      coalesce(nullif(trim(fr.referrer), ''), 'direct') AS referrer,
+      first_ref AS referrer,
       count(*)::int AS views,
-      count(DISTINCT pv.vid)::int AS unique_visitors
-    FROM first_ref fr
-    JOIN pv ON pv.session_id = fr.session_id
-    GROUP BY fr.referrer
+      count(DISTINCT vid)::int AS unique_visitors
+    FROM pv
+    GROUP BY first_ref
     ORDER BY views DESC, referrer ASC
     LIMIT 50
   `;

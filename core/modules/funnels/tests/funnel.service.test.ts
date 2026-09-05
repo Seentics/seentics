@@ -1,5 +1,4 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { InMemoryEventBus, type EventBus, type EventName } from "../../../infrastructure/events";
 import type { Logger } from "../../../platform/lib/logger";
 import type { AnalyticsFunnelEvents } from "../../analytics/interfaces";
 import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfaces";
@@ -193,20 +192,6 @@ class FakeWebsiteQuery implements WebsiteQuery {
   }
 }
 
-/** Records every publish so tests can assert on emitted facts. */
-function recordingBus(): { bus: EventBus; published: { type: EventName; payload: unknown }[] } {
-  const published: { type: EventName; payload: unknown }[] = [];
-  const inner = new InMemoryEventBus(silentLogger);
-  const bus: EventBus = {
-    async publish(type, payload) {
-      published.push({ type, payload });
-      await inner.publish(type, payload);
-    },
-    subscribe: inner.subscribe.bind(inner),
-  };
-  return { bus, published };
-}
-
 // ─── Load the service after the mocks ────────────────────────────────────────
 
 let FunnelService: typeof import("../services/funnel.service").FunnelService;
@@ -217,7 +202,6 @@ beforeAll(async () => {
 
 describe("FunnelService", () => {
   let websites: FakeWebsiteQuery;
-  let published: { type: EventName; payload: unknown }[];
   let service: InstanceType<typeof FunnelService>;
 
   beforeEach(() => {
@@ -226,9 +210,7 @@ describe("FunnelService", () => {
     funnelRows = [makeFunnel()];
     websites = new FakeWebsiteQuery();
     websites.seed(makeWebsite());
-    const rec = recordingBus();
-    published = rec.published;
-    service = new FunnelService(websites, analyticsEvents, rec.bus);
+    service = new FunnelService(websites, analyticsEvents);
   });
 
   describe("website reference resolution", () => {
@@ -342,65 +324,14 @@ describe("FunnelService", () => {
     });
   });
 
-  describe("events", () => {
-    it("publishes funnel.created with both identifiers", async () => {
-      const created = await service.create(WEBSITE_UUID, "user_1", {
-        name: "New",
-        steps: [{}, {}],
-      });
-
-      expect(published).toHaveLength(1);
-      expect(published[0]?.type).toBe("funnel.created");
-      expect(published[0]?.payload).toMatchObject({
-        websiteId: WEBSITE_UUID,
-        funnelId: created.id,
-        name: "New",
-        stepCount: 2,
-      });
-    });
-
-    it("publishes funnel.updated carrying the submitted fields", async () => {
-      await service.update(WEBSITE_UUID, "fn_1", { name: "Renamed", is_active: false });
-
-      expect(published[0]?.type).toBe("funnel.updated");
-      expect(published[0]?.payload).toMatchObject({
-        funnelId: "fn_1",
-        changes: { name: "Renamed", is_active: false },
-      });
-    });
-
-    it("publishes funnel.deleted on a single delete", async () => {
-      await service.remove(WEBSITE_UUID, "fn_1");
-
-      expect(published).toHaveLength(1);
-      expect(published[0]?.type).toBe("funnel.deleted");
-      expect(published[0]?.payload).toMatchObject({ funnelId: "fn_1", websiteId: WEBSITE_UUID });
-    });
-
-    // One event per funnel, never a batched shape — consumers get a single code path.
-    it("publishes one funnel.deleted per funnel in a bulk delete", async () => {
-      await service.bulkRemove(WEBSITE_UUID, ["a", "b", "c"]);
-
-      expect(published.map((p) => p.type)).toEqual([
-        "funnel.deleted",
-        "funnel.deleted",
-        "funnel.deleted",
-      ]);
-      expect(published.map((p) => (p.payload as { funnelId: string }).funnelId)).toEqual([
-        "a",
-        "b",
-        "c",
-      ]);
-    });
-
-    it("publishes nothing when the update matched no row", async () => {
+  describe("mutations", () => {
+    it("returns null when the update matched no row", async () => {
       expect(await service.update(WEBSITE_UUID, "missing", { name: "x" })).toBeNull();
-      expect(published).toEqual([]);
     });
 
-    it("publishes nothing for an unknown website", async () => {
+    it("does nothing for an unknown website", async () => {
       await service.remove("nope", "fn_1");
-      expect(published).toEqual([]);
+      expect(repoCalls).toEqual([]);
     });
   });
 
@@ -412,7 +343,6 @@ describe("FunnelService", () => {
 
       expect(repoCalls).toEqual([]);
       expect(websites.lookups).toEqual([]);
-      expect(published).toEqual([]);
     });
   });
 

@@ -1,5 +1,5 @@
 import { analyticsEvents, db } from "../../../db";
-import type { BatchTx } from "../../../infrastructure/idempotency";
+import type { BatchTx } from "../../../platform/idempotency";
 import type { AnalyticsIngestEvent } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { log as baseLog } from "../../../platform/lib/logger";

@@ -11,7 +11,6 @@ import { validationErrorResponse } from "../../platform/validation";
 import type {
   AutomationEvaluation,
   AutomationTrackerSettings,
-  VisitorProfileWriter,
 } from "../automations/interfaces";
 import type { FunnelTrackerConfig } from "../funnels/interfaces";
 import type { HeatmapScreenshotCapture } from "../heatmaps/interfaces";
@@ -72,8 +71,6 @@ export function createTrackerRoutes(deps: {
    * no longer depends on the queue being a module-level singleton.
    */
   queue: IngestQueue;
-  /** Where `/collect` sends the visitor profile it built from the batch. */
-  visitorProfiles: VisitorProfileWriter;
   /** Active automations for `/init`. One indexed read per session start. */
   automations: AutomationTrackerSettings;
   /** Server-side trigger evaluation for `/automations/evaluate`. */
@@ -97,7 +94,7 @@ export function createTrackerRoutes(deps: {
    */
   trackerWebsites: TrackerWebsites;
 }) {
-  const { queue, visitorProfiles, automations, automationEvaluation, funnels, screenshots } = deps;
+  const { queue, automations, automationEvaluation, funnels, screenshots } = deps;
   const {
     resolve: resolveWebsiteForTracker,
     listGoals: listTrackerGoals,
@@ -270,7 +267,7 @@ export function createTrackerRoutes(deps: {
       acceptLanguage: c.req.header("Accept-Language") ?? "",
       headers: c.req.raw.headers,
     });
-    const ctx = { body, website, userAgent: ua, ingestMeta, queue, visitorProfiles };
+    const ctx = { body, website, userAgent: ua, ingestMeta, queue };
 
     const lenEvents = Array.isArray(body.events) ? body.events.length : 0;
     const lenSession = Array.isArray(body.session) ? body.session.length : 0;
@@ -309,8 +306,9 @@ export function createTrackerRoutes(deps: {
       log.info(collectFields);
     }
 
-    handleEvents(ctx);
-    handleVisitorProfile(ctx);
+    // `handleEvents` returns what it parsed so the profile handler can reuse it rather
+    // than walking the same up-to-2000-element array a second time.
+    handleVisitorProfile(ctx, handleEvents(ctx));
     handleFunnels(ctx);
     handleAutomations(ctx);
     handleRecordings(ctx);

@@ -8,7 +8,7 @@ import type {
 } from "../lib/api-types";
 import { buildAnalyticsIngestMeta } from "../lib/analytics-ingest-meta";
 import { clientIpForIngest } from "../lib/client-ip";
-import { batchIdFor } from "../../infrastructure/idempotency/batch-id";
+import { batchIdFor } from "../../platform/idempotency/batch-id";
 import { isGlobalApiKeyValid } from "../lib/global-key";
 import type { AnalyticsIngestEvent, TrackerEvent } from "../lib/types";
 import type { RetentionRunner } from "../retention";

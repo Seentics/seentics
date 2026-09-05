@@ -1,8 +1,8 @@
-import { batchIdFor } from "../../../infrastructure/idempotency/batch-id";
+import { batchIdFor } from "../../../platform/idempotency/batch-id";
 import type { AppConfig } from "../../../config";
-import type { EventBus } from "../../../infrastructure/events";
 import { log as baseLog } from "../../../platform/lib/logger";
 import type { Logger } from "../../../platform/lib/logger";
+import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type {
   AnalyticsIngestEvent,
   AutomationTriggerQueued,
@@ -29,6 +29,18 @@ const MAX_FLUSH_ATTEMPTS = 3;
  */
 const QUEUE_HARD_CAP_MULTIPLIER = 2;
 
+/**
+ * Byte ceiling for the heatmap buffer, independent of the event count.
+ *
+ * A count is a fine proxy for memory everywhere except here. A click is tens of bytes; a
+ * `heatmap_screenshot` carries up to 3.5MB of base64 and a `heatmap_dom_snapshot` up to
+ * 1.5MB of HTML, and `/collect` accepts five of each per request. Twenty-five thousand
+ * events was therefore anything between two megabytes and eighty gigabytes, and the
+ * container this runs in is capped at 896MB — so the count-based cap could not prevent the
+ * one thing a cap exists to prevent.
+ */
+const DEFAULT_MAX_HEATMAP_BYTES = 64 * 1024 * 1024;
+
 type Thresholds = {
   flushMs: number;
   events: number;
@@ -36,6 +48,7 @@ type Thresholds = {
   heatmaps: number;
   funnels: number;
   automations: number;
+  profiles: number;
 };
 
 const DEFAULT_THRESHOLDS: Thresholds = {
@@ -45,6 +58,7 @@ const DEFAULT_THRESHOLDS: Thresholds = {
   heatmaps: 25_000,
   funnels: 50_000,
   automations: 50_000,
+  profiles: 20_000,
 };
 
 /**
@@ -70,12 +84,13 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
 
   // ── Buffers ───────────────────────────────────────────────────────────────
   // Analytics and funnels are keyed by site so each site flushes as its own
-  // insert; the other three are flat because their sinks take mixed batches.
+  // insert; the other three are flat, and grouped by site at flush time.
   private eventsBySite = new Map<string, AnalyticsIngestEvent[]>();
   private funnelsBySite = new Map<string, AnalyticsIngestEvent[]>();
   private recordingsQueue: TrackerEvent[] = [];
   private heatmapsQueue: HeatmapIngestEvent[] = [];
   private automationsQueue: AutomationTriggerQueued[] = [];
+  private profilesQueue: VisitorProfileWrite[] = [];
 
   /**
    * Running totals for the map-backed buffers.
@@ -85,6 +100,10 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
    */
   private queuedEventsCount = 0;
   private queuedFunnelsCount = 0;
+
+  /** Approximate retained bytes of `heatmapsQueue`. See `DEFAULT_MAX_HEATMAP_BYTES`. */
+  private heatmapBytes = 0;
+  private maxHeatmapBytes = DEFAULT_MAX_HEATMAP_BYTES;
 
   /** Consecutive failed flushes per site, for the two retryable branches. */
   private readonly eventsFlushAttempts = new Map<string, number>();
@@ -102,6 +121,17 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
    */
   private flushChain: Promise<void> = Promise.resolve();
 
+  /**
+   * The flush already queued behind the running one, if any.
+   *
+   * Every enqueue past a force-flush threshold asks for a flush, and while the buffer
+   * stays above that threshold that is *every enqueue* — so the chain grew one no-op
+   * drain per event under exactly the sustained load the threshold exists to handle.
+   * One pending flush is enough: it has not started, so it will see everything a later
+   * caller would have wanted flushed.
+   */
+  private pendingFlush: Promise<void> | null = null;
+
   constructor(
     /**
      * Where a flushed batch is handed off.
@@ -111,7 +141,6 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
      * these in-memory buffers. `IngestWorker` drains it.
      */
     private readonly queue: BatchQueueStore,
-    private readonly eventBus: EventBus,
     logger: Logger = baseLog,
   ) {
     this.log = logger.child({ category: "ingest" });
@@ -126,7 +155,9 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
       heatmaps: cfg.ingestQueue.maxHeatmapsBeforeForceFlush,
       funnels: cfg.ingestQueue.maxFunnelsBeforeForceFlush,
       automations: cfg.ingestQueue.maxAutomationsBeforeForceFlush,
+      profiles: cfg.ingestQueue.maxProfilesBeforeForceFlush,
     };
+    this.maxHeatmapBytes = cfg.ingestQueue.maxHeatmapBytes;
   }
 
   // ── IngestFlusher ─────────────────────────────────────────────────────────
@@ -153,6 +184,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
       recordings: this.recordingsQueue.length,
       heatmaps: this.heatmapsQueue.length,
       automations: this.automationsQueue.length,
+      profiles: this.profilesQueue.length,
     };
   }
 
@@ -210,6 +242,21 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
 
   enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
     if (!events.length) return;
+
+    // Bytes first: one screenshot can be worth ten thousand clicks, and the count cap
+    // cannot see the difference.
+    const incoming = heatmapBytesOf(events);
+    if (this.heatmapBytes + incoming > this.maxHeatmapBytes) {
+      this.log.warn({
+        msg: "ingest_heatmaps_byte_cap_drop",
+        dropped: events.length,
+        queued_bytes: this.heatmapBytes,
+        cap_bytes: this.maxHeatmapBytes,
+      });
+      void this.scheduleFlush();
+      return;
+    }
+
     const accepted = this.acceptUpToCap(
       events,
       this.heatmapsQueue.length,
@@ -219,6 +266,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     if (!accepted.length) return;
 
     pushAll(this.heatmapsQueue, accepted);
+    this.heatmapBytes += heatmapBytesOf(accepted);
     if (this.heatmapsQueue.length >= this.thresholds.heatmaps) void this.scheduleFlush();
   }
 
@@ -236,15 +284,36 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     if (this.automationsQueue.length >= this.thresholds.automations) void this.scheduleFlush();
   }
 
+  enqueueProfiles(rows: VisitorProfileWrite[]): void {
+    if (!rows.length) return;
+    const accepted = this.acceptUpToCap(
+      rows,
+      this.profilesQueue.length,
+      this.thresholds.profiles * QUEUE_HARD_CAP_MULTIPLIER,
+      "ingest_profiles_queue_full_drop",
+    );
+    if (!accepted.length) return;
+
+    pushAll(this.profilesQueue, accepted);
+    if (this.profilesQueue.length >= this.thresholds.profiles) void this.scheduleFlush();
+  }
+
   // ── Flush ─────────────────────────────────────────────────────────────────
 
   private scheduleFlush(): Promise<void> {
-    const run = this.flushChain.then(() => this.executeFlush());
+    // One flush queued behind the running one is enough — see `pendingFlush`.
+    if (this.pendingFlush) return this.pendingFlush;
+
+    const run = this.flushChain.then(() => {
+      this.pendingFlush = null;
+      return this.executeFlush();
+    });
     // The chain must never hold a rejected promise, or every later flush inherits
     // the rejection and stops running.
     this.flushChain = run.catch((err: unknown) => {
       this.log.error({ msg: "ingest_flush_failed", error: errText(err) });
     });
+    this.pendingFlush = this.flushChain;
     return run;
   }
 
@@ -254,9 +323,10 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     const recordings = this.takeRecordingsSnapshot();
     const heatmaps = this.takeHeatmapsSnapshot();
     const automations = this.takeAutomationsSnapshot();
+    const profiles = this.takeProfilesSnapshot();
 
-    // All five branches are independent, so they run concurrently. Each contains
-    // its own failures: one sink being down must not stop the other four.
+    // All branches are independent, so they run concurrently. Each contains its own
+    // failures: one sink being down must not stop the others.
     await Promise.all([
       ...[...evMap.entries()].map(([websiteId, events]) =>
         this.flushAnalytics(websiteId, events, "events"),
@@ -265,17 +335,35 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
         this.flushAnalytics(websiteId, events, "funnels"),
       ),
       // Recordings partition by session, so one session's chunks are never applied
-      // concurrently — sequences are assigned per session. The rest are commutative.
-      ...groupBySession(recordings).map(([sessionId, batch]) =>
+      // concurrently — sequences are assigned per session. The rest partition by site.
+      ...groupBy(recordings, (ev) => ev.sid ?? "").map(([sessionId, batch]) =>
         this.flushBranch("recordings", batch, (id, rows) =>
           this.enqueue(id, "recordings", sessionId, { events: rows }, rows.length),
         ),
       ),
-      this.flushBranch("heatmaps", heatmaps, (id, batch) =>
-        this.enqueue(id, "heatmaps", partitionOf(batch), { events: batch }, batch.length),
+      // Grouped by website, not flushed as one batch keyed on whichever site happened to
+      // be first in the buffer. These buffers are flat and accumulate across every site
+      // sending traffic in the same window, so `rows[0].websiteId` named an arbitrary one
+      // — and since at most one batch per partition key is in flight, every site's data
+      // then queued behind that single arbitrary key.
+      ...groupBy(heatmaps, siteOf).map(([websiteId, batch]) =>
+        this.flushBranch("heatmaps", batch, (id, rows) =>
+          this.enqueue(id, "heatmaps", websiteId, { events: rows }, rows.length),
+        ),
       ),
-      this.flushBranch("automations", automations, (id, batch) =>
-        this.enqueue(id, "automations", partitionOf(batch), { rows: batch }, batch.length),
+      ...groupBy(automations, siteOf).map(([websiteId, batch]) =>
+        this.flushBranch("automations", batch, (id, rows) =>
+          this.enqueue(id, "automations", websiteId, { rows }, rows.length),
+        ),
+      ),
+      // Collapsing a visitor's repeats into one row is the sink's job, not this one's:
+      // it is a requirement of the upsert rather than a saving — `ON CONFLICT DO UPDATE`
+      // cannot touch the same row twice in one statement — and it belongs with the
+      // statement that has the constraint.
+      ...groupBy(profiles, siteOf).map(([websiteId, batch]) =>
+        this.flushBranch("profiles", batch, (id, rows) =>
+          this.enqueue(id, "profiles", websiteId, { rows }, rows.length),
+        ),
       ),
     ]);
   }
@@ -424,12 +512,19 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
   private takeHeatmapsSnapshot(): HeatmapIngestEvent[] {
     const snapshot = this.heatmapsQueue;
     this.heatmapsQueue = [];
+    this.heatmapBytes = 0;
     return snapshot;
   }
 
   private takeAutomationsSnapshot(): AutomationTriggerQueued[] {
     const snapshot = this.automationsQueue;
     this.automationsQueue = [];
+    return snapshot;
+  }
+
+  private takeProfilesSnapshot(): VisitorProfileWrite[] {
+    const snapshot = this.profilesQueue;
+    this.profilesQueue = [];
     return snapshot;
   }
 
@@ -442,6 +537,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     this.log.warn({ msg, dropped, queued, cap });
     return room > 0 ? src.slice(0, room) : [];
   }
+
   /**
    * Put one batch on the durable queue.
    *
@@ -457,7 +553,6 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
   ): Promise<void> {
     await this.queue.enqueue({ batchId, category, partitionKey, payload, rowCount });
   }
-
 }
 
 /**
@@ -480,34 +575,44 @@ function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-
-
 /**
- * Group recording events by session.
+ * Approximate retained bytes of a heatmap batch.
  *
- * The one category with an ordering requirement: chunk sequences are assigned per session,
- * so two batches for the same session must never be applied concurrently. Grouping here
- * means each queued batch has a single session as its partition key, and the claim query
- * serialises them.
+ * Only the two fields that can be large are measured, because only they can be: an image
+ * or an HTML snapshot is a top-level string on `data`, and everything else on a heatmap
+ * event is a number or a short selector. Walking the whole object with `JSON.stringify`
+ * would cost more than the cap saves, on the hot enqueue path.
  */
-function groupBySession(events: TrackerEvent[]): [string, TrackerEvent[]][] {
-  const bySession = new Map<string, TrackerEvent[]>();
+function heatmapBytesOf(events: readonly HeatmapIngestEvent[]): number {
+  let bytes = 0;
   for (const ev of events) {
-    const key = ev.sid ?? "";
-    const group = bySession.get(key);
-    if (group) group.push(ev);
-    else bySession.set(key, [ev]);
+    const data = ev.data as { image?: unknown; html?: unknown } | undefined;
+    if (typeof data?.image === "string") bytes += data.image.length;
+    if (typeof data?.html === "string") bytes += data.html.length;
+    bytes += 256; // envelope, selector, url
   }
-  return [...bySession];
+  return bytes;
 }
 
 /**
- * The website a batch belongs to, for partitioning.
+ * Group rows by a key, preserving arrival order within each group.
  *
- * These categories are commutative — an append or an aggregate does not care what order
- * batches arrive in — so the key exists for fairness rather than ordering: one busy site
- * cannot monopolise the queue ahead of every other.
+ * The key decides the queue's `partition_key`, which is what serialises work: recordings
+ * key on session because chunk sequences are assigned per session, and everything else
+ * keys on website — commutative, so the key exists for fairness rather than ordering.
+ * One busy site cannot then monopolise the queue ahead of every other.
  */
-function partitionOf(rows: readonly { websiteId?: string }[]): string {
-  return rows[0]?.websiteId ?? "";
+function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): [string, T[]][] {
+  const byKey = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    const group = byKey.get(key);
+    if (group) group.push(row);
+    else byKey.set(key, [row]);
+  }
+  return [...byKey];
+}
+
+function siteOf(row: { websiteId?: string }): string {
+  return row.websiteId ?? "";
 }

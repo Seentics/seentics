@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 // Registers the shared infrastructure stubs. Must come before the module under test.
 import * as stubs from "./support/stubs";
+import { fakeDbModule } from "../../../app/tests/helpers/fake-db";
 const { warnings, prefixDeletes, s3DeleteFailures, resetStubs } = stubs;
 
 /**
@@ -60,7 +61,11 @@ mock.module("../../../db", () => {
     fn: (tx: unknown) => Promise<unknown>,
   ) => fn(tagged);
 
-  return { sql: tagged };
+  // Spread the shared fake, then override only `sql`. Returning `{ sql }` alone made this
+  // the whole `db` module for every file loaded after it — and `db/index.ts` re-exports
+  // twenty tables, so those files failed to *load* with `SyntaxError: Export named … not
+  // found`, pointing at the real module rather than at this stub.
+  return { ...fakeDbModule(), sql: tagged };
 });
 
 const { RecordingRetentionPurge } = await import("../services/retention-purge.service");

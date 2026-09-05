@@ -1,4 +1,3 @@
-import type { Unsubscribe } from "../../../infrastructure/events";
 
 /**
  * The server-side evaluation path.
@@ -80,24 +79,3 @@ export interface AutomationEvaluation {
   evaluate(request: EvaluateRequest): Promise<EvaluateResult>;
 }
 
-/**
- * Consuming other modules' events.
- *
- * Automations are the one module in the system that is naturally an event
- * *consumer* — "something happened, consider reacting" is the whole domain. This
- * interface is the seam for that, kept separate so wiring a subscription is a
- * composition-time decision in `app/bootstrap.ts` rather than something buried
- * in the evaluation path.
- *
- * Nothing calls it yet, and wiring it would change when automations run. See
- * `evaluate.service.ts` for what a subscriber would and would not have.
- */
-export interface AutomationEventSubscriber {
-  /**
-   * React to `analytics.batch_ingested`.
-   *
-   * Returns the unsubscribe handle so a caller that owns the subscription can
-   * tear it down — tests rely on that, and so would a graceful shutdown.
-   */
-  subscribeToIngest(): Unsubscribe;
-}

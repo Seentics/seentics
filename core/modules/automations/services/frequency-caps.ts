@@ -4,7 +4,6 @@
 
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, automationImpressions } from '../../../db';
-import type { OutboxWriter } from '../../../infrastructure/outbox';
 
 export interface ImpressionMeta {
   automationId: string;
@@ -25,9 +24,12 @@ export interface ImpressionMeta {
  * them leaves the automation capped with nothing having been announced. Defaults
  * to the shared handle for callers with no transaction to join.
  */
+/** The shared `db` handle or a transaction handle — whichever the caller has. */
+type InsertWriter = Pick<typeof db, 'insert'>;
+
 export async function recordImpressions(
   metas: ImpressionMeta[],
-  writer: OutboxWriter = db,
+  writer: InsertWriter = db,
 ): Promise<void> {
   if (metas.length === 0) return;
   await writer.insert(automationImpressions).values(
@@ -66,6 +68,18 @@ export function capsRequireLookup(caps: FrequencyCapSpec): boolean {
  * Batched impression stats for many automations in ONE query.
  * Returns per-automation session count, lifetime count and last-shown time.
  * Only rows matching this visitor (anonymousId) or session (sessionId) are scanned.
+ */
+/**
+ * Session and lifetime impression counts for a set of automations, in one query.
+ *
+ * Replaces up to three sequential `COUNT`s per automation, which is why the caller batches
+ * every capped candidate into a single call.
+ *
+ * The `OR` below needs **both** sides indexed to stay cheap: `ix_auto_imp_auto_anon` for
+ * the visitor and `ix_auto_imp_auto_session` for the session. With only the first, Postgres
+ * indexes `automation_id` alone and filters the rest, reading every impression the
+ * automation has ever accumulated — 90,000 index entries where 10 were wanted, on 300k
+ * rows, and worse every day the table grows. See the migration for the measurement.
  */
 export async function getImpressionStats(
   automationIds: string[],

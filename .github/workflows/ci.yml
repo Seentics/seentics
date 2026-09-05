@@ -1,7 +1,7 @@
 name: CI
 
 # Runs on every pull request and on pushes to the long-lived branches. Without this
-# a contributor's PR is unverified: the typecheck and the 619 tests only help if
+# a contributor's PR is unverified: the typecheck and the tests only help if
 # something runs them before review.
 on:
   pull_request:
@@ -45,3 +45,113 @@ jobs:
       # integration job, not here.
       - name: Test
         run: bun test
+
+  # ── web ─────────────────────────────────────────────────────────────────────
+  #
+  # These three jobs are new, and the reason they exist is what happened without
+  # them. `core` was the only job, so nothing in `web/` ran on a pull request —
+  # and every one of its Playwright specs had rotted undetected:
+  #
+  #   - all 6 auth tests located fields by hardcoded id (`#signin-email`), which
+  #     stopped existing when the forms moved to `useId()`. Each one timed out for
+  #     30 seconds and had been failing for as long as that refactor was in.
+  #   - 7 more across dashboard, funnels, heatmaps, replays and settings were
+  #     mocking endpoints and response shapes the clients no longer use.
+  #
+  # None of that is visible locally either, because nobody runs `test:e2e` by hand.
+  # A test suite that nothing executes is documentation, and out-of-date
+  # documentation at that.
+
+  web-typecheck:
+    name: web (typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # `npm ci` rather than `npm install`, for the same reason core uses
+      # `--frozen-lockfile`. `postinstall` runs `patch-package` and bundles the
+      # tracker, both of which the typecheck needs.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  web-unit:
+    name: web (unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Vitest + jsdom. No backend: these mock the api clients.
+      - name: Test
+        run: npm test
+
+  web-e2e:
+    name: web (e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Chromium only — `playwright.config.ts` defines the one project, and
+      # `--with-deps` installs the system libraries the runner image lacks.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # `playwright.config.ts` starts `next dev` itself via `webServer`, so there is
+      # no separate build-and-serve step. Every backend call is mocked through
+      # `e2e/helpers/mock-api.ts`; no gateway, Postgres or S3 is involved.
+      #
+      # `NEXT_PUBLIC_API_URL` is deliberately left same-origin. Locally it resolves to
+      # an absolute `http://localhost:8080` from the developer's `.env`, which is why
+      # the route globs in the specs are anchored on `/api/v1/` rather than on a host.
+      - name: Test
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      # The HTML report is the only way to see why a run failed after the fact —
+      # traces are captured on the first retry, which CI enables.
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

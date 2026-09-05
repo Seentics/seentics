@@ -1,4 +1,3 @@
-import type { EventBus } from "../../infrastructure/events";
 import type { AnalyticsModule } from "../analytics/interfaces";
 import type { AuthModule } from "../auth/interfaces";
 import type { WebsitesModule } from "./interfaces";
@@ -30,27 +29,16 @@ export function initWebsitesModule(deps: {
   analyticsModule(): AnalyticsModule;
   /** For member names and invitation email checks — `users` belongs to auth. */
   authModule: AuthModule;
-  eventBus: EventBus;
 }): WebsitesModule {
-  const { eventBus } = deps;
-
+  // `cached` is referenced before it is assigned, but only from inside a callback the
+  // service invokes after a mutation — by which time the binding is initialised.
   const service = new WebsiteService(
     new PostgresWebsiteRepository(),
     deps.analyticsModule,
-    eventBus,
+    (websiteId) => cached.invalidate(websiteId),
   );
   const cached = new CachedWebsiteQuery(service);
   const tracker = new TrackerWebsiteService();
-
-  // Cache coherence lives here rather than in the composition root, so the rule "a
-  // website changed anywhere invalidates the cached view" is stated in the module that
-  // owns both sides of it. Going through the bus instead of calling `invalidate` from
-  // the mutation path is what keeps `WebsiteService` unaware a cache exists at all.
-  for (const event of ["website.updated", "website.deleted", "website.share_toggled"] as const) {
-    eventBus.subscribe(event, ({ websiteId }) => {
-      cached.invalidate(websiteId);
-    });
-  }
 
   return {
     query: cached,

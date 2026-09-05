@@ -1,5 +1,4 @@
 import { env } from "../../../config";
-import type { EventBus } from "../../../infrastructure/events";
 import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
 import { upsertLayoutSnapshot } from "../lib/layout-db";
 import { normalizeHeatmapPagePath } from "../lib/paths";
@@ -111,7 +110,6 @@ export class ScreenshotTargetNotAllowedError extends Error {
 export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
   constructor(
     private readonly settings: HeatmapSettings,
-    private readonly eventBus: EventBus,
   ) {
     // Bound up front so it can be handed to `HeatmapAutoCapture` as a plain
     // function without the caller having to remember to bind it.
@@ -166,13 +164,6 @@ export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
     // check-only call changed nothing, and an event saying otherwise would make
     // any consumer counting captures wrong.
     if (result.stored && result.s3Key) {
-      await this.eventBus.publish("heatmap.screenshot_captured", {
-        websiteId: resolved.websiteId,
-        pagePath: normalizeHeatmapPagePath(request.pagePath),
-        s3Key: result.s3Key,
-        source: "playwright",
-        occurredAt: new Date(),
-      });
     }
 
     return result;

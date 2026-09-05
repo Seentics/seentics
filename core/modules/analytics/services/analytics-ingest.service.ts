@@ -1,4 +1,4 @@
-import { applyBatchOnce } from "../../../infrastructure/idempotency";
+import { applyBatchOnce } from "../../../platform/idempotency";
 import type { TrackerEvent } from "../../../platform/lib/types";
 import { ingestAnalyticsBatch } from "../repositories/analytics-batch.repository";
 import { trackerRowsToAnalytics } from "./tracker-mapping";

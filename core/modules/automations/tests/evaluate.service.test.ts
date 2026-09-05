@@ -22,15 +22,6 @@ mock.module("../../../platform/lib/logger", fakeLogger);
 let AutomationEvaluationService: typeof import("../services/evaluate.service").AutomationEvaluationService;
 
 let automationRows: Array<{ id: string; definition: Record<string, unknown> }> = [];
-let published: Array<{ name: string; payload: Record<string, unknown> }> = [];
-
-const bus = {
-  publish: async (name: string, payload: Record<string, unknown>) => {
-    published.push({ name, payload });
-  },
-  subscribe: () => {},
-};
-
 beforeAll(async () => {
   ({ AutomationEvaluationService } = await import("../services/evaluate.service"));
 });
@@ -97,7 +88,7 @@ function request(over: Partial<EvaluateRequest> = {}): EvaluateRequest {
  * stubbing the webhook executor here would replace it for its own test file too.
  */
 function service() {
-  return new AutomationEvaluationService(bus as never, {
+  return new AutomationEvaluationService({
     listActiveAutomationsByPriority: listActive as never,
     executeWebhook: executeWebhook as never,
   });
@@ -117,7 +108,6 @@ function eventRows(recordType: string): Array<Record<string, unknown>> {
 beforeEach(() => {
   resetDb();
   automationRows = [];
-  published = [];
   listActive.mockClear();
   executeWebhook.mockClear();
 });
@@ -452,14 +442,21 @@ describe("wait_until", () => {
 
 // -- Durability --------------------------------------------------------------
 
-describe("impressions and events", () => {
-  it("commits impressions and the triggered events in one transaction", async () => {
+describe("impressions", () => {
+  /**
+   * One statement, and no transaction around it.
+   *
+   * This used to open a transaction so the impression rows and a set of
+   * `automation.triggered` outbox rows would commit together. Nothing ever subscribed to
+   * that event, so the outbox row, the once-a-second poll that drained it, and the
+   * transaction holding a pooled connection open across both all existed to inform nobody.
+   */
+  it("records impressions without opening a transaction", async () => {
     automationRows = [auto("a1", oneAction())];
     await service().evaluate(request());
 
-    expect(transactions).toHaveLength(1);
     expect(insertsInto("automation_impressions")).toHaveLength(1);
-    expect(insertsInto("outbox")).toHaveLength(1);
+    expect(transactions).toHaveLength(0);
   });
 
   it("writes every impression in a single insert", async () => {
@@ -468,23 +465,15 @@ describe("impressions and events", () => {
     expect(insertsInto("automation_impressions")[0]!.rows).toHaveLength(2);
   });
 
-  it("enqueues one automation.triggered per fired automation", async () => {
+  it("charges one impression per automation that fired", async () => {
     automationRows = [auto("a1", oneAction()), auto("a2", oneAction("show_toast"))];
     await service().evaluate(request());
 
-    const events = insertsInto("outbox").flatMap((i) => i.rows) as Array<Record<string, unknown>>;
-    expect(events).toHaveLength(2);
-    expect(events.every((e) => e.eventType === "automation.triggered")).toBe(true);
-  });
-
-  it("carries the run id on the event so consumers can dedupe", async () => {
-    automationRows = [auto("a1", oneAction())];
-    await service().evaluate(request());
-
-    const [event] = insertsInto("outbox").flatMap((i) => i.rows) as Array<Record<string, unknown>>;
-    const payload = event!.payload as Record<string, unknown>;
-    expect(String(payload.runId)).toMatch(/^[0-9a-f-]{36}$/);
-    expect(payload).toMatchObject({ websiteId: WEBSITE, automationId: "a1", visitorId: VISITOR });
+    const rows = insertsInto("automation_impressions").flatMap((i) => i.rows) as Array<
+      Record<string, unknown>
+    >;
+    expect(rows.map((r) => r.automationId).sort()).toEqual(["a1", "a2"]);
+    expect(rows.every((r) => r.anonymousId === VISITOR && r.websiteId === WEBSITE)).toBe(true);
   });
 
   it("opens no transaction at all when nothing fired", async () => {
@@ -509,18 +498,6 @@ describe("impressions and events", () => {
       websiteId: WEBSITE,
       userId: "user_9",
     });
-  });
-
-  it("announces action outcomes on the bus rather than through the outbox", async () => {
-    automationRows = [auto("a1", oneAction())];
-    await service().evaluate(request());
-    await flush();
-
-    expect(published.map((p) => p.name)).toContain("automation.action_executed");
-    const outboxTypes = (insertsInto("outbox").flatMap((i) => i.rows) as Array<
-      Record<string, unknown>
-    >).map((e) => e.eventType);
-    expect(outboxTypes).not.toContain("automation.action_executed");
   });
 
   it("logs a server run row for each automation that fired", async () => {

@@ -6,6 +6,7 @@ import {
   markBatchCompleted,
   markBatchFailed,
   pruneCompletedBatches,
+  releaseBatchClaims,
 } from "./batch-queue.repository";
 import type { BatchQueueStore } from "../interfaces";
 
@@ -21,6 +22,7 @@ export const postgresBatchQueue: BatchQueueStore = {
   claimPending: claimPendingBatches,
   markCompleted: markBatchCompleted,
   markFailed: markBatchFailed,
+  releaseClaims: releaseBatchClaims,
   countPending: countPendingBatches,
   countParked: countParkedBatches,
   pruneCompleted: pruneCompletedBatches,

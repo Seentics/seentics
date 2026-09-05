@@ -1,7 +1,7 @@
 import { env } from "../../../config";
 import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../platform/lib/s3";
 import { ReplaySpool, type WarmTail } from "./spool";
-import { applyBatchOnce } from "../../../infrastructure/idempotency";
+import { applyBatchOnce } from "../../../platform/idempotency";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "../repositories/recording.repository";
 import { compareReplayEnvelopeEvents } from "./event-order";
 import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { InMemoryEventBus, type EventBus, type EventName } from "../../../infrastructure/events";
 import type { Logger } from "../../../platform/lib/logger";
 import type { AutomationTriggerQueued, TrackerEvent } from "../../../platform/lib/types";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
+import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type {
   BatchQueueStore,
   IngestCategory,
@@ -27,9 +27,16 @@ const silentLogger: Logger = {
   },
 };
 
-/** In-memory queue. Rows behave like `ingest_batches` minus the row locking. */
+/**
+ * In-memory queue, modelling `ingest_batches` including its lease.
+ *
+ * The lease is not incidental detail here: a claim in Postgres is a written `claimed_at`,
+ * not a row lock, so a batch this worker claimed and did not apply stays held — and holds
+ * its whole partition key behind it — until something gives it back. Modelling it is what
+ * lets the shutdown path be tested at all.
+ */
 class FakeQueue implements BatchQueueStore {
-  rows: (QueuedBatch & { completed: boolean; lastError?: string })[] = [];
+  rows: (QueuedBatch & { completed: boolean; claimed: boolean; lastError?: string })[] = [];
 
   seed(batch: Partial<QueuedBatch> & { category: IngestCategory }): QueuedBatch {
     const row = {
@@ -40,6 +47,7 @@ class FakeQueue implements BatchQueueStore {
       rowCount: batch.rowCount ?? 1,
       attempts: batch.attempts ?? 0,
       completed: false,
+      claimed: false,
     };
     this.rows.push(row);
     return row;
@@ -59,14 +67,30 @@ class FakeQueue implements BatchQueueStore {
   ): Promise<QueuedBatch[]> {
     this.claimCalls += 1;
     if (this.claimError) throw this.claimError;
-    return this.rows
-      .filter((r) => r.category === category && !r.completed && r.attempts < maxAttempts)
-      .slice(0, limit);
+    // One batch per partition key, and never one already leased — the two properties
+    // `claimPendingBatches` enforces in SQL.
+    const takenKeys = new Set(
+      this.rows.filter((r) => !r.completed && r.claimed).map((r) => r.partitionKey),
+    );
+    const out: QueuedBatch[] = [];
+    for (const r of this.rows) {
+      if (out.length >= limit) break;
+      if (r.category !== category || r.completed || r.claimed) continue;
+      if (r.attempts >= maxAttempts) continue;
+      if (takenKeys.has(r.partitionKey)) continue;
+      takenKeys.add(r.partitionKey);
+      r.claimed = true;
+      out.push(r);
+    }
+    return out;
   }
 
   async markCompleted(batchId: string): Promise<void> {
     const row = this.rows.find((r) => r.batchId === batchId);
-    if (row) row.completed = true;
+    if (row) {
+      row.completed = true;
+      row.claimed = false;
+    }
   }
 
   async markFailed(batchId: string, error: string): Promise<void> {
@@ -74,6 +98,17 @@ class FakeQueue implements BatchQueueStore {
     if (row) {
       row.attempts += 1;
       row.lastError = error;
+      row.claimed = false;
+    }
+  }
+
+  released: string[] = [];
+
+  async releaseClaims(batchIds: string[]): Promise<void> {
+    this.released.push(...batchIds);
+    for (const id of batchIds) {
+      const row = this.rows.find((r) => r.batchId === id);
+      if (row) row.claimed = false;
     }
   }
 
@@ -100,16 +135,20 @@ class FakeSinks implements IngestSinks {
   automations: AutomationTriggerQueued[][] = [];
   recordings: TrackerEvent[][] = [];
   heatmaps: HeatmapTrackerEvent[][] = [];
+  profiles: VisitorProfileWrite[][] = [];
 
   failCategories = new Set<IngestCategory>();
   /** Rows the analytics writer claims to have inserted; 0 models an already-applied batch. */
   insertedOverride: number | null = null;
+  /** Runs before each analytics write, so a test can interrupt a drain mid-pass. */
+  onAnalyticsWrite: (() => void) | null = null;
 
   async writeAnalyticsBatch(
     batchId: string,
     websiteId: string,
     events: readonly TrackerEvent[],
   ): Promise<number> {
+    this.onAnalyticsWrite?.();
     this.analytics.push({ batchId, websiteId, count: events.length });
     if (this.failCategories.has("analytics") || this.failCategories.has("funnels")) {
       throw new Error("analytics write failed");
@@ -131,6 +170,15 @@ class FakeSinks implements IngestSinks {
     this.heatmaps.push([...events]);
     if (this.failCategories.has("heatmaps")) throw new Error("heatmap engine down");
   }
+
+  async writeVisitorProfiles(
+    _batchId: string,
+    rows: readonly VisitorProfileWrite[],
+  ): Promise<number> {
+    this.profiles.push([...rows]);
+    if (this.failCategories.has("profiles")) throw new Error("profile write failed");
+    return rows.length;
+  }
 }
 
 /** Raw tracker events — what the queue carries now that analytics owns the projection. */
@@ -147,21 +195,11 @@ describe("IngestWorker", () => {
   let queue: FakeQueue;
   let sinks: FakeSinks;
   let worker: IngestWorker;
-  let published: { type: EventName; payload: unknown }[];
 
   beforeEach(() => {
     queue = new FakeQueue();
     sinks = new FakeSinks();
-    published = [];
-    const inner = new InMemoryEventBus(silentLogger);
-    const bus: EventBus = {
-      async publish(type, payload) {
-        published.push({ type, payload });
-        await inner.publish(type, payload);
-      },
-      subscribe: inner.subscribe.bind(inner),
-    };
-    worker = new IngestWorker(queue, sinks, bus, silentLogger, { maxAttempts: 3 });
+    worker = new IngestWorker(queue, sinks, silentLogger, { maxAttempts: 3 });
   });
 
   describe("dispatch", () => {
@@ -306,12 +344,8 @@ describe("IngestWorker", () => {
     });
   });
 
-  describe("analytics.batch_ingested", () => {
-    /**
-     * Announced here rather than on enqueue: the event means the rows are queryable, and a
-     * batch that ends up parked never wrote any.
-     */
-    it("announces after the rows are written", async () => {
+  describe("applying analytics batches", () => {
+    it("hands the sink the rows and completes the batch", async () => {
       queue.seed({
         category: "analytics",
         payload: { websiteId: "site_a", events: events(3) },
@@ -320,60 +354,104 @@ describe("IngestWorker", () => {
 
       await worker.drainOnce();
 
-      const e = published.find((p) => p.type === "analytics.batch_ingested");
-      expect(e?.payload).toMatchObject({ websiteId: "site_a", eventCount: 3 });
+      expect(sinks.analytics).toEqual([{ batchId: "batch_1", websiteId: "site_a", count: 3 }]);
+      expect(await queue.countPending("analytics", 3)).toBe(0);
     });
 
-    it("reports the inserted count, not the submitted count", async () => {
-      sinks.insertedOverride = 2;
-      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(5) } });
+    it("takes one batch per site in a pass", async () => {
+      // Distinct partition keys, as `flushAnalytics` assigns them — a site's batches are
+      // keyed on its own id, so two sites are never serialised against each other.
+      queue.seed({
+        category: "analytics",
+        partitionKey: "site_a",
+        payload: { websiteId: "site_a", events: events(1) },
+      });
+      queue.seed({
+        category: "analytics",
+        partitionKey: "site_b",
+        payload: { websiteId: "site_b", events: events(1) },
+      });
 
       await worker.drainOnce();
 
-      const e = published.find((p) => p.type === "analytics.batch_ingested");
-      expect(e?.payload).toMatchObject({ eventCount: 2 });
+      expect(sinks.analytics.map((a) => a.websiteId).sort()).toEqual(["site_a", "site_b"]);
     });
+  });
 
-    it("announces nothing when the write failed", async () => {
-      sinks.failCategories.add("analytics");
-      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(1) } });
+  /**
+   * A claim is a written lease, not a lock — see `claimPendingBatches`. Both properties
+   * that depend on that are worth pinning here, because both were silently false while the
+   * claim was a `FOR UPDATE` released at statement end.
+   */
+  describe("claims", () => {
+    it("takes at most one batch per partition key", async () => {
+      // Two batches for one replay session. Applying them together assigns both the same
+      // chunk sequence, and the second overwrites the first in object storage.
+      queue.seed({ category: "recordings", partitionKey: "sess_1", payload: { events: events(1) } });
+      queue.seed({ category: "recordings", partitionKey: "sess_1", payload: { events: events(1) } });
 
       await worker.drainOnce();
 
-      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
+      expect(sinks.recordings).toHaveLength(1);
     });
 
-    /**
-     * Zero inserted means the batch had already been applied — a normal redelivery. A
-     * second announcement would have consumers reacting twice to one set of rows.
-     */
-    it("announces nothing for a batch that was already applied", async () => {
-      sinks.insertedOverride = 0;
-      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(3) } });
+    it("takes batches for different partition keys in the same pass", async () => {
+      queue.seed({ category: "recordings", partitionKey: "sess_1", payload: { events: events(1) } });
+      queue.seed({ category: "recordings", partitionKey: "sess_2", payload: { events: events(1) } });
 
       await worker.drainOnce();
 
-      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
+      expect(sinks.recordings).toHaveLength(2);
     });
 
-    it("announces once per site", async () => {
-      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(1) } });
-      queue.seed({ category: "analytics", payload: { websiteId: "site_b", events: events(1) } });
+    it("hands back claims a shutdown did not get to", async () => {
+      queue.seed({
+        category: "analytics",
+        batchId: "first",
+        partitionKey: "site_a",
+        payload: { websiteId: "site_a", events: events(1) },
+      });
+      queue.seed({
+        category: "analytics",
+        batchId: "second",
+        partitionKey: "site_b",
+        payload: { websiteId: "site_b", events: events(1) },
+      });
+
+      // Not awaited: `stop` waits for the drain it is interrupting, so awaiting it from
+      // inside that drain would deadlock. It flips the flag synchronously, which is all
+      // this needs.
+      sinks.onAnalyticsWrite = () => {
+        sinks.onAnalyticsWrite = null;
+        void worker.stop();
+      };
 
       await worker.drainOnce();
 
-      const sites = published
-        .filter((p) => p.type === "analytics.batch_ingested")
-        .map((p) => (p.payload as { websiteId: string }).websiteId)
-        .sort();
-      expect(sites).toEqual(["site_a", "site_b"]);
+      // The second batch was claimed and never applied. Left leased it would sit out
+      // `CLAIM_LEASE_MS`, and every later batch for its key behind it.
+      expect(sinks.analytics).toHaveLength(1);
+      expect(queue.released).toEqual(["second"]);
+      expect(queue.rows.find((r) => r.batchId === "second")!.claimed).toBe(false);
+    });
+
+    it("releases nothing when the pass ran to the end", async () => {
+      queue.seed({
+        category: "analytics",
+        partitionKey: "site_a",
+        payload: { websiteId: "site_a", events: events(1) },
+      });
+
+      await worker.drainOnce();
+
+      expect(queue.released).toEqual([]);
     });
   });
 
   describe("lifecycle", () => {
-    it("drains nothing and announces nothing on an empty queue", async () => {
+    it("drains nothing on an empty queue", async () => {
       expect(await worker.drainOnce()).toBe(0);
-      expect(published).toEqual([]);
+      expect(sinks.analytics).toEqual([]);
     });
 
     it("stops cleanly without a pass in flight", async () => {
@@ -411,7 +489,7 @@ describe("IngestWorker", () => {
           return capturing;
         },
       };
-      const noisy = new IngestWorker(queue, sinks, quietBus(), capturing, { maxAttempts: 3 });
+      const noisy = new IngestWorker(queue, sinks, capturing, { maxAttempts: 3 });
       queue.claimError = new Error("connection refused");
 
       await noisy.drainOnce();
@@ -447,9 +525,3 @@ describe("IngestWorker", () => {
     });
   });
 });
-
-/** A bus that records nothing — for tests asserting on logs rather than events. */
-function quietBus(): EventBus {
-  const inner = new InMemoryEventBus(silentLogger);
-  return { publish: inner.publish.bind(inner), subscribe: inner.subscribe.bind(inner) };
-}

@@ -115,7 +115,7 @@ export default function TrackerPage() {
             ],
             [
               <C>seentics.identify(userId, traits?)</C>,
-              'Attaches your own user ID to this visitor. Persisted, so it survives reloads, and fires automations with an Identify trigger.',
+              'Attaches your own user ID to this visitor. Stored against their profile, so it survives reloads and later sessions, and fires automations with an Identify trigger. The anonymous visitor ID is left as it is, so calling this does not split one person into two visitors in your reports.',
             ],
             [
               <C>seentics.page()</C>,

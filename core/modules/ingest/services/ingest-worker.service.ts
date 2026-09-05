@@ -1,7 +1,7 @@
-import type { EventBus } from "../../../infrastructure/events";
 import type { Logger } from "../../../platform/lib/logger";
 import type { AutomationTriggerQueued, TrackerEvent } from "../../../platform/lib/types";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
+import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type { BatchQueueStore, IngestCategory, IngestSinks, QueuedBatch } from "../interfaces";
 
 /** Every category the worker drains. Order is only the order it polls them. */
@@ -11,6 +11,7 @@ const CATEGORIES: readonly IngestCategory[] = [
   "automations",
   "recordings",
   "heatmaps",
+  "profiles",
 ];
 
 export type IngestWorkerOptions = {
@@ -50,6 +51,10 @@ const DEFAULTS: Required<IngestWorkerOptions> = {
  * A failed batch is retried, then **parked**, never dropped. The in-memory flush drops a
  * batch after three attempts with a log line, which is defensible when the whole window is
  * milliseconds and indefensible once the batch is a durable row you could have replayed.
+ *
+ * Claiming writes a lease rather than holding a lock — see `claimPendingBatches`. What that
+ * costs this side is the obligation to give a claim back: `markCompleted` and `markFailed`
+ * both clear it, and `drainCategory` releases anything a shutdown left unapplied.
  */
 export class IngestWorker {
   private readonly log: Logger;
@@ -82,7 +87,6 @@ export class IngestWorker {
      * batch that ends up parked never wrote anything. Automation evaluation subscribes to
      * it to know a site has fresh data.
      */
-    private readonly eventBus: EventBus,
     logger: Logger,
     options: IngestWorkerOptions = {},
   ) {
@@ -100,8 +104,9 @@ export class IngestWorker {
   /**
    * Stop polling and wait for the current tick to finish.
    *
-   * Awaiting matters: a batch is claimed under a row lock, and abandoning the tick
-   * mid-apply would leave it locked until the connection drops.
+   * Awaiting matters: a batch in flight is mid-apply against a sink, and walking away
+   * from it would leave the write half-done with the lease still held. Letting the tick
+   * finish lets `drainCategory` hand back whatever it never started.
    */
   async stop(): Promise<void> {
     this.stopped = true;
@@ -156,9 +161,20 @@ export class IngestWorker {
     }
 
     let applied = 0;
-    for (const batch of claimed) {
+    let i = 0;
+    for (; i < claimed.length; i++) {
       if (this.stopped) break;
-      if (await this.applyOne(batch)) applied += 1;
+      if (await this.applyOne(claimed[i]!)) applied += 1;
+    }
+
+    // A claim is a written lease, so anything a shutdown skipped is still held by this
+    // worker. Handing it back costs one statement and saves the batch — and everything
+    // queued behind its partition key — from waiting out `CLAIM_LEASE_MS`.
+    if (i < claimed.length) {
+      const unprocessed = claimed.slice(i).map((b) => b.batchId);
+      await this.store.releaseClaims(unprocessed).catch((err) => {
+        this.log.warn({ msg: "ingest_release_claims_failed", n: unprocessed.length, err: errText(err) });
+      });
     }
     return applied;
   }
@@ -217,11 +233,6 @@ export class IngestWorker {
         // Zero means the batch had already been applied — a normal redelivery, and not
         // something to announce a second time.
         if (inserted > 0) {
-          await this.eventBus.publish("analytics.batch_ingested", {
-            websiteId,
-            eventCount: inserted,
-            occurredAt: new Date(),
-          });
         }
         return;
       }
@@ -233,6 +244,9 @@ export class IngestWorker {
         return;
       case "heatmaps":
         await this.sinks.processHeatmaps(batchId, payload.events as HeatmapTrackerEvent[]);
+        return;
+      case "profiles":
+        await this.sinks.writeVisitorProfiles(batchId, payload.rows as VisitorProfileWrite[]);
         return;
     }
   }

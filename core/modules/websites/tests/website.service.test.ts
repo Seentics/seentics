@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { InMemoryEventBus, type EventBus, type EventName } from "../../../infrastructure/events";
 import type {
   AnalyticsModule,
   TrafficSummary,
@@ -165,32 +164,24 @@ function analyticsHandle(fake: FakeAnalytics): () => AnalyticsModule {
   return () => fake as Pick<AnalyticsModule, "getTrafficSummary"> as AnalyticsModule;
 }
 
-/** Records every publish so tests can assert on emitted facts. */
-function recordingBus(): { bus: EventBus; published: { type: EventName; payload: unknown }[] } {
-  const published: { type: EventName; payload: unknown }[] = [];
-  const inner = new InMemoryEventBus(silentLogger);
-  const bus: EventBus = {
-    async publish(type, payload) {
-      published.push({ type, payload });
-      await inner.publish(type, payload);
-    },
-    subscribe: inner.subscribe.bind(inner),
-  };
-  return { bus, published };
+/** Records every invalidation, so tests can assert the cache is told about a change. */
+function recordingInvalidator(): { onChanged: (websiteId: string) => void; invalidated: string[] } {
+  const invalidated: string[] = [];
+  return { onChanged: (websiteId) => invalidated.push(websiteId), invalidated };
 }
 
 describe("WebsiteService", () => {
   let repo: FakeWebsiteRepository;
   let traffic: FakeAnalytics;
-  let published: { type: EventName; payload: unknown }[];
+  let invalidated: string[];
   let service: WebsiteService;
 
   beforeEach(() => {
     repo = new FakeWebsiteRepository();
     traffic = new FakeAnalytics();
-    const rec = recordingBus();
-    published = rec.published;
-    service = new WebsiteService(repo, analyticsHandle(traffic), rec.bus);
+    const rec = recordingInvalidator();
+    invalidated = rec.invalidated;
+    service = new WebsiteService(repo, analyticsHandle(traffic), rec.onChanged);
   });
 
   describe("getById", () => {
@@ -233,15 +224,10 @@ describe("WebsiteService", () => {
       expect(created.name).toBe("New");
     });
 
-    it("publishes website.created", async () => {
-      const created = await service.create("owner_9", { name: "New", url: "new.example" });
-
-      expect(published).toHaveLength(1);
-      expect(published[0]?.type).toBe("website.created");
-      expect(published[0]?.payload).toMatchObject({
-        websiteId: created.id,
-        ownerId: "owner_9",
-      });
+    /** Nothing is cached for a website that did not exist a moment ago. */
+    it("does not invalidate anything on create", async () => {
+      await service.create("owner_9", { name: "New", url: "new.example" });
+      expect(invalidated).toEqual([]);
     });
   });
 
@@ -379,12 +365,15 @@ describe("WebsiteService", () => {
       expect((await repo.findById(site.id))?.publicShareId).toBeNull();
     });
 
-    it("publishes website.share_toggled with the new state", async () => {
+    /**
+     * The cached view carries `publicShareId`, so toggling sharing without telling the
+     * cache leaves the share link resolving against a stale row until the TTL expires.
+     */
+    it("invalidates the cached website when sharing is toggled", async () => {
       const site = repo.seed(makeWebsite());
       await service.setPublicSharingForUser(site.id, "owner_1", true);
 
-      const event = published.find((p) => p.type === "website.share_toggled");
-      expect(event?.payload).toMatchObject({ websiteId: site.id, enabled: true });
+      expect(invalidated).toEqual([site.id]);
     });
 
     it("rejects a stranger", async () => {

@@ -41,9 +41,9 @@ export default function Hero() {
             {/* Below `sm` this is a single left-aligned column, not a centred wrap:
                 four items of unequal length wrapping to the centre produced a ragged
                 1-2-1 block that read as an accident. */}
-            <ul className="mx-auto flex w-max flex-col items-start gap-2 text-sm text-muted-foreground sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-6 sm:gap-y-2 sm:text-[15px]">
+            <ul className="mx-auto flex w-max items-start flex-wrap gap-2 text-sm text-muted-foreground sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-6 sm:gap-y-2 sm:text-[15px]">
               {HERO_TRUST.map((item) => (
-                <li key={item} className="flex items-center gap-1.5">
+                <li key={item} className="flex items-center gap-1.5 whitespace-nowrap">
                   <Check className="h-4 w-4 shrink-0 text-emerald-500" />
                   {item}
                 </li>

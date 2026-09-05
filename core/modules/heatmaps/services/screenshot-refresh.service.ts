@@ -50,12 +50,25 @@ export class HeatmapScreenshotRefreshService implements HeatmapScreenshotMainten
       stale_before: staleCut.toISOString(),
     });
 
+    /**
+     * One resolution per *website*, not per row.
+     *
+     * A stale batch is page snapshots, and a site with fifty stale pages produced fifty
+     * identical lookups of the same website — the run was `MAX_PER_RUN` sequential queries
+     * where the number of distinct sites is what actually bounds the work. Resolution is
+     * also where the site URL to screenshot comes from, so it cannot simply be skipped.
+     */
+    const targets = new Map<string, Awaited<ReturnType<typeof this.settings.getCaptureTarget>>>();
+    const resolve = async (websiteId: string) => {
+      if (!targets.has(websiteId)) {
+        targets.set(websiteId, await this.settings.getCaptureTarget(websiteId));
+      }
+      return targets.get(websiteId);
+    };
+
     let queued = 0;
     for (const row of stale) {
-      // One resolution per row, which is also where the site URL to screenshot
-      // comes from — the previous version resolved the ids and then queried
-      // `websites.url` separately inside the capture.
-      const target = await this.settings.getCaptureTarget(row.websiteId);
+      const target = await resolve(row.websiteId);
       if (!target) {
         log.warn({
           msg: "heatmap_stale_refresh_resolve_failed",

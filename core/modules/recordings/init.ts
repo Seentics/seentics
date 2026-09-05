@@ -1,4 +1,3 @@
-import type { EventBus } from "../../infrastructure/events";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { RecordingsModule } from "./interfaces";
 import { RecordingUsageCounter } from "./services/usage-count.service";
@@ -15,9 +14,8 @@ import { RecordingRetentionPurge } from "./services/retention-purge.service";
 /** Build the recordings module. */
 export function initRecordingsModule(deps: {
   websitesModule: WebsitesModule;
-  eventBus: EventBus;
 }): RecordingsModule {
-  const recordings = new RecordingService(deps.websitesModule.query, deps.eventBus);
+  const recordings = new RecordingService(deps.websitesModule.query);
 
   return {
     // `getReplayEngine()` is this module's own accessor. Keeping the call in here is

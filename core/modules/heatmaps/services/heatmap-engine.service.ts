@@ -1,8 +1,7 @@
 import { env } from "../../../config";
-import type { EventBus } from "../../../infrastructure/events";
 import { batchUpsertPoints } from "../repositories/heatmap-writes.repository";
-import type { HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
-import { applyBatchOnceSql } from "../../../infrastructure/idempotency";
+import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
+import { applyBatchOnceSql } from "../../../platform/idempotency";
 import type { HeatmapIngest } from "../interfaces";
 import { eventsToPoints, eventsToScreenshotJobs } from "./point-mapping";
 import { SnapshotIngestService } from "./snapshot-ingest.service";
@@ -12,217 +11,151 @@ import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "heatmap" });
 
-const pgQueueCap = 50_000;
-const pgBatchMs = 400;
-const shotQueueCap = 512;
-/** Concurrent screenshot uploads, so one slow S3 write does not serialize a drain. */
-const shotConcurrency = 3;
+/** Concurrent object-storage writes, so one slow S3 put does not serialize a batch. */
+const storageConcurrency = 3;
 
 /**
  * The tracker ingest path for heatmap data.
  *
- * Buffers points and screenshots and drains them on a timer, so `/collect` never waits on
- * Postgres or S3. That is also why the domain events it publishes are published from the
- * *flush*, not from `processEvents`: enqueuing is not a fact about stored data, and a
- * consumer reacting to an enqueue would sometimes be reacting to rows a later failure
- * dropped.
+ * **Every write this makes is complete before `processEvents` resolves.** That is the
+ * whole contract, and it used to be the opposite: points went into an in-memory array
+ * drained by a 400ms timer, so `processEvents` returned — and `IngestWorker` set
+ * `completed_at` on the durable batch — while the data was still only in RAM. Three
+ * things then lost it silently. A restart inside the timer window dropped the buffer, and
+ * the batch was already completed so it was never redelivered. A full buffer dropped rows
+ * with a `warn`. A failed flush logged and returned, requeueing nothing. In all three the
+ * queue row said applied and the points did not exist.
  *
- * Two things it used to do itself now live beside it: turning events into rows
- * (`point-mapping`, pure and total) and writing page backgrounds to object storage
- * (`SnapshotIngestService`). What is left is the part that is genuinely about being an
- * engine — buffers, caps, a timer, batch-grouped writes and shutdown ordering.
+ * So there is no buffer here now. Batching already happened upstream — `IngestQueueService`
+ * accumulates across requests and `ingest_batches` holds the result — and a second layer of
+ * it here bought nothing except a window in which acknowledged data was not yet durable. A
+ * throw propagates to the worker, which retries the batch and parks it after
+ * `maxAttempts` rather than marking it applied.
+ *
+ * Points are written before object storage on purpose. They are the transactional half and
+ * the cheap half, so a retry driven by a failed upload skips them via the batch marker
+ * instead of redoing them.
  */
 export class HeatmapEngine implements HeatmapIngest {
-  /**
-   * Buffered points, each tagged with the ingest batch it arrived in.
-   *
-   * The tag is what makes the additive upsert replay-safe. This engine re-batches on its
-   * own timer, so one ingest batch's points can span several flushes and one flush can
-   * span several batches — a marker keyed on the flush would be meaningless. Grouping by
-   * `batchId` at flush time means each write covers whole batches and can be skipped as a
-   * unit on redelivery.
-   */
-  private pointBuf: (HeatmapPointRow & { batchId: string })[] = [];
-  private shotBuf: ScreenshotJob[] = [];
-  private pgTimer: ReturnType<typeof setInterval>;
   private readonly snapshots: SnapshotIngestService;
 
   /**
-   * `eventBus` is `null` when the engine was created lazily by `getHeatmapEngine()`
-   * rather than through `initHeatmapEngine(bus)`. The composed application always calls
-   * the latter from `initHeatmapsModule().start`, so in a running process the bus is
-   * present; a bus-less engine is what a test or a stray early ingest gets, and
-   * publishing is best-effort there rather than a failure.
+   * Named rather than positional, so a caller supplies only what it has.
+   *
+   * Both are optional and unrelated, which positionally meant `new HeatmapEngine(null,
+   * snapshots)` — a `null` that says nothing about what it stands for, and that read as a
+   * leftover once the event bus this class used to take was removed.
    */
-  constructor(
-    private readonly eventBus: EventBus | null = null,
+  constructor(opts: {
     /**
      * Resolves the website before an auto-capture, so the SSRF guard can check the
      * target against the site's registered domain. Handed straight to the snapshot
-     * service, which is the only thing that captures.
+     * service, which is the only thing that captures. Omitted means auto-capture is
+     * skipped rather than performed unguarded.
      */
-    websites: TrackerWebsites | null = null,
+    websites?: TrackerWebsites | null;
     /**
-     * Where page backgrounds go. Defaulted rather than required, because the two real
-     * callers (`getHeatmapEngine`, `initHeatmapEngine`) have no reason to build one —
-     * but a test does, and constructing the default reads `env().s3.bucket`, which means
-     * a database URL and a bucket just to exercise a buffer.
+     * Where page backgrounds go. Optional because the two real callers
+     * (`getHeatmapEngine`, `initHeatmapEngine`) have no reason to build one — but a test
+     * does, and constructing the default reads `env().s3.bucket`, which means a database
+     * URL and a bucket just to exercise a write.
      */
-    snapshots?: SnapshotIngestService,
-  ) {
-    this.snapshots = snapshots ?? new SnapshotIngestService(env().s3.bucket, eventBus, websites);
-    // One timer for both buffers, so screenshots are never stranded between
-    // `processEvents` calls.
-    this.pgTimer = setInterval(() => {
-      void this.flushPoints();
-      void this.flushScreenshots();
-    }, pgBatchMs);
+    snapshots?: SnapshotIngestService;
+  } = {}) {
+    this.snapshots =
+      opts.snapshots ?? new SnapshotIngestService(env().s3.bucket, opts.websites ?? null);
   }
 
-  /** Stop the timer, then drain what is left. */
-  async shutdown(): Promise<void> {
-    clearInterval(this.pgTimer);
-    await this.flushPoints();
-    await this.flushScreenshots();
-  }
+  /**
+   * Nothing is buffered, so there is nothing to drain.
+   *
+   * Kept because `initHeatmapsModule().stop` calls it and the interface declares it —
+   * and because a future implementation that does buffer would need it back.
+   */
+  async shutdown(): Promise<void> {}
 
-  /** Ingest tracker-shaped rows. Each must carry a website UUID. */
+  /**
+   * Ingest one queued batch. Each event must carry a website UUID.
+   *
+   * Throws if any write fails, which is what lets the worker retry the batch. Do not
+   * catch and log in here: a swallowed error is indistinguishable to the worker from a
+   * successful apply, and it will mark the batch completed.
+   */
   async processEvents(batchId: string, raw: readonly HeatmapTrackerEvent[]): Promise<void> {
     // Projection and type-filtering happen here, not in ingest: the column naming and the
     // set of heatmap event types are both this module's knowledge.
     const events = trackerRowsToHeatmapEvents(raw);
     if (events.length === 0) return;
 
-    this.enqueuePoints(batchId, eventsToPoints(events));
+    await this.writePoints(batchId, eventsToPoints(events));
 
-    // Inline rather than buffered: a DOM snapshot is one per page per session, so there
-    // is nothing to amortise, and holding HTML in memory to save nothing is a poor trade.
-    for (const ev of events) {
-      if (ev.type !== "heatmap_dom_snapshot" || !ev.heatmapLayoutEnabled) continue;
-      this.snapshots
-        .storeDomSnapshot(ev)
-        .catch((err) =>
-          log.error({ msg: "heatmap_dom_snapshot_failed", url: ev.url, err: String(err) }),
-        );
-    }
+    // Object storage after the transactional write, and outside the marker: S3 puts are
+    // keyed by content or by (website, path), so replaying one overwrites rather than
+    // duplicates. Only the additive `intensity` upsert needs the marker.
+    await this.storeDomSnapshots(events);
+    await this.storeScreenshots(events);
 
-    /*
-     * Straight from the event's own `websiteId`.
-     *
-     * This was a `Promise.all` over a ternary that tested `ev.websiteId`, and on the
-     * false branch tested it again before calling a `siteIdFor` lookup — so the lookup
-     * was unreachable and the whole resolution round trip never happened. A leftover
-     * from when a website had a second `site_id` identifier; there is one id now.
-     */
-    for (const ev of events) {
-      if (ev.type !== "heatmap_screenshot" || !ev.heatmapLayoutEnabled) continue;
-      if (!ev.websiteId) continue;
-      this.enqueueShots(eventsToScreenshotJobs(ev.websiteId, [ev]));
-    }
-
-    // Points and screenshots are drained by the timer — no blocking flush here.
-  }
-
-  // ─── Buffers ─────────────────────────────────────────────────────────────
-
-  private enqueuePoints(batchId: string, rows: HeatmapPointRow[]): void {
-    let dropped = 0;
-    for (const row of rows) {
-      if (this.pointBuf.length >= pgQueueCap) {
-        dropped++;
-        continue;
-      }
-      this.pointBuf.push({ ...row, batchId });
-    }
-    if (dropped > 0) {
-      log.warn({ msg: "heatmap_point_buffer_full_drop", dropped, cap: pgQueueCap });
-    }
-  }
-
-  private enqueueShots(jobs: ScreenshotJob[]): void {
-    for (const j of jobs) {
-      if (this.shotBuf.length >= shotQueueCap) {
-        log.warn({ msg: "heatmap_screenshot_buffer_full_drop", cap: shotQueueCap });
-        break;
-      }
-      this.shotBuf.push(j);
-    }
-  }
-
-  // ─── Flush ───────────────────────────────────────────────────────────────
-
-  private async flushPoints(): Promise<void> {
-    if (this.pointBuf.length === 0) return;
-    // Drain the full buffer so a single timer tick clears large spikes.
-    const drained = this.pointBuf.splice(0);
-
-    // Grouped by originating batch, not sliced by size: the marker guards a whole batch,
-    // so a batch must not be split across two guarded writes.
-    const byBatch = new Map<string, HeatmapPointRow[]>();
-    for (const { batchId, ...row } of drained) {
-      const group = byBatch.get(batchId);
-      if (group) group.push(row);
-      else byBatch.set(batchId, [row]);
-    }
-
-    const settled = await Promise.all(
-      [...byBatch].map(([batchId, chunk]) =>
-        applyBatchOnceSql(batchId, "heatmaps", (tx) => batchUpsertPoints(tx, chunk))
-          .then(({ applied }) => (applied ? chunk : null))
-          .catch((e: unknown) => {
-            log.error({ msg: "heatmap_pg_batch_failed", n: chunk.length, err: String(e) });
-            // Null rather than a rethrow: sibling batches stay alive, and the failed rows
-            // stay out of the event below.
-            return null;
-          }),
-      ),
-    );
-    await this.announceCollected(settled);
-  }
-
-  private async flushScreenshots(): Promise<void> {
-    if (this.shotBuf.length === 0) return;
-    const workers = Array.from(
-      { length: Math.min(shotConcurrency, this.shotBuf.length) },
-      async () => {
-        for (let job = this.shotBuf.shift(); job; job = this.shotBuf.shift()) {
-          try {
-            await this.snapshots.storeScreenshot(job);
-          } catch (e) {
-            log.error({ msg: "heatmap_screenshot_ingest_failed", url: job.url, err: String(e) });
-          }
-        }
-      },
-    );
-    await Promise.all(workers);
   }
 
   /**
-   * Announce the points that were actually written, grouped by website.
-   *
-   * Grouped because a flush interleaves every site sending traffic in the same 400ms
-   * window, and a consumer counting a site's activity needs its own number.
+   * Upsert the batch's points, guarded by the batch marker. A redelivery the marker
+   * already covered is a no-op, not an error.
    */
-  private async announceCollected(settled: (HeatmapPointRow[] | null)[]): Promise<void> {
-    if (!this.eventBus) return;
-
-    const byWebsite = new Map<string, number>();
-    for (const chunk of settled) {
-      if (!chunk) continue;
-      for (const row of chunk) {
-        byWebsite.set(row.websiteId, (byWebsite.get(row.websiteId) ?? 0) + 1);
-      }
-    }
-
-    const occurredAt = new Date();
-    for (const [websiteId, pointCount] of byWebsite) {
-      await this.eventBus.publish("heatmap.data_collected", {
-        websiteId,
-        pointCount,
-        occurredAt,
-      });
+  private async writePoints(batchId: string, rows: HeatmapPointRow[]): Promise<void> {
+    if (rows.length === 0) return;
+    const { applied } = await applyBatchOnceSql(batchId, "heatmaps", (tx) =>
+      batchUpsertPoints(tx, rows),
+    );
+    if (!applied) {
+      log.debug({ msg: "heatmap_batch_redelivered", batch_id: batchId, points: rows.length });
     }
   }
+
+  private async storeDomSnapshots(events: readonly HeatmapIngestEvent[]): Promise<void> {
+    const pending = events.filter((e) => e.type === "heatmap_dom_snapshot" && e.heatmapLayoutEnabled);
+    await mapWithConcurrency(pending, storageConcurrency, (ev) => this.snapshots.storeDomSnapshot(ev));
+  }
+
+  private async storeScreenshots(events: readonly HeatmapIngestEvent[]): Promise<void> {
+    const jobs: ScreenshotJob[] = [];
+    for (const ev of events) {
+      if (ev.type !== "heatmap_screenshot" || !ev.heatmapLayoutEnabled) continue;
+      /*
+       * Straight from the event's own `websiteId`.
+       *
+       * This was a `Promise.all` over a ternary that tested `ev.websiteId`, and on the
+       * false branch tested it again before calling a `siteIdFor` lookup — so the lookup
+       * was unreachable and the whole resolution round trip never happened. A leftover
+       * from when a website had a second `site_id` identifier; there is one id now.
+       */
+      if (!ev.websiteId) continue;
+      jobs.push(...eventsToScreenshotJobs(ev.websiteId, [ev]));
+    }
+    await mapWithConcurrency(jobs, storageConcurrency, (job) => this.snapshots.storeScreenshot(job));
+  }
+
+}
+
+/**
+ * Run `fn` over every item with at most `limit` in flight, rejecting if any does.
+ *
+ * `Promise.all` over the whole list would open one connection or socket per event, and a
+ * batch can carry thousands. Rejecting rather than collecting failures is deliberate:
+ * the caller's contract is that a throw means the batch was not applied.
+ */
+async function mapWithConcurrency<T>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (let i = next++; i < items.length; i = next++) {
+      await fn(items[i]!);
+    }
+  });
+  await Promise.all(workers);
 }
 
 let _engine: HeatmapEngine | null = null;
@@ -230,10 +163,9 @@ let _engine: HeatmapEngine | null = null;
 /**
  * The process-wide engine.
  *
- * Still a singleton because its callers — `services/ingest/queues.ts`,
- * `routes/internal.ts` and the shutdown hook — are module-level and have nothing
- * to inject through. Creates a bus-less engine if nothing initialized one first,
- * so ingest keeps working whether or not events are wired.
+ * Still a singleton because its callers — the ingest sinks and the shutdown hook — are
+ * module-level and have nothing to inject through. Creates a bus-less engine if nothing
+ * initialized one first, so ingest keeps working whether or not events are wired.
  */
 export function getHeatmapEngine(): HeatmapEngine {
   if (!_engine) _engine = new HeatmapEngine();
@@ -241,17 +173,11 @@ export function getHeatmapEngine(): HeatmapEngine {
 }
 
 /**
- * Create the engine with an event bus. Called by `initHeatmapsModule().start` before
- * anything can ingest; returns the same instance `getHeatmapEngine()` will hand out.
- *
- * Replaces an already-created engine rather than merging into it, because the only
- * legitimate caller runs at startup — calling it later would strand whatever the
- * previous engine had buffered.
+ * Create the engine with the website lookup its SSRF guard needs. Called by
+ * `initHeatmapsModule().start` before anything can ingest; returns the same instance
+ * `getHeatmapEngine()` will hand out.
  */
-export function initHeatmapEngine(
-  eventBus: EventBus,
-  websites: TrackerWebsites,
-): HeatmapEngine {
-  _engine = new HeatmapEngine(eventBus, websites);
+export function initHeatmapEngine(websites: TrackerWebsites): HeatmapEngine {
+  _engine = new HeatmapEngine({ websites });
   return _engine;
 }

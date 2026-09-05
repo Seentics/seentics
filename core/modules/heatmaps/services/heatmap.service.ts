@@ -1,4 +1,3 @@
-import type { EventBus } from "../../../infrastructure/events";
 import { log as baseLog } from "../../../platform/lib/logger";
 import { normalizeHeatmapPagePath } from "../lib/paths";
 import type {
@@ -40,7 +39,6 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
   constructor(
     private readonly settings: HeatmapSettings,
     private readonly autoCapture: HeatmapAutoCapture,
-    private readonly eventBus: EventBus,
   ) {}
 
   /**
@@ -133,13 +131,6 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
 
     const s3Key = await storeDashboardScreenshot(target, norm, jpeg, docWidth, docHeight);
 
-    await this.eventBus.publish("heatmap.screenshot_captured", {
-      websiteId: target.websiteId,
-      pagePath: norm,
-      s3Key,
-      source: "dashboard",
-      occurredAt: new Date(),
-    });
   }
 
   async bulkDeletePages(websiteRef: string, pagePaths: string[]): Promise<void> {
@@ -148,10 +139,5 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
 
     // Published after the delete, never before: retention accounting and any
     // cache invalidation downstream must not act on a deletion that failed.
-    await this.eventBus.publish("heatmap.pages_deleted", {
-      websiteId: resolved.websiteId,
-      pagePaths,
-      occurredAt: new Date(),
-    });
   }
 }

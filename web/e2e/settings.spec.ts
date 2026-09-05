@@ -39,12 +39,14 @@ test.describe('Website Settings E2E Tests', () => {
     // Click dropdown menu trigger for actions
     await page.click('button:has-text("Open menu")');
 
-    // Click dropdown menu item: View tracking snippet
-    await page.click('text=View tracking snippet');
+    await page.getByRole('menuitem', { name: /tracking snippet/i }).click();
 
-    // Verify dialog with snippet opens
-    await expect(page.locator('text=Tracking snippet')).toBeVisible();
-    await expect(page.locator('pre')).toContainText('data-website-id="web-123"');
+    // Scoped to the dialog. A bare `text=Tracking snippet` is a substring match that
+    // resolves to three elements — the menu item, the dialog title and the description
+    // — which is a strict-mode violation, not a pass.
+    const snippetDialog = page.getByRole('dialog');
+    await expect(snippetDialog).toBeVisible();
+    await expect(snippetDialog.locator('pre')).toContainText('web-123');
 
     // Close dialog
     await page.keyboard.press('Escape');
@@ -52,13 +54,13 @@ test.describe('Website Settings E2E Tests', () => {
     // Open menu again
     await page.click('button:has-text("Open menu")');
 
-    // Click dropdown menu item: Edit
-    await page.click('text=Edit');
+    // By menu-item role, so "Edit" cannot also match "Edit website" elsewhere on the
+    // page — the substring selector resolved to several elements.
+    await page.getByRole('menuitem', { name: /^Edit/ }).click();
 
-    // Verify Edit website dialog opens
-    await expect(page.locator('text=Edit website')).toBeVisible();
-    const nameInput = page.locator('#settings-websites-edit-name');
-    await expect(nameInput).toHaveValue("Jane's Portfolio");
+    const editDialog = page.getByRole('dialog');
+    await expect(editDialog).toBeVisible();
+    await expect(page.locator('#settings-websites-edit-name')).toHaveValue("Jane's Portfolio");
 
     // Close edit dialog
     await page.click('button:has-text("Cancel")');
@@ -66,11 +68,9 @@ test.describe('Website Settings E2E Tests', () => {
     // Open menu again
     await page.click('button:has-text("Open menu")');
 
-    // Click dropdown menu item: Delete
-    await page.click('text=Delete');
+    await page.getByRole('menuitem', { name: /^Delete/ }).click();
 
-    // Verify Delete website dialog opens
-    await expect(page.locator('text=Delete website?')).toBeVisible();
+    await expect(page.getByRole('dialog')).toContainText('Delete website');
   });
 
 });

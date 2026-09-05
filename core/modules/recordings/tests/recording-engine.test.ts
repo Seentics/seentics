@@ -40,7 +40,7 @@ const seenBatches = new Set<string>();
  * for every file loaded after it — an omission fails somewhere unrelated with a
  * `SyntaxError` pointing at the real file that does export the name.
  */
-mock.module("../../../infrastructure/idempotency", () => ({
+mock.module("../../../platform/idempotency", () => ({
   applyBatchOnceSql: async (_batchId: string, _category: string, write: () => Promise<number>) =>
     ({ applied: true, rowCount: await write() }),
   pruneAppliedBatches: async () => 0,

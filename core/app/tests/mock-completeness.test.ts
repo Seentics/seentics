@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { fakeDbModule } from "./helpers/fake-db";
 
 /**
  * Every inline `mock.module` stub must export at least what the real module exports.
@@ -16,7 +17,7 @@ import { dirname, join, relative, resolve } from "node:path";
  *
  * That went wrong five separate times before this check existed: `collect-handlers`
  * (missing a handler), `config` (missing `jwtSecret`), `platform/lib/s3` (missing
- * `putJpeg`), `infrastructure/idempotency` (missing `applyBatchOnceSql`), and the shared
+ * `putJpeg`), `platform/idempotency` (missing `applyBatchOnceSql`), and the shared
  * `fake-db` (missing `sql.unsafe`). Each was found by a test in a different module
  * failing for reasons that had nothing to do with it.
  *
@@ -99,7 +100,6 @@ function inlineStubs(): { file: string; spec: string; keys: string[]; target: st
   for (const file of testFiles(join(CORE, "modules")).concat(
     testFiles(join(CORE, "platform")),
     testFiles(join(CORE, "app")),
-    testFiles(join(CORE, "infrastructure")),
   )) {
     const src = readFileSync(file, "utf8");
     for (const m of src.matchAll(/mock\.module\(\s*["']([^"']+)["']\s*,\s*\(\)\s*=>\s*\(/g)) {
@@ -150,5 +150,24 @@ describe("mock.module stubs", () => {
     }
 
     expect(gaps).toEqual([]);
+  });
+
+  /**
+   * The shared `db` fake, which the check above cannot see.
+   *
+   * `inlineStubs` matches `mock.module("…", () => ({ … }))` — an object literal at the
+   * call site. Most files register the db fake as `mock.module("…/db", fakeDbModule)`,
+   * a *reference*, so its contents were never checked by anything.
+   *
+   * That is the most dangerous stub in the suite to leave unchecked, because it stands in
+   * for a module that re-exports twenty tables. A missing table does not fail the file
+   * that forgot it — it fails whichever file the runner loads next, with a `SyntaxError`
+   * naming the real module. Moving three directories was enough to reshuffle the order and
+   * surface four such failures at once.
+   */
+  it("the shared db fake exports every table the real module does", () => {
+    const real = realExports(join(CORE, "db", "index.ts"));
+    const fake = Object.keys(fakeDbModule());
+    expect(real.filter((n) => !fake.includes(n))).toEqual([]);
   });
 });

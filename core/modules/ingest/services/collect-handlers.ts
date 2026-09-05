@@ -7,7 +7,6 @@ import type {
 } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
-import type { VisitorProfileWriter } from "../../automations/interfaces";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { IngestQueue } from "../interfaces";
 import { log as baseLog } from "../../../platform/lib/logger";
@@ -95,15 +94,6 @@ export type CollectHandlerContext = {
    * fake and the routes pass whichever queue the composition root built.
    */
   queue: IngestQueue;
-  /**
-   * Where the visitor profile goes.
-   *
-   * On the context for the same reason as `queue`: this used to be a direct import of
-   * `automations/services/visitor-profile.service`, which reached past that module's
-   * interfaces into its implementation — and pulled `db` in at import time, so these
-   * handlers could not be exercised without a database.
-   */
-  visitorProfiles: VisitorProfileWriter;
 };
 
 /**
@@ -114,15 +104,20 @@ export type CollectHandlerContext = {
  * `analytics_events`' shape: that is analytics' own column layout, and it belongs with the
  * table now that a buffered batch becomes a durable queue row.
  */
-export function handleEvents(ctx: CollectHandlerContext): void {
+export function handleEvents(ctx: CollectHandlerContext): TrackerEvent[] {
   const page = parseCollectEvents(Array.isArray(ctx.body.events) ? ctx.body.events : []);
   const filtered = page.filter(
     (e) => !TRACKER_FUNNEL_EVENT_TYPES.has(e.type) && !ROUTED_TO_AUTOMATIONS.has(e.type),
   );
-  if (!filtered.length) return;
+  if (!filtered.length) return page;
   const forDb = withIngestMeta(sortByTs(filtered), ctx.ingestMeta);
   ctx.queue.enqueueEvents(ctx.website.id, forDb);
   log.debug({ msg: "events_queued", website_id: ctx.website.id, n: forDb.length });
+  // Returned so `handleVisitorProfile` does not parse the same body a second time. The
+  // unfiltered list, because the profile counts pageviews and reads `identify` traits —
+  // and `identify` is one of the types the analytics filter above keeps, so the two
+  // handlers genuinely want different slices of the same parse.
+  return page;
 }
 
 /**
@@ -134,13 +129,24 @@ export function handleEvents(ctx: CollectHandlerContext): void {
  *
  * Everything used here was already computed for the analytics rows: `ctx.ingestMeta`
  * carries the MaxMind geography and the parsed user agent, and the visitor id rides on
- * the events. No extra lookup, no extra request.
+ * the events. No extra lookup, no extra request — and it re-parses nothing, because
+ * `handleEvents` hands it the events it already parsed. Parsing the body a second time
+ * here cost a full pass over up to two thousand events on the hottest path in the system.
  *
- * `void`, not awaited: the request exists to accept analytics rows, and a profile
- * write failing must not fail that.
+ * Buffered, not written. This used to call the writer directly and `void` the promise,
+ * which made it the only per-request database write on a path whose entire design is that
+ * it makes none — one upsert per `/collect`, and the tracker sends one every five seconds
+ * per visitor. Being un-awaited it also applied no backpressure: a burst put unbounded
+ * concurrent statements on the pool the analytics inserts share.
+ *
+ * Gated on `automation_enabled`, like every other handler here. The profile exists for
+ * automation conditions and is read by nothing else, so writing one for a site with
+ * automations switched off stored a visitor's country, city and `identify()` traits for a
+ * feature that site does not use.
  */
-export function handleVisitorProfile(ctx: CollectHandlerContext): void {
-  const events = parseCollectEvents(Array.isArray(ctx.body.events) ? ctx.body.events : []);
+export function handleVisitorProfile(ctx: CollectHandlerContext, parsed: TrackerEvent[]): void {
+  if (!ctx.website.automation_enabled) return;
+  const events = parsed;
   if (!events.length) return;
 
   // Any event carries the visitor id; the first one that has it is enough.
@@ -167,20 +173,22 @@ export function handleVisitorProfile(ctx: CollectHandlerContext): void {
   }
 
   const meta = ctx.ingestMeta;
-  void ctx.visitorProfiles.upsert({
-    websiteId: ctx.website.id,
-    anonymousId,
-    userId,
-    traits,
-    pageViews,
-    country: meta?.country ?? null,
-    region: meta?.region ?? null,
-    city: meta?.city ?? null,
-    device: meta?.device ?? null,
-    browser: meta?.browser ?? null,
-    os: meta?.os ?? null,
-    language: meta?.languageHint ?? null,
-  });
+  ctx.queue.enqueueProfiles([
+    {
+      websiteId: ctx.website.id,
+      anonymousId,
+      userId,
+      traits,
+      pageViews,
+      country: meta?.country ?? null,
+      region: meta?.region ?? null,
+      city: meta?.city ?? null,
+      device: meta?.device ?? null,
+      browser: meta?.browser ?? null,
+      os: meta?.os ?? null,
+      language: meta?.languageHint ?? null,
+    },
+  ]);
 }
 
 export function handleFunnels(ctx: CollectHandlerContext): void {

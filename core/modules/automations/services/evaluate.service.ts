@@ -14,8 +14,6 @@
 import { and, eq, sql as rawSql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
-import type { EventBus } from '../../../infrastructure/events';
-import { enqueueEvent } from '../../../infrastructure/outbox';
 import { log } from '../../../platform/lib/logger';
 import type {
   AutomationEvaluation,
@@ -128,55 +126,70 @@ async function loadUserProfile(websiteId: string, anonymousId: string): Promise<
   }
 }
 
-async function logServerRun(
+/** One row destined for `automation_events`, buffered until the batch write. */
+type AutomationEventRow = typeof automationEvents.$inferInsert;
+
+function serverRunRow(
   automationId: string,
   runId: string,
   anonymousId: string,
   sessionId: string,
   triggerType: string,
   pageUrl: string | undefined,
-): Promise<void> {
-  try {
-    await db.insert(automationEvents).values({
-      automationId,
-      runId,
-      recordType:   'server_run',
-      triggerEvent: triggerType,
-      status:       'running',
-      visitorId:    anonymousId,
-      sessionId,
-      pageUrl:      pageUrl ?? null,
-    });
-  } catch (err) {
-    log.warn({ msg: 'auto_event_log_failed', automationId, err });
-  }
+): AutomationEventRow {
+  return {
+    automationId,
+    runId,
+    recordType:   'server_run',
+    triggerEvent: triggerType,
+    status:       'running',
+    visitorId:    anonymousId,
+    sessionId,
+    pageUrl:      pageUrl ?? null,
+  };
 }
 
-async function logActionResult(
+function actionResultRow(
   automationId: string,
   runId: string,
   actionKey: string,
   status: 'success' | 'failed',
   durationMs: number,
   errorMessage?: string,
-): Promise<void> {
-  try {
-    await db.insert(automationEvents).values({
-      automationId,
-      runId,
-      recordType: 'action',
-      actionKey,
-      status,
-      durationMs,
-      errorMessage: errorMessage ?? null,
-    });
-  } catch {
-    // best-effort
-  }
+): AutomationEventRow {
+  return {
+    automationId,
+    runId,
+    recordType: 'action',
+    actionKey,
+    status,
+    durationMs,
+    errorMessage: errorMessage ?? null,
+  };
 }
 
-/** One automation that fired, buffered until the impressions transaction. */
-type FiredAutomation = { automationId: string; runId: string; visitorId: string };
+/**
+ * Write the run log for one evaluate, in one statement.
+ *
+ * These used to be individual `db.insert` calls, `void`ed at the call site: one per
+ * matched automation for the run row, plus one per action it dispatched. An evaluate that
+ * matched three automations with four actions each fired fifteen separate inserts, none of
+ * them awaited — so nothing bounded how many were in flight, on a tracker-facing endpoint
+ * any visitor can trigger. Being un-awaited was the worse half: the statements still queued
+ * on the same 25-connection pool as the analytics writes, they just did it invisibly and
+ * without backpressure.
+ *
+ * Still best-effort. The log is diagnostic; the impressions and their outbox events are the
+ * record, and those have their own transaction.
+ */
+async function writeEventLog(rows: AutomationEventRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  try {
+    await db.insert(automationEvents).values(rows);
+  } catch (err) {
+    log.warn({ msg: 'auto_event_log_failed', rows: rows.length, err });
+  }
+}
 
 // ─── Evaluation service ───────────────────────────────────────────────────────
 
@@ -230,7 +243,6 @@ export class AutomationEvaluationService
 
   /** `deps` is a partial override; anything unnamed stays the real implementation. */
   constructor(
-    private readonly eventBus: EventBus,
     deps: Partial<EvaluationDependencies> = {},
   ) {
     this.deps = { ...defaultEvaluationDependencies, ...deps };
@@ -282,7 +294,8 @@ export class AutomationEvaluationService
 
     const clientActions: ClientAction[] = [];
     const impressions: ImpressionMeta[] = [];
-    const fired: FiredAutomation[] = [];
+    /** Run and action rows for every automation matched here, written in one statement below. */
+    const eventLog: AutomationEventRow[] = [];
     let matched = 0;
 
     for (const { auto, def, caps, walked } of candidates) {
@@ -292,12 +305,13 @@ export class AutomationEvaluationService
       const runId   = randomUUID();
       const variant = pickVariant(def.abTest);
 
-      // Log server run (async, best-effort)
-      void logServerRun(auto.id, runId, anonymousId, sessionId, trigger.type, context.page as string | undefined);
+      // Buffered, not written: the whole run log for this evaluate goes out in one insert.
+      eventLog.push(
+        serverRunRow(auto.id, runId, anonymousId, sessionId, trigger.type, context.page as string | undefined),
+      );
 
       // Buffer the impression; all matched impressions are inserted in one round trip below.
       impressions.push({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
-      fired.push({ automationId: auto.id, runId, visitorId: anonymousId });
 
       // The route was decided by `walkGraph`; what remains is dispatching it. Actions
       // are keyed by their position in the *walked* order, so the run log reads as the
@@ -310,14 +324,15 @@ export class AutomationEvaluationService
         void this.deps.executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
           .then(() => {
             const ms = Date.now() - t0;
-            void logActionResult(auto.id, runId, actionKey, 'success', ms);
-            this.announceAction(websiteId, auto.id, runId, actionKey, 'success', ms);
+            // Written on its own, unlike the rest: a webhook finishes at an arbitrary later
+            // point, long after the batch below has gone out. One insert per webhook is
+            // proportionate next to the outbound HTTP call it is recording.
+            void writeEventLog([actionResultRow(auto.id, runId, actionKey, 'success', ms)]);
           })
           .catch((err: unknown) => {
             const ms = Date.now() - t0;
             log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
-            void logActionResult(auto.id, runId, actionKey, 'failed', ms, String(err));
-            this.announceAction(websiteId, auto.id, runId, actionKey, 'failed', ms);
+            void writeEventLog([actionResultRow(auto.id, runId, actionKey, 'failed', ms, String(err))]);
           });
       }
 
@@ -335,8 +350,7 @@ export class AutomationEvaluationService
           ...(delayMs > 0 ? { delay_ms: delayMs } : {}),
         });
 
-        void logActionResult(auto.id, runId, actionKey, 'success', 0);
-        this.announceAction(websiteId, auto.id, runId, actionKey, 'success', 0);
+        eventLog.push(actionResultRow(auto.id, runId, actionKey, 'success', 0));
       }
 
       // Work the page finishes after a wait. Rendered here rather than in the walker so
@@ -352,70 +366,29 @@ export class AutomationEvaluationService
       }
     }
 
-    // Persist all impressions from this evaluate in a single insert, with the
-    // `automation.triggered` events alongside them so the two cannot disagree.
+    // Two statements, run together: the impressions this evaluate charged against the
+    // frequency caps, and the run log beside them. They are independent — the log is
+    // diagnostic and must not fail the evaluate, the impressions are the record.
     if (impressions.length > 0) {
-      await this.commitImpressions(websiteId, impressions, fired);
+      await Promise.all([this.commitImpressions(impressions), writeEventLog(eventLog)]);
     }
 
     return { matched, actions: clientActions };
   }
 
   /**
-   * Impressions and their events, atomically.
+   * Record every impression from this evaluate in one statement.
    *
-   * Wrapped in a transaction only because the outbox rows are in it: on its own the
-   * impression insert is a single statement that needs no transaction. The events
-   * are enqueued rather than published so the announcement survives the process
-   * dying immediately after COMMIT.
+   * No transaction: this is a single insert, and there is nothing left to commit alongside
+   * it. It used to write `automation.triggered` rows to a transactional outbox in the same
+   * transaction so the announcement could not disagree with the impression — but nothing
+   * ever subscribed to that event, so the transaction, the outbox row, the once-a-second
+   * poll that drained it and the bus it was delivered to all existed to inform nobody.
    */
-  private async commitImpressions(
-    websiteId: string,
-    impressions: ImpressionMeta[],
-    fired: FiredAutomation[],
-  ): Promise<void> {
-    const occurredAt = new Date();
-    await db.transaction(async (tx) => {
-      await recordImpressions(impressions, tx);
-      for (const { automationId, runId, visitorId } of fired) {
-        await enqueueEvent(tx, 'automation', automationId, 'automation.triggered', {
-          websiteId,
-          automationId,
-          runId,
-          // The anonymous id, which is the only visitor identity this path always
-          // has — a logged-in `userId` is optional and often absent.
-          visitorId,
-          occurredAt,
-        });
-      }
-    });
+  private async commitImpressions(impressions: ImpressionMeta[]): Promise<void> {
+    await recordImpressions(impressions);
   }
 
-  /**
-   * Announce one action's outcome.
-   *
-   * Fire-and-forget on the bus: the dashboard reads action outcomes from
-   * `automation_events`, so this is a signal for live consumers, not the record.
-   * A rejected publish is swallowed by the bus itself.
-   */
-  private announceAction(
-    websiteId: string,
-    automationId: string,
-    runId: string,
-    actionKey: string,
-    status: 'success' | 'failed',
-    durationMs: number,
-  ): void {
-    void this.eventBus.publish('automation.action_executed', {
-      websiteId,
-      automationId,
-      runId,
-      actionKey,
-      status,
-      durationMs,
-      occurredAt: new Date(),
-    });
-  }
 
 
   /**

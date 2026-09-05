@@ -1,8 +1,8 @@
 # Seentics Core — Modular Monolith
 
 A single deployable application composed of isolated domain modules. Modules talk
-to each other through **explicit interfaces** when they need an answer, and through
-**typed domain events** when they are announcing a fact.
+to each other through **explicit interfaces**, injected at composition time — never
+through a registry, a singleton, or an event bus.
 
 ## Layout
 
@@ -12,10 +12,6 @@ core/
 ├── config.ts
 ├── app/
 │   └── bootstrap.ts          Composition root — the only place the graph is wired
-├── infrastructure/           Technical capability, swappable implementation
-│   ├── events/               EventBus interface, typed EventMap, InMemoryEventBus
-│   ├── outbox/               Transactional outbox for events that must not be lost
-│   └── idempotency/          Applied-batch markers, so a retried flush cannot double-write
 ├── modules/                  Owns a table
 │   ├── websites/             Websites, membership, public share links
 │   ├── analytics/            Dashboard read models + the analytics_events writer
@@ -29,6 +25,7 @@ core/
 ├── platform/                 Shared application concern, no business domain
 │   ├── middleware/           Cross-cutting HTTP middleware
 │   ├── validation/           Shared zod helpers
+│   ├── idempotency/          Applied-batch markers, so a retried flush cannot double-write
 │   ├── lib/                  Shared utilities (s3, logger, geo, ids, types)
 │   ├── scheduler.ts
 │   ├── retention/            Data-retention policy; modules do their own deletes
@@ -38,23 +35,25 @@ core/
 └── db/                       Schema and migrations
 ```
 
-**Placement rule.** Three questions, in order:
+**Placement rule.** Two questions, in order:
 
 1. **Is it a business domain?** Then it is a module, and it owns its table. Auth owns
    `users`, so it is a module — but JWT *verification* is not a domain and lives in
    `platform/middleware/auth.ts`.
-2. **Is it a technical capability whose implementation you would swap?** Then it is
-   infrastructure. The event bus is in-memory today and could be Kafka tomorrow; the
-   outbox could become a real queue. Code depending only on their interfaces would not
-   change.
-3. **Otherwise it is platform** — shared machinery with no domain of its own: middleware,
-   validation, retention policy, the public API.
+2. **Otherwise it is platform** — shared machinery with no domain of its own: middleware,
+   validation, retention policy, the public API, the applied-batch markers.
 
-Owning a table does *not* decide this, though an earlier version of this document said it
-did. `infrastructure` owns `outbox_events`, and `platform` owns `api_keys`; neither is a
-business domain. What decides it is whether the concern *is* a domain, and whether you
-would replace its implementation wholesale. `app/tests/table-ownership.test.ts` is the
-authority on who may query what, and it lists both.
+There used to be a third tier, `infrastructure/`, for "a technical capability whose
+implementation you would swap". It held three things. Two of them — an in-memory event bus
+and a transactional outbox — were removed once it was measured what they did: thirteen
+publish sites, one subscriber, and that subscriber invalidated a cache. The third,
+`idempotency/`, is not swappable at all; it is a marker row in a Postgres table, and by the
+tier's own criterion it never belonged there. A directory tier is an expensive way to carry
+one bit of information, and that bit was wrong for the only thing left in it.
+
+Owning a table does *not* decide placement, though an earlier version of this document said
+it did. `platform` owns `api_keys` and `ingest_applied_batches`; neither is a business
+domain. `app/tests/table-ownership.test.ts` is the authority on who may query what.
 
 Each module follows the same shape. Not every module needs every directory — an
 empty `repositories/` that only re-exports is worse than no directory at all.
@@ -63,13 +62,13 @@ empty `repositories/` that only re-exports is worse than no directory at all.
 modules/<name>/
 ├── interfaces/     Public contracts. This is the module's API to its peers.
 ├── repositories/   Persistence. SQL lives here and nowhere else.
-├── services/       Business logic. Coordinates repositories, publishes events.
+├── services/       Business logic. Coordinates repositories.
 ├── validators/     Zod schemas for the HTTP surface.
 ├── routes.ts       HTTP handlers, exported as a factory that takes dependencies.
 └── tests/
 ```
 
-## The two communication paths
+## How modules talk
 
 ### Need an answer → interface
 
@@ -94,67 +93,34 @@ surface, so the split bought nothing and went unused. A privilege boundary
 (`WebsiteQuery` vs `WebsiteMutations`, `HeatmapScreenshotCapture` vs
 `HeatmapScreenshotMaintenance`) is a real reason to split. Taxonomy is not.
 
-### Announcing a fact → event
+### Announcing a fact → a direct call
+
+There is no event bus. A module that needs to tell another module something calls it,
+through a narrow injected function or interface:
 
 ```ts
-await this.eventBus.publish("website.created", {
-  websiteId, siteId, ownerId, url, occurredAt: new Date(),
-});
+new WebsiteService(repository, analytics, (websiteId) => cached.invalidate(websiteId));
 ```
 
-Every event is declared in `infrastructure/events/event-map.ts`, keyed by its wire
-name with the exact payload shape. `publish` is typed against that map, so a typo
-in the name or a missing field is a compile error rather than a silently dropped
-event. Names are `<module>.<fact_in_past_tense>` — facts that already happened,
-never commands.
+This is the one place the previous design's decoupling was actually load-bearing, and it
+is worth knowing what it cost. A `website.updated` fact travelled: repository → a row in a
+transactional outbox table → a publisher polling that table once a second → an in-memory
+event bus → a subscriber in `websites/init.ts` → `cached.invalidate()`. Four moving parts
+and a database table, inside one process, to deliver one function call.
 
-**Publishers do not learn who consumed an event or whether consumption succeeded.**
-A handler that throws is logged and skipped; it cannot fail the publisher or starve
-sibling handlers, because the fact has already happened and cannot be un-happened
-by a broken consumer.
+Thirteen call sites published events. **One** subscriber existed. Ten of the thirteen
+announced facts to nobody at all, and the three that were consumed were all consumed by
+that one cache invalidation — which has a five-minute TTL behind it, so losing one costs
+five minutes of staleness and never needed the outbox's durability guarantee.
 
-## The event bus is not Kafka
-
-`InMemoryEventBus` is the current implementation. Its actual guarantees:
-
-| | |
-|---|---|
-| Delivery | **At-most-once.** No retries, no acks, no dead-letter queue. |
-| Durability | **None.** Events in flight when the process exits are gone. |
-| Scope | **Same process only.** Nothing crosses a process boundary. |
-| Ordering | Sequential per publish, in handler registration order. |
-
-There are no partitions, offsets, consumer groups, retention, or replay. Code
-depends on the `EventBus` *interface*, so a Kafka/Redpanda-backed implementation can
-be added behind it when workload or reliability actually demands one — but adding
-that implementation is the only thing that would make the guarantees above change.
-
-## Events that must not be lost: the outbox
-
-Publishing straight to the bus loses the event if the process dies between the
-database COMMIT and the publish call. For events where that loss would leave state
-inconsistent, write the event *inside* the business transaction:
-
-```ts
-await db.transaction(async (tx) => {
-  const [row] = await tx.insert(websites).values(…).returning();
-  await enqueueEvent(tx, "website", row.id, "website.created", { … });
-});
-```
-
-`OutboxPublisher` polls unpublished rows and hands them to the bus after commit.
-The trade-off is **at-least-once** instead of at-most-once: a crash between publish
-and the published-marking replays the event, so **consumers of outboxed events must
-be idempotent**. A row that keeps failing is retried up to `maxAttempts` and then
-parked, so one poison payload cannot stall the queue — alert on `stats().parked`.
-
-Use the outbox when losing the event breaks something. Skip it for high-volume
-informational events (individual pageviews); the cost is a database write per event.
+If a genuine second consumer of a fact ever appears — automations reacting to ingest is the
+plausible one — reintroduce a bus then, for that fact, with a subscriber that exists. The
+seam is one constructor parameter wide.
 
 ## Dependency direction
 
 ```
-HTTP → routes → services → interfaces ← implementations → infrastructure
+HTTP → routes → services → interfaces ← implementations → platform
 ```
 
 Business logic depends on interfaces, never on Postgres, S3, or Hono. That is what
@@ -169,7 +135,7 @@ Everything a module needs arrives through its constructor; nothing reaches back 
 a registry at call time. A dependency cycle here is a compile error.
 
 ```ts
-const websites = new WebsiteService(websiteRepository, trafficSummary, eventBus);
+const websites = new WebsiteService(websiteRepository, trafficSummary, onWebsiteChanged);
 const analytics = new AnalyticsQueryService(websiteQuery);
 ```
 
@@ -217,52 +183,7 @@ is a factory now, so the tracker receives `TrackerWebsites` like anything else, 
 module itself has been deleted. The private-bus gap below it is closed too. Both are
 recorded here only because the shapes are worth recognising if they come back — a
 capability reached for through a module-level import because the router had no injection
-point, and a service constructing its own `EventBus`.
-
-### Event coverage
-
-Every `EventMap` entry must have a real publisher, and every subscription must
-actually be registered. Either half missing reads as a working integration point.
-
-`analytics.batch_ingested` illustrated both failure modes. It had no publisher, so
-ingest now publishes it after a durable write. It also *appeared* to have a
-subscriber — but the `subscribe` call lived inside an `AutomationEventSubscriber.subscribeToIngest()`
-that nothing ever called, and which by its own admission only incremented a counter:
-it could not trigger an automation, because the event payload carries a site id and a
-count while evaluation needs a visitor, a session and a trigger. That placeholder has
-been removed rather than wired, since wiring it would have added a counter nobody
-reads while still looking like a live integration.
-
-So the event currently has a publisher and no consumer. That is a normal, honest
-state — a fact worth announcing before anyone listens. What is not acceptable is the
-reverse.
-
-Three declarations were removed rather than left dangling; the reasoning is recorded
-at the top of `event-map.ts` so they are not re-added on spec alone.
-
-Still unpublished:
-
-| Event | Blocked on |
-|---|---|
-| `funnel.step_reached` | ingest wiring — a step is reached in `collect-handlers` |
-| `recording.completed` | the recordings engine takes no `EventBus` yet |
-
-Consumers would have to be idempotent for anything delivered through the outbox, so
-adding one is a design decision rather than a wiring task.
-
-Nothing subscribes to most published events yet, which is fine — a fact with no
-current consumer is still worth announcing. The exception to watch is the reverse:
-a subscriber with no publisher.
-
-### A private bus that swallows events
-
-Closed. `legacyEvaluation()` and the `InMemoryEventBus` it constructed for itself are
-gone; `AutomationEvaluationService` is built in `app/bootstrap.ts` and injected, so
-`automation.action_executed` is published onto the real bus.
-
-The failure mode is worth keeping in mind, because nothing about it is visible at the
-call site: a service that constructs its own bus publishes successfully, to nobody. If a
-module needs a bus, it takes one.
+point.
 
 ## Session recordings: what is and is not optimised
 
@@ -296,7 +217,6 @@ bundle first and a partial delete becomes harmless.
    has more than about five methods, it is probably two interfaces.
 2. Put SQL in `repositories/`, coordination in `services/`.
 3. Export routes as a factory taking dependencies.
-4. Declare any new events in `infrastructure/events/event-map.ts`.
 5. Wire it in `app/bootstrap.ts`.
 6. Test the service against in-memory fakes of your own interfaces.
 

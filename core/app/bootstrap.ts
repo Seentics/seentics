@@ -1,6 +1,4 @@
 import type { AppConfig } from "../config";
-import { InMemoryEventBus, type EventBus } from "../infrastructure/events";
-import { OutboxPublisher, postgresOutboxStore } from "../infrastructure/outbox";
 import { log, type Logger } from "../platform/lib/logger";
 import { initMaxMindGeo } from "../platform/lib/maxmind-geo";
 import { configureTrackerOriginCache } from "../platform/lib/origin";
@@ -39,8 +37,6 @@ import type { WebsitesModule } from "../modules/websites/interfaces";
  * `invitations`, and no route into the Postgres repository, the cache, or a mutation.
  */
 export type Application = {
-  eventBus: EventBus;
-  outboxPublisher: OutboxPublisher;
   modules: {
     auth: AuthModule;
     websites: WebsitesModule;
@@ -89,8 +85,6 @@ export type Application = {
  */
 export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   // ─── Infrastructure ──────────────────────────────────────────────────────
-  const eventBus = new InMemoryEventBus(logger);
-  const outboxPublisher = new OutboxPublisher(eventBus, postgresOutboxStore, logger);
 
   // ─── Modules ─────────────────────────────────────────────────────────────
   // Auth first: it depends on nothing, and websites needs it to read member names.
@@ -101,14 +95,13 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const websitesModule = initWebsitesModule({
     analyticsModule: () => analyticsModule,
     authModule,
-    eventBus,
   });
 
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
-  const recordingsModule = initRecordingsModule({ websitesModule, eventBus });
-  const funnelsModule = initFunnelsModule({ websitesModule, analyticsModule, eventBus });
-  const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule, eventBus });
-  const automationsModule = initAutomationsModule({ websitesModule, eventBus });
+  const recordingsModule = initRecordingsModule({ websitesModule });
+  const funnelsModule = initFunnelsModule({ websitesModule, analyticsModule });
+  const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
+  const automationsModule = initAutomationsModule({ websitesModule });
   const aiModule = initAiModule({ websitesModule });
 
   const ingestModule = initIngestModule({
@@ -118,7 +111,6 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     heatmapsModule,
     funnelsModule,
     websitesModule,
-    eventBus,
     logger,
   });
 
@@ -178,8 +170,6 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   ];
 
   return {
-    eventBus,
-    outboxPublisher,
     modules,
 
     routes: {
@@ -210,7 +200,6 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         await mod.start?.(cfg);
       }
 
-      outboxPublisher.start();
       startScheduler(cfg, { heatmapScreenshots: heatmapsModule.maintenance, retention });
 
       logger.info({ msg: "modules_started", modules: Object.keys(modules) });
@@ -232,7 +221,6 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         }
       }
 
-      await outboxPublisher.stop();
     },
   };
 }

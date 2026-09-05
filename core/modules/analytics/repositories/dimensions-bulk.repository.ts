@@ -2,9 +2,20 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 /**
- * Runs all six dimension queries (pages, referrers, countries, browsers,
- * devices, OS) in a single DB round-trip via a multi-result CTE, returning
- * all data in one API call to cut 6 HTTP round trips down to 1.
+ * All six dimension breakdowns (pages, referrers, countries, browsers, devices, OS) behind
+ * one request, so a dashboard view needing more than two of them makes one HTTP round trip
+ * instead of six.
+ *
+ * Six database queries, though — not one, whatever an earlier version of this comment
+ * claimed. They are deliberately left separate: each one matches a partial covering index
+ * built for its exact shape (`ix_analytics_pageview_page`, `…_country`, `…_browser`,
+ * `…_device`, `…_os`, `…_session_ref`), all of them `(website_id, <dimension>,
+ * occurred_at)` and partial on `event_type = 'pageview'` with that dimension present.
+ * Folding them into one scan with `GROUPING SETS` would read every pageview row in the
+ * window through the heap and sort it five ways, which is slower than five index-backed
+ * scans for any window a dashboard actually asks for.
+ *
+ * `Promise.all`, so the six overlap on the pool rather than running end to end.
  */
 export async function getDimensionsBulkAnalytics(
   websiteId: string,
@@ -33,28 +44,27 @@ export async function getDimensionsBulkAnalytics(
         ORDER BY views DESC, page ASC
         LIMIT 50
       `,
+      // Kept in step with referrers.repository.ts, which carries the full note: the
+      // normalisation belongs inside the window, or NULL, empty and whitespace referrers
+      // become three separate groups that all render as 'direct'.
       pgSql<RefRow[]>`
         WITH pv AS (
-          SELECT referrer, session_id,
-                 coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
-                 occurred_at, id
+          SELECT
+            coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
+            first_value(coalesce(nullif(trim(referrer), ''), 'direct'))
+              OVER (PARTITION BY session_id ORDER BY occurred_at ASC, id ASC) AS first_ref
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
             AND occurred_at >= ${startIso}
             AND session_id IS NOT NULL AND length(trim(session_id)) > 0
-        ),
-        first_ref AS (
-          SELECT DISTINCT ON (session_id) session_id, referrer
-          FROM pv ORDER BY session_id, occurred_at ASC, id ASC
         )
         SELECT
-          coalesce(nullif(trim(fr.referrer), ''), 'direct') AS referrer,
+          first_ref AS referrer,
           count(*)::int AS views,
-          count(DISTINCT pv.vid)::int AS unique_visitors
-        FROM first_ref fr
-        JOIN pv ON pv.session_id = fr.session_id
-        GROUP BY fr.referrer
+          count(DISTINCT vid)::int AS unique_visitors
+        FROM pv
+        GROUP BY first_ref
         ORDER BY views DESC, referrer ASC
         LIMIT 50
       `,

@@ -91,6 +91,13 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   const ingestQueueMaxHeatmaps = parseIntEnv(process.env.INGEST_QUEUE_MAX_HEATMAPS_BEFORE_FLUSH, 25_000);
   const ingestQueueMaxFunnels = parseIntEnv(process.env.INGEST_QUEUE_MAX_FUNNELS_BEFORE_FLUSH, 50_000);
   const ingestQueueMaxAutomations = parseIntEnv(process.env.INGEST_QUEUE_MAX_AUTOMATIONS_BEFORE_FLUSH, 50_000);
+  const ingestQueueMaxProfiles = parseIntEnv(process.env.INGEST_QUEUE_MAX_PROFILES_BEFORE_FLUSH, 20_000);
+  // Bytes, not events: a heatmap screenshot is up to 3.5MB and a DOM snapshot 1.5MB, so a
+  // count cap cannot bound this buffer's memory. See `DEFAULT_MAX_HEATMAP_BYTES`.
+  const ingestQueueMaxHeatmapBytes = parseIntEnv(
+    process.env.INGEST_QUEUE_MAX_HEATMAP_BYTES,
+    64 * 1024 * 1024,
+  );
 
   const trackerCacheEnabled = parseBool(process.env.TRACKER_CACHE_ENABLED, true);
   const trackerWebsiteCacheTtlMs = parseIntEnv(process.env.TRACKER_WEBSITE_CACHE_TTL_MS, 180_000);
@@ -174,6 +181,8 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       maxHeatmapsBeforeForceFlush: Math.max(500, ingestQueueMaxHeatmaps),
       maxFunnelsBeforeForceFlush: Math.max(1000, ingestQueueMaxFunnels),
       maxAutomationsBeforeForceFlush: Math.max(1000, ingestQueueMaxAutomations),
+      maxProfilesBeforeForceFlush: Math.max(500, ingestQueueMaxProfiles),
+      maxHeatmapBytes: Math.max(8 * 1024 * 1024, ingestQueueMaxHeatmapBytes),
     },
     /** In-memory TTL caches for tracker hot paths (`resolveWebsiteForTracker`, `validateOriginDomain`). */
     trackerCache: {

@@ -1,4 +1,3 @@
-import type { EventBus } from "../../../infrastructure/events";
 import type { WebsiteQuery } from "../../websites/interfaces";
 import type {
   CreateFunnelInput,
@@ -62,7 +61,6 @@ export class FunnelService
      * the aggregation belongs to the module that owns that table.
      */
     private readonly analyticsEvents: AnalyticsFunnelEvents,
-    private readonly eventBus: EventBus,
   ) {}
 
   /**
@@ -100,13 +98,6 @@ export class FunnelService
     if (!ids) throw new Error("website not found");
 
     const created = await insertFunnel(ids.websiteId, userId, input);
-    await this.eventBus.publish("funnel.created", {
-      websiteId: ids.websiteId,
-      funnelId: created.id,
-      name: created.name,
-      stepCount: created.steps.length,
-      occurredAt: new Date(),
-    });
     return created;
   }
 
@@ -121,15 +112,6 @@ export class FunnelService
     const updated = await updateFunnel(ids.websiteId, funnelId, input);
     if (!updated) return null;
 
-    await this.eventBus.publish("funnel.updated", {
-      websiteId: ids.websiteId,
-      funnelId,
-      // The patch as submitted, not a diff against the previous row: computing a
-      // real diff would need an extra read on every save, and consumers so far only
-      // care about which fields were touched.
-      changes: { ...input },
-      occurredAt: new Date(),
-    });
     return updated;
   }
 
@@ -163,11 +145,6 @@ export class FunnelService
   private async publishDeleted(ids: ResolvedIds, funnelIds: string[]): Promise<void> {
     const occurredAt = new Date();
     for (const funnelId of funnelIds) {
-      await this.eventBus.publish("funnel.deleted", {
-        websiteId: ids.websiteId,
-        funnelId,
-        occurredAt,
-      });
     }
   }
 
