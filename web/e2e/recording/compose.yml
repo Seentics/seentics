@@ -1,0 +1,87 @@
+# Used only by run.mjs, with a unique project name and disposable volumes.
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: recording_test
+      POSTGRES_PASSWORD: recording_test
+      POSTGRES_DB: recording_test
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U recording_test -d recording_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    ports: ["127.0.0.1:${E2E_STORAGE_PORT}:9000"]
+    environment:
+      MINIO_ROOT_USER: recording_test
+      MINIO_ROOT_PASSWORD: recording_test_password
+    volumes:
+      - recordings:/data
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  buckets:
+    image: minio/mc:latest
+    depends_on:
+      minio: {condition: service_healthy}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set test http://minio:9000 recording_test recording_test_password
+        mc mb --ignore-existing test/seentics-replays
+  core:
+    image: ${E2E_CORE_IMAGE:-seentics-recording-e2e-core:local}
+    # run.mjs always builds (or explicitly supplies) this image first. Do not ask
+    # Docker Hub for a private/local test tag when the image is already present.
+    pull_policy: never
+    environment:
+      PORT: 3002
+      ENVIRONMENT: development
+      DATABASE_URL: postgres://recording_test:recording_test@postgres:5432/recording_test
+      JWT_SECRET: session-recording-e2e-only-secret-at-least-32-characters
+      GLOBAL_API_KEY: session-recording-e2e-only-service-key
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:${E2E_STORAGE_PORT}
+      S3_BUCKET_REPLAYS: seentics-replays
+      AWS_ACCESS_KEY_ID: recording_test
+      AWS_SECRET_ACCESS_KEY: recording_test_password
+      AWS_REGION: us-east-1
+      CORS_ALLOWED_ORIGINS: "*"
+      REPLAY_CHUNK_FLUSH_MS: 5000
+      INGEST_QUEUE_FLUSH_MS: 250
+    depends_on:
+      postgres: {condition: service_healthy}
+      buckets: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://localhost:3002/health]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+  web:
+    # The runner sets E2E_WEB_IMAGE. Its normal value is the image it builds
+    # from this checkout; this fallback is useful when rerunning locally.
+    image: ${E2E_WEB_IMAGE:-seentics-recording-e2e-web:local}
+    pull_policy: never
+    ports: ["127.0.0.1:${E2E_WEB_PORT}:3000"]
+    environment:
+      NEXT_PUBLIC_IS_ENTERPRISE: "false"
+      NEXT_PUBLIC_API_URL: /api/v1
+      API_GATEWAY_URL: http://core:3002
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      core: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:3000/signin]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+volumes:
+  database:
+  recordings:

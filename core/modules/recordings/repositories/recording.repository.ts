@@ -181,7 +181,10 @@ export async function upsertSessionMetaBatch(
           "CASE WHEN excluded.country <> '' THEN excluded.country ELSE session_replays.country END",
         ),
         entryPage: dsql.raw(
-          "CASE WHEN excluded.entry_page <> '' THEN excluded.entry_page ELSE session_replays.entry_page END",
+          // Entry page is a session invariant: later batches begin at the page that
+          // happened to be active when their upload was flushed, not the session's
+          // first page. Fill a legacy/empty row once, then preserve the original.
+          "CASE WHEN session_replays.entry_page <> '' THEN session_replays.entry_page ELSE excluded.entry_page END",
         ),
       },
     });

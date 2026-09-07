@@ -30,7 +30,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:recording": "node e2e/recording/run.mjs",
+    "test:e2e:heatmap": "node e2e/heatmap/run.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

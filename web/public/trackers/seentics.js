@@ -722,6 +722,7 @@ const clearScreenshotLongPageInterval = () => {
  */
 const requestPlaywrightScreenshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
+  if (!heatmapAllowed()) return;
   if (hasSentHeatmapScreenshotForPath()) return;
   try {
     const xhr = new XMLHttpRequest();
@@ -746,6 +747,7 @@ const requestPlaywrightScreenshot = () => {
  */
 const scheduleHeatmapScreenshotAfterAppIdle = () => {
   if (cfg.heatmap_layout_enabled === false) return;
+  if (!heatmapAllowed()) return;
   clearScreenshotScheduleTimers();
   clearScreenshotLongPageInterval();
   // Primary: capture DOM snapshot directly from the browser — always works,
@@ -766,6 +768,7 @@ const scheduleHeatmapScreenshotAfterAppIdle = () => {
  */
 const captureAndQueueDomSnapshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
+  if (!heatmapAllowed()) return;
   if (hasSentHeatmapScreenshotForPath()) return;
   try {
     const clone = document.documentElement.cloneNode(true);
@@ -783,6 +786,37 @@ const captureAndQueueDomSnapshot = () => {
 
     // Remove elements that are unsafe or unnecessary in a static snapshot
     clone.querySelectorAll('script, noscript').forEach(el => el.remove());
+    // Heatmap snapshots are durable objects, not just a visual preview. Apply the
+    // same explicit privacy controls used by replay before serialising the clone:
+    // blocked regions retain a harmless placeholder so the page geometry remains
+    // useful for coordinate alignment, while masked regions retain only a fixed
+    // redaction marker. Never rely on CSS visibility here — hidden text is still
+    // present in the uploaded HTML.
+    clone.querySelectorAll('[data-seentics-block]').forEach(el => {
+      el.replaceChildren('[blocked]');
+      el.setAttribute('aria-label', 'Blocked content');
+    });
+    clone.querySelectorAll('[data-seentics-mask]').forEach(el => {
+      el.replaceChildren('••••••');
+      el.setAttribute('aria-label', 'Masked content');
+    });
+    // Form values can be prefilled by the site (for example, profile data) and
+    // therefore appear in outerHTML even when the visitor never types. Snapshot
+    // layout needs the controls, not their values, so redact every form control.
+    clone.querySelectorAll('input, textarea').forEach(el => {
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        el.value = '';
+        el.setAttribute('value', '');
+      }
+    });
+    clone.querySelectorAll('select').forEach(el => {
+      el.selectedIndex = -1;
+      el.querySelectorAll('option[selected]').forEach(option => option.removeAttribute('selected'));
+    });
+    clone.querySelectorAll('[contenteditable]:not([contenteditable="false"])').forEach(el => {
+      el.replaceChildren('••••••');
+      el.setAttribute('aria-label', 'Masked editable content');
+    });
     // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
     // but the added complexity and payload size aren't worth it for a layout snapshot)
     clone.querySelectorAll('iframe').forEach(el => {

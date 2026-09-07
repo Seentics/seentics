@@ -59,6 +59,10 @@ For production, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Tracking
 
+To test real tracking across the full OSS stack, see [Session recording E2E](web/e2e/recording/README.md)
+or [Heatmap E2E](web/e2e/heatmap/README.md). From `web/`, run `npm run test:e2e:recording`
+or `npm run test:e2e:heatmap`; each creates an isolated test stack and removes its disposable data afterward.
+
 Add to your `<head>`:
 
 ```html
