@@ -132,8 +132,9 @@ export class HeatmapAutoCapture {
    *
    * The website's registered domain is preferred: it is already resolved, it is
    * the domain the tracker validates against, and it needs no query. Scanning real
-   * pageview URLs is the fallback for sites whose stored `url` is blank — it costs a
-   * call into analytics and only finds pages someone actually visited.
+   * pageview URLs is the fallback for sites whose stored `url` is blank and — since
+   * `pageUrlOnSite` refuses an `:id` path — for every parameterized page, which is
+   * the only way one of those ever gets a concrete URL to capture.
    */
   private async resolvePageUrl(
     resolved: ResolvedWebsite,
@@ -158,6 +159,22 @@ export class HeatmapAutoCapture {
       rows_found: pages.length,
       sample: pages.slice(0, 3),
     });
-    return pages.find((p) => normalizeHeatmapPagePath(extractPath(p)) === norm);
+    const match = pages.find((p) => normalizeHeatmapPagePath(extractPath(p)) === norm);
+    if (!match) return undefined;
+
+    // The tracker writes `analytics_events.page` as `location.pathname`, so a match is
+    // usually a bare path — which `new URL` rejects and the SSRF guard therefore refuses,
+    // making this fallback dead on arrival. Put it back on the registered domain. Rows
+    // that do carry an absolute URL are returned as-is, query string included.
+    const pageUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(match)
+      ? match
+      : pageUrlOnSite(resolved.siteUrl, extractPath(match));
+    log.info({
+      msg: "heatmap_autocapture_url_from_pageviews",
+      website_uuid: resolved.websiteId,
+      norm,
+      page_url: pageUrl,
+    });
+    return pageUrl;
   }
 }

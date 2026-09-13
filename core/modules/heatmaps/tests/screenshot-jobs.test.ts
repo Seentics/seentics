@@ -544,12 +544,15 @@ describe("pageUrlOnSite", () => {
     expect(pageUrlOnSite("shop.test", "/eu/pricing")).toBe("https://shop.test/eu/pricing");
   });
 
-  it("preserves a normalized dynamic path verbatim", () => {
-    // The capture target for `/orders/:id` is a literal url containing `:id`. Pinned
-    // because it looks like a bug and is not — the SSRF guard and Playwright both
-    // still receive a well-formed url, and the caller is responsible for choosing a
-    // real path.
-    expect(pageUrlOnSite("shop.test", "/orders/:id")).toBe("https://shop.test/orders/:id");
+  it("returns undefined for a normalized dynamic path", () => {
+    // `https://shop.test/orders/:id` is well-formed and useless — it 404s, and being
+    // truthy it used to pre-empt the pageview scan that finds a real `/orders/8213`.
+    // Undefined is the caller's signal to go looking for a concrete example instead.
+    expect(pageUrlOnSite("shop.test", "/orders/:id")).toBeUndefined();
+  });
+
+  it("returns undefined when the placeholder is mid-path", () => {
+    expect(pageUrlOnSite("shop.test", "/blog/:id/comments")).toBeUndefined();
   });
 
   it("is case-preserving on the host", () => {

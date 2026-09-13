@@ -1,4 +1,4 @@
-import { normalizeHeatmapPagePath } from "../lib/paths";
+import { isParameterizedPath, normalizeHeatmapPagePath } from "../lib/paths";
 
 /** Normalization shared by heatmap storage, page summaries, and screenshot targets. */
 
@@ -68,10 +68,17 @@ export function mergeNormalizedPages(pages: PageSummaryRow[]): HeatmapPageSummar
  * is added when missing — without it `new URL` and Playwright both reject the
  * value. Returns `undefined` when there is no stored domain to build from, which
  * is the caller's signal to fall back to scanning real pageview URLs.
+ *
+ * Also `undefined` for a parameterized path. `/orders/:id` is the bucket several
+ * real pages share, not a page — pasting it onto the domain yields
+ * `https://shop.test/orders/:id`, which is a 404 or an app error, and returning it
+ * was worse than returning nothing: being truthy, it pre-empted the pageview scan
+ * that would have found a concrete `/orders/8213` to capture instead.
  */
 export function pageUrlOnSite(siteUrl: string, normalizedPath: string): string | undefined {
   let stored = siteUrl.trim();
   if (!stored) return undefined;
+  if (isParameterizedPath(normalizedPath)) return undefined;
   if (!/^https?:\/\//i.test(stored)) stored = `https://${stored}`;
   const base = stored.replace(/\/+$/, "");
   return normalizedPath === "/" ? `${base}/` : `${base}${normalizedPath}`;

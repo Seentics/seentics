@@ -38,3 +38,14 @@ export function normalizeHeatmapPagePath(path: string): string {
     .join("/");
   return p || "/";
 }
+
+/**
+ * True when a normalized path still carries an `:id` placeholder.
+ *
+ * A parameterized path stands for a family of real URLs and is not itself one:
+ * `https://shop.test/orders/:id` is a 404 at best. Anything that needs a URL to
+ * fetch has to resolve a concrete example first, and this is how it knows to.
+ */
+export function isParameterizedPath(normalizedPath: string): boolean {
+  return /(^|\/):/.test(normalizedPath ?? "");
+}

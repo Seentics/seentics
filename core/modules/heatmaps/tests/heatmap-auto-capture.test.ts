@@ -218,6 +218,48 @@ describe("HeatmapAutoCapture", () => {
 
       expect(cap.calls).toHaveLength(0);
     });
+
+    // The tracker writes `analytics_events.page` as `location.pathname`, so this is
+    // the shape the fallback actually meets in production — not the absolute url the
+    // case above uses. A bare path reaches Playwright as `Invalid URL` and the SSRF
+    // guard as a refusal, so it has to be put back on the registered domain first.
+    it("puts a bare pageview path back on the registered domain", async () => {
+      recentPageviewUrls.push("/pricing");
+      autoCapture.schedule({ ...RESOLVED, siteUrl: "one.example" }, "/pricing");
+      await settle();
+
+      expect(cap.calls[0]?.pageUrl).toBe("https://one.example/pricing");
+    });
+
+    it("cannot use a bare pageview path when there is no domain to join it to", async () => {
+      recentPageviewUrls.push("/pricing");
+      autoCapture.schedule({ ...RESOLVED, siteUrl: "" }, "/pricing");
+      await settle();
+
+      expect(cap.calls).toHaveLength(0);
+    });
+
+    // A parameterized path is a bucket, not a page. The registered domain yields
+    // `https://one.example/orders/:id`, which is a 404 — the scan has to run and find
+    // a real order that lands in the same bucket.
+    it("captures a concrete example URL for a parameterized path", async () => {
+      recentPageviewUrls.push("/orders/8213456");
+      autoCapture.schedule(RESOLVED, "/orders/:id");
+      await settle();
+
+      expect(cap.calls).toHaveLength(1);
+      expect(cap.calls[0]?.pageUrl).toBe("https://one.example/orders/8213456");
+      // Stored under the bucket it was asked for, not the example's own path.
+      expect(cap.calls[0]?.pagePath).toBe("/orders/:id");
+    });
+
+    it("does not capture a parameterized path with no example to stand in for it", async () => {
+      recentPageviewUrls.push("/orders");
+      autoCapture.schedule(RESOLVED, "/orders/:id");
+      await settle();
+
+      expect(cap.calls).toHaveLength(0);
+    });
   });
 
   // A page that will not load is routine — expired links, auth walls, pages that

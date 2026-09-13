@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { extractPath, normalizeHeatmapPagePath } from "../../../modules/heatmaps/lib/paths";
+import { extractPath, isParameterizedPath, normalizeHeatmapPagePath } from "../../../modules/heatmaps/lib/paths";
 
 describe("extractPath", () => {
   it("returns / for empty string", () => {
@@ -146,5 +146,28 @@ describe("normalizeHeatmapPagePath", () => {
 
   it("handles path that is only trailing slash after strip", () => {
     expect(normalizeHeatmapPagePath("//")).toBe("/");
+  });
+});
+
+describe("isParameterizedPath", () => {
+  it("is true for a path carrying an :id placeholder", () => {
+    expect(isParameterizedPath("/orders/:id")).toBe(true);
+  });
+
+  it("is true when the placeholder is not the last segment", () => {
+    expect(isParameterizedPath("/blog/:id/comments")).toBe(true);
+  });
+
+  it("is false for a fully concrete path", () => {
+    expect(isParameterizedPath("/blog/123456/comments")).toBe(false);
+  });
+
+  it("is false for the root path", () => {
+    expect(isParameterizedPath("/")).toBe(false);
+  });
+
+  it("ignores a colon inside a segment rather than at its start", () => {
+    // Only a leading colon marks a placeholder; a literal colon is part of the page.
+    expect(isParameterizedPath("/tags/a:b")).toBe(false);
   });
 });
