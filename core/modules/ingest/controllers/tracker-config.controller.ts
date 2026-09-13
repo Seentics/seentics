@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { env } from "../../../config";
-import { originFromRequest, validateOriginDomain } from "../../../platform/lib/origin";
+import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 type WebsiteParamContext = Context<any, "/init/:website_id">;

@@ -28,6 +28,9 @@ export type { WebsiteRepository } from "./website-repository.interface";
 export type { WebsiteInvitations } from "./website-invitations.interface";
 
 export type {
+  AddWebsiteMemberBody,
+  CreateGoalBody,
+  UpdateGoalPatch,
   WebsiteGoalOperations,
   WebsiteInvitationOperations,
   WebsiteMemberOperations,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
 import { recordingEventsIn } from "../services/tracker-recording-event-mapping.service";
 
 /**

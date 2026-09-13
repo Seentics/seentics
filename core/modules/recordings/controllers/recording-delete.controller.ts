@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { log } from "../../../platform/lib/logger";
+import { log } from "../../../platform/observability/logger";
 import type { AuthVars } from "../../../platform/middleware/auth";
 import { parseJson } from "../../../platform/validation";
 import { replayBatchDeleteSchema } from "../validators/recording.schema";

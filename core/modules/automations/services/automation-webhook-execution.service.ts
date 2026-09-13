@@ -3,8 +3,8 @@
  */
 
 import { db, webhookDeliveries } from '../../../db';
-import { log } from '../../../platform/lib/logger';
-import { validateWebhookUrl } from '../../../platform/lib/origin';
+import { log } from '../../../platform/observability/logger';
+import { validateWebhookUrl } from '../../../platform/http/origin';
 import { renderTemplateDeep } from '../lib/automation-template-renderer';
 
 export interface WebhookAction {

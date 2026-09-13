@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, websiteMembers } from "../../../db";
-import type { AddWebsiteMemberBody } from "../../../platform/lib/api-types";
+import type { AddWebsiteMemberBody } from "../interfaces";
 import type { UserDirectory } from "../../auth/interfaces";
 import { normalizeWebsiteRole, roleAtLeast, type WebsiteRole } from "../interfaces";
 

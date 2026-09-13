@@ -7,6 +7,10 @@
  * (see `HeatmapService`).
  */
 export type {
+  HeatmapIngestEvent,
+  HeatmapPointOut,
+  HeatmapPointRow,
+  ScreenshotJob,
   PageSummaryRow,
   BatchCaptureScreenshotResult,
   CaptureScreenshotRequest,
@@ -16,7 +20,6 @@ export type {
   HeatmapLayout,
   HeatmapMutations,
   HeatmapPageSummary,
-  HeatmapPointOut,
   HeatmapQuery,
   HeatmapScreenshotCapture,
   HeatmapScreenshotMaintenance,

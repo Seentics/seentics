@@ -11,7 +11,7 @@
  * nothing in common except the table, and no consumer needs both.
  */
 
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
 
 /** Server-side narrowing for the session list. Every field is optional. */
 export type SessionListFilters = {
@@ -185,7 +185,7 @@ export interface RecordingIngest {
  * Reads for the raw API.
  *
  * Separate from `RecordingQuery` for the same reason as `HeatmapRawReads`: the raw API
- * is a data-export surface with its own projection. `platform/public-api` used to import
+ * is a data-export surface with its own projection. `app/http/public-api` used to import
  * `services/recording-session-list.service` directly.
  */
 export interface RecordingRawReads {
@@ -220,7 +220,7 @@ export interface RecordingRawReads {
 /**
  * One session's metadata row, as the repository reads it.
  *
- * Lived in `platform/lib/types.ts` with the recordings repository as its only consumer —
+ * Lived in `platform/contracts/types.ts` with the recordings repository as its only consumer —
  * a module's own storage shape in a shared file, which the boundary test could not see
  * because `platform/` is not a module. See `app/tests/module-boundaries.test.ts`.
  */

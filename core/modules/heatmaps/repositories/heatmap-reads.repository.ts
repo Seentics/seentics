@@ -1,5 +1,5 @@
 import { sql } from "../../../db";
-import type { HeatmapPointOut } from "../../../platform/lib/types";
+import type { HeatmapPointOut } from "../interfaces";
 import { NORM_PAGE_PATH_EXPR } from "./page-path-normalisation";
 import type { PageSummaryRow } from "../interfaces";
 

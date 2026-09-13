@@ -1,7 +1,7 @@
 import { env } from "../../../config";
 import { recordingIngestService } from "./recording-ingest.service";
 import { deleteSession } from "../repositories/recording.repository";
-import { deleteSessionPrefix } from "../../../platform/lib/s3";
+import { deleteSessionPrefix } from "../../../platform/storage/s3";
 
 /**
  * Delete recordings and their stored chunks.

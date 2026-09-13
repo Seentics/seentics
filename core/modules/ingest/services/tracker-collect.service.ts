@@ -1,6 +1,6 @@
-import type { TrackerCollectBody } from "../../../platform/lib/api-types";
-import { buildAnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
-import { log } from "../../../platform/lib/logger";
+import type { TrackerCollectBody } from "../interfaces";
+import { buildAnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
+import { log } from "../../../platform/observability/logger";
 import type {
   IngestQueue,
   ProcessTrackerCollectInput,

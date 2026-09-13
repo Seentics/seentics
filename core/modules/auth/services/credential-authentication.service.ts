@@ -2,9 +2,9 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
-} from "../../../platform/lib/auth-jwt";
+} from "../../../platform/security/auth-jwt";
 import { toFrontendUser } from "../lib/user-presenter";
-import type { LoginUserInput, RegisterUserInput } from "../../../platform/lib/api-types";
+import type { LoginUserInput, RegisterUserInput } from "../interfaces";
 import type {
   AuthResult,
   AuthTokens,
@@ -21,7 +21,7 @@ import type { UserRepository, UserRow } from "../interfaces/user-repository.inte
  * rules below testable — every one of them was unverified before, on the only
  * unauthenticated write path in the product.
  *
- * Token signing stays a direct import: `platform/lib/auth-jwt` is a platform library
+ * Token signing stays a direct import: `platform/security/auth-jwt` is a platform library
  * like the logger, not a peer module, and it holds no state a test needs to steer.
  */
 

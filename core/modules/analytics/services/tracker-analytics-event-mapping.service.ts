@@ -1,4 +1,5 @@
-import type { AnalyticsIngestEvent, TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
+import type { AnalyticsIngestEvent } from "../interfaces";
 
 /**
  * Raw tracker events → this module's analytics ingest shape.

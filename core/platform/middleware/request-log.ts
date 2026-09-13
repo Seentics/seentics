@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
-import { getClientIp } from "../lib/client-ip";
+import { getClientIp } from "../http/client-ip";
 import type { AppConfig } from "../../config";
-import { log } from "../lib/logger";
+import { log } from "../observability/logger";
 
 export function requestLogMiddleware(cfg: Pick<AppConfig, "trustProxy" | "slowRequestThresholdMs">): MiddlewareHandler {
   return async (c, next) => {

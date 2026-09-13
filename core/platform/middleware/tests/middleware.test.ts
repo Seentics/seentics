@@ -3,11 +3,11 @@ import { Hono } from "hono";
 import { SignJWT } from "jose";
 import type { AppConfig } from "../../../config";
 import { testConfig } from "../../../app/tests/helpers/test-config";
-import { signAccessToken, signRefreshToken } from "../../lib/auth-jwt";
+import { signAccessToken, signRefreshToken } from "../../security/auth-jwt";
 import type { AuthVars } from "../auth";
 import { corsMiddleware } from "../cors";
 import { rateLimitMiddleware } from "../rate-limit";
-import { pruneRateBuckets } from "../../lib/token-bucket";
+import { pruneRateBuckets } from "../../cache/token-bucket";
 
 /**
  * The request-level security boundary: authentication, CORS and rate limiting.

@@ -5,7 +5,7 @@ import type { FrequencyCapSpec, ImpressionStats } from "../services/automation-f
 // The module reads `db` at import time even though these two helpers are pure, so the
 // driver has to be stubbed before it loads.
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 let capsRequireLookup: typeof import("../services/automation-frequency-cap.service").capsRequireLookup;
 let isCappedFromStats: typeof import("../services/automation-frequency-cap.service").isCappedFromStats;

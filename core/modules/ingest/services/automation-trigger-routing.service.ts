@@ -1,6 +1,6 @@
-import { clampClientTs } from "../../../platform/lib/client-timestamp";
-import { log } from "../../../platform/lib/logger";
-import type { AutomationTriggerQueued } from "../../../platform/lib/types";
+import { clampClientTs } from "../../../platform/http/client-timestamp";
+import { log } from "../../../platform/observability/logger";
+import type { AutomationTriggerQueued } from "../../automations/interfaces";
 import {
   chronological,
   normalizeTrackerEvents,

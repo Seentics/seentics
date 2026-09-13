@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { Logger } from "../../../platform/lib/logger";
-import type { AutomationTriggerQueued, TrackerEvent } from "../../../platform/lib/types";
+import type { Logger } from "../../../platform/observability/logger";
+import type { AutomationTriggerQueued } from "../../automations/interfaces";
+import type { TrackerEvent } from "../interfaces";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { VisitorProfileWrite } from "../../automations/interfaces";
 import type {

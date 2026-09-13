@@ -1,4 +1,4 @@
-import { log } from "../../../platform/lib/logger";
+import { log } from "../../../platform/observability/logger";
 import { coerceSnapshotDeviceBucket } from "../lib/device";
 import { normalizeHeatmapPagePath } from "../lib/paths";
 import type {

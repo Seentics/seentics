@@ -1,6 +1,16 @@
-import type { LoginUserInput, RegisterUserInput } from "../../../platform/lib/api-types";
 import type { FrontendUser } from "./auth.interface";
 import type { UserRow } from "./user-repository.interface";
+
+export type RegisterUserInput = {
+  email: string;
+  password: string;
+  name: string;
+};
+
+export type LoginUserInput = {
+  email: string;
+  password: string;
+};
 
 export type AuthTokens = { access_token: string; refresh_token: string };
 export type AuthResult = { data: { user: FrontendUser; tokens: AuthTokens } };

@@ -1,4 +1,4 @@
-import { log } from "../../../platform/lib/logger";
+import { log } from "../../../platform/observability/logger";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import {
   chronological,

@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import type { Logger } from "../../../platform/lib/logger";
+import type { Logger } from "../../../platform/observability/logger";
 import type { AnalyticsFunnelEvents } from "../../analytics/interfaces";
 import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfaces";
 import type {

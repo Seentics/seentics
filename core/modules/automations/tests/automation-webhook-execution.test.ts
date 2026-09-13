@@ -14,7 +14,7 @@ import { failInserts, fakeDbModule, fakeLogger, insertsInto, resetDb } from "./h
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 let executeWebhook: typeof import("../services/automation-webhook-execution.service").executeWebhook;
 let DEFAULT_WEBHOOK_RETRY: typeof import("../services/automation-webhook-execution.service").DEFAULT_WEBHOOK_RETRY;

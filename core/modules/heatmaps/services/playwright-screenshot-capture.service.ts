@@ -1,5 +1,5 @@
 import { env } from "../../../config";
-import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
+import { validateScreenshotTargetUrl } from "../../../platform/http/origin";
 import { upsertLayoutSnapshot } from "../lib/layout-db";
 import { snapshotDeviceBucketForWidth } from "../lib/device";
 import { normalizeHeatmapPagePath } from "../lib/paths";

@@ -1,7 +1,7 @@
 import { serializeBatch } from "../../../platform/idempotency/batch-id";
 import type { AppConfig } from "../../../config";
-import { log as baseLog } from "../../../platform/lib/logger";
-import type { Logger } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
+import type { Logger } from "../../../platform/observability/logger";
 import type {
   BatchQueue,
   IngestFlusher,

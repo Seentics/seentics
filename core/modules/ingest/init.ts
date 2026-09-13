@@ -1,4 +1,4 @@
-import { log as baseLog, type Logger } from "../../platform/lib/logger";
+import { log as baseLog, type Logger } from "../../platform/observability/logger";
 import type { AutomationsModule } from "../automations/interfaces";
 import type { FunnelsModule } from "../funnels/interfaces";
 import type { HeatmapsModule } from "../heatmaps/interfaces";

@@ -20,7 +20,7 @@ const listActive = mock(async (_websiteId: string) => automationRows);
 const executeWebhook = mock(async () => {});
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 let AutomationEvaluationService: typeof import("../services/automation-evaluation.service").AutomationEvaluationService;
 

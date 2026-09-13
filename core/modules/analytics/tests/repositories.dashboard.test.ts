@@ -11,7 +11,7 @@ import { fakeDbModule, fakeLogger, queueRows, resetDb, sqlCalls } from "./helper
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 let getDashboardStats: typeof import("../repositories/dashboard.repository").getDashboardStats;
 let getTrafficSummaryStats: typeof import("../repositories/traffic-summary.repository").getTrafficSummaryStats;

@@ -11,7 +11,7 @@ import { fakeDbModule, fakeLogger, isIdentifier, queueRows, resetDb, sqlCalls } 
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 type Repo = (site: string, q: Record<string, string | undefined>) => Promise<Record<string, unknown>>;
 

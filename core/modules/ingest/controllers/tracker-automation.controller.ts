@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { env } from "../../../config";
-import { log } from "../../../platform/lib/logger";
-import { originFromRequest, validateOriginDomain } from "../../../platform/lib/origin";
+import { log } from "../../../platform/observability/logger";
+import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 export function evaluateTrackerAutomation(deps: TrackerControllerDeps) {

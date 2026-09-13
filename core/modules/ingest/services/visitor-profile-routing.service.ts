@@ -1,4 +1,4 @@
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../interfaces";
 import type { TrackerBatchRoutingContext } from "./tracker-event-normalization.service";
 
 export function routeVisitorProfile(

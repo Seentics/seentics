@@ -13,7 +13,20 @@
  * from becoming a duplicate of every SQL projection.
  */
 
-import type { AnalyticsIngestEvent, TrackerEvent } from "../../../platform/lib/types";
+import type { AnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
+import type { TrackerEvent } from "../../ingest/interfaces";
+
+/** Normalized page/funnel row written to `analytics_events`. */
+export type AnalyticsIngestEvent = {
+  type: string;
+  data?: Record<string, unknown>;
+  ts: number;
+  url?: string;
+  sid?: string;
+  vid?: string;
+  /** Server-derived from IP and User-Agent for this collect request. */
+  ingestMeta?: AnalyticsIngestMeta;
+};
 
 /** Query parameters common to the windowed analytics endpoints. */
 export type AnalyticsWindow = {
@@ -204,8 +217,8 @@ export interface AnalyticsPageviewUrls {
 /**
  * The raw event feed behind `/api/v1/raw`.
  *
- * A port because the raw API is a platform-level HTTP surface, and the projection it
- * returns is a view of `analytics_events`. `platform/public-api/raw-data.service.ts` used
+ * A port because the raw API is an application-level HTTP surface, and the projection it
+ * returns is a view of `analytics_events`. `app/http/public-api/raw-data.service.ts` used
  * to hold this query itself, which put a Drizzle projection of this module's table in
  * shared code where a schema change would break it silently.
  *

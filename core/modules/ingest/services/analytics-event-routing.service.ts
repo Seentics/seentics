@@ -1,5 +1,5 @@
-import { log } from "../../../platform/lib/logger";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import { log } from "../../../platform/observability/logger";
+import type { TrackerEvent } from "../interfaces";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
 import {
   attachIngestMetadata,

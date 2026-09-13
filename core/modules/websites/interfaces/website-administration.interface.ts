@@ -1,9 +1,23 @@
-import type {
-  AddWebsiteMemberBody,
-  CreateGoalBody,
-  UpdateGoalPatch,
-} from "../../../platform/lib/api-types";
 import type { WebsiteRole } from "./website.interface";
+
+export type CreateGoalBody = {
+  name: string;
+  type: string;
+  identifier: string;
+  selector?: string;
+};
+
+export type UpdateGoalPatch = Partial<{
+  name: string;
+  type: string;
+  identifier: string;
+  selector: string | null;
+}>;
+
+export type AddWebsiteMemberBody = {
+  email: string;
+  role?: string;
+};
 
 export interface WebsiteGoalOperations {
   listWebsiteGoals(websiteId: string): Promise<unknown>;

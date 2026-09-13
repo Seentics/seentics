@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 // Registers the shared infrastructure stubs. Must come before the modules under test.
 import { resetStubs } from "./support/stubs";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
 
 /**
  * The engine's own behaviour, with storage and the database stubbed.

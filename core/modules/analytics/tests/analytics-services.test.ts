@@ -20,7 +20,7 @@ import type { WebsitePublicSharing } from "../../websites/interfaces";
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let PublicDashboardService: any;

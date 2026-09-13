@@ -1,4 +1,10 @@
-import type { AutomationTriggerQueued } from "../../../platform/lib/types";
+/** Batched `automation_trigger` row queued for `automation_events`. */
+export type AutomationTriggerQueued = {
+  websiteId: string;
+  automationId: string;
+  occurredAt: Date;
+  detail: Record<string, unknown>;
+};
 
 /**
  * The ingest write path for automation triggers.

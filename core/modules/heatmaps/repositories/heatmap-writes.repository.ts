@@ -1,6 +1,6 @@
 import type { TransactionSql } from "postgres";
 import { sql } from "../../../db";
-import type { HeatmapPointRow } from "../../../platform/lib/types";
+import type { HeatmapPointRow } from "../interfaces";
 import { NORM_PAGE_PATH_EXPR } from "./page-path-normalisation";
 
 /**

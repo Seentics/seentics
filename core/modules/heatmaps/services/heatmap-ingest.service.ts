@@ -1,13 +1,13 @@
 import { env } from "../../../config";
 import { batchUpsertPoints } from "../repositories/heatmap-writes.repository";
-import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../interfaces";
 import { applyBatchOnceSql } from "../../../platform/idempotency";
 import type { HeatmapIngest, HeatmapTrackerEvent } from "../interfaces";
 import { eventsToPoints, eventsToScreenshotJobs } from "./heatmap-event-projection.service";
 import { SnapshotIngestService } from "./heatmap-snapshot-ingest.service";
 import { trackerRowsToHeatmapEvents } from "./tracker-heatmap-event-mapping.service";
 import type { TrackerWebsites } from "../../websites/interfaces";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "heatmap" });
 

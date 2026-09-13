@@ -23,5 +23,7 @@ export type { IngestModule } from "./ingest.module";
 export type {
   ProcessTrackerCollectInput,
   ProcessTrackerCollectResult,
+  TrackerCollectBody,
+  TrackerEvent,
   TrackerCollectService,
 } from "./tracker-collect.interface";

@@ -11,8 +11,11 @@ core/
 ├── index.ts                  Process entry: serve, migrate, health gate, signals
 ├── config.ts
 ├── app/
-│   └── bootstrap.ts          Composition root — the only place the graph is wired
-├── modules/                  Owns a table
+│   ├── bootstrap.ts          Composition root — the only place the graph is wired
+│   ├── http/                 Composite, internal, privacy and machine-facing HTTP adapters
+│   ├── services/             Cross-module retention and usage orchestration
+│   └── scheduler.ts          Application background-job registration
+├── modules/                  Product capabilities and their owned data
 │   ├── websites/             Websites, membership, public share links
 │   ├── analytics/            Dashboard read models + the analytics_events writer
 │   ├── ingest/               /collect buffering and the batch flush
@@ -21,27 +24,33 @@ core/
 │   ├── funnels/
 │   ├── automations/
 │   ├── ai/                   Natural-language querying (owns ai_queries)
+│   ├── api-keys/             Machine credentials (owns api_keys)
 │   └── auth/                 Identity (owns users)
-├── platform/                 Shared application concern, no business domain
+├── platform/                 Reusable technical capabilities; imports no module
+│   ├── cache/                In-process cache and token-bucket primitives
+│   ├── geo/                  MaxMind adapter
+│   ├── http/                 Transport helpers and router types
 │   ├── middleware/           Cross-cutting HTTP middleware
+│   ├── observability/        Structured logging
+│   ├── security/             JWT and global-key primitives
+│   ├── storage/              S3 adapter and key construction
 │   ├── validation/           Shared zod helpers
 │   ├── idempotency/          Applied-batch markers, so a retried flush cannot double-write
-│   ├── lib/                  Shared utilities (s3, logger, geo, ids, types)
-│   ├── scheduler.ts
-│   ├── retention/            Data-retention policy; modules do their own deletes
-│   ├── public-api/           The machine-facing API and the keys that open it
-│   ├── internal/             Operational endpoints behind the global API key
-│   └── http/                 Small composite routers (privacy, profiles, user branch)
+│   ├── retention/            Shared retention ports; policy orchestration is in app
+│   └── usage/                Shared usage ports; report orchestration is in app
 └── db/                       Schema and migrations
 ```
 
-**Placement rule.** Two questions, in order:
+**Placement rule.** Three questions, in order:
 
-1. **Is it a business domain?** Then it is a module, and it owns its table. Auth owns
-   `users`, so it is a module — but JWT *verification* is not a domain and lives in
-   `platform/middleware/auth.ts`.
-2. **Otherwise it is platform** — shared machinery with no domain of its own: middleware,
-   validation, retention policy, the public API, the applied-batch markers.
+1. **Does it own product behavior, vocabulary, or persistent data?** Then it is a module.
+   Auth owns `users`; API keys own their lifecycle and `api_keys`. JWT signing itself is
+   only a technical primitive and stays in `platform/security`.
+2. **Does it compose several modules or expose an application-level edge?** Then it is
+   `app`: composite HTTP routers, operational endpoints, retention/usage coordination,
+   and scheduled-job registration.
+3. **Is it reusable technical machinery with no product vocabulary?** Then it is
+   `platform`: storage, logging, caches, transport helpers, validation and idempotency.
 
 There used to be a third tier, `infrastructure/`, for "a technical capability whose
 implementation you would swap". It held three things. Two of them — an in-memory event bus
@@ -51,9 +60,9 @@ publish sites, one subscriber, and that subscriber invalidated a cache. The thir
 tier's own criterion it never belonged there. A directory tier is an expensive way to carry
 one bit of information, and that bit was wrong for the only thing left in it.
 
-Owning a table does *not* decide placement, though an earlier version of this document said
-it did. `platform` owns `api_keys` and `ingest_applied_batches`; neither is a business
-domain. `app/tests/table-ownership.test.ts` is the authority on who may query what.
+Owning a table is strong evidence of a module, but not an absolute rule:
+`ingest_applied_batches` is implementation machinery and remains platform-owned.
+`app/tests/table-ownership.test.ts` is the authority on who may query what.
 
 Each module follows the same shape. Not every module needs every directory — an
 empty `repositories/` that only re-exports is worse than no directory at all.
@@ -120,8 +129,12 @@ seam is one constructor parameter wide.
 ## Dependency direction
 
 ```
-HTTP → routes → services → interfaces ← implementations → platform
+app → module init/interfaces → module implementation → platform
 ```
+
+`platform` imports neither `app` nor `modules`. A module may use another module only
+through that module's `interfaces/`; `app/bootstrap.ts` is where concrete implementations
+are assembled.
 
 Business logic depends on interfaces, never on Postgres, S3, or Hono. That is what
 makes services unit-testable with in-memory doubles — see

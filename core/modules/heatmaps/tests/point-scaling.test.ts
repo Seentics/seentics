@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { HeatmapIngestEvent } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent } from "../interfaces";
 import { eventsToPoints } from "../services/heatmap-event-projection.service";
 
 // A plain static import, and no `DATABASE_URL` to fake. That is the point of the split:

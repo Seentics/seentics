@@ -22,6 +22,8 @@ export type {
   AuthResult,
   AuthTokens,
   CredentialAuthentication,
+  LoginUserInput,
+  RegisterUserInput,
 } from "./authentication.interface";
 
 /** The whole module surface, as a peer receives it at composition time. */

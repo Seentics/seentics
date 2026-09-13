@@ -16,7 +16,7 @@ import { fakeDbModule } from "./helpers/fake-db";
  * change.
  *
  * That went wrong five separate times before this check existed: `collect-handlers`
- * (missing a handler), `config` (missing `jwtSecret`), `platform/lib/s3` (missing
+ * (missing a handler), `config` (missing `jwtSecret`), `platform/storage/s3` (missing
  * `putJpeg`), `platform/idempotency` (missing `applyBatchOnceSql`), and the shared
  * `fake-db` (missing `sql.unsafe`). Each was found by a test in a different module
  * failing for reasons that had nothing to do with it.

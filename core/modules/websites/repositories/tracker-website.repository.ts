@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../../config";
 import { sql } from "../../../db";
-import { MemoryCache } from "../../../platform/lib/memory-cache";
+import { MemoryCache } from "../../../platform/cache/memory-cache";
 import type { TrackerGoal, WebsiteTrackerRow } from "../interfaces";
 
 

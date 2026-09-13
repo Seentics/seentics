@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../config";
 import type { LaneSpec } from "../ingest/interfaces";
-import type { TrackerEvent } from "../../platform/lib/types";
+import type { TrackerEvent } from "../ingest/interfaces";
 import type { AnalyticsIngestWriter } from "./interfaces";
 
 /**

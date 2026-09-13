@@ -12,7 +12,7 @@ import { fakeDbModule, fakeLogger, queueRows, resetDb, sqlCalls } from "./helper
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 let buildUtcTimeline: typeof import("../repositories/realtime.repository").buildUtcTimeline;
 let utcMinuteKey: typeof import("../repositories/realtime.repository").utcMinuteKey;

@@ -15,10 +15,10 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { automationEvents, automations, db } from "../../../db";
-import type { AutomationTriggerQueued } from "../../../platform/lib/types";
+import type { AutomationTriggerQueued } from "../interfaces";
 import type { BatchTx } from "../../../platform/idempotency";
-import { clampClientTs } from "../../../platform/lib/client-timestamp";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { clampClientTs } from "../../../platform/http/client-timestamp";
+import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "ingest" });
 

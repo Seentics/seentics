@@ -23,7 +23,7 @@ export const warnings: Record<string, unknown>[] = [];
 /** Every `error` payload, for tests asserting a failure was reported rather than swallowed. */
 export const errors: Record<string, unknown>[] = [];
 
-mock.module("../../../../platform/lib/logger", () => {
+mock.module("../../../../platform/observability/logger", () => {
   // Complete, not partial: this becomes the logger for every module the suite loads.
   const logger: Record<string, unknown> = {
     debug: mock(() => {}),
@@ -69,14 +69,14 @@ let inFlightPrefixDeletes = 0;
 export const storedChunks = new Map<string, { sequence: number; key: string }[]>();
 
 /**
- * Every runtime export of `platform/lib/s3`, not just the ones the recordings tests call.
+ * Every runtime export of `platform/storage/s3`, not just the ones the recordings tests call.
  *
  * `mock.module` applies to the whole run, so this stub *is* the s3 module for every file
  * loaded after it. Omitting `putJpeg` broke the heatmaps screenshot tests, which never
  * touch replays, with a `SyntaxError` naming the real file that does export it. Same
  * rule as `app/tests/helpers/test-config.ts`: a global stub has to be complete.
  */
-mock.module("../../../../platform/lib/s3", () => ({
+mock.module("../../../../platform/storage/s3", () => ({
   s3: () => ({}),
   putHtml: async () => {},
   putJpeg: async () => {},

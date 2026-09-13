@@ -18,6 +18,7 @@ export type {
   AnalyticsExport,
   AnalyticsFunnelEvents,
   AnalyticsGoals,
+  AnalyticsIngestEvent,
   AnalyticsIngestWriter,
   AnalyticsPageviewUrls,
   AnalyticsPublicDashboard,

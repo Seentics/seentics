@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 import { zNonEmptyString } from "../../../platform/validation";
-import { validateWebhookUrl } from "../../../platform/lib/origin";
+import { validateWebhookUrl } from "../../../platform/http/origin";
 import { OPERATORS } from "../lib/automation-condition-evaluator";
 import {
   MAX_DELAY_SECONDS,

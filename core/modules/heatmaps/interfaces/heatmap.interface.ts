@@ -23,19 +23,66 @@
  * consumes them directly and the field names are part of the public contract.
  */
 
-import type {
-  HeatmapIngestEvent,
-  HeatmapPointOut,
-  TrackerEvent,
-} from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
+
+/** Heatmap pipeline ingest row (tracker → heatmap engine). */
+export type HeatmapIngestEvent = {
+  type: string;
+  data?: Record<string, unknown>;
+  ts: number;
+  url?: string;
+  sid?: string;
+  vid?: string;
+  websiteId: string;
+  heatmapLayoutEnabled?: boolean;
+  clientUa?: string;
+  docW?: number;
+  docH?: number;
+};
+
+/** Internal persistence projection for an interaction point. */
+export type HeatmapPointRow = {
+  websiteId: string;
+  pagePath: string;
+  eventType: string;
+  deviceType: string;
+  xPercent: number;
+  yPercent: number;
+  targetSelector: string;
+  capVw: number | null;
+  capVh: number | null;
+};
+
+/** One aggregated heatmap cell in the dashboard and raw API wire shape. */
+export type HeatmapPointOut = {
+  page_path: string;
+  event_type: string;
+  /** Scaled 0–10000 for clicks; always 0 for scroll rows. */
+  x_percent: number;
+  /** Scaled 0–10000 for clicks and 0–100 for scroll rows. */
+  y_percent: number;
+  device_type: string;
+  intensity: number;
+  target_selector: string;
+  cap_vw?: number | null;
+  cap_vh?: number | null;
+};
+
+/** Screenshot ready to be persisted by the heatmap snapshot service. */
+export type ScreenshotJob = {
+  websiteId: string;
+  heatmapLayoutEnabled: boolean;
+  url: string;
+  jpeg: Uint8Array;
+  docW: number;
+  docH: number;
+};
 
 /** Tracker event plus the request context needed by heatmap ingestion. */
 export type HeatmapTrackerEvent = TrackerEvent & {
   clientUa?: string;
   heatmapLayoutEnabled?: boolean;
 };
-
-export type { HeatmapPointOut };
 
 /** One page's heatmap totals, after paths differing only by dynamic ids are merged. */
 export type HeatmapPageSummary = {
@@ -323,7 +370,7 @@ export interface HeatmapSettings {
  * Reads for the raw API.
  *
  * Separate from `HeatmapQuery` because the raw API returns unmerged, unnormalised rows
- * — it is a data-export surface, not the dashboard's. `platform/public-api` used to import
+ * — it is a data-export surface, not the dashboard's. `app/http/public-api` used to import
  * `services/heatmap-page-query.service` directly to get at these.
  */
 export interface HeatmapRawReads {
@@ -345,7 +392,7 @@ export interface HeatmapRawReads {
 /**
  * The per-page totals row, as the reads repository returns it.
  *
- * Moved here from `platform/lib/types.ts` for the same reason as
+ * Moved here from `platform/contracts/types.ts` for the same reason as
  * `RecordingsModule`'s `SessionMetaRow`: only this module ever read it.
  */
 export type PageSummaryRow = {

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Context, MiddlewareHandler } from "hono";
 import type { AppConfig } from "../../../config";
-import { MemoryCache } from "../../../platform/lib/memory-cache";
+import { MemoryCache } from "../../../platform/cache/memory-cache";
 
 type Cached = { body: Uint8Array; headers: [string, string][] };
 

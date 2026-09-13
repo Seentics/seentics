@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { HeatmapIngestEvent } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent } from "../interfaces";
 import { eventsToScreenshotJobs } from "../services/heatmap-event-projection.service";
 import { isJpeg, mergeNormalizedPages, pageUrlOnSite } from "../services/heatmap-data-normalization.service";
 import type { PageSummaryRow } from "../interfaces";

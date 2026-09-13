@@ -14,7 +14,7 @@
 import { and, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
-import { log } from '../../../platform/lib/logger';
+import { log } from '../../../platform/observability/logger';
 import type {
   AutomationEvaluation,
   ClientAction,

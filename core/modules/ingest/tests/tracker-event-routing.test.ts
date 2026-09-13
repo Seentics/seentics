@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
+import type { AnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
 import type { VisitorProfileWrite } from "../../automations/interfaces";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../interfaces";
 import type { WebsiteTrackerRow } from "../../websites/interfaces";
 import type { IngestQueue } from "../interfaces";
 import { routeAnalyticsEvents as handleEvents } from "../services/analytics-event-routing.service";

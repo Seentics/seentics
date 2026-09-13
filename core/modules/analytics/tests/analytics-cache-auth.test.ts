@@ -7,7 +7,7 @@ process.env.JWT_SECRET = "test-secret-value-that-is-long-enough-for-hs256";
 
 import { analyticsCacheMiddleware } from "../middleware/analytics-cache";
 import type { AuthVars } from "../../../platform/middleware/auth";
-import { signAccessToken, verifyAccessToken } from "../../../platform/lib/auth-jwt";
+import { signAccessToken, verifyAccessToken } from "../../../platform/security/auth-jwt";
 import { testConfig } from "../../../app/tests/helpers/test-config";
 
 /**

@@ -48,7 +48,7 @@ const TABLE_OWNER: Record<string, string> = {
   heatmap_points: "heatmaps",
   heatmap_page_snapshots: "heatmaps",
   users: "auth",
-  api_keys: "platform",
+  api_keys: "api-keys",
 };
 
 /** Drizzle identifier → table name, for the builder form. */
@@ -97,7 +97,7 @@ const ALLOWED: { file: string; tables: string[]; why: string }[] = [
       "CRUD, analytics owns the aggregation.",
   },
   {
-    file: "platform/http/privacy.ts",
+    file: "app/http/privacy.ts",
     tables: ["websites", "goals", "analytics_events", "funnels", "automations", "automation_events", "user_profiles", "session_replays", "heatmap_points", "heatmap_page_snapshots"],
     why:
       "Data-subject export and erasure are cross-cutting legal operations. They must verify " +

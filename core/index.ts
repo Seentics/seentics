@@ -1,16 +1,15 @@
 import { Hono } from "hono";
 import { env } from "./config";
 import { runCoreMigrations } from "./db/migrate";
-import { configureLogger, log } from "./platform/lib/logger";
-import { SEENTICS_PEER_IP_HEADER } from "./platform/lib/client-ip";
+import { configureLogger, log } from "./platform/observability/logger";
+import { SEENTICS_PEER_IP_HEADER } from "./platform/http/client-ip";
 import { bootstrap } from "./app/bootstrap";
 import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
 import { requestLogMiddleware } from "./platform/middleware/request-log";
-import { privacyRoutes } from "./platform/http/privacy";
-import { createRawDataRoutes } from "./platform/public-api/routes";
-import { createApiKeyRoutes } from "./platform/public-api/keys/routes";
-import { createUserBranchRoutes } from "./platform/http/user-branch";
+import { privacyRoutes } from "./app/http/privacy";
+import { createRawDataRoutes } from "./app/http/public-api/routes";
+import { createUserBranchRoutes } from "./app/http/user-branch";
 
 
 type BunServerWithRequestIp = {
@@ -39,7 +38,7 @@ let ready = false;
 const app = new Hono();
 
 // Compose the modular graph: infrastructure, then modules, then their routes. Each
-// module is built by its own `init.ts` and receives its peer modules plus the event bus
+// module is built by its own `init.ts` and receives its peer modules through interfaces
 // — and because every member of an `XModule` interface is itself an interface, no
 // module is handed another's service, repository or engine. Nothing reaches back into a
 // registry at call time. See app/bootstrap.ts.
@@ -73,6 +72,7 @@ app.route(
   "/api/v1/raw",
   createRawDataRoutes({
     analytics: application.modules.analytics.reads,
+    apiKeys: application.modules.apiKeys.verifier,
     ports: {
       analyticsEvents: application.modules.analytics.rawEvents,
       heatmaps: application.modules.heatmaps.rawReads,
@@ -85,9 +85,9 @@ app.route("/api/v1/internal", application.routes.internal);
 
 app.route("/api/v1/funnels", application.routes.funnels.publicRoutes);
 app.route("/api/v1/websites", application.routes.websites);
-// Mounted alongside the websites router rather than inside it: `api_keys` is a
-// platform-owned table, so the websites module must not reach it.
-app.route("/api/v1/websites", createApiKeyRoutes({ websites: application.modules.websites.query }));
+// Mounted alongside the websites router: API-key management is its own module and
+// authorizes access through the websites module's public query interface.
+app.route("/api/v1/websites", application.modules.apiKeys.routes);
 app.route("/api/v1/websites", application.routes.funnels.authRoutes);
 app.route("/api/v1/automations", application.routes.automations);
 
@@ -100,7 +100,7 @@ const port = cfg.port;
 Bun.serve({
   fetch(req, server) {
     // Strip any client-supplied peer-IP header and set it from the real TCP peer so
-    // rate limiting / geo can never be spoofed (see lib/client-ip.ts). Request header
+    // rate limiting / geo can never be spoofed (see platform/http/client-ip.ts). Request header
     // guards allow set/delete of non-forbidden headers, so mutate in place.
     req.headers.delete(SEENTICS_PEER_IP_HEADER);
     req.headers.set(

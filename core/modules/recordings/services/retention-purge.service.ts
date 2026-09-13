@@ -1,6 +1,6 @@
 import { sql } from "../../../db";
-import { deleteSessionPrefix } from "../../../platform/lib/s3";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { deleteSessionPrefix } from "../../../platform/storage/s3";
+import { log as baseLog } from "../../../platform/observability/logger";
 import type {
   RetentionCutoffs,
   RetentionOptions,

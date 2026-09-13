@@ -1,5 +1,5 @@
 import { compareReplayEnvelopeEvents } from "./replay-event-ordering.service";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "replay" });
 

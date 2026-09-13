@@ -5,6 +5,4 @@
  * through the `UsageCounter` port. See `interfaces/usage.interface.ts` for why this is
  * inverted the same way retention is.
  */
-export { UserUsageService } from "./usage.service";
-export type { UserResourceCounts } from "./usage.service";
 export type { UsageCounter, UsageScope } from "./interfaces";

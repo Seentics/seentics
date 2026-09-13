@@ -4,7 +4,7 @@ import {
   originFromRequest,
   validateOriginDomain,
   validateScreenshotTargetUrl,
-} from "../../../platform/lib/origin";
+} from "../../../platform/http/origin";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 export function requestTrackerScreenshot(deps: TrackerControllerDeps) {

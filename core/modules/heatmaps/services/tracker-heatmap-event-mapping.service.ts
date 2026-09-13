@@ -1,4 +1,4 @@
-import type { HeatmapIngestEvent } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent } from "../interfaces";
 import type { HeatmapTrackerEvent } from "../interfaces";
 
 /** Mapping from tracker wire events into the heatmap ingest domain. */

@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { fakeDbModule, fakeLogger } from "./helpers/fake-db";
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 type Call = { operation: string; args: unknown[] };
 const calls: Call[] = [];

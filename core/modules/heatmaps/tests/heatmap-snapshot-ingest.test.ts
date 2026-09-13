@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { createHash } from "node:crypto";
-import type { HeatmapIngestEvent, ScreenshotJob } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent, ScreenshotJob } from "../interfaces";
 import type { LayoutSnapshotRow } from "../lib/layout-db";
 import type {
   TrackerGoal,
@@ -120,7 +120,7 @@ const htmlPuts: { key: string; body: string }[] = [];
 /** Set to make the upload fail, so a test can check the row is not written regardless. */
 let putThrows = false;
 
-mock.module("../../../platform/lib/s3", () => ({
+mock.module("../../../platform/storage/s3", () => ({
   s3: () => ({}),
   putJpeg: async (_bucket: string, key: string, body: Uint8Array) => {
     if (putThrows) throw new Error("s3 unreachable");

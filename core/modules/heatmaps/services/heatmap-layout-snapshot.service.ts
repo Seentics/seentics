@@ -3,7 +3,7 @@ import { env } from "../../../config";
 import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
 import { coerceSnapshotDeviceBucket, type SnapshotDeviceBucket } from "../lib/device";
 import { getLayoutSnapshot, upsertLayoutSnapshot } from "../lib/layout-db";
-import { presignGet, putJpeg } from "../../../platform/lib/s3";
+import { presignGet, putJpeg } from "../../../platform/storage/s3";
 import type { HeatmapLayout } from "../interfaces";
 import { isJpeg } from "./heatmap-data-normalization.service";
 

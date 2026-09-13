@@ -1,7 +1,7 @@
-import type { TrackerCollectBody } from "../../../platform/lib/api-types";
-import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
-import { clampClientTs } from "../../../platform/lib/client-timestamp";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerCollectBody } from "../interfaces";
+import type { AnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
+import { clampClientTs } from "../../../platform/http/client-timestamp";
+import type { TrackerEvent } from "../interfaces";
 import type { WebsiteTrackerRow } from "../../websites/interfaces";
 import type { IngestQueue } from "../interfaces";
 

@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, goals } from "../../../db";
-import type { CreateGoalBody, UpdateGoalPatch } from "../../../platform/lib/api-types";
+import type { CreateGoalBody, UpdateGoalPatch } from "../interfaces";
 
 export async function listWebsiteGoals(websiteId: string) {
   const rows = await db

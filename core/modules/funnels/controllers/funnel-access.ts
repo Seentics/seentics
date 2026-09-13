@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { log } from "../../../platform/lib/logger";
+import { log } from "../../../platform/observability/logger";
 import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import type { FunnelControllerDeps } from "./funnel-controller.types";
 

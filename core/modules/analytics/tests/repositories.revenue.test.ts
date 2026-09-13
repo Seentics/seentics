@@ -12,7 +12,7 @@ import { fakeDbModule, fakeLogger, queueRows, resetDb, sqlCalls } from "./helper
  */
 
 mock.module("../../../db", fakeDbModule);
-mock.module("../../../platform/lib/logger", fakeLogger);
+mock.module("../../../platform/observability/logger", fakeLogger);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let getRevenueDashboard: any;

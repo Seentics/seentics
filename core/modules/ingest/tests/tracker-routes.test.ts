@@ -30,7 +30,7 @@ const mockBuildConfig    = mock(async () => ({ website_id: "w1", goals: [], repl
 // A complete `Logger`: `child` must exist and must itself return a logger, because
 // modules call `log.child(...)` at import time. Bun's module mocks are global, so an
 // incomplete stub here breaks every other test file that imports the real logger.
-mock.module("../../../platform/lib/logger", () => {
+mock.module("../../../platform/observability/logger", () => {
   const logger: Record<string, unknown> = {
     debug: mock(() => {}),
     info: mock(() => {}),

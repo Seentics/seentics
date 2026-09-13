@@ -1,7 +1,7 @@
 import { env } from "../../../config";
 import { recordingIngestService } from "./recording-ingest.service";
 import { getSessionMeta } from "../repositories/recording.repository";
-import { presignGet, locateBundle, getJsonGzip, listSessionReplayChunks } from "../../../platform/lib/s3";
+import { presignGet, locateBundle, getJsonGzip, listSessionReplayChunks } from "../../../platform/storage/s3";
 import { compareReplayEnvelopeEvents } from "./replay-event-ordering.service";
 import { replayNotReady, timestampToIso } from "./recording-query-normalization.service";
 import type {

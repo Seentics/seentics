@@ -17,7 +17,7 @@ import { WebsiteMutationService } from "../../../modules/websites/services/websi
 import { WebsitePublicSharingService } from "../../../modules/websites/services/website-public-sharing.service";
 import { WebsiteQueryService } from "../../../modules/websites/services/website-query.service";
 import { WebsiteTrafficService } from "../../../modules/websites/services/website-traffic.service";
-import type { Logger } from "../../../platform/lib/logger";
+import type { Logger } from "../../../platform/observability/logger";
 
 const silentLogger: Logger = {
   debug() {},

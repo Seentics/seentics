@@ -8,12 +8,12 @@ import {
 import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
 import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "../lib/keys";
 import { snapshotDeviceBucket, snapshotDeviceBucketForWidth } from "../lib/device";
-import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
-import { putJpeg, putHtml } from "../../../platform/lib/s3";
+import { validateScreenshotTargetUrl } from "../../../platform/http/origin";
+import { putJpeg, putHtml } from "../../../platform/storage/s3";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
-import type { HeatmapIngestEvent, ScreenshotJob } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent, ScreenshotJob } from "../interfaces";
 import type { TrackerWebsites } from "../../websites/interfaces";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 import { isJpeg } from "./heatmap-data-normalization.service";
 
 const log = baseLog.child({ category: "heatmap" });

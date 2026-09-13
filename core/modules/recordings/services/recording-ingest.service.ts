@@ -1,14 +1,14 @@
 import { env } from "../../../config";
-import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../platform/lib/s3";
+import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../platform/storage/s3";
 import { SessionChunkBuffer, type WarmTail } from "./session-chunk-buffer.service";
 import { applyBatchOnce } from "../../../platform/idempotency";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "../repositories/recording.repository";
 import { compareReplayEnvelopeEvents } from "./replay-event-ordering.service";
-import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { AnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
+import type { TrackerEvent } from "../../ingest/interfaces";
 import type { RecordingIngest } from "../interfaces";
 import { recordingEventsIn } from "./tracker-recording-event-mapping.service";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "replay" });
 

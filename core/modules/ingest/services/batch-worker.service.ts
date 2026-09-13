@@ -1,4 +1,4 @@
-import type { Logger } from "../../../platform/lib/logger";
+import type { Logger } from "../../../platform/observability/logger";
 import type { BatchQueue, IngestLane, LaneRegistry, QueuedBatch } from "../interfaces";
 
 export type BatchWorkerOptions = {

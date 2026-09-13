@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../config";
 import type { LaneSpec } from "../ingest/interfaces";
-import type { AutomationTriggerQueued } from "../../platform/lib/types";
+import type { AutomationTriggerQueued } from "./interfaces";
 import type {
   AutomationTriggerWriter,
   VisitorProfileWrite,

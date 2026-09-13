@@ -1,6 +1,6 @@
 import { deviceTypeFromUA } from "../lib/device";
 import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
-import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
+import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../interfaces";
 import { isJpeg } from "./heatmap-data-normalization.service";
 
 /**

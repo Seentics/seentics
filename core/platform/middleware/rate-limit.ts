@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
-import { getClientIp } from "../lib/client-ip";
-import { takeRateToken, pruneRateBuckets } from "../lib/token-bucket";
+import { getClientIp } from "../http/client-ip";
+import { takeRateToken, pruneRateBuckets } from "../cache/token-bucket";
 import type { AppConfig } from "../../config";
 
 let lastPrune = 0;

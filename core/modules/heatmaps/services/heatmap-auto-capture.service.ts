@@ -1,5 +1,5 @@
 import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 import type {
   CaptureScreenshotRequest,
   CaptureScreenshotResult,

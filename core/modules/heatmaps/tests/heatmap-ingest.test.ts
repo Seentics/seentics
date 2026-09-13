@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import type { HeatmapTrackerEvent } from "../interfaces";
-import type { ScreenshotJob } from "../../../platform/lib/types";
+import type { ScreenshotJob } from "../interfaces";
 
 process.env.DATABASE_URL ??= "postgres://test-not-connected";
 

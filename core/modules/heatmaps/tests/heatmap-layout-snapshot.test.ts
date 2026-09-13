@@ -55,7 +55,7 @@ mock.module("../lib/layout-db", () => ({
 
 const jpegPuts: { key: string; bytes: number }[] = [];
 
-mock.module("../../../platform/lib/s3", () => ({
+mock.module("../../../platform/storage/s3", () => ({
   s3: () => ({}),
   putJpeg: async (_bucket: string, key: string, body: Uint8Array) => {
     jpegPuts.push({ key, bytes: body.length });

@@ -1,4 +1,4 @@
-import type { TrackerEvent } from "../../../platform/lib/types";
+import type { TrackerEvent } from "../../ingest/interfaces";
 
 /** The recording event types this module claims from a mixed tracker batch. */
 const RECORDING_TYPES = new Set(["rrweb", "session_error", "console_event", "network_event"]);

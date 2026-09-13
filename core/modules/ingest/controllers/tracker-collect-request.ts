@@ -1,6 +1,6 @@
 import { promisify } from "node:util";
 import { gunzip as gunzipCallback } from "node:zlib";
-import type { TrackerCollectBody } from "../../../platform/lib/api-types";
+import type { TrackerCollectBody } from "../interfaces";
 
 const maxBodyBytes = 8 * 1024 * 1024;
 const maxGunzipBytes = 50 * 1024 * 1024;

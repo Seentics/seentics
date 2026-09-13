@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import type { Page } from "playwright";
 import { createScreenshotPage, closeBrowser } from "./playwright-browser";
-import { putJpeg } from "../../../platform/lib/s3";
+import { putJpeg } from "../../../platform/storage/s3";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { snapshotDeviceBucketForWidth } from "./device";
 import { getScreenshotCache } from "../services/screenshot-cache.service";
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "playwright" });
 

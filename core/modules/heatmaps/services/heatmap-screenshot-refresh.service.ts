@@ -1,4 +1,4 @@
-import { log as baseLog } from "../../../platform/lib/logger";
+import { log as baseLog } from "../../../platform/observability/logger";
 import { listStalePageSnapshots } from "../repositories/page-snapshots.repository";
 import type { HeatmapScreenshotMaintenance, HeatmapSettings } from "../interfaces";
 import type { HeatmapAutoCapture } from "./heatmap-auto-capture.service";

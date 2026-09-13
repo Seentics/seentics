@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { verifyAccessToken, verifyRefreshToken } from "../../../platform/lib/auth-jwt";
-import { signRefreshToken } from "../../../platform/lib/auth-jwt";
+import { verifyAccessToken, verifyRefreshToken } from "../../../platform/security/auth-jwt";
+import { signRefreshToken } from "../../../platform/security/auth-jwt";
 import { AuthAccountQueryService } from "../services/auth-account-query.service";
 import { CredentialAuthenticationService } from "../services/credential-authentication.service";
 import { FakePasswordHasher, FakeUserRepository } from "./fake-user-repository";
@@ -17,7 +17,7 @@ import { FakePasswordHasher, FakeUserRepository } from "./fake-user-repository";
 /**
  * Both are set at module scope, before any import-time or test-time `env()` call.
  *
- * `platform/lib/auth-jwt` resolves the signing key through the real `config`, and
+ * `platform/security/auth-jwt` resolves the signing key through the real `config`, and
  * `env()` validates the whole environment — so a missing `DATABASE_URL` fails token
  * signing with an error about the database. Setting them here rather than mocking
  * `config` keeps this file from installing a global module stub: Bun's `mock.module`

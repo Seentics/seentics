@@ -1,13 +1,14 @@
 import type { AppConfig } from "../config";
-import { log, type Logger } from "../platform/lib/logger";
-import { initMaxMindGeo } from "../platform/lib/maxmind-geo";
-import { configureTrackerOriginCache } from "../platform/lib/origin";
-import { createInternalRoutes } from "../platform/internal/routes";
-import { RetentionService } from "../platform/retention";
-import { UserUsageService } from "../platform/usage";
-import { startScheduler, stopScheduler } from "../platform/scheduler";
+import { log, type Logger } from "../platform/observability/logger";
+import { initMaxMindGeo } from "../platform/geo/maxmind-geo";
+import { configureTrackerOriginCache } from "../platform/http/origin";
+import { createInternalRoutes } from "./http/internal/routes";
+import { RetentionService } from "./services/retention/retention.service";
+import { UserUsageService } from "./services/usage/usage.service";
+import { startScheduler, stopScheduler } from "./scheduler";
 import type { ModuleLifecycle } from "./module";
 import { initAiModule } from "../modules/ai/init";
+import { initApiKeysModule } from "../modules/api-keys/init";
 import { initAnalyticsModule } from "../modules/analytics/init";
 import { initAuthModule } from "../modules/auth/init";
 import { initAutomationsModule } from "../modules/automations/init";
@@ -17,6 +18,7 @@ import { initIngestModule } from "../modules/ingest/init";
 import { initRecordingsModule } from "../modules/recordings/init";
 import { initWebsitesModule } from "../modules/websites/init";
 import type { AiModule } from "../modules/ai/interfaces";
+import type { ApiKeysModule } from "../modules/api-keys/interfaces";
 import type { AnalyticsModule } from "../modules/analytics/interfaces";
 import type { AuthModule } from "../modules/auth/interfaces";
 import type { AutomationsModule } from "../modules/automations/interfaces";
@@ -31,7 +33,7 @@ import type { WebsitesModule } from "../modules/websites/interfaces";
  *
  * Returned rather than stashed in a global so there is exactly one place that knows how
  * the graph fits together. Each module is built by its own `init.ts` and receives other
- * modules plus the event bus — nothing else. Handing a module its peers whole is safe
+ * modules through explicit interfaces — nothing else. Handing a module its peers whole is safe
  * because every member of an `XModule` interface is itself an interface:
  * `websitesModule` in scope gives you `query`, `accessChecks`, `sharing` and
  * `invitations`, and no route into the Postgres repository, the cache, or a mutation.
@@ -39,6 +41,7 @@ import type { WebsitesModule } from "../modules/websites/interfaces";
 export type Application = {
   modules: {
     auth: AuthModule;
+    apiKeys: ApiKeysModule;
     websites: WebsitesModule;
     analytics: AnalyticsModule;
     recordings: RecordingsModule;
@@ -97,6 +100,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     authModule,
   });
 
+  const apiKeysModule = initApiKeysModule({ websitesModule });
+
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
   const recordingsModule = initRecordingsModule({ websitesModule });
   const funnelsModule = initFunnelsModule({ websitesModule, analyticsModule });
@@ -152,6 +157,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
 
   const modules = {
     auth: authModule,
+    apiKeys: apiKeysModule,
     websites: websitesModule,
     analytics: analyticsModule,
     recordings: recordingsModule,

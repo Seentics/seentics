@@ -1,8 +1,8 @@
 import type { Context } from "hono";
 import { env } from "../../../config";
-import type { TrackerCollectBody } from "../../../platform/lib/api-types";
-import { clientIpForIngest } from "../../../platform/lib/client-ip";
-import { originFromRequest, validateOriginDomain } from "../../../platform/lib/origin";
+import type { TrackerCollectBody } from "../interfaces";
+import { clientIpForIngest } from "../../../platform/http/client-ip";
+import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
 import { validationErrorResponse } from "../../../platform/validation";
 import { trackerCollectSchema } from "../validators/tracker.schema";
 import {
