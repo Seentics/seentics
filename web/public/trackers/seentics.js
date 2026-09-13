@@ -84,6 +84,16 @@ const FLUSH_MS       = 5_000;           // periodic flush interval (5 s — shor
 const SESSION_MAX_MS = 30 * 60 * 1000; // hard session cap (30 min)
 
 /**
+ * Largest serialized DOM snapshot the tracker will send.
+ *
+ * 3 MB of HTML gzips to a few hundred KB, so this sits far inside the collect
+ * endpoint's 8 MB compressed / 50 MB expanded transport limits. It must stay below
+ * the schema's own 3.5 MB ceiling: over that the server rejects the entire batch,
+ * losing the pageviews and clicks travelling with the snapshot.
+ */
+const MAX_DOM_SNAPSHOT_BYTES = 3_000_000;
+
+/**
  * rrweb internal numeric constants used in mirrorHeatmapFromRrweb.
  * Defined here so magic numbers don't appear inline in the logic below.
  * Source: https://github.com/rrweb-io/rrweb/blob/master/packages/types/src/index.ts
@@ -874,8 +884,23 @@ const captureAndQueueDomSnapshot = () => {
 
     const html = '<!DOCTYPE html>' + clone.outerHTML;
 
-    // Skip if snapshot is too large (> 1.2 MB) to avoid oversized payloads
-    if (html.length > 1_200_000) return;
+    // Oversized snapshots are dropped rather than sent: the collect schema rejects the
+    // *whole* batch when one field is over its limit, so an outsized snapshot would take
+    // that flush's pageviews and clicks down with it. This ceiling stays below the
+    // server's (3.5 MB) so it is always this check that bites, never the 400.
+    //
+    // The warning matters as much as the limit. A heavy app shell can exceed the cap on
+    // every page, and the only symptom is a heatmap that never gets a background — there
+    // is nothing server-side to look at, because nothing was ever sent.
+    if (html.length > MAX_DOM_SNAPSHOT_BYTES) {
+      console.warn(
+        '[Seentics] heatmap DOM snapshot skipped: page is ' +
+        Math.round(html.length / 1024) + ' KB, over the ' +
+        Math.round(MAX_DOM_SNAPSHOT_BYTES / 1024) + ' KB limit. ' +
+        'This page will have no heatmap background.'
+      );
+      return;
+    }
 
     // Measure the document with the SAME logic the click/scroll coordinates are
     // normalized against (heatmapDocumentMetrics scans inner overflow:auto regions),

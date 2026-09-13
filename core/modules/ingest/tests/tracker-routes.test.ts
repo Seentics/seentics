@@ -212,6 +212,31 @@ beforeEach(() => {
 // ─── GET /init/:website_id ───────────────────────────────────────────────────
 
 describe("GET /init/:website_id", () => {
+  // The snapshot is the whole payload whenever `captureAndQueueDomSnapshot` fires its
+  // own flush just after the periodic one drained the other queues. Leaving it out of
+  // the item count discarded it as an empty batch, and the page never got a background.
+  it("processes a batch carrying only a DOM snapshot", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const res = await app.request("/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        website_id: "site_abc",
+        heatmap_dom_snapshot: [{
+          type: "heatmap_dom_snapshot",
+          data: { html: "<!DOCTYPE html><html><body>hi</body></html>" },
+          ts: 1,
+          url: "https://shop.test/pricing",
+          sid: "s1",
+        }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.message).not.toBe("nothing to process");
+    expect(mockResolveWebsite).toHaveBeenCalled();
+  });
+
   it("returns 404 when website is not found", async () => {
     const res = await app.request("/init/unknown_id");
     expect(res.status).toBe(404);

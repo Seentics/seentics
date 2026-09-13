@@ -32,7 +32,10 @@ const zHeatmapScreenshotEvent = z.object({
 
 const zHeatmapDomSnapshotEvent = z.object({
   type: z.literal("heatmap_dom_snapshot"),
-  data: z.object({ html: z.string().max(1_500_000) }).passthrough(),
+  // Kept above the tracker's own 3 MB ceiling (`MAX_DOM_SNAPSHOT_BYTES`) on purpose: a
+  // field over its limit fails the whole batch, so the tracker's check must be the one
+  // that bites. The gap is headroom for an older tracker still caching on a customer CDN.
+  data: z.object({ html: z.string().max(3_500_000) }).passthrough(),
   ts: z.number(),
   url: z.string().max(2048),
   sid: z.string().max(128),

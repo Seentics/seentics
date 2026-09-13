@@ -71,9 +71,19 @@ function processTrackerCollect(
   return { kind: "processed", queued };
 }
 
+/**
+ * How many items the batch will queue. Zero short-circuits to `empty` before any
+ * routing runs.
+ *
+ * Counts `heatmap_dom_snapshot` — `routeHeatmapEvents` drains that array, so leaving it
+ * out made a snapshot-only flush look like nothing to do and dropped it. The controller's
+ * `trackerCollectRequestItemCount` gate has to agree with this one; a batch that clears
+ * there and is called empty here is data accepted and then discarded.
+ */
 export function trackerCollectItemCount(body: TrackerCollectBody): number {
   return lengthOf(body.events) + lengthOf(body.session) + lengthOf(body.heatmaps) +
-    lengthOf(body.heatmap_screenshot) + lengthOf(body.funnels) + lengthOf(body.automations);
+    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) +
+    lengthOf(body.funnels) + lengthOf(body.automations);
 }
 
 function lengthOf(value: unknown): number {

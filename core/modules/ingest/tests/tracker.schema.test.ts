@@ -145,6 +145,30 @@ describe("trackerCollectSchema", () => {
     });
   });
 
+  describe("heatmap_dom_snapshot", () => {
+    const snapshot = (html: string) => ({
+      type: "heatmap_dom_snapshot",
+      data: { html },
+      ts: 1,
+      url: "https://shop.test/pricing",
+      sid: "s1",
+    });
+
+    it("accepts a snapshot at the tracker's own 3 MB ceiling", () => {
+      const res = trackerCollectSchema.safeParse(
+        valid({ heatmap_dom_snapshot: [snapshot("x".repeat(3_000_000))] }),
+      );
+      expect(res.success).toBe(true);
+    });
+
+    it("rejects a snapshot over the 3.5 MB schema ceiling", () => {
+      const res = trackerCollectSchema.safeParse(
+        valid({ heatmap_dom_snapshot: [snapshot("x".repeat(3_500_001))] }),
+      );
+      expect(res.success).toBe(false);
+    });
+  });
+
   describe("passthrough", () => {
     it("preserves unknown top-level keys", () => {
       const res = trackerCollectSchema.safeParse(valid({ ua: "Mozilla/5.0", extra_field: true }));

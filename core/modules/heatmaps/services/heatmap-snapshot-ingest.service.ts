@@ -133,10 +133,22 @@ export class SnapshotIngestService {
 
   /** Store one tracker DOM snapshot, skipping an unchanged one. */
   async storeDomSnapshot(ev: HeatmapIngestEvent): Promise<void> {
-    if (!ev.websiteId || !ev.heatmapLayoutEnabled) return;
-
     const html = typeof ev.data?.html === "string" ? ev.data.html : null;
-    if (!html || html.length < MIN_HTML_BYTES) return;
+
+    // Logged rather than returned silently, mirroring `storeScreenshot`. A DOM snapshot
+    // is the only background a page behind a login can ever get, and when one is dropped
+    // here the dashboard just says "No screenshot yet" forever with nothing to explain
+    // it. `layout_enabled: false` is the usual answer and was invisible.
+    if (!ev.websiteId || !ev.heatmapLayoutEnabled || !html || html.length < MIN_HTML_BYTES) {
+      log.info({
+        msg: "heatmap_dom_snapshot_skipped",
+        url: ev.url,
+        website_id: ev.websiteId,
+        layout_enabled: ev.heatmapLayoutEnabled,
+        html_bytes: html?.length ?? 0,
+      });
+      return;
+    }
 
     const norm = normalizeHeatmapPagePath(extractPath(ev.url ?? ""));
     log.info({

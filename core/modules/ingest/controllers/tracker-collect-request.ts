@@ -22,8 +22,19 @@ export async function readTrackerCollectBody(request: Request): Promise<unknown>
   return JSON.parse(raw.toString("utf8")) as unknown;
 }
 
+/**
+ * How many items a batch carries. Zero means the controller answers "nothing to
+ * process" and drops the body without resolving the website.
+ *
+ * Every queue the tracker drains has to be counted here. `heatmap_dom_snapshot` was
+ * missing, so a flush carrying only a DOM snapshot — which is exactly what
+ * `captureAndQueueDomSnapshot` produces when it fires its own flush right after the
+ * periodic one emptied the other queues — was discarded as empty, and the page
+ * silently never got a background.
+ */
 export function trackerCollectRequestItemCount(body: TrackerCollectBody): number {
   const lengthOf = (value: unknown) => Array.isArray(value) ? value.length : 0;
   return lengthOf(body.events) + lengthOf(body.session) + lengthOf(body.heatmaps) +
-    lengthOf(body.heatmap_screenshot) + lengthOf(body.funnels) + lengthOf(body.automations);
+    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) +
+    lengthOf(body.funnels) + lengthOf(body.automations);
 }
