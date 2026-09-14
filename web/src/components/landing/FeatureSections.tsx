@@ -7,6 +7,7 @@ import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MacbookFrame } from './mocks/MacbookFrame';
 import {
+  LazyAiModeMock,
   LazyAutomationBuilderMock,
   LazyFunnelMock,
   LazyHeatmapMock,
@@ -45,6 +46,27 @@ type Feature = {
 };
 
 const FEATURES: Feature[] = [
+  {
+    id: 'ai',
+    eyebrow: 'AI Mode',
+    title: (
+      <>
+        Ask your analytics. <span className="landing-accent">Then act on the answer.</span>
+      </>
+    ),
+    lead:
+      'Ask in plain language and get the figures back with the chart already drawn. Ask it to set something up and it drafts the automation for you to approve — nothing is created until you say so.',
+    points: [
+      'Traffic, funnels, recordings, heatmaps, errors and revenue',
+      'Answers come with the metrics, tables and funnels already rendered',
+      'Drafts automations you review and confirm — it never writes on its own',
+      'Bring your own model: OpenAI, Anthropic, Google or self-hosted',
+    ],
+    href: '/docs/ai',
+    linkLabel: 'How AI mode works',
+    url: 'app.seentics.com/websites/acme-store/ai',
+    mock: <LazyAiModeMock />,
+  },
   {
     id: 'automations',
     eyebrow: 'Automations',

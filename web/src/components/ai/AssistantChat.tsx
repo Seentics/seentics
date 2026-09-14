@@ -112,8 +112,9 @@ export function AssistantChat({
         </div>
       </div>
 
-      <div className="shrink-0 p-3">
-        <div className="mx-auto w-full max-w-3xl">
+      <div className="shrink-0 p-3 pb-4">
+        {/* Wider than the message column: prose reads better narrow, an input does not. */}
+        <div className="mx-auto w-full max-w-4xl">
           <ChatComposer
             value={chat.draft}
             onChange={chat.setDraft}

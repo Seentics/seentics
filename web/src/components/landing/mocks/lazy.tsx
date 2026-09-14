@@ -48,3 +48,8 @@ export const LazyHeatmapMock = dynamic(
   () => import('./HeatmapMock').then((m) => m.HeatmapMock),
   { ssr: false, loading },
 );
+
+export const LazyAiModeMock = dynamic(
+  () => import('./AiModeMock').then((m) => m.AiModeMock),
+  { ssr: false, loading },
+);
