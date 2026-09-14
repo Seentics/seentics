@@ -29,6 +29,8 @@ export type AskResult = {
   conversationId: string;
   queryId: string | null;
   answer: string;
+  /** Typed render descriptors, one per tool result. Never model-authored. */
+  blocks: unknown[];
   proposal: ActionProposal | null;
   toolsUsed: string[];
   tokens: { input: number; output: number };
@@ -70,7 +72,7 @@ export class AgentService implements AiAgent {
     if (isObviouslyOffTopic(input.prompt)) {
       return {
         conversationId, queryId: null, answer: OUT_OF_SCOPE_REPLY, proposal: null,
-        toolsUsed: [], tokens: { input: 0, output: 0 }, estimatedCostUsd: 0,
+        blocks: [], toolsUsed: [], tokens: { input: 0, output: 0 }, estimatedCostUsd: 0,
         executionTimeMs: Date.now() - startedAt,
       };
     }
@@ -126,6 +128,7 @@ export class AgentService implements AiAgent {
         conversationId,
         queryId,
         answer: run.answer,
+        blocks: run.blocks,
         proposal: run.proposal,
         toolsUsed: run.toolCalls.map((c) => c.name),
         tokens: { input: run.inputTokens, output: run.outputTokens },

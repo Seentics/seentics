@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { asLinks, asTable, type DisplayBlock } from "./display";
 import type { AiTool, ToolContext, ToolResult } from "./tool.types";
 
 /**
@@ -39,16 +40,37 @@ const days = z
   .default(7)
   .describe("Look-back window in days (1-365)");
 
-/** Wraps a port call so a thrown repository error becomes a message the model can relay. */
-function read(fn: () => Promise<unknown>): Promise<ToolResult> {
+/**
+ * Wraps a port call so a thrown repository error becomes a message the model can relay,
+ * and attaches how the result should be drawn.
+ *
+ * `display` is chosen here, by the tool that knows its own data shape — never by the
+ * model. See `display.ts` for why that matters.
+ */
+function read(
+  fn: () => Promise<unknown>,
+  display?: (data: unknown) => DisplayBlock | undefined,
+): Promise<ToolResult> {
   return fn().then(
-    (data) => ({ ok: true as const, data }),
+    (data) => ({ ok: true as const, data: { data, display: display?.(data) } }),
     (err: unknown) => ({
       ok: false as const,
       error: err instanceof Error ? err.message.slice(0, 200) : "Read failed",
     }),
   );
 }
+
+/** Most reads return either an array or `{ something: [...] }`; find the rows either way. */
+function rowsOf(data: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(data)) return data as Array<Record<string, unknown>>;
+  const first = Object.values((data ?? {}) as Record<string, unknown>).find(Array.isArray);
+  return (first as Array<Record<string, unknown>>) ?? [];
+}
+
+const tableOf = (data: unknown) => {
+  const rows = rowsOf(data);
+  return rows.length ? asTable(rows) : undefined;
+};
 
 export function readTools(ports: ReadPorts): AiTool<any>[] {
   /*
@@ -76,14 +98,14 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
       "get_top_pages",
       "Most-visited pages with views, unique visitors, average time and bounce rate.",
       z.object({ days }),
-      (a, ctx) => read(() => ports.topPages(ctx.websiteId, a.days)),
+      (a, ctx) => read(() => ports.topPages(ctx.websiteId, a.days), tableOf),
     ),
 
     tool(
       "get_top_sources",
       "Where visitors came from — referrers and channels, with visitors per source.",
       z.object({ days }),
-      (a, ctx) => read(() => ports.topSources(ctx.websiteId, a.days)),
+      (a, ctx) => read(() => ports.topSources(ctx.websiteId, a.days), tableOf),
     ),
 
     tool(
@@ -99,7 +121,7 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
       "The funnels configured for this website, with their steps. Call this first when " +
       "the user names a funnel, to find its id.",
       z.object({}),
-      (_a, ctx) => read(() => ports.funnels(ctx.websiteId)),
+      (_a, ctx) => read(() => ports.funnels(ctx.websiteId), tableOf),
     ),
 
     tool(
@@ -113,14 +135,14 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
       "list_automations",
       "Automations on this website with their triggers, actions and status.",
       z.object({}),
-      (_a, ctx) => read(() => ports.automations(ctx.websiteId)),
+      (_a, ctx) => read(() => ports.automations(ctx.websiteId), tableOf),
     ),
 
     tool(
       "list_heatmap_pages",
       "Pages with heatmap data, and how many interactions each has recorded.",
       z.object({}),
-      (_a, ctx) => read(() => ports.heatmapPages(ctx.websiteId)),
+      (_a, ctx) => read(() => ports.heatmapPages(ctx.websiteId), tableOf),
     ),
 
     tool(
@@ -131,7 +153,16 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
         limit: z.number().int().min(1).max(50).default(10)
           .describe("How many sessions to return (1-50)"),
       }),
-      (a, ctx) => read(() => ports.recentSessions(ctx.websiteId, a.limit)),
+      (a, ctx) => read(() => ports.recentSessions(ctx.websiteId, a.limit), (d) => {
+        const rows = rowsOf(d);
+        return rows.length
+          ? asLinks(rows.map((r) => ({
+              label: String(r.session_id ?? "session"),
+              sublabel: [r.device_type, r.browser, r.country].filter(Boolean).join(" · "),
+              href: `/websites/${ctx.websiteId}/replays/${String(r.session_id ?? "")}`,
+            })))
+          : undefined;
+      }),
     ),
 
     tool(
@@ -139,7 +170,7 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
       "Frontend JavaScript errors grouped by fault, with how often each occurred and " +
       "where. Use for 'what is broken' questions.",
       z.object({ days }),
-      (a, ctx) => read(() => ports.errorGroups(ctx.websiteId, a.days)),
+      (a, ctx) => read(() => ports.errorGroups(ctx.websiteId, a.days), tableOf),
     ),
 
     tool(

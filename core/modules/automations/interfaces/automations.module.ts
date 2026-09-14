@@ -17,6 +17,9 @@ export interface AutomationsModule {
   /** Checks a draft definition without creating it. See `AutomationDraftValidator`. */
   draftValidator: AutomationDraftValidator;
 
+  /** Creates an automation from an already-validated draft. See `AutomationDraftWriter`. */
+  draftWriter: AutomationDraftWriter;
+
   /** Active automations for the tracker's `/init`. One indexed read per session. */
   trackerSettings: AutomationTrackerSettings;
 
@@ -67,4 +70,22 @@ export interface AutomationDraftValidator {
   validateDefinition(
     definition: unknown,
   ): { ok: true; definition: unknown } | { ok: false; error: string };
+}
+
+/**
+ * Creates an automation someone approved.
+ *
+ * Narrow on purpose: this is the whole write surface another module can reach, and the
+ * AI module is the only caller. A general "create automation" port would let any future
+ * consumer write here without the approval step this one exists to serve.
+ *
+ * Always inactive. Whatever the payload says, an automation created this way does not
+ * start running against live visitors until a person enables it.
+ */
+export interface AutomationDraftWriter {
+  createFromProposal(input: {
+    websiteId: string;
+    userId: string;
+    payload: unknown;
+  }): Promise<{ id: string }>;
 }

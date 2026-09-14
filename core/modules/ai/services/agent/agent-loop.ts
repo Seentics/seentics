@@ -30,6 +30,14 @@ const MAX_TOOL_RESULT_CHARS = 6_000;
 
 export type AgentRun = {
   answer: string;
+  /**
+   * How to draw each tool's result, in the order the tools ran.
+   *
+   * Collected from the tools, not the model. The model is fed only `data`; the display
+   * block goes straight to the client, so nothing the model writes can influence how a
+   * result is rendered.
+   */
+  blocks: unknown[];
   /** Every tool that ran, in order — the audit trail stored against the query. */
   toolCalls: Array<{ name: string; args: unknown; ok: boolean }>;
   /** The draft awaiting approval, if a propose tool produced one. */
@@ -73,6 +81,7 @@ export async function runAgent(input: {
   ];
 
   const executed: AgentRun["toolCalls"] = [];
+  const blocks: unknown[] = [];
   let proposal: ActionProposal | null = null;
   let inputTokens = 0;
   let outputTokens = 0;
@@ -88,7 +97,7 @@ export async function runAgent(input: {
     if (turn.toolCalls.length === 0) {
       return {
         answer: turn.text.trim(),
-        toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
+        blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
       };
     }
 
@@ -104,6 +113,8 @@ export async function runAgent(input: {
       if (result.ok) {
         const captured = captureProposal(result.data);
         if (captured) proposal = captured;
+        const display = (result.data as { display?: unknown } | null)?.display;
+        if (display) blocks.push(display);
       }
 
       messages.push(toolMessage(call, result));
@@ -119,7 +130,7 @@ export async function runAgent(input: {
         .trim();
       return {
         answer: closing || "I've drafted this for you to review.",
-        toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
+        blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
       };
     }
 
@@ -135,7 +146,7 @@ export async function runAgent(input: {
     answer:
       "I wasn't able to finish that one — it needed more steps than I can take in a " +
       "single question. Try narrowing it down.",
-    toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated: true,
+    blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated: true,
   };
 }
 
@@ -143,8 +154,10 @@ function toolMessage(
   call: ToolCallRequest,
   result: { ok: true; data: unknown } | { ok: false; error: string },
 ): ChatMessage {
+  // Only `data` reaches the model. The display block is presentation, and sending it
+  // would invite the model to argue with it.
   const body = result.ok
-    ? JSON.stringify(result.data)
+    ? JSON.stringify((result.data as { data?: unknown })?.data ?? result.data)
     : JSON.stringify({ error: result.error });
 
   const content =

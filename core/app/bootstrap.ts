@@ -111,8 +111,18 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const funnelsModule = initFunnelsModule({ websitesModule, analyticsModule });
   const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
   const automationsModule = initAutomationsModule({ websitesModule });
-  const aiModule = initAiModule({ websitesModule });
   const errorsModule = initErrorsModule({ websitesModule });
+  const aiModule = initAiModule({
+    websitesModule,
+    analyticsReads: analyticsModule.reads,
+    errorQueries: errorsModule.queries,
+    automationDrafts: automationsModule.draftValidator,
+    // The entire write surface an approved AI proposal can reach.
+    writers: {
+      createAutomation: ({ websiteId, userId, payload }) =>
+        automationsModule.draftWriter.createFromProposal({ websiteId, userId, payload }),
+    },
+  });
 
   // The lane registry is the composition: each module contributes the ingest for the data
   // it owns, and ingest supplies only the generic machinery. Adding a feature's ingest is

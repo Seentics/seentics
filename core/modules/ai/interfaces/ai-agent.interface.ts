@@ -11,6 +11,8 @@ export type AgentAnswer = {
   conversationId: string;
   queryId: string | null;
   answer: string;
+  /** Typed render descriptors, one per tool result. Never model-authored. */
+  blocks: unknown[];
   proposal: unknown;
   toolsUsed: string[];
   tokens: { input: number; output: number };
