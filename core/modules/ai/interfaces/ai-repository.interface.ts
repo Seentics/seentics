@@ -65,6 +65,8 @@ export interface AiRepository {
     websiteUuid: string;
     prompt: string;
     model: string;
+    /** Threads this attempt to a conversation. Absent for the one-off SQL path. */
+    conversationId?: string;
   }): Promise<string | null>;
 
   markSuccess(id: string, record: AiSuccessRecord): Promise<void>;
@@ -88,4 +90,72 @@ export interface AiRepository {
    * than website because an analysis is billed to whoever ran it.
    */
   countSuccessfulSince(userId: string, since: Date): Promise<number>;
+
+  /** Record an agent answer: prose, the tools that ran, and any draft awaiting approval. */
+  markAgentSuccess(id: string, record: AgentSuccessRecord): Promise<void>;
+
+  /**
+   * One conversation, oldest first, scoped to its owner.
+   *
+   * `userId` is part of the lookup rather than checked afterwards: a conversation id is a
+   * UUID someone could hold from a shared link or a log, and the only thing that should
+   * decide whether it can be read is who is asking.
+   */
+  conversation(
+    userId: string,
+    conversationId: string,
+    limit: number,
+  ): Promise<ConversationTurn[]>;
+
+  /**
+   * The stored draft for one query, if it has not already been applied.
+   *
+   * Read back at confirm time instead of trusting what the browser returns — a
+   * round-trip through a client is a chance to change a payload after it was approved.
+   */
+  pendingProposal(
+    userId: string,
+    queryId: string,
+  ): Promise<{ websiteId: string; proposal: Record<string, unknown> } | null>;
+
+  /** Stamp a proposal as applied. Returns false when another request got there first. */
+  markProposalApplied(userId: string, queryId: string): Promise<boolean>;
+
+  /** Per-message cost for the admin view, newest first. */
+  costReport(input: { since: Date; limit: number; websiteId?: string }): Promise<AiCostRow[]>;
 }
+
+export type AgentSuccessRecord = {
+  answer: string;
+  toolCalls: Array<{ name: string; args: unknown; ok: boolean }>;
+  proposal: Record<string, unknown> | null;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  executionTimeMs: number;
+};
+
+export type ConversationTurn = {
+  id: string;
+  prompt: string;
+  answer: string | null;
+  proposal: Record<string, unknown> | null;
+  proposalAppliedAt: string | null;
+  status: string;
+  createdAt: string;
+};
+
+/** One row of the admin spend report. */
+export type AiCostRow = {
+  id: string;
+  userId: string;
+  websiteId: string;
+  prompt: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  executionTimeMs: number | null;
+  status: string;
+  createdAt: string;
+};

@@ -57,6 +57,14 @@ class FakeRepo implements AiRepository {
     return this.queriesInWindow;
   }
 
+  /* The agent surface is exercised in agent-loop.test.ts; these keep the stub whole. */
+  agentSuccesses: Array<{ id: string; record: unknown }> = [];
+  async markAgentSuccess(id: string, record: unknown) { this.agentSuccesses.push({ id, record }); }
+  async conversation() { return []; }
+  async pendingProposal() { return null; }
+  async markProposalApplied() { return true; }
+  async costReport() { return []; }
+
   async createPending(rec: { model: string }): Promise<string | null> {
     this.pendingCreated++;
     this.pendingRecords.push({ model: rec.model });
