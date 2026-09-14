@@ -436,9 +436,19 @@ export const aiQueries = pgTable(
     status: varchar("status", { length: 32 }).notNull().default("pending"),
     errorMessage: text("error_message"),
     executionTimeMs: integer("execution_time_ms"),
+    /** Threads follow-ups to the question they build on. Null for a one-off. */
+    conversationId: uuid("conversation_id"),
+    /** The assistant's prose. `insight`/`title` describe a chart; this is the sentence. */
+    answer: text("answer"),
+    /** Which tools ran and with what — the audit trail for a feature that can draft changes. */
+    toolCalls: jsonb("tool_calls").$type<Array<{ name: string; args: unknown }>>(),
+    /** A draft awaiting approval. Read back at confirm time rather than trusted from the client. */
+    proposal: jsonb("proposal").$type<Record<string, unknown>>(),
+    proposalAppliedAt: timestamp("proposal_applied_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("ix_ai_queries_conversation").on(t.conversationId, t.createdAt),
     index("ix_ai_queries_user_id").on(t.userId),
     index("ix_ai_queries_website_id").on(t.websiteId),
     index("ix_ai_queries_user_created").on(t.userId, t.createdAt),

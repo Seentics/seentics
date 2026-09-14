@@ -34,3 +34,46 @@ export interface LlmClient {
    */
   classify(systemPrompt: string, userPrompt: string): Promise<string>;
 }
+
+/** One tool the model asked to run, as the provider reported it. */
+export type ToolCallRequest = {
+  /** Provider-assigned id. Echoed back so the result is matched to the call. */
+  id: string;
+  name: string;
+  /** Raw arguments. Unvalidated — the registry parses them. */
+  args: unknown;
+};
+
+export type ChatMessage =
+  | { role: "user" | "assistant"; content: string; toolCalls?: ToolCallRequest[] }
+  /** A tool's output, fed back so the model can use it. */
+  | { role: "tool"; toolCallId: string; name: string; content: string };
+
+export type ChatTurn = {
+  /** Prose for the user. Empty when the model only asked for tools. */
+  text: string;
+  toolCalls: ToolCallRequest[];
+  inputTokens: number;
+  outputTokens: number;
+};
+
+/**
+ * A tool-calling turn.
+ *
+ * Optional on the port because not every provider or model supports it, and the module
+ * must degrade to the single-shot SQL path rather than fail. `supportsTools` is what the
+ * agent checks before choosing a strategy — a missing method is discoverable, a thrown
+ * "not implemented" halfway through a conversation is not.
+ */
+export interface ToolCallingLlmClient extends LlmClient {
+  supportsTools: true;
+  chat(input: {
+    system: string;
+    messages: ChatMessage[];
+    tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+  }): Promise<ChatTurn>;
+}
+
+export function supportsToolCalling(client: LlmClient): client is ToolCallingLlmClient {
+  return (client as ToolCallingLlmClient).supportsTools === true;
+}
