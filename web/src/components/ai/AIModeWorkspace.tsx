@@ -38,7 +38,6 @@ import {
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/ui/logo';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { AutomationDefinition } from '@/components/automations/AutomationBuilder';
 
@@ -525,7 +524,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background text-foreground">
       <aside className={cn(
-        'hidden shrink-0 flex-col bg-muted/45 dark:bg-muted/25 transition-[width] duration-200 lg:flex',
+        'hidden shrink-0 flex-col bg-muted/70 dark:bg-muted/40 transition-[width] duration-200 lg:flex',
         sidebarOpen ? 'w-[280px]' : 'w-[72px]',
       )}>
         <div className={cn('flex h-16 items-center', sidebarOpen ? 'justify-between px-4' : 'justify-center')}>
@@ -594,8 +593,6 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={startNewConversation} className="hidden h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted sm:flex"><Plus className="h-4 w-4" /> New chat</button>
-            <ThemeToggle />
             <button onClick={() => router.push(`/websites/${websiteId}`)} className="hidden h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"><ArrowLeft className="h-4 w-4" /> Dashboard</button>
           </div>
         </header>
@@ -605,24 +602,24 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
             {messages.length === 0 ? (
               <div className="my-auto w-full py-8">
                 <div className="max-w-xl">
-                  <h2 className="text-xl font-semibold tracking-tight">Ask a question</h2>
-                  <p className="mt-1 text-base leading-7 text-muted-foreground">Use plain English to explore your website data or prepare an automation.</p>
+                  <h2 className="text-lg font-semibold tracking-tight">Ask a question</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Use plain English to explore your data or prepare an automation.</p>
                 </div>
 
-                <div className="mt-6 divide-y divide-border/70">
+                <div className="mt-4 space-y-0.5">
                   {SUGGESTIONS.map(({ title, prompt: suggestion, icon: Icon, tone }) => (
-                    <button key={suggestion} onClick={() => submit(suggestion)} className="group flex w-full items-center gap-3 py-3 text-left transition-colors hover:text-primary">
-                      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', tone)}><Icon className="h-3.5 w-3.5" /></span>
+                    <button key={suggestion} onClick={() => submit(suggestion)} className="group flex w-full items-center gap-3 rounded-md py-2.5 text-left transition-colors hover:bg-muted/50 hover:text-primary">
+                      <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', tone)}><Icon className="h-3 w-3" /></span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{title}</p>
-                        <p className="truncate text-sm text-muted-foreground">{suggestion}</p>
+                        <p className="truncate text-xs text-muted-foreground">{suggestion}</p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                     </button>
                   ))}
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <span>Scoped to this website</span>
                   <span aria-hidden="true">·</span>
                   <span>Visual answers</span>
