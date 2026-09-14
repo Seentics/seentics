@@ -18,6 +18,7 @@ import {
   Plus,
   Send,
   Sparkles,
+  Star,
   WandSparkles,
   Zap,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ import {
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/ui/logo';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { AutomationDefinition } from '@/components/automations/AutomationBuilder';
 
@@ -421,6 +423,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isDefaultMode, setIsDefaultMode] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -435,6 +438,10 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
     } catch { /* ignore invalid local state */ }
     setHydrated(true);
   }, [storageKey]);
+
+  useEffect(() => {
+    setIsDefaultMode(localStorage.getItem('seentics-default-mode') === 'ai');
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -521,6 +528,11 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
     window.setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
+  const makeDefault = () => {
+    localStorage.setItem('seentics-default-mode', 'ai');
+    setIsDefaultMode(true);
+  };
+
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background text-foreground">
       <aside className={cn(
@@ -593,6 +605,15 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={makeDefault}
+              className="hidden h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+              title="Make AI Mode your default workspace"
+            >
+              <Star className={cn('h-4 w-4', isDefaultMode && 'fill-current text-primary')} />
+              {isDefaultMode ? 'AI Mode is default' : 'Make AI Mode default'}
+            </button>
+            <ThemeToggle />
             <button onClick={() => router.push(`/websites/${websiteId}`)} className="hidden h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"><ArrowLeft className="h-4 w-4" /> Dashboard</button>
           </div>
         </header>
