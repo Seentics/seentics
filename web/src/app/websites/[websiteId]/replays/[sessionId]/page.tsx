@@ -24,6 +24,8 @@ import {
   type RRWebEvent,
   type SessionCustomEvent,
 } from '@/lib/replays-api';
+import { useReplayChunks } from '@/features/replays/use-replay-chunks';
+import { ReplayDetailHeader } from '@/components/replays/ReplayDetailHeader';
 import { DemoReplayPlayer } from '@/components/replays/DemoReplayStage';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -65,178 +67,16 @@ export default function ReplayDetailPage() {
     refetchInterval: (q) => (q.state.data?.recording_pending ? 3500 : false),
   });
 
-  // Phase 2: progressive chunk loading state
-  const [initialEvents, setInitialEvents] = useState<RRWebEvent[]>([]);
-  const [customEvents, setCustomEvents] = useState<SessionCustomEvent[]>([]);
-  const [chunkProgress, setChunkProgress] = useState<ChunkProgress | null>(null);
-  const [chunksError, setChunksError] = useState<string | null>(null);
-  /** True once the initial S3 batch has been fetched and processed (success, empty, or error). */
-  const [initialBatchDone, setInitialBatchDone] = useState(false);
-
-  /** Populated when rrweb-player mounts; null between mount cycles. */
-  const addEventsRef = useRef<((evs: RRWebEvent[]) => void) | null>(null);
-  /** Queue for events that arrive before the player has mounted. */
-  const pendingEventsRef = useRef<RRWebEvent[]>([]);
-
-  // Stable fingerprint so the effect only re-runs when the chunk list actually changes
-  const chunkUrlsFingerprint = sessionApiResp?.replay_chunk_urls
-    ?.map(c => c.sequence).join(',') ?? '';
-
-  useEffect(() => {
-    if (!sessionApiResp) return;
-
-    const urlRows = [...(sessionApiResp.replay_chunk_urls ?? [])].sort(
-      (a, b) => a.sequence - b.sequence,
-    );
-    const warmChunks = sessionApiResp.warm_chunks;
-    const bundleUrl  = sessionApiResp.replay_url;
-    const total      = urlRows.length;
-
-    setInitialEvents([]);
-    setCustomEvents([]);
-    setChunkProgress(null);
-    setChunksError(null);
-    setInitialBatchDone(false);
-    addEventsRef.current = null;
-    pendingEventsRef.current = [];
-
-    if (total === 0 && !warmChunks?.length && !bundleUrl) return;
-
-    let cancelled = false;
-
-    (async () => {
-      // Warm-chunks-only or legacy bundle: load everything at once (no incremental gain)
-      if (total === 0) {
-        let chunks: Array<{ sequence: number; data: unknown[] }> = [];
-        if (warmChunks?.length) chunks = [...warmChunks];
-        if (!chunks.length && bundleUrl) {
-          try {
-            const raw = await fetchGzipJsonArray(bundleUrl);
-            chunks = [{ sequence: 0, data: raw as unknown[] }];
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            if (!cancelled) {
-              setChunksError(`Could not load replay bundle (${msg}). ${chunkLoadHint(msg)}`);
-              setInitialBatchDone(true);
-            }
-            return;
-          }
-        }
-        if (cancelled) return;
-        const { events, customEvents: cevs } = eventsFromChunkList(chunks);
-        setInitialEvents(events);
-        setCustomEvents(cevs);
-        setInitialBatchDone(true);
-        return;
-      }
-
-      // One transient failure (network blip, presign race) shouldn't lose a chunk:
-      // a missing middle chunk is a silent replay gap, and a missing FIRST chunk
-      // (the one with the FullSnapshot) makes playback blank.
-      const fetchChunkWithRetry = async (row: { sequence: number; url: string }) => {
-        try {
-          return { sequence: row.sequence, data: (await fetchGzipJsonArray(row.url)) as unknown[] };
-        } catch {
-          return { sequence: row.sequence, data: (await fetchGzipJsonArray(row.url)) as unknown[] };
-        }
-      };
-
-      // Fetch initial batch to unblock the player
-      setChunkProgress({ loaded: 0, failed: 0, total });
-      const initBatch = urlRows.slice(0, INITIAL_BATCH);
-      const initResults = await Promise.allSettled(initBatch.map(fetchChunkWithRetry));
-      if (cancelled) return;
-
-      const initChunks = initResults
-        .filter((r): r is PromiseFulfilledResult<{ sequence: number; data: unknown[] }> => r.status === 'fulfilled')
-        .map(r => r.value);
-
-      // Only successes count. Advancing the bar for a chunk that never arrived reported
-      // a replay as fully loaded while it was missing whole stretches of the session.
-      let loaded = initChunks.length;
-      let failed = initResults.length - initChunks.length;
-      setChunkProgress({ loaded, failed, total });
-
-      // The lowest-sequence chunk carries the initial FullSnapshot — without it the
-      // player renders a blank page, so treat its loss as fatal, not partial.
-      const firstChunkFailed = initResults[0]?.status === 'rejected';
-      if (initChunks.length === 0 || firstChunkFailed) {
-        const failure = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
-        const msg = failure?.reason instanceof Error ? failure.reason.message : String(failure?.reason ?? 'failed');
-        setChunksError(`Could not load replay from storage (${msg}). ${chunkLoadHint(msg)}`);
-        setInitialBatchDone(true);
-        return;
-      }
-
-      // NOTE: warm chunks (the in-memory tail — the NEWEST events) must NOT be merged
-      // into the initial set. replayer.addEvent() is rrweb's live-mode append and
-      // assumes chronologically increasing events; mounting the tail first and then
-      // streaming older S3 chunks after it corrupts the timeline. Warm events are
-      // appended last, after every S3 chunk has streamed in.
-      const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(initChunks);
-      setInitialEvents(initEvs);
-      setCustomEvents(initCevs);
-      setInitialBatchDone(true);
-
-      /**
-       * Hand a streamed chunk to the player and the sidebar.
-       *
-       * Both halves, not just the rrweb events: `customEvents` is what the Console,
-       * Network and Errors panels render, and dropping it here meant those panels only
-       * ever showed the initial batch — roughly the first minute of a session, silently.
-       */
-      const appendStreamed = (evs: RRWebEvent[], cevs: SessionCustomEvent[]) => {
-        if (evs.length > 0) {
-          if (addEventsRef.current) addEventsRef.current(evs);
-          else pendingEventsRef.current.push(...evs);
-        }
-        if (cevs.length > 0) setCustomEvents(prev => [...prev, ...cevs]);
-      };
-
-      /**
-       * Fetch the rest concurrently but append strictly in sequence order.
-       *
-       * Sequential awaits meant one round trip per chunk: at the 30s flush window a
-       * half-hour session is ~60 objects, so time-to-complete was ~60 serial fetches.
-       * The append order still has to be monotonic — `addEvent` is rrweb's live-mode
-       * path — so the results are awaited in order even though they race.
-       */
-      const runLimited = createLimiter(CHUNK_CONCURRENCY);
-      const rest = urlRows.slice(INITIAL_BATCH);
-      const inFlight = rest.map(row =>
-        runLimited(() => fetchChunkWithRetry(row)).then(
-          value => ({ ok: true as const, value }),
-          () => ({ ok: false as const, value: null }),
-        ),
-      );
-
-      for (const pending of inFlight) {
-        const result = await pending;
-        if (cancelled) return;
-        if (result.ok) {
-          const { events: newEvs, customEvents: newCevs } = eventsFromChunkList([
-            { sequence: result.value.sequence, data: result.value.data },
-          ]);
-          appendStreamed(newEvs, newCevs);
-          loaded += 1;
-        } else {
-          // Skipped after two attempts. Partial playback beats none, but the gap is
-          // reported rather than hidden behind a progress bar that reaches 100%.
-          failed += 1;
-        }
-        setChunkProgress({ loaded, failed, total });
-      }
-
-      // Finally append the warm in-memory tail (newest events, sequence > all S3 chunks)
-      if (!cancelled && warmChunks?.length) {
-        const { events: warmEvs, customEvents: warmCevs } = eventsFromChunkList(warmChunks);
-        appendStreamed(warmEvs, warmCevs);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chunkUrlsFingerprint, sessionApiResp?.recording_pending]);
+  // Phase 2: progressive chunk loading — see `features/replays/use-replay-chunks`.
+  const {
+    initialEvents,
+    customEvents,
+    progress: chunkProgress,
+    error: chunksError,
+    initialBatchDone,
+    addEventsRef,
+    pendingEventsRef,
+  } = useReplayChunks(sessionApiResp);
 
   // Pre-warm rrweb-player bundle while metadata is loading
   useEffect(() => {
@@ -347,83 +187,15 @@ export default function ReplayDetailPage() {
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col basis-0">
-      <div className="w-full shrink-0 border-b border-border backdrop-blur-md">
-        <div className="w-full px-3 py-2 md:px-5">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-muted-foreground hover:text-foreground shrink-0 -ml-2"
-              onClick={() => router.push(listHref)}
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Replays
-            </Button>
-
-            <div className="hidden h-4 w-px bg-border/50 sm:block shrink-0" />
-
-            <Video className="h-3.5 w-3.5 text-primary shrink-0 hidden sm:block" />
-
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span
-                className="min-w-0 text-xs font-semibold font-mono text-foreground truncate sm:text-sm"
-                title={sessionId}
-              >
-                {sessionId}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 text-muted-foreground"
-                title="Copy session ID"
-                onClick={copyId}
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="min-w-2 flex-1 basis-2 sm:basis-auto" />
-
-            {!isDemoMode && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                title="Copy link to this replay"
-                onClick={copyShareLink}
-              >
-                <Link2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-
-            {session?.hasErrors && (
-              <Badge
-                variant="outline"
-                title="Set when a JavaScript error or unhandled promise rejection fired in the visitor’s browser while recording was on. Does not include console warnings or failed network requests."
-                className="text-[10px] shrink-0 border-red-500/50 text-red-800 dark:text-red-300 bg-red-500/10"
-              >
-                Client errors
-              </Badge>
-            )}
-
-            {session?.hasRageClicks && (
-              <Badge
-                variant="outline"
-                title="Set when we detect 3 or more clicks within about 1 second inside roughly 50×50 px in the recording—the same rule as the amber dots on the session timeline."
-                className="text-[10px] shrink-0 border-amber-500/50 text-amber-800 dark:text-amber-300 bg-amber-500/10"
-              >
-                Rage clicks
-              </Badge>
-            )}
-
-            {isDemoMode && (
-              <Badge variant="outline" className="text-[10px] shrink-0">
-                Demo
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
+      <ReplayDetailHeader
+        sessionId={sessionId}
+        hasErrors={session?.hasErrors}
+        hasRageClicks={session?.hasRageClicks}
+        isDemo={isDemoMode}
+        onBack={() => router.push(listHref)}
+        onCopyId={copyId}
+        onCopyShareLink={copyShareLink}
+      />
 
       <ReplayPlaybackProvider bridge={replayBridge}>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden">
