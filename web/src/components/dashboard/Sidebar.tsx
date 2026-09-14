@@ -12,6 +12,7 @@ import {
   Code2, Bug, Sparkles,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
+import { AiModeButton } from '@/components/ai/AiModeButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/stores/useAuthStore';
@@ -168,21 +169,13 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         with Overview for the first thing someone reaches for.
       */}
       <div className={cn('shrink-0 pb-2', collapsed ? 'px-2' : 'px-3')}>
-        <Link
-          href={`/websites/${websiteId}/ai`}
-          title={collapsed ? 'AI Mode' : undefined}
-          className={cn(
-            'flex items-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/15',
-            collapsed ? 'mx-auto h-10 w-10 justify-center' : 'h-10 gap-3 px-3',
-          )}
-        >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-          </span>
-          {!collapsed && (
-            <span className="text-[13.5px] font-semibold">AI Mode</span>
-          )}
-        </Link>
+        {/* Collapsed shows the mark alone; the shared button keeps all three in step. */}
+        <AiModeButton
+          websiteId={websiteId}
+          size="md"
+          label={collapsed ? '' : 'AI Mode'}
+          className={cn('w-full', collapsed && 'mx-auto w-10 justify-center px-0')}
+        />
       </div>
 
       {/* Account */}

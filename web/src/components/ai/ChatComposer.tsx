@@ -32,7 +32,7 @@ export function ChatComposer({
     const el = ref.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 60), 200)}px`;
   }, [value]);
 
   return (
@@ -66,11 +66,11 @@ export function ChatComposer({
         placeholder={placeholder}
         rows={1}
         maxLength={maxLength}
-        className="max-h-[200px] min-h-[44px] resize-none border-0 bg-transparent py-2.5 pr-12 text-sm shadow-none focus-visible:ring-0"
+        className="max-h-[200px] min-h-[60px] resize-none border-0 bg-transparent py-3 pr-12 text-sm shadow-none focus-visible:ring-0"
       />
       <Button
         size="icon"
-        className="absolute bottom-1.5 right-1.5 h-8 w-8"
+        className="absolute bottom-2 right-2 h-8 w-8"
         disabled={!value.trim() || isSending}
         onClick={onSend}
       >

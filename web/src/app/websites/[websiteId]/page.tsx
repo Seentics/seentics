@@ -19,6 +19,7 @@ import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { ActiveFilterPills } from '@/components/analytics/ActiveFilterPills';
 import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
 import { AudienceSection } from '@/components/analytics/AudienceSection';
+import { AiModeButton } from '@/components/ai/AiModeButton';
 import {
   selectTopPages, selectTopReferrers, selectTopCountries, selectTopBrowsers,
   selectTopDevices, selectTopOS, selectCustomEvents,
@@ -282,6 +283,8 @@ export default function WebsiteDashboardPage() {
 
           {/* Spacer pushes controls to the right */}
           <div className="flex-1" />
+
+          <AiModeButton websiteId={websiteId} />
 
 
           {/* Filters */}

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Sparkles, ArrowUpRight } from 'lucide-react';
 import { DashboardPageTitle } from '@/components/dashboard/DashboardPageTitle';
+import { AiModeButton } from '@/components/ai/AiModeButton';
 
 interface DashboardPageHeaderProps {
   title: string;
@@ -31,6 +32,7 @@ export function DashboardPageHeader({
         uppercase={uppercase}
         actions={(
           <>
+            {websiteId && <AiModeButton websiteId={websiteId} size="md" />}
 
             {children}
           </>
