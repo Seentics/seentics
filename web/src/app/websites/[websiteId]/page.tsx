@@ -3,9 +3,6 @@
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdown, useHourlyStats, useDimensionsBulk, useVisitorInsights, usePreviousPeriodDailyStats } from '@/features/analytics/queries';
 import { getWebsites, Website } from '@/lib/websites-api';
