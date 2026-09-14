@@ -8,6 +8,7 @@ import { UserUsageService } from "./services/usage/usage.service";
 import { startScheduler, stopScheduler } from "./scheduler";
 import type { ModuleLifecycle } from "./module";
 import { initErrorsModule } from "../modules/errors/init";
+import type { ErrorsModule } from "../modules/errors/interfaces";
 import { initAiModule } from "../modules/ai/init";
 import { initApiKeysModule } from "../modules/api-keys/init";
 import { initAnalyticsModule } from "../modules/analytics/init";
@@ -48,6 +49,7 @@ export type Application = {
     recordings: RecordingsModule;
     funnels: FunnelsModule;
     heatmaps: HeatmapsModule;
+    errors: ErrorsModule;
     automations: AutomationsModule;
     ai: AiModule;
     ingest: IngestModule;
@@ -59,6 +61,7 @@ export type Application = {
     tracker: IngestModule["routes"];
     websites: WebsitesModule["routes"];
     heatmaps: HeatmapsModule["routes"];
+    errors: ErrorsModule["routes"];
     automations: AutomationsModule["routes"];
     ai: AiModule["routes"];
     internal: ReturnType<typeof createInternalRoutes>;
@@ -109,7 +112,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
   const automationsModule = initAutomationsModule({ websitesModule });
   const aiModule = initAiModule({ websitesModule });
-  const errorsModule = initErrorsModule();
+  const errorsModule = initErrorsModule({ websitesModule });
 
   // The lane registry is the composition: each module contributes the ingest for the data
   // it owns, and ingest supplies only the generic machinery. Adding a feature's ingest is
@@ -166,6 +169,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     recordings: recordingsModule,
     funnels: funnelsModule,
     heatmaps: heatmapsModule,
+    errors: errorsModule,
     automations: automationsModule,
     ai: aiModule,
     ingest: ingestModule,
@@ -196,6 +200,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       tracker: ingestModule.routes,
       websites: websitesModule.routes,
       heatmaps: heatmapsModule.routes,
+      errors: errorsModule.routes,
       automations: automationsModule.routes,
       ai: aiModule.routes,
       // Reuses ingest's buffer: the internal collectors carry the same data over a

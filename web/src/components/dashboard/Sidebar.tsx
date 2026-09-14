@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2,
+  Code2, Bug,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -28,6 +28,9 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Realtime',    href: `/websites/${websiteId}/realtime`,    icon: Activity },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
+    // Directly after Recording because that is what it leads into: an error row's whole
+    // value is the replay of the visitor who hit it.
+    { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },

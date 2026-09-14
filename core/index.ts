@@ -93,6 +93,7 @@ app.route("/api/v1/automations", application.routes.automations);
 
 app.route("/api/v1/replays", application.routes.recordings);
 app.route("/api/v1/heatmaps", application.routes.heatmaps);
+app.route("/api/v1/errors", application.routes.errors);
 app.route("/api/v1/tracker", application.routes.tracker);
 
 const port = cfg.port;

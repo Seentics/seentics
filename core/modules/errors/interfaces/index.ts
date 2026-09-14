@@ -1,3 +1,4 @@
+import type { AuthedRouter } from "../../../platform/http/router";
 import type { LaneSpec } from "../../ingest/interfaces";
 import type { ModuleLifecycle } from "../../../app/module";
 
@@ -90,4 +91,5 @@ export type ErrorsModule = ModuleLifecycle & {
   ingest: () => ErrorIngest;
   queries: ErrorQueries;
   mutations: ErrorMutations;
+  routes: AuthedRouter;
 };
