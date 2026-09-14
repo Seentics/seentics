@@ -35,33 +35,7 @@ import { cn } from '@/lib/utils';
  */
 
 /** A step's condition, as something readable rather than a JSON blob. */
-function conditionLabel(step: { type?: string; condition?: { page?: string; event?: string; custom?: string } }): string | null {
-  const c = step.condition;
-  if (!c) return null;
-  return c.page || c.event || c.custom || null;
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m ${Math.round(seconds % 60)}s`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
-}
-
-type StepRow = {
-  id: string;
-  name: string;
-  type: string;
-  condition: string | null;
-  count: number;
-  /** Share of everyone who entered the funnel. */
-  entryRate: number;
-  /** Share of the previous step that continued — undefined on the first step. */
-  stepRate?: number;
-  dropOff: number;
-  dropOffRate: number;
-};
+import { conditionLabel, formatDuration, type StepRow } from '@/features/funnels/format';
 
 export default function FunnelDetailPage() {
   const params = useParams();

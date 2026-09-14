@@ -168,7 +168,7 @@ export default function UiBlocksPage() {
                   </div>
 
                   {/* Expanded code */}
-                  {expanded && <CodeBlock code={block.code} />}
+                  {expanded && <CodeBlock code={block.code} toastOnCopy />}
                 </CardContent>
               </Card>
             );
@@ -186,7 +186,7 @@ export default function UiBlocksPage() {
           <p className="text-xs text-muted-foreground mb-3">
             Include this once per page to enable all <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">data-seentics</code> attributes:
           </p>
-          <CodeBlock code={`<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>`} />
+          <CodeBlock code={`<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>`} toastOnCopy />
         </CardContent>
       </Card>
     </div>

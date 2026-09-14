@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { log } from "../../../platform/observability/logger";
 import type { AuthVars } from "../../../platform/middleware/auth";
 import { parseJson } from "../../../platform/validation";
-import { AIDailyLimitError, type AIDomain } from "../interfaces";
+import { AIDailyLimitError } from "../interfaces";
 import { aiQueryBodySchema } from "../validators/ai.schema";
 import { requireAiAccess } from "./ai-access";
 import type { AiControllerDeps } from "./ai-controller.types";

@@ -47,13 +47,18 @@ export const TRIGGERS: Record<string, { label: string; icon: React.ElementType }
   goal_reached: { label: 'Goal Reached',     icon: Target },
 };
 
-export const ACTIONS: Record<string, { label: string; icon: React.ElementType }> = {
+/**
+ * `label` is the chip in the automations table, where width is tight; `detailLabel` is
+ * the full name the detail view uses. They were two separate maps in two files that
+ * agreed on every entry except these, which is how the difference was found.
+ */
+export const ACTIONS: Record<string, { label: string; detailLabel?: string; icon: React.ElementType }> = {
   show_modal:          { label: 'Show Modal',          icon: MessageSquare },
   show_toast:          { label: 'Show Toast',          icon: Bell },
   show_banner:         { label: 'Show Banner',         icon: Megaphone },
   highlight_element:   { label: 'Highlight',           icon: Highlighter },
   show_tooltip:        { label: 'Show Tooltip',        icon: Info },
-  personalize_content: { label: 'Personalize',         icon: Feather },
+  personalize_content: { label: 'Personalize', detailLabel: 'Personalize Content',         icon: Feather },
   redirect:            { label: 'Redirect',            icon: ExternalLink },
   tag_session:         { label: 'Tag Session',         icon: Tag },
   webhook:             { label: 'Webhook',             icon: Webhook },
@@ -68,3 +73,28 @@ export const ACTIONS: Record<string, { label: string; icon: React.ElementType }>
 
 /** Success-rate colour. The old thresholds had no dark variants, so `text-green-600`
     on a dark table row was close to unreadable. */
+
+/**
+ * Lookups with a sensible answer for a key the catalog does not know.
+ *
+ * An automation can carry a trigger this build has never heard of — an older definition,
+ * or a newer one after a rollback — and showing the raw key beats rendering nothing.
+ */
+export function triggerLabel(key: string): string {
+  return TRIGGERS[key]?.label ?? key;
+}
+
+/** The detail view's full name, falling back to the table's short one. */
+export function actionLabel(key: string, long = false): string {
+  const a = ACTIONS[key];
+  if (!a) return key;
+  return long ? a.detailLabel ?? a.label : a.label;
+}
+
+export function triggerIcon(key: string): React.ElementType | undefined {
+  return TRIGGERS[key]?.icon;
+}
+
+export function actionIcon(key: string): React.ElementType | undefined {
+  return ACTIONS[key]?.icon;
+}

@@ -21,69 +21,9 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-
-const TRIGGER_LABELS: Record<string, string> = {
-  page_view:     'Page View',
-  click:         'Element Click',
-  scroll_depth:  'Scroll Depth',
-  time_on_page:  'Time on Page',
-  exit_intent:   'Exit Intent',
-  inactivity:    'Inactivity',
-  rage_click:    'Rage Click',
-  form_abandon:  'Form Abandonment',
-  js_error:      'JS Error',
-  tab_hidden:    'Tab Hidden',
-  tab_visible:   'Tab Visible',
-  custom_event:  'Custom Event',
-  identify:      'Identify',
-  // legacy
-  goal_reached:  'Goal Reached',
-};
-
-const TRIGGER_ICONS: Record<string, React.ElementType> = {
-  page_view:     Eye,
-  click:         MousePointer2,
-  scroll_depth:  ScrollText,
-  time_on_page:  Clock,
-  exit_intent:   LogOut,
-  inactivity:    Coffee,
-  rage_click:    Flame,
-  form_abandon:  FileX,
-  js_error:      AlertTriangle,
-  tab_hidden:    EyeOff,
-  tab_visible:   Eye,
-  custom_event:  Zap,
-  identify:      UserCheck,
-};
-
-const ACTION_ICONS: Record<string, React.ElementType> = {
-  show_modal:          MessageSquare,
-  show_toast:          Bell,
-  show_banner:         Megaphone,
-  highlight_element:   Highlighter,
-  show_tooltip:        Info,
-  personalize_content: Feather,
-  redirect:            ExternalLink,
-  tag_session:         Tag,
-  webhook:             Webhook,
-  // legacy
-  email:  Zap,
-  banner: Megaphone,
-  modal:  MessageSquare,
-  script: Zap,
-};
-
-const ACTION_LABELS: Record<string, string> = {
-  show_modal:          'Show Modal',
-  show_toast:          'Show Toast',
-  show_banner:         'Show Banner',
-  highlight_element:   'Highlight Element',
-  show_tooltip:        'Show Tooltip',
-  personalize_content: 'Personalize Content',
-  redirect:            'Redirect',
-  tag_session:         'Tag Session',
-  webhook:             'Webhook',
-};
+import {
+  triggerLabel, actionLabel, triggerIcon, actionIcon,
+} from '@/features/automations/catalog';
 
 export default function AutomationDetailPage() {
   const params        = useParams();
@@ -125,7 +65,7 @@ export default function AutomationDetailPage() {
   }
   if (!automation) return null;
 
-  const TriggerIcon = TRIGGER_ICONS[automation.triggerType] ?? Zap;
+  const TriggerIcon = triggerIcon(automation.triggerType) ?? Zap;
   const runHistory  = dailyStatsData ?? Array.from({ length: 14 }, (_, i) => ({ day: `D${i + 1}`, runs: 0 }));
 
   // The stored definition is used directly: it is the full state, including the step
@@ -347,7 +287,7 @@ export default function AutomationDetailPage() {
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
                     <TriggerIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">
-                      {TRIGGER_LABELS[automation.triggerType] ?? automation.triggerType}
+                      {triggerLabel(automation.triggerType) ?? automation.triggerType}
                     </span>
                   </div>
                 </div>
@@ -367,7 +307,7 @@ export default function AutomationDetailPage() {
                   ) : (
                     <ol className="space-y-2">
                       {automation.actions.map((a, i) => {
-                        const Icon = ACTION_ICONS[a.actionType] ?? Zap;
+                        const Icon = actionIcon(a.actionType) ?? Zap;
                         return (
                           <li
                             key={i}
@@ -378,7 +318,7 @@ export default function AutomationDetailPage() {
                             </span>
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                              {ACTION_LABELS[a.actionType] ?? a.actionType}
+                              {actionLabel(a.actionType, true) ?? a.actionType}
                             </span>
                           </li>
                         );

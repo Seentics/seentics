@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zNonEmptyString, zUuid } from "../../../platform/validation";
+import { zNonEmptyString } from "../../../platform/validation";
 
 const AI_DOMAINS = ["auto", "analytics", "revenue", "replays", "heatmaps", "funnels", "automations"] as const;
 

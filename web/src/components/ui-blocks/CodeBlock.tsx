@@ -10,14 +10,26 @@ import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, Externa
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-export function CodeBlock({ code }: { code: string }) {
+export interface CodeBlockProps {
+  code: string;
+  /**
+   * Show a toast on copy. The developers page's copy did not, the ui-blocks page's did —
+   * two near-identical components that had drifted in size, timing and feedback. Opt in
+   * rather than pick a winner, since a page full of snippets does not want a toast per
+   * copy.
+   */
+  toastOnCopy?: boolean;
+  className?: string;
+}
+
+export function CodeBlock({ code, toastOnCopy = false, className }: CodeBlockProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
     await navigator.clipboard.writeText(code);
     setCopied(true);
-    toast({ title: 'Copied to clipboard' });
+    if (toastOnCopy) toast({ title: 'Copied to clipboard' });
     setTimeout(() => setCopied(false), 2000);
   };
 
