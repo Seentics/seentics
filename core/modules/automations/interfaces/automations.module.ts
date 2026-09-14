@@ -14,6 +14,9 @@ export interface AutomationsModule {
   /** This module's ingest lanes — trigger rows and visitor profiles. */
   lanes: { automations: LaneSpec; profiles: LaneSpec };
 
+  /** Checks a draft definition without creating it. See `AutomationDraftValidator`. */
+  draftValidator: AutomationDraftValidator;
+
   /** Active automations for the tracker's `/init`. One indexed read per session. */
   trackerSettings: AutomationTrackerSettings;
 
@@ -43,4 +46,25 @@ export interface AutomationsModule {
   usage: UsageCounter;
 
   routes: AuthedRouter;
+}
+
+/**
+ * Validates a draft automation definition without creating anything.
+ *
+ * Exposed as a port because the AI module needs to know whether a draft it is about to
+ * show someone would actually save, and a module may only reach a peer through its
+ * interfaces — importing the Zod schema directly is the boundary violation the
+ * architecture test catches.
+ *
+ * Returning the parsed definition rather than a boolean matters: the caller stores what
+ * validation produced, so approving a draft later cannot fail on a field that was
+ * defaulted or stripped during the check.
+ */
+export interface AutomationDraftValidator {
+  /** The trigger and action names the server accepts, for a caller building a draft. */
+  vocabulary(): { triggerTypes: readonly string[]; actionTypes: readonly string[] };
+
+  validateDefinition(
+    definition: unknown,
+  ): { ok: true; definition: unknown } | { ok: false; error: string };
 }

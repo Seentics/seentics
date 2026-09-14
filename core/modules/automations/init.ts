@@ -1,5 +1,6 @@
 import { automationsLane, profilesLane } from "./ingest-lane";
 import type { WebsitesModule } from "../websites/interfaces";
+import { AutomationDraftValidatorService } from "./lib/draft-validator";
 import type { AutomationsModule } from "./interfaces";
 import { AutomationUsageCounter } from "./services/usage-count.service";
 import { PostgresAutomationRepository } from "./repositories/postgres-automation.repository";
@@ -25,6 +26,7 @@ export function initAutomationsModule(deps: {
   const visitorProfiles = new VisitorProfileService();
 
   return {
+    draftValidator: new AutomationDraftValidatorService(),
     lanes: {
       automations: automationsLane(triggers),
       profiles: profilesLane(visitorProfiles),
