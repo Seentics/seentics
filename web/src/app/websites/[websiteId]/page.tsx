@@ -7,6 +7,7 @@ import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdown, useHourlyStats, useDimensionsBulk, useVisitorInsights, usePreviousPeriodDailyStats } from '@/features/analytics/queries';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
+import { useDefaultModeRedirect } from '@/features/ai/default-mode';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -31,6 +32,17 @@ export default function WebsiteDashboardPage() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
   const router = useRouter();
+
+  /*
+   * Honour "open this website in AI mode". `?dashboard=1` opts out for one visit, which
+   * is what the AI page's own link back here uses — otherwise switching would bounce.
+   */
+  const searchParamsForMode = useSearchParams();
+  useDefaultModeRedirect(
+    websiteId,
+    router.replace,
+    searchParamsForMode.get('dashboard') === '1',
+  );
   const { user } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
