@@ -61,6 +61,7 @@ class FakeRepo implements AiRepository {
   agentSuccesses: Array<{ id: string; record: unknown }> = [];
   async markAgentSuccess(id: string, record: unknown) { this.agentSuccesses.push({ id, record }); }
   async conversation() { return []; }
+  async conversations() { return []; }
   async pendingProposal() { return null; }
   async markProposalApplied() { return true; }
   async costReport() { return []; }

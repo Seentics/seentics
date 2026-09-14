@@ -147,6 +147,11 @@ export class AgentService implements AiAgent {
     }
   }
 
+  /** This user's threads on one website, newest first. */
+  conversations(userId: string, websiteId: string) {
+    return this.repo.conversations(userId, websiteId, 50);
+  }
+
   /** One conversation, oldest first. Scoped to its owner by the repository. */
   conversation(userId: string, conversationId: string): Promise<ConversationTurn[]> {
     return this.repo.conversation(userId, conversationId, 100);

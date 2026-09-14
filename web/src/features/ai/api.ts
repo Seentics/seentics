@@ -1,6 +1,6 @@
 /** Endpoint functions for the AI assistant. No React, no hooks. */
 import api from '@/lib/api';
-import type { AskResponse, ConversationTurn } from './types';
+import type { AskResponse, ConversationSummary, ConversationTurn } from './types';
 
 export const aiApi = {
   async ask(websiteId: string, prompt: string, conversationId?: string): Promise<AskResponse> {
@@ -20,6 +20,11 @@ export const aiApi = {
   async confirm(websiteId: string, queryId: string): Promise<{ resource: string; id: string }> {
     const res = await api.post(`/ai/confirm/${websiteId}/${queryId}`, {});
     return res.data.created as { resource: string; id: string };
+  },
+
+  async conversations(websiteId: string): Promise<ConversationSummary[]> {
+    const res = await api.get(`/ai/conversations/${websiteId}`);
+    return (res.data?.conversations ?? []) as ConversationSummary[];
   },
 
   async conversation(websiteId: string, conversationId: string): Promise<ConversationTurn[]> {

@@ -121,6 +121,18 @@ export interface AiRepository {
   /** Stamp a proposal as applied. Returns false when another request got there first. */
   markProposalApplied(userId: string, queryId: string): Promise<boolean>;
 
+  /**
+   * This user's conversations on one website, newest first.
+   *
+   * One row per thread, titled by its opening question — which is what a sidebar needs,
+   * and what a per-message history cannot give without the caller grouping it.
+   */
+  conversations(
+    userId: string,
+    websiteId: WebsiteId,
+    limit: number,
+  ): Promise<ConversationSummary[]>;
+
   /** Per-message cost for the admin view, newest first. */
   costReport(input: { since: Date; limit: number; websiteId?: string }): Promise<AiCostRow[]>;
 }
@@ -133,6 +145,14 @@ export type AgentSuccessRecord = {
   outputTokens: number;
   estimatedCostUsd: number;
   executionTimeMs: number;
+};
+
+export type ConversationSummary = {
+  id: string;
+  /** The first question asked, which is what the thread is about. */
+  title: string;
+  messageCount: number;
+  lastMessageAt: string;
 };
 
 export type ConversationTurn = {

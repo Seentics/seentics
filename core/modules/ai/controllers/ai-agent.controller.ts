@@ -106,3 +106,14 @@ export function getConversation(deps: AiControllerDeps & { agent: AiAgent }) {
     return c.json({ turns });
   };
 }
+
+export function listConversations(deps: AiControllerDeps & { agent: AiAgent }) {
+  return async (c: Context<{ Variables: AuthVars }>) => {
+    const websiteRef = c.req.param("website_id") ?? "";
+    const access = await requireAccess(c, deps, websiteRef);
+    if (access instanceof Response) return access;
+
+    const conversations = await deps.agent.conversations(access.userId, websiteRef);
+    return c.json({ conversations });
+  };
+}

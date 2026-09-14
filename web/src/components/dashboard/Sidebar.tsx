@@ -156,11 +156,23 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
 
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
+        <ul className="space-y-0.5">
+          {mainNav.map(renderItem)}
+          {secondNav.map(renderItem)}
+        </ul>
+      </nav>
+
+      {/*
+        Above the account row rather than at the top of the nav. AI mode is a different
+        way to use the product, not another section of it, and at the top it competed
+        with Overview for the first thing someone reaches for.
+      */}
+      <div className={cn('shrink-0 pb-2', collapsed ? 'px-2' : 'px-3')}>
         <Link
           href={`/websites/${websiteId}/ai`}
           title={collapsed ? 'AI Mode' : undefined}
           className={cn(
-            'mb-3 flex items-center rounded-lg border border-border bg-muted/40 text-foreground transition-colors hover:bg-muted',
+            'flex items-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/15',
             collapsed ? 'mx-auto h-10 w-10 justify-center' : 'h-10 gap-3 px-3',
           )}
         >
@@ -171,11 +183,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             <span className="text-[13.5px] font-semibold">AI Mode</span>
           )}
         </Link>
-        <ul className="space-y-0.5">
-          {mainNav.map(renderItem)}
-          {secondNav.map(renderItem)}
-        </ul>
-      </nav>
+      </div>
 
       {/* Account */}
       <div className={cn('shrink-0 pb-6 ', collapsed ? 'px-2' : 'px-3')}>

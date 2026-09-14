@@ -4,6 +4,7 @@ import {
   askAgent,
   confirmProposal,
   getConversation,
+  listConversations,
 } from "./controllers/ai-agent.controller";
 import type { AiControllerDeps } from "./controllers/ai-controller.types";
 import { getAiHistory } from "./controllers/ai-history.controller";
@@ -15,6 +16,7 @@ export function createAiRoutes(deps: AiControllerDeps) {
 
   // The conversational assistant.
   routes.post("/chat/:website_id", askAgent(deps));
+  routes.get("/conversations/:website_id", listConversations(deps));
   routes.get("/conversation/:website_id/:conversation_id", getConversation(deps));
   // Applying a draft is a POST because it creates; the id in the path is the query that
   // produced the draft, not the resource it will create.

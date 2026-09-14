@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { CornerDownLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,9 +19,40 @@ export interface ChatComposerProps {
 export function ChatComposer({
   value, onChange, onSend, isSending, placeholder, maxLength = 2000, className,
 }: ChatComposerProps) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  /*
+   * One row that grows to the text, capped before it takes over the screen.
+   *
+   * A fixed two-row box is mostly empty for the one-line questions people actually ask,
+   * and too small for the occasional long one. Height is reset before measuring because
+   * `scrollHeight` never shrinks on its own.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [value]);
+
   return (
-    <div className={cn('relative', className)}>
+    /*
+     * Raised off the page rather than separated by a rule. The composer sits at the
+     * bottom of a scrolling column, so it needs to read as the thing in front — a border
+     * alone reads as a seam, and content scrolling behind it needs somewhere to go.
+     */
+    <div
+      className={cn(
+        'relative rounded-xl border border-border bg-card',
+        'shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.12)]',
+        'transition-shadow focus-within:border-primary/40',
+        'focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_28px_-8px_rgba(0,0,0,0.18)]',
+        'dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_10px_28px_-10px_rgba(0,0,0,0.6)]',
+        className,
+      )}
+    >
       <Textarea
+        ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -32,13 +64,13 @@ export function ChatComposer({
           }
         }}
         placeholder={placeholder}
-        rows={2}
+        rows={1}
         maxLength={maxLength}
-        className="resize-none pr-12 text-sm"
+        className="max-h-[200px] min-h-[44px] resize-none border-0 bg-transparent py-2.5 pr-12 text-sm shadow-none focus-visible:ring-0"
       />
       <Button
         size="icon"
-        className="absolute bottom-2 right-2 h-8 w-8"
+        className="absolute bottom-1.5 right-1.5 h-8 w-8"
         disabled={!value.trim() || isSending}
         onClick={onSend}
       >

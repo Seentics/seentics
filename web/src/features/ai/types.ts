@@ -90,3 +90,11 @@ export interface ChatMessage {
   pending?: boolean;
   error?: string;
 }
+
+/** One thread in the sidebar, titled by the question that opened it. */
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastMessageAt: string;
+}

@@ -195,6 +195,40 @@ export class PostgresAiRepository implements AiRepository {
     return rows.length > 0;
   }
 
+  async conversations(userId: string, websiteId: WebsiteId, limit: number) {
+    /*
+     * One row per thread. `min(created_at)` picks the opening question as the title —
+     * `first_value` would need a window and a subquery for the same answer, and the
+     * opening question is what a thread is about.
+     */
+    const rows = await sql`
+      SELECT DISTINCT ON (conversation_id)
+             conversation_id AS id,
+             first_value(prompt) OVER (
+               PARTITION BY conversation_id ORDER BY created_at ASC
+             ) AS title,
+             count(*) OVER (PARTITION BY conversation_id) AS message_count,
+             max(created_at) OVER (PARTITION BY conversation_id) AS last_message_at
+        FROM ai_queries
+       WHERE user_id = ${userId}::uuid
+         AND website_id = ${websiteId}::uuid
+         AND conversation_id IS NOT NULL
+       ORDER BY conversation_id, created_at ASC
+    `;
+
+    return (rows as Record<string, unknown>[])
+      .map((r) => ({
+        id: String(r.id),
+        title: String(r.title ?? "Untitled").slice(0, 120),
+        messageCount: Number(r.message_count ?? 0),
+        lastMessageAt: new Date(r.last_message_at as string).toISOString(),
+      }))
+      // Newest thread first. Ordering in SQL would fight the DISTINCT ON, which must
+      // order by the partition key first.
+      .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
+      .slice(0, Math.min(limit, 50));
+  }
+
   async costReport(input: { since: Date; limit: number; websiteId?: string }): Promise<AiCostRow[]> {
     const where = input.websiteId
       ? and(gte(aiQueries.createdAt, input.since), eq(aiQueries.websiteId, input.websiteId))

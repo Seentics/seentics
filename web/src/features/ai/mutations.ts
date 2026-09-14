@@ -4,14 +4,19 @@ import { aiApi } from './api';
 import { aiKeys } from './queries';
 
 export function useAskAi(websiteId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { prompt: string; conversationId?: string }) =>
       aiApi.ask(websiteId, vars.prompt, vars.conversationId),
     /*
-     * No invalidation. The chat keeps its own message list, because a reply carries
-     * display blocks the stored conversation does not — refetching would replace a
-     * rendered answer with a plain one.
+     * The message list is not invalidated — a reply carries display blocks the stored
+     * conversation does not, so refetching would replace rendered panels with plain
+     * text. The thread *list* is, because a first message creates a new thread that
+     * belongs in the sidebar.
      */
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: aiKeys.all });
+    },
   });
 }
 

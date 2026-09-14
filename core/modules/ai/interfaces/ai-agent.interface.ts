@@ -1,4 +1,4 @@
-import type { ConversationTurn } from "./ai-repository.interface";
+import type { ConversationSummary, ConversationTurn } from "./ai-repository.interface";
 
 /**
  * The conversational assistant, as the controllers see it.
@@ -29,6 +29,9 @@ export interface AiAgent {
   }): Promise<AgentAnswer>;
 
   conversation(userId: string, conversationId: string): Promise<ConversationTurn[]>;
+
+  /** This user's threads on one website, newest first. Backs the sidebar. */
+  conversations(userId: string, websiteId: string): Promise<ConversationSummary[]>;
 }
 
 /** Creates the resource an approved draft describes. See `ProposalApplier`. */

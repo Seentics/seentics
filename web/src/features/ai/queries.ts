@@ -7,6 +7,7 @@ const isValidId = (id: string) => !!id && id !== 'demo';
 export const aiKeys = {
   all: ['ai'] as const,
   conversations: () => [...aiKeys.all, 'conversation'] as const,
+  list: (websiteId: string) => [...aiKeys.all, 'conversations', websiteId] as const,
   conversation: (websiteId: string, conversationId: string) =>
     [...aiKeys.conversations(), websiteId, conversationId] as const,
 };
@@ -23,4 +24,14 @@ export const conversationQueryOptions = (websiteId: string, conversationId: stri
 
 export function useConversation(websiteId: string, conversationId: string | null) {
   return useQuery(conversationQueryOptions(websiteId, conversationId ?? ''));
+}
+
+export function useConversationList(websiteId: string) {
+  return useQuery({
+    queryKey: aiKeys.list(websiteId),
+    queryFn: () => aiApi.conversations(websiteId),
+    enabled: isValidId(websiteId),
+    // Threads only change when this user sends a message; the chat invalidates on send.
+    staleTime: Infinity,
+  });
 }

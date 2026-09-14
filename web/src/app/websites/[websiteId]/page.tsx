@@ -283,16 +283,6 @@ export default function WebsiteDashboardPage() {
           {/* Spacer pushes controls to the right */}
           <div className="flex-1" />
 
-          {/* AI button */}
-          <button
-            onClick={() => router.push(`/websites/${websiteId}/ai`)}
-            title="Open AI Mode"
-            className="flex h-8 items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
-          >
-            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>AI Mode</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
 
           {/* Filters */}
           <FilterModal
