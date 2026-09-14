@@ -18,7 +18,7 @@ export function queryAi(deps: AiControllerDeps) {
     if (!parsed.ok) return parsed.res;
 
     try {
-      const domain = (parsed.data.domain ?? "analytics") as AIDomain;
+      const domain = parsed.data.domain ?? "auto";
       const result = await deps.query.run(access.userId, websiteRef, parsed.data.prompt, domain);
       return c.json({ data: result });
     } catch (err) {

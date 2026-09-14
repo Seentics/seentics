@@ -8,7 +8,7 @@ import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdo
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Sparkles } from 'lucide-react';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -26,16 +26,12 @@ import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
-import { AICommandModal } from '@/components/ai/AICommandModal';
-import { useSubscription } from '@/hooks/useSubscription';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
   const router = useRouter();
   const { user } = useAuth();
-  const { subscription } = useSubscription();
-  const [aiOpen, setAiOpen] = useState(false);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
@@ -277,13 +273,13 @@ export default function WebsiteDashboardPage() {
 
           {/* AI button */}
           <button
-            onClick={() => setAiOpen(true)}
-            title="Seentics AI (⌘K)"
-            className="group flex h-8 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-medium text-indigo-600 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/15 dark:hover:text-indigo-300"
+            onClick={() => router.push(`/websites/${websiteId}/ai`)}
+            title="Open AI Mode"
+            className="group flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
             <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            <span>Ask Seentics AI</span>
-            <kbd className="hidden rounded-lg border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] sm:inline-block dark:border-indigo-500/30 dark:bg-indigo-500/10">⌘K</kbd>
+            <span>AI Mode</span>
+            <ArrowUpRight className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
 
           {/* Filters */}
@@ -417,13 +413,6 @@ export default function WebsiteDashboardPage() {
         onSuccess={handleWebsiteAdded}
       />
 
-      {/* AI Command Modal */}
-      <AICommandModal
-        websiteId={websiteId}
-        open={aiOpen}
-        onOpenChange={setAiOpen}
-        aiUsage={isDemoMode ? undefined : subscription?.usage?.aiAnalyses}
-      />
     </div>
   );
 }

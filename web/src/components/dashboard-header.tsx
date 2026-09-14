@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { AICommandModal } from '@/components/ai/AICommandModal';
-import { useSubscription } from '@/hooks/useSubscription';
+import React from 'react';
+import Link from 'next/link';
+import { Sparkles, ArrowUpRight } from 'lucide-react';
 import { DashboardPageTitle } from '@/components/dashboard/DashboardPageTitle';
 
 interface DashboardPageHeaderProps {
@@ -25,13 +23,7 @@ export function DashboardPageHeader({
   uppercase = false,
   websiteId,
 }: DashboardPageHeaderProps) {
-  const [aiOpen, setAiOpen] = useState(false);
-  const { subscription } = useSubscription();
-
-  const aiUsage = subscription?.usage?.aiAnalyses;
-
   return (
-    <>
       <DashboardPageTitle
         title={title}
         description={description}
@@ -41,33 +33,20 @@ export function DashboardPageHeader({
           <>
           {/* AI Command button — only shown on website-scoped pages */}
           {websiteId && (
-            <button
-              onClick={() => setAiOpen(true)}
-              title="Seentics AI (⌘K)"
-              className={cn(
-                'group flex h-9 items-center gap-1 rounded-lg border-none px-4 text-[14px] font-medium transition-all',
-                "bg-card",
-                aiUsage && !aiUsage.canCreate && 'opacity-60',
-              )}
+            <Link
+              href={`/websites/${websiteId}/ai`}
+              title="Open AI Mode"
+              className="group flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              <Sparkles className="h-3 w-3 shrink-0" />
-              <span>Ask AI (⌘K)</span>
-            </button>
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>AI Mode</span>
+              <ArrowUpRight className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
           )}
 
             {children}
           </>
         )}
       />
-
-      {websiteId && (
-        <AICommandModal
-          websiteId={websiteId}
-          open={aiOpen}
-          onOpenChange={setAiOpen}
-          aiUsage={aiUsage}
-        />
-      )}
-    </>
   );
 }

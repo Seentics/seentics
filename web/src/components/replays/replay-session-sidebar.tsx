@@ -21,7 +21,7 @@ import {
   type SessionErrorDetail,
   type SessionConsoleDetail,
   type SessionNetworkDetail,
-} from './session-replay-surface';
+} from '@/components/replays/session-replay-surface';
 import { stripClientVersionLabel } from '@/components/replays/session-environment-visuals';
 
 // ── helpers ──────────────────────────────────────────────────────────────────

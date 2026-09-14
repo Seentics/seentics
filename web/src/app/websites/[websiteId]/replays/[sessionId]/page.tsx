@@ -32,10 +32,10 @@ import {
   SessionReplaySurface,
   type SessionReplayBridge,
   type SessionReplaySurfaceAPI,
-} from './session-replay-surface';
-import { ReplaySessionSidebar } from './replay-session-sidebar';
+} from '@/components/replays/session-replay-surface';
+import { ReplaySessionSidebar } from '@/components/replays/replay-session-sidebar';
 
-export type { SessionReplaySurfaceAPI as ReplayPlayerAPI } from './session-replay-surface';
+export type { SessionReplaySurfaceAPI as ReplayPlayerAPI } from '@/components/replays/session-replay-surface';
 
 /** Chunks fetched before the player is mounted. Enough for playback to start immediately. */
 import {

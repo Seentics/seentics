@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug,
+  Code2, Bug, Sparkles,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -156,6 +156,26 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
 
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
+        <Link
+          href={`/websites/${websiteId}/ai`}
+          title={collapsed ? 'AI Mode' : undefined}
+          className={cn(
+            'group relative mb-3 flex overflow-hidden rounded-xl text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md',
+            'bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600',
+            collapsed ? 'mx-auto h-10 w-10 items-center justify-center' : 'min-h-14 items-center gap-3 px-3.5 py-2.5',
+          )}
+        >
+          <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 transition-opacity group-hover:opacity-100" />
+          <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/20">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          {!collapsed && (
+            <span className="relative min-w-0">
+              <span className="block text-sm font-semibold leading-tight">AI Mode</span>
+              <span className="block text-[11px] text-white/70">Ask, analyze, automate</span>
+            </span>
+          )}
+        </Link>
         <ul className="space-y-0.5">
           {mainNav.map(renderItem)}
           {secondNav.map(renderItem)}
