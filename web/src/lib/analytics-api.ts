@@ -246,6 +246,23 @@ export interface GetDailyStatsResponse {
 // API FUNCTIONS - ALL BACKEND ENDPOINTS
 // =============================================================================
 
+/**
+ * How often a windowed dashboard read should refresh, given the window it covers.
+ *
+ * A flat 30s was applied to every range, so a 30-day view re-ran a month-wide aggregate
+ * twice a minute — per open tab, per viewer — to redraw numbers that cannot visibly move
+ * in that time. On a dashboard left open all day that is thousands of recomputes against
+ * a database that also has the ingest write path to serve, and the slowness it causes is
+ * felt by the same person who left the tab open.
+ *
+ * Short windows still refresh quickly, because there the movement is the point.
+ */
+export function dashboardRefreshMs(days: number): number {
+  if (days <= 1) return 30_000;
+  if (days <= 7) return 5 * 60_000;
+  return 15 * 60_000;
+}
+
 /** Server dashboard payload; shared by useDashboardData and other callers (e.g. revenue fallback). */
 export const getDashboardData = async (
   websiteId: string,
@@ -269,9 +286,10 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
     queryKey: ['dashboard', websiteId, days, filters],
     queryFn: () => getDashboardData(websiteId, days, filters),
     enabled: isValidId(websiteId),
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    // Scaled to the range rather than fixed — see `dashboardRefreshMs`.
+    refetchInterval: dashboardRefreshMs(days),
     refetchOnWindowFocus: true,
-    staleTime: 15 * 1000, // Consider data stale after 15 seconds
+    staleTime: Math.floor(dashboardRefreshMs(days) / 2),
   });
 };
 

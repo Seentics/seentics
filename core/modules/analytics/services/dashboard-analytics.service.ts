@@ -1,4 +1,5 @@
 import type { AnalyticsDashboard, AnalyticsQueryParams } from "../interfaces";
+import { cachedRead } from "../lib/read-cache";
 import { getDailyStatsAnalytics } from "../repositories/daily-stats.repository";
 import { getDashboardStats } from "../repositories/dashboard.repository";
 import { getHourlyStatsAnalytics } from "../repositories/hourly-stats.repository";
@@ -28,18 +29,26 @@ export class DashboardAnalyticsService
   }
 
   async getDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
-    return this.queries.getDashboardStats(websiteId, query);
+    return cachedRead("dashboard", websiteId, query, "shared", () =>
+      this.queries.getDashboardStats(websiteId, query),
+    );
   }
 
   async getTrafficSummary(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
-    return this.queries.getTrafficSummaryStats(websiteId, query);
+    return cachedRead("traffic_summary", websiteId, query, "shared", () =>
+      this.queries.getTrafficSummaryStats(websiteId, query),
+    );
   }
 
   async getDailyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
-    return this.queries.getDailyStatsAnalytics(websiteId, query);
+    return cachedRead("daily_stats", websiteId, query, "shared", () =>
+      this.queries.getDailyStatsAnalytics(websiteId, query),
+    );
   }
 
   async getHourlyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
-    return this.queries.getHourlyStatsAnalytics(websiteId, query);
+    return cachedRead("hourly_stats", websiteId, query, "shared", () =>
+      this.queries.getHourlyStatsAnalytics(websiteId, query),
+    );
   }
 }

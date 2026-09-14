@@ -129,6 +129,13 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   const analyticsCacheEnabled = parseBool(process.env.ANALYTICS_CACHE_ENABLED, isProduction);
   const analyticsCacheTtlMs = parseIntEnv(process.env.ANALYTICS_CACHE_TTL_MS, 45_000);
   const analyticsCacheMaxEntries = parseIntEnv(process.env.ANALYTICS_CACHE_MAX_ENTRIES, 512);
+  /**
+   * Service-layer cache, shared across users. Off by default: `analyticsCacheMiddleware`
+   * already caches these responses, and stacking a second TTL under it makes the worst
+   * case the sum of the two. Raise it only where one website has several viewers — that
+   * is what this layer can do and the middleware, keyed per user, cannot.
+   */
+  const analyticsSharedCacheTtlMs = parseIntEnv(process.env.ANALYTICS_SHARED_CACHE_TTL_MS, 0);
 
   const ingestQueueFlushMs = parseIntEnv(process.env.INGEST_QUEUE_FLUSH_MS, 1000);
   const ingestQueueMaxEvents = parseIntEnv(process.env.INGEST_QUEUE_MAX_EVENTS_BEFORE_FLUSH, 50_000);
@@ -217,6 +224,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     analyticsCache: {
       enabled: analyticsCacheEnabled,
       ttlMs: analyticsCacheTtlMs,
+      sharedTtlMs: Math.max(0, analyticsSharedCacheTtlMs),
       maxEntries: analyticsCacheMaxEntries,
     },
     ingestQueue: {

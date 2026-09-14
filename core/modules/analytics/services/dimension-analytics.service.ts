@@ -1,4 +1,5 @@
 import type { AnalyticsDimensions, AnalyticsQueryParams } from "../interfaces";
+import { cachedRead } from "../lib/read-cache";
 import { getCitiesAnalytics } from "../repositories/cities.repository";
 import { getDimensionsBulkAnalytics } from "../repositories/dimensions-bulk.repository";
 import {
@@ -56,25 +57,36 @@ export class DimensionAnalyticsService
     this.queries = { ...defaultQueries, ...queries };
   }
 
+  /**
+   * Every dimension read goes through here, which is why the cache does too.
+   *
+   * `op` names the read for the cache key and the timing log. It has to be passed rather
+   * than derived from the function, because `this.queries` is injectable — a test double
+   * or a renamed import would silently change the key and, with it, which entries a
+   * caller can see.
+   */
   private async read(
+    op: string,
     websiteId: string,
     query: AnalyticsQueryParams,
     operation: (id: string, q: AnalyticsQueryParams) => Promise<unknown>,
   ): Promise<unknown> {
-    return operation(websiteId, query);
+    return cachedRead(op, websiteId, query, "shared", () =>
+      operation(websiteId, query),
+    );
   }
 
-  getPages(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getPagesAnalytics); }
-  getReferrers(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getReferrersAnalytics); }
-  getSources(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getSourcesAnalytics); }
-  getBrowsers(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getBrowsersAnalytics); }
-  getDevices(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getDevicesAnalytics); }
-  getOperatingSystems(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getOsAnalytics); }
-  getCountries(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getCountriesAnalytics); }
-  getCities(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getCitiesAnalytics); }
-  getLanguages(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getLanguagesAnalytics); }
-  getResolutions(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getResolutionsAnalytics); }
-  getGeolocation(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getGeolocationAnalytics); }
-  getPageUtmBreakdown(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getPageUtmBreakdownAnalytics); }
-  getDimensionsBulk(id: string, q: AnalyticsQueryParams) { return this.read(id, q, this.queries.getDimensionsBulkAnalytics); }
+  getPages(id: string, q: AnalyticsQueryParams) { return this.read("pages", id, q, this.queries.getPagesAnalytics); }
+  getReferrers(id: string, q: AnalyticsQueryParams) { return this.read("referrers", id, q, this.queries.getReferrersAnalytics); }
+  getSources(id: string, q: AnalyticsQueryParams) { return this.read("sources", id, q, this.queries.getSourcesAnalytics); }
+  getBrowsers(id: string, q: AnalyticsQueryParams) { return this.read("browsers", id, q, this.queries.getBrowsersAnalytics); }
+  getDevices(id: string, q: AnalyticsQueryParams) { return this.read("devices", id, q, this.queries.getDevicesAnalytics); }
+  getOperatingSystems(id: string, q: AnalyticsQueryParams) { return this.read("os", id, q, this.queries.getOsAnalytics); }
+  getCountries(id: string, q: AnalyticsQueryParams) { return this.read("countries", id, q, this.queries.getCountriesAnalytics); }
+  getCities(id: string, q: AnalyticsQueryParams) { return this.read("cities", id, q, this.queries.getCitiesAnalytics); }
+  getLanguages(id: string, q: AnalyticsQueryParams) { return this.read("languages", id, q, this.queries.getLanguagesAnalytics); }
+  getResolutions(id: string, q: AnalyticsQueryParams) { return this.read("resolutions", id, q, this.queries.getResolutionsAnalytics); }
+  getGeolocation(id: string, q: AnalyticsQueryParams) { return this.read("geolocation", id, q, this.queries.getGeolocationAnalytics); }
+  getPageUtmBreakdown(id: string, q: AnalyticsQueryParams) { return this.read("page_utm", id, q, this.queries.getPageUtmBreakdownAnalytics); }
+  getDimensionsBulk(id: string, q: AnalyticsQueryParams) { return this.read("dimensions_bulk", id, q, this.queries.getDimensionsBulkAnalytics); }
 }
