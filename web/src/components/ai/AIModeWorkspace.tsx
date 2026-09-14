@@ -6,11 +6,9 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
-  BarChart3,
   Bot,
   Check,
   ChevronRight,
-  Database,
   GitBranch,
   History,
   Lightbulb,
@@ -527,7 +525,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background text-foreground">
       <aside className={cn(
-        'hidden shrink-0 flex-col bg-muted/20 transition-[width] duration-200 lg:flex',
+        'hidden shrink-0 flex-col bg-muted/45 dark:bg-muted/25 transition-[width] duration-200 lg:flex',
         sidebarOpen ? 'w-[280px]' : 'w-[72px]',
       )}>
         <div className={cn('flex h-16 items-center', sidebarOpen ? 'justify-between px-4' : 'justify-center')}>
@@ -565,6 +563,24 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
             </div>
           )}
         </div>
+
+        {sidebarOpen && (
+          <div className="px-4 pb-5 pt-3">
+            <div className="rounded-lg bg-background/55 p-3 dark:bg-background/20">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">AI analyses</span>
+                <span className="font-medium text-foreground">
+                  {usage ? (usage.limit === -1 ? `${usage.current} used` : `${usage.current}/${usage.limit}`) : 'Available'}
+                </span>
+              </div>
+              {usage && usage.limit > 0 && (
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted-foreground/15">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, usage.current / usage.limit * 100)}%` }} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -585,31 +601,33 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex min-h-full w-full max-w-[900px] flex-col px-4 py-8 sm:px-6">
+          <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-4 py-8 sm:px-6">
             {messages.length === 0 ? (
-              <div className="my-auto py-8">
-                <div className="mx-auto max-w-2xl">
-                  <p className="text-sm font-medium text-primary">AI Mode</p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">What would you like to know?</h2>
-                  <p className="mt-2 max-w-xl text-base leading-7 text-muted-foreground">Ask about performance, visitor behavior, or an automation you want to create.</p>
+              <div className="my-auto w-full py-8">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-semibold tracking-tight">Ask a question</h2>
+                  <p className="mt-1 text-base leading-7 text-muted-foreground">Use plain English to explore your website data or prepare an automation.</p>
                 </div>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <div className="mt-6 divide-y divide-border/70">
                   {SUGGESTIONS.map(({ title, prompt: suggestion, icon: Icon, tone }) => (
-                    <button key={suggestion} onClick={() => submit(suggestion)} className="group rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50">
-                      <div className="flex items-start gap-3">
-                        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', tone)}><Icon className="h-4 w-4" /></span>
-                        <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-sm leading-5 text-muted-foreground">{suggestion}</p></div>
-                        <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                    <button key={suggestion} onClick={() => submit(suggestion)} className="group flex w-full items-center gap-3 py-3 text-left transition-colors hover:text-primary">
+                      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', tone)}><Icon className="h-3.5 w-3.5" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{title}</p>
+                        <p className="truncate text-sm text-muted-foreground">{suggestion}</p>
                       </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                     </button>
                   ))}
                 </div>
 
-                <div className="mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><Database className="h-3.5 w-3.5" /> Scoped to this website</span>
-                  <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Live visual answers</span>
-                  <span className="flex items-center gap-1.5"><GitBranch className="h-3.5 w-3.5" /> Review-first automations</span>
+                <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>Scoped to this website</span>
+                  <span aria-hidden="true">·</span>
+                  <span>Visual answers</span>
+                  <span aria-hidden="true">·</span>
+                  <span>Automations require review</span>
                 </div>
               </div>
             ) : (
