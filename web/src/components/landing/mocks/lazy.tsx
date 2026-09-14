@@ -5,11 +5,15 @@ import dynamic from 'next/dynamic';
 /**
  * The mock bodies, deferred.
  *
- * `DashboardMock` reuses the real `TrafficOverview`, which imports `TrafficChart`
- * and `HourlyTrafficChart`, which import recharts — so the marketing page was
- * pulling a charting library into the bundle that decides its LCP. The other four
- * are hand-built and carry no library, but they are large DOM trees sitting below
- * the fold, so they are deferred too.
+ * These four sit below the fold. They are hand-built and carry no charting library,
+ * but they are large DOM trees a visitor may never scroll to, so they are deferred.
+ *
+ * `DashboardMock` used to be here too, for a good reason: it reuses the real
+ * `TrafficOverview`, so deferring it kept recharts out of the bundle that decides the
+ * page's LCP. It is now imported directly by `ProductShowcase` and server-rendered,
+ * which trades that back — the shot is the LCP element itself, and an element that
+ * only exists after hydration cannot be the thing a visitor sees first. See the note
+ * there.
  *
  * Only the *contents* of each laptop are lazy; `MacbookFrame` stays eager. The frame
  * holds the space with an `aspect-ratio` box, so nothing shifts when a mock arrives
@@ -24,11 +28,6 @@ import dynamic from 'next/dynamic';
 
 /** Placeholder while a mock loads. Plain surface — no spinner on a decorative shot. */
 const loading = () => <div className="h-full w-full bg-background" />;
-
-export const LazyDashboardMock = dynamic(
-  () => import('./DashboardMock').then((m) => m.DashboardMock),
-  { ssr: false, loading },
-);
 
 export const LazyAutomationBuilderMock = dynamic(
   () => import('./AutomationBuilderMock').then((m) => m.AutomationBuilderMock),

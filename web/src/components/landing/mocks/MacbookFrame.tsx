@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Lock, Plus, RotateCw, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -87,6 +87,7 @@ export function MacbookFrame({
   designWidth,
   designHeight,
   url,
+  ssrScale,
   children,
   className,
 }: {
@@ -94,6 +95,22 @@ export function MacbookFrame({
   designHeight: number;
   /** What the address bar reads — the route this screen actually lives at. */
   url: string;
+  /**
+   * Scale to paint at before the measurement runs, for a frame whose contents are
+   * server-rendered.
+   *
+   * Without it a server-rendered mock ships inside the HTML and then sits
+   * `visibility: hidden` until the effect below measures — so the markup arrives with
+   * the document and still cannot be seen until the page has hydrated, which is the
+   * whole cost SSR was meant to avoid.
+   *
+   * Only honoured above the width where the frame's column stops growing (see
+   * `.mbf-ssr` in globals.css). Narrower than that the column width varies with the
+   * viewport, a fixed guess would be wrong, and a too-large scale gets clipped by the
+   * screen's `overflow-hidden` — so below that breakpoint this stays hidden-until-
+   * measured, exactly as an unstyled frame does.
+   */
+  ssrScale?: number;
   children: ReactNode;
   className?: string;
 }) {
@@ -111,7 +128,11 @@ export function MacbookFrame({
   }, [designWidth]);
 
   return (
-    <div aria-hidden className={cn('pointer-events-none relative select-none', className)}>
+    <div
+      aria-hidden
+      className={cn('pointer-events-none relative select-none', ssrScale && 'mbf-ssr', className)}
+      style={ssrScale ? ({ '--mbf-ssr-scale': ssrScale } as CSSProperties) : undefined}
+    >
       {/* Lid — aluminium edge */}
       <div
         className={cn(
@@ -138,9 +159,18 @@ export function MacbookFrame({
                 style={{
                   width: designWidth,
                   height: designHeight,
-                  transform: `scale(${scale})`,
-                  // Hidden until measured, so the mock never flashes at full size.
-                  visibility: scale ? 'visible' : 'hidden',
+                  // Hidden until measured, so the mock never flashes at full size. A frame
+                  // given an `ssrScale` paints from these variables instead for the one
+                  // frame before hydration, then the measured value takes over — the two
+                  // agree at the widths `.mbf-ssr` applies to, so nothing moves.
+                  //
+                  // Cast because React types `visibility` as the literal keywords only,
+                  // and a `var()` fallback is the one way to express "hidden unless that
+                  // breakpoint said otherwise" without a second render pass.
+                  transform: scale ? `scale(${scale})` : 'var(--mbf-ssr-transform, none)',
+                  visibility: (scale
+                    ? 'visible'
+                    : 'var(--mbf-ssr-visibility, hidden)') as CSSProperties['visibility'],
                 }}
               >
                 <BrowserChrome url={url} />

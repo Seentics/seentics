@@ -274,6 +274,27 @@
     @apply mx-auto w-full max-w-[1240px] px-6;
   }
 
+  /* Pre-hydration scale for a MacbookFrame whose contents are server-rendered.
+
+     The frame normally measures its own column and stays hidden until it has — correct
+     at every width, but it means a server-rendered mock arrives inside the HTML and
+     still cannot be seen until the page hydrates, which is the entire cost SSR was
+     meant to avoid. `--mbf-ssr-scale` (set inline by the component) paints it for that
+     first frame instead.
+
+     Guarded at 1288px because that is where `.landing-container` stops growing:
+     1240px max-width + 2×24px padding. At or above it the column is a fixed width, so
+     the caller's scale is exact and the measured value that replaces it is identical —
+     nothing moves on hydration. Below it the column tracks the viewport, any fixed
+     guess would be wrong, and a too-large one is clipped by the screen's
+     `overflow-hidden`; so there the frame keeps its measure-first behaviour. */
+  @media (min-width: 1288px) {
+    .mbf-ssr {
+      --mbf-ssr-transform: scale(var(--mbf-ssr-scale));
+      --mbf-ssr-visibility: visible;
+    }
+  }
+
   /* Alternating section band: two tones, split by a slope through the middle.
      The band was a flat grey fill written out as literals in three files, with two
      different dark-mode values — `dark:bg-muted/10` on the feature rows but

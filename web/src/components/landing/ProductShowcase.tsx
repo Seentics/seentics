@@ -1,5 +1,20 @@
 import { MacbookFrame } from './mocks/MacbookFrame';
-import { LazyDashboardMock } from './mocks/lazy';
+import { DashboardMock } from './mocks/DashboardMock';
+
+/**
+ * Design width of the shot, and the column it is scaled into.
+ *
+ * The frame's own chrome eats 24px of that column — the lid's `p-[7px]` and the
+ * bezel's `px-[5px]`, both sides — so the screen is narrower than the column by that
+ * much, and the scale is measured against the screen.
+ */
+const DESIGN_W = 1440;
+const DESIGN_H = 1010;
+const COLUMN_W = 1150;
+const FRAME_CHROME_X = 2 * 7 + 2 * 5;
+
+/** What the frame's own measurement will arrive at, once the column is at full width. */
+const SSR_SCALE = (COLUMN_W - FRAME_CHROME_X) / DESIGN_W;
 
 /**
  * The product, immediately after the promise.
@@ -29,13 +44,30 @@ export default function ProductShowcase() {
           the width in and the height up lands near 3:2: less wide, and the same page
           gets more vertical room, so the content reads larger at the same frame size.
         */}
-        <div className="mx-auto max-w-[1150px]">
+        {/*
+          Server-rendered, unlike the four mocks below the fold.
+
+          This one is the page's LCP element, and deferring it meant the shot only
+          existed after the bundle had downloaded, hydrated and then fetched a further
+          chunk — so the first thing a visitor saw was an empty laptop, and no amount of
+          edge caching could help, because the markup was not in the HTML to cache. It
+          is now, and `ssrScale` lets it paint before hydration.
+
+          The cost is recharts, which `TrafficOverview` pulls in: it is back in the
+          bundle this page's LCP depends on. Everything else in the mock — the sidebar,
+          the header, the summary cards, top pages and top sources — is library-free and
+          paints from the HTML. Recharts' `ResponsiveContainer` measures before it draws,
+          so the traffic chart's own plot area is the one part that still waits for
+          hydration, inside a shot that is otherwise already there.
+        */}
+        <div className="mx-auto" style={{ maxWidth: COLUMN_W }}>
           <MacbookFrame
-            designWidth={1440}
-            designHeight={1010}
+            designWidth={DESIGN_W}
+            designHeight={DESIGN_H}
+            ssrScale={SSR_SCALE}
             url="app.seentics.com/websites/acme-store"
           >
-            <LazyDashboardMock />
+            <DashboardMock />
           </MacbookFrame>
         </div>
       </div>
