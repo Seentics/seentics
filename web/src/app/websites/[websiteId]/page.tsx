@@ -275,11 +275,11 @@ export default function WebsiteDashboardPage() {
           <button
             onClick={() => router.push(`/websites/${websiteId}/ai`)}
             title="Open AI Mode"
-            className="group flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="flex h-8 items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
           >
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
             <span>AI Mode</span>
-            <ArrowUpRight className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
 
           {/* Filters */}

@@ -160,20 +160,15 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           href={`/websites/${websiteId}/ai`}
           title={collapsed ? 'AI Mode' : undefined}
           className={cn(
-            'group relative mb-3 flex overflow-hidden rounded-xl text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md',
-            'bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600',
-            collapsed ? 'mx-auto h-10 w-10 items-center justify-center' : 'min-h-14 items-center gap-3 px-3.5 py-2.5',
+            'mb-3 flex items-center rounded-lg border border-border bg-muted/40 text-foreground transition-colors hover:bg-muted',
+            collapsed ? 'mx-auto h-10 w-10 justify-center' : 'h-10 gap-3 px-3',
           )}
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 transition-opacity group-hover:opacity-100" />
-          <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/20">
-            <Sparkles className="h-4 w-4" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
           </span>
           {!collapsed && (
-            <span className="relative min-w-0">
-              <span className="block text-sm font-semibold leading-tight">AI Mode</span>
-              <span className="block text-[11px] text-white/70">Ask, analyze, automate</span>
-            </span>
+            <span className="text-[13.5px] font-semibold">AI Mode</span>
           )}
         </Link>
         <ul className="space-y-0.5">

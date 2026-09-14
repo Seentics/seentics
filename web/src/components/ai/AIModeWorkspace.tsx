@@ -10,13 +10,11 @@ import {
   Bot,
   Check,
   ChevronRight,
-  Clock3,
   Database,
   GitBranch,
   History,
   Lightbulb,
   Loader2,
-  MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -89,25 +87,25 @@ const SUGGESTIONS = [
     title: 'Explain conversion changes',
     prompt: 'Why did conversions change this week?',
     icon: Activity,
-    tone: 'text-cyan-600 bg-cyan-500/10 dark:text-cyan-300',
+    tone: 'text-primary bg-primary/10',
   },
   {
     title: 'Find visitor friction',
     prompt: 'Show me the pages with the most rage clicks',
     icon: Zap,
-    tone: 'text-amber-600 bg-amber-500/10 dark:text-amber-300',
+    tone: 'text-primary bg-primary/10',
   },
   {
     title: 'Create an automation',
     prompt: 'Create a cart abandonment recovery workflow',
     icon: GitBranch,
-    tone: 'text-violet-600 bg-violet-500/10 dark:text-violet-300',
+    tone: 'text-primary bg-primary/10',
   },
   {
     title: 'Discover an opportunity',
     prompt: 'Which traffic source brings the most engaged visitors?',
     icon: Lightbulb,
-    tone: 'text-emerald-600 bg-emerald-500/10 dark:text-emerald-300',
+    tone: 'text-primary bg-primary/10',
   },
 ] as const;
 
@@ -287,19 +285,19 @@ function ResultArtifact({ result }: { result: AIQueryResult }) {
   const chartStyle = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 };
 
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+    <section className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
         <div className="min-w-0">
           <p className="truncate font-semibold text-foreground">{result.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">Analyzed in {result.execution_time_ms}ms</p>
         </div>
-        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">Live data</span>
+        <span className="text-xs text-muted-foreground">Live data</span>
       </div>
 
       <div className="p-5">
         {result.viz_type === 'number' ? (
-          <div className="flex min-h-36 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/10 to-violet-500/5">
-            <p className="text-5xl font-bold tracking-tight text-indigo-600 dark:text-indigo-300">{formatValue(result.rows[0]?.[yKey])}</p>
+          <div className="flex min-h-36 items-center justify-center rounded-lg bg-muted/50">
+            <p className="text-5xl font-bold tracking-tight text-foreground">{formatValue(result.rows[0]?.[yKey])}</p>
           </div>
         ) : result.viz_type === 'bar_chart' ? (
           <div className="h-72 w-full">
@@ -354,8 +352,8 @@ function ResultArtifact({ result }: { result: AIQueryResult }) {
         )}
 
         {result.insight && (
-          <div className="mt-4 flex gap-3 rounded-xl bg-indigo-500/8 p-4 text-sm leading-6 text-foreground/85">
-            <Sparkles className="mt-1 h-4 w-4 shrink-0 text-indigo-500" />
+          <div className="mt-4 flex gap-3 border-l-2 border-primary bg-muted/40 px-4 py-3 text-sm leading-6 text-foreground/85">
+            <Sparkles className="mt-1 h-4 w-4 shrink-0 text-primary" />
             <p>{result.insight}</p>
           </div>
         )}
@@ -365,7 +363,7 @@ function ResultArtifact({ result }: { result: AIQueryResult }) {
             <div className="space-y-2">
               {result.tips.split('\n').filter(Boolean).map((tip, index) => (
                 <div key={index} className="flex gap-2.5 text-sm leading-6 text-foreground/75">
-                  <Check className="mt-1.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  <Check className="mt-1.5 h-3.5 w-3.5 shrink-0 text-primary" />
                   <span>{tip.replace(/^[•*-]\s*/, '')}</span>
                 </div>
               ))}
@@ -379,36 +377,36 @@ function ResultArtifact({ result }: { result: AIQueryResult }) {
 
 function WorkflowArtifact({ draft, onReview }: { draft: WorkflowDraft; onReview: () => void }) {
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-violet-500/25 bg-card shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-gradient-to-r from-violet-500/10 to-indigo-500/5 px-5 py-4">
+    <section className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-muted/30 px-5 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-violet-500" />
+            <GitBranch className="h-4 w-4 text-primary" />
             <p className="font-semibold text-foreground">{draft.name}</p>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{draft.summary}</p>
         </div>
-        <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">Draft · Not active</span>
+        <span className="rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-muted-foreground">Draft · Not active</span>
       </div>
 
       <div className="p-5">
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-300"><Zap className="h-4 w-4" /></span>
+          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-muted/25 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><Zap className="h-4 w-4" /></span>
             <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">When</p><p className="truncate text-sm font-semibold">{draft.triggerLabel}</p></div>
           </div>
           <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-muted-foreground/50 sm:rotate-0" />
-          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:text-violet-300"><WandSparkles className="h-4 w-4" /></span>
+          <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-border bg-muted/25 p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><WandSparkles className="h-4 w-4" /></span>
             <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Then</p><p className="truncate text-sm font-semibold">{draft.actionLabel}</p></div>
           </div>
         </div>
 
-        {draft.note && <p className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/7 px-4 py-3 text-sm leading-6 text-amber-800 dark:text-amber-200">{draft.note}</p>}
+        {draft.note && <p className="mt-4 rounded-lg border border-border bg-muted/35 px-4 py-3 text-sm leading-6 text-muted-foreground">{draft.note}</p>}
 
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
           <p className="text-xs text-muted-foreground">Review every setting before saving or activating.</p>
-          <button onClick={onReview} className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-violet-600 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700">
+          <button onClick={onReview} className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
             Review in builder <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -529,10 +527,10 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background text-foreground">
       <aside className={cn(
-        'hidden shrink-0 flex-col border-r border-border/70 bg-card/60 transition-[width] duration-200 lg:flex',
+        'hidden shrink-0 flex-col bg-muted/20 transition-[width] duration-200 lg:flex',
         sidebarOpen ? 'w-[280px]' : 'w-[72px]',
       )}>
-        <div className={cn('flex h-16 items-center border-b border-border/70', sidebarOpen ? 'justify-between px-4' : 'justify-center')}>
+        <div className={cn('flex h-16 items-center', sidebarOpen ? 'justify-between px-4' : 'justify-center')}>
           {sidebarOpen && (
             <button onClick={() => router.push(`/websites/${websiteId}`)} className="flex items-center gap-2.5" aria-label="Back to dashboard">
               <Logo size="sm" />
@@ -544,50 +542,38 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
           </button>
         </div>
 
-        <div className={cn('flex-1 overflow-y-auto py-4', sidebarOpen ? 'px-3' : 'px-2')}>
-          <button onClick={startNewConversation} className={cn('flex h-10 w-full items-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90', sidebarOpen ? 'gap-2 px-3' : 'justify-center')}>
+        <div className={cn('flex-1 overflow-y-auto py-2', sidebarOpen ? 'px-3' : 'px-2')}>
+          <button onClick={startNewConversation} className={cn('flex h-10 w-full items-center rounded-md text-foreground transition-colors hover:bg-muted', sidebarOpen ? 'gap-2 px-3' : 'justify-center')}>
             <Plus className="h-4 w-4 shrink-0" />
-            {sidebarOpen && <span className="text-sm font-semibold">New conversation</span>}
+            {sidebarOpen && <span className="text-sm font-medium">New conversation</span>}
           </button>
 
           {sidebarOpen && (
-            <div className="mt-6">
-              <div className="mb-2 flex items-center gap-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <History className="h-3.5 w-3.5" /> Recent questions
+            <div className="mt-5">
+              <div className="mb-2 flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground">
+                <History className="h-3.5 w-3.5" /> Recent
               </div>
               <div className="space-y-1">
                 {recentPrompts.length ? recentPrompts.map(item => (
-                  <button key={item.id} onClick={() => { setPrompt(item.prompt); textareaRef.current?.focus(); }} className="w-full rounded-lg px-2.5 py-2.5 text-left text-sm leading-5 text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
+                  <button key={item.id} onClick={() => { setPrompt(item.prompt); textareaRef.current?.focus(); }} className="w-full rounded-md px-2 py-2 text-left text-sm leading-5 text-foreground/70 transition-colors hover:bg-muted hover:text-foreground">
                     <span className="line-clamp-2">{item.prompt}</span>
                   </button>
                 )) : (
-                  <p className="px-2.5 py-3 text-sm leading-5 text-muted-foreground">Your recent questions will appear here.</p>
+                  <p className="px-2 py-3 text-sm leading-5 text-muted-foreground">Questions you ask will appear here.</p>
                 )}
               </div>
             </div>
           )}
         </div>
-
-        {sidebarOpen && (
-          <div className="border-t border-border/70 p-3">
-            <div className="rounded-xl bg-muted/55 p-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-muted-foreground">AI analyses</span>
-                <span className="font-semibold">{usage ? (usage.limit === -1 ? `${usage.current} used` : `${usage.current}/${usage.limit}`) : 'Available'}</span>
-              </div>
-              {usage && usage.limit > 0 && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, usage.current / usage.limit * 100)}%` }} /></div>}
-            </div>
-          </div>
-        )}
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/70 bg-background/90 px-4 backdrop-blur-md sm:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between bg-background px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push(`/websites/${websiteId}`)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden" aria-label="Back to dashboard"><ArrowLeft className="h-4 w-4" /></button>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-sm shadow-violet-500/20"><Sparkles className="h-4 w-4" /></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span>
             <div>
-              <div className="flex items-center gap-2"><h1 className="font-semibold">AI Mode</h1><span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">Beta</span></div>
+              <h1 className="font-semibold">AI Mode</h1>
               <p className="hidden text-xs text-muted-foreground sm:block">Ask, investigate, and build with your website data</p>
             </div>
           </div>
@@ -602,19 +588,19 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
           <div className="mx-auto flex min-h-full w-full max-w-[900px] flex-col px-4 py-8 sm:px-6">
             {messages.length === 0 ? (
               <div className="my-auto py-8">
-                <div className="mx-auto max-w-2xl text-center">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20"><WandSparkles className="h-6 w-6" /></span>
-                  <h2 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">What do you want to understand or improve?</h2>
-                  <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-muted-foreground">Ask in plain English. AI Mode can analyze performance, uncover friction, and prepare automations for review.</p>
+                <div className="mx-auto max-w-2xl">
+                  <p className="text-sm font-medium text-primary">AI Mode</p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">What would you like to know?</h2>
+                  <p className="mt-2 max-w-xl text-base leading-7 text-muted-foreground">Ask about performance, visitor behavior, or an automation you want to create.</p>
                 </div>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
                   {SUGGESTIONS.map(({ title, prompt: suggestion, icon: Icon, tone }) => (
-                    <button key={suggestion} onClick={() => submit(suggestion)} className="group rounded-2xl border border-border/80 bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-500/35 hover:shadow-md">
+                    <button key={suggestion} onClick={() => submit(suggestion)} className="group rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50">
                       <div className="flex items-start gap-3">
                         <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', tone)}><Icon className="h-4 w-4" /></span>
                         <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-sm leading-5 text-muted-foreground">{suggestion}</p></div>
-                        <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-500" />
+                        <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </div>
                     </button>
                   ))}
@@ -630,7 +616,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
               <div className="space-y-7 pb-5">
                 {messages.map(message => (
                   <article key={message.id} className={cn('flex gap-3', message.role === 'user' && 'justify-end')}>
-                    {message.role === 'assistant' && <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white"><Bot className="h-4 w-4" /></span>}
+                    {message.role === 'assistant' && <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Bot className="h-4 w-4" /></span>}
                     <div className={cn('min-w-0', message.role === 'user' ? 'max-w-[78%]' : 'max-w-[calc(100%-44px)] flex-1')}>
                       <div className={cn('text-base leading-7', message.role === 'user' ? 'rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground' : 'pt-0.5 text-foreground/90')}>
                         {message.text}
@@ -642,7 +628,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
                 ))}
                 {loading && (
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500"><Loader2 className="h-4 w-4 animate-spin" /></span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Loader2 className="h-4 w-4 animate-spin" /></span>
                     <span>Understanding your request and checking the relevant data…</span>
                   </div>
                 )}
@@ -652,10 +638,10 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-border/60 bg-background/95 px-4 pb-4 pt-3 backdrop-blur-md sm:px-6 sm:pb-5">
+        <div className="shrink-0 bg-background px-4 pb-4 pt-3 sm:px-6 sm:pb-5">
           <form onSubmit={event => { event.preventDefault(); submit(); }} className="mx-auto max-w-[900px]">
             {limitReached && <p className="mb-2 text-center text-sm text-amber-600 dark:text-amber-300">Your current AI analysis limit has been reached.</p>}
-            <div className="rounded-2xl border border-border bg-card p-2 shadow-lg shadow-black/5 transition-colors focus-within:border-indigo-500/50 dark:shadow-black/20">
+            <div className="rounded-lg border border-border bg-card p-2 transition-colors focus-within:border-primary">
               <textarea
                 ref={textareaRef}
                 value={prompt}
@@ -674,7 +660,7 @@ export function AIModeWorkspace({ websiteId }: { websiteId: string }) {
               />
               <div className="flex items-center justify-between gap-3 px-2 pb-1">
                 <p className="text-xs text-muted-foreground"><span className="hidden sm:inline">Enter to send · Shift+Enter for a new line · </span>{prompt.length}/500</p>
-                <button type="submit" disabled={!prompt.trim() || loading || limitReached} className="flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">
+                <button type="submit" disabled={!prompt.trim() || loading || limitReached} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   <span className="hidden sm:inline">Send</span>
                 </button>
