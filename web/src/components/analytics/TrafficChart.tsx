@@ -6,7 +6,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 import type { EventAnnotation } from './EventAnnotations';
 
 interface TrafficChartProps {

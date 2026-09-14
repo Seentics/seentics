@@ -11,16 +11,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import {
-  useCustomEvents,
-  useDailyStats,
-  useDashboardData,
-  useGeolocationBreakdown,
-  useHourlyStats,
-  useDimensionsBulk,
-  useVisitorInsights,
-  usePreviousPeriodDailyStats,
-} from '@/lib/analytics-api';
+import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdown, useHourlyStats, useDimensionsBulk, useVisitorInsights, usePreviousPeriodDailyStats } from '@/features/analytics/queries';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';

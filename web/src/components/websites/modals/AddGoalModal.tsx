@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { addGoal, updateGoal, type Goal } from '@/lib/websites-api';
-import { analyticsKeys } from '@/lib/analytics-api';
+import { analyticsKeys } from '@/features/analytics/queries';
 import { toast } from 'sonner';
 import { Loader2, Check, Copy, Code } from 'lucide-react';
 

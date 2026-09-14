@@ -12,8 +12,8 @@ import { render, screen, within } from '@testing-library/react';
 
 const useLiveVisitors = vi.hoisted(() => vi.fn(() => ({ data: 0 })));
 
-vi.mock('@/lib/analytics-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/analytics-api')>()),
+vi.mock('@/features/analytics/queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/analytics/queries')>()),
   useLiveVisitors,
 }));
 

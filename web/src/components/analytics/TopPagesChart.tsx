@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 import { 
   BarChart3, 
   Calendar, 

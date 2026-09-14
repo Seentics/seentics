@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn, isValidId } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { analyticsKeys } from '@/lib/analytics-api';
+import { analyticsKeys } from '@/features/analytics/queries';
 import { getGoals, deleteGoal, Goal } from '@/lib/websites-api';
 import { AddGoalModal } from '../websites/modals/AddGoalModal';
 import { toast } from 'sonner';

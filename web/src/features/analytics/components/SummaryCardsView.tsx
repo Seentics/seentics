@@ -1,5 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDuration, formatPercentage } from '@/lib/analytics-api';
+import { formatDuration, formatPercentage } from '@/features/analytics/format';
 import { cn } from '@/lib/utils';
 import {
   ArrowDownRight,

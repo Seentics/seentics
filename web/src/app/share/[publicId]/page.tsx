@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { usePublicDashboardData } from '@/lib/analytics-api';
+import { usePublicDashboardData } from '@/features/analytics/queries';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { TopPagesChart } from '@/components/analytics/TopPagesChart';

@@ -4,7 +4,7 @@ import {
   SummaryCardsView,
   type SummaryCardsData,
 } from '@/features/analytics/components/SummaryCardsView';
-import { useLiveVisitors } from '@/lib/analytics-api';
+import { useLiveVisitors } from '@/features/analytics/queries';
 
 export type { SummaryCardsData } from '@/features/analytics/components/SummaryCardsView';
 

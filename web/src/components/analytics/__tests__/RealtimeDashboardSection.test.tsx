@@ -17,8 +17,8 @@ const hooks = vi.hoisted(() => ({
   isDemo: vi.fn(() => false),
 }));
 
-vi.mock('@/lib/analytics-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/analytics-api')>()),
+vi.mock('@/features/analytics/queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/analytics/queries')>()),
   useRealtimeData: hooks.useRealtimeData,
   useRecentActivity: hooks.useRecentActivity,
 }));

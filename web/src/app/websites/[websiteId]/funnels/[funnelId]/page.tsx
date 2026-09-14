@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { useFunnelAnalytics, useFunnels } from '@/lib/analytics-api';
+import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
 import { cn } from '@/lib/utils';
 
 /**

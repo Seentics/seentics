@@ -5,7 +5,7 @@ import Image from 'next/image';
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useControllableState } from '@/hooks/useControllableState';
 

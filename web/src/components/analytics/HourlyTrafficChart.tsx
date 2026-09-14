@@ -11,7 +11,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 
 interface HourlyTrafficChartProps {
   data: any;

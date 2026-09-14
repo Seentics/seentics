@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Trash2, GripVertical, Save, X, Target, MousePointer, Activity } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import type { FunnelStep, Funnel } from '@/lib/analytics-api';
+import type { FunnelStep, Funnel } from '@/features/funnels/queries';
 
 interface FunnelBuilderProps {
   websiteId: string;

@@ -4,7 +4,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatNumber, formatDuration, formatPercentage } from '@/lib/analytics-api';
+import { formatNumber, formatDuration, formatPercentage } from '@/features/analytics/format';
 import { TrafficChart } from './TrafficChart';
 import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';

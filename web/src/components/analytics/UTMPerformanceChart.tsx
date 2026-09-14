@@ -6,7 +6,7 @@ import { Layers, Globe } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 
 export interface UTMPerformanceData {
   sources: Array<{

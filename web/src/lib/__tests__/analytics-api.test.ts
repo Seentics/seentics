@@ -23,22 +23,9 @@ vi.mock('sonner', () => ({
   toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() },
 }));
 
-import {
-  analyticsKeys,
-  formatDuration,
-  formatNumber,
-  formatPercentage,
-  getDailyStats,
-  getDashboardData,
-  getDimensionsBulk,
-  getHourlyStats,
-  getLiveVisitors,
-  getRealtimeData,
-  getRealtimeGeoData,
-  getTopPages,
-  getUserTimezone,
-  normalizeRecentActivityApiPayload,
-} from '@/lib/analytics-api';
+import { getDailyStats, getDashboardData, getDimensionsBulk, getHourlyStats, getLiveVisitors, getRealtimeData, getRealtimeGeoData, getTopPages } from '@/features/analytics/api';
+import { formatDuration, formatNumber, formatPercentage, getUserTimezone, normalizeRecentActivityApiPayload } from '@/features/analytics/format';
+import { analyticsKeys } from '@/features/analytics/queries';
 
 const SITE = 'ab12cd34';
 

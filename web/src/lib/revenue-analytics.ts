@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from './api';
 import { isDemo } from './demo';
 import { demoRevenueDashboard as loadDemo } from './demo/revenue';
-import { getUserTimezone } from './analytics-api';
+import { getUserTimezone } from '@/features/analytics/format';
 import { isValidId } from './utils';
 
 export type RevenueDataQuality = 'full' | 'partial' | 'no_revenue';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useRealtimeGeoData } from '@/lib/analytics-api';
+import { useRealtimeGeoData } from '@/features/analytics/queries';
 import { RealtimeGeoMapView } from '@/features/realtime/components/RealtimeGeoMapView';
 
 interface RealtimeGeoMapProps {

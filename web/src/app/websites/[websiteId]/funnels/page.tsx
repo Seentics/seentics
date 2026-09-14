@@ -6,15 +6,8 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
-import {
-  useFunnels,
-  useFunnelAnalytics,
-  useCreateFunnel,
-  useUpdateFunnel,
-  useDeleteFunnel,
-  useDeleteFunnels,
-  type Funnel,
-} from '@/lib/analytics-api';
+import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
+import { useFunnels, useFunnelAnalytics, type Funnel } from '@/features/funnels/queries';
 import { DataTable, selectionColumn } from '@/components/ui/data-table';
 
 import { Badge } from '@/components/ui/badge';

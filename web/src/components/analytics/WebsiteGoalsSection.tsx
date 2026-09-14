@@ -2,7 +2,7 @@
 
 import { useMemo, useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useGoalStats, analyticsKeys } from '@/lib/analytics-api';
+import { useGoalStats, analyticsKeys } from '@/features/analytics/queries';
 import { isValidId } from '@/lib/utils';
 import { getGoals, deleteGoal, type Goal } from '@/lib/websites-api';
 import { toast } from 'sonner';

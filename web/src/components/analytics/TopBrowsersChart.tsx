@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatNumber } from '@/lib/analytics-api';
+import { formatNumber } from '@/features/analytics/format';
 import { getBrowserImagePath } from '@/lib/analytics-icons';
 import { Monitor } from 'lucide-react';
 import Image from 'next/image';

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useCustomEvents } from '@/lib/analytics-api';
+import { useCustomEvents } from '@/features/analytics/queries';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
