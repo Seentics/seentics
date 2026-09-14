@@ -3,10 +3,10 @@
 import {
   SummaryCardsView,
   type SummaryCardsData,
-} from '@/features/analytics/components/SummaryCardsView';
+} from '@/components/analytics/SummaryCardsView';
 import { useLiveVisitors } from '@/features/analytics/queries';
 
-export type { SummaryCardsData } from '@/features/analytics/components/SummaryCardsView';
+export type { SummaryCardsData } from '@/components/analytics/SummaryCardsView';
 
 interface SummaryCardsProps {
   data?: SummaryCardsData | null;

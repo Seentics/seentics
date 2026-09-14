@@ -4,7 +4,7 @@ import { useRealtimeData, useRecentActivity } from '@/features/analytics/queries
 import { type RealtimeData, type RealtimeMinute } from '@/features/analytics/types';
 import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import { RealtimeGeoMap } from '@/components/analytics/RealtimeGeoMap';
-import { RealtimeGeoMapView } from '@/features/realtime/components/RealtimeGeoMapView';
+import { RealtimeGeoMapView } from '@/components/analytics/RealtimeGeoMapView';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';

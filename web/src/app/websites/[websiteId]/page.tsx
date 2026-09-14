@@ -22,6 +22,8 @@ import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
+import { ActiveFilterPills } from '@/components/analytics/ActiveFilterPills';
+import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -409,14 +411,6 @@ export default function WebsiteDashboardPage() {
     }
   };
 
-  const handleWebsiteChange = (siteId: string) => {
-    if (siteId === 'add-new') {
-      setShowAddWebsiteModal(true);
-    } else {
-      router.push(`/websites/${siteId}`);
-    }
-  };
-
   const handleWebsiteAdded = (websiteId: string) => {
     // Redirect to the newly added website
     router.push(`/websites/${websiteId}`);
@@ -432,33 +426,12 @@ export default function WebsiteDashboardPage() {
         {/* ── Header — single compact row ── */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
 
-          {/* Website Switcher */}
-          <Select value={websiteId} onValueChange={handleWebsiteChange}>
-            <SelectTrigger className="w-[180px] h-8 bg-card hover:bg-card transition-colors rounded-lg border dark:border-none ">
-              <div className="flex items-center truncate">
-                <Globe className="mr-1.5 h-3 w-3 text-primary shrink-0" />
-                <span className="truncate font-medium text-foreground">{currentWebsite?.name || 'Select website'}</span>
-              </div>
-            </SelectTrigger>
-            <SelectContent className="rounded-lg bg-card">
-              {websites.map((site) => (
-                <SelectItem key={site.id} value={site.id} className="rounded-lg text-xs py-1.5">
-                  <span className="font-medium text-foreground">{site.name}</span>
-                </SelectItem>
-              ))}
-              {websites.length > 0 && (
-                <>
-                  <div className="h-px bg-border my-1 mx-2" />
-                  <SelectItem value="add-new" className="text-primary rounded-lg text-xs py-1.5">
-                    <div className="flex items-center font-medium">
-                      <PlusCircle className="mr-1.5 h-3 w-3" />
-                      Add Website
-                    </div>
-                  </SelectItem>
-                </>
-              )}
-            </SelectContent>
-          </Select>
+          <WebsiteSwitcher
+            websites={websites}
+            value={websiteId}
+            onChange={(id) => router.push(`/websites/${id}`)}
+            onAddWebsite={() => setShowAddWebsiteModal(true)}
+          />
 
           {/* Spacer pushes controls to the right */}
           <div className="flex-1" />
@@ -513,29 +486,11 @@ export default function WebsiteDashboardPage() {
           />
         </div>
 
-        {/* Active Filter Pills */}
-        {Object.keys(advancedFilters).length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
-            {Object.entries(advancedFilters).map(([key, value]) => (
-              <button
-                key={key}
-                onClick={() => removeFilter(key)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-              >
-                <span className="text-muted-foreground">{key}:</span>
-                <span>{String(value)}</span>
-                <X className="h-3 w-3" />
-              </button>
-            ))}
-            <button
-              onClick={() => setAdvancedFilters({})}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors underline"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
+        <ActiveFilterPills
+          filters={advancedFilters}
+          onRemove={removeFilter}
+          onClearAll={() => setAdvancedFilters({})}
+        />
 
         {/* Traffic Overview */}
         <section className="">

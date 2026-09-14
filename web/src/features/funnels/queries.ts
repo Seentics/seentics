@@ -26,7 +26,7 @@ import type {
   FunnelAnalyticsItem,
   FunnelAnalyticsResponse,
 } from '@/lib/funnels-dashboard';
-import { analyticsKeys } from '../analytics/queries';
+import { analyticsKeys } from '@/features/analytics/queries';
 
 export type { Funnel, FunnelStep, FunnelListSummary, FunnelAnalyticsItem, FunnelAnalyticsResponse };
 

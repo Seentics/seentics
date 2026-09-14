@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useRealtimeGeoData } from '@/features/analytics/queries';
-import { RealtimeGeoMapView } from '@/features/realtime/components/RealtimeGeoMapView';
+import { RealtimeGeoMapView } from '@/components/analytics/RealtimeGeoMapView';
 
 interface RealtimeGeoMapProps {
   data?: { activities?: any[] };

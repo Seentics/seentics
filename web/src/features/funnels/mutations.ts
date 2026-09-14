@@ -9,7 +9,7 @@ import {
   deleteDashboardFunnel,
   bulkDeleteDashboardFunnels,
 } from '@/lib/funnels-dashboard';
-import { analyticsKeys } from '../analytics/queries';
+import { analyticsKeys } from '@/features/analytics/queries';
 import type { DashboardFunnel as Funnel } from '@/lib/funnels-dashboard';
 
 /**

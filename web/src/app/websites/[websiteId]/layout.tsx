@@ -3,7 +3,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/Sidebar';
-import { DashboardContentOverlay } from '@/features/content-demo';
+import { DashboardContentOverlay } from '@/components/content-demo/DashboardContentOverlay';
 
 interface LayoutProps {
   children: React.ReactNode;

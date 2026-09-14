@@ -5,7 +5,7 @@ import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AICommandModal } from '@/components/ai/AICommandModal';
 import { useSubscription } from '@/hooks/useSubscription';
-import { DashboardPageTitle } from '@/features/dashboard';
+import { DashboardPageTitle } from '@/components/dashboard/DashboardPageTitle';
 
 interface DashboardPageHeaderProps {
   title: string;

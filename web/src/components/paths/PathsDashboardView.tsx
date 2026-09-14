@@ -1,4 +1,4 @@
-import { DashboardPageTitle } from '@/features/dashboard';
+import { DashboardPageTitle } from '@/components/dashboard/DashboardPageTitle';
 import { StatCards, type StatCard } from '@/components/seentics-ui/StatCards';
 import type { ReactNode } from 'react';
 

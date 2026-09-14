@@ -7,6 +7,7 @@
 import api from '@/lib/api';
 import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation } from '@/lib/demo';
 import { getUserTimezone } from './format';
+import { useDashboardData } from './queries';
 import type {
   AnalyticsFilters,
   BrowserStat,

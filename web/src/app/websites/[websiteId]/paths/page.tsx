@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { PathAnalysis } from '@/components/analytics/PathAnalysis';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Route, Clock, TrendingUp, Users } from 'lucide-react';
-import { PathsDashboardView } from '@/features/paths';
+import { PathsDashboardView } from '@/components/paths/PathsDashboardView';
 
 export default function PathsPage() {
   const params = useParams();
