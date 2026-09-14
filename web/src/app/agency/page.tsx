@@ -35,30 +35,9 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { CLIENT_STATUS_STYLES, CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } from '@/features/agency/constants';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_STYLES: Record<AgencyClient['status'], string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-  archived:  'bg-muted text-muted-foreground border-border',
-};
-
-const FEATURE_LABELS: Array<{ key: keyof AgencyClientFeatures; label: string }> = [
-  { key: 'analytics',   label: 'Analytics' },
-  { key: 'heatmaps',    label: 'Heatmaps' },
-  { key: 'replays',     label: 'Replays' },
-  { key: 'funnels',     label: 'Funnels' },
-  { key: 'automations', label: 'Automations' },
-];
-
-const DEFAULT_FEATURES: AgencyClientFeatures = {
-  analytics: true,
-  heatmaps: true,
-  replays: true,
-  funnels: true,
-  automations: true,
-};
 
 // ─── Create Dialog ────────────────────────────────────────────────────────────
 
@@ -74,7 +53,7 @@ function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialo
   const [email, setEmail]         = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [note, setNote]           = useState('');
-  const [features, setFeatures]   = useState<AgencyClientFeatures>({ ...DEFAULT_FEATURES });
+  const [features, setFeatures]   = useState<AgencyClientFeatures>({ ...DEFAULT_CLIENT_FEATURES });
 
   const mutation = useMutation({
     mutationFn: (req: CreateClientRequest) => createClient(req),
@@ -92,7 +71,7 @@ function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialo
   const resetForm = () => {
     setName(''); setCompany(''); setEmail('');
     setWebsiteUrl(''); setNote('');
-    setFeatures({ ...DEFAULT_FEATURES });
+    setFeatures({ ...DEFAULT_CLIENT_FEATURES });
   };
 
   const handleSubmit = () => {
@@ -147,7 +126,7 @@ function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialo
           <div className="space-y-2">
             <Label className="text-xs font-medium">Features Enabled</Label>
             <div className="grid grid-cols-2 gap-2">
-              {FEATURE_LABELS.map(({ key, label }) => (
+              {CLIENT_FEATURE_LABELS.map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
                   <input
                     type="checkbox"
@@ -278,7 +257,7 @@ export default function AgencyOverviewPage() {
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-foreground">{client.name}</span>
-                    <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', STATUS_STYLES[client.status])}>
+                    <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', CLIENT_STATUS_STYLES[client.status])}>
                       {client.status}
                     </Badge>
                   </div>
@@ -308,7 +287,7 @@ export default function AgencyOverviewPage() {
 
                   {/* Feature chips */}
                   <div className="flex flex-wrap gap-1 pt-0.5">
-                    {FEATURE_LABELS.filter(f => client.featuresEnabled[f.key]).map(f => (
+                    {CLIENT_FEATURE_LABELS.filter(f => client.featuresEnabled[f.key]).map(f => (
                       <span
                         key={f.key}
                         className="text-[10px] px-1.5 py-0 rounded-sm bg-muted text-muted-foreground border border-border/60"

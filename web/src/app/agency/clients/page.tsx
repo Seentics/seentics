@@ -43,26 +43,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { CLIENT_STATUS_STYLES, CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } from '@/features/agency/constants';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_STYLES: Record<AgencyClient['status'], string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-  archived:  'bg-muted text-muted-foreground border-border',
-};
-
-const FEATURE_LABELS: Array<{ key: keyof AgencyClientFeatures; label: string }> = [
-  { key: 'analytics',   label: 'Analytics' },
-  { key: 'heatmaps',    label: 'Heatmaps' },
-  { key: 'replays',     label: 'Replays' },
-  { key: 'funnels',     label: 'Funnels' },
-  { key: 'automations', label: 'Automations' },
-];
-
-const DEFAULT_FEATURES: AgencyClientFeatures = {
-  analytics: true, heatmaps: true, replays: true, funnels: true, automations: true,
-};
 
 // ─── Client Form Dialog ───────────────────────────────────────────────────────
 
@@ -83,7 +66,7 @@ function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDia
   const [note, setNote]             = useState(initial?.note ?? '');
   const [status, setStatus]         = useState<AgencyClient['status']>(initial?.status ?? 'active');
   const [features, setFeatures]     = useState<AgencyClientFeatures>(
-    initial?.featuresEnabled ? { ...initial.featuresEnabled } : { ...DEFAULT_FEATURES },
+    initial?.featuresEnabled ? { ...initial.featuresEnabled } : { ...DEFAULT_CLIENT_FEATURES },
   );
 
   // Re-sync when `initial` changes (dialog re-opened with different client)
@@ -94,7 +77,7 @@ function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDia
     setWebsiteUrl(client?.websiteUrl ?? '');
     setNote(client?.note ?? '');
     setStatus(client?.status ?? 'active');
-    setFeatures(client?.featuresEnabled ? { ...client.featuresEnabled } : { ...DEFAULT_FEATURES });
+    setFeatures(client?.featuresEnabled ? { ...client.featuresEnabled } : { ...DEFAULT_CLIENT_FEATURES });
   };
 
   const createMutation = useMutation({
@@ -186,7 +169,7 @@ function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDia
           <div className="space-y-2">
             <Label className="text-xs font-medium">Features Enabled</Label>
             <div className="grid grid-cols-2 gap-2">
-              {FEATURE_LABELS.map(({ key, label }) => (
+              {CLIENT_FEATURE_LABELS.map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
                   <input
                     type="checkbox"
@@ -236,7 +219,7 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-foreground">{client.name}</h3>
-                <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', STATUS_STYLES[client.status])}>
+                <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', CLIENT_STATUS_STYLES[client.status])}>
                   {client.status}
                 </Badge>
               </div>
@@ -300,7 +283,7 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
 
         {/* Features */}
         <div className="flex flex-wrap gap-1">
-          {FEATURE_LABELS.map(f => (
+          {CLIENT_FEATURE_LABELS.map(f => (
             <span
               key={f.key}
               className={cn(

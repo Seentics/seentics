@@ -35,15 +35,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { USER_STATUS_STYLES } from '@/features/agency/constants';
+import { CopyButton } from '@/components/agency/CopyButton';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 type ClientUserStatus = ClientUser['status'];
-
-const STATUS_STYLES: Record<ClientUserStatus, string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-};
 
 type FeatureKey = keyof ClientUser['featuresEnabled'];
 
@@ -60,21 +57,6 @@ const DEFAULT_FEATURES: ClientUser['featuresEnabled'] = {
 };
 
 // ─── Copy Button ──────────────────────────────────────────────────────────────
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  return (
-    <Button variant="outline" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={handleCopy}>
-      {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-    </Button>
-  );
-}
 
 // ─── Temp Password Display ────────────────────────────────────────────────────
 
@@ -396,7 +378,7 @@ function ClientUserRow({ user, onResetPassword, onDelete }: ClientUserRowProps) 
 
       {/* Status */}
       <td className="px-4 py-3">
-        <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', STATUS_STYLES[user.status])}>
+        <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', USER_STATUS_STYLES[user.status])}>
           {user.status}
         </Badge>
       </td>

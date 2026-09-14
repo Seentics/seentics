@@ -31,15 +31,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { USER_STATUS_STYLES } from '@/features/agency/constants';
+import { CopyButton } from '@/components/agency/CopyButton';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 type FeatureKey = keyof ClientUser['featuresEnabled'];
-
-const STATUS_STYLES: Record<ClientUser['status'], string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-};
 
 const FEATURE_LABELS: Array<{ key: FeatureKey; label: string; description: string }> = [
   { key: 'analytics',   label: 'Analytics',       description: 'Page views, sessions, traffic sources' },
@@ -52,25 +49,6 @@ const FEATURE_LABELS: Array<{ key: FeatureKey; label: string; description: strin
 type Tab = 'account' | 'api-access';
 
 // ─── Copy Button ──────────────────────────────────────────────────────────────
-
-function CopyButton({ text, className }: { text: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-  return (
-    <Button
-      variant="outline" size="sm"
-      className={cn('h-8 w-8 p-0 shrink-0', className)}
-      onClick={handleCopy}
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-    </Button>
-  );
-}
 
 // ─── Reset Password Dialog ────────────────────────────────────────────────────
 
@@ -212,7 +190,7 @@ function AccountTab({ user }: { user: ClientUser }) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Status</p>
-              <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', STATUS_STYLES[user.status])}>
+              <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', USER_STATUS_STYLES[user.status])}>
                 {user.status}
               </Badge>
             </div>
@@ -473,7 +451,7 @@ export default function ClientUserDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight">{user.name}</h1>
-              <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', STATUS_STYLES[user.status])}>
+              <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border capitalize', USER_STATUS_STYLES[user.status])}>
                 {user.status}
               </Badge>
             </div>
