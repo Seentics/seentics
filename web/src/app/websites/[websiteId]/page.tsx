@@ -24,6 +24,11 @@ import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { ActiveFilterPills } from '@/components/analytics/ActiveFilterPills';
 import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
+import { AudienceSection } from '@/components/analytics/AudienceSection';
+import {
+  selectTopPages, selectTopReferrers, selectTopCountries, selectTopBrowsers,
+  selectTopDevices, selectTopOS, selectCustomEvents,
+} from '@/features/analytics/selectors';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -31,45 +36,6 @@ import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection'
 import { AICommandModal } from '@/components/ai/AICommandModal';
 import { useSubscription } from '@/hooks/useSubscription';
 
-// Pure helper — defined outside component so it's never re-created on render
-function categorizeReferrer(referrer: string): string {
-  const raw = (referrer ?? '').trim();
-  if (!raw || raw === 'Direct') return 'Direct';
-  const r = raw.toLowerCase();
-  if (r.includes('accounts.google.com')) return 'Google OAuth';
-  if (r.includes('google')) return 'Google';
-  if (r.includes('bing')) return 'Bing';
-  if (r.includes('yahoo')) return 'Yahoo';
-  if (r.includes('duckduckgo')) return 'DuckDuckGo';
-  if (r.includes('facebook')) return 'Facebook';
-  if (r.includes('twitter')) return 'Twitter';
-  if (r.includes('linkedin')) return 'LinkedIn';
-  if (r.includes('github')) return 'GitHub';
-  if (r.includes('youtube')) return 'YouTube';
-  if (r.includes('instagram')) return 'Instagram';
-  if (r.includes('reddit')) return 'Reddit';
-  if (r.includes('medium')) return 'Medium';
-  if (r.includes('stackoverflow')) return 'Stack Overflow';
-  if (r.includes('dev.to')) return 'Dev.to';
-  if (r.includes('hashnode')) return 'Hashnode';
-  if (r.includes('producthunt')) return 'Product Hunt';
-  if (r.includes('hackernews')) return 'Hacker News';
-  // Same-origin / dev: self-referrals, not acquisition
-  if (
-    r.includes('localhost') ||
-    r.includes('127.0.0.1') ||
-    r.includes('::1') ||
-    r.startsWith('http://0.0.0.0') ||
-    r.includes('192.168.') ||
-    r.includes('10.0.') ||
-    /\.local(\/|:|$)/.test(r)
-  ) {
-    return 'Internal Navigation';
-  }
-  // Extract domain for unknown referrers instead of showing full URL
-  const domain = r.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-  return domain || raw;
-}
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -271,120 +237,14 @@ export default function WebsiteDashboardPage() {
   const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
   const finalPreviousDailyStats = isDemoMode ? demoData?.dailyStats : previousDailyStats;
 
-  const transformedTopPages = useMemo(() => {
-    const src = isDemoMode ? demoData?.topPages : topPages;
-    return {
-      top_pages: src?.top_pages?.map((page: any) => ({
-        page: page.page || '/',
-        views: page.views || 0,
-        unique_visitors: page.unique || 0,
-        avg_time_on_page: page.avg_time || 0,
-        bounce_rate: page.bounce_rate || 0,
-      })) ?? [],
-    };
-  }, [isDemoMode, demoData, topPages]);
-
-  const transformedTopReferrers = useMemo(() => {
-    const src = isDemoMode ? demoData?.topReferrers : topReferrers;
-    const merged = new Map<string, { visitors: number; page_views: number }>();
-    for (const ref of src?.top_referrers ?? []) {
-      const label = categorizeReferrer(ref.referrer ?? 'Direct');
-      const cur = merged.get(label) ?? { visitors: 0, page_views: 0 };
-      cur.visitors += ref.unique ?? 0;
-      cur.page_views += ref.views ?? 0;
-      merged.set(label, cur);
-    }
-    return {
-      top_referrers: [...merged.entries()]
-        .map(([referrer, v]) => ({
-          referrer,
-          visitors: v.visitors,
-          page_views: v.page_views,
-          avg_session_duration: 0,
-        }))
-        .sort((a, b) => b.visitors - a.visitors),
-    };
-  }, [isDemoMode, demoData, topReferrers]);
-
-  const transformedTopCountries = useMemo(() => {
-    const src = isDemoMode ? demoData?.topCountries : topCountries;
-    return {
-      top_countries: src?.top_countries?.map((country: any) => ({
-        country: country.country || 'Unknown',
-        visitors: country.unique || 0,
-        page_views: country.views || 0,
-        avg_session_duration: 0,
-      })) ?? [],
-    };
-  }, [isDemoMode, demoData, topCountries]);
-
-  const transformedTopBrowsers = useMemo(() => {
-    const src = isDemoMode ? demoData?.topBrowsers : topBrowsers;
-    return {
-      top_browsers: src?.top_browsers?.map((browser: any) => ({
-        browser: browser.browser || 'Unknown',
-        visitors: browser.unique || 0,
-        views: browser.views || 0,
-        market_share: 0,
-        version: 'Unknown',
-      })) ?? [],
-    };
-  }, [isDemoMode, demoData, topBrowsers]);
-
-  const transformedTopDevices = useMemo(() => {
-    const src = isDemoMode ? demoData?.topDevices : topDevices;
-    return {
-      top_devices: src?.top_devices?.map((device: any) => ({
-        device: device.device || 'Unknown',
-        visitors: device.unique || 0,
-        page_views: device.views || 0,
-        avg_session_duration: 0,
-      })) ?? [],
-    };
-  }, [isDemoMode, demoData, topDevices]);
-
-  const transformedTopOS = useMemo(() => {
-    const src = isDemoMode ? demoData?.topOS : topOS;
-    return {
-      top_os: src?.top_os?.map((os: any) => ({
-        os: os.os || 'Unknown',
-        visitors: os.unique || 0,
-        page_views: os.views || 0,
-        avg_session_duration: 0,
-      })) ?? [],
-    };
-  }, [isDemoMode, demoData, topOS]);
-
-  // Transform custom events — filter pageview events and compute totals in one pass
-  const transformedCustomEvents = useMemo(() => {
-    const src = isDemoMode ? demoData?.customEvents : customEvents;
-    const emptyUtm = {
-      sources: [] as { source: string; unique_visitors: number; visits: number }[],
-      mediums: [] as { medium: string; unique_visitors: number; visits: number }[],
-      campaigns: [] as { campaign: string; unique_visitors: number; visits: number }[],
-      terms: [] as { term: string; unique_visitors: number; visits: number }[],
-      content: [] as { content: string; unique_visitors: number; visits: number }[],
-      avg_ctr: 0,
-      total_campaigns: 0,
-      total_sources: 0,
-      total_mediums: 0,
-    };
-
-    // Filter out internal tracker events — these are already reflected in other dashboard sections
-    const internalEvents = new Set(['pageview', 'page_view', 'page_exit', 'scroll_depth', 'click']);
-    const filteredEvents = (src?.top_events ?? []).filter(
-      (event: any) => !internalEvents.has(event.event_type)
-    );
-
-    return {
-      timeseries: src?.timeseries ?? [],
-      top_events: filteredEvents,
-      // Include page_views in total so summary cards reflect full traffic
-      total_events: filteredEvents.reduce((sum: number, e: any) => sum + e.count, 0) + (finalDashboardData?.page_views ?? 0),
-      unique_events: filteredEvents.length,
-      utm_performance: src?.utm_performance ?? emptyUtm,
-    };
-  }, [isDemoMode, demoData, customEvents, finalDashboardData?.page_views]);
+  // Reshaping lives in `features/analytics/selectors`; the page only picks the source.
+  const transformedTopPages     = useMemo(() => selectTopPages(isDemoMode ? demoData?.topPages : topPages), [isDemoMode, demoData, topPages]);
+  const transformedTopReferrers = useMemo(() => selectTopReferrers(isDemoMode ? demoData?.topReferrers : topReferrers), [isDemoMode, demoData, topReferrers]);
+  const transformedTopCountries = useMemo(() => selectTopCountries(isDemoMode ? demoData?.topCountries : topCountries), [isDemoMode, demoData, topCountries]);
+  const transformedTopBrowsers  = useMemo(() => selectTopBrowsers(isDemoMode ? demoData?.topBrowsers : topBrowsers), [isDemoMode, demoData, topBrowsers]);
+  const transformedTopDevices   = useMemo(() => selectTopDevices(isDemoMode ? demoData?.topDevices : topDevices), [isDemoMode, demoData, topDevices]);
+  const transformedTopOS        = useMemo(() => selectTopOS(isDemoMode ? demoData?.topOS : topOS), [isDemoMode, demoData, topOS]);
+  const transformedCustomEvents = useMemo(() => selectCustomEvents(isDemoMode ? demoData?.customEvents : customEvents, finalDashboardData?.page_views ?? 0), [isDemoMode, demoData, customEvents, finalDashboardData?.page_views]);
 
   const handleModalClose = () => {
     setSelectedModal(null);
@@ -512,89 +372,33 @@ export default function WebsiteDashboardPage() {
 
 
         {/* AUDIENCE INTELLIGENCE */}
-        <div className="space-y-4">
- 
-
-          {/* Pages & Sources */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border border-border bg-card">
-              <CardContent className="p-5">
-                <ChartErrorBoundary label="Top Pages">
-                  <TopPagesChart
-                    data={transformedTopPages}
-                    entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
-                    exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
-                    isLoading={pagesLoading || visitorInsightsLoading}
-                  />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border bg-card">
-              <CardContent className="p-5">
-                <ChartErrorBoundary label="Top Sources">
-                  <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Geolocation Map — full width */}
-          <ChartErrorBoundary label="Geographic Intelligence">
-            <GeolocationOverview
-              data={finalGeolocationData}
-              isLoading={!isDemoMode && geolocationLoading}
-            />
-          </ChartErrorBoundary>
-
-          {/* Devices + UTM — 2-col grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border border-border bg-card">
-              <CardContent className="p-5">
-                <ChartErrorBoundary label="Top Devices">
-                  <TopDevicesChart
-                    data={transformedTopDevices}
-                    osData={transformedTopOS}
-                    browserData={transformedTopBrowsers}
-                    isLoading={devicesLoading || osLoading || browsersLoading}
-                  />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border bg-card overflow-hidden">
-              <CardHeader className="p-5 pb-3 border-b border-border">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="min-w-0 shrink-0">
-                    <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">UTM breakdown</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">Sources, mediums & campaigns</p>
-                  </div>
-                  <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
-                    <TabsList className="grid w-full grid-cols-3 h-8 bg-muted/50 p-0.5 rounded-lg">
-                      <TabsTrigger value="sources" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Sources</TabsTrigger>
-                      <TabsTrigger value="mediums" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Mediums</TabsTrigger>
-                      <TabsTrigger value="campaigns" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Campaigns</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <ChartErrorBoundary label="UTM breakdown">
-                  <UTMPerformanceChart
-                    data={transformedCustomEvents.utm_performance as any}
-                    isLoading={customEventsLoading}
-                    controlledTab={utmTab}
-                  />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-          </div>
-
-          <ChartErrorBoundary label="Goals">
-            <WebsiteGoalsSection websiteId={deferredId} days={dateRange} />
-          </ChartErrorBoundary>
-
-        </div>
+        <AudienceSection
+          pages={{
+            data: transformedTopPages,
+            entryPages: finalVisitorInsights?.visitor_insights?.top_entry_pages,
+            exitPages: finalVisitorInsights?.visitor_insights?.top_exit_pages,
+            isLoading: pagesLoading || visitorInsightsLoading,
+          }}
+          sources={{ data: transformedTopReferrers, isLoading: referrersLoading }}
+          geolocation={{ data: finalGeolocationData, isLoading: !isDemoMode && geolocationLoading }}
+          devices={{
+            data: transformedTopDevices,
+            osData: transformedTopOS,
+            browserData: transformedTopBrowsers,
+            isLoading: devicesLoading || osLoading || browsersLoading,
+          }}
+          utm={{
+            data: transformedCustomEvents.utm_performance,
+            tab: utmTab,
+            onTabChange: setUtmTab,
+            isLoading: customEventsLoading,
+          }}
+          footer={
+            <ChartErrorBoundary label="Goals">
+              <WebsiteGoalsSection websiteId={deferredId} days={dateRange} />
+            </ChartErrorBoundary>
+          }
+        />
 
         {/* Detailed Data Modal */}
         {selectedModal && (
