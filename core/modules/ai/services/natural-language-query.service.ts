@@ -26,9 +26,12 @@ const AI_MAX_QUERIES_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 200)
 const AI_CACHE_TTL_MS = 60_000;
 const AI_CACHE_MAX = 300;
 const DAY_MS = 86_400_000;
-const AI_MODEL = "gpt-4o-mini";
-const COST_INPUT_PER_TOKEN = 0.00000015;
-const COST_OUTPUT_PER_TOKEN = 0.0000006;
+/**
+ * Model name and per-token pricing come from the provider configuration now.
+ *
+ * They were literals here and in the OpenAI client, so switching provider meant editing
+ * two files and the recorded cost silently stayed OpenAI's whatever answered the call.
+ */
 
 const DOMAIN_CONFIG: Record<AIDomain, { prompt: string; tables: string[] }> = {
   analytics: { prompt: ANALYTICS_PROMPT, tables: ANALYTICS_TABLES },
@@ -64,6 +67,15 @@ export class NaturalLanguageQueryService {
   constructor(
     private readonly repo: AiRepository,
     private readonly llm: LlmClient,
+    /**
+     * What to record against each answer. Defaults keep the service constructible in a
+     * test without a provider configured; production passes the real configuration.
+     */
+    private readonly modelInfo: {
+      model: string;
+      inputCostPerToken: number;
+      outputCostPerToken: number;
+    } = { model: "unknown", inputCostPerToken: 0, outputCostPerToken: 0 },
   ) {}
 
   async run(
@@ -93,7 +105,7 @@ export class NaturalLanguageQueryService {
       userId,
       websiteUuid: websiteId,
       prompt,
-      model: AI_MODEL,
+      model: this.modelInfo.model,
     });
 
     try {
@@ -209,8 +221,8 @@ export class NaturalLanguageQueryService {
       execution_time_ms: Date.now() - startedAt,
       tokens: { input: completion.inputTokens, output: completion.outputTokens },
       estimated_cost_usd:
-        completion.inputTokens * COST_INPUT_PER_TOKEN +
-        completion.outputTokens * COST_OUTPUT_PER_TOKEN,
+        completion.inputTokens * this.modelInfo.inputCostPerToken +
+        completion.outputTokens * this.modelInfo.outputCostPerToken,
     };
   }
 

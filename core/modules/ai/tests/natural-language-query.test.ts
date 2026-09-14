@@ -40,6 +40,8 @@ class FakeRepo implements AiRepository {
   succeeded: Array<{ id: string; record: AiSuccessRecord }> = [];
   failed: Array<{ id: string; errorMessage: string }> = [];
   pendingCreated = 0;
+  /** The model name is recorded here, before the call — see `createPending`. */
+  pendingRecords: Array<{ model: string }> = [];
 
   rows: Record<string, unknown>[] = [{ path: "/pricing" }];
   queriesInWindow = 0;
@@ -55,8 +57,9 @@ class FakeRepo implements AiRepository {
     return this.queriesInWindow;
   }
 
-  async createPending(): Promise<string | null> {
+  async createPending(rec: { model: string }): Promise<string | null> {
     this.pendingCreated++;
+    this.pendingRecords.push({ model: rec.model });
     return `query-${this.pendingCreated}`;
   }
 
@@ -103,7 +106,13 @@ let runner: NaturalLanguageQueryService;
 beforeEach(() => {
   repo = new FakeRepo();
   llm = new FakeLlm();
-  runner = new NaturalLanguageQueryService(repo, llm);
+  // Pricing is injected now rather than compiled in, so the test states the rates it
+  // is asserting against instead of depending on whichever provider was hard-wired.
+  runner = new NaturalLanguageQueryService(repo, llm, {
+    model: "test-model",
+    inputCostPerToken: 0.000001,
+    outputCostPerToken: 0.000002,
+  });
 });
 
 describe("a successful question", () => {
@@ -120,10 +129,16 @@ describe("a successful question", () => {
     expect(repo.failed).toHaveLength(0);
   });
 
-  it("reports token cost", async () => {
+  it("reports token cost at the configured rates", async () => {
     const result = await runner.run(USER, SITE, "top pages", "analytics");
     expect(result.tokens).toEqual({ input: 100, output: 50 });
-    expect(result.estimated_cost_usd).toBeGreaterThan(0);
+    // 100 * 1e-6 + 50 * 2e-6 — asserting the arithmetic, not merely that it is non-zero.
+    expect(result.estimated_cost_usd).toBeCloseTo(0.0002, 10);
+  });
+
+  it("records the configured model name rather than a compiled-in one", async () => {
+    await runner.run(USER, SITE, "top pages", "analytics");
+    expect(repo.pendingRecords[0]?.model).toBe("test-model");
   });
 
   it("derives columns from the first row when the model names none", async () => {
