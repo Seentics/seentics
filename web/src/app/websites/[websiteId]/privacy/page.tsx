@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';

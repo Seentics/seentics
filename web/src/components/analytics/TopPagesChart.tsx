@@ -1,32 +1,8 @@
 'use client';
 
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { formatNumber } from '@/features/analytics/format';
-import { 
-  BarChart3, 
-  Calendar, 
-  CreditCard, 
-  DollarSign, 
-  FileText, 
-  Globe, 
-  HelpCircle, 
-  Home, 
-  Info, 
-  LogIn, 
-  LogOut,
-  Mail, 
-  Package, 
-  Palette, 
-  Phone, 
-  Settings, 
-  Shield, 
-  ShoppingCart, 
-  User, 
-  Users, 
-  Workflow, 
-  Zap,
-  ChevronRight
-} from 'lucide-react';
+import { BarChart3, CreditCard, DollarSign, FileText, Globe, Home, Info, LogIn, Package, Phone, Settings, Shield, ShoppingCart, Users, Workflow, Zap } from 'lucide-react';
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useControllableState } from '@/hooks/useControllableState';
@@ -167,7 +143,6 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       <div className="space-y-2 mt-4">
         {sortedItems.map((item, index) => {
           const val = item.views || item.sessions || 0;
-          const percentage = ((val / maxVal) * 100).toFixed(1);
           const name = getPageName(item.page);
           const path = getPathFromUrl(item.page);
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
@@ -240,5 +215,5 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   );
 };
 
-import { CardTitle } from '@/components/ui/card';
+
 import { cn } from '@/lib/utils';

@@ -1,19 +1,14 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
-import {
-    Users2, Globe, BarChart2, MousePointer2, Video,
-    Filter, Workflow, Palette, Key, ArrowRight,
-    CheckCircle2, Sparkles, Shield, Zap, Building2,
-    ChevronRight, Code2, Loader2,
-} from 'lucide-react';
+import { Users2, Globe, BarChart2, MousePointer2, Video, Filter, Workflow, Palette, Key, ArrowRight, CheckCircle2, Sparkles, Shield, Zap, Building2, Code2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Footer from '@/components/landing/Footer';
@@ -92,7 +87,6 @@ const METHOD_COLOR: Record<string, string> = {
 
 // The global LemonSqueezy interface is already defined elsewhere in the project.
 export default function AgencySolutionPage() {
-    const router = useRouter();
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
 

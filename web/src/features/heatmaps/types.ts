@@ -1,6 +1,6 @@
 /** Domain types for the heatmaps feature. */
 
-import api from '@/lib/api';
+
 
 export interface HeatmapPageSummary {
   page_path:    string;

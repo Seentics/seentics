@@ -1,7 +1,7 @@
 /** Funnel write hooks and the cache invalidation each one implies. */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { demoMutationGuard } from '@/lib/demo';
+
+
 import { funnelKeys } from '@/lib/funnels-api';
 import {
   createDashboardFunnel,

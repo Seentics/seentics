@@ -19,17 +19,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import {
-  connectNodes,
-  disconnect,
-  moveNode,
-  outletLabel,
-  outletsFor,
-  resolvePositions,
-  type AutomationGraph,
-  type GraphNode,
-  type NodeId,
-} from '@/lib/automation-graph';
+import { connectNodes, disconnect, moveNode, outletLabel, resolvePositions, type AutomationGraph, type GraphNode, type NodeId } from '@/lib/automation-graph';
 import { nodeTypes, type NodeVisual } from './AutomationNodes';
 
 /**

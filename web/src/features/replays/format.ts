@@ -66,6 +66,4 @@ type DeviceFilter = 'all' | 'desktop' | 'mobile' | 'tablet';
  * The search runs on the server now, so every character would otherwise be a query
  * against a table that grows without bound.
  */
-const SEARCH_DEBOUNCE_MS = 300;
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100];

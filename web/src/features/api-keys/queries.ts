@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
 import { apiKeyKeys, fetchApiCatalogue, fetchApiKeys, fetchApiScopes } from './api';
 
 export function useApiKeys(websiteId: string) {

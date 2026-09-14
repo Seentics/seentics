@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { C, Callout, CodeBlock, DocPage, DocSection, Li, P, RefTable, Ul } from '@/components/docs/DocsKit';
+import { C, Callout, CodeBlock, DocPage, DocSection, P, RefTable } from '@/components/docs/DocsKit';
 
 export const metadata = {
   title: 'Tracker script · Seentics docs',

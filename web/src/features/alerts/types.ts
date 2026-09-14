@@ -1,6 +1,6 @@
 /** Domain types for the alerts feature. */
 
-import api from '@/lib/api';
+
 
 export type ConditionType = 'traffic_spike' | 'traffic_drop' | 'usage_limit' | 'anomaly';
 

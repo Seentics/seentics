@@ -1,7 +1,7 @@
 /** Domain types for the privacy feature. */
 
-import api from '@/lib/api';
-import { isEnterprise } from '@/lib/features';
+
+
 
 export interface WebsitePrivacySettings {
   ipAnonymization: 'none' | 'partial' | 'full';

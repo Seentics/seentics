@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+
 import { useParams } from 'next/navigation';
 import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
 

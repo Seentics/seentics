@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
+
+import { SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
 import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 import { formatDuration, timeAgo, entryPathDisplay } from '@/features/replays/format';
 import type { SessionRow } from '@/features/replays/list-types';
-import { cn } from '@/lib/utils';
+
 import { AlertTriangle, Clock, MousePointerClick, Play, Trash2 } from 'lucide-react';
 
 export interface SessionColumnsOptions {

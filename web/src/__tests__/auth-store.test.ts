@@ -138,7 +138,6 @@ describe('Auth Store', () => {
 
   it('should initialize auth (set loading to false)', () => {
     // Initially loading is true
-    const initialState = useAuth.getState();
     // After resetAuth it's false, so let's manually set loading
     useAuth.setState({ isLoading: true });
     expect(useAuth.getState().isLoading).toBe(true);
@@ -150,7 +149,6 @@ describe('Auth Store', () => {
   it('should only persist user, isAuthenticated, and rememberMe (not tokens)', () => {
     // The partialize function should not include tokens
     const store = useAuth;
-    const persistOptions = (store as any).persist;
     // We can verify by checking the persisted state structure
     // Tokens should NOT be in localStorage for security
     const state = useAuth.getState();

@@ -5,20 +5,12 @@
  * things went. Funnels are their own domain with their own endpoints, and a module that
  * accumulates unrelated features is the shape the architecture doc warns against.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+
 import { isValidId } from '@/lib/utils';
-import { demoMutationGuard } from '@/lib/demo';
-import { funnelKeys } from '@/lib/funnels-api';
-import {
-  fetchDashboardFunnelList,
-  createDashboardFunnel,
-  getDashboardFunnel,
-  updateDashboardFunnel,
-  deleteDashboardFunnel,
-  bulkDeleteDashboardFunnels,
-  getDashboardFunnelAnalytics,
-} from '@/lib/funnels-dashboard';
+
+
+import { fetchDashboardFunnelList, getDashboardFunnel, getDashboardFunnelAnalytics } from '@/lib/funnels-dashboard';
 import type {
   DashboardFunnel as Funnel,
   DashboardFunnelStep as FunnelStep,

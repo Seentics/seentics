@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -12,37 +12,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  ArrowLeft, MousePointer,
-  RefreshCw, Image as ImageIcon,
-  TrendingDown, Layers, Link2,
-  MoreHorizontal,
-  ChevronLeft, ChevronRight,
-  Lock, ExternalLink,
-  Camera,
-} from 'lucide-react';
-import { DemoHeatmapPage } from '@/components/heatmaps/DemoHeatmapPage';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, Layers, Link2, MoreHorizontal, Camera } from 'lucide-react';
+
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
-import {
-  getHeatmapData,
-  getHeatmapPageScreenshot,
-  triggerPlaywrightScreenshot,
-  heatmapPageSlug,
-  normalizeHeatmapPagePath,
-  weightedHeatmapCaptureViewportWidth,
-  weightedHeatmapCaptureViewportHeight,
-  type HeatmapPageScreenshot,
-  type HeatmapPoint as ApiHeatmapPoint,
-} from '@/lib/heatmaps-api';
+import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPageSlug, normalizeHeatmapPagePath, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
 import {
   clampLayoutPx,
   heatmapCaptureBox,
@@ -56,11 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 import { HeatmapViewer, DemoHeatmapStage, type PreviewUnderlay } from '@/components/heatmaps/HeatmapViewer';
-import {
-  isAbsoluteHttpUrl, heatmapPageHeading, clampHeatmapPreviewDimensions,
-  heatmapDocHeightHintPx, documentPixelHeightForHeatmap, documentPixelWidthForHeatmap,
-  type HeatType, type DeviceType, type HeatPoint,
-} from '@/features/heatmaps/preview-math';
+import { isAbsoluteHttpUrl, heatmapPageHeading, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
 
 export default function HeatmapDetailPage() {
   const params     = useParams();
@@ -225,7 +196,6 @@ export default function HeatmapDetailPage() {
     setCustomUrl('');
   };
 
-  const shareHeatmapPath = `/websites/${websiteId}/heatmaps/${heatmapPageSlug(urlPath)}`;
 
   const pathForHeading = isDemoMode ? (demoPage?.url ?? urlPath) : urlPath;
   const { subtitle: pageSubtitle } = heatmapPageHeading(

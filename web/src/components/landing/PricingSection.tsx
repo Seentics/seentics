@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import { useState } from 'react';
-import { Users, Building2, ArrowRight, Check } from 'lucide-react';
+import { Users, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PricingSection() {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { isDemo, demoMutationGuard, demoAutomations } from '@/lib/demo';
-import { isValidId } from '@/lib/utils';
+
 import type {
   Automation,
   AutomationAction,

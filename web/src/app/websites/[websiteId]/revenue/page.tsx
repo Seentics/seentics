@@ -3,15 +3,10 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  useRevenueDashboard,
-  formatMoney,
-  type RevenueByRow,
-  type RevenueTransaction,
-} from '@/lib/revenue-analytics';
+import { useRevenueDashboard, formatMoney, type RevenueTransaction } from '@/lib/revenue-analytics';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,68 +19,13 @@ import {
 import {
   ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { cn } from '@/lib/utils';
+
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string) {
-  try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
-  catch { return iso; }
-}
-
-function fmtTime(iso: string) {
-  try { return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); }
-  catch { return iso; }
-}
-
-function fmtK(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-  return String(n);
-}
-
-// ─── DimTable ─────────────────────────────────────────────────────────────────
-
-function DimTable({ rows, currency, emptyMessage }: {
-  rows: RevenueByRow[]; currency: string; emptyMessage: string;
-}) {
-  if (!rows.length) {
-    return <div className="py-10 text-center text-sm text-muted-foreground">{emptyMessage}</div>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left">
-            <th className="py-2.5 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
-            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Revenue</th>
-            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Orders</th>
-            <th className="py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[140px]">Share</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.name} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-              <td className="py-2.5 pr-4 font-medium text-foreground max-w-[180px] truncate" title={r.name}>{r.name}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums font-semibold text-foreground">{formatMoney(r.revenue, currency)}</td>
-              <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">{r.orders.toLocaleString()}</td>
-              <td className="py-2.5">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{r.share_pct.toFixed(1)}%</span>
-                  <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary/70 rounded-full" style={{ width: `${Math.min(100, r.share_pct)}%` }} />
-                  </div>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+import { DimTable } from '@/components/revenue/DimTable';
+import { RevenueOrdersChart } from '@/components/revenue/RevenueOrdersChart';
+import { fmtTime } from '@/features/revenue/format';
 
 export default function RevenuePage() {
   const params = useParams();
@@ -202,113 +142,7 @@ export default function RevenuePage() {
       {/* ── 4 stat cards (same StatCards component as Funnels, Events pages) ── */}
       <StatCards cards={topCards} cols={4} isLoading={false} cardClassName="p-3 sm:p-4" />
 
-      {/* ── Revenue & orders chart ── */}
-      <Card className="border border-border mb-6 rounded-lg">
-        <CardHeader className=" border-b border-border">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle className="text-sm font-semibold">Revenue & orders (daily)</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Gross purchase value. Refunds shown in summary when tracked.</p>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-[2px] rounded-full bg-primary inline-block" />
-                Revenue
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-2 rounded-sm bg-sky-500/50 inline-block" />
-                Orders
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4 h-[280px]">
-          {chartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center flex-col gap-2 text-center">
-              <Banknote className="h-8 w-8 text-muted-foreground/20" />
-              <p className="text-sm text-muted-foreground">No revenue data yet</p>
-              <p className="text-xs text-muted-foreground/60">
-                Call <code className="font-mono bg-muted px-1 rounded-lg">seentics.track(&apos;purchase&apos;, &#123; value, currency &#125;)</code> from your checkout
-              </p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={fmtDate}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  yAxisId="rev"
-                  orientation="left"
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(n) => `$${fmtK(n)}`}
-                  width={52}
-                />
-                <YAxis
-                  yAxisId="ord"
-                  orientation="right"
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={fmtK}
-                  width={36}
-                />
-                <Tooltip
-                  content={({ active, label, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    return (
-                      <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs min-w-[160px]">
-                        <p className="text-[10px] font-medium text-muted-foreground mb-1.5">{label ? fmtDate(String(label)) : ''}</p>
-                        {payload.map((p, i) => (
-                          <div key={i} className="flex justify-between gap-6 py-0.5">
-                            <span className="text-muted-foreground capitalize">{String(p.name ?? '')}</span>
-                            <span className="font-semibold tabular-nums text-foreground">
-                              {p.dataKey === 'revenue' ? formatMoney(Number(p.value ?? 0), cur) : Number(p.value ?? 0).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  }}
-                />
-                <Area
-                  yAxisId="rev"
-                  type="monotone"
-                  name="Revenue"
-                  dataKey="revenue"
-                  stroke="hsl(var(--primary))"
-                  fill="url(#revenueGrad)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 0 }}
-                />
-                <Bar
-                  yAxisId="ord"
-                  name="Orders"
-                  dataKey="orders"
-                  className="fill-sky-500/30"
-                  radius={[2, 2, 0, 0]}
-                  maxBarSize={14}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      <RevenueOrdersChart chartData={chartData} currency={cur} />
 
       {/* ── Attribution breakdown ── */}
       <h3 className="text-sm font-semibold text-foreground mb-2">Attribution breakdown</h3>

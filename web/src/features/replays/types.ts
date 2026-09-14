@@ -1,6 +1,6 @@
 /** Domain types for the replays feature. */
 
-import api from '@/lib/api';
+
 
 export interface ReplaySession {
   sessionId:     string;

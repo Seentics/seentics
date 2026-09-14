@@ -10,7 +10,6 @@ import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 
 export default function SettingsWebsitesPage() {
   const params = useParams();
-  const websiteId = params?.websiteId as string;
   const [addOpen, setAddOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 

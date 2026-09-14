@@ -38,48 +38,10 @@ import { ReplaySessionSidebar } from './replay-session-sidebar';
 export type { SessionReplaySurfaceAPI as ReplayPlayerAPI } from './session-replay-surface';
 
 /** Chunks fetched before the player is mounted. Enough for playback to start immediately. */
-const INITIAL_BATCH = 2;
-
-/** Parallel chunk downloads. Bounded so a long session does not open 60 sockets at once. */
-const CHUNK_CONCURRENCY = 5;
-
-/** Stable identities: `events` drives a mount effect, so a fresh [] each render remounts. */
-const EMPTY_EVENTS: RRWebEvent[] = [];
-const EMPTY_CUSTOM_EVENTS: SessionCustomEvent[] = [];
-
-type ChunkProgress = {
-  loaded: number;
-  /** Chunks that failed twice and were skipped — the replay has gaps this many chunks wide. */
-  failed: number;
-  total: number;
-};
-
-/** Chunks that will not change again — downloaded, or skipped after retrying. */
-function settledChunks(p: ChunkProgress): number {
-  return p.loaded + p.failed;
-}
-
-/** Progress over settled chunks, so a skipped one advances the bar instead of stalling it. */
-function progressPercent(p: ChunkProgress): number {
-  if (p.total <= 0) return 0;
-  return Math.min(100, Math.round((settledChunks(p) / p.total) * 100));
-}
-
-/** Runs at most `max` tasks at a time, preserving each caller's own promise. */
-function createLimiter(max: number) {
-  let active = 0;
-  const waiting: (() => void)[] = [];
-  return async function run<T>(task: () => Promise<T>): Promise<T> {
-    if (active >= max) await new Promise<void>(resolve => waiting.push(resolve));
-    active += 1;
-    try {
-      return await task();
-    } finally {
-      active -= 1;
-      waiting.shift()?.();
-    }
-  };
-}
+import {
+  INITIAL_BATCH, CHUNK_CONCURRENCY, EMPTY_EVENTS, EMPTY_CUSTOM_EVENTS,
+  settledChunks, progressPercent, createLimiter, type ChunkProgress,
+} from '@/features/replays/chunk-loading';
 
 export default function ReplayDetailPage() {
   const params = useParams();

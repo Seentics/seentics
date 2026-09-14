@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const CHECKOUT_INTENT_KEY = 'seentics_checkout_intent';
-import { Users, Building2, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, Building2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Pricing() {

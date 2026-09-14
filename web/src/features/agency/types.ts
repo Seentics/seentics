@@ -1,6 +1,6 @@
 /** Domain types for the agency feature. */
 
-import api from '@/lib/api';
+
 
 export interface ClientUser {
   id: string;

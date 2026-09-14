@@ -6,11 +6,11 @@ import {
   HelpCircle
 } from 'lucide-react';
 import Image from 'next/image';
-import React from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+
+
 import { formatNumber } from '@/features/analytics/format';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CardTitle } from '@/components/ui/card';
+
 import { cn } from '@/lib/utils';
 import { getBrowserImagePath, getDeviceImagePath, getOsImagePath } from '@/lib/analytics-icons';
 import { useControllableState } from '@/hooks/useControllableState';

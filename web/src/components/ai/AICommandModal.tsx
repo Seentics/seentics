@@ -1,18 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
-} from 'recharts';
-import {
-  Sparkles, Send, X, Loader2, AlertCircle, TrendingUp,
-  Lock, History, RotateCcw, Globe, Monitor, MousePointer,
-  BarChart2, Hash, ArrowUpRight, Zap, ArrowLeft,
-  DollarSign, Video, Flame, Filter, Bot, Download,
-  ChevronDown, ChevronUp, Code2, CheckCircle2, Clock,
-  Database, Activity,
-} from 'lucide-react';
+import { BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { Sparkles, Send, X, Loader2, AlertCircle, TrendingUp, Lock, History, RotateCcw, BarChart2, ArrowUpRight, Zap, ArrowLeft, DollarSign, Video, Filter, Bot, Download, ChevronDown, ChevronUp, Code2, CheckCircle2, Clock, Database, Activity } from 'lucide-react';
 import {
   Dialog,
   DialogContent,

@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
 import { isDemo, demoMutationGuard, demoFunnels, demoFunnelStats } from '@/lib/demo';
 import { isValidId } from '@/lib/utils';
 import { funnelKeys, getFunnel, getFunnelStats, listFunnels } from './api';

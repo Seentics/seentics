@@ -1,6 +1,6 @@
 /** Domain types for the websites feature. */
 
-import api from '@/lib/api';
+
 import { isDemo, demoMutationGuard, demoWebsite, demoGoals, demoMembers } from '@/lib/demo';
 
 export type Website = {

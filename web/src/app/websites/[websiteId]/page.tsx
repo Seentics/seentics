@@ -1,11 +1,7 @@
 'use client';
 
-import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';
-import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
-import { TopPagesChart } from '@/components/analytics/TopPagesChart';
-import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
-import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
+
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,9 +11,9 @@ import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdo
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Globe, PlusCircle, Sparkles, Users, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 
@@ -35,7 +31,6 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
 import { AICommandModal } from '@/components/ai/AICommandModal';
 import { useSubscription } from '@/hooks/useSubscription';
-
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -185,18 +180,13 @@ export default function WebsiteDashboardPage() {
     loadWebsites();
   }, [user, isDemoMode]);
 
-  const currentWebsite = websites.find(w => w.id === websiteId);
-
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
   const { data: hourlyStats } = useHourlyStats(websiteId, dateRange, advancedFilters);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
-  // All queries fire in parallel — each component handles its own isLoading skeleton.
-  const deferredId = websiteId;
-
-  const { data: dimensionsData, isLoading: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(deferredId, dateRange, advancedFilters);
+  const { data: dimensionsData, isLoading: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(websiteId, dateRange, advancedFilters);
   const topPages     = dimensionsData ? { top_pages:     dimensionsData.top_pages }     : undefined;
   const topReferrers = dimensionsData ? { top_referrers: dimensionsData.top_referrers } : undefined;
   const topCountries = dimensionsData ? { top_countries: dimensionsData.top_countries } : undefined;
@@ -209,17 +199,11 @@ export default function WebsiteDashboardPage() {
   const browsersLoading  = dimensionsLoading;
   const devicesLoading   = dimensionsLoading;
   const osLoading        = dimensionsLoading;
-  const pagesError    = dimensionsError;
-  const referrersError = dimensionsError;
-  const countriesError = dimensionsError;
-  const browsersError  = dimensionsError;
-  const devicesError   = dimensionsError;
-  const osError        = dimensionsError;
-  const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(deferredId, dateRange);
-  const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
+  const { data: geolocationData, isLoading: geolocationLoading } = useGeolocationBreakdown(websiteId, dateRange);
+  const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
 
   // Previous period data for comparison overlay
-  const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
+  const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, dateRange, showComparison);
 
   // Memoize demo data so demoAnalyticsData() is not called on every render
   const demoData = useMemo(() => (isDemoMode ? demoAnalyticsData() : null), [isDemoMode]);
@@ -240,7 +224,6 @@ export default function WebsiteDashboardPage() {
   // Reshaping lives in `features/analytics/selectors`; the page only picks the source.
   const transformedTopPages     = useMemo(() => selectTopPages(isDemoMode ? demoData?.topPages : topPages), [isDemoMode, demoData, topPages]);
   const transformedTopReferrers = useMemo(() => selectTopReferrers(isDemoMode ? demoData?.topReferrers : topReferrers), [isDemoMode, demoData, topReferrers]);
-  const transformedTopCountries = useMemo(() => selectTopCountries(isDemoMode ? demoData?.topCountries : topCountries), [isDemoMode, demoData, topCountries]);
   const transformedTopBrowsers  = useMemo(() => selectTopBrowsers(isDemoMode ? demoData?.topBrowsers : topBrowsers), [isDemoMode, demoData, topBrowsers]);
   const transformedTopDevices   = useMemo(() => selectTopDevices(isDemoMode ? demoData?.topDevices : topDevices), [isDemoMode, demoData, topDevices]);
   const transformedTopOS        = useMemo(() => selectTopOS(isDemoMode ? demoData?.topOS : topOS), [isDemoMode, demoData, topOS]);
@@ -275,7 +258,6 @@ export default function WebsiteDashboardPage() {
     // Redirect to the newly added website
     router.push(`/websites/${websiteId}`);
   };
-
 
   const dashboardContent = !isDemoMode && dashboardError ? (
     <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
@@ -326,10 +308,8 @@ export default function WebsiteDashboardPage() {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        {/* Summary Cards */}
-        <div className="">
-          {/* SummaryCards already inside dashboard. Transforming to use better container if needed. */}
+        {/* Summary cards */}
+        <div>
           <SummaryCards
             websiteId={websiteId}
             isDemo={isDemoMode}
@@ -353,7 +333,7 @@ export default function WebsiteDashboardPage() {
         />
 
         {/* Traffic Overview */}
-        <section className="">
+        <section>
           <ChartErrorBoundary label="Traffic Overview">
             <TrafficOverview
               dailyStats={finalDailyStats}
@@ -368,8 +348,6 @@ export default function WebsiteDashboardPage() {
             />
           </ChartErrorBoundary>
         </section>
-
-
 
         {/* AUDIENCE INTELLIGENCE */}
         <AudienceSection
@@ -395,7 +373,7 @@ export default function WebsiteDashboardPage() {
           }}
           footer={
             <ChartErrorBoundary label="Goals">
-              <WebsiteGoalsSection websiteId={deferredId} days={dateRange} />
+              <WebsiteGoalsSection websiteId={websiteId} days={dateRange} />
             </ChartErrorBoundary>
           }
         />

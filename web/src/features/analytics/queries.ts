@@ -1,6 +1,6 @@
 /** Query keys, options and read hooks for the analytics feature. */
 import { useQuery } from '@tanstack/react-query';
-import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation } from '@/lib/demo';
+import { isDemo, demoAnalyticsData } from '@/lib/demo';
 import { isValidId } from '@/lib/utils';
 import api from '@/lib/api';
 import { dashboardRefreshMs, getUserTimezone, normalizeRecentActivityApiPayload } from './format';
@@ -25,36 +25,7 @@ import {
   getTopResolutions,
   getVisitorInsights,
 } from './api';
-import type {
-  AnalyticsFilters,
-  BrowserStat,
-  CountryStat,
-  CustomEventsStats,
-  DailyStat,
-  DashboardData,
-  DeviceStat,
-  GeolocationData,
-  GetDailyStatsResponse,
-  GetHourlyStatsResponse,
-  GetTopBrowsersResponse,
-  GetTopCountriesResponse,
-  GetTopDevicesResponse,
-  GetTopOSResponse,
-  GetTopPagesResponse,
-  GetTopReferrersResponse,
-  GetVisitorInsightsResponse,
-  HourlyStat,
-  OSStat,
-  PageStat,
-  RealtimeData,
-  RealtimeGeoResponse,
-  RealtimeGeoVisitor,
-  RealtimeMinute,
-  ReferrerStat,
-  TopVisitor,
-  UseRecentActivityOptions,
-  VisitorInsightsData,
-} from './types';
+import type { AnalyticsFilters, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse, RealtimeData, RealtimeGeoResponse, UseRecentActivityOptions } from './types';
 
 // Query Keys
 export const analyticsKeys = {

@@ -9,17 +9,13 @@ import { ApiKeysPanel } from '@/components/developers/ApiKeysPanel';
 import { ApiReferencePanel } from '@/components/developers/ApiReferencePanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { cn, isValidId } from '@/lib/utils';
-import {
-  Code2, KeyRound, Layers, BookOpen, Plus, Copy, Check,
-  Clock, Shield, AlertTriangle, Zap,
-  Terminal,
-} from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { Code2, KeyRound, Layers, BookOpen, Copy, Check, Zap, Terminal } from 'lucide-react';
 
 /**
  * API keys and the public API reference now come from shared panels.

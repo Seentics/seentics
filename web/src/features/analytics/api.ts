@@ -7,37 +7,8 @@
 import api from '@/lib/api';
 import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation } from '@/lib/demo';
 import { getUserTimezone } from './format';
-import { useDashboardData } from './queries';
-import type {
-  AnalyticsFilters,
-  BrowserStat,
-  CountryStat,
-  CustomEventsStats,
-  DailyStat,
-  DashboardData,
-  DeviceStat,
-  GeolocationData,
-  GetDailyStatsResponse,
-  GetHourlyStatsResponse,
-  GetTopBrowsersResponse,
-  GetTopCountriesResponse,
-  GetTopDevicesResponse,
-  GetTopOSResponse,
-  GetTopPagesResponse,
-  GetTopReferrersResponse,
-  GetVisitorInsightsResponse,
-  HourlyStat,
-  OSStat,
-  PageStat,
-  RealtimeData,
-  RealtimeGeoResponse,
-  RealtimeGeoVisitor,
-  RealtimeMinute,
-  ReferrerStat,
-  TopVisitor,
-  UseRecentActivityOptions,
-  VisitorInsightsData,
-} from './types';
+
+import type { AnalyticsFilters, GeolocationData, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse, RealtimeData, RealtimeGeoResponse } from './types';
 
 /** Server dashboard payload; shared by useDashboardData and other callers (e.g. revenue fallback). */
 export const getDashboardData = async (

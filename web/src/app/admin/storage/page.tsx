@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { HardDrive, RefreshCw, Database, Table2, FileDigit } from 'lucide-react';
+import { RefreshCw, Database, Table2, FileDigit } from 'lucide-react';
 import { fetchAdminStorage, getAdminToken } from '@/lib/admin-api';
 import { AdminSidebar } from '@/components/admin-sidebar';
 

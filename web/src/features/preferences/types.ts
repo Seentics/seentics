@@ -1,6 +1,6 @@
 /** Domain types for the preferences feature. */
 
-import api from '@/lib/api';
+
 
 export interface UserPreferences {
   background: string;

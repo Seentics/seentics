@@ -3,7 +3,6 @@
  *
  * No React and no transport, so a component, a test and a fixture can all share them.
  */
-import type { HourlyStat } from './types';
 
 /** Returns the user's IANA timezone (e.g. "Asia/Dhaka", "America/New_York") */
 export const getUserTimezone = (): string => {

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import { cn } from '@/lib/utils';
 import { Globe, MapPin } from 'lucide-react';
 import dynamic from 'next/dynamic';

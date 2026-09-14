@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+
 import { useParams } from 'next/navigation';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';

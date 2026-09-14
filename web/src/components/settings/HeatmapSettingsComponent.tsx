@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { updateWebsite, getWebsiteByAnyId } from '@/lib/websites-api';
 import { isValidId } from '@/lib/utils';

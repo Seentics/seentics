@@ -4,23 +4,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
+import { DataTable } from '@/components/ui/data-table';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Video,
-  Clock,
-  AlertTriangle,
-  Search,
-  Users,
-  RefreshCw,
-  Trash2,
-  Play,
-  MousePointerClick,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Video, Clock, AlertTriangle, Search, Users, RefreshCw, Trash2, MousePointerClick } from 'lucide-react';
+
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
 import {
@@ -35,9 +25,7 @@ import { SessionClientRowStack, SessionCountryVisual } from '@/components/replay
 
 import { SignalFilter } from '@/components/replays/SignalFilter';
 import { sessionColumns } from '@/components/replays/session-columns';
-import {
-  formatDuration, timeAgo, stripWebsiteDashboardPrefix, entryPathDisplay,
-} from '@/features/replays/format';
+import { formatDuration } from '@/features/replays/format';
 import {
   PAGE_SIZE_OPTIONS, SEARCH_DEBOUNCE_MS,
   type DeviceFilter, type SessionRow,

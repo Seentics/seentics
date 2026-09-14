@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, Trash2, Tag } from 'lucide-react';
+import { CalendarIcon, Trash2, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 

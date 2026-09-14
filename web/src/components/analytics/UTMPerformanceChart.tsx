@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
+
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Layers, Globe } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+
 import { formatNumber } from '@/features/analytics/format';
 
 export interface UTMPerformanceData {

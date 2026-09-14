@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Copy, Check, Zap, Code2 } from 'lucide-react';
 import { cn } from '@/lib/utils';

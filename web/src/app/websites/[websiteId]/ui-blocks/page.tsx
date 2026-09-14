@@ -7,14 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Layout, Copy, Check, Code2, Eye, BarChart3,
-  Users, TrendingUp, Activity, Globe, Zap,
-  ExternalLink, Search, Filter,
-} from 'lucide-react';
+import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useParams as useParamsHook } from 'next/navigation';
+
 
 interface Block {
   id:          string;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AuthState, User } from '@/types';
+import type { AuthState } from '@/types';
 import { setApiToken } from '@/lib/api';
 
 export const useAuth = create<AuthState>()(

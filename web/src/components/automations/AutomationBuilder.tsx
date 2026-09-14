@@ -12,40 +12,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import {
-  Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap,
-  AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout,
-  Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2,
-  Settings, ZoomIn, ZoomOut, Maximize2, X, Save, Filter,
-  GripVertical, ChevronDown, ChevronRight, ListChecks, Braces, CheckCircle2, AlertCircle,
-  GitBranch,
-  Hourglass,
-} from 'lucide-react';
+import { Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap, AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout, Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2, Settings, X, Filter, GripVertical, Braces, CheckCircle2, AlertCircle, GitBranch, Hourglass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AutomationCanvas } from './canvas/AutomationCanvas';
-import {
-  MAX_DELAY_SECONDS,
-  MAX_SWITCH_CASES,
-  NODE_HEIGHT,
-  NODE_WIDTH,
-  connectNode,
-  edgeFor,
-  indexGraph,
-  isBranchNode,
-  layoutGraph,
-  newNodeId,
-  outletLabel,
-  outletsFor,
-  removeNode,
-  validateGraph,
-  type AutomationAction,
-  type AutomationGraph,
-  type ConditionGroup,
-  type ConditionRule,
-  type GraphNode,
-  type NodeId,
-  type SwitchCase,
-} from '@/lib/automation-graph';
+import { MAX_DELAY_SECONDS, MAX_SWITCH_CASES, edgeFor, indexGraph, layoutGraph, newNodeId, outletsFor, removeNode, validateGraph, type AutomationGraph, type ConditionGroup, type ConditionRule, type GraphNode, type NodeId, type SwitchCase } from '@/lib/automation-graph';
 
 // ─── Exported Types ──────────────────────────────────────────────────────────
 
@@ -939,7 +909,6 @@ function DelayPanel({
 function ActionPanel({
   action, onChange, onDelete,
 }: { action: { type: string; [k: string]: unknown }; onChange: (a: { type: string; [k: string]: unknown }) => void; onDelete: () => void }) {
-  const at = getActionType(action.type);
   return (
     <div className="space-y-5">
       <div>
@@ -1583,7 +1552,6 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
 
   // Recomputed only when the graph changes: layout walks every node and edge twice, and
   // the canvas re-renders on pan, zoom and selection as well.
-  const layout = useMemo(() => layoutGraph(graph), [graph]);
   const { outgoing } = useMemo(() => indexGraph(graph), [graph]);
 
   /** Nodes the validator complained about, so the canvas can mark them. */

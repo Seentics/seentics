@@ -13,7 +13,7 @@ import { DataTable, selectionColumn } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { Skeleton } from '@/components/ui/skeleton';
 

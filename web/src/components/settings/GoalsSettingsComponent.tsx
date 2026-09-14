@@ -1,16 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Eye, 
-  ChevronRight,
-  Sparkles,
-  Info,
-  Loader2,
-  MousePointer2
-} from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Trash2, Eye, Info, Loader2, MousePointer2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn, isValidId } from '@/lib/utils';

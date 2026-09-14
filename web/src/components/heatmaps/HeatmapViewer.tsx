@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+
+
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Popover,
@@ -19,17 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  ArrowLeft, MousePointer,
-  RefreshCw, Image as ImageIcon,
-  TrendingDown, Layers, Link2,
-  MoreHorizontal,
-  ChevronLeft, ChevronRight,
-  Lock, ExternalLink,
-  Camera,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, ExternalLink } from 'lucide-react';
 import { DemoHeatmapPage } from '@/components/heatmaps/DemoHeatmapPage';
-import { isDemo } from '@/lib/demo';
+
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import {
   clampLayoutPx,
@@ -38,14 +30,10 @@ import {
   HEATMAP_DIM_CAP,
   MIN_CAPTURE_PX,
 } from '@/lib/heatmaps/preview-geometry';
-import { normalizeWebsiteOriginForPreview } from '@/lib/website-preview-url';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import {
-  clampHeatmapPreviewDimensions, documentPixelHeightForHeatmap,
-  documentPixelWidthForHeatmap, heatmapDocHeightHintPx, heatmapPageHeading,
-  type DeviceType, type HeatPoint, type HeatType,
-} from '@/features/heatmaps/preview-math';
+
+
+
+import { clampHeatmapPreviewDimensions, documentPixelHeightForHeatmap, documentPixelWidthForHeatmap, heatmapDocHeightHintPx, type HeatPoint, type HeatType } from '@/features/heatmaps/preview-math';
 import { drawClickHeatmap, drawScrollHeatmap } from '@/features/heatmaps/canvas';
 import type { HeatmapPageScreenshot } from '@/features/heatmaps/types';
 

@@ -6,16 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  ArrowDown, ArrowLeft, Bot, Play, Pause, Trash2, TrendingUp, Pencil,
-  CheckCircle2, XCircle, Activity, Zap, Webhook,
-  MessageSquare, Bell, Megaphone, Highlighter, Info, Feather,
-  ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX,
-  AlertTriangle, EyeOff, UserCheck, MousePointer2, ScrollText, Clock,
-  Settings,
-  Braces,
-  Save,
-} from 'lucide-react';
+import { ArrowDown, ArrowLeft, Play, Pause, Trash2, TrendingUp, Pencil, CheckCircle2, XCircle, Activity, Zap, Webhook, MessageSquare, Bell, Megaphone, Highlighter, Info, Feather, ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX, AlertTriangle, EyeOff, UserCheck, MousePointer2, ScrollText, Clock, Settings, Braces, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {

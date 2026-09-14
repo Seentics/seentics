@@ -13,7 +13,6 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default function ProfileSettingsPage() {
   const params = useParams();
-  const websiteId = params?.websiteId as string;
   const { user, setUser } = useAuth();
   const { toast } = useToast();
 

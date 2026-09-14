@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { isEnterprise } from '@/lib/features';
 import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';

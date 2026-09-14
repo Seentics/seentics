@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
 import { isDemo, demoMutationGuard, demoAutomations } from '@/lib/demo';
 import { isValidId } from '@/lib/utils';
 import { fetchAutomation, fetchAutomations } from './api';

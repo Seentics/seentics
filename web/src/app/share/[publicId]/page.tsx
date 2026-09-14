@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { usePublicDashboardData } from '@/features/analytics/queries';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
@@ -12,7 +12,7 @@ import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
 import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Globe, BarChart3, Clock, Zap, AlertCircle } from 'lucide-react';
+import { Globe, BarChart3, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function PublicDashboardPage() {

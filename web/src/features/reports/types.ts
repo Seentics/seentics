@@ -1,6 +1,6 @@
 /** Domain types for the reports feature. */
 
-import api from '@/lib/api';
+
 
 export type ReportFrequency = 'daily' | 'weekly' | 'monthly';
 

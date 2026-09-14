@@ -1,7 +1,7 @@
 /** Domain types for the api-keys feature. */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+
 
 export interface ApiKey {
   id: string;
