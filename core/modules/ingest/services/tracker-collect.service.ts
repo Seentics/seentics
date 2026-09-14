@@ -9,6 +9,7 @@ import type {
 } from "../interfaces";
 import { routeAnalyticsEvents } from "./analytics-event-routing.service";
 import { routeAutomationTriggers } from "./automation-trigger-routing.service";
+import { routeErrorEvents } from "./error-event-routing.service";
 import { routeFunnelEvents } from "./funnel-event-routing.service";
 import { routeHeatmapEvents } from "./heatmap-event-routing.service";
 import { routeRecordingEvents } from "./recording-event-routing.service";
@@ -57,6 +58,7 @@ function processTrackerCollect(
     len_heatmap_screenshot: lengthOf(body.heatmap_screenshot),
     len_funnels: lengthOf(body.funnels),
     len_automations: lengthOf(body.automations),
+    len_errors: lengthOf(body.errors),
     event_types_sample: eventTypes(body.events),
   };
   log.debug(fields);
@@ -67,6 +69,7 @@ function processTrackerCollect(
   routeAutomationTriggers(context);
   routeRecordingEvents(context);
   routeHeatmapEvents(context);
+  routeErrorEvents(context);
 
   return { kind: "processed", queued };
 }
@@ -82,7 +85,7 @@ function processTrackerCollect(
  */
 export function trackerCollectItemCount(body: TrackerCollectBody): number {
   return lengthOf(body.events) + lengthOf(body.session) + lengthOf(body.heatmaps) +
-    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) +
+    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) + lengthOf(body.errors) +
     lengthOf(body.funnels) + lengthOf(body.automations);
 }
 

@@ -559,3 +559,76 @@ export const identityAliases = pgTable(
     index("ix_identity_aliases_user").on(t.userId, t.websiteId),
   ],
 );
+
+/**
+ * One row per distinct frontend fault on a site.
+ *
+ * Maintained on ingest rather than derived at read time. Grouping `error_events` by
+ * fingerprint on every dashboard load is the same mistake the analytics reads make —
+ * a full scan for a figure that changes by one row at a time — and this table is read
+ * far more often than it is written. It also means the list survives the raw events:
+ * `error_events` is purged on the retention cron, the groups and their counts are not,
+ * so "first seen three months ago, 12k times" stays true after the samples expire.
+ */
+export const errorGroups = pgTable(
+  "error_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    /** sha256 of the normalised message and source. Computed server-side — see `fingerprint.ts`. */
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    /** `error` (window.onerror) or `unhandledrejection`. */
+    kind: varchar("kind", { length: 32 }).notNull().default("error"),
+    /** Representative text, refreshed to the most recent occurrence. */
+    message: text("message").notNull(),
+    sourceFile: text("source_file").notNull().default(""),
+    lineNo: integer("line_no"),
+    colNo: integer("col_no"),
+    /** unresolved | resolved | ignored */
+    status: varchar("status", { length: 16 }).notNull().default("unresolved"),
+    eventCount: integer("event_count").notNull().default(0),
+    /** Where it was last thrown, so the list can show a route without joining. */
+    lastPagePath: text("last_page_path").notNull().default(""),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The upsert target. Ingest raises counts through this, so it has to be unique.
+    uniqueIndex("error_groups_fingerprint_uq").on(t.websiteId, t.fingerprint),
+    index("ix_error_groups_website_status_seen").on(t.websiteId, t.status, t.lastSeen),
+  ],
+);
+
+/**
+ * Individual occurrences, kept as samples behind their group.
+ *
+ * `sessionId` is the point of the whole feature: it joins an error to the replay of the
+ * visitor who hit it, which is the thing a standalone error tracker cannot do. Retention
+ * is deliberately short — the counts live on the group, and nobody debugs a fault from a
+ * ten-week-old sample.
+ */
+export const errorEvents = pgTable(
+  "error_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    message: text("message").notNull(),
+    /** Truncated at the tracker; may be empty when the browser withholds it (cross-origin). */
+    stack: text("stack").notNull().default(""),
+    sourceFile: text("source_file").notNull().default(""),
+    lineNo: integer("line_no"),
+    colNo: integer("col_no"),
+    pagePath: text("page_path").notNull().default(""),
+    sessionId: text("session_id"),
+    visitorId: text("visitor_id"),
+    browser: text("browser").notNull().default(""),
+    os: text("os").notNull().default(""),
+    deviceType: text("device_type").notNull().default(""),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_error_events_website_occurred").on(t.websiteId, t.occurredAt),
+    index("ix_error_events_group_occurred").on(t.websiteId, t.fingerprint, t.occurredAt),
+  ],
+);

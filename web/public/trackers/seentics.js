@@ -171,6 +171,7 @@ const queues = {
   heatmaps:           [], // heatmap_click, heatmap_scroll
   heatmap_screenshot:    [], // browser-captured JPEG screenshots (html2canvas, fallback)
   heatmap_dom_snapshot: [], // full DOM HTML snapshots (primary layout capture)
+  errors:             [], // uncaught JS errors and unhandled promise rejections
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -337,8 +338,9 @@ const drainQueues = () => {
   const heatmapEvts = queues.heatmaps.splice(0);
   const shotEvts        = queues.heatmap_screenshot.splice(0);
   const domSnapshotEvts = queues.heatmap_dom_snapshot.splice(0);
+  const errorEvts       = queues.errors.splice(0);
 
-  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length && !domSnapshotEvts.length) {
+  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length && !domSnapshotEvts.length && !errorEvts.length) {
     return null;
   }
 
@@ -350,6 +352,7 @@ const drainQueues = () => {
   if (heatmapEvts.length)       payload.heatmaps             = heatmapEvts;
   if (shotEvts.length)          payload.heatmap_screenshot   = shotEvts;
   if (domSnapshotEvts.length)   payload.heatmap_dom_snapshot = domSnapshotEvts;
+  if (errorEvts.length)         payload.errors               = errorEvts;
 
   return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, shotEvts };
 };
@@ -1969,15 +1972,85 @@ const installFormAbandon = () => {
 
 // ─── JS error trigger ─────────────────────────────────────────────────────────
 
+/** Automation triggers stay rate-limited as they always were — firing a workflow is an action. */
+const MAX_ERROR_TRIGGER_FIRES = 3;
+/**
+ * Per-page ceiling on *reported* errors. Higher than the trigger cap because reporting is
+ * cheap and a page that throws in a render loop is exactly the page worth seeing — but
+ * still a ceiling, because that same loop can throw thousands of times a second and the
+ * visitor should not pay for it in bandwidth.
+ */
+const MAX_ERRORS_PER_PAGE = 10;
+const MAX_STACK_CHARS = 4_000;
+const MAX_ERROR_MESSAGE_CHARS = 1_000;
+
 const installJsErrorTrigger = () => {
   let errorCount = 0;
-  const MAX_FIRES = 3;
+  let reported = 0;
+  /** Fingerprints already reported for this page, so a repeating fault costs one row. */
+  const seen = new Set();
+
   const fire = (message, source) => {
-    if (++errorCount > MAX_FIRES) return;
+    if (++errorCount > MAX_ERROR_TRIGGER_FIRES) return;
     void fireAutomationTrigger('js_error', { path: location.pathname, message: String(message).slice(0, 200), source: String(source ?? '').slice(0, 100) });
   };
-  window.addEventListener('error', (ev) => fire(ev.message, ev.filename));
-  window.addEventListener('unhandledrejection', (ev) => fire(String(ev.reason), 'promise'));
+
+  /**
+   * Queue one error for the dashboard.
+   *
+   * Gated on `trackingAllowed()` like every other queue: an error carries a URL and a
+   * session id, so a visitor who declined tracking must not be reported on because their
+   * browser happened to throw.
+   *
+   * The stack is sent as the browser gives it. Minified frames are still the fastest
+   * route to the fault when read next to the replay, and un-minifying belongs on the
+   * server where source maps can live, not here.
+   */
+  const report = (kind, message, source, lineNo, colNo, stack) => {
+    if (!trackingAllowed()) return;
+    if (reported >= MAX_ERRORS_PER_PAGE) return;
+
+    const msg = String(message ?? '').slice(0, MAX_ERROR_MESSAGE_CHARS);
+    if (!msg) return;
+
+    // Cheap client-side dedup. The server fingerprints properly; this only stops one
+    // throwing loop from filling the batch with copies of itself.
+    const key = kind + '\0' + msg + '\0' + String(source ?? '');
+    if (seen.has(key)) return;
+    seen.add(key);
+    reported++;
+
+    queues.errors.push({
+      type:      'error',
+      kind,
+      ts:        Date.now(),
+      url:       location.href,
+      sid:       getSessionId(),
+      vid:       visitorId,
+      message:   msg,
+      source:    String(source ?? '').slice(0, 500),
+      line_no:   Number.isFinite(lineNo) ? lineNo : undefined,
+      col_no:    Number.isFinite(colNo) ? colNo : undefined,
+      stack:     typeof stack === 'string' ? stack.slice(0, MAX_STACK_CHARS) : '',
+    });
+  };
+
+  window.addEventListener('error', (ev) => {
+    fire(ev.message, ev.filename);
+    // `ev.error` is absent for cross-origin script errors — the browser gives only
+    // "Script error." with no location. Report it anyway: a spike of them is itself the
+    // finding, and it usually means a missing `crossorigin` attribute.
+    report('error', ev.message, ev.filename, ev.lineno, ev.colno, ev.error?.stack);
+  });
+
+  window.addEventListener('unhandledrejection', (ev) => {
+    const reason = ev.reason;
+    fire(String(reason), 'promise');
+    // A rejection's reason is frequently an Error, sometimes a string, occasionally an
+    // object with neither. Take the message when there is one; `String()` is the floor.
+    const message = reason instanceof Error ? reason.message : String(reason);
+    report('unhandledrejection', message, 'promise', undefined, undefined, reason?.stack);
+  });
 };
 
 // ─── Tab visibility trigger ───────────────────────────────────────────────────

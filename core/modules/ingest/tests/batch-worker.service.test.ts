@@ -144,6 +144,7 @@ class FakeRegistry {
   recordings: unknown[][] = [];
   heatmaps: unknown[][] = [];
   profiles: unknown[][] = [];
+  errors: unknown[][] = [];
 
   failLanes = new Set<IngestLane>();
   /** Rows the analytics writer claims to have inserted; 0 models an already-applied batch. */
@@ -182,6 +183,7 @@ class FakeRegistry {
       recordings: this.lane("recordings", (_id, _key, rows) => void this.recordings.push([...rows])),
       heatmaps: this.lane("heatmaps", (_id, _key, rows) => void this.heatmaps.push([...rows])),
       profiles: this.lane("profiles", (_id, _key, rows) => void this.profiles.push([...rows])),
+      errors: this.lane("errors", (_id, _key, rows) => void this.errors.push([...rows])),
     };
   }
 }

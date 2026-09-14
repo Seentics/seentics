@@ -35,6 +35,6 @@ export async function readTrackerCollectBody(request: Request): Promise<unknown>
 export function trackerCollectRequestItemCount(body: TrackerCollectBody): number {
   const lengthOf = (value: unknown) => Array.isArray(value) ? value.length : 0;
   return lengthOf(body.events) + lengthOf(body.session) + lengthOf(body.heatmaps) +
-    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) +
+    lengthOf(body.heatmap_screenshot) + lengthOf(body.heatmap_dom_snapshot) + lengthOf(body.errors) +
     lengthOf(body.funnels) + lengthOf(body.automations);
 }

@@ -11,7 +11,7 @@ import type { AppConfig } from "../../../config";
  */
 
 /**
- * The six lanes a batch can travel in.
+ * The seven lanes a batch can travel in.
  *
  * Lanes, not modules: `analytics` and `funnels` both end up in the analytics writer, and
  * `profiles` belongs to the automations module. They are split so one lane's backlog
@@ -24,7 +24,8 @@ export type IngestLane =
   | "automations"
   | "recordings"
   | "heatmaps"
-  | "profiles";
+  | "profiles"
+  | "errors";
 
 /**
  * One feature's ingest, declared by the module that owns the data.

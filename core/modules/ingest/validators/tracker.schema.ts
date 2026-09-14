@@ -46,6 +46,27 @@ const zHeatmapDomSnapshotEvent = z.object({
   vh: z.number().int().optional(),
 });
 
+/**
+ * An uncaught error or unhandled rejection from a visitor's browser.
+ *
+ * Bounds are generous next to the other event types because this is the payload someone
+ * debugs from: a truncated stack is often a useless one. The tracker caps at 10 per page
+ * and deduplicates within it, so the array stays short even on a page throwing in a loop.
+ */
+const zErrorEvent = z.object({
+  type: z.literal("error"),
+  kind: z.enum(["error", "unhandledrejection"]).default("error"),
+  ts: z.number(),
+  url: z.string().max(2048),
+  sid: z.string().max(128),
+  vid: z.string().max(128).optional(),
+  message: z.string().min(1).max(1_000),
+  source: z.string().max(500).optional(),
+  line_no: z.number().int().optional(),
+  col_no: z.number().int().optional(),
+  stack: z.string().max(4_000).optional(),
+});
+
 export const trackerCollectSchema = z
   .object({
     website_id: zNonEmptyString.max(64),
@@ -54,6 +75,7 @@ export const trackerCollectSchema = z
     heatmaps: z.array(zHeatmapEvent).max(2000).optional(),
     heatmap_screenshot: z.array(zHeatmapScreenshotEvent).max(5).optional(),
     heatmap_dom_snapshot: z.array(zHeatmapDomSnapshotEvent).max(5).optional(),
+    errors: z.array(zErrorEvent).max(20).optional(),
     funnels: z.array(z.unknown()).max(500).optional(),
     automations: z.array(z.unknown()).max(500).optional(),
   })

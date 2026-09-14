@@ -46,7 +46,14 @@ function primaryAcceptLanguage(header: string | undefined): string | null {
   return tag || null;
 }
 
-function parseUserAgent(ua: string): Pick<AnalyticsIngestMeta, "browser" | "device" | "os"> {
+/**
+ * Browser, device class and OS from a user agent.
+ *
+ * Exported because more than analytics ingest needs it now — error samples record the
+ * same three fields, and "which browsers is this breaking in" is usually the first
+ * question asked of a fault. Duplicating the parse would let the two drift.
+ */
+export function parseUserAgent(ua: string): Pick<AnalyticsIngestMeta, "browser" | "device" | "os"> {
   const empty = { browser: null as string | null, device: null as string | null, os: null as string | null };
   if (!ua.trim()) return empty;
   try {
