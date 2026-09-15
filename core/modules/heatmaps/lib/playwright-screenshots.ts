@@ -6,6 +6,7 @@ import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { snapshotDeviceBucketForWidth } from "./device";
 import { getScreenshotCache } from "../services/screenshot-cache.service";
 import { log as baseLog } from "../../../platform/observability/logger";
+import { hostnameResolvesPublicly } from "./capture-network-policy";
 
 const log = baseLog.child({ category: "playwright" });
 
@@ -89,7 +90,45 @@ async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<Cap
     const resolvedUrl = rewriteLocalhostForDocker(options.url);
     log.info({ msg: "playwright_capture_start", url: resolvedUrl });
 
-    page = await createScreenshotPage();
+    const requested = new URL(resolvedUrl);
+    const allowDevLocal = process.env.PLAYWRIGHT_REWRITE_LOCALHOST === "true" &&
+      requested.hostname === "host.docker.internal";
+    if (!allowDevLocal && !(await hostnameResolvesPublicly(requested.hostname))) {
+      throw new Error(`Capture target resolved to a private or unavailable address: ${requested.hostname}`);
+    }
+
+    page = await createScreenshotPage({
+      width: Math.max(320, Math.min(3840, options.viewportWidth ?? 1920)),
+      height: Math.max(240, Math.min(2160, options.viewportHeight ?? 1080)),
+    });
+
+    // Revalidate DNS for every distinct host a hostile page tries to reach. This
+    // blocks DNS rebinding and page-script requests to metadata/private services.
+    const hostPolicy = new Map<string, Promise<boolean>>();
+    await page.route("**/*", async (route) => {
+      try {
+        const u = new URL(route.request().url());
+        if (u.protocol !== "http:" && u.protocol !== "https:") return route.abort("blockedbyclient");
+        let allowed = hostPolicy.get(u.hostname);
+        if (!allowed) {
+          allowed = allowDevLocal && u.hostname === requested.hostname
+            ? Promise.resolve(true)
+            : hostnameResolvesPublicly(u.hostname);
+          hostPolicy.set(u.hostname, allowed);
+        }
+        if (!(await allowed)) return route.abort("blockedbyclient");
+        // A top-frame redirect must stay on the requested host (allowing www/apex).
+        if (route.request().isNavigationRequest() && route.request().frame() === page?.mainFrame()) {
+          const a = u.hostname.replace(/^www\./, "");
+          const b = requested.hostname.replace(/^www\./, "");
+          if (a !== b) return route.abort("blockedbyclient");
+        }
+        return route.continue();
+      } catch {
+        return route.abort("blockedbyclient");
+      }
+    });
+    page.on("download", (download) => { void download.cancel(); });
 
     const timeoutMs = options.timeoutMs ?? 30000;
     const jpegQuality = Math.max(1, Math.min(100, options.jpegQuality ?? 85));
@@ -105,8 +144,16 @@ async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<Cap
       );
     }
 
-    // Brief settle: let deferred JS paint and lazy-loaded images render before capture.
-    await new Promise((r) => setTimeout(r, 800));
+    // Fonts plus two stable animation frames give deterministic layout without waiting
+    // forever for polling/network-idle on modern SPAs.
+    await page.evaluate(async () => {
+      try { await document.fonts?.ready; } catch { /* font API unavailable */ }
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    }).catch(() => {});
+    await page.addStyleTag({ content: `
+      *, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }
+    ` }).catch(() => {});
+    await new Promise((r) => setTimeout(r, 500));
 
     // Detect auth/login redirects — if the final URL path differs significantly from the
     // requested one (e.g. redirected to /login or /auth/...), the page is protected and
@@ -150,6 +197,10 @@ async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<Cap
       if (dims.w >= 200) width = dims.w;
       if (dims.h >= 200) height = dims.h;
     } catch { /* evaluate may fail on error pages */ }
+
+    if (width * height > 80_000_000 || height > 60_000) {
+      throw new Error(`Page is too large to capture safely: ${width}x${height}`);
+    }
 
     // Capture full-page screenshot so the image covers the entire scrollable document.
     let screenshotBuffer: Buffer;

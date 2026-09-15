@@ -47,7 +47,7 @@ async function getBrowser(): Promise<Browser> {
  * Create a new page context with sensible defaults for screenshot capture.
  * Caller is responsible for closing the page when done.
  */
-export async function createScreenshotPage(): Promise<Page> {
+export async function createScreenshotPage(viewport?: { width: number; height: number }): Promise<Page> {
   const browser = await getBrowser();
 
   // Check pool size to prevent resource exhaustion
@@ -63,7 +63,7 @@ export async function createScreenshotPage(): Promise<Page> {
     // `newContext`, not `createBrowserContext` — the latter does not exist on
     // Playwright's `Browser` and threw on every capture that reached this line.
     context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
+      viewport: viewport ?? { width: 1920, height: 1080 },
       javaScriptEnabled: true,
       ignoreHTTPSErrors: true,
       offline: false,

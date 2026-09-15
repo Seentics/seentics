@@ -77,6 +77,7 @@ export function drawScrollHeatmap(canvas: HTMLCanvasElement, points: HeatPoint[]
   if (!points.length) return;
 
   const maxI = Math.max(...points.map(p => p.intensity), 1);
+  const eligible = Math.max(points.find(p => p.ny === 0)?.intensity ?? maxI, 1);
 
   // Sort by ny ascending (top to bottom)
   const sorted = [...points].sort((a, b) => a.ny - b.ny);
@@ -114,7 +115,7 @@ export function drawScrollHeatmap(canvas: HTMLCanvasElement, points: HeatPoint[]
     ctx.stroke();
 
     // Depth label
-    const pctLabel = `${Math.round(p.ny * 100)}% — ${p.intensity.toLocaleString()} users`;
+    const pctLabel = `${Math.round(p.ny * 100)}% depth — ${Math.round(p.intensity / eligible * 100)}% reach`;
     ctx.font = '11px system-ui, sans-serif';
     ctx.fillStyle = `rgba(255,255,255,0.75)`;
     ctx.fillText(pctLabel, 8, yPx - 5);

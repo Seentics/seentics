@@ -11,6 +11,23 @@ const zHeatmapEvent = z.object({
       target: z.string().max(256).optional(),
       vw: z.number().int().positive().max(10_000).optional(),
       vh: z.number().int().positive().max(10_000).optional(),
+      page_version: z.string().max(160).optional(),
+      target_locator: z.record(z.unknown()).optional(),
+      target_rect: z.record(z.unknown()).optional(),
+      relative_x: z.number().min(0).max(1).optional(),
+      relative_y: z.number().min(0).max(1).optional(),
+      position_mode: z.enum(["normal", "fixed", "sticky"]).optional(),
+      client_x: z.number().min(-100_000).max(100_000).optional(),
+      client_y: z.number().min(-100_000).max(100_000).optional(),
+      page_x: z.number().min(-100_000).max(10_000_000).optional(),
+      page_y: z.number().min(-100_000).max(10_000_000).optional(),
+      scroll_x: z.number().min(-100_000).max(10_000_000).optional(),
+      scroll_y: z.number().min(-100_000).max(10_000_000).optional(),
+      document_width: z.number().int().min(100).max(10_000).optional(),
+      document_height: z.number().int().min(100).max(1_000_000).optional(),
+      device_pixel_ratio: z.number().min(0.1).max(16).optional(),
+      tracker_version: z.string().max(32).optional(),
+      schema_version: z.number().int().min(1).max(100).optional(),
     })
     .passthrough(),
   ts: z.number(),
@@ -80,4 +97,3 @@ export const trackerCollectSchema = z
     automations: z.array(z.unknown()).max(500).optional(),
   })
   .passthrough();
-

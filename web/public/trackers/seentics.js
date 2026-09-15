@@ -82,6 +82,12 @@ const rrwebSrc =
 const COLLECT        = apiHost + '/api/v1/tracker/collect';
 const FLUSH_MS       = 5_000;           // periodic flush interval (5 s — shorter window reduces unload data on mobile)
 const SESSION_MAX_MS = 30 * 60 * 1000; // hard session cap (30 min)
+const TRACKER_VERSION = '2.1.0';
+const HEATMAP_SCHEMA_VERSION = 2;
+const HEATMAP_QUEUE_MAX = 2_000;
+const DELIVERY_RETRY_MAX = 4;
+const DELIVERY_RETRY_TTL_MS = 2 * 60_000;
+const DELIVERY_RETRY_QUEUE_MAX = 12;
 
 /**
  * Largest serialized DOM snapshot the tracker will send.
@@ -304,6 +310,20 @@ const pushAnalytics = (type, data) => {
  * ~64 KB limit would be exceeded. Falls back to plain JSON if CompressionStream
  * is unavailable (Firefox < 113, older Safari).
  */
+const sendXhr = (body, encoding = '') => new Promise((resolve) => {
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', COLLECT, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    if (encoding) xhr.setRequestHeader('Content-Encoding', encoding);
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 400);
+    xhr.onerror = () => resolve(false);
+    xhr.ontimeout = () => resolve(false);
+    xhr.timeout = 15_000;
+    xhr.send(body);
+  } catch { resolve(false); }
+});
+
 const sendGzip = async (json) => {
   if (typeof CompressionStream !== 'undefined') {
     try {
@@ -312,18 +332,36 @@ const sendGzip = async (json) => {
       writer.write(new TextEncoder().encode(json));
       writer.close();
       const buf = await new Response(cs.readable).arrayBuffer();
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', COLLECT, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Content-Encoding', 'gzip');
-      xhr.send(buf);
-      return;
+      return await sendXhr(buf, 'gzip');
     } catch (_) { /* fall through to plain JSON */ }
   }
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', COLLECT, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.send(json);
+  return await sendXhr(json);
+};
+
+const deliveryRetryQueue = [];
+
+const queueDeliveryRetry = (item) => {
+  if (item.attempt >= DELIVERY_RETRY_MAX || Date.now() - item.createdAt > DELIVERY_RETRY_TTL_MS) return;
+  item.nextAt = Date.now() + Math.min(30_000, 1_000 * (2 ** item.attempt));
+  if (deliveryRetryQueue.length >= DELIVERY_RETRY_QUEUE_MAX) deliveryRetryQueue.shift();
+  deliveryRetryQueue.push(item);
+};
+
+const dispatchWithRetry = (item) => {
+  const send = item.gzip ? sendGzip(item.json) : sendXhr(item.json);
+  Promise.resolve(send).then(ok => {
+    if (!ok) queueDeliveryRetry({ ...item, attempt: item.attempt + 1 });
+  }).catch(() => queueDeliveryRetry({ ...item, attempt: item.attempt + 1 }));
+};
+
+const retryFailedDeliveries = () => {
+  const now = Date.now();
+  for (let i = deliveryRetryQueue.length - 1; i >= 0; i--) {
+    const item = deliveryRetryQueue[i];
+    if (item.nextAt > now) continue;
+    deliveryRetryQueue.splice(i, 1);
+    dispatchWithRetry(item);
+  }
 };
 
 /**
@@ -365,6 +403,7 @@ const drainQueues = () => {
  * (so the new session gets a fresh FullSnapshot baseline).
  */
 const flush = () => {
+  retryFailedDeliveries();
   // Restart rrweb if the session rotated (inactivity or hard cap hit).
   if (activeRecordingSessionId !== null) {
     const currentSid = getSessionId();
@@ -381,19 +420,17 @@ const flush = () => {
 
   // Session recording, screenshot payloads, or large batches: gzip to stay under the sendBeacon limit.
   if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
-    sendGzip(json);
+    dispatchWithRetry({ json, gzip: true, attempt: 0, createdAt: Date.now(), nextAt: 0 });
     return;
   }
 
   // Analytics-only payload: sendBeacon is fire-and-forget and survives page navigation.
   const blob = new Blob([json], { type: 'application/json' });
-  if (navigator.sendBeacon) { navigator.sendBeacon(COLLECT, blob); return; }
+  if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
 
-  // sendBeacon not available (very old browser): plain async XHR.
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', COLLECT, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.send(json);
+  // sendBeacon rejected or unavailable: retry acknowledged XHR failures with the
+  // exact same JSON. Stable content keeps the server's batch-id dedupe effective.
+  dispatchWithRetry({ json, gzip: false, attempt: 0, createdAt: Date.now(), nextAt: 0 });
 };
 
 /**
@@ -841,11 +878,11 @@ const captureAndQueueDomSnapshot = () => {
     // useful for coordinate alignment, while masked regions retain only a fixed
     // redaction marker. Never rely on CSS visibility here — hidden text is still
     // present in the uploaded HTML.
-    clone.querySelectorAll('[data-seentics-block]').forEach(el => {
+    clone.querySelectorAll('[data-seentics-block], [data-private], [autocomplete="cc-number"]').forEach(el => {
       el.replaceChildren('[blocked]');
       el.setAttribute('aria-label', 'Blocked content');
     });
-    clone.querySelectorAll('[data-seentics-mask]').forEach(el => {
+    clone.querySelectorAll('[data-seentics-mask], [data-sensitive]').forEach(el => {
       el.replaceChildren('••••••');
       el.setAttribute('aria-label', 'Masked content');
     });
@@ -856,16 +893,64 @@ const captureAndQueueDomSnapshot = () => {
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
         el.value = '';
         el.setAttribute('value', '');
+        if (el instanceof HTMLTextAreaElement) el.textContent = '';
       }
     });
     clone.querySelectorAll('select').forEach(el => {
       el.selectedIndex = -1;
-      el.querySelectorAll('option[selected]').forEach(option => option.removeAttribute('selected'));
+      el.querySelectorAll('option').forEach(option => {
+        option.removeAttribute('selected');
+        option.textContent = '••••••';
+        option.setAttribute('value', '');
+      });
     });
     clone.querySelectorAll('[contenteditable]:not([contenteditable="false"])').forEach(el => {
       el.replaceChildren('••••••');
       el.setAttribute('aria-label', 'Masked editable content');
     });
+    // A cloned DOM can still execute inline handlers, javascript: URLs, meta refreshes,
+    // form submissions and embedded plugins once loaded in an iframe. Keep only the
+    // inert layout representation. The one script appended below is Seentics-owned and
+    // only reports dimensions / resolves element fingerprints to rectangles.
+    clone.querySelectorAll('meta[http-equiv="refresh"], object, embed').forEach(el => el.remove());
+    clone.querySelectorAll('*').forEach(el => {
+      for (const attr of Array.from(el.attributes)) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on') || name === 'srcdoc') el.removeAttribute(attr.name);
+        if (['href', 'src', 'action', 'formaction', 'xlink:href'].includes(name)) {
+          if (/^\s*(?:javascript|data:text\/html):/i.test(attr.value)) {
+            el.removeAttribute(attr.name);
+          } else {
+            try {
+              const u = new URL(attr.value, location.href);
+              for (const key of Array.from(u.searchParams.keys())) {
+                if (/token|auth|session|secret|signature|password|email|key/i.test(key)) {
+                  u.searchParams.delete(key);
+                }
+              }
+              el.setAttribute(attr.name, u.toString());
+            } catch { /* relative or non-URL attribute */ }
+          }
+        }
+        if (/token|secret|password|email|account/i.test(name)) el.removeAttribute(attr.name);
+      }
+      if (el instanceof HTMLFormElement) {
+        el.removeAttribute('action');
+        el.setAttribute('inert', '');
+      }
+    });
+    // Conservative PII backstop for gated pages. Explicit mask/block selectors remain
+    // the preferred control because a person's name cannot be inferred safely.
+    try {
+      const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+      const sensitiveText = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        const value = node.nodeValue || '';
+        if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?:\d[ -]?){9,16}\b/i.test(value)) sensitiveText.push(node);
+      }
+      sensitiveText.forEach(node => { node.nodeValue = '••••••'; });
+    } catch { /* TreeWalker unavailable */ }
     // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
     // but the added complexity and payload size aren't worth it for a layout snapshot)
     clone.querySelectorAll('iframe').forEach(el => {
@@ -881,7 +966,31 @@ const captureAndQueueDomSnapshot = () => {
     // (different origin), so the viewer cannot read scrollHeight via contentDocument.
     if (head) {
       const measureScript = document.createElement('script');
-      measureScript.textContent = '(function(){function m(){var h=Math.max(document.documentElement.scrollHeight||0,(document.body||{}).scrollHeight||0),w=Math.max(document.documentElement.scrollWidth||0,(document.body||{}).scrollWidth||0);try{window.parent.postMessage({type:"snc_snap_dims",w:w,h:h},"*")}catch(e){}}if(document.readyState==="complete"){m()}else{window.addEventListener("load",m)}}());';
+      measureScript.textContent = `(function(){
+        function esc(v){return window.CSS&&CSS.escape?CSS.escape(String(v)):String(v).replace(/[^a-zA-Z0-9_-]/g,'\\\\$&')}
+        function allDeep(root,out){var els=root.querySelectorAll?root.querySelectorAll('*'):[];for(var i=0;i<els.length;i++){out.push(els[i]);if(els[i].shadowRoot)allDeep(els[i].shadowRoot,out)}return out}
+        function find(l){
+          if(!l||typeof l!=='object')return null;
+          if(l.seentics_id){var x=document.querySelector('[data-seentics-id="'+esc(l.seentics_id)+'"]');if(x)return x}
+          if(l.id){var byId=document.getElementById(l.id);if(byId)return byId}
+          if(l.test_id){var t=document.querySelector('[data-testid="'+esc(l.test_id)+'"]');if(t)return t}
+          var nodes=allDeep(document,[]),best=null,bestScore=-1;
+          for(var i=0;i<nodes.length;i++){
+            var n=nodes[i],score=0;
+            if(l.tag&&n.tagName&&n.tagName.toLowerCase()===l.tag)score+=2;else if(l.tag)continue;
+            if(l.role&&n.getAttribute('role')===l.role)score+=4;
+            if(l.aria_label&&n.getAttribute('aria-label')===l.aria_label)score+=5;
+            if(Array.isArray(l.classes))for(var c=0;c<l.classes.length;c++)if(n.classList.contains(l.classes[c]))score++;
+            if(score>bestScore){best=n;bestScore=score}
+          }
+          if(best&&bestScore>=2)return best;
+          if(l.css_path){try{return document.querySelector(l.css_path)}catch(e){}}
+          return null;
+        }
+        function dims(){var h=Math.max(document.documentElement.scrollHeight||0,(document.body||{}).scrollHeight||0),w=Math.max(document.documentElement.scrollWidth||0,(document.body||{}).scrollWidth||0);try{window.parent.postMessage({type:'snc_snap_dims',w:w,h:h},'*')}catch(e){}}
+        window.addEventListener('message',function(e){var d=e.data;if(!d||d.type!=='snc_map_points'||!Array.isArray(d.points))return;var mapped=[];for(var i=0;i<d.points.length;i++){var p=d.points[i],el=find(p.locator);if(!el)continue;var r=el.getBoundingClientRect(),rx=Number.isFinite(p.relativeX)?p.relativeX:.5,ry=Number.isFinite(p.relativeY)?p.relativeY:.5;mapped.push({index:p.index,x:r.left+window.scrollX+r.width*rx,y:r.top+window.scrollY+r.height*ry,method:(p.locator.seentics_id||p.locator.id||p.locator.test_id)?'element':'fingerprint'})}try{window.parent.postMessage({type:'snc_mapped_points',requestId:d.requestId,mapped:mapped},'*')}catch(err){}});
+        if(document.readyState==='complete')dims();else window.addEventListener('load',dims);
+      })();`;
       head.appendChild(measureScript);
     }
 
@@ -923,7 +1032,7 @@ const captureAndQueueDomSnapshot = () => {
       doc_h: dh,
       vw:    window.innerWidth,
       vh:    window.innerHeight,
-      data:  { html },
+      data:  { html, page_version: heatmapPageVersion(), page_key: heatmapPageKeyOverride() },
     });
 
     markHeatmapScreenshotSentForPath();
@@ -972,14 +1081,6 @@ const heatmapAllowed = () => {
   if (hasEffectivePatterns(includePatterns) && !matchesPatterns(includePatterns)) return false;
   if (hasEffectivePatterns(excludePatterns) && matchesPatterns(excludePatterns))  return false;
   return true;
-};
-
-/** Scroll depth as a 0–1 fraction of the scrollable document height. */
-const scrollDepth01 = () => {
-  const el = document.documentElement;
-  const scrollableHeight = el.scrollHeight - el.clientHeight;
-  if (scrollableHeight <= 0) return 1;
-  return Math.min(1, Math.max(0, el.scrollTop / scrollableHeight));
 };
 
 /**
@@ -1093,6 +1194,198 @@ const heatmapSelectorHint = (el) => {
   return tag;
 };
 
+/** Fast, deterministic hash for non-sensitive text and structural fingerprints. */
+const heatmapHash = (value) => {
+  let h = 0x811c9dc5;
+  const s = String(value ?? '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+};
+
+const heatmapStableValue = (value, max = 96) => {
+  const s = String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
+  if (!s || /@|\b\d{8,}\b|bearer|token|secret|password/i.test(s)) return '';
+  return s;
+};
+
+const heatmapStableClasses = (el) => {
+  if (!(el instanceof Element) || typeof el.className !== 'string') return [];
+  return el.className.trim().split(/\s+/).filter(c =>
+    c.length <= 48 &&
+    !/[0-9a-f]{8,}/i.test(c) &&
+    !/^css-[a-z0-9]{5,}$/i.test(c) &&
+    !/^_/.test(c)
+  ).slice(0, 4);
+};
+
+/** A structural path is a fallback only; stable annotations and accessibility win. */
+const heatmapElementPath = (el) => {
+  const parts = [];
+  let node = el;
+  for (let depth = 0; node instanceof Element && depth < 6; depth++) {
+    const tag = node.tagName.toLowerCase();
+    let nth = 1;
+    let prev = node.previousElementSibling;
+    while (prev) {
+      if (prev.tagName === node.tagName) nth++;
+      prev = prev.previousElementSibling;
+    }
+    parts.unshift(`${tag}:nth-of-type(${nth})`);
+    const root = node.getRootNode?.();
+    node = root instanceof ShadowRoot ? root.host : node.parentElement;
+  }
+  return parts.join('>');
+};
+
+const heatmapPositionMode = (el) => {
+  let node = el;
+  for (let depth = 0; node instanceof Element && depth < 8; depth++, node = node.parentElement) {
+    try {
+      const p = getComputedStyle(node).position;
+      if (p === 'fixed' || p === 'sticky') return p;
+    } catch { /* detached element */ }
+  }
+  return 'normal';
+};
+
+/** Multi-signal locator. No input value or raw user text is ever included. */
+const heatmapElementLocator = (el) => {
+  const ancestry = [];
+  let parent = el.parentElement;
+  for (let depth = 0; parent && depth < 3; depth++, parent = parent.parentElement) {
+    ancestry.push({
+      tag: parent.tagName.toLowerCase(),
+      id: heatmapStableValue(parent.id, 64),
+      role: heatmapStableValue(parent.getAttribute('role'), 40),
+      classes: heatmapStableClasses(parent),
+    });
+  }
+  const label = heatmapStableValue(
+    el.getAttribute('aria-label') || el.getAttribute('title') || '',
+    96,
+  );
+  const text = heatmapStableValue(el.textContent || '', 120);
+  const root = el.getRootNode?.();
+  return {
+    seentics_id: heatmapStableValue(el.getAttribute('data-seentics-id'), 96),
+    test_id: heatmapStableValue(el.getAttribute('data-testid'), 96),
+    id: heatmapStableValue(el.id, 96),
+    tag: el.tagName.toLowerCase(),
+    role: heatmapStableValue(el.getAttribute('role'), 40),
+    aria_label: label,
+    classes: heatmapStableClasses(el),
+    ancestry,
+    sibling_index: el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0,
+    css_path: heatmapElementPath(el),
+    text_hash: text ? heatmapHash(text.toLowerCase()) : '',
+    shadow_host_path: root instanceof ShadowRoot ? heatmapElementPath(root.host) : '',
+  };
+};
+
+let heatmapPageFingerprintCache = null;
+const heatmapPageVersion = () => {
+  const now = Date.now();
+  if (
+    heatmapPageFingerprintCache &&
+    heatmapPageFingerprintCache.url === location.href &&
+    now - heatmapPageFingerprintCache.at < 1_000
+  ) return heatmapPageFingerprintCache.value;
+
+  const parts = [];
+  try {
+    const nodes = document.body?.querySelectorAll('*') ?? [];
+    const cap = Math.min(nodes.length, 1_200);
+    for (let i = 0; i < cap; i++) {
+      const el = nodes[i];
+      const sid = heatmapStableValue(el.getAttribute('data-seentics-id'), 48);
+      const id = heatmapStableValue(el.id, 48);
+      const role = heatmapStableValue(el.getAttribute('role'), 24);
+      parts.push(`${el.tagName}:${sid || id}:${role}:${el.childElementCount}`);
+    }
+  } catch { /* hostile live DOM */ }
+  const variant = heatmapStableValue(document.body?.getAttribute('data-seentics-variant'), 64);
+  const value = `${variant || 'default'}:${heatmapHash(parts.join('|'))}`;
+  heatmapPageFingerprintCache = { url: location.href, at: now, value };
+  return value;
+};
+
+const heatmapEventId = () => {
+  try { if (crypto?.randomUUID) return crypto.randomUUID(); } catch { /* unavailable */ }
+  return `hm-${Date.now().toString(36)}-${rnd()}`;
+};
+
+/** Explicit logical page name for template heatmaps (`data-seentics-page`). */
+const heatmapPageKeyOverride = () => {
+  const value = heatmapStableValue(document.body?.getAttribute('data-seentics-page'), 96);
+  if (!value) return '';
+  const slug = value.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug ? `/@${slug}` : '';
+};
+
+/** CSS-pixel click geometry plus an element-relative anchor. */
+const heatmapClickData = (rawTarget, clientX, clientY, pageX, pageY) => {
+  const target = rawTarget.closest?.(
+    '[data-seentics-id],button,a,input,select,textarea,[role]'
+  ) || rawTarget;
+  const rect = target.getBoundingClientRect();
+  const { dw, dh } = heatmapDocumentMetrics();
+  const vp = heatmapViewportCss();
+  const rx = rect.width > 0 ? (clientX - rect.left) / rect.width : 0.5;
+  const ry = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
+  const locator = heatmapElementLocator(target);
+  const stableTarget = locator.seentics_id
+    ? `[data-seentics-id="${locator.seentics_id}"]`
+    : locator.id
+      ? `${locator.tag}#${locator.id}`
+      : locator.test_id
+        ? `[data-testid="${locator.test_id}"]`
+        : heatmapSelectorHint(target);
+  return {
+    event_id: heatmapEventId(),
+    nx: Math.min(1, Math.max(0, pageX / dw)),
+    ny: Math.min(1, Math.max(0, pageY / dh)),
+    target: stableTarget,
+    vw: vp.vw,
+    vh: vp.vh,
+    client_x: clientX,
+    client_y: clientY,
+    page_x: pageX,
+    page_y: pageY,
+    scroll_x: window.scrollX ?? window.pageXOffset ?? 0,
+    scroll_y: window.scrollY ?? window.pageYOffset ?? 0,
+    document_width: Math.round(dw),
+    document_height: Math.round(dh),
+    device_pixel_ratio: window.devicePixelRatio || 1,
+    target_locator: locator,
+    target_rect: {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    },
+    relative_x: Math.min(1, Math.max(0, rx)),
+    relative_y: Math.min(1, Math.max(0, ry)),
+    position_mode: heatmapPositionMode(target),
+    page_version: heatmapPageVersion(),
+    page_key: heatmapPageKeyOverride(),
+    tracker_version: TRACKER_VERSION,
+    schema_version: HEATMAP_SCHEMA_VERSION,
+  };
+};
+
+const queueHeatmapEvent = (event) => {
+  // Clicks are never sampled. Bound memory by evicting the oldest queued scroll
+  // summaries first, then the oldest event if a host page is producing pathological data.
+  if (queues.heatmaps.length >= HEATMAP_QUEUE_MAX) {
+    const scrollIndex = queues.heatmaps.findIndex(e => e.type === 'heatmap_scroll');
+    queues.heatmaps.splice(scrollIndex >= 0 ? scrollIndex : 0, 1);
+  }
+  queues.heatmaps.push(event);
+};
+
 let heatmapListenersInstalled     = false;
 let heatmapPointerBridgeInstalled = false;
 
@@ -1125,10 +1418,86 @@ const installHeatmapPointerPageBridge = () => {
   }, true);
 };
 
-/** Maximum scroll depth reached on the current page URL (reset on navigation). */
-let heatmapScrollMax = 0;
-/** Timestamp of the last heatmap_scroll event (shared by DOM scroll and rrweb scroll mirror). */
-let heatmapScrollThrottleAt = 0;
+let heatmapScrollPageView = null;
+
+const heatmapVisibleRange = () => {
+  const { dh } = heatmapDocumentMetrics();
+  const top = Math.max(0, window.scrollY ?? window.pageYOffset ?? 0);
+  return {
+    start: Math.round(top),
+    end: Math.round(Math.min(dh, top + heatmapViewportCss().vh)),
+    documentHeight: Math.round(dh),
+  };
+};
+
+const updateHeatmapScrollPageView = () => {
+  const view = heatmapScrollPageView;
+  if (!view || view.finished) return;
+  const now = Date.now();
+  const range = heatmapVisibleRange();
+  view.maximumDepth = Math.max(view.maximumDepth, Math.min(1, range.end / Math.max(1, range.documentHeight)));
+  const durationMs = Math.max(0, Math.min(5_000, now - view.lastAt));
+  const last = view.viewedRanges[view.viewedRanges.length - 1];
+  if (last && range.start <= last.end + 24 && range.end >= last.start - 24) {
+    last.start = Math.min(last.start, range.start);
+    last.end = Math.max(last.end, range.end);
+    last.duration_ms += durationMs;
+  } else if (view.viewedRanges.length < 64) {
+    view.viewedRanges.push({ start: range.start, end: range.end, duration_ms: durationMs });
+  }
+  view.lastAt = now;
+  view.documentHeight = range.documentHeight;
+  if (location.href === view.url) view.version = heatmapPageVersion();
+};
+
+const startHeatmapScrollPageView = () => {
+  const range = heatmapVisibleRange();
+  heatmapScrollPageView = {
+    id: heatmapEventId(),
+    url: location.href,
+    sid: getSessionId(),
+    allowed: heatmapAllowed(),
+    version: heatmapPageVersion(),
+    pageKey: heatmapPageKeyOverride(),
+    maximumDepth: Math.min(1, range.end / Math.max(1, range.documentHeight)),
+    documentHeight: range.documentHeight,
+    lastAt: Date.now(),
+    viewedRanges: [{ start: range.start, end: range.end, duration_ms: 0 }],
+    finished: false,
+  };
+};
+
+/** Exactly one scroll summary per page view; intensity now represents page views. */
+const finishHeatmapScrollPageView = () => {
+  const view = heatmapScrollPageView;
+  if (!view || view.finished) return;
+  updateHeatmapScrollPageView();
+  view.finished = true;
+  if (!view.allowed) return;
+  const vp = heatmapViewportCss();
+  queueHeatmapEvent({
+    type: 'heatmap_scroll',
+    data: {
+      event_id: view.id,
+      page_view_id: view.id,
+      depth: view.maximumDepth,
+      maximum_depth_percent: Math.round(view.maximumDepth * 10_000) / 100,
+      viewed_ranges: view.viewedRanges,
+      vw: vp.vw,
+      vh: vp.vh,
+      document_width: heatmapDocumentMetrics().dw,
+      document_height: view.documentHeight,
+      page_version: view.version,
+      page_key: view.pageKey,
+      tracker_version: TRACKER_VERSION,
+      schema_version: HEATMAP_SCHEMA_VERSION,
+    },
+    ts: Date.now(),
+    url: view.url,
+    sid: view.sid,
+    vid: visitorId,
+  });
+};
 
 /**
  * Inspect each rrweb event emitted during recording and derive heatmap data points.
@@ -1190,11 +1559,12 @@ const mirrorHeatmapFromRrweb = (ev) => {
       ({ pageX, pageY } = rrwebClientToDocumentXY(clientX, clientY));
     }
 
-    const { nx, ny } = heatmapNormFromPageXY(pageX, pageY);
-    const vp = heatmapViewportCss();
-    queues.heatmaps.push({
+    let target = null;
+    try { target = document.elementFromPoint(clientX, clientY); } catch { /* sandbox */ }
+    if (!(target instanceof Element) || target.closest('[data-seentics-block], [data-private]')) return;
+    queueHeatmapEvent({
       type: 'heatmap_click',
-      data: { nx, ny, target: 'rrweb', vw: vp.vw, vh: vp.vh },
+      data: heatmapClickData(target, clientX, clientY, pageX, pageY),
       ts:  Date.now(),
       url: location.href,
       sid: activeRecordingSessionId ?? getSessionId(),
@@ -1205,20 +1575,7 @@ const mirrorHeatmapFromRrweb = (ev) => {
 
   // ── Scroll: update max depth ──────────────────────────────────────────────
   if (source === RRWEB_INCREMENTAL_SOURCE.Scroll) {
-    const depth = scrollDepth01();
-    if (depth > heatmapScrollMax) heatmapScrollMax = depth;
-    const now = Date.now();
-    if (now - heatmapScrollThrottleAt < 450) return;
-    heatmapScrollThrottleAt = now;
-    const vp = heatmapViewportCss();
-    queues.heatmaps.push({
-      type: 'heatmap_scroll',
-      data: { depth: heatmapScrollMax, vw: vp.vw, vh: vp.vh },
-      ts:  now,
-      url: location.href,
-      sid: activeRecordingSessionId ?? getSessionId(),
-      vid: visitorId,
-    });
+    updateHeatmapScrollPageView();
   }
 };
 
@@ -1239,12 +1596,10 @@ const installHeatmapCapture = () => {
     if (!heatmapAllowed()) return;
     const target = ev.target;
     if (!(target instanceof Element)) return;
-    if (target.closest('[data-seentics-block]')) return;
-    const { nx, ny } = heatmapNormFromPageXY(ev.pageX, ev.pageY);
-    const vp = heatmapViewportCss();
-    queues.heatmaps.push({
+    if (target.closest('[data-seentics-block], [data-private]')) return;
+    queueHeatmapEvent({
       type: 'heatmap_click',
-      data: { nx, ny, target: heatmapSelectorHint(target), vw: vp.vw, vh: vp.vh },
+      data: heatmapClickData(target, ev.clientX, ev.clientY, ev.pageX, ev.pageY),
       ts:  Date.now(),
       url: location.href,
       sid: getSessionId(),
@@ -1255,20 +1610,7 @@ const installHeatmapCapture = () => {
   window.addEventListener('scroll', () => {
     if (stopRecording != null) return; // rrweb handles scroll via mirrorHeatmapFromRrweb
     if (!heatmapAllowed()) return;
-    const depth = scrollDepth01();
-    if (depth > heatmapScrollMax) heatmapScrollMax = depth;
-    const now = Date.now();
-    if (now - heatmapScrollThrottleAt < 450) return;
-    heatmapScrollThrottleAt = now;
-    const vp = heatmapViewportCss();
-    queues.heatmaps.push({
-      type: 'heatmap_scroll',
-      data: { depth: heatmapScrollMax, vw: vp.vw, vh: vp.vh },
-      ts:  now,
-      url: location.href,
-      sid: getSessionId(),
-      vid: visitorId,
-    });
+    updateHeatmapScrollPageView();
   }, { passive: true });
 };
 
@@ -1294,8 +1636,8 @@ const RRWEB_OPTIONS = {
    * editors have to be covered too. `data-seentics-mask` is the opt-in for anything
    * else that should render as asterisks rather than be blocked outright.
    */
-  maskTextSelector: '[contenteditable]:not([contenteditable="false"]), [data-seentics-mask], [data-seentics-mask] *',
-  blockSelector:    '[data-seentics-block]',
+  maskTextSelector: '[contenteditable]:not([contenteditable="false"]), [data-seentics-mask], [data-seentics-mask] *, [data-sensitive], [data-sensitive] *',
+  blockSelector:    '[data-seentics-block], [data-private], [autocomplete="cc-number"]',
   ignoreSelector:   '[data-seentics-ignore]',
   recordShadowDOM:  true,
   sampling: {
@@ -1428,12 +1770,12 @@ const deviceInfo = () => ({
 
 /**
  * Push a pageview event and evaluate funnels/automations for the current URL.
- * Also resets per-page heatmap state (scroll depth, throttle timestamps, pointer bridge).
+ * Also finalises the prior scroll summary and starts a new per-page view.
  */
 const trackPage = () => {
+  finishHeatmapScrollPageView();
+  heatmapPageFingerprintCache = null;
   pageEnterMs                = Date.now();
-  heatmapScrollMax           = 0;
-  heatmapScrollThrottleAt    = 0;
   lastPointerDocForHeatmap   = null;
 
   const utm = utmParams();
@@ -1450,6 +1792,7 @@ const trackPage = () => {
       ...(utm.content  ? { utm_content:  utm.content  } : {}),
     } : {}),
   });
+  startHeatmapScrollPageView();
   evalFunnels(location.pathname);
   void fireAutomationTrigger('page_view', { path: location.pathname, title: document.title });
 };
@@ -2137,8 +2480,13 @@ const initRouting = () => {
     clearScreenshotScheduleTimers();
     lastPath = location.pathname;
     if (autoTrack) trackPage();
+    else {
+      finishHeatmapScrollPageView();
+      startHeatmapScrollPageView();
+    }
     // Give the new route 50 ms to mount before asking rrweb for a full snapshot.
     window.setTimeout(requestRrwebFullSnapshotForNavigation, 50);
+    window.setTimeout(() => { heatmapPageFingerprintCache = null; }, 250);
     if (cfg.heatmap_layout_enabled !== false) {
       scheduleHeatmapScreenshotAfterAppIdle();
     }
@@ -2173,6 +2521,7 @@ const init = () => {
     }
   });
   window.addEventListener('pagehide', () => {
+    finishHeatmapScrollPageView();
     captureDomSnapshotBeforeLeaving();
     flushBeacon();
   });
@@ -2198,6 +2547,7 @@ const init = () => {
       }
 
       if (autoTrack) trackPage();
+      else startHeatmapScrollPageView();
 
       // Session recording setup. `initRecording` decides whether this visitor is
       // recorded and installs the capture hooks only if so — nothing is patched for a
@@ -2232,6 +2582,7 @@ const init = () => {
         'Fix: data-api-host should point to your API (e.g. same origin as this app in dev).',
       );
       if (autoTrack) trackPage();
+      else startHeatmapScrollPageView();
       installHeatmapCapture();
       installExitIntent();
       installInactivity();

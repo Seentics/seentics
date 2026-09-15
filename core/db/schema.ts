@@ -393,6 +393,23 @@ export const heatmapPoints = pgTable(
     targetSelector: text("target_selector").notNull().default(""),
     capVw: integer("cap_vw"),
     capVh: integer("cap_vh"),
+    pageVersion: text("page_version").notNull().default(""),
+    targetLocator: jsonb("target_locator").$type<Record<string, unknown>>(),
+    targetRect: jsonb("target_rect").$type<Record<string, unknown>>(),
+    relativeX: real("relative_x"),
+    relativeY: real("relative_y"),
+    positionMode: text("position_mode").notNull().default("normal"),
+    clientX: real("client_x"),
+    clientY: real("client_y"),
+    pageX: real("page_x"),
+    pageY: real("page_y"),
+    scrollX: real("scroll_x"),
+    scrollY: real("scroll_y"),
+    documentWidth: integer("document_width"),
+    documentHeight: integer("document_height"),
+    devicePixelRatio: real("device_pixel_ratio"),
+    trackerVersion: text("tracker_version").notNull().default(""),
+    schemaVersion: integer("schema_version").notNull().default(1),
     lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -404,6 +421,7 @@ export const heatmapPoints = pgTable(
       t.xPercent,
       t.yPercent,
       t.targetSelector,
+      t.pageVersion,
     ),
     index("ix_heatmap_points_website_updated").on(t.websiteId, t.lastUpdated),
     index("ix_heatmap_points_website_page_event").on(t.websiteId, t.pagePath, t.eventType),
@@ -473,6 +491,7 @@ export const heatmapPageSnapshots = pgTable(
      * different elements. One row per (page, device).
      */
     deviceType: text("device_type").notNull().default("desktop"),
+    domFingerprint: text("dom_fingerprint").notNull().default(""),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -482,6 +501,33 @@ export const heatmapPageSnapshots = pgTable(
       t.deviceType,
     ),
     index("ix_heatmap_snapshots_website_updated").on(t.websiteId, t.updatedAt),
+  ],
+);
+
+/** Immutable structural variants; the snapshots table above points at the canonical one. */
+export const heatmapPageVersions = pgTable(
+  "heatmap_page_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    pagePath: text("page_path").notNull(),
+    domFingerprint: text("dom_fingerprint").notNull(),
+    deviceType: text("device_type").notNull(),
+    viewportWidth: integer("viewport_width").notNull(),
+    viewportHeight: integer("viewport_height").notNull(),
+    htmlS3Key: text("html_s3_key"),
+    contentSha256: text("content_sha256").notNull(),
+    eventCount: integer("event_count").notNull().default(0),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("heatmap_page_versions_identity_uq").on(
+      t.websiteId, t.pagePath, t.deviceType, t.domFingerprint,
+    ),
+    index("ix_heatmap_page_versions_lookup").on(
+      t.websiteId, t.pagePath, t.deviceType, t.lastSeenAt,
+    ),
   ],
 );
 

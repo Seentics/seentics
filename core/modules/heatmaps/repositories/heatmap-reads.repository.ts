@@ -35,7 +35,10 @@ export async function getHeatmapData(
   const rows = await sql`
     SELECT page_path, event_type, device_type, x_percent, y_percent, intensity,
            COALESCE(target_selector, '') AS target_selector,
-           cap_vw, cap_vh
+           cap_vw, cap_vh, page_version, target_locator, target_rect,
+           relative_x, relative_y, position_mode, client_x, client_y, page_x, page_y,
+           scroll_x, scroll_y, document_width, document_height, device_pixel_ratio,
+           tracker_version, schema_version
     FROM heatmap_points
     WHERE website_id = ${websiteId}::uuid
       AND event_type = ${eventType}
@@ -57,6 +60,29 @@ export async function getHeatmapData(
     target_selector: String(r.target_selector),
     cap_vw: r.cap_vw != null ? Number(r.cap_vw) : null,
     cap_vh: r.cap_vh != null ? Number(r.cap_vh) : null,
+    page_version: String(r.page_version ?? ""),
+    target_locator: (r.target_locator && typeof r.target_locator === "object")
+      ? r.target_locator as Record<string, unknown>
+      : null,
+    target_rect: (r.target_rect && typeof r.target_rect === "object")
+      ? r.target_rect as Record<string, unknown>
+      : null,
+    relative_x: r.relative_x != null ? Number(r.relative_x) : null,
+    relative_y: r.relative_y != null ? Number(r.relative_y) : null,
+    position_mode: r.position_mode === "fixed" || r.position_mode === "sticky"
+      ? r.position_mode
+      : "normal",
+    client_x: r.client_x != null ? Number(r.client_x) : null,
+    client_y: r.client_y != null ? Number(r.client_y) : null,
+    page_x: r.page_x != null ? Number(r.page_x) : null,
+    page_y: r.page_y != null ? Number(r.page_y) : null,
+    scroll_x: r.scroll_x != null ? Number(r.scroll_x) : null,
+    scroll_y: r.scroll_y != null ? Number(r.scroll_y) : null,
+    document_width: r.document_width != null ? Number(r.document_width) : null,
+    document_height: r.document_height != null ? Number(r.document_height) : null,
+    device_pixel_ratio: r.device_pixel_ratio != null ? Number(r.device_pixel_ratio) : null,
+    tracker_version: String(r.tracker_version ?? ""),
+    schema_version: Number(r.schema_version ?? 1),
   }));
 }
 

@@ -39,6 +39,18 @@ export function normalizeHeatmapPagePath(path: string): string {
   return p || "/";
 }
 
+/** Canonical bucket selected by the SDK's `data-seentics-page` override. */
+export function heatmapPagePathForEvent(
+  rawURL: string,
+  data?: Record<string, unknown>,
+): string {
+  const override = typeof data?.page_key === "string" ? data.page_key.trim() : "";
+  if (override && override.length <= 160 && /^\/@[a-z0-9][a-z0-9._-]*$/i.test(override)) {
+    return override;
+  }
+  return normalizeHeatmapPagePath(extractPath(rawURL));
+}
+
 /**
  * True when a normalized path still carries an `:id` placeholder.
  *

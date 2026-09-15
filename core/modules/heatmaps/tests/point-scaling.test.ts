@@ -122,6 +122,64 @@ describe("viewport caps", () => {
   });
 });
 
+describe("element-relative click metadata", () => {
+  it("preserves the locator, CSS-pixel geometry, fixed mode, and versions", () => {
+    const [point] = eventsToPoints([click(0.5, 0.25, {
+      target_locator: { seentics_id: "checkout-submit", tag: "button" },
+      target_rect: { left: 20, top: 30, width: 100, height: 40 },
+      relative_x: 0.5,
+      relative_y: 0.25,
+      position_mode: "fixed",
+      client_x: 70,
+      client_y: 40,
+      page_x: 70,
+      page_y: 1040,
+      scroll_x: 0,
+      scroll_y: 1000,
+      document_width: 1440,
+      document_height: 5000,
+      device_pixel_ratio: 2,
+      page_version: "checkout-v2:abc",
+      tracker_version: "2.1.0",
+      schema_version: 2,
+    })]);
+
+    expect(point).toMatchObject({
+      targetLocator: { seentics_id: "checkout-submit", tag: "button" },
+      targetRect: { left: 20, top: 30, width: 100, height: 40 },
+      relativeX: 0.5,
+      relativeY: 0.25,
+      positionMode: "fixed",
+      clientX: 70,
+      pageY: 1040,
+      scrollY: 1000,
+      documentWidth: 1440,
+      documentHeight: 5000,
+      devicePixelRatio: 2,
+      pageVersion: "checkout-v2:abc",
+      trackerVersion: "2.1.0",
+      schemaVersion: 2,
+    });
+  });
+
+  it("drops hostile out-of-range geometry instead of persisting it", () => {
+    const [point] = eventsToPoints([click(0.5, 0.5, {
+      relative_x: 4,
+      relative_y: -1,
+      document_height: 99_000_000,
+      device_pixel_ratio: 100,
+      position_mode: "absolute",
+    })]);
+    expect(point).toMatchObject({
+      relativeX: null,
+      relativeY: null,
+      documentHeight: null,
+      devicePixelRatio: null,
+      positionMode: "normal",
+    });
+  });
+});
+
 describe("path handling", () => {
   function pathFor(url: string) {
     return eventsToPoints([{ ...click(0.5, 0.5), url }])[0]!.pagePath;
@@ -147,5 +205,11 @@ describe("path handling", () => {
 
   it("drops the query string", () => {
     expect(pathFor("https://example.com/pricing?utm_source=x")).toBe("/pricing");
+  });
+
+  it("uses a validated SDK page key for template heatmaps", () => {
+    const row = click(0.5, 0.5, { page_key: "/@product-details" });
+    row.url = "https://example.com/products/8213994";
+    expect(eventsToPoints([row])[0]!.pagePath).toBe("/@product-details");
   });
 });

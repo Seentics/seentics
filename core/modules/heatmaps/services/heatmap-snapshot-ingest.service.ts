@@ -5,7 +5,8 @@ import {
   upsertLayoutSnapshot,
   upsertLayoutHtmlSnapshot,
 } from "../lib/layout-db";
-import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
+import { upsertLayoutVersion } from "../repositories/heatmap-versions.repository";
+import { extractPath, heatmapPagePathForEvent, normalizeHeatmapPagePath } from "../lib/paths";
 import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "../lib/keys";
 import { snapshotDeviceBucket, snapshotDeviceBucketForWidth } from "../lib/device";
 import { validateScreenshotTargetUrl } from "../../../platform/http/origin";
@@ -150,7 +151,7 @@ export class SnapshotIngestService {
       return;
     }
 
-    const norm = normalizeHeatmapPagePath(extractPath(ev.url ?? ""));
+    const norm = heatmapPagePathForEvent(ev.url ?? "", ev.data);
     log.info({
       msg: "heatmap_dom_snapshot_received",
       url: ev.url,
@@ -174,9 +175,20 @@ export class SnapshotIngestService {
 
     const { w: docW, h: docH } = plausibleDocSize(ev.docW ?? 0, ev.docH ?? 0, ev.url ?? "", false);
 
-    const key = heatmapHtmlSnapshotKey(ev.websiteId, layoutPathSlot(ev.websiteId, norm, device));
+    const pageVersion = typeof ev.data?.page_version === "string"
+      ? ev.data.page_version.slice(0, 160)
+      : "";
+    const baseSlot = layoutPathSlot(ev.websiteId, norm, device);
+    // Content-addressed suffix makes old variants immutable in object storage.
+    const key = heatmapHtmlSnapshotKey(
+      ev.websiteId,
+      pageVersion ? `${baseSlot}_${sum.slice(0, 16)}` : baseSlot,
+    );
     await putHtml(this.bucket, key, html);
-    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH);
+    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion);
+    if (pageVersion) {
+      await upsertLayoutVersion(ev.websiteId, norm, device, pageVersion, key, sum, docW, docH);
+    }
     log.info({
       msg: "heatmap_dom_snapshot_stored",
       url: ev.url,

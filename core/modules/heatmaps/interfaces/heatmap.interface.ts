@@ -51,6 +51,24 @@ export type HeatmapPointRow = {
   targetSelector: string;
   capVw: number | null;
   capVh: number | null;
+  /** Versioned click geometry. Null on legacy rows and scroll summaries. */
+  pageVersion: string;
+  targetLocator: Record<string, unknown> | null;
+  targetRect: Record<string, unknown> | null;
+  relativeX: number | null;
+  relativeY: number | null;
+  positionMode: "normal" | "fixed" | "sticky";
+  clientX: number | null;
+  clientY: number | null;
+  pageX: number | null;
+  pageY: number | null;
+  scrollX: number | null;
+  scrollY: number | null;
+  documentWidth: number | null;
+  documentHeight: number | null;
+  devicePixelRatio: number | null;
+  trackerVersion: string;
+  schemaVersion: number;
 };
 
 /** One aggregated heatmap cell in the dashboard and raw API wire shape. */
@@ -66,6 +84,23 @@ export type HeatmapPointOut = {
   target_selector: string;
   cap_vw?: number | null;
   cap_vh?: number | null;
+  page_version?: string;
+  target_locator?: Record<string, unknown> | null;
+  target_rect?: Record<string, unknown> | null;
+  relative_x?: number | null;
+  relative_y?: number | null;
+  position_mode?: "normal" | "fixed" | "sticky";
+  client_x?: number | null;
+  client_y?: number | null;
+  page_x?: number | null;
+  page_y?: number | null;
+  scroll_x?: number | null;
+  scroll_y?: number | null;
+  document_width?: number | null;
+  document_height?: number | null;
+  device_pixel_ratio?: number | null;
+  tracker_version?: string;
+  schema_version?: number;
 };
 
 /** Screenshot ready to be persisted by the heatmap snapshot service. */
@@ -126,6 +161,8 @@ export type HeatmapLayout = {
    * dashboard says so rather than presenting it as an accurate overlay.
    */
   device_fallback: boolean;
+  /** Structural version of the DOM snapshot; empty for image-only/legacy captures. */
+  dom_fingerprint?: string;
 };
 
 /**

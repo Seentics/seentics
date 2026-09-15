@@ -227,6 +227,8 @@ export function HeatmapViewer({
   /** Natural size when loaded — from JPEG naturalWidth/Height or HTML iframe scrollWidth/Height. */
   const [shotNatural, setShotNatural] = useState<{ w: number; h: number } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const mappingRequestRef = useRef('');
+  const [renderPoints, setRenderPoints] = useState<HeatPoint[]>(points);
 
   const hasHtmlSnapshot = !!pageScreenshot?.html_url?.trim();
   const hasJpegSnapshot = !!pageScreenshot?.image_url?.trim();
@@ -338,12 +340,26 @@ export function HeatmapViewer({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const drawable = renderPoints.filter(p => p.mappingMethod !== 'unmapped');
     if (heatType === 'scroll') {
-      drawScrollHeatmap(canvas, points, canvasRes.w, canvasRes.h);
+      drawScrollHeatmap(canvas, drawable, canvasRes.w, canvasRes.h);
     } else {
-      drawClickHeatmap(canvas, points, canvasRes.w, canvasRes.h);
+      drawClickHeatmap(canvas, drawable, canvasRes.w, canvasRes.h);
     }
-  }, [points, canvasRes, heatType]);
+  }, [renderPoints, canvasRes, heatType]);
+
+  useEffect(() => {
+    if (!hasHtmlSnapshot || heatType !== 'click') {
+      setRenderPoints(points.map(p => ({ ...p, mappingMethod: 'coordinate' })));
+      return;
+    }
+    // Rich points wait for the inert snapshot to resolve their element. Legacy rows
+    // have no locator and stay on the documented coordinate fallback.
+    setRenderPoints(points.map(p => ({
+      ...p,
+      mappingMethod: p.locator ? 'unmapped' : 'coordinate',
+    })));
+  }, [points, hasHtmlSnapshot, heatType, pageScreenshot?.dom_fingerprint]);
 
   // Listen for the postMessage sent by the injected measurement script inside the HTML
   // snapshot iframe. The snapshot is served from S3 (cross-origin), so contentDocument
@@ -361,6 +377,74 @@ export function HeatmapViewer({
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [hasHtmlSnapshot, dims.w]);
+
+  // Ask the controlled script inside the inert DOM snapshot to resolve every locator.
+  // The parent never reads snapshot DOM directly, so this works when R2 is cross-origin.
+  useEffect(() => {
+    if (!hasHtmlSnapshot || heatType !== 'click' || loadState !== 'loaded') return;
+    const target = iframeRef.current?.contentWindow;
+    if (!target) return;
+    const candidates = points.flatMap((p, index) => p.locator ? [{
+      index,
+      locator: p.locator,
+      relativeX: p.relativeX,
+      relativeY: p.relativeY,
+    }] : []);
+    if (!candidates.length) return;
+    const requestId = `${Date.now()}:${Math.random()}`;
+    mappingRequestRef.current = requestId;
+    target.postMessage({ type: 'snc_map_points', requestId, points: candidates }, '*');
+  }, [hasHtmlSnapshot, heatType, loadState, points, dims.w, dims.h]);
+
+  useEffect(() => {
+    if (!hasHtmlSnapshot || heatType !== 'click') return;
+    const handler = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) return;
+      const data = e.data;
+      if (!data || data.type !== 'snc_mapped_points' || data.requestId !== mappingRequestRef.current) return;
+      const mapped = new Map<number, { x: number; y: number; method: 'element' | 'fingerprint' }>();
+      for (const item of Array.isArray(data.mapped) ? data.mapped : []) {
+        if (!Number.isInteger(item?.index) || !Number.isFinite(item?.x) || !Number.isFinite(item?.y)) continue;
+        mapped.set(item.index, {
+          x: item.x,
+          y: item.y,
+          method: item.method === 'element' ? 'element' : 'fingerprint',
+        });
+      }
+      setRenderPoints(points.map((p, index) => {
+        if (!p.locator) return { ...p, mappingMethod: 'coordinate' };
+        const hit = mapped.get(index);
+        if (hit) return {
+          ...p,
+          nx: Math.min(1, Math.max(0, hit.x / dims.w)),
+          ny: Math.min(1, Math.max(0, hit.y / dims.h)),
+          mappingMethod: hit.method,
+        };
+        const incompatible = Boolean(
+          p.pageVersion &&
+          pageScreenshot?.dom_fingerprint &&
+          p.pageVersion !== pageScreenshot.dom_fingerprint
+        );
+        // Never silently draw a coordinate from a known-incompatible DOM version.
+        return { ...p, mappingMethod: incompatible ? 'unmapped' : 'coordinate' };
+      }));
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [hasHtmlSnapshot, heatType, points, dims.w, dims.h, pageScreenshot?.dom_fingerprint]);
+
+  const mappingQuality = useMemo(() => {
+    if (heatType !== 'click' || !points.length) return null;
+    const totals = { element: 0, coordinate: 0, unmapped: 0, total: 0 };
+    for (const p of renderPoints) {
+      const weight = Math.max(1, p.intensity || 1);
+      totals.total += weight;
+      if (p.mappingMethod === 'element' || p.mappingMethod === 'fingerprint') totals.element += weight;
+      else if (p.mappingMethod === 'unmapped') totals.unmapped += weight;
+      else totals.coordinate += weight;
+    }
+    return totals;
+  }, [renderPoints, points.length, heatType]);
 
   const showHeatOnlyFallback = underlay === 'heat-only' || !screenshotActive;
   const showLoadingOverlay = screenshotActive && loadState === 'loading';
@@ -425,7 +509,7 @@ export function HeatmapViewer({
                     ref={iframeRef}
                     src={pageScreenshot.html_url}
                     title="Page snapshot"
-                    sandbox="allow-same-origin allow-scripts"
+                    sandbox="allow-scripts"
                     scrolling="no"
                     className="pointer-events-none block border-0"
                     style={{ width: dims.w, height: dims.h }}
@@ -464,6 +548,15 @@ export function HeatmapViewer({
             ) : null}
 
             {showHeatOnlyFallback ? <HeatOnlyUnderlay /> : null}
+
+            {mappingQuality && mappingQuality.total > 0 ? (
+              <div className="pointer-events-none absolute right-3 top-3 z-30 rounded-md border border-black/10 bg-white/90 px-2 py-1 font-mono text-[10px] text-zinc-800 shadow-sm backdrop-blur">
+                Element {Math.round(mappingQuality.element / mappingQuality.total * 100)}% · fallback {Math.round(mappingQuality.coordinate / mappingQuality.total * 100)}% · unmapped {Math.round(mappingQuality.unmapped / mappingQuality.total * 100)}%
+                {mappingQuality.element / mappingQuality.total < 0.85 ? (
+                  <span className="ml-1 text-amber-700">· low confidence</span>
+                ) : null}
+              </div>
+            ) : null}
 
             <canvas
               ref={canvasRef}

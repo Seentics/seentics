@@ -25,6 +25,7 @@ export type LayoutSnapshotRow = {
   doc_height: number;
   html_s3_key: string | null;
   device_type: string;
+  dom_fingerprint?: string;
   updated_at: Date;
 };
 
@@ -64,6 +65,7 @@ function toRow(r: Record<string, unknown>): LayoutSnapshotRow {
     doc_height: Number(r.doc_height),
     html_s3_key: r.html_s3_key != null ? String(r.html_s3_key) : null,
     device_type: String(r.device_type ?? "desktop"),
+    dom_fingerprint: String(r.dom_fingerprint ?? ""),
     updated_at: r.updated_at as Date,
   };
 }
@@ -86,7 +88,7 @@ async function listLayoutSnapshots(
 ): Promise<LayoutSnapshotRow[]> {
   const rows = await sql`
     SELECT page_path, s3_key, content_sha256, doc_width, doc_height, html_s3_key,
-           device_type, updated_at
+           device_type, dom_fingerprint, updated_at
     FROM heatmap_page_snapshots
     WHERE website_id = ${websiteId}::uuid
       AND (
@@ -186,17 +188,19 @@ export async function upsertLayoutHtmlSnapshot(
   sha256: string,
   docW: number,
   docH: number,
+  domFingerprint = "",
 ): Promise<void> {
   await sql`
     INSERT INTO heatmap_page_snapshots
-      (website_id, page_path, device_type, s3_key, content_sha256, doc_width, doc_height, html_s3_key, updated_at)
+      (website_id, page_path, device_type, s3_key, content_sha256, doc_width, doc_height, html_s3_key, dom_fingerprint, updated_at)
     VALUES
-      (${websiteId}::uuid, ${pagePath}, ${device}, '', ${sha256}, ${docW}, ${docH}, ${htmlS3Key}, NOW())
+      (${websiteId}::uuid, ${pagePath}, ${device}, '', ${sha256}, ${docW}, ${docH}, ${htmlS3Key}, ${domFingerprint}, NOW())
     ON CONFLICT (website_id, page_path, device_type) DO UPDATE SET
       html_s3_key    = EXCLUDED.html_s3_key,
       content_sha256 = EXCLUDED.content_sha256,
       doc_width      = EXCLUDED.doc_width,
       doc_height     = EXCLUDED.doc_height,
+      dom_fingerprint = EXCLUDED.dom_fingerprint,
       updated_at     = NOW()
   `;
   snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath, device), { sha256, at: Date.now() });

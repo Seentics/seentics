@@ -37,7 +37,7 @@ export async function batchUpsertPoints(
   type Cell = HeatmapPointRow & { intensity: number };
   const cells = new Map<string, Cell>();
   for (const p of rows) {
-    const k = `${p.websiteId}\0${p.pagePath}\0${p.eventType}\0${p.deviceType}\0${p.xPercent}\0${p.yPercent}\0${p.targetSelector}`;
+    const k = `${p.websiteId}\0${p.pagePath}\0${p.eventType}\0${p.deviceType}\0${p.xPercent}\0${p.yPercent}\0${p.targetSelector}\0${p.pageVersion}`;
     const c = cells.get(k);
     if (c) {
       c.intensity++;
@@ -56,9 +56,16 @@ export async function batchUpsertPoints(
     const chunk = agg.slice(i, i + CHUNK);
     await tx`
       INSERT INTO heatmap_points
-        (website_id, page_path, event_type, device_type, x_percent, y_percent, intensity, target_selector, cap_vw, cap_vh, last_updated)
+        (website_id, page_path, event_type, device_type, x_percent, y_percent, intensity,
+         target_selector, cap_vw, cap_vh, page_version, target_locator, target_rect,
+         relative_x, relative_y, position_mode, client_x, client_y, page_x, page_y,
+         scroll_x, scroll_y, document_width, document_height, device_pixel_ratio,
+         tracker_version, schema_version, last_updated)
       SELECT
-        wid::uuid, pp, et, dt, xp::int, yp::int, iv::int, ts, cvw::int, cvh::int, NOW()
+        wid::uuid, pp, et, dt, xp::int, yp::int, iv::int, sel, cvw::int, cvh::int,
+        pv, tl::jsonb, tr::jsonb, rx::real, ry::real, pm, cx::real, cy::real,
+        px::real, py::real, sx::real, sy::real, dw::int, dh::int, dpr::real,
+        tv, sv::int, NOW()
       FROM unnest(
         ${chunk.map((p) => p.websiteId)}::text[],
         ${chunk.map((p) => p.pagePath)}::text[],
@@ -69,14 +76,49 @@ export async function batchUpsertPoints(
         ${chunk.map((p) => p.intensity)}::int[],
         ${chunk.map((p) => p.targetSelector)}::text[],
         ${chunk.map((p) => p.capVw ?? null)}::int[],
-        ${chunk.map((p) => p.capVh ?? null)}::int[]
-      ) AS t(wid, pp, et, dt, xp, yp, iv, ts, cvw, cvh)
-      ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
+        ${chunk.map((p) => p.capVh ?? null)}::int[],
+        ${chunk.map((p) => p.pageVersion)}::text[],
+        ${chunk.map((p) => p.targetLocator ? JSON.stringify(p.targetLocator) : null)}::text[],
+        ${chunk.map((p) => p.targetRect ? JSON.stringify(p.targetRect) : null)}::text[],
+        ${chunk.map((p) => p.relativeX)}::real[],
+        ${chunk.map((p) => p.relativeY)}::real[],
+        ${chunk.map((p) => p.positionMode)}::text[],
+        ${chunk.map((p) => p.clientX)}::real[],
+        ${chunk.map((p) => p.clientY)}::real[],
+        ${chunk.map((p) => p.pageX)}::real[],
+        ${chunk.map((p) => p.pageY)}::real[],
+        ${chunk.map((p) => p.scrollX)}::real[],
+        ${chunk.map((p) => p.scrollY)}::real[],
+        ${chunk.map((p) => p.documentWidth)}::int[],
+        ${chunk.map((p) => p.documentHeight)}::int[],
+        ${chunk.map((p) => p.devicePixelRatio)}::real[],
+        ${chunk.map((p) => p.trackerVersion)}::text[],
+        ${chunk.map((p) => p.schemaVersion)}::int[]
+      ) AS t(wid, pp, et, dt, xp, yp, iv, sel, cvw, cvh, pv, tl, tr, rx, ry, pm,
+             cx, cy, px, py, sx, sy, dw, dh, dpr, tv, sv)
+      ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, page_version)
       DO UPDATE SET
         intensity    = heatmap_points.intensity + EXCLUDED.intensity,
         last_updated = NOW(),
         cap_vw       = COALESCE(EXCLUDED.cap_vw, heatmap_points.cap_vw),
-        cap_vh       = COALESCE(EXCLUDED.cap_vh, heatmap_points.cap_vh)
+        cap_vh       = COALESCE(EXCLUDED.cap_vh, heatmap_points.cap_vh),
+        page_version = COALESCE(NULLIF(EXCLUDED.page_version, ''), heatmap_points.page_version),
+        target_locator = COALESCE(EXCLUDED.target_locator, heatmap_points.target_locator),
+        target_rect = COALESCE(EXCLUDED.target_rect, heatmap_points.target_rect),
+        relative_x = COALESCE(EXCLUDED.relative_x, heatmap_points.relative_x),
+        relative_y = COALESCE(EXCLUDED.relative_y, heatmap_points.relative_y),
+        position_mode = EXCLUDED.position_mode,
+        client_x = COALESCE(EXCLUDED.client_x, heatmap_points.client_x),
+        client_y = COALESCE(EXCLUDED.client_y, heatmap_points.client_y),
+        page_x = COALESCE(EXCLUDED.page_x, heatmap_points.page_x),
+        page_y = COALESCE(EXCLUDED.page_y, heatmap_points.page_y),
+        scroll_x = COALESCE(EXCLUDED.scroll_x, heatmap_points.scroll_x),
+        scroll_y = COALESCE(EXCLUDED.scroll_y, heatmap_points.scroll_y),
+        document_width = COALESCE(EXCLUDED.document_width, heatmap_points.document_width),
+        document_height = COALESCE(EXCLUDED.document_height, heatmap_points.document_height),
+        device_pixel_ratio = COALESCE(EXCLUDED.device_pixel_ratio, heatmap_points.device_pixel_ratio),
+        tracker_version = COALESCE(NULLIF(EXCLUDED.tracker_version, ''), heatmap_points.tracker_version),
+        schema_version = GREATEST(EXCLUDED.schema_version, heatmap_points.schema_version)
     `;
   }
 

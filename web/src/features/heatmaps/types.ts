@@ -24,6 +24,23 @@ export interface HeatmapPoint {
   cap_vw?: number | null;
   /** CSS viewport height (px) when captured. */
   cap_vh?:          number | null;
+  page_version?: string;
+  target_locator?: Record<string, unknown> | null;
+  target_rect?: Record<string, unknown> | null;
+  relative_x?: number | null;
+  relative_y?: number | null;
+  position_mode?: 'normal' | 'fixed' | 'sticky';
+  client_x?: number | null;
+  client_y?: number | null;
+  page_x?: number | null;
+  page_y?: number | null;
+  scroll_x?: number | null;
+  scroll_y?: number | null;
+  document_width?: number | null;
+  document_height?: number | null;
+  device_pixel_ratio?: number | null;
+  tracker_version?: string;
+  schema_version?: number;
 }
 
 export interface HeatmapData {
@@ -43,6 +60,7 @@ export interface HeatmapPageScreenshot {
   device_type?:          string;
   /** True when the requested bucket had no capture and another one is being shown. */
   device_fallback?:      boolean;
+  dom_fingerprint?:      string;
 }
 
 export interface PlaywrightScreenshotResult {

@@ -30,6 +30,29 @@ export interface HeatPoint {
   device?:   string;
   cap_vw?:   number | null;
   cap_vh?:   number | null;
+  pageVersion?: string;
+  locator?: Record<string, unknown> | null;
+  relativeX?: number | null;
+  relativeY?: number | null;
+  positionMode?: 'normal' | 'fixed' | 'sticky';
+  /** How this point was placed on the selected background. */
+  mappingMethod?: 'element' | 'fingerprint' | 'coordinate' | 'unmapped';
+}
+
+/** Convert one final-depth row per page view into cumulative vertical reach bins. */
+export function scrollReachPoints(points: HeatPoint[], bins = 20): HeatPoint[] {
+  if (!points.length) return [];
+  const count = Math.max(1, Math.min(100, Math.trunc(bins)));
+  const out: HeatPoint[] = [];
+  for (let i = 0; i <= count; i++) {
+    const depth = i / count;
+    const reached = points.reduce(
+      (sum, p) => sum + (p.ny + 1e-9 >= depth ? Math.max(1, p.intensity) : 0),
+      0,
+    );
+    if (reached > 0 || i === 0) out.push({ nx: 0, ny: depth, intensity: reached });
+  }
+  return out;
 }
 
 export const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

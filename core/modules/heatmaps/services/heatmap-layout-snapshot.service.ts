@@ -71,6 +71,7 @@ export async function readLayoutSnapshot(
       doc_height: row.doc_height,
       device_type: row.device_type,
       device_fallback: row.device_type !== device,
+      dom_fingerprint: row.dom_fingerprint ?? "",
     },
     missing: false,
     stale,

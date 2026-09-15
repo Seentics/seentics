@@ -31,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 import { HeatmapViewer, DemoHeatmapStage, type PreviewUnderlay } from '@/components/heatmaps/HeatmapViewer';
-import { isAbsoluteHttpUrl, heatmapPageHeading, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
+import { isAbsoluteHttpUrl, heatmapPageHeading, scrollReachPoints, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
 
 export default function HeatmapDetailPage() {
   const params     = useParams();
@@ -143,6 +143,12 @@ export default function HeatmapDetailPage() {
         device:    p.device_type || 'desktop',
         cap_vw:    p.cap_vw ?? undefined,
         cap_vh:    p.cap_vh ?? undefined,
+        pageVersion: p.page_version || undefined,
+        locator: p.target_locator ?? undefined,
+        relativeX: p.relative_x ?? undefined,
+        relativeY: p.relative_y ?? undefined,
+        positionMode: p.position_mode ?? 'normal',
+        mappingMethod: p.target_locator ? 'coordinate' : undefined,
       }));
 
   const preferredViewportWidth = useMemo(() => {
@@ -156,9 +162,12 @@ export default function HeatmapDetailPage() {
     return weightedHeatmapCaptureViewportWidth(src);
   }, [heatmapData, device, isDemoMode]);
 
-  const points: HeatPoint[] = device === 'all'
+  const devicePoints: HeatPoint[] = device === 'all'
     ? allPoints
     : allPoints.filter(p => (p.device ?? 'desktop').toLowerCase() === device);
+  const points: HeatPoint[] = heatType === 'scroll'
+    ? scrollReachPoints(devicePoints)
+    : devicePoints;
 
   const activePreviewUrl = (customUrl.trim() || suggestedPreviewUrl).trim();
 
