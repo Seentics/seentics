@@ -1,166 +1,103 @@
 'use client';
 
-
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 
-const faqs = [
+const FAQS = [
   {
-    question: 'Can I access raw event data via API?',
+    question: 'Can I self-host Seentics?',
     answer:
-      'Yes. Our REST API gives you access to all raw event data, analytics aggregates, funnels, and more. Perfect for building custom reports or integrating with your data pipeline.',
-  },
-  {
-    question: 'Do you provide SDKs and React components?',
-    answer:
-      'Yes. We provide JavaScript/TypeScript SDK, React hooks, and pre-built UI components for charts and dashboards. Drop them into your app or build your own using our APIs.',
-  },
-  {
-    question: 'Can I self-host this on my own servers?',
-    answer:
-      'Absolutely. Seentics is open source. Deploy to your own infrastructure, on Kubernetes, Docker, or any cloud provider. You own everything.',
-  },
-  {
-    question: 'How do I track custom events programmatically?',
-    answer:
-      'Use our JavaScript SDK or HTTP API to track custom events from your frontend or backend. No limitations — track whatever you need.',
-  },
-  {
-    question: 'Can I build a completely custom dashboard?',
-    answer:
-      'Yes. Access our APIs to query any data, then build custom dashboards with your own design system. Full control over the experience.',
-  },
-  {
-    question: 'What about data privacy and GDPR?',
-    answer:
-      'No cookies, no personal data collection by default. GDPR and CCPA compliant. When self-hosted, you have complete control over compliance.',
+      'Yes. The complete platform is open source and can run on your own infrastructure with Docker, Kubernetes or your preferred cloud provider.',
   },
   {
     question: 'Is there a free plan?',
     answer:
-      'Yes. The open-source version is free forever when you self-host — no limits you don’t set yourself. Our cloud plans add managed hosting, higher quotas, and support, with a free tier to get started.',
+      'Yes. Self-hosting is free with no artificial usage limits. Seentics Cloud also includes a free tier, with paid plans for managed hosting and higher event volumes.',
+  },
+  {
+    question: 'How does Seentics protect visitor privacy?',
+    answer:
+      'Tracking is cookie-free by default, sensitive form values are masked, and self-hosting gives you complete control over where analytics data is stored.',
   },
   {
     question: 'Will the tracking script slow down my site?',
     answer:
-      'No. The tracker is a tiny, async-loaded script that runs off the main thread and adds negligible weight. Analytics, heatmaps, and replays are batched and sent in the background.',
+      'The tracker loads asynchronously and batches analytics, heatmap and replay data in the background to keep its effect on the page minimal.',
   },
   {
-    question: 'How is Seentics different from GA4, Plausible or Hotjar?',
+    question: 'Can I access or export raw data?',
     answer:
-      'Those tools each solve one piece — analytics, privacy, or recordings. Seentics unifies analytics, session replays, heatmaps, funnels, AI insights, and automations in one open-source, self-hostable platform.',
+      'Yes. Use the REST API for raw events and analytics aggregates, or export data for reporting and your existing data pipeline.',
   },
   {
-    question: 'Can I invite my team?',
+    question: 'How is this different from GA4, Plausible or Hotjar?',
     answer:
-      'Yes. Add teammates with role-based access so everyone works from the same data. Seat limits depend on your plan, and self-hosting has no artificial cap.',
+      'Those products specialize in individual parts of the journey. Seentics combines analytics, funnels, recordings, heatmaps, AI insights and automations in one self-hostable platform.',
   },
   {
-    question: 'What happens to my data if I cancel?',
+    question: 'Does AI Mode make changes automatically?',
     answer:
-      'Your data is always yours. Export everything via CSV or the API at any time, and if you self-host it never leaves your servers in the first place.',
+      'No. It can answer questions and draft an automation, but you review and approve the proposal before anything is published.',
   },
-];
+] as const;
 
 export default function FAQ() {
   const { isAuthenticated } = useAuth();
 
   return (
-    // Only a top border: the footer's own border-t closes this band, and a
-    // border-y here would stack against it into a 2px rule.
-    <section id="faq" className="landing-section landing-band landing-band-reverse">
+    <section id="faq" className="landing-section">
       <div className="landing-container">
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="landing-eyebrow"
-          >
-            FAQ
-          </motion.p>
-          <motion.h2
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
-            className="landing-h2 mb-4"
-          >
-            Frequently asked questions
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="landing-lead"
-          >
-            Everything you need to know before getting started.
-          </motion.p>
-        </div>
+        <div className="grid gap-10 lg:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)] lg:gap-16">
+          <div>
+            <p className="landing-eyebrow">FAQ</p>
+            <h2 className="landing-h2 mb-4">Questions before you start?</h2>
+            <p className="landing-lead max-w-md">
+              The essentials about hosting, privacy, pricing and how Seentics works.
+            </p>
+            <Link href="/docs" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/75">
+              Browse all documentation
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
 
-        <div className="max-w-3xl mx-auto mb-16">
-          <Accordion type="single" collapsible className="space-y-3">
-            {faqs.map((faq, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <AccordionItem
-                  value={`item-${index}`}
-                  className="rounded-lg border border-border bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03] dark:border-border/60"
-                >
-                  <AccordionTrigger className="py-4 text-left text-base font-semibold text-foreground hover:no-underline sm:text-lg">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4 text-[15px] leading-relaxed text-muted-foreground">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              </motion.div>
+          <Accordion type="single" collapsible className="divide-y divide-border border-y border-border">
+            {FAQS.map((faq, index) => (
+              <AccordionItem key={faq.question} value={`item-${index}`} className="border-0">
+                <AccordionTrigger className="py-5 text-left text-base font-semibold text-foreground hover:no-underline sm:text-lg">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="max-w-2xl pb-5 text-[15px] leading-relaxed text-muted-foreground">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
             ))}
           </Accordion>
         </div>
 
-        {/* Bottom CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-border bg-card bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center shadow-sm dark:border-border/60 dark:bg-transparent dark:shadow-none sm:px-12"
-        >
-          <h3 className="landing-h3 mb-3">
-            Still have questions?
-          </h3>
-          <p className="mx-auto mb-7 max-w-md text-muted-foreground">
-            Start free and own your analytics — open source, self-hosted, no credit card required.
-          </p>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-14 flex flex-col items-start justify-between gap-6 rounded-2xl border border-border bg-gradient-to-r from-primary/[0.08] to-transparent p-6 sm:flex-row sm:items-center sm:p-8">
+          <div>
+            <h3 className="landing-h3 mb-2">See your first insights today</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Start free, connect a website and keep ownership of your data.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <Link href={isAuthenticated ? '/websites' : '/signup'} className="w-full sm:w-auto">
               <Button className="h-11 w-full rounded-lg px-6 text-base font-semibold sm:w-auto">
                 {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/docs" className="w-full sm:w-auto">
+            <Link href="/websites/demo" className="w-full sm:w-auto">
               <Button variant="outline" className="h-11 w-full rounded-lg px-6 text-base font-medium sm:w-auto">
-                Read the Docs
+                View Live Demo
               </Button>
             </Link>
           </div>
-          <p className="mt-5 text-xs text-muted-foreground/60">
-            Open source &middot; Self-hosted &middot; No cookies &middot; GDPR-ready
-          </p>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

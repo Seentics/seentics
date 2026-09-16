@@ -375,7 +375,7 @@
      that reads correctly on a dense table reads square on a 400px feature card.
      Radius scales with the surface. */
   .landing-card {
-    @apply rounded-2xl border border-border bg-card;
+    @apply  border border-border bg-card;
   }
 
   /* Ultra-Premium Glassmorphism */

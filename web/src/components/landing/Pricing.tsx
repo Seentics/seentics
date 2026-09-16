@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/stores/useAuthStore';
-import { motion } from 'framer-motion';
 import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
@@ -93,45 +92,19 @@ export default function Pricing() {
   return (
     <section id="pricing" className="landing-section landing-band landing-band-reverse">
       <div className="landing-container">
-        {/* Header */}
-        <div className="text-center max-w-4xl mx-auto mb-10">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="landing-eyebrow"
-          >
-            Pricing
-          </motion.p>
-          <motion.h2
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
-            className="landing-h2 mb-4"
-          >
+        <div className="mx-auto mb-10 max-w-4xl text-center">
+          <p className="landing-eyebrow">Pricing</p>
+          <h2 className="landing-h2 mb-4">
             Simple, <span className="landing-accent">transparent pricing</span>
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="landing-lead"
-          >
+          </h2>
+          <p className="landing-lead">
             Unlimited websites on every plan. Pay only for events.
-          </motion.p>
+          </p>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-        >
+        <div>
           <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode="individual" />
-        </motion.div>
+        </div>
       </div>
     </section>
   );

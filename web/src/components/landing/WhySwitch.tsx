@@ -1,145 +1,102 @@
-'use client';
+import { ArrowRight, Check, Eye, GitBranch, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import Link from 'next/link';
 
-import { motion } from 'framer-motion';
-import { Check, X, Minus } from 'lucide-react';
+const WORKFLOW = [
+  {
+    icon: Eye,
+    step: '01',
+    title: 'See what happened',
+    description: 'Analytics, funnels and revenue show where attention and conversions changed.',
+  },
+  {
+    icon: Sparkles,
+    step: '02',
+    title: 'Understand why',
+    description: 'Recordings, heatmaps and AI connect the number to the behavior behind it.',
+  },
+  {
+    icon: Zap,
+    step: '03',
+    title: 'Respond immediately',
+    description: 'Turn the signal into a message, redirect or webhook without another deploy.',
+  },
+] as const;
 
-type Cell = true | false | 'partial';
+const OWNERSHIP = [
+  'Cookie-free tracking by default',
+  'Self-host the complete platform',
+  'Raw event data available through the API',
+  'Open-source under AGPL-3.0',
+] as const;
 
-const TOOLS = ['Google Analytics 4', 'Plausible', 'Hotjar'] as const;
-
-const ROWS: { feature: string; seentics: Cell; ga4: Cell; plausible: Cell; hotjar: Cell }[] = [
-  { feature: 'Privacy-first, cookie-free', seentics: true, ga4: false, plausible: true, hotjar: false },
-  { feature: 'Self-hosted — you own your data', seentics: true, ga4: false, plausible: 'partial', hotjar: false },
-  { feature: 'No data sampling', seentics: true, ga4: false, plausible: true, hotjar: true },
-  { feature: 'Session recordings & replays', seentics: true, ga4: false, plausible: false, hotjar: true },
-  { feature: 'Heatmaps', seentics: true, ga4: false, plausible: false, hotjar: true },
-  { feature: 'Conversion funnels', seentics: true, ga4: true, plausible: 'partial', hotjar: 'partial' },
-  { feature: 'Automations & triggers', seentics: true, ga4: false, plausible: false, hotjar: false },
-  { feature: 'No-code workflow builder', seentics: true, ga4: false, plausible: false, hotjar: false },
-  { feature: 'AI insights in plain English', seentics: true, ga4: 'partial', plausible: false, hotjar: false },
-  { feature: 'Open source', seentics: true, ga4: false, plausible: true, hotjar: false },
-  { feature: 'All-in-one platform', seentics: true, ga4: false, plausible: false, hotjar: false },
-];
-
-function CellMark({ value }: { value: Cell }) {
-  if (value === true) {
-    return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15">
-        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
-      </span>
-    );
-  }
-  if (value === 'partial') {
-    return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/15">
-        <Minus className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" strokeWidth={3} />
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted dark:border-transparent">
-      <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} />
-    </span>
-  );
-}
-
-/**
- * The comparison table.
- *
- * Desktop only. A five-column comparison of eleven features is a desktop artefact:
- * the mobile fallback was eleven cards of four cells each — 44 tiles of ticks and
- * crosses — which is a great deal of scrolling to make a point the feature rows
- * above already make with screenshots.
- */
 export default function WhySwitch() {
   return (
-    <section className="landing-section landing-band hidden md:block">
+    <section className="landing-section landing-band landing-band-reverse">
       <div className="landing-container">
-        {/* Header */}
-        <div className="mx-auto mb-16 max-w-4xl text-center">
-          <div className="mb-4 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
-            <span className="landing-eyebrow">Why switch</span>
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-end lg:gap-16">
+          <div>
+            <p className="landing-eyebrow">Why Seentics</p>
+            <h2 className="landing-h2 max-w-3xl">
+              Stop moving between tools <span className="landing-accent">to understand one journey.</span>
+            </h2>
+            <p className="landing-lead mt-5 max-w-2xl">
+              GA4, Plausible and Hotjar each cover part of the story. Seentics connects measurement, evidence and action in one workflow.
+            </p>
           </div>
-          <h2 className="landing-h2 mb-4">
-            Seentics gives you <span className="landing-accent">everything</span>
-          </h2>
-          <p className="landing-lead">
-            GA4, Plausible, Hotjar — each solves one piece of the puzzle. Seentics unifies analytics,
-            recordings, heatmaps, funnels, and automations. Self-hosted, open source, no cookies.
-          </p>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            {['Analytics', 'Recordings', 'Heatmaps', 'Funnels', 'AI', 'Automations'].map((label) => (
+              <span key={label} className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground">
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Comparison matrix — desktop table */}
-        <div className="mx-auto hidden max-w-6xl overflow-x-auto md:block">
-          <table className="w-full min-w-[680px] border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="w-[34%] p-3 text-left align-bottom" />
-                <th className="p-3 text-center align-bottom">
-                  <div className="rounded-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
-                    <span className="text-sm font-bold text-primary">Seentics</span>
-                  </div>
-                </th>
-                {TOOLS.map((tool) => (
-                  <th key={tool} className="p-3 text-center align-bottom">
-                    <span className="text-xs font-semibold text-muted-foreground sm:text-sm">{tool}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map((row, i) => (
-                <motion.tr
-                  key={row.feature}
-                  initial={{ opacity: 0, x: -8 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.3, delay: i * 0.04 }}
-                >
-                  <td className="border-b border-border dark:border-border/50 py-3 pr-4 text-sm font-medium text-foreground">
-                    {row.feature}
-                  </td>
-                  <td
-                    className={`border-b border-border dark:border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
-                      i === ROWS.length - 1 ? 'rounded-b-xl' : ''
-                    }`}
-                  >
-                    <div className="flex justify-center">
-                      <CellMark value={row.seentics} />
-                    </div>
-                  </td>
-                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
-                    <div className="flex justify-center">
-                      <CellMark value={row.ga4} />
-                    </div>
-                  </td>
-                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
-                    <div className="flex justify-center">
-                      <CellMark value={row.plausible} />
-                    </div>
-                  </td>
-                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
-                    <div className="flex justify-center">
-                      <CellMark value={row.hotjar} />
-                    </div>
-                  </td>
-                </motion.tr>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {WORKFLOW.map((item) => (
+            <article key={item.title} className="landing-card p-6 sm:p-7">
+              <div className="mb-7 flex items-center justify-between">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <item.icon className="h-5 w-5" />
+                </span>
+                <span className="text-sm font-bold tabular-nums text-muted-foreground/50">{item.step}</span>
+              </div>
+              <h3 className="landing-h3 mb-3">{item.title}</h3>
+              <p className="landing-body text-muted-foreground">{item.description}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-4 grid overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-[1fr_auto]">
+          <div className="p-6 sm:p-8">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Your data stays yours</p>
+                <p className="text-sm text-muted-foreground">Cloud convenience without giving up control.</p>
+              </div>
+            </div>
+            <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+              {OWNERSHIP.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm leading-relaxed text-foreground/85">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                  {item}
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+          </div>
 
-        {/* Legend */}
-        <div className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Built in
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Minus className="h-3.5 w-3.5 text-amber-500" strokeWidth={3} /> Limited / partial
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} /> Not available
-          </span>
+          <Link
+            href="/docs/privacy"
+            className="group flex items-center justify-center gap-2 border-t border-border bg-muted/30 px-8 py-5 text-sm font-semibold text-foreground transition-colors hover:bg-primary/10 hover:text-primary lg:border-l lg:border-t-0"
+          >
+            <GitBranch className="h-4 w-4" />
+            See how data is handled
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
       </div>
     </section>
