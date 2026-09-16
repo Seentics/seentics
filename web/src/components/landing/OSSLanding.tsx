@@ -5,7 +5,6 @@ import ProductShowcase from './ProductShowcase';
 import FeatureSections from './FeatureSections';
 import APISection from './CodeExamples';
 import UIBlocksSection from './SDKsSection';
-import PricingSection from './PricingSection';
 import FAQ from './FAQ';
 import Footer from './Footer';
 
@@ -20,7 +19,6 @@ export default function OSSLanding() {
         <FeatureSections />
         <APISection />
         <UIBlocksSection />
-        <PricingSection />
         <FAQ />
       </main>
       <Footer />

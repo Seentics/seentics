@@ -11,8 +11,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const CHECKOUT_INTENT_KEY = 'seentics_checkout_intent';
-import { Users, Building2, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
@@ -20,7 +19,6 @@ export default function Pricing() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'individual' | 'agency'>('individual');
   const [waitingForPayment, setWaitingForPayment] = useState(false);
 
   // Auto-trigger checkout if user just signed up with a plan intent
@@ -126,63 +124,14 @@ export default function Pricing() {
           </motion.p>
         </div>
 
-        {/* Individual / Agency tab */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="flex justify-center mb-10"
-        >
-          <div className="flex items-center gap-1 p-1 bg-black/[0.04] border border-border rounded-lg dark:bg-muted/50 dark:border-border/60">
-            <button
-              onClick={() => setMode('individual')}
-              className={cn(
-                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
-                mode === 'individual'
-                  ? 'bg-background text-foreground shadow-sm border border-border dark:border-border/60'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Users className="h-4 w-4" />
-              Individual
-            </button>
-            <button
-              onClick={() => setMode('agency')}
-              className={cn(
-                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
-                mode === 'agency'
-                  ? 'bg-background text-foreground shadow-sm border border-border dark:border-border/60'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Building2 className="h-4 w-4" />
-              Agency
-            </button>
-          </div>
-        </motion.div>
-
-        {mode === 'agency' && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-sm text-muted-foreground max-w-xl mx-auto mb-8"
-          >
-            Manage unlimited client workspaces, white-label the platform, and access all data via API.
-            Events are pooled across all clients.
-          </motion.p>
-        )}
-
-        <motion.div
-          key={mode}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode="individual" />
         </motion.div>
-
-        
       </div>
     </section>
   );

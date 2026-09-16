@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Github, HeartPulse, Radio, ChevronDown } from 'lucide-react';
+import { Menu, X, Github, HeartPulse, Radio, Gauge, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
@@ -23,6 +23,15 @@ const SUITE_PRODUCTS = [
     description: 'Monitor endpoints, get alerted on downtime, share a public status page.',
     href: config.uptimeUrl,
     icon: HeartPulse,
+  },
+];
+
+const FREE_TOOLS = [
+  {
+    name: 'Speed Test',
+    description: 'Paste a URL, get a free Core Web Vitals report.',
+    href: '/tools/page-speed-test',
+    icon: Gauge,
   },
 ];
 
@@ -74,23 +83,47 @@ function ProductsNavItem() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.12 }}
-            className="absolute left-1/2 top-full z-50 mt-3 w-[440px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
+            className="absolute left-1/2 top-full z-50 mt-3 w-[560px] -translate-x-1/2 rounded-xl border border-border bg-card p-3 shadow-lg"
           >
-            {SUITE_PRODUCTS.map((product) => (
-              <a
-                key={product.name}
-                href={product.href}
-                className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <product.icon className="h-[18px] w-[18px]" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">{product.name}</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{product.description}</span>
-                </span>
-              </a>
-            ))}
+            <p className="px-1 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">Products</p>
+            <div className="grid grid-cols-2 gap-1">
+              {SUITE_PRODUCTS.map((product) => (
+                <a
+                  key={product.name}
+                  href={product.href}
+                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <product.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">{product.name}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{product.description}</span>
+                  </span>
+                </a>
+              ))}
+            </div>
+
+            <div className="my-2 border-t border-border/60" />
+
+            <p className="px-1 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">Free Tools</p>
+            <div className="grid grid-cols-2 gap-1">
+              {FREE_TOOLS.map((tool) => (
+                <Link
+                  key={tool.name}
+                  href={tool.href}
+                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/70">
+                    <tool.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">{tool.name}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{tool.description}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -126,13 +159,13 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   // Hash links only make sense on the home page — prefix with '/' on all other pages
   const anchorHref = (hash: string) => pathname === '/' ? hash : `/${hash}`;
 
+  // Blog and FAQ stay reachable from the footer rather than living here too —
+  // between this, the logo, and the Products & Tools menu, the header was
+  // getting crowded.
   const navLinks = [
-    { name: 'Features',   href: anchorHref('#features') },
-    { name: 'Speed Test', href: '/tools/page-speed-test' },
-    { name: 'Docs',       href: '/docs' },
-    { name: 'Blog',       href: '/blog' },
-    { name: 'Pricing',    href: anchorHref('#pricing') },
-    { name: 'FAQ',        href: anchorHref('#faq') },
+    { name: 'Features', href: anchorHref('#features') },
+    { name: 'Docs',      href: '/docs' },
+    { name: 'Pricing',   href: anchorHref('#pricing') },
   ];
 
   return (
@@ -217,14 +250,14 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             <div className="landing-container py-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
                 <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Products &amp; Tools</p>
-                {SUITE_PRODUCTS.map((product) => (
+                {[...SUITE_PRODUCTS, ...FREE_TOOLS].map((item) => (
                   <a
-                    key={product.name}
-                    href={product.href}
+                    key={item.name}
+                    href={item.href}
                     className="flex items-center gap-2.5 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
                   >
-                    <product.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    {product.name}
+                    <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {item.name}
                   </a>
                 ))}
               </div>

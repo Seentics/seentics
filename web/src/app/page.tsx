@@ -7,7 +7,6 @@ import ProductShowcase from '@/components/landing/ProductShowcase';
 import FeatureSections from '@/components/landing/FeatureSections';
 import Pricing from '@/components/landing/Pricing';
 import WhySwitch from '@/components/landing/WhySwitch';
-import LifetimeDeal from '@/components/landing/LifetimeDeal';
 import FAQ from '@/components/landing/FAQ';
 import Footer from '@/components/landing/Footer';
 
@@ -28,7 +27,6 @@ export default function LandingPage() {
         <FeatureSections />
         <WhySwitch />
         <Pricing />
-        <LifetimeDeal />
         <FAQ />
       </main>
       <Footer />

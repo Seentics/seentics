@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { usePlans } from '@/features/plans/queries';
+import type { Plan } from '@/features/plans/types';
 
 import {
-  ArrowRight, Loader2, Check, Zap, Rocket, TrendingUp, Crown, Building2, Shield,
+  ArrowRight, Loader2, Check, Zap, Rocket, TrendingUp, Crown, Building2, Shield, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,206 +24,101 @@ interface PlanBuilderProps {
   mode?: 'individual' | 'agency';
 }
 
-const INDIVIDUAL_PLANS = [
-  {
-    id: 'starter' as const,
-    name: 'Free',
-    priceMonthly: 0,
-    priceYearly: 0,
-    description: 'For side projects and personal sites',
-    icon: Zap,
-    color: 'text-slate-500',
-    borderColor: 'border-slate-300',
-    bgColor: 'bg-slate-500',
-    features: [
-      'Unlimited Websites',
-      '15,000 Events / month',
-      '5 Session Recordings',
-      '30 AI Analyses / month',
-      '3 Heatmap Pages',
-      '1 Funnel & 1 Automation',
-      '30 Day Data Retention',
-      'API, SDK & UI Blocks',
-      '1 Team Member',
-      'Community Support',
-    ],
-  },
-  {
-    id: 'basic' as const,
-    name: 'Starter',
-    priceMonthly: 14,
-    priceYearly: 11,
-    priceYearlyTotal: 134,
-    description: 'For indie makers and small projects',
-    icon: Rocket,
-    color: 'text-teal-500',
-    borderColor: 'border-teal-500',
-    bgColor: 'bg-teal-500',
-    features: [
-      'Unlimited Websites',
-      '200,000 Events / month',
-      '1,000 Session Recordings',
-      '500 AI Analyses / month',
-      'Unlimited Heatmaps',
-      'Unlimited Funnels & Automations',
-      '1 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '3 Team Members',
-      'Email Support',
-    ],
-  },
-  {
-    id: 'growth' as const,
-    name: 'Growth',
-    priceMonthly: 29,
-    priceYearly: 23,
-    priceYearlyTotal: 278,
-    description: 'For growing products and teams',
-    icon: TrendingUp,
-    popular: true,
-    color: 'text-indigo-500',
-    borderColor: 'border-indigo-500',
-    bgColor: 'bg-indigo-500',
-    features: [
-      'Unlimited Websites',
-      '1,000,000 Events / month',
-      '5,000 Session Recordings',
-      '1,500 AI Analyses / month',
-      'Unlimited Heatmaps',
-      'Unlimited Funnels & Automations',
-      '2 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '5 Team Members',
-      'Email Support',
-    ],
-  },
-  {
-    id: 'pro' as const,
-    name: 'Pro',
-    priceMonthly: 69,
-    priceYearly: 55,
-    priceYearlyTotal: 662,
-    description: 'For scaling teams and high-traffic apps',
-    icon: Crown,
-    color: 'text-amber-500',
-    borderColor: 'border-amber-500',
-    bgColor: 'bg-amber-500',
-    features: [
-      'Unlimited Websites',
-      '5,000,000 Events / month',
-      '10,000 Session Recordings',
-      '5,000 AI Analyses / month',
-      'Unlimited Heatmaps',
-      'Unlimited Funnels',
-      'Unlimited Automations',
-      '5 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '10 Team Members',
-      'Priority Support',
-    ],
-  },
-];
+/** Bold only the numbers that actually vary in a way worth calling out —
+ *  the event cap and the Observability line (absent on two of the four
+ *  tiers entirely). Session recordings, AI analyses etc. differ too, but
+ *  they're not the plan's headline differentiator, so they stay regular
+ *  weight rather than every line competing for attention. */
+function isHeadlineFeature(feature: string): boolean {
+  return feature.includes('Events / month') || feature.startsWith('Observability');
+}
 
-const AGENCY_PLANS = [
-  {
-    id: 'agency' as const,
-    name: 'Agency',
-    priceMonthly: 129,
-    priceYearly: 103,
-    priceYearlyTotal: 1236,
-    description: 'For agencies managing multiple clients',
-    icon: Building2,
-    color: 'text-violet-500',
-    borderColor: 'border-violet-500',
-    bgColor: 'bg-violet-500',
-    features: [
-      'Unlimited Client Workspaces',
-      '5,000,000 Events / month',
-      '100,000 Session Recordings',
-      'Unlimited AI Analyses',
-      'Unlimited Heatmaps',
-      'White Label Branding',
-      'Custom Domain',
-      '3 Year Data Retention',
-      'API, SDK & UI Blocks',
-      'Priority Support',
-    ],
-  },
-  {
-    id: 'agency_pro' as const,
-    name: 'Agency Pro',
-    priceMonthly: 329,
-    priceYearly: 263,
-    priceYearlyTotal: 3156,
-    description: 'For large agencies with dedicated support',
-    icon: Shield,
-    popular: true,
-    color: 'text-rose-500',
-    borderColor: 'border-rose-500',
-    bgColor: 'bg-rose-500',
-    features: [
-      'Unlimited Client Workspaces',
-      '20,000,000 Events / month',
-      '500,000 Session Recordings',
-      'Unlimited AI Analyses',
-      'Unlimited Heatmaps',
-      'White Label Branding',
-      'Custom Domain',
-      'Client Self-Service Portal',
-      '7 Year Data Retention',
-      'API, SDK & UI Blocks',
-      'Dedicated Support & SLA',
-    ],
-  },
-];
+/**
+ * Everything about a plan that's a data fact — price, limits, feature copy —
+ * comes from gateway's GET /api/v1/plans (features/plans/*). Icon is purely
+ * presentational and has no business living in the database, so it's the one
+ * thing still keyed by plan id here. A plan id with no entry falls back to a
+ * generic look rather than crashing the page.
+ *
+ * Color is deliberately NOT per-plan across the board (a rainbow strip on
+ * every card read as gaudy) — but the two positioning badges ("Best for...")
+ * are the one thing meant to grab the eye while scanning the row, so those
+ * two (and only those two) keep a distinct accent on their badge + icon.
+ * Every other card stays neutral, and `popular` gets the brand accent.
+ */
+const PLAN_PRESENTATION: Record<string, { icon: LucideIcon; popular?: boolean; badge?: string; color?: string; bgColor?: string }> = {
+  starter: { icon: Zap },
+  // "basic" is the DB id for the card shown as "Starter" — see the id/name
+  // note in gateway/db/sql/012_plan_names_and_features.sql. No Observability
+  // on this tier, so it's badged for what it actually is: the pure-analytics
+  // pick, not a lesser Growth.
+  basic: { icon: Rocket, badge: 'Best for Web Analytics', color: 'text-teal-600 dark:text-teal-400', bgColor: 'bg-teal-500' },
+  // First tier that adds Observability — badged for the thing Starter can't
+  // do at all, not a repeat of Starter's analytics pitch.
+  growth: { icon: TrendingUp, badge: 'Best for Full Visibility', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500' },
+  pro: { icon: Crown },
+  agency: { icon: Building2 },
+  agency_pro: { icon: Shield, popular: true },
+};
+const DEFAULT_PRESENTATION = { icon: Zap };
 
 export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual' }: PlanBuilderProps) {
+  const { data: plans, isLoading, isError } = usePlans(mode);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
-  const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
 
-  const plans = mode === 'agency' ? AGENCY_PLANS : INDIVIDUAL_PLANS;
-
-  const handleSubscribe = (planId: PlanSelection['plan']) => {
+  const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
-    const plan = [...INDIVIDUAL_PLANS, ...AGENCY_PLANS].find(p => p.id === planId);
-    if (!plan) return;
-    setLoadingPlan(planId);
-    const price = billing === 'yearly' ? (plan.priceYearly ?? plan.priceMonthly) : plan.priceMonthly;
-    onSubscribe({ plan: planId, price, billing });
+    setLoadingPlan(plan.id);
+    onSubscribe({ plan: plan.id as PlanSelection['plan'], price: plan.priceMonthly, billing: 'monthly' });
   };
 
-  const renderCard = (plan: typeof INDIVIDUAL_PLANS[number] | typeof AGENCY_PLANS[number]) => {
-    const Icon = plan.icon;
+  const renderCard = (plan: Plan) => {
+    const presentation = PLAN_PRESENTATION[plan.id] ?? DEFAULT_PRESENTATION;
+    const Icon = presentation.icon;
     const isCurrent = currentPlan === plan.id || (plan.id === 'starter' && (currentPlan === 'free' || !currentPlan));
-    const displayPrice = billing === 'yearly' ? (plan.priceYearly ?? plan.priceMonthly) : plan.priceMonthly;
     const isFree = plan.priceMonthly === 0;
+    const displayPrice = plan.priceMonthly;
 
     return (
       <div
         key={plan.id}
         className={cn(
-          // rounded-xl, not lg: these are tall p-6 cards, and 8px reads square at
-          // that height. xl rather than the landing's 2xl because PlanBuilder is
-          // shared with the billing page and has to sit inside the dashboard too.
-          'relative flex flex-col rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-lg',
-          'popular' in plan && plan.popular ? `border-2 ${plan.borderColor}` : 'border-border',
-          isCurrent && 'ring-2 ring-primary/20',
+          // No border/rounding/shadow of its own — the shared container owns
+          // the outer border and the divider lines between columns, which is
+          // the whole point of a squared, divided table over four separate
+          // floating cards: at four-wide it's more width for content, not
+          // more gap between cards.
+          'relative flex flex-col p-6 sm:p-7 transition-colors duration-300',
+          isCurrent && 'bg-primary/[0.03]',
         )}
       >
-        {'popular' in plan && plan.popular && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <span className={cn('text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white', plan.bgColor)}>
-              Most Popular
-            </span>
-          </div>
-        )}
+        {/* Identity strip — only the popular tier gets the brand accent, so
+            it actually reads as a highlight instead of one of five colors. */}
+        {presentation.popular && <div className="absolute inset-x-0 top-0 h-1 bg-primary" />}
 
         <div className="mb-5">
-          <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center mb-3', `${plan.bgColor}/10`)}>
-            <Icon className={cn('h-4 w-4', plan.color)} />
+          {/* Fixed-height slot, always rendered — only 2 of 4 plans carry a
+              badge, and letting it appear/disappear per-card was what threw
+              title/price out of alignment across the row. Empty but present
+              beats "sometimes there, sometimes not" here. */}
+          <div className="mb-2 h-5">
+            {(presentation.badge || presentation.popular) && (
+              <span className={cn(
+                'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white',
+                presentation.popular ? 'bg-primary' : presentation.bgColor ?? 'bg-muted-foreground',
+              )}>
+                {presentation.badge ?? 'Most Popular'}
+              </span>
+            )}
+          </div>
+          <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center mb-3', presentation.bgColor ? `${presentation.bgColor}/10` : 'bg-muted')}>
+            <Icon className={cn('h-4 w-4', presentation.color ?? 'text-foreground')} />
           </div>
           <h3 className="text-2xl font-semibold">{plan.name}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
+          {/* Same reasoning as the badge slot: descriptions run 1-2 lines
+              depending on the plan, and letting that vary pushed the price
+              row below to a different height per card. */}
+          <p className="mt-0.5 min-h-[2rem] text-xs leading-tight text-muted-foreground">{plan.description}</p>
         </div>
 
         <div className="flex items-baseline gap-1 mb-1.5">
@@ -230,32 +127,27 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
           </span>
           {!isFree && <span className="text-sm text-muted-foreground">/mo</span>}
         </div>
+        <div className="mb-5" />
 
-        {!isFree && billing === 'yearly' && 'priceYearlyTotal' in plan && plan.priceYearlyTotal ? (
-          <p className="text-[11px] text-muted-foreground mb-5">
-            Billed ${plan.priceYearlyTotal}/yr
-            <span className="ml-1.5 text-emerald-600 font-medium">
-              Save ${(plan.priceMonthly - (plan.priceYearly ?? plan.priceMonthly)) * 12}/yr
-            </span>
-          </p>
-        ) : (
-          <div className="mb-5" />
-        )}
-
-        <ul className="space-y-2.5 flex-1 mb-6">
-          {plan.features.map((feature, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <Check className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', plan.color)} />
-              <span className="text-xs text-muted-foreground leading-tight">{feature}</span>
-            </li>
-          ))}
+        <ul className="space-y-3 flex-1 mb-6">
+          {plan.features.map((feature, i) => {
+            const isHeadline = isHeadlineFeature(feature);
+            return (
+              <li key={i} className="flex items-start gap-2">
+                <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <span className={cn('text-sm leading-snug', isHeadline ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                  {feature}
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         <Button
-          onClick={() => handleSubscribe(plan.id as PlanSelection['plan'])}
+          onClick={() => handleSubscribe(plan)}
           disabled={loading || isCurrent}
-          variant={'popular' in plan && plan.popular ? 'default' : 'outline'}
-          className={cn('w-full gap-1.5 text-xs font-medium', 'popular' in plan && plan.popular && 'shadow-md')}
+          variant={presentation.popular ? 'default' : 'outline'}
+          className={cn('w-full gap-1.5 text-xs font-medium', presentation.popular && 'shadow-md')}
         >
           {loading && loadingPlan === plan.id ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -273,50 +165,31 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
 
   return (
     <div className="w-full max-w-7xl mx-auto">
-      {/* Billing toggle */}
-      <div className="flex items-center justify-center gap-3 mb-8">
-        <button
-          onClick={() => setBilling('monthly')}
-          className={cn(
-            'text-sm font-medium transition-colors',
-            billing === 'monthly' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          Monthly
-        </button>
-        <button
-          onClick={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
-          className={cn(
-            'relative w-10 h-5 rounded-full transition-colors focus:outline-none',
-            billing === 'yearly' ? 'bg-primary' : 'bg-muted',
-          )}
-          aria-label="Toggle billing period"
-        >
-          <span className={cn(
-            'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-            billing === 'yearly' && 'translate-x-5',
-          )} />
-        </button>
-        <button
-          onClick={() => setBilling('yearly')}
-          className={cn(
-            'text-sm font-medium transition-colors flex items-center gap-1.5',
-            billing === 'yearly' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          Yearly
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-            Save ~20%
-          </span>
-        </button>
-      </div>
+      {isLoading && (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-      <div className={cn(
-        'grid gap-5',
-        mode === 'agency' ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-      )}>
-        {plans.map(renderCard)}
-      </div>
+      {isError && (
+        <p className="text-center text-sm text-muted-foreground py-16">
+          Couldn&apos;t load pricing right now. Please refresh the page.
+        </p>
+      )}
+
+      {plans && (
+        <div className={cn(
+          // One bordered, divided table instead of four separate cards with
+          // gaps between them — square corners on every internal seam, only
+          // the outer rectangle gets rounded. Frees up real width per column
+          // since nothing is spent on inter-card gutters.
+          'grid overflow-hidden rounded-2xl border border-border bg-card',
+          'divide-y divide-border sm:divide-y-0 sm:divide-x',
+          mode === 'agency' ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+        )}>
+          {plans.map(renderCard)}
+        </div>
+      )}
 
       <div className="mt-8 text-center">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">
