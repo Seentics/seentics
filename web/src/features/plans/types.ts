@@ -1,10 +1,11 @@
 export type Plan = {
   id: string;
   name: string;
+  tier: 'free' | 'pro' | 'business' | 'enterprise';
   description: string | null;
   priceMonthly: number;
   priceYearly: number;
-  maxMonthlyEvents: number;
+  isBundle: boolean;
   /** Which suite products this plan grants access to, e.g. ['core', 'uptime']. */
   products: string[];
   features: string[];

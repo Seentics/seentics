@@ -3,7 +3,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Crown, ArrowRight, X, Rocket, TrendingUp, Loader2 } from 'lucide-react';
+import { CheckCircle, Crown, ArrowRight, X, TrendingUp, Loader2 } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -22,29 +22,8 @@ interface UpgradePlanModalProps {
 }
 
 const planDetails = {
-  basic: {
-    name: 'Starter',
-    priceMonthly: 14,
-    priceYearly: 11,
-    priceYearlyTotal: 134,
-    icon: Rocket,
-    color: 'teal',
-    features: [
-      'Unlimited Websites',
-      '200,000 Events / month',
-      '1,000 Session Recordings',
-      '500 AI Analyses / month',
-      'Unlimited Heatmaps',
-      'Unlimited Funnels & Automations',
-      '1 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '3 Team Members',
-      'Email Support',
-    ],
-    buttonText: 'Get Starter',
-  },
-  growth: {
-    name: 'Growth',
+  'suite-pro': {
+    name: 'Suite Pro',
     priceMonthly: 29,
     priceYearly: 23,
     priceYearlyTotal: 278,
@@ -63,10 +42,10 @@ const planDetails = {
       '5 Team Members',
       'Email Support',
     ],
-    buttonText: 'Get Growth',
+    buttonText: 'Get Suite Pro',
   },
-  pro: {
-    name: 'Pro',
+  'suite-business': {
+    name: 'Suite Business',
     priceMonthly: 69,
     priceYearly: 55,
     priceYearlyTotal: 662,
@@ -84,7 +63,7 @@ const planDetails = {
       '10 Team Members',
       'Priority Support',
     ],
-    buttonText: 'Get Pro',
+    buttonText: 'Get Suite Business',
   },
 };
 
@@ -146,10 +125,10 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
   const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
-  const normalizedPlan = currentPlan === 'free' ? 'starter' : currentPlan;
-  const upgradePlans = (['basic', 'growth', 'pro'] as const).filter(p => p !== normalizedPlan);
+  const normalizedPlan = currentPlan === 'free' ? 'core-free' : currentPlan;
+  const upgradePlans = (['suite-pro', 'suite-business'] as const).filter(p => p !== normalizedPlan);
 
-  const handleUpgrade = async (plan: 'basic' | 'growth' | 'pro') => {
+  const handleUpgrade = async (plan: 'suite-pro' | 'suite-business') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;

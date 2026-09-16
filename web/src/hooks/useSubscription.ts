@@ -24,6 +24,8 @@ export interface SubscriptionUsage {
 export interface SubscriptionData {
   id: string;
   plan: string;
+  /** Real catalog id, e.g. `core-free`/`suite-pro` — use this for comparisons, `plan` is just the display name. */
+  planId?: string;
   status: string;
   billingInterval?: string;
   usage: SubscriptionUsage;

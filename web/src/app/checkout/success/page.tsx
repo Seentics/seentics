@@ -20,7 +20,7 @@ export default function CheckoutSuccessPage() {
     async function poll() {
       try {
         const res = await api.get('/user/billing/usage');
-        const plan: string = (res.data?.data?.plan ?? 'starter').toLowerCase();
+        const plan: string = (res.data?.data?.plan ?? 'free').toLowerCase();
 
         if (initialPlan.current === null) {
           initialPlan.current = plan;

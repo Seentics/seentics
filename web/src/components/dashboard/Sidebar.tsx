@@ -75,7 +75,11 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const secondNav = buildSecondaryNav(websiteId);
   const [accountOpen, setAccountOpen] = useState(false);
   const { data: entitlements } = useEntitlements();
-  const suiteNav = SUITE_PRODUCTS.filter((item) => entitlements?.products.includes(item.product));
+  // Every registered product always resolves to at least its free tier now
+  // (see features/suite/types.ts), so this is really just "wait for
+  // entitlements to load" — kept as a filter in case a product this build
+  // doesn't know about yet shows up first.
+  const suiteNav = entitlements ? SUITE_PRODUCTS.filter((item) => item.product in entitlements.products) : [];
 
   const initials = useMemo(() => {
     if (!user) return '?';

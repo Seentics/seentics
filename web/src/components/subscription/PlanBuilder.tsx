@@ -6,12 +6,13 @@ import { usePlans } from '@/features/plans/queries';
 import type { Plan } from '@/features/plans/types';
 
 import {
-  ArrowRight, Loader2, Check, Zap, Rocket, TrendingUp, Crown, Building2, Shield, type LucideIcon,
+  ArrowRight, Loader2, Check, Zap, TrendingUp, Crown, Shield, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  plan: 'starter' | 'basic' | 'growth' | 'pro' | 'lifetime' | 'lifetime_pro' | 'agency' | 'agency_pro';
+  /** A real plan id from gateway's catalog, e.g. `core-free`/`suite-pro` — opaque here, gateway validates it at checkout. */
+  plan: string;
   price: number;
   billing: 'monthly' | 'yearly';
 }
@@ -47,23 +48,23 @@ function isHeadlineFeature(feature: string): boolean {
  * Every other card stays neutral, and `popular` gets the brand accent.
  */
 const PLAN_PRESENTATION: Record<string, { icon: LucideIcon; popular?: boolean; badge?: string; color?: string; bgColor?: string }> = {
-  starter: { icon: Zap },
-  // "basic" is the DB id for the card shown as "Starter" — see the id/name
-  // note in gateway/db/sql/012_plan_names_and_features.sql. No Observability
-  // on this tier, so it's badged for what it actually is: the pure-analytics
-  // pick, not a lesser Growth.
-  basic: { icon: Rocket, badge: 'Best for Web Analytics', color: 'text-teal-600 dark:text-teal-400', bgColor: 'bg-teal-500' },
-  // First tier that adds Observability — badged for the thing Starter can't
-  // do at all, not a repeat of Starter's analytics pitch.
-  growth: { icon: TrendingUp, badge: 'Best for Full Visibility', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500' },
-  pro: { icon: Crown },
-  agency: { icon: Building2 },
-  agency_pro: { icon: Shield, popular: true },
+  'core-free': { icon: Zap },
+  // First bundle tier — badged for the thing Free can't do at all: real
+  // headroom plus Observability and Uptime, not a repeat of Free's pitch.
+  'suite-pro': { icon: TrendingUp, badge: 'Best for Full Visibility', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500' },
+  'suite-business': { icon: Crown, popular: true },
+  'suite-enterprise': { icon: Shield },
 };
 const DEFAULT_PRESENTATION = { icon: Zap };
 
 export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual' }: PlanBuilderProps) {
-  const { data: plans, isLoading, isError } = usePlans(mode);
+  const { data: allPlans, isLoading, isError } = usePlans('core');
+  // The marketing page sells the entry-point free tier plus the suite
+  // bundles — a standalone `core-pro`/`core-business` (Core with none of
+  // Observe/Uptime) exists in the catalog for API/checkout flexibility, but
+  // showing it here next to a bundle at the same price would only read as a
+  // strictly-worse option. See gateway/db/sql/014_multi_product_subscriptions.sql.
+  const plans = allPlans?.filter((p) => p.tier === 'free' || p.isBundle);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
 
   const handleSubscribe = (plan: Plan) => {
@@ -75,7 +76,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
   const renderCard = (plan: Plan) => {
     const presentation = PLAN_PRESENTATION[plan.id] ?? DEFAULT_PRESENTATION;
     const Icon = presentation.icon;
-    const isCurrent = currentPlan === plan.id || (plan.id === 'starter' && (currentPlan === 'free' || !currentPlan));
+    const isCurrent = currentPlan === plan.id || (plan.id === 'core-free' && (currentPlan === 'free' || !currentPlan));
     const isFree = plan.priceMonthly === 0;
     const displayPrice = plan.priceMonthly;
 

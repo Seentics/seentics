@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CreditCard, Zap, Check, BarChart3, Filter, Workflow, Loader2,
   Map, Video, Globe, ExternalLink, Calendar, AlertTriangle, ArrowUpRight,
-  Users, Building2, Sparkles,
+  Sparkles,
 } from 'lucide-react';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
@@ -23,40 +23,6 @@ import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
-
-const planPriceMap: Record<string, number> = {
-  free: 0, starter: 0,
-  basic: 14, growth: 29, pro: 69,
-  agency: 129, agency_pro: 329,
-};
-
-const planNameMap: Record<string, string> = {
-  free: 'Free', starter: 'Free',
-  basic: 'Starter', growth: 'Growth', pro: 'Pro',
-  agency: 'Agency', agency_pro: 'Agency Pro',
-};
-
-const planDescriptions: Record<string, string> = {
-  free: 'For side projects and personal sites',
-  starter: 'For side projects and personal sites',
-  basic: 'For indie makers and small projects',
-  growth: 'For growing products and teams',
-  pro: 'For scaling teams and high-traffic apps',
-  agency: 'For agencies managing multiple clients',
-  agency_pro: 'For large agencies with dedicated support',
-};
-
-const planFeatures: Record<string, string[]> = {
-  free:       ['Unlimited Websites', '15K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
-  starter:    ['Unlimited Websites', '15K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
-  basic:      ['Unlimited Websites', '200K Monthly Events', '1,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '1 Year Retention', 'API, SDK & UI Blocks', '3 Team Members', 'Email Support'],
-  growth:     ['Unlimited Websites', '1M Monthly Events', '5,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '2 Year Retention', 'API, SDK & UI Blocks', '5 Team Members', 'Email Support'],
-  pro:        ['Unlimited Websites', '5M Monthly Events', '10,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '5 Year Retention', 'API, SDK & UI Blocks', '10 Team Members', 'Priority Support'],
-  agency:     ['Unlimited Client Workspaces', '5M Monthly Events', '100K Session Recordings', 'Unlimited Heatmaps', 'White Label', 'Custom Domain', '3 Year Retention', 'API, SDK & UI Blocks', 'Priority Support'],
-  agency_pro: ['Unlimited Client Workspaces', '20M Monthly Events', '500K Session Recordings', 'Unlimited Heatmaps', 'White Label', 'Custom Domain', 'Client Portal', '7 Year Retention', 'API, SDK & UI Blocks', 'Dedicated Support & SLA'],
-};
-
-const AGENCY_PLANS = ['agency', 'agency_pro'];
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -84,14 +50,15 @@ export default function BillingSettingsPage() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [planMode, setPlanMode] = useState<'individual' | 'agency'>('individual');
 
-  const rawPlan = subscription?.plan?.toLowerCase() || 'starter';
-  const currentPlan = rawPlan === 'free' ? 'starter' : rawPlan;
-  const planPrice = subscription?.priceMonthly ?? planPriceMap[currentPlan] ?? 0;
-  const isFreePlan = currentPlan === 'starter' || currentPlan === 'free';
-  const isAgencyPlan = AGENCY_PLANS.includes(currentPlan);
-  const displayName = planNameMap[currentPlan] || currentPlan;
+  // Everything plan-specific (name, price, feature list) comes straight off
+  // the resolved subscription now — gateway's /user/billing/usage already
+  // returns the real plan row's data, so there's no need to duplicate it
+  // here keyed by plan id the way this page used to.
+  const currentPlanId = subscription?.planId || 'core-free';
+  const planPrice = subscription?.priceMonthly ?? 0;
+  const isFreePlan = planPrice === 0;
+  const displayName = subscription?.plan || 'Free';
   const periodLabel = isFreePlan ? '' : subscription?.billingInterval === 'yearly' ? '/mo (billed yearly)' : '/month';
 
   const handleManagePayments = () => {
@@ -173,11 +140,6 @@ export default function BillingSettingsPage() {
                         <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">
                           Active
                         </Badge>
-                        {isAgencyPlan && (
-                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-violet-500/10 text-violet-600 border border-violet-500/20 font-medium">
-                            Agency
-                          </Badge>
-                        )}
                       </div>
                       <div className="flex items-baseline gap-2">
                         <h2 className="text-4xl font-bold tracking-tight">
@@ -189,7 +151,6 @@ export default function BillingSettingsPage() {
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         <span className="font-medium text-foreground">{displayName}</span>
-                        {' — '}{planDescriptions[currentPlan] || ''}
                       </p>
                     </div>
 
@@ -292,7 +253,7 @@ export default function BillingSettingsPage() {
                     Included in <span className="capitalize">{subscription?.isCustomPlan ? 'Custom' : displayName}</span>
                   </h4>
                   <ul className="space-y-2.5">
-                    {(planFeatures[currentPlan] || planFeatures.starter).map((f, i) => (
+                    {(subscription?.features ?? []).map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                         <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                           <Check className="h-2.5 w-2.5 text-emerald-500" />
@@ -326,48 +287,10 @@ export default function BillingSettingsPage() {
 
         <TabsContent value="plans">
           <div className="space-y-6">
-            <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setPlanMode('individual')}
-                  className={cn(
-                    'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all',
-                    planMode === 'individual'
-                      ? 'bg-background text-foreground shadow-sm border border-border'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Users className="h-4 w-4" />
-                  Individual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlanMode('agency')}
-                  className={cn(
-                    'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all',
-                    planMode === 'agency'
-                      ? 'bg-background text-foreground shadow-sm border border-border'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Building2 className="h-4 w-4" />
-                  Agency
-                </button>
-              </div>
-            </div>
-
-            {planMode === 'agency' && (
-              <p className="text-center text-sm text-muted-foreground max-w-lg mx-auto">
-                Manage unlimited client workspaces, white-label the platform, and access all data via API. Events are pooled across all clients.
-              </p>
-            )}
-
             <PlanBuilder
               onSubscribe={handleCheckout}
               loading={checkoutLoading}
-              currentPlan={currentPlan}
-              mode={planMode}
+              currentPlan={currentPlanId}
             />
           </div>
         </TabsContent>
@@ -376,7 +299,7 @@ export default function BillingSettingsPage() {
       <UpgradePlanModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        currentPlan={currentPlan}
+        currentPlan={currentPlanId}
         limitType="monthlyEvents"
         currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
         limit={subscription?.usage?.monthlyEvents?.limit || 10000}
