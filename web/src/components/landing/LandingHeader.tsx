@@ -70,10 +70,10 @@ function ProductsNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 text-sm font-medium text-foreground/75 hover:text-foreground transition-colors"
       >
         Products &amp; Tools
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
@@ -170,69 +170,81 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
   return (
     <header
-      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
+      className={`fixed left-0 right-0 top-0 z-[100] h-[72px] transition-colors duration-300 ${
         scrolled || alwaysBordered
-          ? 'top-0 bg-background/80 border-b border-border backdrop-blur-xl h-14 dark:bg-background/70 dark:border-border/30'
-          : 'top-0 bg-transparent h-16'
+          ? 'bg-background/85 border-b border-border backdrop-blur-xl dark:bg-background/75 dark:border-border/30'
+          : 'bg-transparent border-b border-transparent'
       }`}
     >
       <div className="landing-container h-full flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <Logo size="lg" />
           <span className="font-bold text-base text-foreground tracking-tight">Seentics</span>
         </Link>
 
-        {/* Desktop Nav */}
-        <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
-          <ProductsNavItem />
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {link.name}
-            </Link>
-          ))}
-        </nav>
+        {/* Desktop: nav and actions grouped together on the right, the way
+            an enterprise product's header reads — not split across a
+            centered nav and a separate right cluster that visually competes
+            with it. */}
+        <div className="hidden lg:flex items-center gap-7">
+          <nav className="flex items-center gap-6">
+            <ProductsNavItem />
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="text-sm font-medium text-foreground/75 hover:text-foreground transition-colors"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
 
-        {/* Right section */}
-        <div className="flex items-center gap-2 ml-auto">
-          <Link href="https://github.com/Seentics/seentics" target="_blank" className="hidden sm:block">
-            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Seentics on GitHub">
-              <Github className="h-4 w-4" />
-            </Button>
-          </Link>
-          <ThemeToggle />
-          {isAuthenticated ? (
-            <Link href="/websites">
-              <Button className="h-9 rounded-lg px-4 text-sm font-semibold">
-                Dashboard
+          <div className="flex items-center gap-0.5">
+            <Link href="https://github.com/Seentics/seentics" target="_blank">
+              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Seentics on GitHub">
+                <Github className="h-4 w-4" />
               </Button>
             </Link>
-          ) : (
-            <>
-              <Link href="/signin" className="hidden sm:block">
-                <Button variant="ghost" className="h-9 rounded-lg px-4 text-sm font-semibold">
-                  Sign in
+
+            <span className="mx-2 h-5 w-px bg-border" aria-hidden />
+
+            <ThemeToggle />
+            {isAuthenticated ? (
+              <Link href="/websites" className="ml-2">
+                <Button className="h-9 rounded-lg px-4 text-sm font-semibold shadow-sm">
+                  Dashboard
                 </Button>
               </Link>
-              <Link href="/signup">
-                <Button className="h-9 rounded-lg px-4 text-sm font-semibold">
-                  Get Started
-                </Button>
-              </Link>
-            </>
-          )}
+            ) : (
+              <>
+                <Link href="/signin" className="ml-1">
+                  <Button variant="ghost" className="h-9 rounded-lg px-3 text-sm font-medium">
+                    Sign in
+                  </Button>
+                </Link>
+                <Link href="/signup" className="ml-1.5">
+                  <Button className="h-9 rounded-lg px-4 text-sm font-semibold shadow-sm">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          <ThemeToggle />
           <button
             type="button"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
-            className="rounded-lg p-1.5 transition-colors hover:bg-accent lg:hidden"
+            className="rounded-lg p-2 transition-colors hover:bg-accent"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>

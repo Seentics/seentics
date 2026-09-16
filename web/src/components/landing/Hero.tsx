@@ -7,7 +7,7 @@ export default function Hero() {
   return (
     // No bottom rhythm of its own: `ProductShowcase` sits directly underneath and the
     // two are one unit — the claim and the evidence for it.
-    <section className="relative overflow-hidden pt-28 pb-12 md:pt-36 md:pb-16">
+    <section className="relative overflow-hidden pt-28 pb-14 md:pt-36 md:pb-20">
       {/* Soft wash behind the headline — on the white canvas a flat section reads
           as unfinished, so the colour comes from a tint rather than a fill.
           `inset-0` rather than a fixed 640px: at that height it ran ~70px past the
@@ -15,7 +15,7 @@ export default function Hero() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-primary/[0.02] to-transparent" />
 
       <div className="landing-container relative z-10">
-        <div className="mx-auto max-w-5xl text-center">
+        <div className="mx-auto max-w-5xl text-center mt-6">
           {/*
             Two blocks, not one wrapped line: at any width the two halves of the
             product — what it tells you, and what it does about it — each own a line.
@@ -25,12 +25,12 @@ export default function Hero() {
             putting a second hue inside one sentence, and leaves blue meaning only
             "you can click this".
           */}
-          <h1 className="animate-in fade-in slide-in-from-bottom-3 mb-7 duration-500">
+          <h1 className="animate-in fade-in slide-in-from-bottom-3 mb-6 duration-500">
             <span className="landing-h1 block">Understand your visitors.</span>
-            <span className="landing-h1 landing-accent block">Then act — automatically.</span>
+            <span className="landing-h1 landing-accent mt-1 block">Then act — automatically.</span>
           </h1>
 
-          <p className="animate-in fade-in slide-in-from-bottom-3 landing-lead mx-auto mb-11 max-w-3xl duration-500 [animation-delay:80ms]">
+          <p className="animate-in fade-in slide-in-from-bottom-3 landing-lead mx-auto mb-10 max-w-2xl duration-500 [animation-delay:80ms]">
             Traffic, funnels, session replay and heatmaps in one open-source platform —
             wired to automations that fire the moment a visitor does something worth
             answering.

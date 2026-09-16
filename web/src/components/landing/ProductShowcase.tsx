@@ -10,7 +10,7 @@ import { DashboardMock } from './mocks/DashboardMock';
  */
 const DESIGN_W = 1440;
 const DESIGN_H = 1010;
-const COLUMN_W = 1150;
+const COLUMN_W = 980;
 const FRAME_CHROME_X = 2 * 7 + 2 * 5;
 
 /** What the frame's own measurement will arrive at, once the column is at full width. */

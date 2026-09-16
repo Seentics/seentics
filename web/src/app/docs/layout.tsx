@@ -71,9 +71,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen flex-col bg-background">
       <LandingHeader alwaysBordered />
 
-      <div className="flex flex-1 pt-16 sm:pt-20">
+      <div className="flex flex-1 pt-[72px] sm:pt-20">
         {/* Desktop sidebar. A real border, not a faked one via box-shadow. */}
-        <aside className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border px-3 py-8 sm:top-20 lg:flex">
+        <aside className="fixed bottom-0 left-0 top-[72px] z-40 hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border px-3 py-8 sm:top-20 lg:flex">
           {nav()}
         </aside>
 

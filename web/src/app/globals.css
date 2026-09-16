@@ -211,14 +211,14 @@
      put every section heading on three — the type was sized for the width it had, not
      the width it got. */
   .landing-h1 {
-    @apply text-balance text-[1.75rem] font-extrabold leading-[1.1] tracking-tighter text-foreground sm:text-4xl md:text-5xl lg:text-6xl xl:text-[4rem];
+    @apply text-balance text-[1.5rem] font-extrabold leading-[1.15] tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl;
   }
 
   .landing-h2 {
     /* `text-balance`: at this size in a ~490px column the browser's greedy line
        breaking orphaned two-letter words ("Act on / it."). Balancing spreads the
        lines evenly instead, which is what a designer would do by hand. */
-    @apply text-balance text-2xl font-extrabold leading-[1.15] tracking-tighter text-foreground sm:text-[2rem] md:text-4xl lg:text-[2.75rem];
+    @apply text-balance text-xl font-extrabold leading-[1.2] tracking-tighter text-foreground sm:text-2xl md:text-3xl lg:text-4xl;
   }
 
   /* Heading emphasis — tone, not hue.
@@ -236,17 +236,17 @@
 
   /* Sub-headings inside a section — feature names, card titles, the FAQ's closing ask. */
   .landing-h3 {
-    @apply text-lg font-bold tracking-tight text-foreground sm:text-xl md:text-2xl;
+    @apply text-base font-bold tracking-tight text-foreground sm:text-lg md:text-xl;
   }
 
   .landing-lead {
-    @apply text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-lg md:text-xl;
+    @apply text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base md:text-lg;
   }
 
   /* Body copy — bullet lists, feature descriptions. Distinct from `landing-lead`,
      which is the one paragraph directly under a heading. */
   .landing-body {
-    @apply text-[15px] leading-relaxed sm:text-base md:text-[17px];
+    @apply text-sm leading-relaxed sm:text-[15px] md:text-base;
   }
 
   /* Section label above the heading.
