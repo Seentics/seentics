@@ -9,13 +9,28 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles,
+  Code2, Bug, Sparkles, Radio, HeartPulse,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { AiModeButton } from '@/components/ai/AiModeButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/stores/useAuthStore';
+import { useEntitlements } from '@/features/suite/queries';
+import { config } from '@/lib/config';
+
+interface SuiteNavItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  /** Matches billing/entitlements.ts `Product*` constants in gateway. */
+  product: string;
+}
+
+const SUITE_PRODUCTS: SuiteNavItem[] = [
+  { label: 'Observability', href: config.observeUrl, icon: Radio, product: 'observe' },
+  { label: 'Uptime', href: config.uptimeUrl, icon: HeartPulse, product: 'uptime' },
+];
 
 interface NavItem {
   label: string;
@@ -59,6 +74,8 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const mainNav = buildMainNav(websiteId);
   const secondNav = buildSecondaryNav(websiteId);
   const [accountOpen, setAccountOpen] = useState(false);
+  const { data: entitlements } = useEntitlements();
+  const suiteNav = SUITE_PRODUCTS.filter((item) => entitlements?.products.includes(item.product));
 
   const initials = useMemo(() => {
     if (!user) return '?';
@@ -107,6 +124,29 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       </li>
     );
   };
+
+  // Plain `<a>`, not `<Link>` — this crosses subdomains (uptime.seentics.com,
+  // observe.seentics.com), so it's a real navigation, not client-side routing.
+  // The shared Domain=.seentics.com session cookie (see Phase 1 SSO) means
+  // the destination is already authenticated, no token-passing needed.
+  const renderSuiteItem = (item: SuiteNavItem) => (
+    <li key={item.href}>
+      <a
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-lg transition-colors',
+          collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
+          'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+        )}
+      >
+        <item.icon className="h-[17px] w-[17px] shrink-0" />
+        {!collapsed && (
+          <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+        )}
+      </a>
+    </li>
+  );
 
   return (
     <aside className={cn(
@@ -162,6 +202,21 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           {secondNav.map(renderItem)}
         </ul>
       </nav>
+
+      {/* Suites — other products this plan includes, on their own subdomain.
+          Only rendered once entitlements resolve to something (enterprise
+          mode with at least one sibling product) so OSS/starter accounts
+          never see an empty section. */}
+      {suiteNav.length > 0 && (
+        <div className={cn('shrink-0 border-t border-sidebar-border pt-2 pb-1 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
+          {!collapsed && (
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Suites</p>
+          )}
+          <ul className="space-y-0.5">
+            {suiteNav.map(renderSuiteItem)}
+          </ul>
+        </div>
+      )}
 
       {/*
         Above the account row rather than at the top of the nav. AI mode is a different

@@ -1,108 +1,12 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { config } from '@/lib/config';
 
-import { Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/stores/useAuthStore';
-import api from '@/lib/api';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-function GoogleAuthCallback() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { setAuth } = useAuth();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-
-    if (error) {
-      toast({
-        title: "Authentication Failed",
-        description: `Error from Google: ${error}`,
-        variant: "destructive",
-      });
-      router.push('/signin');
-      return;
-    }
-
-    const state = searchParams.get('state');
-
-    if (code) {
-      const exchangeCode = async () => {
-        try {
-          const stateParam = state ? `&state=${encodeURIComponent(state)}` : '';
-          const response = await api.get(`/user/auth/google/callback?code=${encodeURIComponent(code)}${stateParam}&format=json`);
-          const data = response.data;
-
-          if (data.data?.tokens && data.data?.user) {
-            setAuth({
-              user: data.data.user,
-              access_token: data.data.tokens.access_token,
-              refresh_token: data.data.tokens.refresh_token,
-              rememberMe: true
-            });
-
-            toast({
-              title: "Welcome back!",
-              description: "Successfully signed in with Google.",
-            });
-
-            router.push('/websites');
-          } else if (response.status === 307 || response.status === 302) {
-            // If the backend returned a redirect (which it shouldn't if called via API, 
-            // but just in case it was a direct hit that the proxy handled)
-            // We'll follow it or handle the tokens from the URL if they are there.
-            const url = new URL(response.headers.location, window.location.origin);
-            const accessToken = url.searchParams.get('access_token') || url.searchParams.get('accessToken');
-            const refreshToken = url.searchParams.get('refresh_token') || url.searchParams.get('refreshToken');
-            if (accessToken && refreshToken) {
-              window.location.href = `/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`;
-            }
-          }
-        } catch (error: any) {
-          console.error('Google OAuth exchange error:', error);
-          toast({
-            title: "Sign In Failed",
-            description: error.response?.data?.error || "Failed to exchange Google code",
-            variant: "destructive",
-          });
-          router.push('/signin');
-        }
-      };
-
-      exchangeCode();
-    } else {
-      // If no code, maybe it's the backend redirecting us with tokens already?
-      const accessToken = searchParams.get('access_token') || searchParams.get('accessToken');
-      const refreshToken = searchParams.get('refresh_token') || searchParams.get('refreshToken');
-      if (accessToken && refreshToken) {
-        router.push(`/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`);
-      } else {
-        router.push('/signin');
-      }
-    }
-  }, [searchParams, setAuth, router, toast]);
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-[#020617]">
-      <Loader2 className="animate-spin h-12 w-12 text-primary mb-4" />
-      <p className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">
-        Authenticating with Google...
-      </p>
-    </div>
-  );
-}
-
-export default function page() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin h-10 w-10 text-primary" />
-      </div>
-    }>
-      <GoogleAuthCallback />
-    </Suspense>
-  );
+/** OAuth callback now lives in auth/web (auth.seentics.com) — see signin/page.tsx. */
+export default async function GoogleCallbackRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === 'string') params.set(key, value);
+  }
+  const qs = params.toString();
+  redirect(`${config.authUrl}/auth/google/callback${qs ? `?${qs}` : ''}`);
 }

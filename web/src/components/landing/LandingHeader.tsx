@@ -1,14 +1,102 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Github } from 'lucide-react';
+import { Menu, X, Github, HeartPulse, Radio, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
+import { config } from '@/lib/config';
+
+const SUITE_PRODUCTS = [
+  {
+    name: 'Observability',
+    description: 'Logs, traces, metrics and errors for your services, in one console.',
+    href: config.observeUrl,
+    icon: Radio,
+  },
+  {
+    name: 'Uptime',
+    description: 'Monitor endpoints, get alerted on downtime, share a public status page.',
+    href: config.uptimeUrl,
+    icon: HeartPulse,
+  },
+];
+
+/**
+ * Hover-triggered mega menu, Stripe/Linear-style. A plain `group-hover` CSS
+ * approach was tried first and rejected: moving the cursor from the nav link
+ * down into the panel crosses a gap, and CSS-only hover closes the panel the
+ * instant the cursor leaves the link — before it reaches the cards. A short
+ * close delay, cancelled on re-entry, is what every site that does this
+ * actually ships.
+ */
+function ProductsNavItem() {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
+
+  useEffect(() => () => cancelClose(), []);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => { cancelClose(); setOpen(true); }}
+      onMouseLeave={scheduleClose}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Products &amp; Tools
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-1/2 top-full z-50 mt-3 w-[440px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
+          >
+            {SUITE_PRODUCTS.map((product) => (
+              <a
+                key={product.name}
+                href={product.href}
+                className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <product.icon className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">{product.name}</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{product.description}</span>
+                </span>
+              </a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function LandingHeader({ alwaysBordered = false }: { alwaysBordered?: boolean }) {
   const { isAuthenticated: authed } = useAuth();
@@ -39,11 +127,12 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   const anchorHref = (hash: string) => pathname === '/' ? hash : `/${hash}`;
 
   const navLinks = [
-    { name: 'Features', href: anchorHref('#features') },
-    { name: 'Docs',     href: '/docs' },
-    { name: 'Blog',     href: '/blog' },
-    { name: 'Pricing',  href: anchorHref('#pricing') },
-    { name: 'FAQ',      href: anchorHref('#faq') },
+    { name: 'Features',   href: anchorHref('#features') },
+    { name: 'Speed Test', href: '/tools/page-speed-test' },
+    { name: 'Docs',       href: '/docs' },
+    { name: 'Blog',       href: '/blog' },
+    { name: 'Pricing',    href: anchorHref('#pricing') },
+    { name: 'FAQ',        href: anchorHref('#faq') },
   ];
 
   return (
@@ -63,6 +152,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          <ProductsNavItem />
           {navLinks.map((link) => (
             <Link
               key={link.name}
@@ -125,6 +215,19 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
           >
             <div className="landing-container py-6 flex flex-col gap-4">
+              <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
+                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Products &amp; Tools</p>
+                {SUITE_PRODUCTS.map((product) => (
+                  <a
+                    key={product.name}
+                    href={product.href}
+                    className="flex items-center gap-2.5 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  >
+                    <product.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {product.name}
+                  </a>
+                ))}
+              </div>
               <nav className="flex flex-col gap-1">
                 {navLinks.map((link) => (
                   <Link

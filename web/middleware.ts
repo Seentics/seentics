@@ -1,11 +1,32 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
 const isEnterprise = process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true';
 
 const publicOnlyRoutes = ['/signin', '/forgot-password', '/reset-password'];
 
-export function middleware(request: NextRequest) {
+/**
+ * Real verification of the `access_token` cookie gateway now sets on login
+ * (see gateway/routes/auth.ts `setAuthCookies`) — the same HS256/JWT_SECRET
+ * contract every backend in the suite verifies against. Replaces the old
+ * `auth-storage` cookie check, which decoded JSON that nothing ever actually
+ * wrote and could be forged by any client since it wasn't a signature at all.
+ */
+async function isAuthenticatedRequest(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get('access_token')?.value;
+  if (!token) return false;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return false;
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), { algorithms: ['HS256'] });
+    return payload.typ === 'access' && typeof payload.user_id === 'string';
+  } catch {
+    return false;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Tracker hits `/api/v1/tracker/*` via rewrite to the gateway → core. The TCP peer there is localhost,
@@ -32,19 +53,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Try to read auth state from cookie (written by AuthInitializer.tsx)
-  const authToken = request.cookies.get('auth-storage')?.value;
-  let isAuthenticated = false;
-
-  if (authToken) {
-    try {
-      const decodedToken = decodeURIComponent(authToken);
-      const authData = JSON.parse(decodedToken);
-      isAuthenticated = authData.state?.isAuthenticated === true;
-    } catch {
-      // Invalid cookie — treat as not authenticated
-    }
-  }
+  const isAuthenticated = await isAuthenticatedRequest(request);
 
   // If user is confirmed authenticated and tries to access signin/forgot-password etc., redirect to dashboard
   if (isAuthenticated) {
@@ -61,10 +70,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // NOTE: We do NOT block protected routes server-side because auth is stored in
-  // localStorage (Zustand persist), which is not accessible in middleware.
-  // Client-side auth guards (api.ts interceptors, page-level redirects) handle
-  // unauthorized access to protected pages.
+  // NOTE: This middleware still does not block protected dashboard routes —
+  // that's a scope choice now, not a technical limitation. `isAuthenticatedRequest`
+  // above is a real signature check and could gate any route; enforcing that
+  // suite-wide needs an explicit public/protected route map this pass doesn't
+  // have, so client-side guards (api.ts interceptors, page-level redirects)
+  // remain the enforcement mechanism for now.
 
   return NextResponse.next();
 }

@@ -9,6 +9,19 @@ export const config = {
   // Frontend Configuration
   frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
 
+  // Sibling suite products — used by the "Suites" sidebar switcher. Same
+  // shared-cookie session (Domain=.seentics.com in production) carries over,
+  // so these are plain links, not an auth handoff.
+  observeUrl: process.env.NEXT_PUBLIC_OBSERVE_URL || 'https://observe.seentics.com',
+  uptimeUrl: process.env.NEXT_PUBLIC_UPTIME_URL || 'https://uptime.seentics.com',
+
+  // Signin/signup/password-reset/invite/OAuth-callback now live in their own
+  // app (auth/web) so every product in the suite shares one login UI. The
+  // old paths in this app (see the redirect stubs at src/app/signin/page.tsx
+  // etc.) 302 here rather than being deleted outright, so bookmarks and any
+  // link this codebase forgot to update still work.
+  authUrl: process.env.NEXT_PUBLIC_AUTH_URL || 'https://auth.seentics.com',
+
   // Default Site Configuration
   defaultSiteId: process.env.NEXT_PUBLIC_DEFAULT_SITE_ID || '',
 
