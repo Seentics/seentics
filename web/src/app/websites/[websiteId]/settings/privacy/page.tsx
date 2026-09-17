@@ -1,16 +1,13 @@
-'use client';
+import PrivacySettingsPage from './page-client';
 
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-import { useParams } from 'next/navigation';
-import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
+export const dynamicParams = false;
 
-export default function PrivacySettingsPage() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
-
-  return (
-    <div className="animate-in fade-in duration-500">
-      <PrivacySettingsComponent websiteId={websiteId} />
-    </div>
-  );
+export default function Page() {
+  return <PrivacySettingsPage />;
 }

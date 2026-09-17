@@ -1,26 +1,13 @@
-'use client';
+import TeamSettings from './page-client';
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { isEnterprise } from '@/lib/features';
-import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-export default function TeamSettings() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
-  const router = useRouter();
+export const dynamicParams = false;
 
-  useEffect(() => {
-    if (!isEnterprise) {
-      router.replace(`/websites/${websiteId}/settings`);
-    }
-  }, [router, websiteId]);
-
-  if (!isEnterprise) return null;
-
-  return (
-    <div className="space-y-6 p-4 sm:p-8 animate-in fade-in duration-500">
-      <TeamSettingsComponent websiteId={websiteId} />
-    </div>
-  );
+export default function Page() {
+  return <TeamSettings />;
 }

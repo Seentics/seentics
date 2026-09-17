@@ -1,5 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+// Cloudflare Pages Function — replaces src/app/api/contact/route.ts.
+// Static export's route handlers only support GET (Next's own docs list
+// this under "Unsupported Features" for output: 'export'), and this needs
+// POST, so the logic moved here wholesale.
+//
+// The in-memory rate limiter is gone too — a module-level Map doesn't work
+// across Workers' many short-lived, per-edge-location isolates the way it
+// did in one long-running Node process. Replaced with a KV-backed counter
+// (see functions/lib/rate-limit.ts for why it's KV and not Cloudflare's
+// actual Rate Limiting binding) — 60s at a tighter limit is the closest fit
+// to the original's 15-minute window, not an exact match.
+
 import { Resend } from 'resend';
+import { checkRateLimit } from '../lib/rate-limit';
+
+interface Env {
+  RESEND_API_KEY?: string;
+  CONTACT_EMAIL?: string;
+  RATE_LIMIT_KV: { get: (key: string) => Promise<string | null>; put: (key: string, value: string, opts?: { expirationTtl?: number }) => Promise<void> };
+}
+
+interface RequestContext {
+  request: Request;
+  env: Env;
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -10,45 +33,27 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#x27;');
 }
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown';
+export const onRequestPost = async (context: RequestContext): Promise<Response> => {
+  const { request, env } = context;
 
-  if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { status: 429 }
-    );
+  const ip = request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+
+  const allowed = await checkRateLimit(env.RATE_LIMIT_KV, `contact:${ip}`, 5, 60);
+  if (!allowed) {
+    return jsonResponse({ error: 'Too many requests. Please try again later.' }, 429);
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = new Resend(env.RESEND_API_KEY);
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { name, email, message, subject, company, websiteId } = body;
 
     if (!name || !email || !message) {
-      return NextResponse.json(
-        { error: 'Name, email, and message are required.' },
-        { status: 400 }
-      );
+      return jsonResponse({ error: 'Name, email, and message are required.' }, 400);
     }
 
     const safeName = escapeHtml(String(name));
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     await resend.emails.send({
       from: 'Seentics Contact <onboarding@resend.dev>',
-      to: process.env.CONTACT_EMAIL || 'shohagmiah2100@gmail.com',
+      to: env.CONTACT_EMAIL || 'shohagmiah2100@gmail.com',
       replyTo: email,
       subject: subjectLine,
       text: `Name: ${name}\nEmail: ${email}${companyLine}${websiteLine}\n\nMessage:\n${message}`,
@@ -96,12 +101,9 @@ export async function POST(req: NextRequest) {
       `,
     });
 
-    return NextResponse.json({ success: true, message: 'Message sent successfully' });
-  } catch (error: any) {
+    return jsonResponse({ success: true, message: 'Message sent successfully' }, 200);
+  } catch (error) {
     console.error('Contact form error:', error);
-    return NextResponse.json(
-      { error: 'Failed to send message. Please try again later.' },
-      { status: 500 }
-    );
+    return jsonResponse({ error: 'Failed to send message. Please try again later.' }, 500);
   }
-}
+};

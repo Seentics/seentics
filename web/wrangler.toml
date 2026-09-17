@@ -1,0 +1,26 @@
+name = "seentics-web"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "out"
+
+# Runtime env for the functions/api/** proxies, replacing next.config's old
+# rewrites(). GATEWAY_URL feeds every proxy — the gateway is the single
+# public entry point for everything under /api/v1/*.
+[vars]
+GATEWAY_URL = "https://api.seentics.com"
+NEXT_PUBLIC_IS_ENTERPRISE = "true"
+
+# Rate limiting for functions/api/contact.ts and
+# functions/api/tools/page-speed.ts — replaces the in-memory Maps those
+# route handlers used to use, which don't work across Workers' many
+# short-lived isolates.
+#
+# Not Cloudflare's Rate Limiting binding: Pages' config schema rejects both
+# the plain [[ratelimits]] table and the [[unsafe.bindings]] form —
+# confirmed by `wrangler pages deploy` refusing both, even though
+# `wrangler pages dev` accepts [[ratelimits]] locally, which would have
+# silently passed local testing while failing every real deploy. KV counters
+# with a TTL are the fallback — see functions/lib/rate-limit.ts.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "188d20ca677b4c5393c7d442d565fbb6"

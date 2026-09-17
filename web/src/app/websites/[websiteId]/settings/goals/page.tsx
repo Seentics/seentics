@@ -1,22 +1,13 @@
-'use client';
+import GoalConversionsPage from './page-client';
 
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-import { useParams } from 'next/navigation';
-import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+export const dynamicParams = false;
 
-export default function GoalConversionsPage() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
-
-  return (
-    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Goal Conversions"
-        description="Define what success looks like for your website."
-      />
-      <GoalsSettingsComponent websiteId={websiteId} />
-    </div>
-  );
+export default function Page() {
+  return <GoalConversionsPage />;
 }

@@ -1,0 +1,73 @@
+# Static export ships one HTML shell per dynamic route (built for
+# placeholder params — see each page.tsx's generateStaticParams under a
+# [param] folder). These map every real URL onto the matching shell with a
+# 200 (serve, not redirect) so the browser still lands on the real URL; each
+# page then reads the true id from window.location itself (see
+# src/lib/path-segment.ts) rather than trusting build-time params.
+#
+# Targets are extensionless on purpose — a target ending in .html fights
+# Pages' own built-in .html -> clean-URL redirect and loops.
+#
+# Placeholder groups (see src/lib/path-segment.ts comment in each layout for
+# the fuller reasoning): 'w-root' for the /websites/:id overview page alone,
+# 'w-idx' shared by the six index pages that have their own child routes
+# (automations, funnels, heatmaps, replays, revenue, settings), 'w-leaf'
+# shared by everything else. Different groups exist only to avoid a file and
+# a same-named folder colliding on disk — not because the values mean
+# anything at runtime.
+#
+# Passthroughs first: these are real static pages, but they're also single
+# path segments — exactly what the :id wildcards below would otherwise
+# match, hijacking them. Confirmed necessary by testing (uptime/web hit this
+# exact bug with /dashboard/monitors/new).
+
+/websites/manage                              /websites/manage                             200
+/websites/:websiteId/automations/new          /websites/w-leaf/automations/new              200
+/websites/:websiteId/automations/templates    /websites/w-leaf/automations/templates        200
+
+# Nested-detail routes before their index — order matters, most specific first.
+
+/websites/:websiteId/automations/:automationId  /websites/w-leaf/automations/w-child         200
+/websites/:websiteId/funnels/:funnelId          /websites/w-leaf/funnels/w-child             200
+/websites/:websiteId/goals/:goalId              /websites/w-leaf/goals/w-child                200
+/websites/:websiteId/heatmaps/:slug             /websites/w-leaf/heatmaps/w-child             200
+/websites/:websiteId/replays/:sessionId         /websites/w-leaf/replays/w-child              200
+/websites/:websiteId/revenue/transactions/:transactionId  /websites/w-leaf/revenue/transactions/w-child  200
+
+/websites/:websiteId/automations              /websites/w-idx/automations                   200
+/websites/:websiteId/funnels                  /websites/w-idx/funnels                       200
+/websites/:websiteId/heatmaps                 /websites/w-idx/heatmaps                      200
+/websites/:websiteId/replays                  /websites/w-idx/replays                       200
+/websites/:websiteId/revenue                  /websites/w-idx/revenue                       200
+/websites/:websiteId/settings                 /websites/w-idx/settings                      200
+
+/websites/:websiteId/ai                       /websites/w-leaf/ai                           200
+/websites/:websiteId/developers               /websites/w-leaf/developers                   200
+/websites/:websiteId/docs                     /websites/w-leaf/docs                         200
+/websites/:websiteId/errors                   /websites/w-leaf/errors                       200
+/websites/:websiteId/events                   /websites/w-leaf/events                       200
+/websites/:websiteId/paths                    /websites/w-leaf/paths                        200
+/websites/:websiteId/privacy                  /websites/w-leaf/privacy                      200
+/websites/:websiteId/realtime                 /websites/w-leaf/realtime                     200
+/websites/:websiteId/ui-blocks                /websites/w-leaf/ui-blocks                    200
+
+/websites/:websiteId/settings/billing         /websites/w-leaf/settings/billing             200
+/websites/:websiteId/settings/features        /websites/w-leaf/settings/features            200
+/websites/:websiteId/settings/goals           /websites/w-leaf/settings/goals               200
+/websites/:websiteId/settings/privacy         /websites/w-leaf/settings/privacy             200
+/websites/:websiteId/settings/profile         /websites/w-leaf/settings/profile             200
+/websites/:websiteId/settings/support         /websites/w-leaf/settings/support             200
+/websites/:websiteId/settings/team            /websites/w-leaf/settings/team                200
+/websites/:websiteId/settings/tracking        /websites/w-leaf/settings/tracking            200
+/websites/:websiteId/settings/websites        /websites/w-leaf/settings/websites            200
+
+/websites/:websiteId                          /websites/w-root                              200
+
+# Singleton dynamic routes — no children, no literal siblings to exclude.
+
+/agency/client-users/:userId                  /agency/client-users/shell                    200
+/agency/clients/:clientId                     /agency/clients/shell                         200
+/client-portal/:token                         /client-portal/shell                          200
+/preview/:id                                  /preview/shell                                200
+/public/:publicId                             /public/shell                                 200
+/share/:publicId                              /share/shell                                  200

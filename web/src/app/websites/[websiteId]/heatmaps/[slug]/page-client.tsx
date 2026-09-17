@@ -1,0 +1,472 @@
+'use client';
+
+import { usePathSegment } from '@/lib/path-segment';
+
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, Layers, Link2, MoreHorizontal, Camera } from 'lucide-react';
+
+import { isDemo } from '@/lib/demo';
+import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
+import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPageSlug, normalizeHeatmapPagePath, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
+import {
+  clampLayoutPx,
+  heatmapCaptureBox,
+  heatmapPreviewScale,
+  HEATMAP_DIM_CAP,
+  MIN_CAPTURE_PX,
+} from '@/lib/heatmaps/preview-geometry';
+import { normalizeWebsiteOriginForPreview } from '@/lib/website-preview-url';
+import { getWebsiteByAnyId } from '@/lib/websites-api';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+import { HeatmapViewer, DemoHeatmapStage, type PreviewUnderlay } from '@/components/heatmaps/HeatmapViewer';
+import { isAbsoluteHttpUrl, heatmapPageHeading, scrollReachPoints, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
+
+export default function HeatmapDetailPage() {
+  const params = { websiteId: usePathSegment(1) ?? '', slug: usePathSegment(3) ?? '' };
+  const router     = useRouter();
+  const websiteId  = params?.websiteId as string;
+  const slug       = params?.slug as string;
+  const isDemoMode = isDemo(websiteId);
+  const { toast }  = useToast();
+
+  const queryClient = useQueryClient();
+
+  const [heatType,  setHeatType]  = useState<HeatType>('click');
+  const [device,    setDevice]    = useState<DeviceType>('all');
+  const [customUrl, setCustomUrl] = useState('');
+  const [previewTouched, setPreviewTouched] = useState(false);
+  const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
+  const [capturing, setCapturing] = useState(false);
+  const [previewPopoverOpen, setPreviewPopoverOpen] = useState(false);
+
+  const urlPath = useMemo(() => {
+    const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
+    return normalizeHeatmapPagePath(raw);
+  }, [slug]);
+
+  const isParamPath = urlPath.includes(':id');
+
+  const demoPages = isDemoMode ? demoHeatmapPages() : [];
+  const demoPage  = demoPages.find(p => p.url === urlPath) ?? demoPages[0];
+
+  const { data: websiteMeta } = useQuery({
+    queryKey:  ['website-meta', websiteId],
+    queryFn:   () => getWebsiteByAnyId(websiteId),
+    enabled:   !!websiteId && !isDemoMode,
+    staleTime: 300_000,
+  });
+
+  const sitePreviewBase = useMemo(() => {
+    const u = websiteMeta?.url?.trim();
+    if (!u) return '';
+    const appOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    return normalizeWebsiteOriginForPreview(u, appOrigin);
+  }, [websiteMeta]);
+
+  const suggestedPreviewUrl = useMemo(() => {
+    if (!sitePreviewBase) return '';
+    // urlPath may contain `:id` placeholders from path normalization (e.g. /replays/:id).
+    // A URL with `:id` is not a real page — skip the suggestion so the user enters a specific URL.
+    if (urlPath.includes(':id')) return '';
+    const p = urlPath.startsWith('/') ? urlPath : `/${urlPath}`;
+    return `${sitePreviewBase}${p}`;
+  }, [sitePreviewBase, urlPath]);
+
+  const { data: heatmapData, isLoading, isError, error, refetch } = useQuery({
+    queryKey:  ['heatmap-data', websiteId, urlPath, heatType],
+    queryFn:   () => getHeatmapData(websiteId, urlPath, heatType === 'scroll' ? 'scroll' : 'click'),
+    enabled:   !isDemoMode,
+    staleTime: 60_000,
+  });
+
+  // Keyed by device: backgrounds are stored per bucket because a responsive page
+  // reflows between them, and the points drawn on one cannot be drawn on another.
+  const { data: pageScreenshot, isLoading: screenshotLoading } = useQuery({
+    queryKey:  ['heatmap-screenshot', websiteId, urlPath, device],
+    queryFn:   () => getHeatmapPageScreenshot(websiteId, urlPath, device),
+    enabled:   Boolean(websiteId && !isDemoMode),
+    staleTime: 180_000,
+    refetchOnWindowFocus: false,
+    // Poll every 5s while null — server fires auto-capture in background on miss.
+    // Stop after ~60s to avoid infinite polling when Playwright is unavailable.
+    refetchInterval: (q) => {
+      if (q.state.data) return false;
+      const age = Date.now() - (q.state.dataUpdatedAt ?? Date.now());
+      return age < 60_000 ? 5_000 : false;
+    },
+  });
+
+  const previewModeOptions = useMemo(() => {
+    const pageHint = pageScreenshot
+      ? 'Server-side screenshot captured for this page path.'
+      : screenshotLoading
+        ? 'Capturing screenshot…'
+        : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
+    return [
+      ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
+      ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
+    ];
+  }, [pageScreenshot, screenshotLoading]);
+
+  const demoPointsNormalized: HeatPoint[] = useMemo(() => {
+    const raw = demoHeatmapPoints(heatType === 'scroll' ? 'move' : 'click');
+    return raw.map(p => ({
+      nx:        p.x / 1280,
+      ny:        p.y / 2400,
+      intensity: p.intensity,
+      device:    'desktop',
+    }));
+  }, [heatType]);
+
+  const allPoints: HeatPoint[] = isDemoMode
+    ? demoPointsNormalized
+    : (heatmapData?.points ?? []).map((p: ApiHeatmapPoint) => ({
+        nx: p.x_percent / 10000,
+        ny:
+          (p.event_type || heatType) === 'scroll'
+            ? Math.min(1, Math.max(0, (p.y_percent ?? 0) / 100))
+            : (p.y_percent ?? 0) / 10000,
+        intensity: p.intensity,
+        selector:  p.target_selector || undefined,
+        device:    p.device_type || 'desktop',
+        cap_vw:    p.cap_vw ?? undefined,
+        cap_vh:    p.cap_vh ?? undefined,
+        pageVersion: p.page_version || undefined,
+        locator: p.target_locator ?? undefined,
+        relativeX: p.relative_x ?? undefined,
+        relativeY: p.relative_y ?? undefined,
+        positionMode: p.position_mode ?? 'normal',
+        mappingMethod: p.target_locator ? 'coordinate' : undefined,
+      }));
+
+  const preferredViewportWidth = useMemo(() => {
+    if (isDemoMode) return null;
+    const src =
+      device === 'all'
+        ? (heatmapData?.points ?? [])
+        : (heatmapData?.points ?? []).filter(
+            p => (p.device_type || 'desktop').toLowerCase() === device,
+          );
+    return weightedHeatmapCaptureViewportWidth(src);
+  }, [heatmapData, device, isDemoMode]);
+
+  const devicePoints: HeatPoint[] = device === 'all'
+    ? allPoints
+    : allPoints.filter(p => (p.device ?? 'desktop').toLowerCase() === device);
+  const points: HeatPoint[] = heatType === 'scroll'
+    ? scrollReachPoints(devicePoints)
+    : devicePoints;
+
+  const activePreviewUrl = (customUrl.trim() || suggestedPreviewUrl).trim();
+
+  const captureScreenshot = async () => {
+    const url = activePreviewUrl;
+    if (!url || capturing) return;
+    if (!isAbsoluteHttpUrl(url)) {
+      toast({ title: 'No preview URL', description: 'Set an https:// preview URL first.', variant: 'destructive' });
+      return;
+    }
+    setCapturing(true);
+    try {
+      const result = await triggerPlaywrightScreenshot(websiteId, url, urlPath, { force: true });
+      if (!result) throw new Error('Screenshot capture failed — check that the page URL is reachable.');
+      await queryClient.invalidateQueries({ queryKey: ['heatmap-screenshot', websiteId, urlPath] });
+      setPreviewTouched(true);
+      setPreviewUnderlay('screenshot');
+      toast({ title: 'Screenshot captured', description: 'Background image saved successfully.' });
+    } catch (e) {
+      toast({ title: 'Capture failed', description: (e as Error).message ?? String(e), variant: 'destructive' });
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const applyUrl = () => {
+    const t = customUrl.trim();
+    if (!t) return;
+    setPreviewTouched(true);
+    setCustomUrl(t.startsWith('http') ? t : `https://${t}`);
+  };
+
+  const resetPreviewUrl = () => {
+    setPreviewTouched(false);
+    setCustomUrl('');
+  };
+
+
+  const pathForHeading = isDemoMode ? (demoPage?.url ?? urlPath) : urlPath;
+  const { subtitle: pageSubtitle } = heatmapPageHeading(
+    pathForHeading || '/',
+    isDemoMode ? undefined : websiteId,
+  );
+  const heatmapPathLine = (() => {
+    const p = (urlPath || '').trim() || pageSubtitle || '/';
+    return p.startsWith('/') ? p : `/${p}`;
+  })();
+
+  const previewUrlPopoverInner = (
+    <>
+      {isParamPath && (
+        <div className="rounded-lg border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+          <span className="font-medium">Parameterized path</span> — enter a real example URL
+          (e.g. replace <code className="font-mono">{urlPath.replace(/:id/g, 'abc123')}</code>) to capture a screenshot.
+        </div>
+      )}
+      <div>
+        <p className="text-sm font-medium text-foreground">Preview URL</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Must match this path so clicks and scroll line up with the captured page.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={customUrl}
+          onChange={e => setCustomUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && applyUrl()}
+          placeholder={suggestedPreviewUrl || 'https://…'}
+          className="h-9 font-mono text-xs"
+        />
+        <Button type="button" size="sm" className="h-9 shrink-0" onClick={applyUrl}>
+          Apply
+        </Button>
+      </div>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-full text-xs" onClick={resetPreviewUrl}>
+        Reset to suggested
+      </Button>
+    </>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      {isError && !isDemoMode && (
+        <div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+          {(error as Error)?.message ?? 'Failed to load heatmap data.'}
+        </div>
+      )}
+
+      <header className="shrink-0 border-b border-border bg-background">
+        <div
+          className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-2 py-1.5 md:px-4"
+          role="toolbar"
+          aria-label="Heatmap"
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => router.push(`/websites/${websiteId}/heatmaps`)}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Heatmaps
+          </Button>
+          {isDemoMode ? (
+            <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px] font-medium">
+              Demo
+            </Badge>
+          ) : null}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+            {points.length > 0 ? (
+              <span className="shrink-0 tabular-nums">{points.length.toLocaleString()} pts</span>
+            ) : null}
+            {points.length > 0 ? <span className="shrink-0 text-border" aria-hidden>·</span> : null}
+            <code className="min-w-0 truncate font-mono text-[10px] sm:text-[11px]" title={heatmapPathLine}>
+              {heatmapPathLine}
+            </code>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Popover open={previewPopoverOpen} onOpenChange={setPreviewPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8" title="Preview URL" aria-label="Preview URL">
+                  <Link2 className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(92vw,380px)] space-y-3 p-4" align="end">
+                {previewUrlPopoverInner}
+              </PopoverContent>
+            </Popover>
+
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
+              {([
+                ['click', MousePointer, 'Clicks', 'Where people click'],
+                ['scroll', TrendingDown, 'Scroll', 'How far they scroll'],
+              ] as const).map(([type, Icon, label, hint]) => (
+                <button
+                  key={type}
+                  type="button"
+                  title={hint}
+                  onClick={() => setHeatType(type)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    heatType === type
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3 opacity-80" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
+              <SelectTrigger
+                className="h-8 w-[108px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
+                title="Device"
+              >
+                <SelectValue placeholder="Device" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All devices</SelectItem>
+                <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
+                <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
+                <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
+              {previewModeOptions.map(([mode, Icon, label, hint]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  title={hint}
+                  onClick={() => setPreviewUnderlay(mode)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    previewUnderlay === mode
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3 opacity-80" />
+                  {mode === 'screenshot' ? (
+                    <>
+                      <span className="sm:hidden">Shot</span>
+                      <span className="hidden sm:inline">{label}</span>
+                    </>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {!isDemoMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="More">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {activePreviewUrl ? (
+                    <DropdownMenuItem
+                      className="text-xs"
+                      onClick={() => window.open(activePreviewUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      Open preview tab
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    className="text-xs"
+                    disabled={capturing || (!activePreviewUrl && !isParamPath)}
+                    onClick={isParamPath && !activePreviewUrl ? () => setPreviewPopoverOpen(true) : captureScreenshot}
+                  >
+                    <Camera className="mr-2 h-3.5 w-3.5" />
+                    {capturing ? 'Capturing…' : isParamPath && !activePreviewUrl ? 'Set preview URL…' : 'Capture screenshot'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs" onClick={() => refetch()}>
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    Refresh data
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {isParamPath && !pageScreenshot && !isDemoMode && (
+        <div className="shrink-0 border-b border-amber-200/60 bg-amber-50/80 px-4 py-2 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <p className="text-xs text-amber-800 dark:text-amber-400">
+            <span className="font-medium">Parameterized path</span> — <code className="rounded-lg bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code> aggregates
+            all matching URLs. Screenshots come from real visitors via the tracker, or enter a specific example URL in{' '}
+            <button
+              type="button"
+              className="font-medium underline underline-offset-2 hover:no-underline"
+              onClick={() => setPreviewPopoverOpen(true)}
+            >
+              Preview URL
+            </button>{' '}
+            and use <span className="font-medium">Capture screenshot</span> from the menu.
+          </p>
+        </div>
+      )}
+
+      <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+          {!activePreviewUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+              <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
+              <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+                Set your site URL in Settings, or use Preview URL above so the heatmap aligns with your page.
+              </p>
+            </div>
+          ) : (
+            <div className="relative min-h-0 flex-1">
+              {isDemoMode ? (
+                <DemoHeatmapStage pageUrl={heatmapPathLine} heatType={heatType} />
+              ) : (
+                <HeatmapViewer
+                  key={`${websiteId}:${urlPath}`}
+                  pageUrl={activePreviewUrl || heatmapPathLine}
+                  points={points}
+                  heatType={heatType}
+                  underlay={previewUnderlay}
+                  preferredViewportWidth={preferredViewportWidth}
+                  pageScreenshot={pageScreenshot ?? null}
+                  requestedDevice={device}
+                />
+              )}
+              {points.length === 0 && !isLoading && !isDemoMode && (
+                <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
+                  <div className="rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-sm">
+                    <p className="text-xs font-medium text-white/70">
+                      {heatType === 'click'
+                        ? 'No click data yet — try switching to Scroll'
+                        : 'No scroll data yet — try switching to Clicks'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-background/50">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                <span className="text-xs font-medium text-foreground">Loading…</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

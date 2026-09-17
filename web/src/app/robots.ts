@@ -1,6 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/site';
 
+// Required under output: 'export' — this route has no dynamic input, so
+// it's just making that explicit rather than a behavior change.
+export const dynamic = 'force-static';
+
 /**
  * There was no robots.txt at all, so crawlers had no guidance and no pointer to a
  * sitemap.

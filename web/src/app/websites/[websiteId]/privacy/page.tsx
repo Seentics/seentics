@@ -1,33 +1,13 @@
-'use client';
+import PrivacyPage from './page-client';
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { isEnterprise } from '@/lib/features';
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-export default function PrivacyPage() {
-    const params = useParams();
-    const websiteId = params?.websiteId as string;
-    const router = useRouter();
+export const dynamicParams = false;
 
-    useEffect(() => {
-        if (!isEnterprise) {
-            router.replace(`/websites/${websiteId}`);
-        }
-    }, [router, websiteId]);
-
-    if (!isEnterprise) return null;
-
-    return (
-        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-            <DashboardPageHeader
-                websiteId={websiteId}
-                title="Privacy & Compliance"
-                description="Configure data protection and GDPR compliance for your website."
-            />
-
-            <PrivacySettingsComponent websiteId={websiteId} />
-        </div>
-    );
+export default function Page() {
+  return <PrivacyPage />;
 }

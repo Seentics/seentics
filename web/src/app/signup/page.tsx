@@ -1,12 +1,20 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect } from 'react';
 import { config } from '@/lib/config';
 
-/** Signup now lives in auth/web (auth.seentics.com) — see signin/page.tsx. */
-export default async function SignUpRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(await searchParams)) {
-    if (typeof value === 'string') params.set(key, value);
-  }
-  const qs = params.toString();
-  redirect(`${config.authUrl}/signup${qs ? `?${qs}` : ''}`);
+/**
+ * Signup now lives in auth/web (auth.seentics.com) — see signin/page.tsx.
+ *
+ * Used to be a Server Component reading `searchParams` — static export has
+ * no server left to do that per-request, and `await searchParams` is
+ * unsupported under output: 'export' outright (query params aren't known at
+ * build time). Reads the real query string from the browser instead.
+ */
+export default function SignUpRedirect() {
+  useEffect(() => {
+    window.location.replace(`${config.authUrl}/signup${window.location.search}`);
+  }, []);
+
+  return null;
 }

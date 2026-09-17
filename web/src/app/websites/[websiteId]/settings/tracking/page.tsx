@@ -1,10 +1,12 @@
-import { redirect } from 'next/navigation';
+import TrackingSettingsRedirectPage from './page-client';
 
-export default async function TrackingSettingsRedirectPage({
-  params,
-}: {
-  params: Promise<{ websiteId: string }>;
-}) {
-  const { websiteId } = await params;
-  redirect(`/websites/${websiteId}/settings/websites`);
+// See src/lib/path-segment.ts for why this wrapper exists.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
+
+export const dynamicParams = false;
+
+export default function Page() {
+  return <TrackingSettingsRedirectPage />;
 }

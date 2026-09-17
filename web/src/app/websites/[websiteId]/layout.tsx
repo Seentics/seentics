@@ -1,18 +1,19 @@
 'use client';
 
 import React from 'react';
-import { useParams, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardContentOverlay } from '@/components/content-demo/DashboardContentOverlay';
+import { usePathSegment } from '@/lib/path-segment';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const params = useParams();
+  // usePathSegment, not useParams — see src/lib/path-segment.ts.
+  const websiteId = usePathSegment(1) ?? ''; // /websites/:websiteId/...
   const pathname = usePathname();
-  const websiteId = params?.websiteId as string;
   const isAiMode = pathname === `/websites/${websiteId}/ai`;
 
   return (

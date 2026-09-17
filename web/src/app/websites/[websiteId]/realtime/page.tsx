@@ -1,13 +1,13 @@
-'use client';
+import RealtimePage from './page-client';
 
-import { useParams } from 'next/navigation';
-import { RealtimeDashboardSection } from '@/components/analytics/RealtimeDashboardSection';
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-export default function RealtimePage() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
+export const dynamicParams = false;
 
-  if (!websiteId) return null;
-
-  return <RealtimeDashboardSection websiteId={websiteId} />;
+export default function Page() {
+  return <RealtimePage />;
 }

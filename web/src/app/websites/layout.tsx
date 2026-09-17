@@ -2,8 +2,9 @@
 
 import { useAuth } from '@/stores/useAuthStore';
 import { BarChart3 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { usePathSegment } from '@/lib/path-segment';
 
 export default function WebsitesLayout({
   children,
@@ -12,8 +13,11 @@ export default function WebsitesLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const params = useParams();
-  const isDemoMode = params?.websiteId === 'demo';
+  // usePathSegment, not useParams — see src/lib/path-segment.ts. A stale
+  // params() here would misjudge demo mode on a static-export SPA-shell
+  // landing, which gates whether an unauthenticated visitor gets redirected.
+  const websiteId = usePathSegment(1); // /websites/:websiteId/...
+  const isDemoMode = websiteId === 'demo';
 
   useEffect(() => {
     // Only redirect if we're not loading, there's no user, AND we're not in demo mode

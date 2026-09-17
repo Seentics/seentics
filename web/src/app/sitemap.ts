@@ -2,6 +2,10 @@ import type { MetadataRoute } from 'next';
 import { DOCS_PAGES } from '@/components/docs/nav';
 import { SITE_URL } from '@/lib/site';
 
+// Required under output: 'export' — this route has no dynamic input, so
+// it's just making that explicit rather than a behavior change.
+export const dynamic = 'force-static';
+
 /**
  * The public pages, for crawlers.
  *

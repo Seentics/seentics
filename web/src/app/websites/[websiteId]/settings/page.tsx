@@ -1,16 +1,13 @@
-'use client';
+import SettingsPage from './page-client';
 
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-idx' }];
+}
 
-export default function SettingsPage() {
-  const params = useParams();
-  const router = useRouter();
-  const websiteId = params?.websiteId as string;
+export const dynamicParams = false;
 
-  useEffect(() => {
-    router.replace(`/websites/${websiteId}/settings/websites`);
-  }, [websiteId, router]);
-
-  return null;
+export default function Page() {
+  return <SettingsPage />;
 }

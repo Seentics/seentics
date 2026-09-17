@@ -1,0 +1,9 @@
+# Replaces next.config.js's headers() — static export can't ship that
+# (Headers is in Next's "Unsupported Features" list for output: 'export').
+# TLS/HSTS deliberately stays out: Cloudflare already terminates TLS and
+# adds its own security headers at the edge for this zone.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

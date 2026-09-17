@@ -1,32 +1,13 @@
-'use client';
+import PathsPage from './page-client';
 
-import { useParams } from 'next/navigation';
-import { PathAnalysis } from '@/components/analytics/PathAnalysis';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Route, Clock, TrendingUp, Users } from 'lucide-react';
-import { PathsDashboardView } from '@/components/paths/PathsDashboardView';
+// See src/lib/path-segment.ts for why this wrapper exists and why the
+// placeholder below is never the value actually shown to a visitor.
+export function generateStaticParams() {
+  return [{ websiteId: 'w-leaf' }];
+}
 
-export default function PathsPage() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
+export const dynamicParams = false;
 
-  return (
-    <PathsDashboardView
-      websiteId={websiteId}
-      header={
-        <DashboardPageHeader
-          websiteId={websiteId}
-          title="User Paths"
-          description="Discover the most common journeys users take through your product."
-        />
-      }
-      stats={[
-          { label: 'Avg Path Length', value: '3.4', icon: Route, tone: 'accent' },
-          { label: 'Sessions Analyzed', value: '12,543', icon: Users, tone: 'info' },
-          { label: 'Top Journey', value: '/ → /pricing', icon: TrendingUp, tone: 'success' },
-          { label: 'Avg Time', value: '4m 12s', icon: Clock, tone: 'warning' },
-      ]}
-      analysis={<PathAnalysis websiteId={websiteId} dateRange={30} />}
-    />
-  );
+export default function Page() {
+  return <PathsPage />;
 }
