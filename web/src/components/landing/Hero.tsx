@@ -23,7 +23,7 @@ export default function Hero() {
 
           <div>
             <HeroCTA />
-            <ul className="mx-auto grid w-fit gap-x-6 gap-y-2 text-left text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4 lg:text-[15px]">
+            <ul className="mx-auto text-xs lg:text-sm w-fit gap-x-6 gap-y-2 text-left text-muted-foreground flex items-center justify-center mt-6 md:mt-8 md:grid-cols-2">
               {HERO_TRUST.map((item) => (
                 <li key={item} className="flex items-center gap-1.5 whitespace-nowrap">
                   <Check className="h-4 w-4 shrink-0 text-emerald-500" />

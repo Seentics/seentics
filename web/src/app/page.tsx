@@ -25,7 +25,7 @@ export default function LandingPage() {
         <ProductShowcase />
         <SocialProof />
         <FeatureSections />
-        <WhySwitch />
+        {/* <WhySwitch /> */}
         <Pricing />
         <FAQ />
       </main>

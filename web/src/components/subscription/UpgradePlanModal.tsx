@@ -3,7 +3,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Crown, ArrowRight, X, TrendingUp, Loader2 } from 'lucide-react';
+import { CheckCircle, Crown, ArrowRight, X, TrendingUp, Rocket, Loader2 } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -22,6 +22,25 @@ interface UpgradePlanModalProps {
 }
 
 const planDetails = {
+  'core-starter': {
+    name: 'Starter',
+    priceMonthly: 14,
+    priceYearly: 11,
+    priceYearlyTotal: 134,
+    icon: Rocket,
+    color: 'teal',
+    features: [
+      'Unlimited Websites',
+      '200K Events / month',
+      '1K Session Recordings',
+      '250 AI Analyses / month',
+      'Unlimited Heatmaps',
+      'Unlimited Funnels & Automations',
+      '1 Year Data Retention',
+      'Email Support',
+    ],
+    buttonText: 'Get Starter',
+  },
   'suite-pro': {
     name: 'Suite Pro',
     priceMonthly: 29,
@@ -32,35 +51,35 @@ const planDetails = {
     popular: true,
     features: [
       'Unlimited Websites',
-      '1,000,000 Events / month',
-      '5,000 Session Recordings',
-      '1,500 AI Analyses / month',
+      '500K Events / month',
+      '3K Session Recordings',
+      '500 AI Analyses / month',
       'Unlimited Heatmaps',
       'Unlimited Funnels & Automations',
       '2 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '5 Team Members',
+      '7-Day Observability Retention, 5GB Storage',
+      '25 Uptime Monitors',
       'Email Support',
     ],
     buttonText: 'Get Suite Pro',
   },
   'suite-business': {
     name: 'Suite Business',
-    priceMonthly: 69,
-    priceYearly: 55,
-    priceYearlyTotal: 662,
+    priceMonthly: 99,
+    priceYearly: 79,
+    priceYearlyTotal: 950,
     icon: Crown,
     color: 'amber',
     features: [
       'Unlimited Websites',
-      '5,000,000 Events / month',
-      '10,000 Session Recordings',
-      '5,000 AI Analyses / month',
+      '10M Events / month',
+      '10K Session Recordings',
+      '1K AI Analyses / month',
       'Unlimited Heatmaps',
       'Unlimited Funnels & Automations',
       '5 Year Data Retention',
-      'API, SDK & UI Blocks',
-      '10 Team Members',
+      '14-Day Observability Retention, 15GB Storage',
+      'Unlimited Uptime Monitors',
       'Priority Support',
     ],
     buttonText: 'Get Suite Business',
@@ -126,9 +145,9 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
   const normalizedPlan = currentPlan === 'free' ? 'core-free' : currentPlan;
-  const upgradePlans = (['suite-pro', 'suite-business'] as const).filter(p => p !== normalizedPlan);
+  const upgradePlans = (['core-starter', 'suite-pro', 'suite-business'] as const).filter(p => p !== normalizedPlan);
 
-  const handleUpgrade = async (plan: 'suite-pro' | 'suite-business') => {
+  const handleUpgrade = async (plan: 'core-starter' | 'suite-pro' | 'suite-business') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;

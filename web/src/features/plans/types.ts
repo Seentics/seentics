@@ -1,7 +1,7 @@
 export type Plan = {
   id: string;
   name: string;
-  tier: 'free' | 'pro' | 'business' | 'enterprise';
+  tier: 'free' | 'starter' | 'pro' | 'business';
   description: string | null;
   priceMonthly: number;
   priceYearly: number;

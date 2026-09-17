@@ -90,11 +90,11 @@ function FeatureGrid() {
   return (
     <section id="features" className="landing-section">
       <div className="landing-container">
-        <div className="flex itemsc-enter justify-center gap-6 pb-10 md:pb-14 lg:pb-16">
+        <div className="flex items-center justify-center gap-6 pb-10 md:pb-14 lg:pb-16">
           <div>
-            <p className="landing-eyebrow text-center">Core capabilities</p>
+            <p className="landing-eyebrow text-center">Capabilities</p>
             <h2 className="landing-h2 max-w-3xl">
-              From first visit to <span className="">next best action.</span>
+              Seentics core capabilities
             </h2>
           </div>
         </div>
@@ -143,19 +143,19 @@ function AutomationShowcase() {
   return (
     <section id="automations" className="landing-section landing-band">
       <div className="landing-container">
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.45fr)] xl:gap-16">
-          <div className="max-w-xl">
-            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className=" flex flex-col items-center justify-center gap-10  xl:gap-16">
+          <div className="max-w-xl flex items-center justify-center flex-col text-center">
+            {/* <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Zap className="h-5 w-5" />
-            </div>
+            </div> */}
             <p className="landing-eyebrow">Automations</p>
-            <h2 className="landing-h2 mb-5">
-              See a behavior. <span className="landing-accent">Act while it matters.</span>
+            <h2 className="landing-h2 mb-5 text-center">
+              See a behavior. <span className="">Act while it matters.</span>
             </h2>
             <p className="landing-lead mb-7">
               Turn visitor signals into timely actions. Build the flow visually, review every branch, and publish without shipping new code.
             </p>
-            <ul className="space-y-3">
+            {/* <ul className="space-y-3">
               {[
                 'Trigger from exit intent, scroll depth, rage clicks or custom events',
                 'Branch with conditions, delays, rate limits and A/B variants',
@@ -166,17 +166,11 @@ function AutomationShowcase() {
                   <span>{point}</span>
                 </li>
               ))}
-            </ul>
-            <Link
-              href="/docs/automations"
-              className="mt-8 inline-flex h-11 items-center gap-2 rounded-lg border-2 border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
-            >
-              Explore automations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            </ul> */}
+
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 w-full max-w-screen-lg">
             <MacbookFrame
               designWidth={1100}
               designHeight={688}
@@ -281,7 +275,7 @@ export default function FeatureSections() {
     <>
       <FeatureGrid />
       <AutomationShowcase />
-      <AiShowcase />
+      {/* <AiShowcase /> */}
     </>
   );
 }

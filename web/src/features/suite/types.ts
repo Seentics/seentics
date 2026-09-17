@@ -1,6 +1,6 @@
 export type ProductEntitlement = {
   plan: string;
-  tier: 'free' | 'pro' | 'business' | 'enterprise';
+  tier: 'free' | 'starter' | 'pro' | 'business';
   limits: Record<string, number>;
 };
 

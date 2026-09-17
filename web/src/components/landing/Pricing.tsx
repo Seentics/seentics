@@ -95,7 +95,7 @@ export default function Pricing() {
         <div className="mx-auto mb-10 max-w-4xl text-center">
           <p className="landing-eyebrow">Pricing</p>
           <h2 className="landing-h2 mb-4">
-            Simple, <span className="landing-accent">transparent pricing</span>
+            Simple, <span className="">transparent pricing</span>
           </h2>
           <p className="landing-lead">
             Unlimited websites on every plan. Pay only for events.

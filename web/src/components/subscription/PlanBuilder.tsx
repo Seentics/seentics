@@ -6,7 +6,7 @@ import { usePlans } from '@/features/plans/queries';
 import type { Plan } from '@/features/plans/types';
 
 import {
-  ArrowRight, Loader2, Check, Zap, TrendingUp, Crown, Shield, type LucideIcon,
+  ArrowRight, Loader2, Check, Zap, Rocket, TrendingUp, Crown, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,13 +25,13 @@ interface PlanBuilderProps {
   mode?: 'individual' | 'agency';
 }
 
-/** Bold only the numbers that actually vary in a way worth calling out —
- *  the event cap and the Observability line (absent on two of the four
- *  tiers entirely). Session recordings, AI analyses etc. differ too, but
- *  they're not the plan's headline differentiator, so they stay regular
+/** Bold only the numbers that actually vary in a way worth calling out — the
+ *  event cap, and (bundles only) the Observability retention/storage and
+ *  Uptime monitor lines. Session recordings, AI analyses etc. differ too,
+ *  but they're not the plan's headline differentiator, so they stay regular
  *  weight rather than every line competing for attention. */
 function isHeadlineFeature(feature: string): boolean {
-  return feature.includes('Events / month') || feature.startsWith('Observability');
+  return feature.includes('Events / month') || feature.includes('Observability') || feature.includes('Uptime Monitors');
 }
 
 /**
@@ -49,22 +49,24 @@ function isHeadlineFeature(feature: string): boolean {
  */
 const PLAN_PRESENTATION: Record<string, { icon: LucideIcon; popular?: boolean; badge?: string; color?: string; bgColor?: string }> = {
   'core-free': { icon: Zap },
-  // First bundle tier — badged for the thing Free can't do at all: real
-  // headroom plus Observability and Uptime, not a repeat of Free's pitch.
+  // The only standalone paid tier — badged for what it actually is: the
+  // pure-analytics pick for someone who wants nothing else, not a lesser
+  // Suite Pro.
+  'core-starter': { icon: Rocket, badge: 'Best for Web Analytics', color: 'text-teal-600 dark:text-teal-400', bgColor: 'bg-teal-500' },
+  // First bundle tier — badged for the thing Starter can't do at all: real
+  // headroom plus Observability and Uptime, not a repeat of Starter's pitch.
   'suite-pro': { icon: TrendingUp, badge: 'Best for Full Visibility', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500' },
-  'suite-business': { icon: Crown, popular: true },
-  'suite-enterprise': { icon: Shield },
+  'suite-business': { icon: Crown },
 };
 const DEFAULT_PRESENTATION = { icon: Zap };
 
 export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual' }: PlanBuilderProps) {
   const { data: allPlans, isLoading, isError } = usePlans('core');
-  // The marketing page sells the entry-point free tier plus the suite
-  // bundles — a standalone `core-pro`/`core-business` (Core with none of
-  // Observe/Uptime) exists in the catalog for API/checkout flexibility, but
-  // showing it here next to a bundle at the same price would only read as a
-  // strictly-worse option. See gateway/db/sql/014_multi_product_subscriptions.sql.
-  const plans = allPlans?.filter((p) => p.tier === 'free' || p.isBundle);
+  // Free, Starter (Core only), and the three suite bundles — see
+  // gateway/db/sql/015_starter_tier_and_simpler_bundles.sql. Standalone
+  // tiers stop at Starter by design: wanting more than that is what the
+  // suite bundles are for.
+  const plans = allPlans?.filter((p) => p.tier === 'free' || p.tier === 'starter' || p.isBundle);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
 
   const handleSubscribe = (plan: Plan) => {
