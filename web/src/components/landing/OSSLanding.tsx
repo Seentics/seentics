@@ -3,8 +3,6 @@ import Hero from './Hero';
 import SocialProof from './SocialProof';
 import ProductShowcase from './ProductShowcase';
 import FeatureSections from './FeatureSections';
-import APISection from './CodeExamples';
-import UIBlocksSection from './SDKsSection';
 import FAQ from './FAQ';
 import Footer from './Footer';
 
@@ -17,8 +15,6 @@ export default function OSSLanding() {
         <ProductShowcase />
         <SocialProof />
         <FeatureSections />
-        <APISection />
-        <UIBlocksSection />
         <FAQ />
       </main>
       <Footer />
