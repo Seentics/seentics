@@ -31,17 +31,17 @@ npm install
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to access the dashboard.
+Visit [http://localhost:4000](http://localhost:4000) to access the dashboard.
 
 ## Environment Configuration
 
 ```env
 # Point this to your Analytics Backend
-NEXT_PUBLIC_API_URL=http://localhost:3002
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 
 # Authentication
 NEXTAUTH_SECRET=your-secure-secret-here
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:4000
 ```
 
 ## Development Scripts

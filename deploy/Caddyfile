@@ -13,7 +13,7 @@
     Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
     -Server
   }
-  reverse_proxy web:3000
+  reverse_proxy web:4000
 }
 
 # Replay chunks and heatmap layout snapshots use S3 presigned URLs. This separate

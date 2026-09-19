@@ -1,7 +1,7 @@
 const ADMIN_TOKEN_KEY = 'seentics_admin_token';
 
 function getApiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1').replace(/\/api\/v1$/, '');
+  return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1').replace(/\/api\/v1$/, '');
 }
 
 export function getAdminToken(): string | null {

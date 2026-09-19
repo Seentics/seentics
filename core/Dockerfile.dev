@@ -7,8 +7,8 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-EXPOSE 8080
+EXPOSE 8001
 
-ENV PORT=8080
+ENV PORT=8001
 
 CMD ["bun", "run", "--watch", "index.ts"]

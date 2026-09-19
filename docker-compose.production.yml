@@ -33,21 +33,21 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        API_GATEWAY_URL: http://api:8080
+        API_GATEWAY_URL: http://api:8001
         NEXT_PUBLIC_API_URL: /api/v1
         NEXT_PUBLIC_IS_ENTERPRISE: ${NEXT_PUBLIC_IS_ENTERPRISE:-false}
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      API_GATEWAY_URL: http://api:8080
-    expose: ["3000"]
+      API_GATEWAY_URL: http://api:8001
+    expose: ["4000"]
     depends_on:
       api:
         condition: service_healthy
     networks: [private]
     security_opt: [no-new-privileges:true]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -59,7 +59,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      PORT: "8080"
+      PORT: "8001"
       ENVIRONMENT: production
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
@@ -76,7 +76,7 @@ services:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
       DATA_RETENTION_ENABLED: "true"
-    expose: ["8080"]
+    expose: ["8001"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,7 +85,7 @@ services:
     networks: [private]
     security_opt: [no-new-privileges:true]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8001/health"]
       interval: 15s
       timeout: 5s
       retries: 8

@@ -20,10 +20,10 @@
   },
   "homepage": "https://github.com/Seentics/seentics#readme",
   "scripts": {
-    "dev": "node public/trackers/bundle-trackers.cjs && next dev",
+    "dev": "node public/trackers/bundle-trackers.cjs && next dev -p 4000",
     "bundle-trackers": "node public/trackers/bundle-trackers.cjs",
     "build": "node public/trackers/bundle-trackers.cjs && next build",
-    "start": "next start",
+    "start": "next start -p 4000",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package && node public/trackers/bundle-trackers.cjs",
     "test": "vitest run",

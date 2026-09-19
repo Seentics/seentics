@@ -3,11 +3,11 @@
 
 export const config = {
   // API Configuration
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   apiVersion: 'v1',
 
   // Frontend Configuration
-  frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
+  frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:4000',
 
   // Sibling suite products — used by the "Suites" sidebar switcher. Same
   // shared-cookie session (Domain=.seentics.com in production) carries over,
@@ -82,7 +82,7 @@ export const getApiUrl = (endpoint: string = '') => {
   const ep = normalizeApiEndpoint(endpoint);
 
   if (typeof window !== 'undefined') {
-    // When NEXT_PUBLIC_API_URL is absolute (e.g. http://localhost:8080/api/v1 in Docker),
+    // When NEXT_PUBLIC_API_URL is absolute (e.g. http://localhost:8000/api/v1 in Docker),
     // call the gateway directly. Same-origin /api/v1 only works if Next rewrites proxy correctly.
     const publicUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
     if (publicUrl.startsWith('http://') || publicUrl.startsWith('https://')) {

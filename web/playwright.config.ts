@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -40,10 +40,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // `PORT` is honoured here as well as in `baseURL`. It used to be hardcoded to 3000
+    // `PORT` is honoured here as well as in `baseURL`. It used to be hardcoded to 4000
     // while `baseURL` respected the variable, so `PORT=3100` pointed the tests at one
     // port and the server at another — and on CI, where `reuseExistingServer` is off,
-    // any process already holding 3000 (a docker-compose stack, say) failed the run
+    // any process already holding 4000 (a docker-compose stack, say) failed the run
     // outright with no way to move it.
     command: `npm run dev -- --port ${PORT}`,
     url: baseURL,

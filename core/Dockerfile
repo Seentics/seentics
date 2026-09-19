@@ -47,7 +47,7 @@ RUN groupadd --system --gid 10001 seentics \
     && chown -R seentics:seentics /app /ms-playwright
 USER seentics
 
-EXPOSE 3002
-ENV PORT=3002
+EXPOSE 8001
+ENV PORT=8001
 
 CMD ["bun", "run", "index.ts"]

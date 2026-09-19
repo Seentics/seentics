@@ -1,6 +1,6 @@
 /**
  * Fixes common website URL typos so in-app previews (heatmaps iframe) match the dev dashboard origin.
- * Example: user sets "https://localhost.com" but runs the app at http://localhost:3000 → broken iframe / chrome-error.
+ * Example: user sets "https://localhost.com" but runs the app at http://localhost:4000 → broken iframe / chrome-error.
  */
 export function normalizeWebsiteOriginForPreview(
   rawUrl: string,

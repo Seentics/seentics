@@ -36,7 +36,7 @@ ARG NEXT_PUBLIC_SUPPORT_EMAIL=support@seentics.com
 ENV NEXT_PUBLIC_SUPPORT_EMAIL=$NEXT_PUBLIC_SUPPORT_EMAIL
 
 # Gateway URL for Next.js rewrites (baked at build time)
-ARG API_GATEWAY_URL=http://gateway:8080
+ARG API_GATEWAY_URL=http://gateway:8000
 ENV API_GATEWAY_URL=$API_GATEWAY_URL
 
 # Seentics self-tracking (baked at build time)
@@ -78,9 +78,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 4000
 
-ENV PORT=3000
+ENV PORT=4000
 # set hostname to localhost
 ENV HOSTNAME=0.0.0.0
 

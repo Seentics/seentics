@@ -432,7 +432,7 @@ result.results.forEach((r) => {
 ### cURL
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/heatmaps/my-website/playwright-screenshot \
+curl -X POST http://localhost:8001/api/v1/heatmaps/my-website/playwright-screenshot \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

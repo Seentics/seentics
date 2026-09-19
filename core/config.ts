@@ -90,7 +90,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
 
   const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "").trim();
   const corsAllowedOrigins = configuredCorsOrigins ||
-    "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com";
+    "http://localhost:4000,http://127.0.0.1:4000,https://www.seentics.com,https://seentics.com";
 
   if (isProduction) {
     requireProductionSecret("JWT_SECRET", jwtSecret);
@@ -201,7 +201,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     presignTtlMs: Math.max(60, presignTtlSec) * 1000,
     spoolIdleMs,
     replayChunkFlushMs: Math.max(5_000, replayChunkFlushMs),
-    port: Number(process.env.PORT ?? "8080"),
+    port: Number(process.env.PORT ?? "8001"),
     trustProxy: parseBool(process.env.TRUST_PROXY, false),
     /** Local GeoLite2-City / GeoIP2-City `.mmdb` path; no HTTP API — see `lib/maxmind-geo.ts`. */
     maxmind: {

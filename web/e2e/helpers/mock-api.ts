@@ -3,7 +3,7 @@ import { Page } from '@playwright/test';
 /**
  * Mock all global / shell API routes that fire on every authenticated page.
  *
- * Without these mocks the Next.js rewrite proxy tries to reach localhost:8080
+ * Without these mocks the Next.js rewrite proxy tries to reach localhost:8000
  * (the backend gateway) which isn't running during E2E tests, causing
  * ECONNREFUSED and preventing components from finishing their loading phase.
  */

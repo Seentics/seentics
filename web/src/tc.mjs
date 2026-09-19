@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 const b = await chromium.launch();
 for (const p of ['/', '/pricing']) {
   const page = await b.newPage({ viewport: { width: 1400, height: 900 } });
-  await page.goto('http://localhost:3000' + p, { waitUntil: 'networkidle', timeout: 180000 });
+  await page.goto('http://localhost:4000' + p, { waitUntil: 'networkidle', timeout: 180000 });
   const h = await page.evaluate(() => document.body.scrollHeight);
   for (let y = 0; y < h; y += 800) { await page.mouse.wheel(0, 800); await page.waitForTimeout(80); }
   await page.waitForTimeout(500);
