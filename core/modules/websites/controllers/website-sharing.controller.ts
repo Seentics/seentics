@@ -6,7 +6,7 @@ import type { WebsiteControllerDeps } from "./website-controller.types";
 export function updateWebsiteSharing(deps: WebsiteControllerDeps) {
   return async (c: Context<{ Variables: AuthVars }, "/:id/share">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     const body = await c.req.json<{ enabled?: boolean }>().catch(() => ({ enabled: true }));
     try {

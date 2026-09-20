@@ -10,7 +10,7 @@ type GoalContext<Path extends string> = Context<{ Variables: AuthVars }, Path>;
 export function listWebsiteGoals(deps: WebsiteControllerDeps) {
   return async (c: GoalContext<"/:id/goals">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer", "analytics:dashboard.view");
     if ("denied" in access) return access.denied;
     try {
       return c.json(await deps.goals.listWebsiteGoals(websiteId) as object);
@@ -23,7 +23,7 @@ export function listWebsiteGoals(deps: WebsiteControllerDeps) {
 export function createWebsiteGoal(deps: WebsiteControllerDeps) {
   return async (c: GoalContext<"/:id/goals">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "member");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "member", "analytics:goals.manage");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, goalCreateSchema);
     if (!parsed.ok) return parsed.res;
@@ -39,7 +39,7 @@ export function createWebsiteGoal(deps: WebsiteControllerDeps) {
 export function updateWebsiteGoal(deps: WebsiteControllerDeps) {
   return async (c: GoalContext<"/:id/goals/:goal_id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "member");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "member", "analytics:goals.manage");
     if ("denied" in access) return access.denied;
     const parsed = goalPatchSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return validationErrorResponse(c, parsed.error);
@@ -59,7 +59,7 @@ export function updateWebsiteGoal(deps: WebsiteControllerDeps) {
 export function deleteWebsiteGoal(deps: WebsiteControllerDeps) {
   return async (c: GoalContext<"/:id/goals/:goal_id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "member");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "member", "analytics:goals.manage");
     if ("denied" in access) return access.denied;
     try {
       await deps.goals.deleteWebsiteGoal(websiteId, c.req.param("goal_id"));

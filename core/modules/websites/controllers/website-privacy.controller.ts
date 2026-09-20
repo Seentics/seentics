@@ -14,7 +14,7 @@ const defaults: WebsitePrivacySettings = {
 export function getWebsitePrivacy(deps: WebsiteControllerDeps) {
   return async (c: Context<{ Variables: AuthVars }, "/:websiteId/privacy">) => {
     const websiteId = c.req.param("websiteId");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "owner");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "owner", "analytics:privacy.manage");
     if ("denied" in access) return access.denied;
     return c.json({ success: true, data: await deps.privacy.get(websiteId) });
   };
@@ -23,7 +23,7 @@ export function getWebsitePrivacy(deps: WebsiteControllerDeps) {
 export function updateWebsitePrivacy(deps: WebsiteControllerDeps) {
   return async (c: Context<{ Variables: AuthVars }, "/:websiteId/privacy">) => {
     const websiteId = c.req.param("websiteId");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "owner");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "owner", "analytics:privacy.manage");
     if ("denied" in access) return access.denied;
     const body = await c.req.json<Partial<WebsitePrivacySettings>>().catch(() => null);
     const ip = body?.ipAnonymization;

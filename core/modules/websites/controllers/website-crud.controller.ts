@@ -35,7 +35,7 @@ export function createWebsite(deps: WebsiteControllerDeps) {
 export function getWebsite(deps: WebsiteControllerDeps) {
   return async (c: WebContext<"/:id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer", "analytics:dashboard.view");
     if ("denied" in access) return access.denied;
     try {
       const website = await deps.traffic.getWithTraffic(websiteId);
@@ -51,7 +51,7 @@ export function getWebsite(deps: WebsiteControllerDeps) {
 export function updateWebsite(deps: WebsiteControllerDeps) {
   return async (c: WebContext<"/:id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     const raw = await c.req.json().catch(() => null);
     const parsed = websitePatchSchema.safeParse(raw);
@@ -70,7 +70,7 @@ export function updateWebsite(deps: WebsiteControllerDeps) {
 export function deleteWebsite(deps: WebsiteControllerDeps) {
   return async (c: WebContext<"/:id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "owner");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "owner", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     try {
       await deps.mutations.delete(websiteId);

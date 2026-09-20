@@ -9,7 +9,7 @@ type MemberContext<Path extends string> = Context<{ Variables: AuthVars }, Path>
 
 export function getWebsiteRole(deps: WebsiteControllerDeps) {
   return async (c: MemberContext<"/:id/my-role">) => {
-    const access = await requireWebsiteAccess(c, deps, c.req.param("id"), "viewer");
+    const access = await requireWebsiteAccess(c, deps, c.req.param("id"), "viewer", "analytics:dashboard.view");
     if ("denied" in access) return access.denied;
     return c.json({ data: { role: access.role } });
   };
@@ -18,7 +18,7 @@ export function getWebsiteRole(deps: WebsiteControllerDeps) {
 export function listWebsiteMembers(deps: WebsiteControllerDeps) {
   return async (c: MemberContext<"/:id/members">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "viewer", "analytics:dashboard.view");
     if ("denied" in access) return access.denied;
     try {
       return c.json(await deps.members.list(websiteId) as object);
@@ -31,7 +31,7 @@ export function listWebsiteMembers(deps: WebsiteControllerDeps) {
 export function addWebsiteMember(deps: WebsiteControllerDeps) {
   return async (c: MemberContext<"/:id/members">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, memberAddSchema);
     if (!parsed.ok) return parsed.res;
@@ -47,7 +47,7 @@ export function addWebsiteMember(deps: WebsiteControllerDeps) {
 export function removeWebsiteMember(deps: WebsiteControllerDeps) {
   return async (c: MemberContext<"/:id/members/:user_id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     try {
       await deps.members.remove(websiteId, access.userId, access.role, c.req.param("user_id"));
@@ -61,7 +61,7 @@ export function removeWebsiteMember(deps: WebsiteControllerDeps) {
 export function updateWebsiteMemberRole(deps: WebsiteControllerDeps) {
   return async (c: MemberContext<"/:id/members/:user_id/role">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, memberRoleSchema);
     if (!parsed.ok) return parsed.res;

@@ -11,7 +11,7 @@ type InvitationContext<Path extends string> = Context<{ Variables: AuthVars }, P
 export function listWebsiteInvitations(deps: WebsiteControllerDeps) {
   return async (c: InvitationContext<"/:id/invitations">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     try {
       return c.json(await deps.invitations.list(websiteId) as object);
@@ -24,7 +24,7 @@ export function listWebsiteInvitations(deps: WebsiteControllerDeps) {
 export function createWebsiteInvitation(deps: WebsiteControllerDeps) {
   return async (c: InvitationContext<"/:id/invitations">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, invitationCreateSchema);
     if (!parsed.ok) return parsed.res;
@@ -49,7 +49,7 @@ export function createWebsiteInvitation(deps: WebsiteControllerDeps) {
 export function revokeWebsiteInvitation(deps: WebsiteControllerDeps) {
   return async (c: InvitationContext<"/:id/invitations/:invitation_id">) => {
     const websiteId = c.req.param("id");
-    const access = await requireWebsiteAccess(c, deps, websiteId, "admin");
+    const access = await requireWebsiteAccess(c, deps, websiteId, "admin", "analytics:settings.manage");
     if ("denied" in access) return access.denied;
     try {
       await deps.invitations.revoke(websiteId, c.req.param("invitation_id"));
