@@ -42,6 +42,9 @@ export function env() {
 
   const jwtSecret = process.env.JWT_SECRET ?? "";
   const globalApiKey = process.env.GLOBAL_API_KEY ?? "";
+  // Managed Cloud exposes Core only behind Gateway. Standalone deployments
+  // can opt out explicitly with GATEWAY_ONLY=false.
+  const gatewayOnly = parseBool(process.env.GATEWAY_ONLY, Boolean(globalApiKey));
   const environment = (process.env.ENVIRONMENT ?? process.env.NODE_ENV ?? "development").trim().toLowerCase();
   const isProduction = environment === "production";
 
@@ -195,6 +198,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     databaseUrl,
     jwtSecret,
     globalApiKey,
+    gatewayOnly,
     environment,
     isProduction,
     s3: { bucket, heatmapBucket, region, endpoint, publicEndpoint: s3PublicEndpoint, accessKey, secretKey },

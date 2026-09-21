@@ -7,6 +7,7 @@ import { bootstrap } from "./app/bootstrap";
 import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
 import { requestLogMiddleware } from "./platform/middleware/request-log";
+import { isGlobalApiKeyValid } from "./platform/security/global-key";
 import { privacyRoutes } from "./app/http/privacy";
 import { createRawDataRoutes } from "./app/http/public-api/routes";
 import { createUserBranchRoutes } from "./app/http/user-branch";
@@ -56,6 +57,13 @@ app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
 
 // Return 503 while migrations are running so the healthcheck waits without counting failures
 app.get("/health", (c) => ready ? c.text("ok") : c.text("starting", 503));
+
+// Core is a downstream service in managed Cloud. This closes a directly
+// reachable debug port as a route around Gateway auth, quotas, and auditing.
+app.use("/api/*", async (c, next) => {
+  if (!cfg.gatewayOnly || isGlobalApiKeyValid(cfg, c.req.header("X-API-Key"))) return next();
+  return c.json({ error: "Gateway authentication required" }, 401);
+});
 
 app.route("/api/v1/auth", application.modules.auth.routes);
 app.route(
