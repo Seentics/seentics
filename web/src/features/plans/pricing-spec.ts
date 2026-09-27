@@ -93,6 +93,21 @@ export function formatInterval(seconds: number | undefined): string {
   return seconds === 60 ? '1 min' : `${Math.round(seconds / 60)} min`;
 }
 
+/**
+ * About how much a plan lets you send in a month. The cap is on data kept
+ * (OpenObserve's uncompressed `storage_size`), and at steady state what's
+ * kept is one retention window's worth of sending — so a month's worth is
+ * storage × 30 / retention. It's what other vendors quote (GB ingested per
+ * month), which is why it's shown: "10 GB" beside a competitor's "50 GB
+ * ingested" undersells a plan that takes ~43 GB a month.
+ */
+export function monthlySendGb(plan: PricedPlan): number | undefined {
+  const storage = limit(plan, 'observe', 'storage_gb');
+  const retention = limit(plan, 'observe', 'retention_days');
+  if (storage === undefined || retention === undefined || storage === -1 || retention <= 0) return undefined;
+  return Math.round((storage * 30) / retention);
+}
+
 const gb = (value: number | undefined) => (value === undefined ? '—' : value === -1 ? 'Unlimited' : `${value} GB`);
 
 /** Uptime's fastest interval, from the seconds key or the older minutes one. */
@@ -160,6 +175,8 @@ const SUITE_CORE_LABELS = new Set(['events / month', 'session recordings / month
 export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSection[] {
   const storage: Highlight = { value: gb(limit(plan, 'observe', 'storage_gb')), label: 'storage' };
   const observeRetention: Highlight = { value: formatDays(limit(plan, 'observe', 'retention_days')), label: 'retention' };
+  const send = monthlySendGb(plan);
+  const observeSend: Highlight = { value: send === undefined ? '—' : `≈ ${send} GB`, label: 'sent / month' };
   const monitors = limit(plan, 'uptime', 'max_monitors');
   const monitorItem: Highlight = { value: formatCount(monitors), label: plural(monitors, 'monitor', 'monitors') };
   const checkItem: Highlight = { value: fastestCheck(plan), label: 'fastest check' };
@@ -170,7 +187,7 @@ export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSe
         // The headline allowance of each product; the rest is one click away
         // in the comparison table.
         { title: 'Analytics', items: coreItems(plan, false).filter((item) => SUITE_CORE_LABELS.has(item.label)) },
-        { title: 'Observability', items: [storage, observeRetention] },
+        { title: 'Observability', items: [storage, observeRetention, observeSend] },
         { title: 'Uptime', items: [monitorItem, checkItem] },
       ];
     case 'core':
@@ -183,6 +200,7 @@ export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSe
           items: [
             storage,
             observeRetention,
+            observeSend,
             { value: formatCount(projects), label: plural(projects, 'project', 'projects') },
             { value: free ? 'Basic' : 'Unlimited', label: 'dashboards' },
             { value: free ? 'Basic' : 'Full', label: 'alerting' },
@@ -230,6 +248,7 @@ const coreRows = (retentionLabel: string): CompareRow[] => [
 const observeRows: CompareRow[] = [
   { label: 'Storage', value: (p) => gb(limit(p, 'observe', 'storage_gb')) },
   { label: 'Retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
+  { label: 'Data you can send / month', value: (p) => { const v = monthlySendGb(p); return v === undefined ? '—' : `≈ ${v} GB`; } },
   { label: 'Logs, metrics & traces', value: () => true },
 ];
 
@@ -255,7 +274,7 @@ export function compareGroupsFor(family: PricingFamily): CompareGroup[] {
       return [
         {
           rows: [
-            ...observeRows.slice(0, 2),
+            ...observeRows.slice(0, 3),
             { label: 'Logs', value: () => true },
             { label: 'Metrics', value: () => true },
             { label: 'Distributed traces', value: () => true },

@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Check,
-  CircleDollarSign,
   Filter,
   MousePointer2,
   PlayCircle,
@@ -63,13 +62,14 @@ const FEATURES = [
     tone: 'bg-amber-500/10 text-amber-500',
   },
   {
-    id: 'revenue',
-    title: 'Revenue insights',
+    // Not 'automations': the automation builder section below already owns that id.
+    id: 'automations-feature',
+    title: 'Automations',
     description:
-      'Connect campaigns and customer behavior directly to purchases and lifetime value.',
-    tags: ['Attribution', 'Transactions'],
-    href: '/docs/analytics',
-    icon: CircleDollarSign,
+      'Act the moment behavior happens: catch exit intent, rage clicks or an abandoned form and respond with a message, redirect or webhook.',
+    tags: ['Behavior triggers', 'On-page actions', 'Webhooks'],
+    href: '/docs/automations',
+    icon: Zap,
     layout: 'lg:col-span-4',
     tone: 'bg-emerald-500/10 text-emerald-500',
   },

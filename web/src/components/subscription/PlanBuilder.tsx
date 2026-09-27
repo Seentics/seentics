@@ -13,6 +13,7 @@ import {
   compareGroupsFor,
   supportFor,
 } from '@/features/plans/pricing-spec';
+import { LOGOS, SEPARATE_TOTAL, SUITE_COMPARED_TIER, SUITE_REPLACES, logoFill } from '@/features/plans/competitors';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
@@ -215,6 +216,8 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
             {plans.map(renderCard)}
           </div>
 
+          {family === 'suite' && <SuiteReplaces plans={plans} />}
+
           <p className="mt-8 text-center text-sm text-muted-foreground">{tab.includes}</p>
 
           <div className="mt-6 flex justify-center">
@@ -285,6 +288,63 @@ function CompareTable({ family, plans }: { family: PlanFamily; plans: Plan[] }) 
           </tbody>
         ))}
       </table>
+    </div>
+  );
+}
+
+/**
+ * The Suite's strongest argument, made concretely: the separate tools a team
+ * would pay for instead, logo by logo, against one Suite plan's price.
+ */
+function SuiteReplaces({ plans }: { plans: Plan[] }) {
+  const suite = plans.find((plan) => plan.tier === SUITE_COMPARED_TIER);
+  if (!suite) return null;
+  const saving = SEPARATE_TOTAL - suite.priceMonthly;
+
+  return (
+    <div className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-8">
+      <div className="mb-6 text-center">
+        <h3 className="text-lg font-semibold">What Seentics Suite Pro replaces</h3>
+        <p className="mt-1 text-sm text-muted-foreground">The tools a team would otherwise pay for, one bill each.</p>
+      </div>
+
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {SUITE_REPLACES.map((tool) => (
+          <li key={tool.id} className="flex items-center gap-3 rounded-xl border border-border bg-background/60 p-4">
+            <svg
+              role="img"
+              aria-label={`${tool.name} logo`}
+              viewBox="0 0 24 24"
+              className="h-8 w-8 shrink-0 text-foreground"
+              fill={logoFill(tool.id) ?? 'currentColor'}
+            >
+              <path d={LOGOS[tool.id].path} />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{tool.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{tool.role}</p>
+            </div>
+            <p className="ml-auto text-sm font-semibold tabular-nums">${tool.priceMonthly}</p>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-6 flex flex-col items-center justify-center gap-2 text-center sm:flex-row sm:gap-6">
+        <p className="text-sm text-muted-foreground">
+          Separately: <span className="font-semibold text-foreground line-through decoration-red-500/70 decoration-2">${SEPARATE_TOTAL}+/month</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Seentics Suite Pro: <span className="text-base font-bold text-primary">${suite.priceMonthly}/month</span>
+        </p>
+        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          Save ${saving}+ every month
+        </span>
+      </div>
+
+      <p className="mt-4 text-center text-[11px] text-muted-foreground">
+        Vendors&apos; published entry prices, September 2026. Separate tools also mean separate logins, bills and
+        data that doesn&apos;t link up — Seentics connects logs, traces, uptime and analytics in one place.
+      </p>
     </div>
   );
 }
