@@ -2,6 +2,26 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
+
+type ChannelRow = {
+  channel: string | null;
+  site_total: boolean;
+  views: number;
+  sessions: number;
+  unique_visitors: number;
+};
+
+/** The same rows as the raw query below, from the rollups' session channels. */
+async function channelRowsFromRollups(websiteId: string, days: number): Promise<ChannelRow[]> {
+  const [channels, uv] = await Promise.all([topRows(websiteId, "channel", days, 20), siteUniques(websiteId, days)]);
+  const views = channels.reduce((s, c) => s + c.views, 0);
+  const sessions = channels.reduce((s, c) => s + c.sessions, 0);
+  return [
+    ...channels.map((c) => ({ channel: c.k, site_total: false, views: c.views, sessions: c.sessions, unique_visitors: c.unique_visitors })),
+    { channel: null, site_total: true, views, sessions, unique_visitors: uv },
+  ];
+}
 
 export async function getTrafficSummaryStats(
   websiteId: string,
@@ -27,13 +47,7 @@ export async function getTrafficSummaryStats(
    * the same pass — the site-wide visitor count cannot be the per-channel sum, since a
    * visitor who came twice through different channels would count twice.
    */
-  const rows = await pgSql<{
-    channel: string | null;
-    site_total: boolean;
-    views: number;
-    sessions: number;
-    unique_visitors: number;
-  }[]>`
+  const rows = rollupsEnabled() ? await channelRowsFromRollups(websiteId, days) : await pgSql<ChannelRow[]>`
     WITH per_session AS (
       SELECT
         coalesce(

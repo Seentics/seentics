@@ -1,5 +1,6 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, sanitizeTimezone, windowStartIso } from "./shared";
+import { hourlyRows, rollupsEnabled } from "../rollups/reads";
 
 export async function getHourlyStatsAnalytics(
   websiteId: string,
@@ -11,7 +12,7 @@ export async function getHourlyStatsAnalytics(
 
   // Raw SQL avoids Drizzle generating separate parameter bindings for the same
   // timezone expression in SELECT vs GROUP BY, which causes Postgres error 42803.
-  const rows = await pgSql<{ h: number; views: number; unique: number }[]>`
+  const rows = rollupsEnabled() ? await hourlyRows(websiteId, days, tz) : await pgSql<{ h: number; views: number; unique: number }[]>`
     -- Views and distinct visitors in two hash-aggregation steps: one row per (hour,
     -- visitor), then one per hour. count(DISTINCT …) always sorts, and over a large
     -- window that sort spilled to disk — 32.8 s for a 90-day top-pages over 633k

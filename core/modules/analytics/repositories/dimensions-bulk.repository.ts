@@ -2,6 +2,7 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql, withoutVersionSql } from "../lib/dimension-sql";
 import { parseDays, windowStartIso } from "./shared";
 import { sessionReferrerRows } from "./referrers.repository";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 /**
  * All six dimension breakdowns (pages, referrers, countries, browsers, devices, OS) behind
@@ -27,6 +28,28 @@ export async function getDimensionsBulkAnalytics(
   const startIso = windowStartIso(days);
 
   type DimRow  = { k: string | null; views: number; unique_visitors: number };
+
+  // From the rollups when available: six small lookups instead of six scans.
+  if (rollupsEnabled()) {
+    const [pages, referrers, countries, browsers, devices, os] = await Promise.all([
+      topRows(websiteId, "page", days, 50),
+      sessionReferrerRows(websiteId, days),
+      topRows(websiteId, "country", days, 50),
+      topRows(websiteId, "browser", days, 50),
+      topRows(websiteId, "device", days, 50),
+      topRows(websiteId, "os", days, 50),
+    ]);
+    return {
+      website_id: websiteId,
+      date_range: `${days}d`,
+      top_pages:     pages.map(r => ({ page: r.k, views: r.views, unique: r.unique_visitors })),
+      top_referrers: referrers.map(r => ({ referrer: r.referrer, views: Number(r.views), unique: Number(r.unique_visitors) })),
+      top_countries: countries.map(r => ({ country: r.k, views: r.views, unique: r.unique_visitors })),
+      top_browsers:  browsers.map(r => ({ browser: r.k, views: r.views, unique: r.unique_visitors })),
+      top_devices:   devices.map(r => ({ device: r.k, views: r.views, unique: r.unique_visitors })),
+      top_os:        os.map(r => ({ os: r.k, views: r.views, unique: r.unique_visitors })),
+    };
+  }
 
   // Referrers use session-based deduplication (first referrer per session).
   // Everything else is a simple GROUP BY.
@@ -56,7 +79,7 @@ export async function getDimensionsBulkAnalytics(
       // Kept in step with referrers.repository.ts, which carries the full note: the
       // normalisation belongs inside the window, or NULL, empty and whitespace referrers
       // become three separate groups that all render as 'direct'.
-      sessionReferrerRows(websiteId, startIso),
+      sessionReferrerRows(websiteId, days),
       pgSql<DimRow[]>`
         SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
         FROM (

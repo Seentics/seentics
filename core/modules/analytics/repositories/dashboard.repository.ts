@@ -3,6 +3,7 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { log } from "../../../platform/observability/logger";
 import { parseDays } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
+import { dashboardRows, rollupsEnabled } from "../rollups/reads";
 
 /** The windowed pageview/visitor counts, current period and the one before it. */
 type TrafficAgg = {
@@ -166,6 +167,18 @@ async function fetchDashboardRows(
   return { agg, sess, liveVisitors: Number(liveRow[0]?.c ?? 0) };
 }
 
+/** Distinct visitors with a pageview in the live window (the last 30 seconds). */
+async function fetchLiveVisitors(websiteId: string): Promise<number> {
+  const [row] = await pgSql<{ c: number }[]>`
+    SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c
+    FROM analytics_events
+    WHERE website_id = ${websiteId}
+      AND event_type = 'pageview'
+      AND occurred_at >= ${new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString()}
+  `;
+  return Number(row?.c ?? 0);
+}
+
 /**
  * The three result rows into the response the dashboard renders.
  *
@@ -272,6 +285,17 @@ export async function getDashboardStats(
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
+
+  // Rollups when available (see rollups/reads.ts); live visitors are always read raw,
+  // since they cover the last 30 seconds.
+  if (rollupsEnabled()) {
+    const [{ agg, sess }, liveVisitors] = await Promise.all([
+      dashboardRows(websiteId, days),
+      fetchLiveVisitors(websiteId),
+    ]);
+    return shapeDashboardStats(websiteId, days, { agg, sess, liveVisitors });
+  }
+
   const end = new Date();
   const start = new Date(end.getTime() - days * 86400000);
   const prevStart = new Date(start.getTime() - days * 86400000);

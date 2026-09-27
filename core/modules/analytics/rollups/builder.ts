@@ -25,6 +25,8 @@ const log = baseLog.child({ category: "analytics_rollups" });
 /** HyperLogLog parameters for every visitor sketch: ~1.2% typical error, ≤5 KB. */
 const HLL_PARAMS = "13, 5";
 const VISITOR_KEY = "coalesce(nullif(trim(visitor_id), ''), session_id)";
+/** Most `path` rows kept per site-day — see the path insert in rebuildWebsiteDay. */
+const PATHS_PER_DAY = 1000;
 
 const DAY_MS = 86_400_000;
 const dayBound = (day: string, offsetDays: number) =>
@@ -128,6 +130,9 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
           nullif(trim(language), '') AS language,
           CASE WHEN screen_width IS NOT NULL AND screen_height IS NOT NULL
                THEN screen_width::text || 'x' || screen_height::text END AS resolution,
+          nullif(trim(utm_source), '') AS utm_source,
+          nullif(trim(utm_medium), '') AS utm_medium,
+          nullif(trim(utm_campaign), '') AS utm_campaign,
           ${u(VISITOR_KEY)} AS vk
         FROM analytics_events
         WHERE website_id = ${websiteId} AND event_type = 'pageview'
@@ -142,7 +147,11 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         ('browser', pv.browser),
         ('os', pv.os),
         ('language', pv.language),
-        ('resolution', pv.resolution)
+        ('resolution', pv.resolution),
+        -- Pageviews that carried any UTM tag, by page and tags: [path, source, medium, campaign].
+        ('page_utm', CASE WHEN pv.path IS NOT NULL
+                           AND coalesce(pv.utm_source, pv.utm_medium, pv.utm_campaign) IS NOT NULL
+                          THEN json_build_array(pv.path, pv.utm_source, pv.utm_medium, pv.utm_campaign)::text END)
       ) AS d(dim, val)
       WHERE d.val IS NOT NULL
       GROUP BY d.dim, d.val
@@ -165,11 +174,34 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         ('utm_medium', s.utm_medium),
         ('utm_campaign', s.utm_campaign),
         ('entry_page', s.landing_path),
-        ('exit_page', s.exit_path),
-        ('path', array_to_json(s.path_seq)::text)
+        ('exit_page', s.exit_path)
       ) AS d(dim, val)
       WHERE s.website_id = ${websiteId} AND s.day = ${day}::date AND d.val IS NOT NULL
       GROUP BY d.dim, d.val
+    `;
+
+    // Paths (a session's first three pages), capped at the day's top PATHS_PER_DAY by
+    // sessions. Three pages combine into far more values than any other dimension —
+    // ~5,000 a day on a site with 200 pages, nearly all of them a single session — and
+    // path analysis only ever shows the top 50 of a window. Uncapped, a 90-day read
+    // scanned 380k rows and took 2 s; a path under the cap on a day cannot be near the
+    // window's top 50, which each hold hundreds of sessions a day.
+    await tx`
+      INSERT INTO analytics_rollup_daily
+        (website_id, day, dimension, value, pageviews, sessions, bounces, duration_s, visitors)
+      SELECT ${websiteId}, ${day}::date, 'path', val, pageviews, sessions, bounces, duration_s, visitors
+      FROM (
+        SELECT array_to_json(s.path_seq)::text AS val,
+               sum(s.pageviews) AS pageviews, count(*) AS sessions,
+               count(*) FILTER (WHERE s.pageviews = 1) AS bounces,
+               sum(greatest(0, extract(epoch FROM s.ended_at - s.started_at)))::bigint AS duration_s,
+               coalesce(hll_add_agg(hll_hash_text(s.visitor_key), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)})) AS visitors
+        FROM analytics_rollup_sessions s
+        WHERE s.website_id = ${websiteId} AND s.day = ${day}::date AND s.path_seq IS NOT NULL
+        GROUP BY 1
+        ORDER BY sessions DESC, val
+        LIMIT ${PATHS_PER_DAY}
+      ) p
     `;
 
     // Site totals: pageviews and visitors from this day's pageviews; sessions, bounces
@@ -201,6 +233,19 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
       WHERE website_id = ${websiteId} AND event_type <> 'pageview'
         AND occurred_at >= ${dayStart} AND occurred_at < ${dayEnd}
       GROUP BY event_type
+    `;
+
+    // Legacy custom events (event_type 'custom', the name in properties) by that name,
+    // which is what an event goal created for them matches.
+    await tx`
+      INSERT INTO analytics_rollup_daily (website_id, day, dimension, value, pageviews, sessions, visitors)
+      SELECT ${websiteId}, ${day}::date, 'custom_name', properties->>'name', count(*), count(DISTINCT session_id),
+             coalesce(hll_add_agg(hll_hash_text(${u(VISITOR_KEY)}), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)}))
+      FROM analytics_events
+      WHERE website_id = ${websiteId} AND event_type = 'custom'
+        AND coalesce(properties->>'name', '') <> ''
+        AND occurred_at >= ${dayStart} AND occurred_at < ${dayEnd}
+      GROUP BY properties->>'name'
     `;
 
     // ── Hourly site totals ─────────────────────────────────────────────────────
@@ -244,18 +289,27 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
  *
  * Only markers this run covered are cleared, and only if nothing re-staled them while
  * it ran; anything newer, or any day whose rebuild failed, waits for the next run.
+ *
+ * `websiteId` + `recentOnly` is the read path's refresh (rollups/reads.ts): just one
+ * site's today and yesterday, so a dashboard is current as of the request.
  */
-export async function buildStaleRollups(limit = 1000): Promise<{ rebuilt: number; ms: number }> {
+export async function buildStaleRollups(
+  opts: { limit?: number; websiteId?: string; recentOnly?: boolean } = {},
+): Promise<{ rebuilt: number; ms: number }> {
   const t0 = performance.now();
+  const limit = opts.limit ?? 1000;
   // Rollups are optional: without the `hll` extension migration 031 never ran and the
   // tables do not exist. Do nothing then; the stale markers keep (one row per
   // website-day) and are built on the first run after the extension arrives.
   const [ready] = await sql<{ ok: boolean }[]>`SELECT to_regclass('analytics_rollup_daily') IS NOT NULL AS ok`;
   if (!ready?.ok) return { rebuilt: 0, ms: 0 };
 
+  const recentFrom = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
   const stale = await sql<{ website_id: string; day: string; staled_at: Date }[]>`
     SELECT website_id, day::text AS day, staled_at
     FROM analytics_rollup_stale
+    WHERE (${opts.websiteId ?? null}::text IS NULL OR website_id = ${opts.websiteId ?? null})
+      AND (${opts.recentOnly ?? false} = false OR day >= ${recentFrom}::date)
     ORDER BY day, website_id
     LIMIT ${limit}
   `;

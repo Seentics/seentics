@@ -1,22 +1,54 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 import { parseDays, windowStartIso } from "./shared";
+
+type BreakdownRow = {
+  page: string;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  views: number;
+  unique_visitors: number;
+};
 
 export async function getPageUtmBreakdownAnalytics(
   websiteId: string,
   query?: Record<string, string | undefined>,
 ) {
   const days = parseDays(query?.days, 7);
-  const startIso = windowStartIso(days);
+  const rows = rollupsEnabled() ? await breakdownFromRollups(websiteId, days) : await breakdownFromEvents(websiteId, days);
 
-  const rows = await pgSql<{
-    page: string;
-    utm_source: string | null;
-    utm_medium: string | null;
-    utm_campaign: string | null;
-    views: number;
-    unique_visitors: number;
-  }[]>`
+  return {
+    website_id: websiteId,
+    date_range: `${days}d`,
+    breakdown: rows.map((r) => ({
+      page: r.page,
+      utm_source: r.utm_source ?? null,
+      utm_medium: r.utm_medium ?? null,
+      utm_campaign: r.utm_campaign ?? null,
+      views: Number(r.views),
+      unique_visitors: Number(r.unique_visitors),
+    })),
+  };
+}
+
+/**
+ * The `page_utm` rollup: its value is the JSON array [path, source, medium, campaign].
+ * topRows breaks view ties by the JSON text rather than by each column, which only
+ * reorders rows with equal views.
+ */
+async function breakdownFromRollups(websiteId: string, days: number): Promise<BreakdownRow[]> {
+  const rows = await topRows(websiteId, "page_utm", days, 200);
+  return rows.map((r) => {
+    const [page, utm_source, utm_medium, utm_campaign] = JSON.parse(r.k) as [string, string | null, string | null, string | null];
+    return { page, utm_source, utm_medium, utm_campaign, views: r.views, unique_visitors: r.unique_visitors };
+  });
+}
+
+async function breakdownFromEvents(websiteId: string, days: number): Promise<BreakdownRow[]> {
+  const startIso = windowStartIso(days);
+  return pgSql<BreakdownRow[]>`
     -- Distinct visitors by grouping (see pages.repository.ts for why and the numbers).
     SELECT
       page,
@@ -42,17 +74,4 @@ export async function getPageUtmBreakdownAnalytics(
     ORDER BY views DESC, page ASC, utm_source ASC, utm_medium ASC, utm_campaign ASC
     LIMIT 200
   `;
-
-  return {
-    website_id: websiteId,
-    date_range: `${days}d`,
-    breakdown: rows.map((r) => ({
-      page: r.page,
-      utm_source: r.utm_source ?? null,
-      utm_medium: r.utm_medium ?? null,
-      utm_campaign: r.utm_campaign ?? null,
-      views: Number(r.views),
-      unique_visitors: Number(r.unique_visitors),
-    })),
-  };
 }

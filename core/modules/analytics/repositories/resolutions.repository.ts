@@ -1,5 +1,6 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 export async function getResolutionsAnalytics(
   websiteId: string,
@@ -7,7 +8,9 @@ export async function getResolutionsAnalytics(
 ) {
   const days = parseDays(query.days);
   const startIso = windowStartIso(days);
-  const rows = await pgSql<{ resolution: string; views: number; unique: number }[]>`
+  const rows = rollupsEnabled()
+    ? (await topRows(websiteId, "resolution", days, 30)).map((r) => ({ resolution: r.k, views: r.views, unique: r.unique_visitors }))
+    : await pgSql<{ resolution: string; views: number; unique: number }[]>`
     -- Views and distinct visitors in two hash-aggregation steps: one row per (value,
     -- visitor), then one per value. count(DISTINCT …) always sorts, and over a large
     -- window that sort spilled to disk — 32.8 s for a 90-day top-pages over 633k

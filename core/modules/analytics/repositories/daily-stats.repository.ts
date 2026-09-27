@@ -1,5 +1,6 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, sanitizeTimezone, windowStartIso } from "./shared";
+import { dailyRows, rollupsEnabled } from "../rollups/reads";
 
 export async function getDailyStatsAnalytics(
   websiteId: string,
@@ -9,7 +10,7 @@ export async function getDailyStatsAnalytics(
   const tz = sanitizeTimezone(query.timezone);
   const startIso = windowStartIso(days);
 
-  const rows = await pgSql<{
+  const rows = rollupsEnabled() ? await dailyRows(websiteId, days, tz) : await pgSql<{
     date: string;
     views: number;
     unique_visitors: number;

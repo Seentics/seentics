@@ -3,6 +3,7 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { referrerDomainSql } from "../lib/dimension-sql";
 import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 export type SessionReferrerRow = { referrer: string; views: number; unique_visitors: number };
 
@@ -24,7 +25,13 @@ export type SessionReferrerRow = { referrer: string; views: number; unique_visit
  * referrers, the greatest is taken — deterministic, and vanishingly rare once internal
  * navigation is excluded.
  */
-export function sessionReferrerRows(websiteId: string, startIso: string, limit = 50) {
+export async function sessionReferrerRows(websiteId: string, days: number, limit = 50): Promise<SessionReferrerRow[]> {
+  if (rollupsEnabled()) {
+    return (await topRows(websiteId, "referrer", days, limit)).map((r) => ({
+      referrer: r.k, views: r.views, unique_visitors: r.unique_visitors,
+    }));
+  }
+  const startIso = windowStartIso(days);
   return pgSql<SessionReferrerRow[]>`
     WITH per_session AS (
       SELECT
@@ -62,7 +69,7 @@ export async function getReferrersAnalytics(
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
-  const rows = await sessionReferrerRows(websiteId, windowStartIso(days));
+  const rows = await sessionReferrerRows(websiteId, days);
 
   return {
     top_referrers: rows.map((r) => ({

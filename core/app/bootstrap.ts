@@ -234,6 +234,10 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         await mod.start?.(cfg);
       }
 
+      // Dashboard reads use the rollups when migrations could create them (they need the
+      // `hll` extension) and raw events otherwise.
+      await analyticsModule.rollups.detect();
+
       startScheduler(cfg, {
         heatmapScreenshots: heatmapsModule.maintenance,
         retention,

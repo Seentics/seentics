@@ -1,6 +1,7 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 /**
  * The first three pages of each session, counted as paths.
@@ -31,7 +32,14 @@ export async function getPathAnalysisAnalytics(
   const days = parseDays(query?.days, 7);
   const startIso = windowStartIso(days);
 
-  const paths = await pgSql<{
+  // From the rollups: sessions by their first three pages (stored as a JSON array).
+  // Paths show sessions only, so their visitor sketches are not unioned.
+  const paths = rollupsEnabled()
+    ? (await topRows(websiteId, "path", days, 50, "sessions", false)).map((r) => {
+        const [page_1, page_2, page_3] = JSON.parse(r.k) as (string | null)[];
+        return { page_1: page_1 ?? "", page_2: page_2 ?? null, page_3: page_3 ?? null, sessions: r.sessions };
+      })
+    : await pgSql<{
     page_1: string;
     page_2: string | null;
     page_3: string | null;

@@ -1,5 +1,6 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 export async function getCustomEventsAnalytics(
   websiteId: string,
@@ -12,7 +13,17 @@ export async function getCustomEventsAnalytics(
   type EventRow = { event_type: string; c: number; unique_visitors: number; unique_sessions: number };
   type UtmRow   = { label: string; visits: number; unique_visitors: number };
 
-  const [rows, sourceRows, mediumRows, campaignRows] = await Promise.all([
+  const [rows, sourceRows, mediumRows, campaignRows] = rollupsEnabled() ? await Promise.all([
+    // From the rollups. unique_sessions sums each day's distinct sessions, so a session
+    // spanning midnight counts on both days.
+    topRows(websiteId, "event", days, 100).then((r) => r.map((x): EventRow => ({
+      event_type: x.k, c: x.views, unique_visitors: x.unique_visitors, unique_sessions: x.sessions,
+    }))),
+    ...(["utm_source", "utm_medium", "utm_campaign"] as const).map((dim) =>
+      topRows(websiteId, dim, days, 50, "sessions").then((r) => r.map((x): UtmRow => ({
+        label: x.k, visits: x.sessions, unique_visitors: x.unique_visitors,
+      })))),
+  ]) : await Promise.all([
     /*
      * Everything but pageviews, by type.
      *

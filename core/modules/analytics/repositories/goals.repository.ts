@@ -1,5 +1,51 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays } from "./shared";
+import { pagePathSql } from "../lib/dimension-sql";
+import { ensureFresh, rollupWindow, rollupsEnabled, siteUniques } from "../rollups/reads";
+
+type GoalRow = {
+  id: string;
+  name: string;
+  goal_type: string;
+  target: string;
+  completions: number;
+  unique_visitors: number;
+};
+
+/**
+ * The same rows as the raw query in getGoalsStats, from the rollups: a pageview goal
+ * matches the `page` rollup by path (trailing slash ignored), an event or click goal the
+ * `event` rollup by type or the `custom_name` rollup by a legacy custom event's name.
+ * Goals are few and the window's page and event rows small, so the OR join is cheap.
+ */
+async function goalRowsFromRollups(websiteId: string, days: number): Promise<GoalRow[]> {
+  await ensureFresh(websiteId);
+  const w = rollupWindow(days);
+  return pgSql<GoalRow[]>`
+    WITH win AS (
+      SELECT dimension, value, pageviews, visitors
+      FROM analytics_rollup_daily
+      WHERE website_id = ${websiteId} AND dimension IN ('page', 'event', 'custom_name')
+        AND day BETWEEN ${w.from}::date AND ${w.to}::date
+    )
+    SELECT
+      g.id::text AS id,
+      g.name AS name,
+      g."type" AS goal_type,
+      g.identifier AS target,
+      coalesce(sum(win.pageviews), 0)::int AS completions,
+      coalesce(round(hll_cardinality(hll_union_agg(win.visitors))), 0)::int AS unique_visitors
+    FROM goals g
+    LEFT JOIN win ON (
+      (g."type" = 'pageview' AND win.dimension = 'page'
+        AND coalesce(nullif(rtrim(win.value, '/'), ''), '/') = coalesce(nullif(rtrim(g.identifier, '/'), ''), '/'))
+      OR (g."type" IN ('event', 'click') AND win.dimension IN ('event', 'custom_name') AND win.value = g.identifier)
+    )
+    WHERE g.website_id = ${websiteId}::uuid
+    GROUP BY g.id, g.name, g."type", g.identifier
+    ORDER BY min(g.created_at) ASC
+  `;
+}
 
 export async function getGoalsStats(websiteId: string, query: Record<string, string | undefined>) {
   const days = parseDays(query.days);
@@ -8,7 +54,9 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
   const startIso = start.toISOString();
   const endIso = end.toISOString();
 
-  const [siteUvRows, rows] = await Promise.all([
+  const [siteUvRows, rows] = rollupsEnabled()
+    ? await Promise.all([siteUniques(websiteId, days).then((uv) => [{ uv }]), goalRowsFromRollups(websiteId, days)])
+    : await Promise.all([
     pgSql<{ uv: number }[]>`
       SELECT
         COALESCE(
@@ -46,7 +94,10 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
           AND ae.event_type = 'pageview'
           AND ae.occurred_at >= ${startIso}
           AND ae.occurred_at <= ${endIso}
-          AND coalesce(nullif(rtrim(ae.page, '/'), ''), '/')
+          -- The page's path, not the stored value: page is the full href
+          -- (https://host/pricing?utm=…), so comparing it to a goal's '/pricing' never
+          -- matched and every pageview goal reported zero completions.
+          AND coalesce(nullif(rtrim(${pgSql.unsafe(pagePathSql("ae.page"))}, '/'), ''), '/')
               = coalesce(nullif(rtrim(g.identifier, '/'), ''), '/')
         WHERE g.website_id = ${websiteId}::uuid
           AND g."type" = 'pageview'

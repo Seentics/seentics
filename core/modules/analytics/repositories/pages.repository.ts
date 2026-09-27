@@ -1,6 +1,7 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
 import { orNotSet, parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 /**
  * Top pages by pageview count over the trailing window.
@@ -14,7 +15,9 @@ export async function getPagesAnalytics(
 ) {
   const days = parseDays(query.days);
 
-  const rows = await pgSql<
+  const rows = rollupsEnabled()
+    ? (await topRows(websiteId, "page", days, 50)).map((r) => ({ page: r.k, views: r.views, unique_visitors: r.unique_visitors }))
+    : await pgSql<
     {
       page: string;
       views: number;

@@ -1,6 +1,28 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
 import { parseDays } from "./shared";
+import { newVisitorCount, rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
+
+/**
+ * The raw query's single row, from the rollups. New visitors are those first seen
+ * inside the window; returning is everyone else in it — so the two always add up to the
+ * window's unique visitors (itself a HyperLogLog estimate on large sites).
+ */
+async function insightsFromRollups(websiteId: string, days: number) {
+  const [entry, exit, newVisitors, uv] = await Promise.all([
+    topRows(websiteId, "entry_page", days, 30, "sessions"),
+    topRows(websiteId, "exit_page", days, 30, "sessions"),
+    newVisitorCount(websiteId, days),
+    siteUniques(websiteId, days),
+  ]);
+  const clampedNew = Math.min(newVisitors, uv);
+  return {
+    top_entry_pages: entry.map((r) => ({ page: r.k, sessions: r.sessions })),
+    top_exit_pages: exit.map((r) => ({ page: r.k, sessions: r.sessions })),
+    new_visitors: clampedNew,
+    returning_visitors: uv - clampedNew,
+  };
+}
 
 export async function getVisitorInsightsAnalytics(
   websiteId: string,
@@ -15,7 +37,7 @@ export async function getVisitorInsightsAnalytics(
 
   // Single query: materialise current-period rows once in `base`, derive all
   // aggregates from it. prev_vids lookback is capped at 365 days.
-  const rows = await pgSql<{
+  const rows = rollupsEnabled() ? [await insightsFromRollups(websiteId, days)] : await pgSql<{
     top_entry_pages:    { page: string; sessions: number }[] | null;
     top_exit_pages:     { page: string; sessions: number }[] | null;
     new_visitors:       number;

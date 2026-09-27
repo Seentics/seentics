@@ -76,4 +76,9 @@ export interface AnalyticsModule {
  */
 export interface AnalyticsRollups {
   buildStale(): Promise<{ rebuilt: number; ms: number }>;
+  /**
+   * Check whether the rollup tables exist (they need the `hll` extension) and switch the
+   * dashboard reads onto them if so. Call once at startup, after migrations.
+   */
+  detect(): Promise<boolean>;
 }

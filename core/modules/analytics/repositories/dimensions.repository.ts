@@ -1,6 +1,7 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { withoutVersionSql } from "../lib/dimension-sql";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 async function topDimensionAnalytics(
   websiteId: string,
@@ -16,7 +17,7 @@ async function topDimensionAnalytics(
   // Chrome 128 are one browser. See lib/dimension-sql.ts.
   const valueExpr = col === "browser" || col === "os" ? pgSql.unsafe(withoutVersionSql(col)) : colIdent;
 
-  const rows = await pgSql<{
+  const rows = rollupsEnabled() ? await topRows(websiteId, col, days, 50) : await pgSql<{
     k: string | null;
     views: number;
     unique_visitors: number;

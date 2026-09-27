@@ -10,6 +10,7 @@
  */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { channelCaseSql } from "../lib/traffic-channel";
+import { dashboardRows, rollupsEnabled } from "../rollups/reads";
 import { parseDays, sanitizeTimezone } from "./shared";
 
 function addSharePct(
@@ -129,7 +130,10 @@ async function fetchRevenueRow(
   endIso: string,
   prevStartIso: string,
   timezone: string,
+  /** Site sessions and visitors from the rollups, when available — see session_cnt. */
+  siteCounts: { sessions: number; visitors: number } | null = null,
 ): Promise<MainRow | undefined> {
+  const scanRaw = siteCounts === null;
   const [row] = await pgSql<MainRow[]>`
     WITH
     -- ── Step 1: all revenue events spanning current + prior window ──────────────
@@ -273,6 +277,11 @@ async function fetchRevenueRow(
        AND ae.utm_source  IS NOT NULL
        AND length(trim(ae.utm_source)) > 0
        AND ae.occurred_at <= p.occurred_at
+       -- A lower bound, so each probe prunes to the one or two monthly partitions the
+       -- session can be in. Without it every purchase probed every partition: 1.2 s of
+       -- this CTE on a site with 10k purchases in 90 days, 0.1 s with it. A session
+       -- idles out after 30 minutes, so a day before the purchase loses nothing real.
+       AND ae.occurred_at >= p.occurred_at - interval '1 day'
       ORDER BY p.id, ae.occurred_at DESC
     ),
 
@@ -307,6 +316,7 @@ async function fetchRevenueRow(
        AND ae.referrer    IS NOT NULL
        AND length(trim(ae.referrer)) > 0
        AND ae.occurred_at <= p.occurred_at
+       AND ae.occurred_at >= p.occurred_at - interval '1 day'  -- partition pruning, as above
        AND coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) <> 'internal'
       ORDER BY p.id, ae.occurred_at DESC
     ),
@@ -375,10 +385,15 @@ async function fetchRevenueRow(
         COUNT(*)::int                                  AS prior_orders
       FROM prior_purchases
     ),
+    -- Site-wide sessions and visitors, for revenue per session / per visitor. Two
+    -- distinct counts over every event in the window — ~18 s on a 3.8M-event site — so
+    -- when the rollups hold them (siteCounts) they are passed in, and the bound
+    -- \`scanRaw = false\` becomes a one-time filter that skips both scans entirely.
     session_cnt AS (
       SELECT COUNT(DISTINCT session_id)::int AS sessions
       FROM analytics_events
-      WHERE website_id  = ${websiteId}
+      WHERE ${scanRaw}
+        AND website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -388,7 +403,8 @@ async function fetchRevenueRow(
     visitor_cnt AS (
       SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(visitor_id), ''), session_id))::int AS unique_visitors
       FROM analytics_events
-      WHERE website_id  = ${websiteId}
+      WHERE ${scanRaw}
+        AND website_id  = ${websiteId}
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
     ),
@@ -411,8 +427,8 @@ async function fetchRevenueRow(
       (SELECT row_to_json(s) FROM summary_agg s)                                        AS summary,
       (SELECT refund_total   FROM refund_agg)                                            AS refund_total,
       (SELECT row_to_json(p) FROM prior_agg p)                                           AS prior,
-      (SELECT sessions       FROM session_cnt)                                           AS sessions,
-      (SELECT unique_visitors FROM visitor_cnt)                                          AS unique_visitors,
+      coalesce(${siteCounts?.sessions ?? null}::int, (SELECT sessions FROM session_cnt))             AS sessions,
+      coalesce(${siteCounts?.visitors ?? null}::int, (SELECT unique_visitors FROM visitor_cnt))      AS unique_visitors,
       (SELECT currency       FROM dom_currency)                                          AS dominant_currency,
 
       (SELECT COALESCE(json_agg(row_to_json(d)), '[]'::json)
@@ -454,12 +470,19 @@ export async function getRevenueDashboard(
   const start = new Date(end.getTime() - days * 86_400_000);
   const prevStart = new Date(start.getTime() - days * 86_400_000);
 
+  // Site sessions and visitors come from the rollups when available; they cover calendar
+  // days rather than this rolling window, which only nudges revenue-per-session.
+  const siteCounts = rollupsEnabled()
+    ? await dashboardRows(websiteId, days).then(({ agg, sess }) => ({ sessions: sess.session_cnt, visitors: agg.uv }))
+    : null;
+
   const row = await fetchRevenueRow(
     websiteId,
     start.toISOString(),
     end.toISOString(),
     prevStart.toISOString(),
     timezone,
+    siteCounts,
   );
 
   return row ? shapeRevenueDashboard(websiteId, days, row) : emptyRevenueDashboard(websiteId, days);

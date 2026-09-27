@@ -4,6 +4,25 @@
  */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
+
+/** The three result sets the raw queries below return, from the rollups. */
+async function geoRowsFromRollups(websiteId: string, days: number) {
+  const [uv, countries, cities] = await Promise.all([
+    siteUniques(websiteId, days),
+    topRows(websiteId, "country", days, 50, "unique_visitors"),
+    topRows(websiteId, "country_city", days, 40, "unique_visitors"),
+  ]);
+  return [
+    [{ uv }],
+    countries.map((r) => ({ country: r.k, views: r.views, unique_visitors: r.unique_visitors })),
+    cities.map((r) => {
+      // Stored as "country|city" so a city name is never merged across countries.
+      const [country, ...rest] = r.k.split("|");
+      return { city: rest.join("|"), country: country!, views: r.views, unique_visitors: r.unique_visitors };
+    }),
+  ] as const;
+}
 
 function iso3166Alpha2ToName(iso2: string): string {
   const c = iso2.trim().toUpperCase();
@@ -23,7 +42,7 @@ export async function getGeolocationAnalytics(
   const days = parseDays(query.days);
   const startIso = windowStartIso(days);
 
-  const [totalUvRows, countryRows, cityRows] = await Promise.all([
+  const [totalUvRows, countryRows, cityRows] = rollupsEnabled() ? await geoRowsFromRollups(websiteId, days) : await Promise.all([
     // Distinct visitors by grouping, not count(DISTINCT …), which always sorts and spilled
     // to disk on large windows (see pages.repository.ts). count(vk) skips a NULL key the
     // same way. The two breakdowns below get a name tiebreaker: ordering by visitors

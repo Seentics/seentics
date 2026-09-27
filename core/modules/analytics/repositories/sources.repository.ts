@@ -1,5 +1,6 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
+import { rollupsEnabled, topRows } from "../rollups/reads";
 
 export async function getSourcesAnalytics(
   websiteId: string,
@@ -8,7 +9,15 @@ export async function getSourcesAnalytics(
   const days = parseDays(query.days);
   const startIso = windowStartIso(days);
 
-  const rows = await pgSql<{ source: string; views: number; unique_visitors: number; bounce_rate: number }[]>`
+  // From the rollups: sessions by landing utm_source, with all their pageviews.
+  const rows = rollupsEnabled()
+    ? (await topRows(websiteId, "utm_source", days, 50)).map((r) => ({
+        source: r.k,
+        views: r.views,
+        unique_visitors: r.unique_visitors,
+        bounce_rate: r.sessions > 0 ? Math.round((r.bounces * 1000) / r.sessions) / 10 : 0,
+      }))
+    : await pgSql<{ source: string; views: number; unique_visitors: number; bounce_rate: number }[]>`
     WITH pv AS (
       SELECT
         id,
