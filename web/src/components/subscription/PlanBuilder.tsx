@@ -1,13 +1,18 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { ArrowRight, Check, ChevronDown, Loader2, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
-import type { Plan } from '@/features/plans/types';
-
+import { PLAN_FAMILY_LABEL, planFamily, type Plan, type PlanFamily } from '@/features/plans/types';
 import {
-  ArrowRight, Loader2, Check, Zap, Rocket, TrendingUp, Crown, type LucideIcon,
-} from 'lucide-react';
+  FAMILY_TAB,
+  TIER_PITCH,
+  cardSectionsFor,
+  compareGroupsFor,
+  supportFor,
+} from '@/features/plans/pricing-spec';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
@@ -23,151 +28,170 @@ interface PlanBuilderProps {
   currentPlan?: string;
   /** If true, shows agency plans instead of individual */
   mode?: 'individual' | 'agency';
+  /**
+   * Which price ladders to offer, one tab each, first selected. seentics.com
+   * shows Suite + Analytics; the Uptime and Observability sites show Suite +
+   * their own product. A single family renders without tabs.
+   */
+  families?: PlanFamily[];
 }
 
-/** Bold only the numbers that actually vary in a way worth calling out — the
- *  event cap, and (bundles only) the Observability retention/storage and
- *  Uptime monitor lines. Session recordings, AI analyses etc. differ too,
- *  but they're not the plan's headline differentiator, so they stay regular
- *  weight rather than every line competing for attention. */
-function isHeadlineFeature(feature: string): boolean {
-  return feature.includes('Events / month') || feature.includes('Observability') || feature.includes('Uptime Monitors');
+/** "Suite Pro", "Analytics Starter" — one string, since the button it goes
+ *  in is a flex row and separate text nodes would each get the gap. */
+function planLabel(plan: Plan): string {
+  return `${PLAN_FAMILY_LABEL[planFamily(plan)]} ${plan.tier.charAt(0).toUpperCase()}${plan.tier.slice(1)}`;
 }
 
 /**
- * Everything about a plan that's a data fact — price, limits, feature copy —
- * comes from gateway's GET /api/v1/plans (features/plans/*). Icon is purely
- * presentational and has no business living in the database, so it's the one
- * thing still keyed by plan id here. A plan id with no entry falls back to a
- * generic look rather than crashing the page.
- *
- * Color is deliberately NOT per-plan across the board (a rainbow strip on
- * every card read as gaudy) — but the two positioning badges ("Best for...")
- * are the one thing meant to grab the eye while scanning the row, so those
- * two (and only those two) keep a distinct accent on their badge + icon.
- * Every other card stays neutral, and `popular` gets the brand accent.
+ * Prices and limits come from gateway's GET /api/v1/plans; what a card shows
+ * for them is pricing-spec.ts. Cards are deliberately short — price, a few
+ * allowances, support — and everything else lives in the comparison table
+ * behind "Compare all features", so a card can be read at a glance.
  */
-const PLAN_PRESENTATION: Record<string, { icon: LucideIcon; popular?: boolean; badge?: string; color?: string; bgColor?: string }> = {
-  'core-free': { icon: Zap },
-  // The only standalone paid tier — badged for what it actually is: the
-  // pure-analytics pick for someone who wants nothing else, not a lesser
-  // Suite Pro.
-  'core-starter': { icon: Rocket, badge: 'Best for Web Analytics', color: 'text-teal-600 dark:text-teal-400', bgColor: 'bg-teal-500' },
-  // First bundle tier — badged for the thing Starter can't do at all: real
-  // headroom plus Observability and Uptime, not a repeat of Starter's pitch.
-  'suite-pro': { icon: TrendingUp, badge: 'Best for Full Visibility', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500' },
-  'suite-business': { icon: Crown },
-};
-const DEFAULT_PRESENTATION = { icon: Zap };
-
-export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual' }: PlanBuilderProps) {
-  const { data: allPlans, isLoading, isError } = usePlans('core');
-  // Free, Starter (Core only), and the three suite bundles — see
-  // gateway/db/sql/015_starter_tier_and_simpler_bundles.sql. Standalone
-  // tiers stop at Starter by design: wanting more than that is what the
-  // suite bundles are for.
-  const plans = allPlans?.filter((p) => p.tier === 'free' || p.tier === 'starter' || p.isBundle);
+export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual', families = ['suite', 'core'] }: PlanBuilderProps) {
+  const { data: allPlans, isLoading, isError } = usePlans();
+  const [family, setFamily] = React.useState<PlanFamily>(families[0] ?? 'suite');
+  const [comparing, setComparing] = React.useState(false);
+  // A caller switching `families` (e.g. /pricing?product=uptime) resets the tab.
+  const familiesKey = families.join(',');
+  React.useEffect(() => {
+    setFamily(families[0] ?? 'suite');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familiesKey]);
+  const plans = allPlans?.filter((p) => planFamily(p) === family);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
+  const tab = FAMILY_TAB[family];
 
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
-    onSubscribe({ plan: plan.id as PlanSelection['plan'], price: plan.priceMonthly, billing: 'monthly' });
+    onSubscribe({ plan: plan.id, price: plan.priceMonthly, billing: 'monthly' });
   };
 
   const renderCard = (plan: Plan) => {
-    const presentation = PLAN_PRESENTATION[plan.id] ?? DEFAULT_PRESENTATION;
-    const Icon = presentation.icon;
-    const isCurrent = currentPlan === plan.id || (plan.id === 'core-free' && (currentPlan === 'free' || !currentPlan));
+    const popular = plan.tier === 'pro';
+    // Only a signed-in caller passes currentPlan; a visitor on the landing
+    // page has no current plan, so Free stays a real "Get Started".
+    const isCurrent =
+      !!currentPlan &&
+      (currentPlan === plan.id || (plan.tier === 'free' && (currentPlan === 'free' || currentPlan.endsWith('-free'))));
     const isFree = plan.priceMonthly === 0;
-    const displayPrice = plan.priceMonthly;
 
     return (
       <div
         key={plan.id}
         className={cn(
-          // No border/rounding/shadow of its own — the shared container owns
-          // the outer border and the divider lines between columns, which is
-          // the whole point of a squared, divided table over four separate
-          // floating cards: at four-wide it's more width for content, not
-          // more gap between cards.
-          'relative flex flex-col p-6 sm:p-7 transition-colors duration-300',
-          isCurrent && 'bg-primary/[0.03]',
+          'relative flex flex-col rounded-2xl border bg-card p-6',
+          popular ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary' : 'border-border',
         )}
       >
-        {/* Identity strip — only the popular tier gets the brand accent, so
-            it actually reads as a highlight instead of one of five colors. */}
-        {presentation.popular && <div className="absolute inset-x-0 top-0 h-1 bg-primary" />}
-
-        <div className="mb-5">
-          {/* Fixed-height slot, always rendered — only 2 of 4 plans carry a
-              badge, and letting it appear/disappear per-card was what threw
-              title/price out of alignment across the row. Empty but present
-              beats "sometimes there, sometimes not" here. */}
-          <div className="mb-2 h-5">
-            {(presentation.badge || presentation.popular) && (
-              <span className={cn(
-                'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white',
-                presentation.popular ? 'bg-primary' : presentation.bgColor ?? 'bg-muted-foreground',
-              )}>
-                {presentation.badge ?? 'Most Popular'}
-              </span>
-            )}
-          </div>
-          <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center mb-3', presentation.bgColor ? `${presentation.bgColor}/10` : 'bg-muted')}>
-            <Icon className={cn('h-4 w-4', presentation.color ?? 'text-foreground')} />
-          </div>
-          <h3 className="text-2xl font-semibold">{plan.name}</h3>
-          {/* Same reasoning as the badge slot: descriptions run 1-2 lines
-              depending on the plan, and letting that vary pushed the price
-              row below to a different height per card. */}
-          <p className="mt-0.5 min-h-[2rem] text-xs leading-tight text-muted-foreground">{plan.description}</p>
-        </div>
-
-        <div className="flex items-baseline gap-1 mb-1.5">
-          <span className="text-3xl font-bold tracking-tight">
-            {isFree ? 'Free' : `$${displayPrice}`}
+        {popular && (
+          <span className="absolute -top-3 left-6 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+            Most popular
           </span>
-          {!isFree && <span className="text-sm text-muted-foreground">/mo</span>}
-        </div>
-        <div className="mb-5" />
+        )}
 
-        <ul className="space-y-3 flex-1 mb-6">
-          {plan.features.map((feature, i) => {
-            const isHeadline = isHeadlineFeature(feature);
-            return (
-              <li key={i} className="flex items-start gap-2">
-                <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                <span className={cn('text-sm leading-snug', isHeadline ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
-                  {feature}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <h3 className="text-lg font-semibold capitalize">{plan.tier}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
+
+        <div className="mt-5 flex items-baseline gap-1">
+          <span className="text-4xl font-bold tracking-tight">{isFree ? '$0' : `$${plan.priceMonthly}`}</span>
+          <span className="text-sm text-muted-foreground">/month</span>
+        </div>
 
         <Button
           onClick={() => handleSubscribe(plan)}
           disabled={loading || isCurrent}
-          variant={presentation.popular ? 'default' : 'outline'}
-          className={cn('w-full gap-1.5 text-xs font-medium', presentation.popular && 'shadow-md')}
+          variant={popular ? 'default' : 'outline'}
+          // The outline variant's hover fill as its resting look: an empty
+          // outline read as disabled next to the filled Pro button.
+          className={cn('mt-5 w-full gap-1.5', !popular && 'bg-accent text-accent-foreground hover:bg-accent/70')}
         >
           {loading && loadingPlan === plan.id ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : isCurrent ? (
-            'Current Plan'
+            'Current plan'
           ) : isFree ? (
-            <>Get Started <ArrowRight className="h-3.5 w-3.5" /></>
+            <>Start free <ArrowRight className="h-4 w-4" /></>
           ) : (
-            <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>
+            <>{`Get ${planLabel(plan)}`} <ArrowRight className="h-4 w-4" /></>
           )}
         </Button>
+
+        <div className="mt-6 flex-1 space-y-5 border-t border-border pt-6">
+          {cardSectionsFor(family, plan).map((section, index) => (
+            <div key={section.title ?? index}>
+              {section.title && (
+                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{section.title}</p>
+              )}
+              <ul className="space-y-2.5">
+                {section.items.map((item) => (
+                  <li key={item.label} className="flex items-baseline gap-2 text-sm">
+                    <Check className="h-4 w-4 shrink-0 translate-y-0.5 text-primary" />
+                    <span>
+                      {item.value && <span className="font-semibold text-foreground">{item.value} </span>}
+                      <span className="text-muted-foreground">{item.label}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          {supportFor(plan.tier)}
+          {plan.tier === 'business' && (
+            <>
+              {' · '}
+              <Link href="/contact" className="underline underline-offset-2 hover:text-foreground">
+                Contact us for more
+              </Link>
+            </>
+          )}
+        </p>
       </div>
     );
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl">
+      {families.length > 1 && (
+        <div className="mb-10 flex flex-col items-center gap-4">
+          <div role="tablist" aria-label="Choose a plan type" className="grid w-full max-w-sm grid-cols-2 gap-1 rounded-xl border border-border bg-muted/60 p-1 shadow-sm">
+            {families.map((f) => {
+              const active = family === f;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFamily(f)}
+                  className={cn(
+                    'relative rounded-lg px-3 py-2 text-center transition-all',
+                    active
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                  )}
+                >
+                  <span className="block text-sm font-semibold">{FAMILY_TAB[f].label}</span>
+                  <span className={cn('block text-[11px]', active ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                    {FAMILY_TAB[f].caption}
+                  </span>
+                  {f === 'suite' && (
+                    <span className="absolute -right-2 -top-2 rounded-full bg-emerald-500 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                      Best value
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="max-w-xl text-center text-base text-muted-foreground">{tab.lead}</p>
+        </div>
+      )}
+
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -175,32 +199,92 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
       )}
 
       {isError && (
-        <p className="text-center text-sm text-muted-foreground py-16">
+        <p className="py-16 text-center text-sm text-muted-foreground">
           Couldn&apos;t load pricing right now. Please refresh the page.
         </p>
       )}
 
       {plans && (
-        <div className={cn(
-          // One bordered, divided table instead of four separate cards with
-          // gaps between them — square corners on every internal seam, only
-          // the outer rectangle gets rounded. Frees up real width per column
-          // since nothing is spent on inter-card gutters.
-          'grid overflow-hidden rounded-2xl border border-border bg-card',
-          'divide-y divide-border sm:divide-y-0 sm:divide-x',
-          mode === 'agency' ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-        )}>
-          {plans.map(renderCard)}
-        </div>
+        <>
+          <div
+            className={cn(
+              'grid gap-5 pt-3',
+              mode === 'agency' ? 'mx-auto max-w-3xl grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+            )}
+          >
+            {plans.map(renderCard)}
+          </div>
+
+          <p className="mt-8 text-center text-sm text-muted-foreground">{tab.includes}</p>
+
+          <div className="mt-6 flex justify-center">
+            <Button variant="ghost" onClick={() => setComparing((open) => !open)} aria-expanded={comparing} className="gap-1.5">
+              {comparing ? 'Hide feature comparison' : 'Compare all features'}
+              <ChevronDown className={cn('h-4 w-4 transition-transform', comparing && 'rotate-180')} />
+            </Button>
+          </div>
+
+          {comparing && <CompareTable family={family} plans={plans} />}
+        </>
       )}
 
-      <div className="mt-8 text-center">
-        <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">
-          <span className="flex items-center gap-1"><Check className="h-3 w-3" /> Cancel anytime</span>
-          <span className="flex items-center gap-1"><Check className="h-3 w-3" /> No hidden fees</span>
-          <span className="flex items-center gap-1"><Check className="h-3 w-3" /> 30-day money back</span>
-        </p>
-      </div>
+      <p className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><Check className="h-3 w-3" /> Cancel anytime</span>
+        <span className="flex items-center gap-1"><Check className="h-3 w-3" /> No hidden fees</span>
+        <span className="flex items-center gap-1"><Check className="h-3 w-3" /> 30-day money back</span>
+      </p>
+    </div>
+  );
+}
+
+function CompareTable({ family, plans }: { family: PlanFamily; plans: Plan[] }) {
+  return (
+    <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card">
+      <table className="w-full min-w-[640px] text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="w-1/3 px-5 py-4 text-left font-medium text-muted-foreground" />
+            {plans.map((plan) => (
+              <th key={plan.id} className={cn('px-4 py-4 text-center font-semibold', plan.tier === 'pro' && 'text-primary')}>
+                <span className="capitalize">{plan.tier}</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {plan.priceMonthly === 0 ? '$0' : `$${plan.priceMonthly}`}/mo
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        {compareGroupsFor(family).map((group, index) => (
+          <tbody key={group.title ?? index}>
+            {group.title && (
+              <tr className="bg-muted/40">
+                <th colSpan={plans.length + 1} className="px-5 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.title}
+                </th>
+              </tr>
+            )}
+            {group.rows.map((row) => (
+              <tr key={row.label} className="border-b border-border/60 last:border-0">
+                <td className="px-5 py-3 text-muted-foreground">{row.label}</td>
+                {plans.map((plan) => {
+                  const value = row.value(plan);
+                  return (
+                    <td key={plan.id} className="px-4 py-3 text-center font-medium">
+                      {value === true ? (
+                        <Check className="mx-auto h-4 w-4 text-primary" aria-label="Included" />
+                      ) : value === false ? (
+                        <Minus className="mx-auto h-4 w-4 text-muted-foreground" aria-label="Not included" />
+                      ) : (
+                        value
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
     </div>
   );
 }

@@ -98,12 +98,12 @@ export default function Pricing() {
             Simple, <span className="">transparent pricing</span>
           </h2>
           <p className="landing-lead">
-            Unlimited websites on every plan. Pay only for events.
+            Start free with unlimited websites. Take the whole suite, or just analytics.
           </p>
         </div>
 
         <div>
-          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode="individual" />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode="individual" families={['suite', 'core']} />
         </div>
       </div>
     </section>

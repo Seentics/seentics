@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { isEnterprise } from '@/lib/features';
 import { usePlans } from '@/features/plans/queries';
+import { PLAN_FAMILY_LABEL, planFamily } from '@/features/plans/types';
 import type { Plan } from '@/features/plans/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -25,19 +26,34 @@ interface UpgradePlanModalProps {
 
 /**
  * Price, name and feature copy all come from gateway's GET /api/v1/plans
- * now (features/plans/*) — same source PlanBuilder.tsx reads — rather than
- * a second hand-maintained copy that drifts the moment a price changes.
- * Icon/color stay keyed by plan id here since they're purely presentational
- * and have no business living in the database.
+ * (features/plans/*) — same source PlanBuilder.tsx reads. Icon/color are
+ * purely presentational, so they're keyed by tier here: every family has
+ * the same four, and Pro is the highlighted pick.
  */
-const PLAN_PRESENTATION: Record<string, { icon: typeof Rocket; color: keyof typeof colorMap }> = {
-  'core-starter': { icon: Rocket, color: 'teal' },
-  'observe-starter': { icon: Rocket, color: 'teal' },
-  'uptime-starter': { icon: Rocket, color: 'teal' },
-  'suite-pro': { icon: TrendingUp, color: 'violet' },
-  'suite-business': { icon: Crown, color: 'amber' },
+const TIER_PRESENTATION: Record<string, { icon: typeof Rocket; color: keyof typeof colorMap }> = {
+  starter: { icon: Rocket, color: 'teal' },
+  pro: { icon: TrendingUp, color: 'violet' },
+  business: { icon: Crown, color: 'amber' },
 };
 const DEFAULT_PRESENTATION: { icon: typeof Rocket; color: keyof typeof colorMap } = { icon: Rocket, color: 'teal' };
+
+/** "Suite Pro", "Analytics Starter". */
+function planLabel(plan: Plan): string {
+  return `${PLAN_FAMILY_LABEL[planFamily(plan)]} ${plan.tier.charAt(0).toUpperCase()}${plan.tier.slice(1)}`;
+}
+
+const TIER_RANK: Record<string, number> = { free: 0, starter: 1, pro: 2, business: 3 };
+
+/** The `core` plan-limit key behind each limit the app can hit. */
+const LIMIT_KEY: Record<string, string> = {
+  websites: 'websites',
+  workflows: 'automations',
+  funnels: 'funnels',
+  heatmaps: 'heatmaps',
+  replays: 'replays',
+  monthlyEvents: 'monthly_events',
+  aiAnalyses: 'ai_analyses',
+};
 
 const limitMessages: Record<string, string> = {
   websites: "You've reached your website limit",
@@ -99,9 +115,20 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
   const normalizedPlan = currentPlan === 'free' ? 'core-free' : currentPlan;
-  const upgradePlans = (allPlans ?? []).filter(
-    (p) => (p.tier === 'starter' || p.isBundle) && p.id !== normalizedPlan,
-  );
+  const currentRank = TIER_RANK[(allPlans ?? []).find((p) => p.id === normalizedPlan)?.tier ?? 'free'] ?? 0;
+  const limitKey = LIMIT_KEY[limitType];
+  // The three cheapest plans — Analytics or Suite — that are a step up and
+  // actually lift the limit that was just hit (Suite Pro doesn't help
+  // someone at Analytics Pro's event cap, so it isn't offered for that).
+  const upgradePlans = (allPlans ?? [])
+    .filter((p) => p.priceMonthly > 0 && p.id !== normalizedPlan && (TIER_RANK[p.tier] ?? 0) > currentRank)
+    .filter((p) => {
+      if (!limitKey) return true;
+      const value = p.limits.core?.[limitKey];
+      return value === -1 || (value !== undefined && value > limit);
+    })
+    .sort((a, b) => a.priceMonthly - b.priceMonthly)
+    .slice(0, 3);
 
   const handleUpgrade = async (planId: string) => {
     if (!isAuthenticated) {
@@ -237,7 +264,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
             upgradePlans.length === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
           )}>
             {upgradePlans.map((plan) => {
-              const presentation = PLAN_PRESENTATION[plan.id] ?? DEFAULT_PRESENTATION;
+              const presentation = TIER_PRESENTATION[plan.tier] ?? DEFAULT_PRESENTATION;
               const PlanIcon = presentation.icon;
               const colors = colorMap[presentation.color];
               // priceYearly from the API is the TOTAL yearly charge, not a
@@ -252,7 +279,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                   {highlighted && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                       <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", colors.bg)}>
-                        Best for Full Visibility
+                        Most Popular
                       </span>
                     </div>
                   )}
@@ -265,7 +292,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                       <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", colors.light)}>
                         <PlanIcon className={cn("h-4 w-4", colors.check)} />
                       </div>
-                      <h3 className="text-base font-semibold">{plan.name}</h3>
+                      <h3 className="text-base font-semibold">{planLabel(plan)}</h3>
                       <div className="flex items-baseline gap-1 mt-1">
                         <span className="text-2xl font-bold tracking-tight">${displayPrice}</span>
                         <span className="text-xs text-muted-foreground">/mo</span>
@@ -295,7 +322,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                       className={cn("w-full gap-1.5 text-xs font-medium text-white", colors.bg, colors.hover)}
                     >
                       {loading ? 'Processing...' : (
-                        <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>
+                        <>{`Get ${planLabel(plan)}`} <ArrowRight className="h-3.5 w-3.5" /></>
                       )}
                     </Button>
                   </div>

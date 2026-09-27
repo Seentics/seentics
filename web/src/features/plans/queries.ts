@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchPlans, planKeys } from './api';
 
-export function usePlans(product: string = 'core') {
+/** Plans granting `product`, or the whole catalogue when it's omitted. */
+export function usePlans(product?: string) {
   return useQuery({
     queryKey: planKeys.list(product),
     queryFn: () => fetchPlans(product),

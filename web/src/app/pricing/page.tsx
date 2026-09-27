@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
+import type { PlanFamily } from '@/features/plans/types';
 import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,16 @@ export default function PricingPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState<'individual' | 'agency'>('individual');
+    // The Uptime and Observability sites link here with ?product=uptime /
+    // ?product=observe, so the page opens on Suite + that product — the
+    // same two tabs their own pricing sections show. Read once on mount
+    // rather than via useSearchParams, which would need a Suspense boundary
+    // around the whole page for no benefit.
+    const [families, setFamilies] = useState<PlanFamily[]>(['suite', 'core']);
+    useEffect(() => {
+        const product = new URLSearchParams(window.location.search).get('product');
+        if (product === 'uptime' || product === 'observe') setFamilies(['suite', product]);
+    }, []);
 
     useEffect(() => {
         if (!isEnterprise) {
@@ -54,7 +65,7 @@ export default function PricingPage() {
                         Simple, transparent pricing
                     </h1>
                     <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                        Unlimited websites on every plan. Pay only for events.
+                        Start free. Take the whole suite, or just the product you need.
                     </p>
                 </div>
 
@@ -100,7 +111,7 @@ export default function PricingPage() {
 
                 {/* Plans */}
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} />
+                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} families={families} />
                 </div>
 
                 {/* Trust section */}
