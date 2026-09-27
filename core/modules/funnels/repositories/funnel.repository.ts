@@ -42,7 +42,8 @@ function mapFunnel(row: typeof funnels.$inferSelect): Funnel {
   const steps = mapSteps(row.steps as Record<string, unknown>[]);
   return {
     id: row.id,
-    website_id: row.id,
+    // The website's id, not the funnel's — every funnel reported its own id here.
+    website_id: row.websiteId,
     user_id: row.userId,
     name: row.name,
     description: row.description ?? "",
