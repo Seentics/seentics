@@ -1,0 +1,48 @@
+# =============================================================================
+# Benchmark override — the production compose file, runnable on a laptop and
+# reachable from the benchmark scripts. Layered on docker-compose.production.yml:
+#
+#   benchmarks/run.sh up
+#
+# What changes from production, and why:
+#   - Caddy and the web app are off; the API is published on 127.0.0.1:8001 and
+#     Postgres on 127.0.0.1:55433, where the scripts (lib/config.ts) expect them.
+#   - Every service is pinned to BENCH_STACK_CPUS (default "0-3"), so the stack
+#     competes for four cores the way it does on a 4-core server. k6 runs on
+#     other cores (run.sh k6).
+#   - The per-IP rate limit is off: every request comes from one IP here, which
+#     would otherwise measure the rate limiter rather than the API.
+#   - The bundled `mc` of the MinIO server image creates the bucket; the
+#     standalone mc image is no longer public.
+# =============================================================================
+
+x-stack-cpus: &stack-cpus
+  cpuset: "${BENCH_STACK_CPUS:-0-3}"
+
+services:
+  caddy:
+    profiles: ["disabled"]
+
+  web:
+    profiles: ["disabled"]
+
+  api:
+    <<: *stack-cpus
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      RATE_LIMIT_ENABLED: "false"
+      AUTO_DB_PUSH: "1"
+
+  postgres:
+    <<: *stack-cpus
+    build:
+      context: ../deploy/postgres
+    ports:
+      - "127.0.0.1:55433:5432"
+
+  minio:
+    <<: *stack-cpus
+
+  createbuckets:
+    image: quay.io/minio/minio:latest
