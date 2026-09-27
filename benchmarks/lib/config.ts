@@ -6,6 +6,7 @@
  *   BENCH_API            base URL of the API                 http://127.0.0.1:8001
  *   BENCH_DATABASE_URL   its Postgres, for seeding and the reference queries
  *   BENCH_PG_CONTAINER   the Postgres container, for bulk loads through docker exec
+ *   BENCH_DB_NAME        its database, when not the one in BENCH_DATABASE_URL
  *   BENCH_STATE_FILE     the account and sites the seed created
  */
 import { mkdirSync } from "node:fs";
@@ -15,8 +16,10 @@ export const API = process.env.BENCH_API ?? "http://127.0.0.1:8001";
 export const DATABASE_URL =
   process.env.BENCH_DATABASE_URL ?? "postgres://seentics:bench_postgres_password@127.0.0.1:55433/seentics";
 export const PG_CONTAINER = process.env.BENCH_PG_CONTAINER ?? "seentics-oss-bench-postgres-1";
-export const DB_NAME = new URL(DATABASE_URL).pathname.slice(1);
-export const DB_USER = decodeURIComponent(new URL(DATABASE_URL).username);
+// The bulk loads go through `docker exec psql` and need only a name and a user;
+// BENCH_DB_NAME/BENCH_DB_USER give them without a whole URL, as run.sh does.
+export const DB_NAME = process.env.BENCH_DB_NAME ?? new URL(DATABASE_URL).pathname.slice(1);
+export const DB_USER = process.env.BENCH_DB_USER ?? decodeURIComponent(new URL(DATABASE_URL).username);
 
 export const STATE_FILE = process.env.BENCH_STATE_FILE ?? new URL("../.state/state.json", import.meta.url).pathname;
 export const RESULTS_DIR = new URL("../results/", import.meta.url).pathname;

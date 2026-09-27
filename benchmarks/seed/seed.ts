@@ -35,12 +35,18 @@ const psqlFile = (file: string, vars: Record<string, string | number>) => {
 const secs = (t0: number) => `${((performance.now() - t0) / 1000).toFixed(1)}s`;
 
 // ── Account ───────────────────────────────────────────────────────────────────
+// BENCH_EMAIL and BENCH_PASSWORD name an account that already exists and already has
+// its plan — the seentics-cloud demo creates one account for every product and seeds
+// them all into it. Without them the seed registers its own.
+const givenAccount = process.env.BENCH_EMAIL && process.env.BENCH_PASSWORD
+  ? { email: process.env.BENCH_EMAIL, password: process.env.BENCH_PASSWORD }
+  : null;
 const existing = Bun.file(STATE_FILE);
 const state: State = (await existing.exists())
   ? await existing.json()
-  : { email: `bench-${Date.now()}@seentics.test`, password: "Bench-password-2026!", sites: {} };
+  : { ...(givenAccount ?? { email: `bench-${Date.now()}@seentics.test`, password: "Bench-password-2026!" }), sites: {} };
 
-if (Object.keys(state.sites).length === 0) {
+if (Object.keys(state.sites).length === 0 && !givenAccount) {
   const { userId } = await register(state.email, state.password);
   console.log(`registered ${state.email}`);
   // Where accounts have plans (seentics-cloud), a fresh one is on the free tier, whose
@@ -64,12 +70,17 @@ if (Object.keys(state.sites).length === 0) {
 }
 
 // ── Websites, created first so a load failure never leaves half-registered sites ──
+// BENCH_SITE_NAMES renames the sites (JSON: {"large": "Acme Store", …}), and
+// BENCH_NO_INGEST_SITE=1 leaves out the empty site k6 load writes to — both for the demo,
+// where the sites are what someone browses.
+const siteNames: Record<string, string> = JSON.parse(process.env.BENCH_SITE_NAMES ?? "{}");
+const extraSites = process.env.BENCH_NO_INGEST_SITE === "1" ? [] : [{ name: "ingest", sessions: 0, seed: 0 }];
 const { auth } = session(state);
 const token = await auth();
-for (const size of [...SIZES, { name: "ingest", sessions: 0, seed: 0 }]) {
+for (const size of [...SIZES, ...extraSites]) {
   if (state.sites[size.name]) continue;
   const host = `https://${size.name}.seentics.test`;
-  const website = await createWebsite(token, `Bench ${size.name}`, host);
+  const website = await createWebsite(token, siteNames[size.name] ?? `Bench ${size.name}`, host);
   state.sites[size.name] = { id: website.id, host, sessions: Math.round(size.sessions * scale) };
 }
 await writeState(state);
