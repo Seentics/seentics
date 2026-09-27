@@ -52,14 +52,22 @@ services:
       start_period: 45s
 
   postgres:
-    image: postgres:15-alpine
+    # Postgres 16 + the `hll` extension, so the dashboard's analytics rollups are on by
+    # default (without it core falls back to slower raw-event queries).
+    #
+    # New volume name (v4): the previous v3 volume was created by postgres:15-alpine and
+    # Postgres 16 cannot open it. v3 is left in place, not deleted — dump and restore it
+    # into this one if you need that data.
+    build:
+      context: ./deploy/postgres
+    image: seentics-postgres:16-hll
     container_name: seentics-postgres
     environment:
       - POSTGRES_USER=seentics
       - POSTGRES_PASSWORD=seentics_pass
       - POSTGRES_DB=seentics_analytics
     volumes:
-      - seentics-db-v3:/var/lib/postgresql/data
+      - seentics-db-v4:/var/lib/postgresql/data
     networks:
       - seentics-network
     restart: unless-stopped
@@ -126,7 +134,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  seentics-db-v3:
+  seentics-db-v4:
   seentics-minio-v3:
 
 networks:
