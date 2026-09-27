@@ -166,6 +166,25 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   const screenshotCacheTtlMs = parseIntEnv(process.env.SCREENSHOT_CACHE_TTL_MS, 60 * 60 * 1000); // 1 hour (60 minutes)
   const screenshotCacheMaxEntries = parseIntEnv(process.env.SCREENSHOT_CACHE_MAX_ENTRIES, 1000);
 
+  /**
+   * Heatmap screenshots render on Cloudflare Browser Rendering instead of the local
+   * Chromium when enabled. Off by default: the local browser needs no account, and dev
+   * captures of `localhost` sites only work locally. On a small server, turning it on
+   * takes Chromium's few hundred MB per capture off the box entirely.
+   *
+   * Enabled without credentials is a startup error rather than a silent fallback to the
+   * local browser — a deployment sized on the assumption that Chromium never runs there
+   * is exactly the one a quiet fallback would run out of memory.
+   */
+  const cloudflareScreenshotsEnabled = parseBool(process.env.CLOUDFLARE_SCREENSHOTS_ENABLED, false);
+  const cloudflareAccountId = (process.env.CLOUDFLARE_ACCOUNT_ID ?? "").trim();
+  const cloudflareBrowserToken = (process.env.CLOUDFLARE_BROWSER_RENDERING_TOKEN ?? "").trim();
+  if (cloudflareScreenshotsEnabled && (!cloudflareAccountId || !cloudflareBrowserToken)) {
+    throw new Error(
+      "CLOUDFLARE_SCREENSHOTS_ENABLED requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_BROWSER_RENDERING_TOKEN",
+    );
+  }
+
   const dataRetentionEnabled = parseBool(process.env.DATA_RETENTION_ENABLED, true);
   const dataRetentionCron = process.env.DATA_RETENTION_CRON ?? "15 4 * * *";
   const dataRetentionAnalyticsDays = parseIntEnv(process.env.DATA_RETENTION_ANALYTICS_DAYS, 1095);
@@ -257,6 +276,12 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       enabled: screenshotCacheEnabled,
       ttlMs: Math.max(10_000, screenshotCacheTtlMs),
       maxEntries: Math.max(10, screenshotCacheMaxEntries),
+    },
+    /** Where heatmap screenshots render. `cloudflare: null` means the local Chromium. */
+    screenshots: {
+      cloudflare: cloudflareScreenshotsEnabled
+        ? { accountId: cloudflareAccountId, apiToken: cloudflareBrowserToken }
+        : null,
     },
     dataRetention: {
       enabled: dataRetentionEnabled,

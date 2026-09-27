@@ -63,5 +63,17 @@ export interface AnalyticsModule {
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;
 
+  /** The dashboard rollups' builder, for the scheduler to run. */
+  rollups: AnalyticsRollups;
+
   routes: AuthedRouter;
+}
+
+/**
+ * Rebuilds the dashboard's rollups for every website-day ingest has marked stale
+ * (`modules/analytics/rollups`). Safe to call repeatedly; a call with nothing stale is
+ * one small query.
+ */
+export interface AnalyticsRollups {
+  buildStale(): Promise<{ rebuilt: number; ms: number }>;
 }

@@ -13,7 +13,7 @@ import type { AnalyticsIngestEvent } from "../../../modules/analytics/interfaces
 import type { TrackerEvent } from "../../../modules/ingest/interfaces";
 import type { RetentionRunner } from "../../../platform/retention";
 import type { IngestQueue } from "../../../modules/ingest/interfaces";
-import type { TrackerWebsites } from "../../../modules/websites/interfaces";
+import type { TrackerWebsites, WebsiteQuery } from "../../../modules/websites/interfaces";
 import type { UserUsageService } from "../../services/usage/usage.service";
 import { parseJson } from "../../../platform/validation";
 import {
@@ -21,6 +21,22 @@ import {
   internalCollectHeatmapEventsSchema,
   internalCollectReplayEventsSchema,
 } from "./internal.schema";
+
+/**
+ * Handler for `GET /website-access` (documented at the route). Exported so its logic can
+ * be tested without the service-key middleware, which reads process-wide config.
+ */
+export function websiteAccessHandler(websites: WebsiteQuery) {
+  return async (c: Context) => {
+    const websiteId = c.req.query("website_id")?.trim() ?? "";
+    const userId = c.req.query("user_id")?.trim() ?? "";
+    if (!websiteId || !userId) return c.json({ error: "website_id and user_id required" }, 400);
+    const website = await websites.getById(websiteId);
+    if (!website) return c.json({ data: null });
+    const role = await websites.getRole(websiteId, userId);
+    return c.json({ data: { owner_id: website.ownerId, role } });
+  };
+}
 
 function requireGlobalKey(c: Pick<Context, "req">) {
   return isGlobalApiKeyValid(env(), c.req.header("X-API-Key"));
@@ -41,6 +57,8 @@ export function createInternalRoutes(deps: {
   retention: RetentionRunner;
   /** Tracker-shaped website lookup for the `/website-owner` collector. */
   trackerWebsites: TrackerWebsites;
+  /** Uncached website reads, for `/website-access` — an access check must not lag a revocation. */
+  websiteAccess: WebsiteQuery;
   /** Per-user usage, assembled from each module's own count. */
   usage: UserUsageService;
 }) {
@@ -71,6 +89,21 @@ internalRoutes.get("/website-owner", async (c) => {
   if (!website) return c.json({ data: null });
   return c.json({ data: { user_id: website.user_id } });
 });
+/**
+ * Whether a user may see a website, for a peer service's own access check.
+ *
+ * Observe used to ask `GET /api/v1/websites/:id` with the caller's token. Behind the
+ * gateway that route also demands `analytics:dashboard.view` from `X-Team-Permissions`,
+ * which only the gateway attaches — and only for the product being proxied — so every
+ * Observe project answered 403 and the whole console read as "project not found".
+ * Membership is Core's to answer; which observability actions follow from it is the
+ * caller's, from its own permission header.
+ *
+ * `data: null` when the website does not exist; `role: null` when it does but this user
+ * has no access. The caller should treat both the same, so ids cannot be enumerated.
+ */
+internalRoutes.get("/website-access", websiteAccessHandler(deps.websiteAccess));
+
 internalRoutes.post("/retention-cleanup", async (c) => {
   try {
     const stats = await retention.runSafely(env());

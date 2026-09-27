@@ -21,7 +21,7 @@ export function configureTrackerWebsiteCache(cfg: AppConfig): void {
 }
 
 /**
- * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.website_id`.
+ * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.tracking_id`.
  * Uses an in-memory TTL cache when `configureTrackerWebsiteCache` ran with cache enabled.
  */
 export async function resolveWebsiteForTracker(
@@ -80,7 +80,7 @@ export async function resolveWebsiteForTracker(
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
         LEFT JOIN website_privacy_settings privacy ON privacy.site_id = websites.id::text
-        WHERE websites.website_id = ${p}
+        WHERE websites.tracking_id = ${p}
         LIMIT 1
       `;
 

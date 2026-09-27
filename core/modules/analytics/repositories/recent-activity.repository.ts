@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { occurredAtToIso, windowStartIso } from "./shared";
 
 const RECENT_ACTIVITY_DEFAULT_DAYS = 30;

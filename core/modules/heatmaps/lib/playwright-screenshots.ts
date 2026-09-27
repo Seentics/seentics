@@ -7,6 +7,9 @@ import { snapshotDeviceBucketForWidth } from "./device";
 import { getScreenshotCache } from "../services/screenshot-cache.service";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { hostnameResolvesPublicly } from "./capture-network-policy";
+import { withCaptureSlot } from "./capture-slot";
+import { captureWithCloudflare } from "./cloudflare-screenshots";
+import { env } from "../../../config";
 
 const log = baseLog.child({ category: "playwright" });
 
@@ -44,7 +47,7 @@ export interface ScreenshotOptions {
   jpegQuality?: number;
 }
 
-interface CaptureResult {
+export interface CaptureResult {
   buffer: Buffer;
   width: number;
   height: number;
@@ -52,11 +55,19 @@ interface CaptureResult {
 }
 
 /**
- * Capture a screenshot of a webpage using Playwright and Chromium.
- * Returns the raw JPEG buffer and metadata.
+ * Capture a screenshot of a webpage, returning the raw JPEG buffer and metadata.
+ *
+ * Renders on Cloudflare Browser Rendering when `CLOUDFLARE_SCREENSHOTS_ENABLED` is set,
+ * otherwise on the local Chromium — one capture at a time, see `capture-slot.ts`.
  *
  * @throws Error if the page cannot be loaded or screenshot fails
  */
+async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
+  const cloudflare = env().screenshots.cloudflare;
+  if (cloudflare) return captureWithCloudflare(cloudflare, options);
+  return withCaptureSlot(() => captureWithLocalChromium(options));
+}
+
 /**
  * In Docker, `localhost` inside the container refers to the container itself,
  * not the host machine. Rewrite localhost URLs to host.docker.internal so
@@ -76,7 +87,7 @@ function rewriteLocalhostForDocker(url: string): string {
   return url;
 }
 
-async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
+async function captureWithLocalChromium(options: ScreenshotOptions): Promise<CaptureResult> {
   let page: Page | null = null;
 
   try {

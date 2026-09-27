@@ -39,14 +39,20 @@ type Fragment = { __fragment: string };
 const isFragment = (v: unknown): v is Fragment =>
   !!v && typeof v === "object" && "__fragment" in (v as object);
 
-/** Run the report and return the two generated SQL fragments, in interpolation order. */
+/**
+ * Run the report and return the two generated dimension fragments. They are the last
+ * two interpolated; the ones before them are the traffic-channel CASE, used by the
+ * referrer attribution step.
+ */
 async function generatedSql(): Promise<{ ctes: string; projections: string }> {
   queueRows([{}]);
   await getRevenueDashboard("site_1", {});
 
   const fragments = (sqlCalls[0]?.values ?? []).filter(isFragment).map((f) => f.__fragment);
-  expect(fragments).toHaveLength(2);
-  return { ctes: fragments[0]!, projections: fragments[1]! };
+  const dimensions = fragments.slice(-2);
+  expect(dimensions).toHaveLength(2);
+  for (const other of fragments.slice(0, -2)) expect(other).toContain("THEN 'internal'");
+  return { ctes: dimensions[0]!, projections: dimensions[1]! };
 }
 
 describe("attribution dimension CTEs", () => {

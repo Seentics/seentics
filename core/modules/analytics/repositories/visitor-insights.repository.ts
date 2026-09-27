@@ -1,4 +1,5 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
+import { pagePathSql } from "../lib/dimension-sql";
 import { parseDays } from "./shared";
 
 export async function getVisitorInsightsAnalytics(
@@ -21,7 +22,8 @@ export async function getVisitorInsightsAnalytics(
     returning_visitors: number;
   }[]>`
     WITH base AS (
-      SELECT session_id, page, visitor_id, occurred_at, id
+      -- Entry and exit pages by path, like top-pages (see lib/dimension-sql.ts).
+      SELECT session_id, ${pgSql.unsafe(pagePathSql("page"))} AS page, visitor_id, occurred_at, id
       FROM analytics_events
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'

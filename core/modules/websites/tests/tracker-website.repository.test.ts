@@ -12,6 +12,7 @@ import type { WebsiteTrackerRow, TrackerGoal } from "../interfaces";
 mock.module("../../../db", () => ({
   ...fakeDbModule(),
   sql: mock(async () => []),
+  analyticsReadSql: mock(async () => []),
   db: {
     insert: mock(() => ({ values: mock(async () => {}) })),
     transaction: mock(async (fn: (tx: any) => Promise<void>) => fn({ insert: mock(() => ({ values: mock(async () => {}) })) })),

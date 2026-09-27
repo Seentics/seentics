@@ -1,9 +1,11 @@
+import { sql } from "drizzle-orm";
 import { analyticsEvents, db } from "../../../db";
 import type { BatchTx } from "../../../platform/idempotency";
 import type { AnalyticsIngestEvent } from "../interfaces";
 import { clampClientTs } from "../../../platform/http/client-timestamp";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { pickInt, pickStr, pickUtmColumns } from "./field-pickers";
+import { classifyTrafficChannel } from "../lib/traffic-channel";
 
 const log = baseLog.child({ category: "ingest" });
 
@@ -76,14 +78,16 @@ export async function ingestAnalyticsBatch(
     const sh = pickInt(dm, ["sh", "screen_height"]);
     const ts = new Date(clampClientTs(e.ts, now));
     const utm = pickUtmColumns(dm);
+    const referrer = capStr(ref, MAX_TEXT_LEN);
+    const page = capStr(e.url ?? "", MAX_TEXT_LEN) ?? "";
     rows.push({
       websiteId: websiteId,
       eventType: t,
-      page: capStr(e.url ?? "", MAX_TEXT_LEN) ?? "",
+      page,
       visitorId: capStr(e.vid || e.sid || null, MAX_ID_LEN),
       sessionId: capStr(e.sid || null, MAX_ID_LEN),
       properties: capProperties(dm),
-      referrer: capStr(ref, MAX_TEXT_LEN),
+      referrer,
       country: meta?.country ?? null,
       region: meta?.region ?? null,
       city: meta?.city ?? null,
@@ -96,6 +100,10 @@ export async function ingestAnalyticsBatch(
       utmSource: utm.utmSource,
       utmMedium: utm.utmMedium,
       utmCampaign: utm.utmCampaign,
+      // Only pageviews are read by channel; other event types leave it NULL.
+      channel: t === "pageview"
+        ? classifyTrafficChannel({ referrer, page, utmSource: utm.utmSource, utmMedium: utm.utmMedium })
+        : null,
       occurredAt: ts,
     });
   }
@@ -115,6 +123,16 @@ export async function ingestAnalyticsBatch(
   for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
     await tx.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
   }
+  // Mark the website-days these rows land in as stale, so the dashboard rollups
+  // (modules/analytics/rollups) rebuild them. Same transaction, so a replayed batch can
+  // never add rows without also marking them — and one row per day, whatever the batch
+  // size.
+  const days = [...new Set(rows.map((r) => (r.occurredAt as Date).toISOString().slice(0, 10)))];
+  await tx.execute(sql`
+    INSERT INTO analytics_rollup_stale (website_id, day)
+    SELECT ${websiteId}, d::date FROM unnest(string_to_array(${days.join(",")}, ',')) AS d
+    ON CONFLICT (website_id, day) DO UPDATE SET staled_at = now()
+  `);
   log.debug({
     msg: "analytics_ingest_inserted",
     website_id: websiteId,

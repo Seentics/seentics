@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getCitiesAnalytics(
@@ -9,16 +9,25 @@ export async function getCitiesAnalytics(
   const startIso = windowStartIso(days);
 
   const rows = await pgSql<{ city: string; views: number; unique: number }[]>`
-    SELECT
-      city,
-      count(*)::int                                                                       AS views,
-      count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int             AS unique
-    FROM analytics_events
-    WHERE website_id  = ${websiteId}
-      AND event_type  = 'pageview'
-      AND occurred_at >= ${startIso}
-      AND city IS NOT NULL
-      AND length(trim(city)) > 0
+    -- Views and distinct visitors in two hash-aggregation steps: one row per (value,
+    -- visitor), then one per value. count(DISTINCT …) always sorts, and over a large
+    -- window that sort spilled to disk — 32.8 s for a 90-day top-pages over 633k
+    -- pageviews against 3.6 s this way, identical results. count(vk) skips a NULL
+    -- visitor key exactly as count(DISTINCT …) did.
+    SELECT city, sum(n)::int AS views, count(vk)::int AS unique
+    FROM (
+      SELECT
+        city,
+        coalesce(nullif(trim(visitor_id), ''), session_id) AS vk,
+        count(*) AS n
+      FROM analytics_events
+      WHERE website_id  = ${websiteId}
+        AND event_type  = 'pageview'
+        AND occurred_at >= ${startIso}
+        AND city IS NOT NULL
+        AND length(trim(city)) > 0
+      GROUP BY 1, 2
+    ) per_visitor
     GROUP BY city
     ORDER BY views DESC, city ASC
     LIMIT 30

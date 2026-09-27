@@ -8,7 +8,8 @@
  *
  * Requires indexes from db/sql/004_revenue_indexes.sql for best performance.
  */
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
+import { channelCaseSql } from "../lib/traffic-channel";
 import { parseDays, sanitizeTimezone } from "./shared";
 
 function addSharePct(
@@ -277,12 +278,18 @@ async function fetchRevenueRow(
 
     -- ── Step 4: referrer domain fallback ─────────────────────────────────────────
     -- When no UTM is found in the session, use the referrer domain of the most recent
-    -- pageview before the purchase.  This correctly attributes organic traffic from
-    -- Google, Reddit, Twitter, etc. instead of incorrectly labelling it 'direct'.
+    -- pageview before the purchase that arrived from outside the site. This attributes
+    -- traffic from Google, Reddit, Twitter, etc. instead of labelling it 'direct'.
     -- Regex strips the protocol, optional www., and everything after the first / ? #.
+    --
+    -- Internal pageviews are skipped: on a multi-page visit the latest pageview's
+    -- referrer is the site's own previous page, which credited the site itself as its
+    -- top revenue source. The medium is that pageview's channel (organic, social or
+    -- referral) — every referrer used to be called 'organic', Hacker News included.
     purchase_referrer AS (
       SELECT DISTINCT ON (p.id)
         p.id AS purchase_id,
+        coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) AS attr_channel,
         NULLIF(
           lower(trim(
             regexp_replace(
@@ -300,13 +307,14 @@ async function fetchRevenueRow(
        AND ae.referrer    IS NOT NULL
        AND length(trim(ae.referrer)) > 0
        AND ae.occurred_at <= p.occurred_at
+       AND coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) <> 'internal'
       ORDER BY p.id, ae.occurred_at DESC
     ),
 
     -- ── Step 5: enrich purchases with final attribution ───────────────────────────
     -- Priority: session pageview UTM → purchase-event UTM → referrer domain → 'direct'
-    -- When the source comes from the referrer (no UTM), medium is set to 'organic'
-    -- to distinguish it from direct and UTM-tagged paid traffic.
+    -- When the source comes from the referrer (no UTM), medium is that pageview's
+    -- channel, which distinguishes search, social and plain referral traffic.
     enriched AS (
       SELECT
         p.id,
@@ -329,7 +337,7 @@ async function fetchRevenueRow(
         COALESCE(
           NULLIF(TRIM(pa.attr_medium),   ''),
           NULLIF(TRIM(p.utm_medium),     ''),
-          CASE WHEN pr.attr_referrer_domain IS NOT NULL THEN 'organic' END,
+          CASE WHEN pr.attr_referrer_domain IS NOT NULL THEN pr.attr_channel END,
           'none'
         ) AS final_medium,
         COALESCE(

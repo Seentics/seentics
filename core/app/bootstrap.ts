@@ -219,6 +219,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         queue: ingestModule.queue,
         retention,
         trackerWebsites: websitesModule.trackerWebsites,
+        websiteAccess: websitesModule.accessChecks,
         usage,
       }),
     },
@@ -233,7 +234,11 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         await mod.start?.(cfg);
       }
 
-      startScheduler(cfg, { heatmapScreenshots: heatmapsModule.maintenance, retention });
+      startScheduler(cfg, {
+        heatmapScreenshots: heatmapsModule.maintenance,
+        retention,
+        analyticsRollups: analyticsModule.rollups,
+      });
 
       logger.info({ msg: "modules_started", modules: Object.keys(modules) });
     },

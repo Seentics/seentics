@@ -1,4 +1,5 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
+import { pagePathSql } from "../lib/dimension-sql";
 import { parseDays, windowStartIso } from "./shared";
 
 /**
@@ -39,7 +40,8 @@ export async function getPathAnalysisAnalytics(
     WITH src AS (
       SELECT
         session_id COLLATE "C" AS sid,
-        page COLLATE "C" AS page,
+        -- Paths by page path, like top-pages (see lib/dimension-sql.ts).
+        ${pgSql.unsafe(pagePathSql("page"))} COLLATE "C" AS page,
         occurred_at,
         id
       FROM analytics_events

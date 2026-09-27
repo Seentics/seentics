@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 
 const REALTIME_GEO_DEFAULT_MINUTES = 30;
 

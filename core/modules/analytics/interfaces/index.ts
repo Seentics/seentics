@@ -6,7 +6,7 @@
  * natural, prefer the individual capability — taking `AnalyticsRealtime` rather than
  * the module keeps a consumer testable with a three-method stub.
  */
-export type { AnalyticsModule } from "./analytics.module";
+export type { AnalyticsModule, AnalyticsRollups } from "./analytics.module";
 
 export type { TrafficSummary } from "./traffic-summary.interface";
 export { emptyTrafficSummary } from "./traffic-summary.interface";

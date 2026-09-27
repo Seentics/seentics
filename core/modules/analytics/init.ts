@@ -17,6 +17,7 @@ import { PublicDashboardService } from "./services/public-dashboard-analytics.se
 import { AnalyticsRetentionPurge } from "./services/retention-purge.service";
 import { AnalyticsTrafficSummaryService } from "./services/website-traffic-summary.service";
 import { AnalyticsUsageCounter } from "./services/usage-count.service";
+import { buildStaleRollups } from "./rollups/builder";
 
 /**
  * Build the analytics module.
@@ -71,6 +72,7 @@ export function initAnalyticsModule(deps: {
     retention: new AnalyticsRetentionPurge(),
 
     usage: new AnalyticsUsageCounter(),
+    rollups: { buildStale: () => buildStaleRollups() },
     routes: createAnalyticsRoutes({
       dashboard,
       dimensions,

@@ -12,7 +12,8 @@ import { fakeDbModule } from "./helpers/fake-db";
  */
 const mockValues = mock(() => Promise.resolve());
 const mockInsert = mock(() => ({ values: mockValues }));
-const fakeTx = { insert: mockInsert };
+const mockExecute = mock(async () => []);
+const fakeTx = { insert: mockInsert, execute: mockExecute };
 
 // Must export everything `db/index.ts` does, `sql` included. Bun's module mocks are
 // process-global, so an incomplete stub here is not a local shortcut — it becomes the
@@ -27,6 +28,7 @@ mock.module("../../../db", () => ({
   ...fakeDbModule(),
   db: { insert: mockInsert },
   sql: mock(async () => []),
+  analyticsReadSql: mock(async () => []),
 }));
 
 // A complete `Logger`: `child` must exist and must itself return a logger, because

@@ -2,7 +2,7 @@
  * Dashboard "Geographic Intelligence" expects `{ countries, cities, ... }` with
  * `name`, `count`, `percentage` (map pins use country centroids on the client when needed).
  */
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 function iso3166Alpha2ToName(iso2: string): string {
@@ -24,13 +24,20 @@ export async function getGeolocationAnalytics(
   const startIso = windowStartIso(days);
 
   const [totalUvRows, countryRows, cityRows] = await Promise.all([
+    // Distinct visitors by grouping, not count(DISTINCT …), which always sorts and spilled
+    // to disk on large windows (see pages.repository.ts). count(vk) skips a NULL key the
+    // same way. The two breakdowns below get a name tiebreaker: ordering by visitors
+    // alone returned equal-count rows in a different order from one load to the next.
     pgSql<{ uv: number }[]>`
-      SELECT
-        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS uv
-      FROM analytics_events
-      WHERE website_id = ${websiteId}
-        AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+      SELECT count(vk)::int AS uv
+      FROM (
+        SELECT coalesce(nullif(trim(visitor_id), ''), session_id) AS vk
+        FROM analytics_events
+        WHERE website_id = ${websiteId}
+          AND event_type = 'pageview'
+          AND occurred_at >= ${startIso}
+        GROUP BY 1
+      ) visitors
     `,
     pgSql<
       {
@@ -39,18 +46,19 @@ export async function getGeolocationAnalytics(
         unique_visitors: number;
       }[]
     >`
-      SELECT
-        country,
-        count(*)::int AS views,
-        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-      FROM analytics_events
-      WHERE website_id = ${websiteId}
-        AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
-        AND country IS NOT NULL
-        AND length(trim(country)) > 0
+      SELECT country, sum(n)::int AS views, count(vk)::int AS unique_visitors
+      FROM (
+        SELECT country, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+        FROM analytics_events
+        WHERE website_id = ${websiteId}
+          AND event_type = 'pageview'
+          AND occurred_at >= ${startIso}
+          AND country IS NOT NULL
+          AND length(trim(country)) > 0
+        GROUP BY 1, 2
+      ) per_visitor
       GROUP BY country
-      ORDER BY unique_visitors DESC
+      ORDER BY unique_visitors DESC, country ASC
       LIMIT 50
     `,
     pgSql<
@@ -61,21 +69,21 @@ export async function getGeolocationAnalytics(
         unique_visitors: number;
       }[]
     >`
-      SELECT
-        city,
-        country,
-        count(*)::int AS views,
-        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-      FROM analytics_events
-      WHERE website_id = ${websiteId}
-        AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
-        AND city IS NOT NULL
-        AND length(trim(city)) > 0
-        AND country IS NOT NULL
-        AND length(trim(country)) > 0
+      SELECT city, country, sum(n)::int AS views, count(vk)::int AS unique_visitors
+      FROM (
+        SELECT city, country, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+        FROM analytics_events
+        WHERE website_id = ${websiteId}
+          AND event_type = 'pageview'
+          AND occurred_at >= ${startIso}
+          AND city IS NOT NULL
+          AND length(trim(city)) > 0
+          AND country IS NOT NULL
+          AND length(trim(country)) > 0
+        GROUP BY 1, 2, 3
+      ) per_visitor
       GROUP BY city, country
-      ORDER BY unique_visitors DESC
+      ORDER BY unique_visitors DESC, city ASC, country ASC
       LIMIT 40
     `,
   ]);

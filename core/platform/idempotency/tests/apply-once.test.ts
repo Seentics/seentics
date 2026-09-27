@@ -47,6 +47,7 @@ mock.module("../../../db", () => ({
     },
   },
   sql: { begin: async (fn: (tx: unknown) => Promise<unknown>) => fn(fakeTx) },
+  analyticsReadSql: {},
 }));
 
 const { applyBatchOnce } = await import("../apply-once");

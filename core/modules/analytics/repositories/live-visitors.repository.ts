@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { LIVE_VISITOR_WINDOW_MS, REALTIME_WINDOW_MS } from "./realtime.repository";
 
 export async function getLiveVisitorsStats(websiteId: string) {

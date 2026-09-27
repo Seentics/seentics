@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays } from "./shared";
 
 export async function getGoalsStats(websiteId: string, query: Record<string, string | undefined>) {

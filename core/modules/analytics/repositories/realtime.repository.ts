@@ -1,4 +1,6 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
+import { pagePathSql, withoutVersionSql } from "../lib/dimension-sql";
+import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 
 /** Rolling window for `/analytics/realtime` (matches dashboard "last ~30 minutes"). */
 export const REALTIME_WINDOW_MS = 30 * 60_000;
@@ -58,15 +60,17 @@ export async function getRealtimeStats(websiteId: string) {
   }[]>`
     WITH base AS (
       SELECT
-        page,
+        -- Grouped like the historical reports: pages by path, browsers by name.
+        ${pgSql.unsafe(pagePathSql("page"))} AS page,
         country,
         referrer,
         device,
-        browser,
+        ${pgSql.unsafe(withoutVersionSql("browser"))} AS browser,
         visitor_id,
         session_id,
         occurred_at,
-        date_trunc('minute', occurred_at AT TIME ZONE 'UTC') AS grp_at
+        date_trunc('minute', occurred_at AT TIME ZONE 'UTC') AS grp_at,
+        coalesce(channel, ${pgSql.unsafe(CHANNEL_CASE_SQL)}) AS ch
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
@@ -109,7 +113,9 @@ export async function getRealtimeStats(websiteId: string) {
                ) AS name,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS visitors
         FROM base
-        WHERE referrer IS NOT NULL AND length(trim(referrer)) > 0
+        -- In-site navigation carries the site's own previous page as referrer; it is
+        -- not a referrer, and counted as one it topped the list on any multi-page site.
+        WHERE referrer IS NOT NULL AND length(trim(referrer)) > 0 AND ch <> 'internal'
         GROUP BY 1 ORDER BY visitors DESC LIMIT 10
       ) t
     ),

@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getSourcesAnalytics(

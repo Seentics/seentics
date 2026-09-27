@@ -286,47 +286,50 @@ describe("getDashboardStats", () => {
 // ─── Traffic summary ─────────────────────────────────────────────────────────
 
 describe("getTrafficSummaryStats", () => {
-  const channels = [
-    { channel: "direct", views: 10, unique_visitors: 5, total_visitors: 6 },
-    { channel: "organic", views: 4, unique_visitors: 3, total_visitors: 6 },
+  // The query returns one row per channel plus one site-wide row (GROUPING SETS).
+  const rows = [
+    { channel: "direct", site_total: false, views: 10, sessions: 6, unique_visitors: 5 },
+    { channel: "organic", site_total: false, views: 4, sessions: 3, unique_visitors: 3 },
+    { channel: null, site_total: true, views: 14, sessions: 9, unique_visitors: 6 },
   ];
 
   it("sums views across channels", async () => {
-    queueRows(channels);
+    queueRows(rows);
     expect((await getTrafficSummaryStats(SITE, {})).total_views).toBe(14);
   });
 
   it("takes total_visitors from the site-wide distinct count, not the per-channel sum", async () => {
-    // The whole reason the query carries `total_visitors` on every row: a visitor who
-    // arrived via two channels is counted once site-wide but twice in the column sum.
-    // 5 + 3 = 8 would over-report by two people.
-    queueRows(channels);
+    // A visitor who arrived via two channels is counted once site-wide but twice in the
+    // column sum. 5 + 3 = 8 would over-report by two people.
+    queueRows(rows);
     const out = await getTrafficSummaryStats(SITE, {});
     expect(out.total_visitors).toBe(6);
     expect(out.total_visitors).not.toBe(8);
   });
 
-  it("projects each channel without the redundant total column", async () => {
-    queueRows(channels);
+  it("projects each channel and leaves the site-wide row out of the list", async () => {
+    queueRows(rows);
     expect((await getTrafficSummaryStats(SITE, {})).channels).toEqual([
-      { channel: "direct", views: 10, unique_visitors: 5 },
-      { channel: "organic", views: 4, unique_visitors: 3 },
+      { channel: "direct", views: 10, sessions: 6, unique_visitors: 5 },
+      { channel: "organic", views: 4, sessions: 3, unique_visitors: 3 },
     ]);
   });
 
-  it("preserves the query's ordering rather than re-sorting", async () => {
+  it("orders channels by views, since GROUPING SETS output has no guaranteed order", async () => {
     queueRows([
-      { channel: "social", views: 1, unique_visitors: 1, total_visitors: 9 },
-      { channel: "direct", views: 100, unique_visitors: 9, total_visitors: 9 },
+      { channel: null, site_total: true, views: 101, unique_visitors: 9 },
+      { channel: "social", site_total: false, views: 1, unique_visitors: 1 },
+      { channel: "direct", site_total: false, views: 100, unique_visitors: 9 },
     ]);
     expect((await getTrafficSummaryStats(SITE, {})).channels.map((c) => c.channel)).toEqual([
-      "social",
       "direct",
+      "social",
     ]);
   });
 
   it("returns an empty summary for a site with no traffic", async () => {
-    queueRows([]);
+    // With no rows at all, GROUPING SETS still emits the empty site-wide row.
+    queueRows([{ channel: null, site_total: true, views: 0, unique_visitors: 0 }]);
     expect(await getTrafficSummaryStats(SITE, {})).toEqual({
       website_id: SITE,
       date_range: "7d",
@@ -338,28 +341,32 @@ describe("getTrafficSummaryStats", () => {
 
   it("coerces string counts before summing", async () => {
     queueRows([
-      { channel: "direct", views: "10", unique_visitors: "5", total_visitors: "6" },
-      { channel: "organic", views: "4", unique_visitors: "3", total_visitors: "6" },
+      { channel: "direct", site_total: false, views: "10", unique_visitors: "5" },
+      { channel: "organic", site_total: false, views: "4", unique_visitors: "3" },
+      { channel: null, site_total: true, views: "14", unique_visitors: "6" },
     ]);
     const out = await getTrafficSummaryStats(SITE, {});
     expect(out.total_views).toBe(14);
-    expect(out.total_views).not.toBe("104");
+    expect(out.total_visitors).toBe(6);
   });
 
-  it("anchors the social and search patterns to the referrer host", async () => {
-    // The patterns are passed as binds. `x.com` must not match `wix.com`, and a
-    // `google` path segment must not count as organic search.
+  it("reads the stored channel and scans the window once", async () => {
     queueRows([]);
     await getTrafficSummaryStats(SITE, {});
-    const [social, search] = sqlCalls[0]!.values.filter(
-      (v): v is string => typeof v === "string" && v.startsWith("^https?://"),
-    );
+    const text = sqlCalls[0]!.text;
+    expect(text).toContain("coalesce(channel,");
+    expect(text).toContain("GROUPING SETS ((channel), ())");
+    expect(text.match(/FROM analytics_events/g)).toHaveLength(1);
+  });
 
-    expect(new RegExp(social!, "i").test("https://x.com/post")).toBe(true);
-    expect(new RegExp(social!, "i").test("https://wix.com/x")).toBe(false);
-    expect(new RegExp(social!, "i").test("https://www.facebook.com")).toBe(true);
-    expect(new RegExp(search!, "i").test("https://www.google.com/search")).toBe(true);
-    expect(new RegExp(search!, "i").test("https://example.com/google/thing")).toBe(false);
+  it("attributes each session to its arrival channel, never to in-site navigation", async () => {
+    // Internal pageviews and a later referrer-less reload must not decide the session's
+    // channel; a session with nothing else is direct.
+    queueRows([]);
+    await getTrafficSummaryStats(SITE, {});
+    const text = sqlCalls[0]!.text;
+    expect(text).toContain("GROUP BY sid");
+    expect(text).toContain("FILTER (WHERE ch NOT IN ('internal', 'direct'))");
   });
 });
 

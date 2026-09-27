@@ -1,5 +1,7 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
+import { pagePathSql, withoutVersionSql } from "../lib/dimension-sql";
 import { parseDays, windowStartIso } from "./shared";
+import { sessionReferrerRows } from "./referrers.repository";
 
 /**
  * All six dimension breakdowns (pages, referrers, countries, browsers, devices, OS) behind
@@ -25,99 +27,94 @@ export async function getDimensionsBulkAnalytics(
   const startIso = windowStartIso(days);
 
   type DimRow  = { k: string | null; views: number; unique_visitors: number };
-  type RefRow  = { referrer: string; views: number; unique_visitors: number };
 
   // Referrers use session-based deduplication (first referrer per session).
   // Everything else is a simple GROUP BY.
+  // The five plain dimensions count views and distinct visitors in two hash-aggregation
+  // steps — one row per (value, visitor), then one per value — instead of
+  // count(DISTINCT …), which always sorts and spilled to disk on large windows (see
+  // pages.repository.ts for the measurements). Same results; count(vk) skips a NULL
+  // visitor key as count(DISTINCT …) did. Pages group by path and browsers/OSes by name,
+  // exactly as their standalone endpoints do — see lib/dimension-sql.ts.
   const [pageRows, refRows, countryRows, browserRows, deviceRows, osRows] =
     await Promise.all([
       pgSql<DimRow[]>`
-        SELECT page AS k,
-               count(*)::int AS views,
-               count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-        FROM analytics_events
-        WHERE website_id  = ${websiteId}
-          AND event_type  = 'pageview'
-          AND occurred_at >= ${startIso}
-          AND page IS NOT NULL AND length(trim(page)) > 0
-        GROUP BY page
-        ORDER BY views DESC, page ASC
+        SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
+        FROM (
+          SELECT ${pgSql.unsafe(pagePathSql("page"))} AS k, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+          FROM analytics_events
+          WHERE website_id  = ${websiteId}
+            AND event_type  = 'pageview'
+            AND occurred_at >= ${startIso}
+            AND page IS NOT NULL AND length(trim(page)) > 0
+          GROUP BY 1, 2
+        ) per_visitor
+        GROUP BY k
+        ORDER BY views DESC, k ASC
         LIMIT 50
       `,
       // Kept in step with referrers.repository.ts, which carries the full note: the
       // normalisation belongs inside the window, or NULL, empty and whitespace referrers
       // become three separate groups that all render as 'direct'.
-      pgSql<RefRow[]>`
-        WITH pv AS (
-          SELECT
-            coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
-            first_value(coalesce(nullif(trim(referrer), ''), 'direct'))
-              OVER (PARTITION BY session_id ORDER BY occurred_at ASC, id ASC) AS first_ref
+      sessionReferrerRows(websiteId, startIso),
+      pgSql<DimRow[]>`
+        SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
+        FROM (
+          SELECT country AS k, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
             AND occurred_at >= ${startIso}
-            AND session_id IS NOT NULL AND length(trim(session_id)) > 0
-        )
-        SELECT
-          first_ref AS referrer,
-          count(*)::int AS views,
-          count(DISTINCT vid)::int AS unique_visitors
-        FROM pv
-        GROUP BY first_ref
-        ORDER BY views DESC, referrer ASC
+            AND country IS NOT NULL AND length(trim(country)) > 0
+          GROUP BY 1, 2
+        ) per_visitor
+        GROUP BY k
+        ORDER BY views DESC, k ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
-        SELECT country AS k,
-               count(*)::int AS views,
-               count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-        FROM analytics_events
-        WHERE website_id  = ${websiteId}
-          AND event_type  = 'pageview'
-          AND occurred_at >= ${startIso}
-          AND country IS NOT NULL AND length(trim(country)) > 0
-        GROUP BY country
-        ORDER BY views DESC, country ASC
+        SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
+        FROM (
+          SELECT ${pgSql.unsafe(withoutVersionSql("browser"))} AS k, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+          FROM analytics_events
+          WHERE website_id  = ${websiteId}
+            AND event_type  = 'pageview'
+            AND occurred_at >= ${startIso}
+            AND browser IS NOT NULL AND length(trim(browser)) > 0
+          GROUP BY 1, 2
+        ) per_visitor
+        GROUP BY k
+        ORDER BY views DESC, k ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
-        SELECT browser AS k,
-               count(*)::int AS views,
-               count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-        FROM analytics_events
-        WHERE website_id  = ${websiteId}
-          AND event_type  = 'pageview'
-          AND occurred_at >= ${startIso}
-          AND browser IS NOT NULL AND length(trim(browser)) > 0
-        GROUP BY browser
-        ORDER BY views DESC, browser ASC
+        SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
+        FROM (
+          SELECT device AS k, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+          FROM analytics_events
+          WHERE website_id  = ${websiteId}
+            AND event_type  = 'pageview'
+            AND occurred_at >= ${startIso}
+            AND device IS NOT NULL AND length(trim(device)) > 0
+          GROUP BY 1, 2
+        ) per_visitor
+        GROUP BY k
+        ORDER BY views DESC, k ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
-        SELECT device AS k,
-               count(*)::int AS views,
-               count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-        FROM analytics_events
-        WHERE website_id  = ${websiteId}
-          AND event_type  = 'pageview'
-          AND occurred_at >= ${startIso}
-          AND device IS NOT NULL AND length(trim(device)) > 0
-        GROUP BY device
-        ORDER BY views DESC, device ASC
-        LIMIT 50
-      `,
-      pgSql<DimRow[]>`
-        SELECT os AS k,
-               count(*)::int AS views,
-               count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-        FROM analytics_events
-        WHERE website_id  = ${websiteId}
-          AND event_type  = 'pageview'
-          AND occurred_at >= ${startIso}
-          AND os IS NOT NULL AND length(trim(os)) > 0
-        GROUP BY os
-        ORDER BY views DESC, os ASC
+        SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
+        FROM (
+          SELECT ${pgSql.unsafe(withoutVersionSql("os"))} AS k, coalesce(nullif(trim(visitor_id), ''), session_id) AS vk, count(*) AS n
+          FROM analytics_events
+          WHERE website_id  = ${websiteId}
+            AND event_type  = 'pageview'
+            AND occurred_at >= ${startIso}
+            AND os IS NOT NULL AND length(trim(os)) > 0
+          GROUP BY 1, 2
+        ) per_visitor
+        GROUP BY k
+        ORDER BY views DESC, k ASC
         LIMIT 50
       `,
     ]);

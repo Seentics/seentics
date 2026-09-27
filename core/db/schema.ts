@@ -320,6 +320,8 @@ export const analyticsEvents = pgTable(
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),
     utmCampaign: text("utm_campaign"),
+    /** Traffic channel, classified at ingest for pageviews — see `lib/traffic-channel.ts`. */
+    channel: varchar("channel", { length: 16 }),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

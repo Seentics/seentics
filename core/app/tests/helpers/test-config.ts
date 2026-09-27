@@ -34,6 +34,7 @@ export function testConfig(overrides: Record<string, unknown> = {}): AppConfig {
     replayChunkFlushMs: 600_000,
     spoolIdleMs: 600_000,
     presignTtlMs: 60_000,
+    screenshots: { cloudflare: null },
     ...overrides,
   } as AppConfig;
 }

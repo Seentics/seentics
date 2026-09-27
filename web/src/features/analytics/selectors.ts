@@ -11,43 +11,52 @@
  * API does not actually keep. The *output* shapes are what the charts rely on.
  */
 
-// Pure helper — defined outside component so it's never re-created on render
+/**
+ * Friendly name for a referring domain, matched on whole domain labels.
+ *
+ * The API sends a domain (`google.com`, `t.co`, `news.ycombinator.com`) or `direct`.
+ * Matching used to be substring-based, which mislabelled real sites — anything
+ * containing "medium" became Medium, anything containing "google" became Google — and
+ * never matched Hacker News (the domain is news.ycombinator.com) or X (x.com, t.co).
+ * Older payloads carrying a full URL are reduced to their domain first.
+ */
+const REFERRER_NAMES: Array<[RegExp, string]> = [
+  [/^accounts\.google\./, 'Google OAuth'],
+  [/(^|\.)google\.[a-z.]+$/, 'Google'],
+  [/(^|\.)bing\.com$/, 'Bing'],
+  [/(^|\.)yahoo\.[a-z.]+$/, 'Yahoo'],
+  [/(^|\.)duckduckgo\.com$/, 'DuckDuckGo'],
+  [/(^|\.)(facebook\.com|fb\.com)$/, 'Facebook'],
+  [/(^|\.)(twitter\.com|x\.com|t\.co)$/, 'X (Twitter)'],
+  [/(^|\.)(linkedin\.com|lnkd\.in)$/, 'LinkedIn'],
+  [/(^|\.)github\.com$/, 'GitHub'],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, 'YouTube'],
+  [/(^|\.)instagram\.com$/, 'Instagram'],
+  [/(^|\.)reddit\.com$/, 'Reddit'],
+  [/(^|\.)medium\.com$/, 'Medium'],
+  [/(^|\.)stackoverflow\.com$/, 'Stack Overflow'],
+  [/(^|\.)dev\.to$/, 'Dev.to'],
+  [/(^|\.)hashnode\.(com|dev)$/, 'Hashnode'],
+  [/(^|\.)producthunt\.com$/, 'Product Hunt'],
+  [/^news\.ycombinator\.com$/, 'Hacker News'],
+];
+
 function categorizeReferrer(referrer: string): string {
   const raw = (referrer ?? '').trim();
-  if (!raw || raw === 'Direct') return 'Direct';
-  const r = raw.toLowerCase();
-  if (r.includes('accounts.google.com')) return 'Google OAuth';
-  if (r.includes('google')) return 'Google';
-  if (r.includes('bing')) return 'Bing';
-  if (r.includes('yahoo')) return 'Yahoo';
-  if (r.includes('duckduckgo')) return 'DuckDuckGo';
-  if (r.includes('facebook')) return 'Facebook';
-  if (r.includes('twitter')) return 'Twitter';
-  if (r.includes('linkedin')) return 'LinkedIn';
-  if (r.includes('github')) return 'GitHub';
-  if (r.includes('youtube')) return 'YouTube';
-  if (r.includes('instagram')) return 'Instagram';
-  if (r.includes('reddit')) return 'Reddit';
-  if (r.includes('medium')) return 'Medium';
-  if (r.includes('stackoverflow')) return 'Stack Overflow';
-  if (r.includes('dev.to')) return 'Dev.to';
-  if (r.includes('hashnode')) return 'Hashnode';
-  if (r.includes('producthunt')) return 'Product Hunt';
-  if (r.includes('hackernews')) return 'Hacker News';
-  // Same-origin / dev: self-referrals, not acquisition
+  if (!raw || raw.toLowerCase() === 'direct') return 'Direct';
+  const domain = raw.toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[/?#:].*$/, '').replace(/^www\./, '');
+  // Same-origin / dev: self-referrals, not acquisition.
   if (
-    r.includes('localhost') ||
-    r.includes('127.0.0.1') ||
-    r.includes('::1') ||
-    r.startsWith('http://0.0.0.0') ||
-    r.includes('192.168.') ||
-    r.includes('10.0.') ||
-    /\.local(\/|:|$)/.test(r)
+    domain === 'localhost' ||
+    domain === '127.0.0.1' ||
+    domain === '[::1]' ||
+    domain === '0.0.0.0' ||
+    /^(192\.168|10)\./.test(domain) ||
+    domain.endsWith('.local')
   ) {
     return 'Internal Navigation';
   }
-  // Extract domain for unknown referrers instead of showing full URL
-  const domain = r.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  for (const [pattern, name] of REFERRER_NAMES) if (pattern.test(domain)) return name;
   return domain || raw;
 }
 

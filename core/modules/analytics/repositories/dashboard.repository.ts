@@ -1,5 +1,5 @@
 /** High-level KPIs for the main dashboard (single scan where possible). */
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 import { log } from "../../../platform/observability/logger";
 import { parseDays } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
@@ -48,49 +48,31 @@ async function fetchDashboardRows(
 ): Promise<DashboardRows> {
   const [[agg], [sess], liveRow] = await Promise.all([
     pgSql<TrafficAgg[]>`
+      -- Pageviews and distinct visitors for both periods from one scan, in two
+      -- hash-aggregation steps: one row per (visitor, period), then the four totals.
+      -- count(DISTINCT …) FILTER (…) always sorts, and at 633k pageviews over 90 days
+      -- that sort spilled to disk — 10.6 s, against 0.8 s this way, same numbers.
+      -- A visitor seen in both periods is one row in each, so each period still
+      -- counts them once. count(vk) skips a NULL visitor key as count(DISTINCT …) did.
       SELECT
-        COALESCE(
-          count(*) FILTER (
-            WHERE event_type = 'pageview'
-              AND occurred_at >= ${startIso}
-              AND occurred_at <= ${endIso}
-          ),
-          0
-        )::int AS pv,
-        COALESCE(
-          count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id)) FILTER (
-            WHERE event_type = 'pageview'
-              AND occurred_at >= ${startIso}
-              AND occurred_at <= ${endIso}
-          ),
-          0
-        )::int AS uv,
-        COALESCE(
-          count(*) FILTER (
-            WHERE event_type = 'pageview'
-              AND occurred_at >= ${prevStartIso}
-              AND occurred_at < ${startIso}
-          ),
-          0
-        )::int AS prev_pv,
-        COALESCE(
-          count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id)) FILTER (
-            WHERE event_type = 'pageview'
-              AND occurred_at >= ${prevStartIso}
-              AND occurred_at < ${startIso}
-          ),
-          0
-        )::int AS prev_uv
-      FROM analytics_events
-      WHERE website_id = ${websiteId}
-        -- Redundant against the four FILTERs above, which every one of them already
-        -- applies — and that is the point. Without it the planner sees a query over all
-        -- event types and cannot use ix_analytics_pageview_visitor, the partial covering
-        -- index built for exactly this shape, so it read the heap for every custom event
-        -- and heatmap row in the window before discarding them.
-        AND event_type = 'pageview'
-        AND occurred_at >= ${prevStartIso}
-        AND occurred_at <= ${endIso}
+        coalesce(sum(n) FILTER (WHERE cur), 0)::int AS pv,
+        count(vk) FILTER (WHERE cur)::int AS uv,
+        coalesce(sum(n) FILTER (WHERE NOT cur), 0)::int AS prev_pv,
+        count(vk) FILTER (WHERE NOT cur)::int AS prev_uv
+      FROM (
+        SELECT
+          coalesce(nullif(trim(visitor_id), ''), session_id) AS vk,
+          occurred_at >= ${startIso} AS cur,
+          count(*) AS n
+        FROM analytics_events
+        WHERE website_id = ${websiteId}
+          -- The partial covering index ix_analytics_pageview_visitor serves exactly this
+          -- predicate, so the scan never reads the heap.
+          AND event_type = 'pageview'
+          AND occurred_at >= ${prevStartIso}
+          AND occurred_at <= ${endIso}
+        GROUP BY 1, 2
+      ) per_visitor
     `,
     pgSql<SessionAgg[]>`
       -- Every event type, not just pageviews: session duration is measured from the first

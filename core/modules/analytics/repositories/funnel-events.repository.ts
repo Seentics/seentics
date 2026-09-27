@@ -1,4 +1,4 @@
-import { sql as pgSql } from "../../../db";
+import { analyticsReadSql as pgSql } from "../../../db";
 
 /** One bucket of the aggregation: a step index (or `-1`) and its distinct visitors. */
 export type FunnelStepCount = { step_order: number | null; cnt: number };

@@ -3,6 +3,7 @@ import type { AppConfig } from "../config";
 import type { RetentionRunner } from "../platform/retention";
 import type { HeatmapScreenshotMaintenance } from "../modules/heatmaps/interfaces";
 import { log as baseLog } from "../platform/observability/logger";
+import type { AnalyticsRollups } from "../modules/analytics/interfaces";
 
 const log = baseLog.child({ category: "scheduler" });
 
@@ -13,6 +14,7 @@ let jobs: Cron[] = [];
  *
  * Jobs:
  *  - data-retention  : daily at 04:15 UTC — purges analytics, sessions, heatmap data per retention config
+ *  - analytics-rollups : every 30 s — rebuilds stale website-days of the dashboard rollups
  *  - screenshot-refresh : every 3 days at 03:00 UTC — re-captures stale heatmap page screenshots
  */
 export function startScheduler(
@@ -20,6 +22,7 @@ export function startScheduler(
   deps?: {
     heatmapScreenshots?: HeatmapScreenshotMaintenance;
     retention?: RetentionRunner;
+    analyticsRollups?: AnalyticsRollups;
   },
 ): void {
   if (jobs.length > 0) {
@@ -43,6 +46,27 @@ export function startScheduler(
     );
     jobs.push(retentionJob);
     log.info({ msg: "scheduler_job_registered", job: "data-retention", schedule: cfg.dataRetention.cronExpression });
+  }
+
+  // Analytics rollups — every 30 s, rebuild the website-days ingest has marked stale.
+  // `protect` skips a tick while the previous run is still going, so a large backfill
+  // never stacks runs on top of each other.
+  const rollups = deps?.analyticsRollups;
+  if (rollups && process.env.ANALYTICS_ROLLUPS_ENABLED !== "false") {
+    const rollupSchedule = process.env.ANALYTICS_ROLLUP_CRON ?? "*/30 * * * * *";
+    const rollupJob = new Cron(
+      rollupSchedule,
+      { timezone: "UTC", name: "analytics-rollups", catch: true, protect: true },
+      async () => {
+        try {
+          await rollups.buildStale();
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "analytics-rollups", err: String(e) });
+        }
+      },
+    );
+    jobs.push(rollupJob);
+    log.info({ msg: "scheduler_job_registered", job: "analytics-rollups", schedule: rollupSchedule });
   }
 
   // Heatmap screenshot refresh — every 3 days at 03:00 UTC

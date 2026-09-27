@@ -305,6 +305,7 @@ export function fakeDbModule() {
   return {
     db: fakeDb,
     sql: fakeSql,
+    analyticsReadSql: fakeSql,
     // Every table in `db/schema.ts`, in its declaration order — not just the ones some
     // test happens to touch. An omission here does not fail locally; it fails whichever
     // *other* file the runner happens to load next, with a `SyntaxError: Export named …
