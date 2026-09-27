@@ -1,5 +1,12 @@
+-- requires-extension: hll
+--
 -- Rollups: pre-computed daily summaries of the analytics data, so dashboard reads stop
 -- scaling with a site's traffic.
+--
+-- Optional: the migration runner skips this file on a Postgres without the `hll`
+-- extension (plain postgres images) and applies it on the first start after `hll` is
+-- installed — deploy/postgres/Dockerfile in the managed stack. Until then the dashboard
+-- keeps reading raw events and the builder does nothing.
 --
 -- Every dashboard query used to recompute from raw `analytics_events`. Benchmarked on a
 -- site with 3.8M events, grouping 30 days of events into sessions alone took ~9 s however
@@ -18,16 +25,6 @@
 -- here is an exact count.
 
 CREATE EXTENSION IF NOT EXISTS hll;
-
--- Website-days whose rollups are stale. Ingest upserts here in the same transaction as
--- the events it writes; the builder rebuilds the day (and, early in a day, the day
--- before, whose sessions may continue into it) and clears what it covered.
-CREATE TABLE IF NOT EXISTS analytics_rollup_stale (
-  website_id TEXT NOT NULL,
-  day        DATE NOT NULL,
-  staled_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (website_id, day)
-);
 
 -- One row per session, keyed by the UTC day of its first pageview.
 --

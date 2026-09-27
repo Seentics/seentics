@@ -247,6 +247,12 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
  */
 export async function buildStaleRollups(limit = 1000): Promise<{ rebuilt: number; ms: number }> {
   const t0 = performance.now();
+  // Rollups are optional: without the `hll` extension migration 031 never ran and the
+  // tables do not exist. Do nothing then; the stale markers keep (one row per
+  // website-day) and are built on the first run after the extension arrives.
+  const [ready] = await sql<{ ok: boolean }[]>`SELECT to_regclass('analytics_rollup_daily') IS NOT NULL AS ok`;
+  if (!ready?.ok) return { rebuilt: 0, ms: 0 };
+
   const stale = await sql<{ website_id: string; day: string; staled_at: Date }[]>`
     SELECT website_id, day::text AS day, staled_at
     FROM analytics_rollup_stale

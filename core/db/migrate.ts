@@ -52,6 +52,21 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
         if (applied[0].checksum !== checksum) throw new Error(`Migration ${filename} was modified after being applied`);
         continue;
       }
+      // A migration may declare `-- requires-extension: <name>` for an optional feature
+      // (the analytics rollups need `hll`). On a server without that extension it is
+      // skipped — not recorded, so it applies on the first start after the extension is
+      // installed — rather than failing startup for every self-hosted install on a plain
+      // Postgres image.
+      const required = content.match(/^--\s*requires-extension:\s*(\S+)/m)?.[1];
+      if (required) {
+        const [available] = await sql<{ ok: boolean }[]>`
+          SELECT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = ${required}) AS ok
+        `;
+        if (!available?.ok) {
+          console.warn(`[migrate] skipping ${filename}: Postgres extension "${required}" is not installed`);
+          continue;
+        }
+      }
       await sql.begin(async (tx) => {
         await tx.unsafe(content);
         await tx`
