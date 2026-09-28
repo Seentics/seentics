@@ -63,7 +63,11 @@ export function batchIdFromContent(rows: readonly unknown[]): string {
  * a test: if the two ever diverged, a batch queued under one id could be applied again
  * under the other.
  */
-export function serializeBatch(rows: readonly unknown[]): { json: string; batchId: string } {
+export function serializeBatch(
+  rows: readonly unknown[],
+  scope = "",
+): { json: string; batchId: string } {
   const json = JSON.stringify(rows);
-  return { json, batchId: createHash("sha256").update(json).digest("hex").slice(0, 32) };
+  const content = scope ? `${scope}\0${json}` : json;
+  return { json, batchId: createHash("sha256").update(content).digest("hex").slice(0, 32) };
 }

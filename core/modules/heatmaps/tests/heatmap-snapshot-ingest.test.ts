@@ -133,6 +133,7 @@ mock.module("../../../platform/storage/s3", () => ({
   deleteS3Objects: async () => {},
   getNextReplayChunkSequence: async () => 0,
   uploadSessionChunkGzip: async () => {},
+  uploadSessionBatchChunkGzip: async () => {},
   deleteSessionPrefix: async () => {},
   listSessionReplayChunks: async () => [],
   presignGet: async (_bucket: string, key: string) => `https://signed.test/${key}`,

@@ -119,16 +119,13 @@ describe("durability", () => {
     );
   });
 
-  /**
-   * Points commit before the upload is attempted, so the retry that a failed upload
-   * causes finds the marker and does not add to `intensity` a second time.
-   */
+  /** Storage runs first, so a failed upload leaves the additive point write untouched. */
   it("does not re-apply points when a retry follows a storage failure", async () => {
     snapshots.failScreenshots = true;
     await expect(
       engine.processEvents("b1", [clickRow(SITE_A), screenshotRow(SITE_A)]),
     ).rejects.toThrow();
-    expect(upserts).toHaveLength(1);
+    expect(upserts).toHaveLength(0);
 
     snapshots.failScreenshots = false;
     await engine.processEvents("b1", [clickRow(SITE_A), screenshotRow(SITE_A)]);

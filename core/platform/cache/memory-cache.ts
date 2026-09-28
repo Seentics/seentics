@@ -30,6 +30,11 @@ export class MemoryCache<V = unknown> {
     this.store.set(key, { value, exp: now + ttlMs, lastTouch: now });
   }
 
+  /** Drop every entry after a mutation invalidates aliases we cannot enumerate safely. */
+  clear(): void {
+    this.store.clear();
+  }
+
   private evictOne(): void {
     let oldestKey: string | undefined;
     let oldest = Infinity;

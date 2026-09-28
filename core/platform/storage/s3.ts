@@ -112,16 +112,16 @@ export async function presignGet(bucket: string, key: string, expiresMs: number)
   return getSignedUrl(s3ForPresign(), cmd, { expiresIn: Math.ceil(expiresMs / 1000) });
 }
 
-const CHUNK_OBJECT_RE = /^chunk-(\d+)\.json\.gz$/;
+const CHUNK_OBJECT_RE = /^chunk-(\d+)(?:-([a-f0-9]{32}))?\.json\.gz$/i;
 
 /** List immutable chunk objects for a session (sorted by sequence). */
 export async function listSessionReplayChunks(
   bucket: string,
   websiteId: string,
   sessionId: string,
-): Promise<{ sequence: number; key: string }[]> {
+): Promise<{ sequence: number; key: string; batchId?: string }[]> {
   const prefix = sessionPrefix(websiteId, sessionId);
-  const out: { sequence: number; key: string }[] = [];
+  const out: { sequence: number; key: string; batchId?: string }[] = [];
   let token: string | undefined;
   do {
     const list = await s3().send(
@@ -135,7 +135,7 @@ export async function listSessionReplayChunks(
       if (!m || !m[1]) continue;
       const sequence = Number(m[1]);
       if (!Number.isFinite(sequence)) continue;
-      out.push({ sequence, key });
+      out.push({ sequence, key, ...(m[2] ? { batchId: m[2].toLowerCase() } : {}) });
     }
     token = list.IsTruncated ? list.NextContinuationToken : undefined;
   } while (token);
@@ -165,6 +165,32 @@ export async function uploadSessionChunkGzip(
   if (events.length === 0) return;
   const key = sessionChunkKey(websiteId, sessionId, sequence);
   await putGzipJson(bucket, key, events);
+}
+
+/**
+ * Store one durable ingest batch under a retry-stable object key.
+ *
+ * The queue serializes batches per session. Including `batchId` in the key closes the
+ * cross-system commit gap: if the S3 put succeeds but the Postgres completion transaction
+ * fails, a retry (even after restart) finds this exact batch and does not append it again.
+ */
+export async function uploadSessionBatchChunkGzip(
+  bucket: string,
+  websiteId: string,
+  sessionId: string,
+  batchId: string,
+  events: Record<string, unknown>[],
+): Promise<void> {
+  if (events.length === 0) return;
+  const normalizedBatchId = batchId.toLowerCase();
+  const chunks = await listSessionReplayChunks(bucket, websiteId, sessionId);
+  if (chunks.some((chunk) => chunk.batchId === normalizedBatchId)) return;
+  const sequence = chunks.length === 0 ? 0 : chunks[chunks.length - 1]!.sequence + 1;
+  await putGzipJson(
+    bucket,
+    sessionChunkKey(websiteId, sessionId, sequence, normalizedBatchId),
+    events,
+  );
 }
 
 class Mutex {

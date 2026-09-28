@@ -11,14 +11,24 @@ const inserted: unknown[][] = [];
 const callOrder: string[] = [];
 
 mock.module("../repositories/error-writes.repository", () => ({
-  upsertErrorGroups: async (rows: unknown[]) => {
+  upsertErrorGroups: async (_tx: unknown, rows: unknown[]) => {
     callOrder.push("groups");
     upserted.push(rows);
   },
-  insertErrorEvents: async (rows: unknown[]) => {
+  insertErrorEvents: async (_tx: unknown, rows: unknown[]) => {
     callOrder.push("events");
     inserted.push(rows);
   },
+}));
+
+mock.module("../../../platform/idempotency", () => ({
+  applyBatchOnceSql: async (_batchId: string, write: (tx: unknown) => Promise<number>) => ({
+    applied: true,
+    rowCount: await write({}),
+  }),
+  applyBatchOnce: async () => ({ applied: true, rowCount: 0 }),
+  batchIdFromContent: (...parts: unknown[]) => parts.join(":"),
+  serializeBatch: (rows: unknown[]) => ({ json: JSON.stringify(rows), batchId: "batch" }),
 }));
 
 const { ErrorIngestService } = await import("../services/error-ingest.service");

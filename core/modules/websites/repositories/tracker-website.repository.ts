@@ -20,6 +20,11 @@ export function configureTrackerWebsiteCache(cfg: AppConfig): void {
   websiteResolveCacheTtlMs = cfg.trackerCache.websiteTtlMs;
 }
 
+/** Website rows are cached under either UUID or tracking id, so invalidate all aliases. */
+export function clearTrackerWebsiteCache(): void {
+  websiteResolveCache?.clear();
+}
+
 /**
  * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.tracking_id`.
  * Uses an in-memory TTL cache when `configureTrackerWebsiteCache` ran with cache enabled.

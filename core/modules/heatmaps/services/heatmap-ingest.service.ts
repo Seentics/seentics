@@ -32,9 +32,9 @@ const storageConcurrency = 3;
  * throw propagates to the worker, which retries the batch and parks it after
  * `maxAttempts` rather than marking it applied.
  *
- * Points are written before object storage on purpose. They are the transactional half and
- * the cheap half, so a retry driven by a failed upload skips them via the batch marker
- * instead of redoing them.
+ * Object storage is written before the transactional point write. Completing the queue
+ * row first would make a later S3 failure unretryable. Snapshot keys are overwrite-safe,
+ * so repeating those puts is preferable to acknowledging a partially applied batch.
  */
 export class HeatmapIngestService implements HeatmapIngest {
   private readonly snapshots: SnapshotIngestService;
@@ -87,13 +87,11 @@ export class HeatmapIngestService implements HeatmapIngest {
     const events = trackerRowsToHeatmapEvents(raw);
     if (events.length === 0) return;
 
-    await this.writePoints(batchId, eventsToPoints(events));
-
-    // Object storage after the transactional write, and outside the marker: S3 puts are
-    // keyed by content or by (website, path), so replaying one overwrites rather than
-    // duplicates. Only the additive `intensity` upsert needs the marker.
     await this.storeDomSnapshots(events);
     await this.storeScreenshots(events);
+    // Last: this may atomically complete the queue row. The worker's completion fallback
+    // handles screenshot-only batches where there are no additive points.
+    await this.writePoints(batchId, eventsToPoints(events));
 
   }
 

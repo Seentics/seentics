@@ -30,6 +30,7 @@ type Cached = { body: Uint8Array; headers: [string, string][] };
  * bug, and caching under a placeholder key would pool unrelated users together.
  */
 export type CacheIdentity = (c: Context) => string | null;
+export type CacheAuthorization = (c: Context) => Promise<boolean>;
 
 /** For the share-link route: no viewer identity, one response for every holder. */
 export const PUBLIC_IDENTITY: CacheIdentity = () => "public";
@@ -46,6 +47,7 @@ function shouldCachePath(path: string): boolean {
 export function analyticsCacheMiddleware(
   cfg: AppConfig,
   identify: CacheIdentity,
+  authorize?: CacheAuthorization,
 ): MiddlewareHandler {
   const inner = new MemoryCache<Cached>(cfg.analyticsCache.maxEntries);
   const ttlMs = cfg.analyticsCache.ttlMs;
@@ -57,6 +59,12 @@ export function analyticsCacheMiddleware(
     // No resolved identity → no caching at all. See the note above.
     const identity = identify(c);
     if (identity === null) return next();
+
+    // Authentication alone is insufficient: membership can be revoked while a cached
+    // response remains live. Re-check live authorization before a hit can short-circuit
+    // the controller. On failure, fall through so the controller preserves its normal
+    // not-found/forbidden response without ever serving cached bytes.
+    if (authorize && !(await authorize(c))) return next();
 
     if (Math.random() < 0.05) inner.sweepExpired();
 

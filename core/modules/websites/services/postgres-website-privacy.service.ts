@@ -32,6 +32,8 @@ function present(row: PrivacyRow | undefined): WebsitePrivacySettings {
 export class PostgresWebsitePrivacyService
   implements WebsitePrivacySettingsService
 {
+  constructor(private readonly onChanged: (websiteId: string) => void = () => {}) {}
+
   async get(websiteId: string): Promise<WebsitePrivacySettings> {
     const rows = await sql<[PrivacyRow?]>`
       SELECT ip_anonymization, respect_dnt, consent_mode, data_retention_days
@@ -56,6 +58,8 @@ export class PostgresWebsitePrivacyService
         data_retention_days = EXCLUDED.data_retention_days, updated_at = NOW()
       RETURNING ip_anonymization, respect_dnt, consent_mode, data_retention_days
     `;
-    return present(rows[0]);
+    const saved = present(rows[0]);
+    this.onChanged(websiteId);
+    return saved;
   }
 }

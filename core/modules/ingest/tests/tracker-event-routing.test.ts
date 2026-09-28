@@ -24,9 +24,10 @@ class FakeQueue implements IngestQueue {
   events: { websiteId: string; rows: TrackerEvent[] }[] = [];
   profiles: VisitorProfileWrite[] = [];
 
-  enqueue(lane: string, websiteId: string, rows: readonly unknown[]): void {
+  enqueue(lane: string, websiteId: string, rows: readonly unknown[]) {
     if (lane === "analytics") this.events.push({ websiteId, rows: rows as TrackerEvent[] });
     if (lane === "profiles") this.profiles.push(...(rows as VisitorProfileWrite[]));
+    return { accepted: rows.length, dropped: 0 };
   }
 }
 

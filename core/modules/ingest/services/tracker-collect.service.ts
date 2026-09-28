@@ -28,8 +28,8 @@ function processTrackerCollect(
   queue: IngestQueue,
 ): ProcessTrackerCollectResult {
   const { body, website, headers } = input;
-  const queued = trackerCollectItemCount(body);
-  if (queued === 0) return { kind: "empty" };
+  const offered = trackerCollectItemCount(body);
+  if (offered === 0) return { kind: "empty" };
 
   const consentGranted = (body as Record<string, unknown>).consent === true;
   if ((website.respect_dnt && headers.get("DNT") === "1") ||
@@ -44,7 +44,17 @@ function processTrackerCollect(
     acceptLanguage: headers.get("Accept-Language") ?? "",
     headers,
   });
-  const context = { body, website, userAgent, ingestMeta, queue };
+  let queued = 0;
+  let dropped = 0;
+  const countingQueue: IngestQueue = {
+    enqueue(lane, websiteId, rows) {
+      const result = queue.enqueue(lane, websiteId, rows);
+      queued += result.accepted;
+      dropped += result.dropped;
+      return result;
+    },
+  };
+  const context = { body, website, userAgent, ingestMeta, queue: countingQueue };
 
   const fields = {
     msg: "tracker_collect" as const,
@@ -71,7 +81,7 @@ function processTrackerCollect(
   routeHeatmapEvents(context);
   routeErrorEvents(context);
 
-  return { kind: "processed", queued };
+  return { kind: "processed", queued, dropped };
 }
 
 /**

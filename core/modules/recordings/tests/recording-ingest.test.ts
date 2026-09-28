@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 // Registers the shared infrastructure stubs. Must come before the modules under test.
-import { resetStubs } from "./support/stubs";
+import { resetStubs, uploads } from "./support/stubs";
 import type { TrackerEvent } from "../../ingest/interfaces";
 
 /**
@@ -253,20 +253,21 @@ describe("RecordingIngestService.processEvents", () => {
       );
     });
 
-    it("spools nothing when the metadata write fails", async () => {
+    it("makes replay bytes durable before a metadata failure", async () => {
       const engine = makeEngine();
       upsertThrows = true;
       await engine.processEvents("b1", [rrweb(T0, { type: 2 })]).catch(() => {});
-      expect(engine.warmChunks("w1", "s1")).toBeNull();
+      expect(uploads).toHaveLength(1);
     });
 
-    it("retrying after a failed write spools the events exactly once", async () => {
+    it("retrying after a failed write uploads the batch exactly once", async () => {
       const engine = makeEngine();
       upsertThrows = true;
       await engine.processEvents("b1", [rrweb(T0, { type: 2 }), rrweb(T0 + 1_000)]).catch(() => {});
       upsertThrows = false;
       await engine.processEvents("b1", [rrweb(T0, { type: 2 }), rrweb(T0 + 1_000)]);
-      expect(engine.warmChunks("w1", "s1")?.events).toHaveLength(2);
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0]?.count).toBe(2);
     });
   });
 
@@ -279,13 +280,14 @@ describe("RecordingIngestService.processEvents", () => {
       expect(written).toHaveLength(1);
     });
 
-    /** `pages_viewed` accumulates in SQL, so a second spool push would double the events too. */
-    it("does not spool a repeated batch a second time", async () => {
+    /** `pages_viewed` accumulates in SQL, so a repeated upload must be idempotent too. */
+    it("does not upload a repeated batch a second time", async () => {
       const engine = makeEngine();
       const events = [rrweb(T0, { type: 2 }), rrweb(T0 + 1_000)];
       await engine.processEvents("b1", events);
       await engine.processEvents("b1", events);
-      expect(engine.warmChunks("w1", "s1")?.events).toHaveLength(2);
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0]?.count).toBe(2);
     });
 
     it("still applies a genuinely different batch", async () => {
@@ -311,11 +313,11 @@ describe("RecordingIngestService.processEvents", () => {
       expect(written[0]!.rows).toHaveLength(2);
     });
 
-    it("sorts spooled events by the replay timeline, not arrival order", async () => {
+    it("sorts uploaded events by the replay timeline, not arrival order", async () => {
       const engine = makeEngine();
       await engine.processEvents("b1", [rrweb(T0 + 5_000), rrweb(T0, { type: 2 }), rrweb(T0 + 1_000)]);
-      const tail = engine.warmChunks("w1", "s1")!.events;
-      const stamps = tail.map((e) => (e.data as Record<string, number>).timestamp);
+      const stored = uploads[0]!.events as Record<string, unknown>[];
+      const stamps = stored.map((e) => (e.data as Record<string, number>).timestamp);
       expect(stamps).toEqual([T0, T0 + 1_000, T0 + 5_000]);
     });
   });

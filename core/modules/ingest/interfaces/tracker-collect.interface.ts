@@ -44,7 +44,7 @@ export type ProcessTrackerCollectInput = {
 export type ProcessTrackerCollectResult =
   | { kind: "empty" }
   | { kind: "privacy-disabled" }
-  | { kind: "processed"; queued: number };
+  | { kind: "processed"; queued: number; dropped: number };
 
 export interface TrackerCollectService {
   process(input: ProcessTrackerCollectInput): ProcessTrackerCollectResult;

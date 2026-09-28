@@ -193,6 +193,21 @@ export async function markBatchFailed(batchId: string, error: string): Promise<v
 }
 
 /**
+ * Close a claimed batch after its lane returned successfully.
+ *
+ * Most SQL lanes already perform this update in the same transaction as their write via
+ * `applyBatchOnce`. Keeping this idempotent also covers successful no-op batches and
+ * object-storage-only batches, which otherwise retained their lease and were redelivered
+ * forever.
+ */
+export async function markBatchCompleted(batchId: string): Promise<void> {
+  await db
+    .update(ingestBatches)
+    .set({ completedAt: new Date(), claimedAt: null })
+    .where(and(eq(ingestBatches.batchId, batchId), isNull(ingestBatches.completedAt)));
+}
+
+/**
  * Give a claimed batch back without counting an attempt.
  *
  * For batches a worker claimed and then did not get to — a shutdown mid-drain is the only

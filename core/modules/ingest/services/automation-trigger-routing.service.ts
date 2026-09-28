@@ -9,8 +9,8 @@ import {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function routeAutomationTriggers(ctx: TrackerBatchRoutingContext): void {
-  if (!ctx.website.automation_enabled) return;
+export function routeAutomationTriggers(ctx: TrackerBatchRoutingContext): number {
+  if (!ctx.website.automation_enabled) return 0;
   const rows: AutomationTriggerQueued[] = [];
   const events = chronological(normalizeTrackerEvents(
     Array.isArray(ctx.body.automations) ? ctx.body.automations : [],
@@ -34,7 +34,8 @@ export function routeAutomationTriggers(ctx: TrackerBatchRoutingContext): void {
       detail,
     });
   }
-  if (rows.length === 0) return;
-  ctx.queue.enqueue("automations", ctx.website.id, rows);
-  log.debug({ msg: "automation_triggers_queued", website_id: ctx.website.id, n: rows.length });
+  if (rows.length === 0) return 0;
+  const accepted = ctx.queue.enqueue("automations", ctx.website.id, rows).accepted;
+  log.debug({ msg: "automation_triggers_queued", website_id: ctx.website.id, n: accepted });
+  return accepted;
 }

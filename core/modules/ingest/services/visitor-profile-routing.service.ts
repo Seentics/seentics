@@ -4,10 +4,10 @@ import type { TrackerBatchRoutingContext } from "./tracker-event-normalization.s
 export function routeVisitorProfile(
   ctx: TrackerBatchRoutingContext,
   events: TrackerEvent[],
-): void {
-  if (!ctx.website.automation_enabled || events.length === 0) return;
+): number {
+  if (!ctx.website.automation_enabled || events.length === 0) return 0;
   const anonymousId = events.find((event) => event.vid)?.vid ?? "";
-  if (!anonymousId) return;
+  if (!anonymousId) return 0;
   let pageViews = 0;
   let userId: string | undefined;
   let traits: Record<string, unknown> | undefined;
@@ -22,7 +22,7 @@ export function routeVisitorProfile(
     }
   }
   const meta = ctx.ingestMeta;
-  ctx.queue.enqueue("profiles", ctx.website.id, [{
+  return ctx.queue.enqueue("profiles", ctx.website.id, [{
     websiteId: ctx.website.id,
     anonymousId,
     userId,
@@ -35,5 +35,5 @@ export function routeVisitorProfile(
     browser: meta.browser ?? null,
     os: meta.os ?? null,
     language: meta.languageHint ?? null,
-  }]);
+  }]).accepted;
 }

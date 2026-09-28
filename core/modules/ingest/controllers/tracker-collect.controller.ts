@@ -51,6 +51,11 @@ export function collectTracker(deps: TrackerControllerDeps) {
     if (result.kind === "privacy-disabled") {
       return c.json({ status: "ok", message: "tracking disabled by privacy policy" });
     }
-    return c.json({ status: "ok", message: "processed", queued: result.queued });
+    return c.json({
+      status: "ok",
+      message: "processed",
+      queued: result.queued,
+      dropped: result.dropped,
+    });
   };
 }

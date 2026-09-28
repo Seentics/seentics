@@ -165,6 +165,7 @@ function makeFakeQueue() {
     enqueue(lane: string, _websiteId: string, rows: readonly unknown[]) {
       if (lane === "analytics") this.events.push(...rows);
       if (lane === "profiles") this.profiles.push(...rows);
+      return { accepted: rows.length, dropped: 0 };
     },
   };
 }
@@ -440,7 +441,7 @@ describe("POST /collect", () => {
     expect(queue.events).toHaveLength(1);
   });
 
-  it("queued count reflects total items across all arrays", async () => {
+  it("queued count reflects items actually accepted by enabled lane routers", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     const res = await app.request("/collect", {
       method: "POST",
@@ -453,7 +454,8 @@ describe("POST /collect", () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body.queued).toBe(3);
+    // The malformed funnel object is filtered by its lane and must not be reported queued.
+    expect(body.queued).toBe(2);
   });
 
   it("rejects body over 8MB via Content-Length header", async () => {

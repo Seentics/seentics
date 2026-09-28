@@ -35,6 +35,7 @@ class FakeQueue implements BatchQueue {
     this.written.push(batch);
   }
   async claimPending(): Promise<QueuedBatch[]> { return []; }
+  async markCompleted(): Promise<void> {}
   async markFailed(): Promise<void> {}
   async releaseClaims(): Promise<void> {}
   async countPending(): Promise<number> { return 0; }

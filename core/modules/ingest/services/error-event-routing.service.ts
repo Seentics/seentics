@@ -16,9 +16,9 @@ import {
  * `processTrackerCollect`, before any router runs, and the tracker declines to queue an
  * error at all when `trackingAllowed()` is false.
  */
-export function routeErrorEvents(ctx: TrackerBatchRoutingContext): void {
+export function routeErrorEvents(ctx: TrackerBatchRoutingContext): number {
   const raw = normalizeTrackerEvents(Array.isArray(ctx.body.errors) ? ctx.body.errors : []);
-  if (raw.length === 0) return;
+  if (raw.length === 0) return 0;
 
   const events = raw.map((event) => ({
     ...event,
@@ -28,6 +28,7 @@ export function routeErrorEvents(ctx: TrackerBatchRoutingContext): void {
     clientUa: ctx.userAgent,
   })) as ErrorTrackerEvent[];
 
-  ctx.queue.enqueue("errors", ctx.website.id, chronological(events));
-  log.debug({ msg: "errors_queued", website_id: ctx.website.id, n: events.length });
+  const accepted = ctx.queue.enqueue("errors", ctx.website.id, chronological(events)).accepted;
+  log.debug({ msg: "errors_queued", website_id: ctx.website.id, n: accepted });
+  return accepted;
 }

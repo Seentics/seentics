@@ -98,8 +98,8 @@ export class BatchWorker {
     while (this.draining) await new Promise((r) => setTimeout(r, 10));
   }
 
-  /** Drain every lane once. Exposed so a test or a shutdown can force a pass. */
-  async drainOnce(): Promise<number> {
+  /** Drain every lane once. `whileStopped` is only for the final shutdown pass. */
+  async drainOnce(whileStopped = false): Promise<number> {
     if (this.draining) return 0;
     this.draining = true;
     try {
@@ -107,7 +107,7 @@ export class BatchWorker {
       // Sequentially, not in parallel: the lanes share a connection pool, and draining
       // all six at once would starve the request path that shares it.
       for (const lane of Object.keys(this.registry) as IngestLane[]) {
-        applied += await this.drainLane(lane);
+        applied += await this.drainLane(lane, whileStopped);
       }
       await this.pruneIfDue();
       return applied;
@@ -121,7 +121,7 @@ export class BatchWorker {
     return { applied: this.appliedCount, failed: this.failedCount };
   }
 
-  private async drainLane(lane: IngestLane): Promise<number> {
+  private async drainLane(lane: IngestLane, whileStopped = false): Promise<number> {
     let claimed: QueuedBatch[];
     try {
       claimed = await this.store.claimPending(lane, this.opts.batchSize, this.opts.maxAttempts);
@@ -144,7 +144,7 @@ export class BatchWorker {
     let applied = 0;
     let i = 0;
     for (; i < claimed.length; i++) {
-      if (this.stopped) break;
+      if (this.stopped && !whileStopped) break;
       if (await this.applyOne(claimed[i]!)) applied += 1;
     }
 
@@ -162,10 +162,10 @@ export class BatchWorker {
 
   private async applyOne(batch: QueuedBatch): Promise<boolean> {
     try {
-      // No separate completion write: `applyBatchOnce` inside the lane's own write flips
-      // `completed_at` in the same transaction as the rows, which is what makes the apply
-      // exactly-once rather than merely retried.
       await this.dispatch(batch);
+      // SQL lanes normally completed the row in their own transaction. This idempotent
+      // fallback closes successful no-op and object-storage-only batches too.
+      await this.store.markCompleted(batch.batchId);
       this.appliedCount += 1;
       this.log.debug({
         msg: "ingest_batch_applied",

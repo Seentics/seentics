@@ -1,4 +1,4 @@
-import { sql } from "../../../db";
+import type { TransactionSql } from "postgres";
 
 /** One occurrence, already fingerprinted and normalised by the ingest service. */
 export type ErrorRow = {
@@ -32,7 +32,7 @@ export type ErrorRow = {
  * a fault's newest example is the one worth showing, and `GREATEST` on `last_seen` keeps
  * that true even if a batch arrives out of order.
  */
-export async function upsertErrorGroups(rows: readonly ErrorRow[]): Promise<void> {
+export async function upsertErrorGroups(tx: TransactionSql, rows: readonly ErrorRow[]): Promise<void> {
   if (rows.length === 0) return;
 
   type Folded = { row: ErrorRow; count: number };
@@ -50,7 +50,7 @@ export async function upsertErrorGroups(rows: readonly ErrorRow[]): Promise<void
   }
 
   const values = [...byKey.values()];
-  await sql`
+  await tx`
     INSERT INTO error_groups
       (website_id, fingerprint, kind, message, source_file, line_no, col_no,
        last_page_path, event_count, first_seen, last_seen)
@@ -104,9 +104,9 @@ export async function upsertErrorGroups(rows: readonly ErrorRow[]): Promise<void
 }
 
 /** Store the individual occurrences behind their groups. */
-export async function insertErrorEvents(rows: readonly ErrorRow[]): Promise<void> {
+export async function insertErrorEvents(tx: TransactionSql, rows: readonly ErrorRow[]): Promise<void> {
   if (rows.length === 0) return;
-  await sql`
+  await tx`
     INSERT INTO error_events
       (website_id, fingerprint, message, stack, source_file, line_no, col_no,
        page_path, session_id, visitor_id, browser, os, device_type, occurred_at)

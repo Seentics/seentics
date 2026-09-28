@@ -92,7 +92,10 @@ export interface IngestQueue {
    * row, so whatever shape it holds is a stored contract, and each lane projects at apply
    * time.
    */
-  enqueue(lane: IngestLane, websiteId: string, rows: readonly unknown[]): void;
+  enqueue(lane: IngestLane, websiteId: string, rows: readonly unknown[]): {
+    accepted: number;
+    dropped: number;
+  };
 }
 
 /**
@@ -154,6 +157,12 @@ export interface BatchQueue {
   }): Promise<void>;
 
   claimPending(lane: IngestLane, limit: number, maxAttempts: number): Promise<QueuedBatch[]>;
+
+  /**
+   * Complete a successfully dispatched batch that did not already complete itself inside
+   * an `applyBatchOnce` transaction. Idempotent for lanes that did.
+   */
+  markCompleted(batchId: string): Promise<void>;
 
   markFailed(batchId: string, error: string): Promise<void>;
 

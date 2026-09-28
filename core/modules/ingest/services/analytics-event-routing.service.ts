@@ -15,10 +15,11 @@ export function routeAnalyticsEvents(ctx: TrackerBatchRoutingContext): TrackerEv
   const analyticsEvents = parsed.filter(
     (event) => !TRACKER_FUNNEL_EVENT_TYPES.has(event.type) && !AUTOMATION_EVENTS.has(event.type),
   );
+  let accepted = 0;
   if (analyticsEvents.length > 0) {
     const queued = attachIngestMetadata(chronological(analyticsEvents), ctx.ingestMeta);
-    ctx.queue.enqueue("analytics", ctx.website.id, queued);
-    log.debug({ msg: "events_queued", website_id: ctx.website.id, n: queued.length });
+    accepted = ctx.queue.enqueue("analytics", ctx.website.id, queued).accepted;
+    log.debug({ msg: "events_queued", website_id: ctx.website.id, n: accepted });
   }
   return parsed;
 }

@@ -79,7 +79,8 @@ export function initIngestModule(deps: {
       buffer.stop();
       await buffer.flushNow();
       await worker.stop();
-      await worker.drainOnce();
+      // `stop` prevents timer races; the explicit flag permits this one final drain.
+      await worker.drainOnce(true);
     },
   };
 }

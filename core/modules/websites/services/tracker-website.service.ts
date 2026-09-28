@@ -6,6 +6,7 @@ import type {
 } from "../interfaces";
 import {
   buildPublicTrackerConfig,
+  clearTrackerWebsiteCache,
   configureTrackerWebsiteCache,
   listTrackerGoals,
   resolveWebsiteForTracker,
@@ -23,6 +24,10 @@ export class TrackerWebsiteService implements TrackerWebsites {
   /** Size and TTL come from config; call before serving traffic. */
   configure(cfg: AppConfig): void {
     configureTrackerWebsiteCache(cfg);
+  }
+
+  clear(): void {
+    clearTrackerWebsiteCache();
   }
 
   async resolve(websiteRef: string): Promise<WebsiteTrackerRow | null> {

@@ -8,8 +8,14 @@ export function sessionBundleKey(websiteId: string, sessionId: string): string {
 }
 
 /** Immutable gzip chunk (sequence padded for lexical sort under ListObjects). */
-export function sessionChunkKey(websiteId: string, sessionId: string, sequence: number): string {
+export function sessionChunkKey(
+  websiteId: string,
+  sessionId: string,
+  sequence: number,
+  batchId?: string,
+): string {
   const seq = Number.isFinite(sequence) && sequence >= 0 ? Math.floor(sequence) : 0;
   const padded = seq.toString().padStart(8, "0");
-  return `sessions/${websiteId}/${sessionId}/chunk-${padded}.json.gz`;
+  const suffix = batchId && /^[a-f0-9]{32}$/i.test(batchId) ? `-${batchId.toLowerCase()}` : "";
+  return `sessions/${websiteId}/${sessionId}/chunk-${padded}${suffix}.json.gz`;
 }

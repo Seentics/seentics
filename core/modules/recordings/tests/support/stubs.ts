@@ -47,7 +47,13 @@ mock.module("../../../../config", () => ({ env: () => testConfig() }));
 // ─── object storage ───────────────────────────────────────────────────────────
 
 /** Chunks handed to `uploadSessionChunkGzip`, in call order. */
-export const uploads: { sessionId: string; sequence: number; count: number }[] = [];
+export const uploads: {
+  sessionId: string;
+  sequence: number;
+  count: number;
+  batchId?: string;
+  events?: unknown[];
+}[] = [];
 
 /** Session ids passed to `deleteSessionPrefix`, in call order. */
 export const prefixDeletes: string[] = [];
@@ -89,7 +95,17 @@ mock.module("../../../../platform/storage/s3", () => ({
     sequence: number,
     events: unknown[],
   ) => {
-    uploads.push({ sessionId, sequence, count: events.length });
+    uploads.push({ sessionId, sequence, count: events.length, events });
+  },
+  uploadSessionBatchChunkGzip: async (
+    _bucket: string,
+    _websiteId: string,
+    sessionId: string,
+    batchId: string,
+    events: unknown[],
+  ) => {
+    if (uploads.some((upload) => upload.sessionId === sessionId && upload.batchId === batchId)) return;
+    uploads.push({ sessionId, sequence: 0, count: events.length, batchId, events });
   },
   deleteSessionPrefix: async (_bucket: string, _websiteId: string, sessionId: string) => {
     prefixDeletes.push(sessionId);

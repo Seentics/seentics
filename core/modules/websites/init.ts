@@ -41,11 +41,16 @@ export function initWebsitesModule(deps: {
   const repository = new PostgresWebsiteRepository();
   const query = new WebsiteQueryService(repository);
   const cached = new CachedWebsiteQuery(query);
-  const onChanged = (websiteId: string) => cached.invalidate(websiteId);
+  const tracker = new TrackerWebsiteService();
+  // A website can be cached by UUID or tracking id. Mutations do not always carry both,
+  // so clear these small process-local caches rather than leave an alias stale.
+  const onChanged = (_websiteId: string) => {
+    cached.clear();
+    tracker.clear();
+  };
   const mutations = new WebsiteMutationService(repository, onChanged);
   const sharing = new WebsitePublicSharingService(repository, onChanged);
   const traffic = new WebsiteTrafficService(repository, deps.analyticsModule);
-  const tracker = new TrackerWebsiteService();
   const invitations = new WebsiteInvitationService(deps.authModule.users);
 
   return {
@@ -68,7 +73,7 @@ export function initWebsitesModule(deps: {
       goals,
       members: new WebsiteMemberService(deps.authModule.users),
       invitations,
-      privacy: new PostgresWebsitePrivacyService(),
+      privacy: new PostgresWebsitePrivacyService(onChanged),
     }),
 
     // Tracker cache sizing comes from config, so it waits for `start` like any other
@@ -79,6 +84,7 @@ export function initWebsitesModule(deps: {
 
     stop() {
       cached.clear();
+      tracker.clear();
     },
   };
 }

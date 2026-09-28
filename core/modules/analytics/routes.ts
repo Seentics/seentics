@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { authMiddleware, type AuthVars } from "../../platform/middleware/auth";
-import { analyticsCacheMiddleware, PUBLIC_IDENTITY } from "./middleware/analytics-cache";
+import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
 import type { AnalyticsControllerDeps } from "./controllers/analytics-controller.types";
 import {
   exportAnalytics,
@@ -26,11 +26,25 @@ export function createAnalyticsRoutes(deps: AnalyticsControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
   routes.get(
     "/public/dashboard/:public_id",
-    analyticsCacheMiddleware(deps.cfg, PUBLIC_IDENTITY),
     getPublicDashboard(deps),
   );
   routes.use("*", authMiddleware);
-  routes.use("*", analyticsCacheMiddleware(deps.cfg, (c) => c.get("userId") ?? null));
+  routes.use(
+    "*",
+    analyticsCacheMiddleware(
+      deps.cfg,
+      (c) => c.get("userId") ?? null,
+      async (c) => {
+        const userId = c.get("userId");
+        if (!userId) return false;
+        // Every cacheable private analytics GET ends in `:website_id`; export is excluded
+        // by the cache middleware and import is POST.
+        const path = new URL(c.req.url).pathname;
+        const websiteRef = decodeURIComponent(path.slice(path.lastIndexOf("/") + 1));
+        return (await deps.websites.getRole(websiteRef, userId)) !== null;
+      },
+    ),
+  );
   routes.get("/dashboard/:website_id", getDashboard(deps));
   routes.get("/traffic-summary/:website_id", getTrafficSummary(deps));
   routes.get("/daily-stats/:website_id", getDailyStats(deps));

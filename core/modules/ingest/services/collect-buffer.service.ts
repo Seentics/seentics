@@ -128,8 +128,8 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
 
   // ── IngestQueue ───────────────────────────────────────────────────────────
 
-  enqueue(lane: IngestLane, websiteId: string, rows: readonly unknown[]): void {
-    if (!rows.length) return;
+  enqueue(lane: IngestLane, websiteId: string, rows: readonly unknown[]): { accepted: number; dropped: number } {
+    if (!rows.length) return { accepted: 0, dropped: 0 };
     const spec = this.registry[lane];
 
     // Bytes before rows, where a lane declares a ceiling: one screenshot is worth ten
@@ -146,19 +146,21 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
           cap_bytes: cap,
         });
         void this.scheduleFlush();
-        return;
+        return { accepted: 0, dropped: rows.length };
       }
     }
 
+    let accepted = 0;
     for (const [partitionKey, group] of groupBy(rows, (row) =>
       spec.partitionOf(row as never, websiteId),
     )) {
-      this.buffer(lane, spec, partitionKey, group);
+      accepted += this.buffer(lane, spec, partitionKey, group);
     }
+    return { accepted, dropped: rows.length - accepted };
   }
 
   /** Buffer one partition's rows, trimming to the hard cap. */
-  private buffer(lane: IngestLane, spec: LaneSpec, partitionKey: string, rows: unknown[]): void {
+  private buffer(lane: IngestLane, spec: LaneSpec, partitionKey: string, rows: unknown[]): number {
     const cap = this.thresholds[lane] * HARD_CAP_MULTIPLIER;
     const room = cap - this.counts[lane];
     const accepted = room >= rows.length ? rows : rows.slice(0, Math.max(0, room));
@@ -171,7 +173,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
         cap,
       });
     }
-    if (!accepted.length) return;
+    if (!accepted.length) return 0;
 
     const byPartition = this.buffers.get(lane) ?? new Map<string, unknown[]>();
     const current = byPartition.get(partitionKey);
@@ -183,6 +185,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
     if (spec.bytesOf) this.bytes[lane] += spec.bytesOf(accepted as never[]);
 
     if (this.counts[lane] >= this.thresholds[lane]) void this.scheduleFlush();
+    return accepted.length;
   }
 
   // ── Flush ─────────────────────────────────────────────────────────────────
@@ -228,7 +231,9 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
    * before returning does not queue the batch twice.
    */
   private async queueBatch(lane: IngestLane, partitionKey: string, rows: unknown[]): Promise<void> {
-    const { json, batchId } = serializeBatch(rows);
+    // Scope the digest: identical JSON in different lanes or partitions is different
+    // work and must never collide on the queue's primary key.
+    const { json, batchId } = serializeBatch(rows, `${lane}\0${partitionKey}`);
     try {
       await this.queue.enqueue({
         batchId,

@@ -1,4 +1,5 @@
 import { parseUserAgent } from "../../../platform/http/analytics-ingest-meta";
+import { applyBatchOnceSql } from "../../../platform/idempotency";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { errorFingerprint } from "../lib/fingerprint";
 import {
@@ -33,8 +34,12 @@ export class ErrorIngestService implements ErrorIngest {
     const rows = events.map(toRow).filter((r): r is ErrorRow => r !== null);
     if (rows.length === 0) return;
 
-    await upsertErrorGroups(rows);
-    await insertErrorEvents(rows);
+    const { applied } = await applyBatchOnceSql(batchId, async (tx) => {
+      await upsertErrorGroups(tx, rows);
+      await insertErrorEvents(tx, rows);
+      return rows.length;
+    });
+    if (!applied) return;
 
     log.info({
       msg: "errors_ingested",

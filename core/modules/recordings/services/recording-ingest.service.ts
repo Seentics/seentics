@@ -1,6 +1,6 @@
 import { env } from "../../../config";
-import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../platform/storage/s3";
-import { SessionChunkBuffer, type WarmTail } from "./session-chunk-buffer.service";
+import { uploadSessionBatchChunkGzip } from "../../../platform/storage/s3";
+import type { WarmTail } from "./session-chunk-buffer.service";
 import { applyBatchOnce } from "../../../platform/idempotency";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "../repositories/recording.repository";
 import { compareReplayEnvelopeEvents } from "./replay-event-ordering.service";
@@ -136,28 +136,14 @@ function normalizeReplayPageUrl(u: unknown): string {
 }
 
 export class RecordingIngestService implements RecordingIngest {
-  private spool: SessionChunkBuffer;
   private bucket: string;
 
   constructor() {
     const c = env();
     this.bucket = c.s3.bucket;
-    this.spool = new SessionChunkBuffer({
-      chunkFlushMs: c.replayChunkFlushMs,
-      idlePurgeMs: c.spoolIdleMs,
-      getInitialSequence: async (websiteId, sessionId) =>
-        getNextReplayChunkSequence(this.bucket, websiteId, sessionId),
-      onChunkFlush: async (websiteId, sessionId, sequence, events) => {
-        await uploadSessionChunkGzip(this.bucket, websiteId, sessionId, sequence, events);
-      },
-    });
-    this.spool.start();
   }
 
-  async shutdown(): Promise<void> {
-    await this.spool.flushAll();
-    this.spool.stop();
-  }
+  async shutdown(): Promise<void> {}
 
   /**
    * Ingest tracker-shaped events (same envelope as Go TrackerEvent).
@@ -302,13 +288,22 @@ export class RecordingIngestService implements RecordingIngest {
       hasErrors: w.batch.hasErrors,
     }));
 
+    // Replay bytes must be durable before the transaction below completes the queue row.
+    // The batch-id suffix makes every put retry-stable across process restarts, while the
+    // queue's session partition keeps sequence assignment ordered.
+    for (const w of work) {
+      await uploadSessionBatchChunkGzip(
+        this.bucket,
+        w.batch.websiteId,
+        w.sessionId,
+        batchId,
+        w.batch.events,
+      );
+    }
+
     /**
-     * Metadata first, chunks second.
-     *
-     * `pages_viewed` accumulates, so a redelivered batch inflates it — the marker is what
-     * stops that. Writing the rows before spooling also means a failed write leaves nothing
-     * buffered: the retry re-does both halves from a clean slate instead of appending the
-     * same events to the spool a second time.
+     * Metadata second. `pages_viewed` accumulates, so the marker prevents redelivery from
+     * inflating it; the S3 write above is independently idempotent on the same batch id.
      */
     const { applied } = await applyBatchOnce(batchId, async (tx) => {
       let written = 0;
@@ -323,24 +318,15 @@ export class RecordingIngestService implements RecordingIngest {
       return;
     }
 
-    for (const w of work) {
-      try {
-        this.spool.push(w.batch.websiteId, w.sessionId, w.batch.events);
-      } catch (e) {
-        // The metadata row is already committed, so the session stays visible and
-        // deletable — it just has fewer events than it should.
-        log.error({ msg: "replay_spool_push_failed", session_id: w.sessionId, err: String(e) });
-      }
-    }
   }
 
-  warmChunks(websiteId: string, sessionId: string): WarmTail | null {
-    return this.spool.warmChunks(websiteId, sessionId);
+  warmChunks(_websiteId: string, _sessionId: string): WarmTail | null {
+    // Recording batches now reach object storage before their queue row completes, so
+    // there is no process-local tail to merge into reads.
+    return null;
   }
 
-  removeSpool(websiteId: string, sessionId: string): void {
-    this.spool.remove(websiteId, sessionId);
-  }
+  removeSpool(_websiteId: string, _sessionId: string): void {}
 }
 
 function sortBatchEvents(events: Record<string, unknown>[]): void {
@@ -367,7 +353,7 @@ let _engine: RecordingIngestService | null = null;
  * The process-wide service.
  *
  * Creates one on first use, so an early ingest still has somewhere to go, and constructing
- * it is what arms the chunk flush timer and opens the storage client. Still an accessor
+ * it resolves the configured recording bucket. Still an accessor
  * rather than an injected dependency because `session-detail` and `session-delete` need
  * the live warm tail from free functions; injecting it there means threading it through
  * the service and the routes, which is a change worth making on its own.
