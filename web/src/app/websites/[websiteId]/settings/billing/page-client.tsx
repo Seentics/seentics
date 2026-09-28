@@ -48,7 +48,7 @@ export default function BillingSettingsPage() {
 
   if (!isEnterprise && !isDemo(websiteId)) return null;
 
-  const { subscription, loading, getUsagePercentage } = useSubscription();
+  const { subscription, loading, getUsagePercentage, refetch } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -63,9 +63,19 @@ export default function BillingSettingsPage() {
   const displayName = subscription?.plan || 'Free';
   const periodLabel = isFreePlan ? '' : subscription?.billingInterval === 'yearly' ? '/mo (billed yearly)' : '/month';
 
-  const handleManagePayments = () => {
+  const handleManagePayments = async () => {
     if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
-    window.open('https://seentics.lemonsqueezy.com/billing', '_blank');
+    // The customer's own signed portal link when they have a subscription.
+    // Opened before the request resolves so the browser does not block it.
+    const tab = window.open('', '_blank');
+    try {
+      const res = await api.post('/user/billing/portal');
+      const url = res.data?.data?.url ?? 'https://seentics.lemonsqueezy.com/billing';
+      if (tab) tab.location.href = url; else window.location.href = url;
+    } catch {
+      tab?.close();
+      toast.error('Could not open the billing portal. Please try again.');
+    }
   };
 
   const handleCancel = async () => {
@@ -88,11 +98,18 @@ export default function BillingSettingsPage() {
     try {
       setCheckoutLoading(true);
       const res = await api.post('/user/billing/checkout', { plan: selection.plan, billing: selection.billing });
-      if (res.data.success && res.data.data.checkoutUrl) openCheckout(res.data.data.checkoutUrl);
+      if (res.data.success && res.data.data.changed) {
+        // Switched in place on the existing subscription — no checkout.
+        toast.success('Plan changed. The difference is prorated on your bill.');
+        await refetch();
+      } else if (res.data.success && res.data.data.checkoutUrl) {
+        openCheckout(res.data.data.checkoutUrl);
+      }
     } catch (e: unknown) {
-      const msg = e && typeof e === 'object' && 'response' in e
-        ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+      const data = e && typeof e === 'object' && 'response' in e
+        ? (e as { response?: { data?: { error?: string; message?: string } } }).response?.data
         : undefined;
+      const msg = data?.error ?? data?.message;
       toast.error(msg || 'Failed to create checkout. Please try again.');
     } finally { setCheckoutLoading(false); }
   };

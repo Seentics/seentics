@@ -140,6 +140,15 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       setLoading(true);
       const response = await api.post('/user/billing/checkout', { plan: planId, billing });
 
+      // Already paying for these products: the subscription was switched in
+      // place, prorated — there is no checkout to open.
+      if (response.data.success && response.data.data.changed) {
+        toast.success('Plan changed. The difference is prorated on your bill.');
+        onClose();
+        router.refresh();
+        return;
+      }
+
       if (response.data.success && response.data.data.checkoutUrl) {
         setWaitingForPayment(true);
         openCheckout(
@@ -160,7 +169,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       }
     } catch (error: any) {
       console.error('Upgrade error:', error);
-      alert(error.response?.data?.message || 'Failed to start upgrade process. Please try again.');
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to start upgrade process. Please try again.');
     } finally {
       setLoading(false);
     }
