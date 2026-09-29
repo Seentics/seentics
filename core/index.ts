@@ -7,6 +7,7 @@ import { bootstrap } from "./app/bootstrap";
 import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
 import { requestLogMiddleware } from "./platform/middleware/request-log";
+import { requestSpans, shutdownObserve } from "./platform/observability/observe";
 import { isGlobalApiKeyValid } from "./platform/security/global-key";
 import { privacyRoutes } from "./app/http/privacy";
 import { createRawDataRoutes } from "./app/http/public-api/routes";
@@ -51,6 +52,8 @@ const app = new Hono();
 // lives inside the analytics router, behind auth — see `middleware/analytics-cache.ts`.
 const application = bootstrap(cfg, core_log);
 
+// The span first, so the request's own log line carries its trace id.
+app.use("*", requestSpans());
 app.use("*", requestLogMiddleware(cfg));
 app.use("*", rateLimitMiddleware(cfg));
 app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
@@ -147,6 +150,8 @@ async function shutdown() {
   } catch (e) {
     core_log.error({ msg: 'application_stop_error', err: String(e) });
   }
+  // Last, so the lines above are sent too.
+  await shutdownObserve().catch(() => undefined);
 }
 
 process.on("SIGINT", () => void shutdown().finally(() => process.exit(0)));

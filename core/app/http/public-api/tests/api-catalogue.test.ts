@@ -161,6 +161,41 @@ describe("GET /v1/catalogue", () => {
     expect(res.status).toBe(401);
   });
 
+  /** A key that is valid for site_1 and nothing else. */
+  function keyed() {
+    const asked: string[] = [];
+    const routes = createRawDataRoutes({
+      analytics: stubAnalytics(),
+      apiKeys: {
+        verify: async (key, websiteId) => {
+          asked.push(websiteId);
+          return key === "sk_site1" && websiteId === "site_1"
+            ? ({ apiKeyId: "k1", websiteId, scopes: ["analytics:read"] } as never)
+            : null;
+        },
+      },
+      ports: {} as never,
+    });
+    return { routes, asked };
+  }
+
+  it("serves a valid key its own site", async () => {
+    // Every keyed request answered 400 "website_id is required": the auth middleware
+    // runs as `use("*")`, which Hono does not give the route's params.
+    const { routes, asked } = keyed();
+    const res = await routes.request("/v1/websites/site_1/analytics/top-pages", { headers: { "X-API-Key": "sk_site1" } });
+    expect(res.status).toBe(200);
+    expect(asked).toEqual(["site_1"]);
+  });
+
+  it("refuses a valid key on another site", async () => {
+    const { routes, asked } = keyed();
+    const res = await routes.request("/v1/websites/site_2/analytics/top-pages", { headers: { "X-API-Key": "sk_site1" } });
+    expect(res.status).toBe(401);
+    // Checked against the site in the URL — the one the handler would serve.
+    expect(asked).toEqual(["site_2"]);
+  });
+
 });
 
 describe("requireScope", () => {

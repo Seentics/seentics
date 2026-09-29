@@ -11,14 +11,20 @@ import { RESULTS_DIR } from "./config";
 export const DRIFT = (n: number) => Math.max(5, Math.ceil(Math.abs(n) * 0.0005));
 
 /**
- * An expected unique-visitor count. The rollups estimate these with HyperLogLog (~1.2%
+ * An expected unique-visitor count. The rollups estimate these with HyperLogLog (~0.6%
  * standard error, exact on small counts), so they get a tolerance of three standard
  * errors — at two, a run of 40 checks fails one by chance. Every other number is held
  * to DRIFT.
  */
 export type Uniques = { uniques: number };
 export const U = (n: number): Uniques => ({ uniques: n });
-const HLL_TOLERANCE = (n: number) => Math.max(3, Math.ceil(Math.abs(n) * 0.035));
+// log2m 15 (core/db/sql/032): ~0.6% standard error, within ±0.5% of exact on most
+// counts — but the extension's estimator (plain HyperLogLog, no HLL++ bias
+// correction) reads up to ~2.1% high where a count is 2.5–5× the register count,
+// ~80k–160k visitors: measured on /about at 81,104 exact → 82,790, which a direct
+// sketch of the same rows gives too. 2.5% holds that and nothing worse. It was 3.5%
+// at log2m 13, loose enough that a steady 2–4% undercount mostly passed.
+const HLL_TOLERANCE = (n: number) => Math.max(3, Math.ceil(Math.abs(n) * 0.025));
 
 /** Structural equality, numbers within DRIFT and `U(...)` values within HLL_TOLERANCE. */
 export const close = (a: unknown, b: unknown): boolean =>

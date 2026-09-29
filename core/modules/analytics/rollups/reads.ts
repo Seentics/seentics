@@ -46,24 +46,49 @@ export function setRollupsEnabled(value: boolean): void {
 
 /** A site's recent rollups are checked at most this often. */
 const FRESH_MS = 5_000;
+/**
+ * How long a read waits for that rebuild before answering from the rollups as they
+ * are. A small site's rebuild fits inside it, so its numbers are current; a busy
+ * site's today (92k events, ~2 s warm, ~15 s cold) does not, and it used to hold
+ * the first dashboard request after any new traffic for all of that. The rebuild
+ * carries on in the background; the next read sees it.
+ */
+const FRESH_WAIT_MS = 300;
 const lastChecked = new Map<string, number>();
 const inFlight = new Map<string, Promise<void>>();
 
 /**
  * Rebuild this site's stale recent days (today, and yesterday early in the day) before
- * a read. Concurrent reads for one site share a single rebuild; within `FRESH_MS` of
- * the last check it returns immediately. Failures are logged, never thrown — a read
- * with slightly stale rollups beats a failed dashboard.
+ * a read — waiting at most `FRESH_WAIT_MS` for it. Concurrent reads for one site share
+ * a single rebuild; within `FRESH_MS` of the last check it returns immediately.
+ * Failures are logged, never thrown — a read with slightly stale rollups beats a failed
+ * dashboard.
  */
 export function ensureFresh(websiteId: string): Promise<void> {
   if (!enabled) return Promise.resolve();
-  const running = inFlight.get(websiteId);
-  if (running) return running;
-  if (Date.now() - (lastChecked.get(websiteId) ?? 0) < FRESH_MS) return Promise.resolve();
+  const running = inFlight.get(websiteId) ?? startRefresh(websiteId);
+  if (!running) return Promise.resolve();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const waited = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, FRESH_WAIT_MS);
+  });
+  return Promise.race([running, waited]).finally(() => clearTimeout(timer));
+}
+
+let refreshRecent = async (websiteId: string): Promise<unknown> => buildStaleRollups({ websiteId, recentOnly: true });
+
+/** For tests: stands in for the rebuild, without a module mock that would leak into other files. */
+export function setRollupRefresher(fn: (websiteId: string) => Promise<unknown>): void {
+  refreshRecent = fn;
+}
+
+/** Starts the site's refresh unless one ran within `FRESH_MS`; the promise settles when it is done. */
+function startRefresh(websiteId: string): Promise<void> | null {
+  if (Date.now() - (lastChecked.get(websiteId) ?? 0) < FRESH_MS) return null;
 
   const run = (async () => {
     try {
-      await buildStaleRollups({ websiteId, recentOnly: true });
+      await refreshRecent(websiteId);
     } catch (e) {
       log.warn({ msg: "rollup_read_refresh_failed", website_id: websiteId, err: String(e) });
     } finally {

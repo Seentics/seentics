@@ -260,66 +260,25 @@ async function fetchRevenueRow(
         occurred_at DESC
     ),
 
-    -- ── Step 3: last UTM-carrying pageview in the purchase session ────────────────
-    -- Finds the most-recent pageview with a non-empty utm_source before the purchase.
-    -- Uses ix_analytics_pageview_session_occurred for the join.
-    purchase_attribution AS (
-      SELECT DISTINCT ON (p.id)
-        p.id            AS purchase_id,
-        ae.utm_source   AS attr_source,
-        ae.utm_medium   AS attr_medium,
-        ae.utm_campaign AS attr_campaign
-      FROM cur_purchases p
-      JOIN analytics_events ae
-        ON ae.website_id  = ${websiteId}
-       AND ae.session_id  = p.session_id
-       AND ae.event_type  = 'pageview'
-       AND ae.utm_source  IS NOT NULL
-       AND length(trim(ae.utm_source)) > 0
-       AND ae.occurred_at <= p.occurred_at
-       -- A lower bound, so each probe prunes to the one or two monthly partitions the
-       -- session can be in. Without it every purchase probed every partition: 1.2 s of
-       -- this CTE on a site with 10k purchases in 90 days, 0.1 s with it. A session
-       -- idles out after 30 minutes, so a day before the purchase loses nothing real.
-       AND ae.occurred_at >= p.occurred_at - interval '1 day'
-      ORDER BY p.id, ae.occurred_at DESC
-    ),
-
-    -- ── Step 4: referrer domain fallback ─────────────────────────────────────────
-    -- When no UTM is found in the session, use the referrer domain of the most recent
-    -- pageview before the purchase that arrived from outside the site. This attributes
-    -- traffic from Google, Reddit, Twitter, etc. instead of labelling it 'direct'.
-    -- Regex strips the protocol, optional www., and everything after the first / ? #.
+    -- ── Steps 3–4: each purchase's session touch, in one lookup ───────────────────
+    -- The session's pageviews before the purchase are read once per purchase (one
+    -- index probe, LATERAL below), and from them:
     --
-    -- Internal pageviews are skipped: on a multi-page visit the latest pageview's
-    -- referrer is the site's own previous page, which credited the site itself as its
-    -- top revenue source. The medium is that pageview's channel (organic, social or
-    -- referral) — every referrer used to be called 'organic', Hacker News included.
-    purchase_referrer AS (
-      SELECT DISTINCT ON (p.id)
-        p.id AS purchase_id,
-        coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) AS attr_channel,
-        NULLIF(
-          lower(trim(
-            regexp_replace(
-              regexp_replace(ae.referrer, '^https?://(www\.)?', '', 'i'),
-              '[/?#].*$', ''
-            )
-          )),
-          ''
-        ) AS attr_referrer_domain
-      FROM cur_purchases p
-      JOIN analytics_events ae
-        ON ae.website_id  = ${websiteId}
-       AND ae.session_id  = p.session_id
-       AND ae.event_type  = 'pageview'
-       AND ae.referrer    IS NOT NULL
-       AND length(trim(ae.referrer)) > 0
-       AND ae.occurred_at <= p.occurred_at
-       AND ae.occurred_at >= p.occurred_at - interval '1 day'  -- partition pruning, as above
-       AND coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) <> 'internal'
-      ORDER BY p.id, ae.occurred_at DESC
-    ),
+    --   - the most recent pageview with a non-empty utm_source: its source, medium and
+    --     campaign, together (the same row — hence the id tie-break);
+    --   - failing that, the referrer domain of the most recent pageview that arrived
+    --     from outside the site (Google, Reddit, …), with that pageview's channel as
+    --     the medium. Internal pageviews are skipped: on a multi-page visit the latest
+    --     referrer is the site's own previous page, which credited the site itself as
+    --     its top revenue source. The regex strips protocol, www. and path.
+    --
+    -- These were two CTEs joined back to the purchases. Postgres estimated each at one
+    -- row (they are ~10k on a busy site), joined them by nested loop and compared 43
+    -- million pairs: 8 s for 90 days on a site with 10k purchases.
+    --
+    -- The lower bound on occurred_at lets each probe prune to the one or two monthly
+    -- partitions the session can be in; a session idles out after 30 minutes, so a day
+    -- before the purchase loses nothing real.
 
     -- ── Step 5: enrich purchases with final attribution ───────────────────────────
     -- Priority: session pageview UTM → purchase-event UTM → referrer domain → 'direct'
@@ -341,13 +300,13 @@ async function fetchRevenueRow(
         COALESCE(
           NULLIF(TRIM(pa.attr_source),   ''),
           NULLIF(TRIM(p.utm_source),     ''),
-          pr.attr_referrer_domain,
+          pa.attr_referrer_domain,
           'direct'
         ) AS final_source,
         COALESCE(
           NULLIF(TRIM(pa.attr_medium),   ''),
           NULLIF(TRIM(p.utm_medium),     ''),
-          CASE WHEN pr.attr_referrer_domain IS NOT NULL THEN pr.attr_channel END,
+          CASE WHEN pa.attr_referrer_domain IS NOT NULL THEN pa.attr_channel END,
           'none'
         ) AS final_medium,
         COALESCE(
@@ -356,8 +315,30 @@ async function fetchRevenueRow(
           ''
         ) AS final_campaign
       FROM cur_purchases p
-      LEFT JOIN purchase_attribution pa ON pa.purchase_id = p.id
-      LEFT JOIN purchase_referrer    pr ON pr.purchase_id = p.id
+      LEFT JOIN LATERAL (
+        SELECT
+          (array_agg(t.utm_source   ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.has_utm))[1] AS attr_source,
+          (array_agg(t.utm_medium   ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.has_utm))[1] AS attr_medium,
+          (array_agg(t.utm_campaign ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.has_utm))[1] AS attr_campaign,
+          (array_agg(t.channel      ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_channel,
+          (array_agg(t.domain       ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_referrer_domain
+        FROM (
+          SELECT s.*, (s.has_referrer AND s.channel <> 'internal') AS external
+          FROM (
+            SELECT ae.id, ae.occurred_at, ae.utm_source, ae.utm_medium, ae.utm_campaign,
+                   (ae.utm_source IS NOT NULL AND length(trim(ae.utm_source)) > 0) AS has_utm,
+                   (ae.referrer IS NOT NULL AND length(trim(ae.referrer)) > 0) AS has_referrer,
+                   coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) AS channel,
+                   NULLIF(lower(trim(regexp_replace(regexp_replace(ae.referrer, '^https?://(www\.)?', '', 'i'), '[/?#].*$', ''))), '') AS domain
+            FROM analytics_events ae
+            WHERE ae.website_id  = ${websiteId}
+              AND ae.session_id  = p.session_id
+              AND ae.event_type  = 'pageview'
+              AND ae.occurred_at <= p.occurred_at
+              AND ae.occurred_at >= p.occurred_at - interval '1 day'
+          ) s
+        ) t
+      ) pa ON true
     ),
 
     -- ── Step 5: scalar aggregations ───────────────────────────────────────────────

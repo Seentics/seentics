@@ -50,7 +50,7 @@ const calendarStart = (days: number) => {
   return new Date(today - (days - 1) * 86_400_000);
 };
 
-async function reference(siteId: string, host: string, days: number) {
+async function reference(siteId: string, host: string, days: number, revenueAt = new Date()) {
   const start = calendarStart(days);
   const pv = db`website_id = ${siteId} AND event_type = 'pageview' AND occurred_at >= ${start} AND occurred_at <= now()`;
   // Sessions belong to the window their first pageview falls in, with all their
@@ -95,7 +95,7 @@ async function reference(siteId: string, host: string, days: number) {
   const [revenue] = await db`
     SELECT coalesce(sum((properties->>'revenue')::numeric), 0)::float total, count(*)::int orders
     FROM analytics_events WHERE website_id = ${siteId} AND event_type = 'purchase'
-      AND occurred_at >= ${new Date(Date.now() - days * 86_400_000)} AND occurred_at <= now()`;
+      AND occurred_at >= ${new Date(revenueAt.getTime() - days * 86_400_000)} AND occurred_at <= ${revenueAt}`;
   const custom = await db`
     SELECT event_type, count(*)::int n FROM analytics_events
     WHERE website_id = ${siteId} AND event_type <> 'pageview' AND occurred_at >= ${start} AND occurred_at <= now()
@@ -298,13 +298,18 @@ for (const name of siteNames) {
     console.log(`\n══ ${name} (${n.toLocaleString()} events) · ${days}d ══`);
     const api: Record<string, any> = {};
     const timings: Record<string, { cold: number; warm: number; status: number }> = {};
+    // Revenue's window is rolling ("now minus N days"), so its reference must end
+    // when the endpoint was called, not when the reference runs a minute later —
+    // a purchase sliding out in between read as the product being wrong.
+    let revenueAt = new Date();
     for (const ep of ENDPOINTS) {
+      if (ep === "revenue") revenueAt = new Date();
       const cold = await call(ep, site.id, days, true);
       const warm = await call(ep, site.id, days, false);
       timings[ep] = { cold: cold.ms, warm: warm.ms, status: cold.status };
       if (cold.status === 200) api[ep] = cold.body;
     }
-    const ref = await reference(site.id, site.host, days);
+    const ref = await reference(site.id, site.host, days, revenueAt);
     const checks = checksFor(ref, api, site.host);
     const slow = Object.entries(timings).sort((a, b) => b[1].cold - a[1].cold);
     console.log("  slowest cold: " + slow.slice(0, 6).map(([e, t]) => `${e} ${t.cold}ms`).join(", "));

@@ -40,6 +40,17 @@ export function requireScope(scope: ApiScope): MiddlewareHandler {
   };
 }
 
+/** `:website_id` of a `/v1/websites/:website_id/…` path. */
+export function websiteIdFromPath(path: string): string | undefined {
+  const segment = /\/v1\/websites\/([^/]+)/.exec(path)?.[1];
+  if (!segment) return undefined;
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Requires `X-API-Key` (or `x-api-key`) matching `api_keys` for path `:website_id`.
  * After verification, applies per-key token bucket when `RATE_LIMIT_RAW_PER_KEY_MAX` > 0 and rate limiting is enabled.
@@ -47,11 +58,20 @@ export function requireScope(scope: ApiScope): MiddlewareHandler {
 export function createRawApiAuthMiddleware(verifier: ApiKeyVerifier): MiddlewareHandler {
 return async (c, next) => {
   const cfg = env();
-  const key = c.req.header("X-API-Key") ?? c.req.header("x-api-key");
+  // Behind the gateway, X-API-Key is the gateway's own credential (checked in
+  // index.ts) and the customer's key arrives as X-Client-Api-Key. Standalone, the
+  // customer's key is X-API-Key itself.
+  const key = cfg.gatewayOnly ? c.req.header("X-Client-Api-Key") : c.req.header("X-API-Key");
   if (!key?.trim()) {
     return c.json({ error: "X-API-Key header is required", code: "missing_api_key" }, 401);
   }
-  const websiteId = c.req.param("website_id");
+  // Registered with `r.use("*", …)`, where Hono does not give the middleware the
+  // route's params — `c.req.param("website_id")` is always undefined there, so every
+  // request with a key answered "website_id is required" and the public API served
+  // nothing. The id is the segment after /websites/, which is the same segment every
+  // handler reads as its `:website_id`: the key is checked against exactly the site
+  // the handler then serves.
+  const websiteId = c.req.param("website_id") ?? websiteIdFromPath(c.req.path);
   if (!websiteId) {
     return c.json({ error: "website_id is required", code: "bad_request" }, 400);
   }

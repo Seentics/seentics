@@ -1,4 +1,5 @@
 import type { AppConfig } from "../../config";
+import { forwardLog } from "./observe";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 type Level = LogLevel;
@@ -28,6 +29,8 @@ function emit(level: Level, fields: Record<string, unknown>): void {
   if (level === "error") console.error(text);
   else if (level === "warn") console.warn(text);
   else console.log(text);
+  // Also to Seentics Observability, when this deployment has an ingest key.
+  forwardLog(level, fields);
 }
 
 type LogFields = Record<string, unknown>;

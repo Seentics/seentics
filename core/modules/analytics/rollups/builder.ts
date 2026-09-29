@@ -17,13 +17,19 @@
  */
 import { sql } from "../../../db";
 import { log as baseLog } from "../../../platform/observability/logger";
+import { coreMetrics } from "../../../platform/observability/observe";
 import { pagePathSql, referrerDomainSql, withoutVersionSql } from "../lib/dimension-sql";
 import { channelCaseSql } from "../lib/traffic-channel";
 
 const log = baseLog.child({ category: "analytics_rollups" });
 
-/** HyperLogLog parameters for every visitor sketch: ~1.2% typical error, ≤5 KB. */
-const HLL_PARAMS = "13, 5";
+/**
+ * HyperLogLog parameters for every visitor sketch: log2m 15, ~0.6% typical error,
+ * ≤20 KB. At 13 the estimate ran 2–4% low at real traffic — see
+ * db/sql/032_rollup_visitor_precision.sql. Every sketch must share these: sketches
+ * of different precisions cannot be unioned.
+ */
+const HLL_PARAMS = "15, 5";
 const VISITOR_KEY = "coalesce(nullif(trim(visitor_id), ''), session_id)";
 /** Most `path` rows kept per site-day — see the path insert in rebuildWebsiteDay. */
 const PATHS_PER_DAY = 1000;
@@ -326,10 +332,13 @@ export async function buildStaleRollups(
   let rebuilt = 0;
   const failed = new Set<string>();
   for (const { websiteId, day } of [...targets.values()].sort((a, b) => a.day.localeCompare(b.day))) {
+    const started = performance.now();
     try {
       await rebuildWebsiteDay(websiteId, day);
       rebuilt++;
+      coreMetrics.rollupRebuild.record(performance.now() - started, { outcome: "ok" });
     } catch (e) {
+      coreMetrics.rollupRebuild.record(performance.now() - started, { outcome: "failed" });
       // Left stale and retried next run; one bad day must not block the others.
       failed.add(`${websiteId}|${day}`);
       log.error({ msg: "rollup_rebuild_failed", website_id: websiteId, day, err: String(e) });
