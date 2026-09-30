@@ -110,7 +110,9 @@ export default function ReplaysPage() {
       limit: pageSize,
       offset: pageIndex * pageSize,
     }),
-    enabled: !isDemoMode,
+    // The id comes from the URL after mount (usePathSegment); until then it is empty and
+    // the request went out as /replays/?limit=… — a 404 on every visit.
+    enabled: !isDemoMode && !!websiteId,
     // Keeps the previous page on screen while the next one loads, instead of flashing
     // the empty state between pages.
     placeholderData: (prev) => prev,

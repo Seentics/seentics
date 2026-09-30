@@ -3,7 +3,8 @@
 import React from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import Link from 'next/link';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { usePathSegment } from '@/lib/path-segment';
 import { useEffect, useMemo } from 'react';
 import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,10 @@ import { isDemo } from '@/lib/demo';
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
+  // usePathSegment, not useParams — see src/lib/path-segment.ts. On the static shell
+  // useParams is the build-time placeholder, so every settings tab linked to a
+  // website that does not exist.
+  const websiteId = usePathSegment(1) ?? '';
   const { user, isLoading } = useAuth();
 
   const links = useMemo(

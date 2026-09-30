@@ -1,7 +1,7 @@
 'use client';
 
-import { useParams } from 'next/navigation';
 import { useRealtimeGeoData } from '@/features/analytics/queries';
+import { usePathSegment } from '@/lib/path-segment';
 import { RealtimeGeoMapView } from '@/components/analytics/RealtimeGeoMapView';
 
 interface RealtimeGeoMapProps {
@@ -10,8 +10,9 @@ interface RealtimeGeoMapProps {
 }
 
 export function RealtimeGeoMap({ data, isLoading: _isLoading }: RealtimeGeoMapProps) {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
+  // usePathSegment, not useParams — see src/lib/path-segment.ts. On the static shell
+  // useParams is the build-time placeholder, and the map queried site "w-leaf".
+  const websiteId = usePathSegment(1) ?? '';
 
   // Use the new API for real data, fallback to activity-based aggregation for demo
   const { data: geoData, isLoading: apiLoading } = useRealtimeGeoData(websiteId, 30);

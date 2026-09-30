@@ -116,14 +116,16 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // A session started on the auth app (auth.seentics.com) never puts a refresh
+        // token in this origin's storage — it lives in the httpOnly cookie the gateway
+        // set at sign-in. Requiring one here logged every such user out the first time
+        // their access token expired. With no stored token, post an empty body: the
+        // gateway reads the refresh cookie (gateway/controllers/auth.ts `refresh`).
         const { refresh_token } = getPersistedAuth();
-        if (!refresh_token) {
-          throw new Error('No refresh token available');
-        }
 
         const refreshResponse = await axios.post(
           `${getApiUrl()}/auth/refresh`,
-          { refresh_token },
+          refresh_token ? { refresh_token } : {},
           { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
         );
 

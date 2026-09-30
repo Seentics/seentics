@@ -124,7 +124,8 @@ export default function HeatmapsPage() {
   const { data: apiPages, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey:  ['heatmap-pages', websiteId],
     queryFn:   () => listHeatmapPages(websiteId),
-    enabled:   !isDemoMode,
+    // Empty until usePathSegment reads the URL after mount — see the replays list.
+    enabled:   !isDemoMode && !!websiteId,
     staleTime: 5 * 60 * 1000,
     gcTime:    15 * 60 * 1000,
   });

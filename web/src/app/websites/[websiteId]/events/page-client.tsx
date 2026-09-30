@@ -33,7 +33,8 @@ function EventRow({ event }: { event: any }) {
           </div>
         </div>
         <span className="text-sm font-semibold w-24 text-right shrink-0">{(event.count || 0).toLocaleString()}</span>
-        <span className="text-xs text-muted-foreground w-28 text-right shrink-0">{(event.unique_users || 0).toLocaleString()} users</span>
+        {/* The API field is `unique_visitors`; this read `unique_users` alone and showed 0 for every event. */}
+        <span className="text-xs text-muted-foreground w-28 text-right shrink-0">{(event.unique_visitors ?? event.unique_users ?? 0).toLocaleString()} users</span>
       </div>
 
       {open && hasProps && (
@@ -68,8 +69,12 @@ export default function EventsPage() {
   const { data, isLoading } = useCustomEvents(websiteId, dateRange);
   const events: any[] = data?.top_events ?? [];
 
-  // Filter out internal seentics events
-  const internalEvents = new Set(['pageview', 'session_start', 'session_end', '__sn_heartbeat', '__sn_leave']);
+  // Filter out what the tracker records on its own. `performance` (web vitals, sent on
+  // every page) and `identify` (an identify() call, not a tracked event) used to be
+  // listed — and counted in the totals — as if the site had tracked them.
+  const internalEvents = new Set([
+    'pageview', 'session_start', 'session_end', '__sn_heartbeat', '__sn_leave', 'performance', 'identify',
+  ]);
   const filteredEvents = events.filter(e => !internalEvents.has(e.event_type));
 
   const totalEvents = filteredEvents.reduce((s, e) => s + (e.count || 0), 0);

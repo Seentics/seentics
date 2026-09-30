@@ -10,6 +10,8 @@ import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
 import { isDemo, demoPathAnalysis } from '@/lib/demo';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
+import { getVisitorInsights } from '@/features/analytics/api';
+import { pathAnalysisFrom } from '@/features/analytics/path-analysis';
 
 interface PageFlow {
   from_page: string;
@@ -26,7 +28,32 @@ interface PathAnalysis {
   top_entry_pages: TopItem[];
   top_exit_pages: TopItem[];
   page_flows: PageFlow[];
-  avg_path_length: number;
+  top_journey?: string | null;
+}
+
+/** Shared by the section and the page's headline stats; react-query dedupes the fetch. */
+export function usePathAnalysis(websiteId: string, dateRange: number) {
+  return useQuery<PathAnalysis>({
+    queryKey: ['path-analysis', websiteId, dateRange],
+    queryFn: async () => {
+      if (isDemo(websiteId)) {
+        const demo = demoPathAnalysis();
+        return {
+          top_entry_pages: demo.top_entry_pages.map(p => ({ name: p.page, count: p.count })),
+          top_exit_pages: demo.top_exit_pages.map(p => ({ name: p.page, count: p.count })),
+          page_flows: demo.page_flows.map(f => ({ from_page: f.from, to_page: f.to, count: f.count })),
+          top_journey: demo.page_flows[0] ? `${demo.page_flows[0].from} → ${demo.page_flows[0].to}` : null,
+        };
+      }
+      const [paths, insights] = await Promise.all([
+        api.get(`/analytics/path-analysis/${websiteId}?days=${dateRange}`),
+        getVisitorInsights(websiteId, dateRange),
+      ]);
+      return pathAnalysisFrom(paths.data, insights);
+    },
+    enabled: isValidId(websiteId) && (isEnterprise || isDemo(websiteId)),
+    staleTime: 60 * 1000,
+  });
 }
 
 function PageListSkeleton() {
@@ -55,24 +82,7 @@ function EmptyState({ message }: { message: string }) {
 }
 
 export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; dateRange: number }) {
-  const { data, isLoading } = useQuery<PathAnalysis>({
-    queryKey: ['path-analysis', websiteId, dateRange],
-    queryFn: async () => {
-      if (isDemo(websiteId)) {
-        const demo = demoPathAnalysis();
-        return {
-          avg_path_length: demo.avg_path_length,
-          top_entry_pages: demo.top_entry_pages.map(p => ({ name: p.page, count: p.count })),
-          top_exit_pages: demo.top_exit_pages.map(p => ({ name: p.page, count: p.count })),
-          page_flows: demo.page_flows.map(f => ({ from_page: f.from, to_page: f.to, count: f.count })),
-        };
-      }
-      const response = await api.get(`/analytics/path-analysis/${websiteId}?days=${dateRange}`);
-      return response.data;
-    },
-    enabled: isValidId(websiteId) && (isEnterprise || isDemo(websiteId)),
-    staleTime: 60 * 1000,
-  });
+  const { data, isLoading } = usePathAnalysis(websiteId, dateRange);
 
   const topFlowCount = data?.page_flows?.[0]?.count || 1;
   const entryMax = data?.top_entry_pages?.[0]?.count || 1;
