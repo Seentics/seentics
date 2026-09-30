@@ -324,18 +324,53 @@ const sendXhr = (body, encoding = '') => new Promise((resolve) => {
   } catch { resolve(false); }
 });
 
-const sendGzip = async (json) => {
+/**
+ * Below this a batch goes out as a keepalive fetch: sent at once, uncompressed, and
+ * finished by the browser even if the page unloads mid-request. Kept under the 64 KB
+ * keepalive body cap browsers enforce.
+ */
+const KEEPALIVE_MAX_BYTES = 60_000;
+
+const sendKeepalive = (json) => {
+  try {
+    return fetch(COLLECT, {
+      method: 'POST',
+      body: json,
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+    }).then(r => r.status >= 200 && r.status < 400, () => false);
+  } catch {
+    // Over the browser's in-flight keepalive quota: an ordinary request instead.
+    return sendXhr(json);
+  }
+};
+
+/**
+ * Large batches still being compressed. Compression is asynchronous, so a batch drained
+ * just before the visitor leaves would otherwise be lost with the page: `flushBeacon`
+ * takes these over (`handedOff`) and the compressed send is skipped.
+ */
+const compressingDeliveries = new Set();
+
+const sendGzip = async (item) => {
   if (typeof CompressionStream !== 'undefined') {
+    compressingDeliveries.add(item);
     try {
       const cs = new CompressionStream('gzip');
       const writer = cs.writable.getWriter();
-      writer.write(new TextEncoder().encode(json));
+      writer.write(new TextEncoder().encode(item.json));
       writer.close();
       const buf = await new Response(cs.readable).arrayBuffer();
+      if (item.handedOff) return true;
       return await sendXhr(buf, 'gzip');
-    } catch (_) { /* fall through to plain JSON */ }
+    } catch (_) {
+      /* fall through to plain JSON */
+    } finally {
+      compressingDeliveries.delete(item);
+    }
+    if (item.handedOff) return true;
   }
-  return await sendXhr(json);
+  return await sendXhr(item.json);
 };
 
 const deliveryRetryQueue = [];
@@ -347,8 +382,19 @@ const queueDeliveryRetry = (item) => {
   deliveryRetryQueue.push(item);
 };
 
+/**
+ * Send one drained batch, retrying acknowledged failures.
+ *
+ * Small batches — nearly every session-recording flush — use a keepalive fetch. They used
+ * to be gzipped first and sent by XHR: compression is asynchronous and a navigation
+ * aborts an ordinary XHR, so whatever the visitor did in the last moments on a page (the
+ * click that submitted the form, the confirmation it produced) was drained from the
+ * queues, then dropped with the page, and the unload flush found nothing left to send.
+ */
 const dispatchWithRetry = (item) => {
-  const send = item.gzip ? sendGzip(item.json) : sendXhr(item.json);
+  const send = item.json.length <= KEEPALIVE_MAX_BYTES
+    ? sendKeepalive(item.json)
+    : item.gzip ? sendGzip(item) : sendXhr(item.json);
   Promise.resolve(send).then(ok => {
     if (!ok) queueDeliveryRetry({ ...item, attempt: item.attempt + 1 });
   }).catch(() => queueDeliveryRetry({ ...item, attempt: item.attempt + 1 }));
@@ -373,6 +419,7 @@ const drainQueues = () => {
   const funnelEvts  = queues.funnels.splice(0);
   const autoEvts    = queues.automations.splice(0);
   const sessionEvts = queues.session.splice(0);
+  sessionQueueBytes = 0;
   const heatmapEvts = queues.heatmaps.splice(0);
   const shotEvts        = queues.heatmap_screenshot.splice(0);
   const domSnapshotEvts = queues.heatmap_dom_snapshot.splice(0);
@@ -418,7 +465,8 @@ const flush = () => {
   if (!drained) return;
   const { json, sessionEvts, heatmapEvts, shotEvts } = drained;
 
-  // Session recording, screenshot payloads, or large batches: gzip to stay under the sendBeacon limit.
+  // Session recording, screenshot payloads, or large batches: acknowledged delivery with
+  // retry (keepalive fetch when small, gzipped XHR when large — see dispatchWithRetry).
   if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
     dispatchWithRetry({ json, gzip: true, attempt: 0, createdAt: Date.now(), nextAt: 0 });
     return;
@@ -439,32 +487,84 @@ const flush = () => {
  * Synchronous XHR is deprecated in Chrome 80+ and silently dropped during unload.
  */
 const flushBeacon = () => {
-  const drained = drainQueues();
-  if (!drained) return;
-  const { json, heatmapEvts, shotEvts } = drained;
-
-  // Screenshots or very large batches must use keepalive fetch.
-  // NOTE: iOS Safari limits keepalive request bodies to 64 KB. Full DOM snapshots
-  // are flushed immediately when captured (see emit handler above) so by the time
-  // pagehide fires, only incremental events remain — typically well under 64 KB.
-  if (shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
-    try {
-      fetch(COLLECT, {
-        method: 'POST',
-        body: json,
-        headers: { 'Content-Type': 'application/json' },
-        keepalive: true,
-      });
-    } catch { /* ignore — page is already closing */ }
-    return;
+  // Batches already drained but not yet on the wire would die with the page: those
+  // still being compressed, and those waiting to retry. They leave with this flush.
+  const payloads = [];
+  for (const item of compressingDeliveries) {
+    item.handedOff = true;
+    try { payloads.push(JSON.parse(item.json)); } catch { /* unreachable: we serialized it */ }
   }
+  compressingDeliveries.clear();
+  for (const item of deliveryRetryQueue.splice(0)) {
+    try { payloads.push(JSON.parse(item.json)); } catch { /* unreachable */ }
+  }
+  const drained = drainQueues();
+  if (drained) payloads.push(drained.payload);
+  if (!payloads.length) return;
 
-  // Small payload (including incremental session events): sendBeacon is the most
-  // reliable delivery mechanism across browsers during page unload.
-  const blob = new Blob([json], { type: 'application/json' });
-  if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
+  // Browsers cap the bytes a closing page may have in flight (about 64 KB, per request
+  // and in total), so what leaves is split by value, most valuable first. One request
+  // used to carry everything: when a burst of activity just before leaving (a grid
+  // re-rendered, a list expanded) made the recording part large, the whole request was
+  // refused and the page's analytics events and heatmap clicks went down with it.
+  const parts = payloads.map(unloadParts);
+  for (const p of parts) if (p.core) sendOnUnload(p.core);
+  for (const p of parts) for (const json of p.heatmaps) sendOnUnload(json);
+  for (const p of parts) for (const json of p.session) sendOnUnload(json);
+  for (const p of parts) for (const json of p.snapshots) sendOnUnload(json);
+};
 
-  // sendBeacon rejected or unavailable — fall back to keepalive fetch.
+/** Largest single request sent while the page closes; under the ~64 KB keepalive cap. */
+const UNLOAD_PART_MAX = 60_000;
+/** Recording pieces at unload: small, because the cap is on the total in flight too. */
+const UNLOAD_SESSION_PIECE = 16_000;
+
+/**
+ * One drained payload as unload-sized requests: `core` (analytics events, funnels,
+ * automations, errors — small, and what a page view is worth), heatmap points, the
+ * recording, then page snapshots. Every group is cut into requests that each fit: a busy
+ * page queues a kilobyte per click, and one oversized request loses all of them.
+ */
+const unloadParts = (payload) => {
+  const { session, heatmaps, heatmap_dom_snapshot: doms, heatmap_screenshot: shots, ...rest } = payload;
+  const envelope = { website_id: payload.website_id, domain: payload.domain, ua: payload.ua, consent: payload.consent };
+  const hasCore = Object.values(rest).some(v => Array.isArray(v) && v.length > 0);
+  const inPieces = (key, items, max = UNLOAD_PART_MAX) => {
+    const pieces = [];
+    let chunk = [];
+    let size = 0;
+    for (const item of items ?? []) {
+      const n = JSON.stringify(item).length;
+      if (chunk.length && size + n > max) {
+        pieces.push(JSON.stringify({ ...envelope, [key]: chunk }));
+        chunk = [];
+        size = 0;
+      }
+      chunk.push(item);
+      size += n;
+    }
+    if (chunk.length) pieces.push(JSON.stringify({ ...envelope, [key]: chunk }));
+    return pieces;
+  };
+  return {
+    core: hasCore ? JSON.stringify(rest) : null,
+    heatmaps: inPieces('heatmaps', heatmaps),
+    // Small pieces: what is left of the closing page's budget after the analytics and
+    // heatmap parts is filled with as much of the recording as fits, in order.
+    session: inPieces('session', session, UNLOAD_SESSION_PIECE),
+    snapshots: [
+      ...(doms ?? []).map(item => JSON.stringify({ ...envelope, heatmap_dom_snapshot: [item] })),
+      ...(shots ?? []).map(item => JSON.stringify({ ...envelope, heatmap_screenshot: [item] })),
+    ],
+  };
+};
+
+/** One request that must survive the page closing: sendBeacon, falling back to keepalive fetch. */
+const sendOnUnload = (json) => {
+  if (json.length <= UNLOAD_PART_MAX) {
+    const blob = new Blob([json], { type: 'application/json' });
+    if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
+  }
   try {
     fetch(COLLECT, {
       method: 'POST',
@@ -835,10 +935,46 @@ const scheduleHeatmapScreenshotAfterAppIdle = () => {
  */
 const captureDomSnapshotBeforeLeaving = () => {
   if (cfg.heatmap_layout_enabled === false) return;
-  if (hasSentHeatmapScreenshotForPath()) return;
+  if (hasSentHeatmapScreenshotForPath()) {
+    if (pageGrewSinceSnapshot()) captureAndQueueDomSnapshot({ force: true });
+    return;
+  }
   if (Date.now() - pageEnterMs < MIN_DWELL_FOR_LEAVE_SNAPSHOT_MS) return;
   clearScreenshotScheduleTimers();
   captureAndQueueDomSnapshot();
+};
+
+/**
+ * Pages that grow as they are read — infinite feeds, "load more" grids, expanding lists.
+ *
+ * The snapshot is taken 2.5 s after load, when such a page is a fraction of the height
+ * it reaches, and it used to be the only one per path per session: every click further
+ * down was stored with the right coordinates and then drawn below the bottom of the
+ * picture. When the document has grown well past the height it had at the last capture,
+ * it is captured again — after a pause in scrolling so the new content has rendered, and
+ * a bounded number of times per page view.
+ */
+const SNAPSHOT_GROWTH_RATIO = 1.5;
+const SNAPSHOT_GROWTH_MIN_PX = 1_000;
+const SNAPSHOT_RECAPTURES_MAX = 3;
+let lastSnapshot = { path: '', height: 0, recaptures: 0 };
+let growthRecaptureTimer = null;
+
+const pageGrewSinceSnapshot = () => {
+  if (lastSnapshot.path !== location.pathname || !lastSnapshot.height) return false;
+  if (lastSnapshot.recaptures >= SNAPSHOT_RECAPTURES_MAX) return false;
+  const { dh } = heatmapDocumentMetrics();
+  return dh >= Math.max(lastSnapshot.height * SNAPSHOT_GROWTH_RATIO, lastSnapshot.height + SNAPSHOT_GROWTH_MIN_PX);
+};
+
+/** Called on scroll: re-capture once the page has grown and scrolling has paused. */
+const scheduleGrowthRecapture = () => {
+  if (cfg.heatmap_layout_enabled === false || growthRecaptureTimer != null) return;
+  if (!pageGrewSinceSnapshot()) return;
+  growthRecaptureTimer = window.setTimeout(() => {
+    growthRecaptureTimer = null;
+    if (pageGrewSinceSnapshot()) captureAndQueueDomSnapshot({ force: true });
+  }, 1_500);
 };
 
 /**
@@ -852,12 +988,54 @@ const captureDomSnapshotBeforeLeaving = () => {
  * - Remove <iframe> to avoid cross-origin complications
  * - Runs once per path per session — deduped via sessionStorage
  */
-const captureAndQueueDomSnapshot = () => {
+/**
+ * Copy each open shadow root under `live` into the matching element under `copy` as a
+ * `<template shadowrootmode="open">`, recursively, collecting the templates' contents.
+ * `copy` is a fresh clone of `live`, so both trees list their elements in the same order.
+ * Stylesheets adopted by a shadow root are written in as <style> — they are otherwise
+ * invisible to serialization, and components that style themselves that way would
+ * arrive unstyled.
+ */
+const attachShadowTemplates = (live, copy, contents) => {
+  const liveEls = live.querySelectorAll('*');
+  const copyEls = copy.querySelectorAll('*');
+  if (liveEls.length !== copyEls.length) return;
+  for (let i = 0; i < liveEls.length; i++) {
+    const shadow = liveEls[i].shadowRoot;
+    if (!shadow) continue;
+    const tpl = document.createElement('template');
+    tpl.setAttribute('shadowrootmode', 'open');
+    for (const child of shadow.childNodes) tpl.content.appendChild(child.cloneNode(true));
+    // Nested roots first: they are paired by element order, which the <style> added
+    // below would shift.
+    attachShadowTemplates(shadow, tpl.content, contents);
+    try {
+      for (const sheet of shadow.adoptedStyleSheets || []) {
+        const style = document.createElement('style');
+        style.textContent = Array.from(sheet.cssRules, rule => rule.cssText).join('\n');
+        tpl.content.prepend(style);
+      }
+    } catch { /* cross-origin sheet */ }
+    contents.push(tpl.content);
+    copyEls[i].prepend(tpl);
+  }
+};
+
+const captureAndQueueDomSnapshot = ({ force = false } = {}) => {
   if (cfg.heatmap_layout_enabled === false) return;
   if (!heatmapAllowed()) return;
-  if (hasSentHeatmapScreenshotForPath()) return;
+  if (!force && hasSentHeatmapScreenshotForPath()) return;
   try {
     const clone = document.documentElement.cloneNode(true);
+    // cloneNode never copies shadow roots, so every web component used to arrive empty:
+    // the background had a hole where the component was, and clicks inside it had no
+    // element to land on. Open shadow roots are written in as declarative shadow DOM,
+    // which the preview iframe's parser attaches again. Everything below that sanitizes
+    // the clone goes through `qsa`, so it reaches inside those templates too.
+    const shadowContents = [];
+    attachShadowTemplates(document.documentElement, clone, shadowContents);
+    const roots = [clone, ...shadowContents];
+    const qsa = (selector) => roots.flatMap(root => Array.from(root.querySelectorAll(selector)));
 
     // Insert <base href> so relative URLs resolve against the original origin
     const head = clone.querySelector('head');
@@ -871,32 +1049,32 @@ const captureAndQueueDomSnapshot = () => {
     }
 
     // Remove elements that are unsafe or unnecessary in a static snapshot
-    clone.querySelectorAll('script, noscript').forEach(el => el.remove());
+    qsa('script, noscript').forEach(el => el.remove());
     // Heatmap snapshots are durable objects, not just a visual preview. Apply the
     // same explicit privacy controls used by replay before serialising the clone:
     // blocked regions retain a harmless placeholder so the page geometry remains
     // useful for coordinate alignment, while masked regions retain only a fixed
     // redaction marker. Never rely on CSS visibility here — hidden text is still
     // present in the uploaded HTML.
-    clone.querySelectorAll('[data-seentics-block], [data-private], [autocomplete="cc-number"]').forEach(el => {
+    qsa('[data-seentics-block], [data-private], [autocomplete="cc-number"]').forEach(el => {
       el.replaceChildren('[blocked]');
       el.setAttribute('aria-label', 'Blocked content');
     });
-    clone.querySelectorAll('[data-seentics-mask], [data-sensitive]').forEach(el => {
+    qsa('[data-seentics-mask], [data-sensitive]').forEach(el => {
       el.replaceChildren('••••••');
       el.setAttribute('aria-label', 'Masked content');
     });
     // Form values can be prefilled by the site (for example, profile data) and
     // therefore appear in outerHTML even when the visitor never types. Snapshot
     // layout needs the controls, not their values, so redact every form control.
-    clone.querySelectorAll('input, textarea').forEach(el => {
+    qsa('input, textarea').forEach(el => {
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
         el.value = '';
         el.setAttribute('value', '');
         if (el instanceof HTMLTextAreaElement) el.textContent = '';
       }
     });
-    clone.querySelectorAll('select').forEach(el => {
+    qsa('select').forEach(el => {
       el.selectedIndex = -1;
       el.querySelectorAll('option').forEach(option => {
         option.removeAttribute('selected');
@@ -904,7 +1082,7 @@ const captureAndQueueDomSnapshot = () => {
         option.setAttribute('value', '');
       });
     });
-    clone.querySelectorAll('[contenteditable]:not([contenteditable="false"])').forEach(el => {
+    qsa('[contenteditable]:not([contenteditable="false"])').forEach(el => {
       el.replaceChildren('••••••');
       el.setAttribute('aria-label', 'Masked editable content');
     });
@@ -912,8 +1090,8 @@ const captureAndQueueDomSnapshot = () => {
     // form submissions and embedded plugins once loaded in an iframe. Keep only the
     // inert layout representation. The one script appended below is Seentics-owned and
     // only reports dimensions / resolves element fingerprints to rectangles.
-    clone.querySelectorAll('meta[http-equiv="refresh"], object, embed').forEach(el => el.remove());
-    clone.querySelectorAll('*').forEach(el => {
+    qsa('meta[http-equiv="refresh"], object, embed').forEach(el => el.remove());
+    qsa('*').forEach(el => {
       for (const attr of Array.from(el.attributes)) {
         const name = attr.name.toLowerCase();
         if (name.startsWith('on') || name === 'srcdoc') el.removeAttribute(attr.name);
@@ -942,18 +1120,20 @@ const captureAndQueueDomSnapshot = () => {
     // Conservative PII backstop for gated pages. Explicit mask/block selectors remain
     // the preferred control because a person's name cannot be inferred safely.
     try {
-      const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
       const sensitiveText = [];
-      let node;
-      while ((node = walker.nextNode())) {
-        const value = node.nodeValue || '';
-        if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?:\d[ -]?){9,16}\b/i.test(value)) sensitiveText.push(node);
+      for (const root of roots) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const value = node.nodeValue || '';
+          if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?:\d[ -]?){9,16}\b/i.test(value)) sensitiveText.push(node);
+        }
       }
       sensitiveText.forEach(node => { node.nodeValue = '••••••'; });
     } catch { /* TreeWalker unavailable */ }
     // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
     // but the added complexity and payload size aren't worth it for a layout snapshot)
-    clone.querySelectorAll('iframe').forEach(el => {
+    qsa('iframe').forEach(el => {
       const ph = document.createElement('div');
       ph.style.cssText = 'background:#f3f4f6;border:1px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;';
       ph.setAttribute('data-snc-placeholder', 'iframe');
@@ -1040,6 +1220,9 @@ const captureAndQueueDomSnapshot = () => {
       data:  { html, page_version: heatmapPageVersion(), page_key: heatmapPageKeyOverride() },
     });
 
+    lastSnapshot = lastSnapshot.path === location.pathname
+      ? { path: location.pathname, height: dh, recaptures: lastSnapshot.recaptures + (force ? 1 : 0) }
+      : { path: location.pathname, height: dh, recaptures: 0 };
     markHeatmapScreenshotSentForPath();
     flush();
   } catch { /* non-critical — DOM serialization failures must not break the page */ }
@@ -1389,7 +1572,27 @@ const queueHeatmapEvent = (event) => {
     queues.heatmaps.splice(scrollIndex >= 0 ? scrollIndex : 0, 1);
   }
   queues.heatmaps.push(event);
+  // A busy page (many clicks in a few seconds) should not wait for the periodic flush:
+  // the longer the queue, the more of it depends on the unload flush, which browsers
+  // cap at about 64 KB. Flush early once a batch's worth has built up.
+  if (queues.heatmaps.length >= HEATMAP_EARLY_FLUSH && !heatmapEarlyFlushScheduled) {
+    heatmapEarlyFlushScheduled = true;
+    setTimeout(() => { heatmapEarlyFlushScheduled = false; flush(); }, 0);
+  }
 };
+
+/** Queued heatmap events that trigger a flush ahead of the periodic one (~1 KB each). */
+const HEATMAP_EARLY_FLUSH = 25;
+let heatmapEarlyFlushScheduled = false;
+
+/**
+ * Approximate size of the queued recording (DOM mutations measured, other events
+ * estimated), and the size at which it is flushed ahead of the periodic flush — well
+ * under the ~64 KB a closing page may still send.
+ */
+const SESSION_EARLY_FLUSH_BYTES = 24_000;
+let sessionQueueBytes = 0;
+let sessionEarlyFlushScheduled = false;
 
 let heatmapListenersInstalled     = false;
 let heatmapPointerBridgeInstalled = false;
@@ -1453,6 +1656,7 @@ const updateHeatmapScrollPageView = () => {
   view.lastAt = now;
   view.documentHeight = range.documentHeight;
   if (location.href === view.url) view.version = heatmapPageVersion();
+  scheduleGrowthRecapture();
 };
 
 const startHeatmapScrollPageView = () => {
@@ -1712,6 +1916,18 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
         // fetch hard-cap of 64 KB would otherwise silently drop it on pagehide.
         if (event.type === 2 /* FullSnapshot */) {
           setTimeout(flush, 0);
+        } else {
+          // The same cap applies to everything a closing page sends, in total. A burst
+          // of DOM changes (a grid re-rendered by a filter, a "load more") can queue far
+          // more than that in a second; left for the periodic flush, a visitor who moves
+          // on straight away took all of it with them. Past a threshold, send now.
+          sessionQueueBytes += event.type === 3 && event.data?.source === 0
+            ? JSON.stringify(event).length
+            : 200;
+          if (sessionQueueBytes > SESSION_EARLY_FLUSH_BYTES && !sessionEarlyFlushScheduled) {
+            sessionEarlyFlushScheduled = true;
+            setTimeout(() => { sessionEarlyFlushScheduled = false; flush(); }, 0);
+          }
         }
       }
     },
