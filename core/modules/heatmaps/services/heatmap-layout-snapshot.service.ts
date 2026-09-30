@@ -12,7 +12,7 @@ import { isJpeg } from "./heatmap-data-normalization.service";
  * Sites get redesigned; three-day-old pixels are still worth rendering while the
  * fresh capture runs.
  */
-const STALE_MS = 3 * 24 * 60 * 60 * 1000;
+export const STALE_MS = 3 * 24 * 60 * 60 * 1000;
 
 /** Upper bound on a dashboard-rendered screenshot. Anything larger is a bug or an attack. */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;

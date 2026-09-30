@@ -842,6 +842,49 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
       expect(htmlPuts).toHaveLength(1);
     });
 
+    // A feed or "load more" page is re-captured once it has grown. The next visitor's
+    // load-time snapshot must not replace that fuller picture, or clicks further down
+    // land below the bottom of the background again.
+    it("keeps a recent, much taller background over a short load-time snapshot", async () => {
+      storedRows.set(`${SITE}:/pricing`, row({
+        content_sha256: "the-grown-page",
+        html_s3_key: "heatmap-screenshots/site/slot.html",
+        doc_height: 12_000,
+        updated_at: new Date(Date.now() - 60_000),
+      }));
+
+      await service().storeDomSnapshot(domEvent({ docH: 2_800 }));
+
+      expect(htmlPuts).toEqual([]);
+      expect(htmlUpserts).toEqual([]);
+    });
+
+    it("replaces a taller background once it is stale, so a redesign comes through", async () => {
+      storedRows.set(`${SITE}:/pricing`, row({
+        content_sha256: "the-grown-page",
+        html_s3_key: "heatmap-screenshots/site/slot.html",
+        doc_height: 12_000,
+        updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      }));
+
+      await service().storeDomSnapshot(domEvent({ docH: 2_800 }));
+
+      expect(htmlPuts).toHaveLength(1);
+    });
+
+    it("replaces a recent background with one of similar height", async () => {
+      storedRows.set(`${SITE}:/pricing`, row({
+        content_sha256: "yesterdays-dom",
+        html_s3_key: "heatmap-screenshots/site/slot.html",
+        doc_height: 3_200,
+        updated_at: new Date(Date.now() - 60_000),
+      }));
+
+      await service().storeDomSnapshot(domEvent({ docH: 3_000 }));
+
+      expect(htmlPuts).toHaveLength(1);
+    });
+
     it("does not consult the in-process jpeg hash cache", async () => {
       // That cache holds image hashes. Reusing it here would compare an HTML digest
       // against a JPEG digest — never equal, but it would also mean a JPEG upload

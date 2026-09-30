@@ -16,6 +16,7 @@ import type { HeatmapIngestEvent, ScreenshotJob } from "../interfaces";
 import type { TrackerWebsites } from "../../websites/interfaces";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { isJpeg } from "./heatmap-data-normalization.service";
+import { STALE_MS } from "./heatmap-layout-snapshot.service";
 
 const log = baseLog.child({ category: "heatmap" });
 
@@ -27,6 +28,8 @@ const FALLBACK_DOC_W = 1280;
 const FALLBACK_DOC_H = 800;
 /** Below this an HTML snapshot cannot be a real page. */
 const MIN_HTML_BYTES = 100;
+/** A stored background this much taller than an incoming one is the more complete picture. */
+const TALLER_SNAPSHOT_RATIO = 1.5;
 
 /**
  * The page-background half of heatmap ingest.
@@ -174,6 +177,28 @@ export class SnapshotIngestService {
     }
 
     const { w: docW, h: docH } = plausibleDocSize(ev.docW ?? 0, ev.docH ?? 0, ev.url ?? "", false);
+
+    // A page that grows as it is read (a feed, a "load more" grid) is snapshotted again
+    // by the tracker once it has grown. The next visitor's load-time snapshot of the same
+    // page is a fraction of that height; letting it replace the fuller one put every
+    // click below its bottom edge again. A recent, much taller background is kept; once
+    // it is stale any capture may replace it, so a redesign still comes through.
+    if (
+      existing?.html_s3_key &&
+      existing.device_type === device &&
+      existing.doc_height > docH * TALLER_SNAPSHOT_RATIO &&
+      !!existing.updated_at &&
+      Date.now() - new Date(existing.updated_at).getTime() < STALE_MS
+    ) {
+      log.info({
+        msg: "heatmap_dom_snapshot_kept_taller",
+        norm,
+        website_id: ev.websiteId,
+        stored_height: existing.doc_height,
+        incoming_height: docH,
+      });
+      return;
+    }
 
     const pageVersion = typeof ev.data?.page_version === "string"
       ? ev.data.page_version.slice(0, 160)
