@@ -333,12 +333,16 @@ const KEEPALIVE_MAX_BYTES = 60_000;
 
 const sendKeepalive = (json) => {
   try {
+    // Retried only when the server answered with a retryable failure. A keepalive
+    // request outlives the page by design, so a rejected promise — the document moving
+    // on while the request is in flight — does not mean it was lost; retrying on that
+    // stored the same batch twice (duplicate pageviews and events).
     return fetch(COLLECT, {
       method: 'POST',
       body: json,
       headers: { 'Content-Type': 'application/json' },
       keepalive: true,
-    }).then(r => r.status >= 200 && r.status < 400, () => false);
+    }).then(r => !(r.status >= 500 || r.status === 429), () => true);
   } catch {
     // Over the browser's in-flight keepalive quota: an ordinary request instead.
     return sendXhr(json);
@@ -355,20 +359,21 @@ const compressingDeliveries = new Set();
 const sendGzip = async (item) => {
   if (typeof CompressionStream !== 'undefined') {
     compressingDeliveries.add(item);
+    let buf = null;
     try {
       const cs = new CompressionStream('gzip');
       const writer = cs.writable.getWriter();
       writer.write(new TextEncoder().encode(item.json));
       writer.close();
-      const buf = await new Response(cs.readable).arrayBuffer();
-      if (item.handedOff) return true;
-      return await sendXhr(buf, 'gzip');
+      buf = await new Response(cs.readable).arrayBuffer();
     } catch (_) {
       /* fall through to plain JSON */
-    } finally {
-      compressingDeliveries.delete(item);
     }
+    // Out of the set before the request goes out, not when its response comes back: a
+    // batch already on the wire that the unload flush also took over arrived twice.
+    compressingDeliveries.delete(item);
     if (item.handedOff) return true;
+    if (buf) return await sendXhr(buf, 'gzip');
   }
   return await sendXhr(item.json);
 };
