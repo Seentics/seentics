@@ -17,11 +17,34 @@ import {
  * error at all when `trackingAllowed()` is false.
  */
 export function routeErrorEvents(ctx: TrackerBatchRoutingContext): number {
-  const raw = normalizeTrackerEvents(Array.isArray(ctx.body.errors) ? ctx.body.errors : []);
+  const input = Array.isArray(ctx.body.errors) ? ctx.body.errors : [];
+  const raw = normalizeTrackerEvents(input);
   if (raw.length === 0) return 0;
 
-  const events = raw.map((event) => ({
+  // `normalizeTrackerEvents` keeps the fields every tracker event shares and nothing
+  // else — it was written for pageviews and clicks. An error's substance is in its own
+  // fields (message, kind, source, stack, position), which it dropped, so every error
+  // reached `toRow` with an empty message and was discarded: the Errors page stayed
+  // empty for every site. They are carried over here, type-checked.
+  const errorFields = (item: unknown) => {
+    const v = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const text = (key: string) => (typeof v[key] === "string" ? (v[key] as string) : undefined);
+    const num = (key: string) =>
+      typeof v[key] === "number" && Number.isFinite(v[key]) ? (v[key] as number) : undefined;
+    return {
+      message: text("message"),
+      kind: text("kind"),
+      source: text("source"),
+      stack: text("stack"),
+      line_no: num("line_no"),
+      col_no: num("col_no"),
+    };
+  };
+  const detailed = input.filter((item) => item && typeof item === "object" && !Array.isArray(item));
+
+  const events = raw.map((event, i) => ({
     ...event,
+    ...errorFields(detailed[i]),
     websiteId: ctx.website.id,
     // Browser, OS and device for the sample rows — "which browsers is this breaking in"
     // is usually the first question asked of a fault.

@@ -3,6 +3,7 @@ import { env } from "./config";
 import { runCoreMigrations } from "./db/migrate";
 import { configureLogger, log } from "./platform/observability/logger";
 import { SEENTICS_PEER_IP_HEADER } from "./platform/http/client-ip";
+import { handleAppError } from "./platform/http/error-handler";
 import { bootstrap } from "./app/bootstrap";
 import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
@@ -38,6 +39,7 @@ const core_log = log.child({ category: 'startup' });
 let ready = false;
 
 const app = new Hono();
+app.onError(handleAppError);
 
 // Compose the modular graph: infrastructure, then modules, then their routes. Each
 // module is built by its own `init.ts` and receives its peer modules through interfaces
