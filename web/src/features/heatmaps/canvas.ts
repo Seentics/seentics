@@ -22,15 +22,21 @@ export function drawClickHeatmap(canvas: HTMLCanvasElement, points: HeatPoint[],
   octx.globalCompositeOperation = 'lighter';
 
   const maxI = Math.max(...points.map(p => p.intensity), 1);
-  // Tight spots: radius scales with canvas size only — not intensity (high counts were “bomb” sized).
+  // Radius scales with the layout's width only — not intensity (high counts were “bomb”
+  // sized). The floor matters on phone layouts: at 1.4% of a 390 px page a spot was 5 px,
+  // a speck nobody could see in the dashboard's device frame.
   const ref  = Math.min(w, h);
-  const rSpot = Math.max(4, Math.min(22, ref * 0.014));
+  const rSpot = Math.max(10, Math.min(26, ref * 0.03));
 
   for (const p of points) {
     const cx = Math.min(w, Math.max(0, p.nx * w));
     const cy = Math.min(h, Math.max(0, p.ny * h));
     const norm = p.intensity / maxI;
-    const alpha = 0.055 + Math.sqrt(norm) * 0.34;
+    // Repeat clicks arrive pre-aggregated (one point, higher intensity), so they never
+    // stack on the canvas: the busiest spot has to reach the top of the ramp by itself.
+    // It used to peak at 0.395 — cyan — so nothing on a page ever read as hot. Singles
+    // keep a floor that stays clearly visible.
+    const alpha = 0.2 + Math.sqrt(norm) * 0.8;
 
     const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rSpot);
     g.addColorStop(0,   `rgba(255,255,255,${alpha})`);
