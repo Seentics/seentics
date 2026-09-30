@@ -964,6 +964,10 @@ const captureAndQueueDomSnapshot = () => {
     // Inject a measurement script so the preview iframe can report its actual rendered
     // height via postMessage (works cross-origin). The snapshot HTML is served from S3
     // (different origin), so the viewer cannot read scrollHeight via contentDocument.
+    // It also places recorded clicks on their elements (`find`). Stable annotations win,
+    // then the recorded structural path when it names exactly one matching element, and
+    // only then the fuzzy tag/role/class score. Scoring first used to put every click on a
+    // repeated component (a card grid, a list, an id-less link) onto its first instance.
     if (head) {
       const measureScript = document.createElement('script');
       measureScript.textContent = `(function(){
@@ -974,6 +978,7 @@ const captureAndQueueDomSnapshot = () => {
           if(l.seentics_id){var x=document.querySelector('[data-seentics-id="'+esc(l.seentics_id)+'"]');if(x)return x}
           if(l.id){var byId=document.getElementById(l.id);if(byId)return byId}
           if(l.test_id){var t=document.querySelector('[data-testid="'+esc(l.test_id)+'"]');if(t)return t}
+          if(l.css_path&&!l.shadow_host_path){try{var ps=document.querySelectorAll(l.css_path),p=ps.length===1?ps[0]:null;if(p&&(!l.tag||p.tagName.toLowerCase()===l.tag)&&(!Array.isArray(l.classes)||l.classes.every(function(k){return !k||p.classList.contains(k)})))return p}catch(e){}}
           var nodes=allDeep(document,[]),best=null,bestScore=-1;
           for(var i=0;i<nodes.length;i++){
             var n=nodes[i],score=0;
@@ -981,10 +986,10 @@ const captureAndQueueDomSnapshot = () => {
             if(l.role&&n.getAttribute('role')===l.role)score+=4;
             if(l.aria_label&&n.getAttribute('aria-label')===l.aria_label)score+=5;
             if(Array.isArray(l.classes))for(var c=0;c<l.classes.length;c++)if(n.classList.contains(l.classes[c]))score++;
+            if(typeof l.sibling_index==='number'&&n.parentElement&&Array.prototype.indexOf.call(n.parentElement.children,n)===l.sibling_index)score+=0.5;
             if(score>bestScore){best=n;bestScore=score}
           }
           if(best&&bestScore>=2)return best;
-          if(l.css_path){try{return document.querySelector(l.css_path)}catch(e){}}
           return null;
         }
         function dims(){var h=Math.max(document.documentElement.scrollHeight||0,(document.body||{}).scrollHeight||0),w=Math.max(document.documentElement.scrollWidth||0,(document.body||{}).scrollWidth||0);try{window.parent.postMessage({type:'snc_snap_dims',w:w,h:h},'*')}catch(e){}}

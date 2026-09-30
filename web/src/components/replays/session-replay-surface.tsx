@@ -44,6 +44,28 @@ import type { RRWebEvent, SessionCustomEvent } from '@/lib/replays-api';
 
 type PlayerInstance = InstanceType<typeof PlayerCtor>;
 
+/** Offset of each player's first full DOM snapshot — see `seekPlayer`. */
+const firstFrameMs = new WeakMap<PlayerInstance, number>();
+
+/**
+ * Every seek goes through here rather than `player.goto`.
+ *
+ * rrweb's paused seek is `play(t)` then an immediate `PAUSE`. `play(t)` only applies the
+ * events *before* `t` synchronously and schedules the rest on a timer, which the pause
+ * clears. Seeking to a moment at or before the first full snapshot therefore rebuilt
+ * nothing: the timeline read 0:00 while the frame stayed on whatever was shown last —
+ * the end of the visit, typically, since that is where people rewind from. A paused
+ * seek is clamped to just past the first snapshot so it is always drawn.
+ */
+function seekPlayer(player: PlayerInstance, offsetMs: number, play: boolean) {
+  const target = play ? offsetMs : Math.max(offsetMs, firstFrameMs.get(player) ?? 0);
+  try {
+    player.goto(target, play);
+  } catch {
+    /* ignore — stale player */
+  }
+}
+
 export type SessionReplaySurfaceAPI = {
   goto: (offsetMs: number, shouldPlay?: boolean) => void;
   toggle: () => void;
@@ -543,11 +565,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
                 )}
                 onClick={() => {
                   if (e.offsetMs === null) return;
-                  try {
-                    player.goto(Math.min(durationMs, Math.max(0, e.offsetMs)), playing);
-                  } catch {
-                    /* ignore */
-                  }
+                  seekPlayer(player, Math.min(durationMs, Math.max(0, e.offsetMs)), playing);
                   requestAnimationFrame(() => syncNow());
                 }}
               >
@@ -814,11 +832,7 @@ function ReplayScrubberTrack({
       const r = el.getBoundingClientRect();
       const x = Math.min(Math.max(clientX - r.left, 0), r.width);
       const ms = (x / r.width) * durationMs;
-      try {
-        player.goto(ms, playing);
-      } catch {
-        /* ignore */
-      }
+      seekPlayer(player, ms, playing);
       requestAnimationFrame(() => syncNow());
     },
     [durationMs, player, playing, syncNow],
@@ -862,20 +876,12 @@ function ReplayScrubberTrack({
   const onTrackKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'ArrowRight') {
       e.preventDefault();
-      try {
-        player.goto(Math.min(durationMs, currentMs + 5000), playing);
-      } catch {
-        /* ignore */
-      }
+      seekPlayer(player, Math.min(durationMs, currentMs + 5000), playing);
       requestAnimationFrame(() => syncNow());
     }
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      try {
-        player.goto(Math.max(0, currentMs - 5000), playing);
-      } catch {
-        /* ignore */
-      }
+      seekPlayer(player, Math.max(0, currentMs - 5000), playing);
       requestAnimationFrame(() => syncNow());
     }
   };
@@ -927,11 +933,7 @@ function SessionReplayTransportBar({
 
   const seekRel = (deltaMs: number) => {
     const next = Math.min(durationMs, Math.max(0, currentMs + deltaMs));
-    try {
-      player.goto(next, playing);
-    } catch {
-      /* ignore */
-    }
+    seekPlayer(player, next, playing);
     requestAnimationFrame(() => syncNow());
   };
 
@@ -1303,6 +1305,10 @@ export function SessionReplaySurface({
       });
 
       playerRef.current = player;
+      const firstFull = events.find(ev => ev.type === 2);
+      if (firstFull && events.length > 0) {
+        firstFrameMs.set(player, firstFull.timestamp - events[0].timestamp + 1);
+      }
       const replayer = player.getReplayer() as SessionReplayerCore & {
         addEvent?: (ev: unknown) => void;
       };
@@ -1344,13 +1350,7 @@ export function SessionReplaySurface({
       }, 0);
 
       onReadyRef.current?.({
-        goto: (offsetMs, shouldPlay = false) => {
-          try {
-            player.goto(offsetMs, shouldPlay);
-          } catch {
-            /* ignore */
-          }
-        },
+        goto: (offsetMs, shouldPlay = false) => seekPlayer(player, offsetMs, shouldPlay),
         toggle: () => {
           try {
             player.toggle();
