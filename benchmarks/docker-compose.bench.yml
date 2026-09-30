@@ -12,8 +12,6 @@
 #     other cores (run.sh k6).
 #   - The per-IP rate limit is off: every request comes from one IP here, which
 #     would otherwise measure the rate limiter rather than the API.
-#   - The bundled `mc` of the MinIO server image creates the bucket; the
-#     standalone mc image is no longer public.
 # =============================================================================
 
 x-stack-cpus: &stack-cpus
@@ -41,8 +39,5 @@ services:
     ports:
       - "127.0.0.1:55433:5432"
 
-  minio:
+  objex:
     <<: *stack-cpus
-
-  createbuckets:
-    image: quay.io/minio/minio:latest

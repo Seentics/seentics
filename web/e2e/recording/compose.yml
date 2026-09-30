@@ -13,30 +13,30 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
-  minio:
-    image: quay.io/minio/minio:latest
-    command: server /data
+  objex:
+    image: ghcr.io/kajdesk/objex:0.2.0
     ports: ["127.0.0.1:${E2E_STORAGE_PORT}:9000"]
     environment:
-      MINIO_ROOT_USER: recording_test
-      MINIO_ROOT_PASSWORD: recording_test_password
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
+      OBJEX_ACCESS_KEY: recording_test
+      OBJEX_SECRET_KEY: recording_test_password
     volumes:
       - recordings:/data
     healthcheck:
-      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      test: [CMD, /usr/local/bin/objex, health, http://127.0.0.1:9000/_objex/health]
       interval: 2s
       timeout: 5s
       retries: 30
   buckets:
-    image: quay.io/minio/mc:latest
+    image: amazon/aws-cli:2.27.0
+    entrypoint: [sh, /create-buckets.sh]
     depends_on:
-      minio: {condition: service_healthy}
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        mc alias set test http://minio:9000 recording_test recording_test_password
-        mc mb --ignore-existing test/seentics-replays
+      objex: {condition: service_healthy}
+    environment:
+      AWS_ACCESS_KEY_ID: recording_test
+      AWS_SECRET_ACCESS_KEY: recording_test_password
+      BUCKETS: seentics-replays
+    volumes:
+      - ../../../deploy/objex/create-buckets.sh:/create-buckets.sh:ro
   core:
     image: ${E2E_CORE_IMAGE:-seentics-recording-e2e-core:local}
     # run.mjs always builds (or explicitly supplies) this image first. Do not ask
@@ -48,7 +48,7 @@ services:
       DATABASE_URL: postgres://recording_test:recording_test@postgres:5432/recording_test
       JWT_SECRET: session-recording-e2e-only-secret-at-least-32-characters
       GLOBAL_API_KEY: session-recording-e2e-only-service-key
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://objex:9000
       S3_PUBLIC_ENDPOINT: http://127.0.0.1:${E2E_STORAGE_PORT}
       S3_BUCKET_REPLAYS: seentics-replays
       AWS_ACCESS_KEY_ID: recording_test

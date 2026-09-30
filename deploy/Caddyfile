@@ -38,5 +38,5 @@
     Vary "Origin"
     -Server
   }
-  reverse_proxy minio:9000
+  reverse_proxy objex:9000
 }

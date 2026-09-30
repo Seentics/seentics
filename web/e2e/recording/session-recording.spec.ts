@@ -32,7 +32,7 @@ async function storedEvents(request: APIRequestContext, detail: Detail): Promise
   const result: RecordedEvent[] = [];
   for (const chunk of [...(detail.replay_chunk_urls ?? [])].sort((a, b) => a.sequence - b.sequence)) {
     const response = await request.get(chunk.url);
-    expect(response.ok(), `MinIO chunk ${chunk.sequence}: ${response.status()}`).toBeTruthy();
+    expect(response.ok(), `Stored chunk ${chunk.sequence}: ${response.status()}`).toBeTruthy();
     const bytes = await response.body();
     const decoded = bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes;
     const events = JSON.parse(decoded.toString('utf8'));

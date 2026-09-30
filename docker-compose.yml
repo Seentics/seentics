@@ -18,13 +18,13 @@ services:
       - DATABASE_URL=postgres://seentics:seentics_pass@seentics-postgres:5432/seentics_analytics?sslmode=disable
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key--must-be-32-characters}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY:-dev-global-api-key}
-      - S3_ENDPOINT=http://minio:9000
-      # Presigned replay/heatmap URLs must use a host the browser can open (not Docker-only `minio`).
+      - S3_ENDPOINT=http://objex:9000
+      # Presigned replay/heatmap URLs must use a host the browser can open (not Docker-only `objex`).
       - S3_PUBLIC_ENDPOINT=http://localhost:9000
       - S3_BUCKET_REPLAYS=seentics-replays
-      - AWS_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=auto
+      - AWS_ACCESS_KEY_ID=seentics-dev
+      - AWS_SECRET_ACCESS_KEY=seentics-dev-secret
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:4000,http://127.0.0.1:4000}
       - TRUST_PROXY=${TRUST_PROXY:-true}
       - MAXMIND_DB_PATH=${MAXMIND_DB_PATH:-/app/db/maxmind/GeoLite2-City.mmdb}
@@ -36,8 +36,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      objex-init:
+        condition: service_completed_successfully
     volumes:
       - ./core:/app
       - /app/node_modules
@@ -77,35 +77,38 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: seentics-minio
+  # objex: lightweight S3-compatible object storage for replay chunks and
+  # heatmap snapshots (github.com/kajdesk/objex). The image carries its own
+  # healthcheck. Dev-only key.
+  objex:
+    image: ghcr.io/kajdesk/objex:0.2.0
+    container_name: seentics-objex
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000" # S3 API (presigned URLs point here)
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-      - MINIO_API_CORS_ALLOW_ORIGIN=*
-    command: server /data --console-address ":9001"
+      - OBJEX_ACCESS_KEY=seentics-dev
+      - OBJEX_SECRET_KEY=seentics-dev-secret
+      - OBJEX_REGION=auto
     volumes:
-      - seentics-minio-v3:/data
+      - seentics-objex:/data
     networks:
       - seentics-network
     restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    stop_grace_period: 30s
 
-  createbuckets:
-    image: quay.io/minio/mc:latest
+  # One-shot: create the bucket and its CORS rule. Idempotent.
+  objex-init:
+    image: amazon/aws-cli:2.27.0
+    entrypoint: ["sh", "/create-buckets.sh"]
+    environment:
+      - AWS_ACCESS_KEY_ID=seentics-dev
+      - AWS_SECRET_ACCESS_KEY=seentics-dev-secret
+      - BUCKETS=seentics-replays
+    volumes:
+      - ./deploy/objex/create-buckets.sh:/create-buckets.sh:ro
     depends_on:
-      minio:
+      objex:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb --ignore-existing myminio/seentics-replays; /usr/bin/mc anonymous set public myminio/seentics-replays; exit 0; "
     networks:
       - seentics-network
 
@@ -135,7 +138,7 @@ services:
 
 volumes:
   seentics-db-v4:
-  seentics-minio-v3:
+  seentics-objex:
 
 networks:
   seentics-network:

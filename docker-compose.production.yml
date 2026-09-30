@@ -2,7 +2,7 @@
 # replace every value, then run:
 # docker compose --env-file /secure/path/seentics.production.env -f docker-compose.production.yml up -d --build
 #
-# The API, Postgres, and MinIO are deliberately not published to the host. Caddy is
+# The API, Postgres, and objex are deliberately not published to the host. Caddy is
 # the only public entry point (80/443); dashboard API calls are same-origin through
 # Next.js rewrites. Set the image variables to immutable tags or digests before use.
 services:
@@ -23,7 +23,7 @@ services:
     depends_on:
       web:
         condition: service_healthy
-      minio:
+      objex:
         condition: service_healthy
     networks: [public, private]
     security_opt: [no-new-privileges:true]
@@ -69,18 +69,18 @@ services:
       RATE_LIMIT_ENABLED: "true"
       ANALYTICS_CACHE_ENABLED: "true"
       LOG_LEVEL: info
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://objex:9000
       S3_PUBLIC_ENDPOINT: https://${STORAGE_DOMAIN:?Set STORAGE_DOMAIN}
       S3_BUCKET_REPLAYS: ${S3_BUCKET_REPLAYS:-seentics-replays}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
+      AWS_REGION: auto
+      AWS_ACCESS_KEY_ID: ${OBJEX_ACCESS_KEY:?Set OBJEX_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${OBJEX_SECRET_KEY:?Set OBJEX_SECRET_KEY}
       DATA_RETENTION_ENABLED: "true"
     expose: ["8001"]
     depends_on:
       postgres:
         condition: service_healthy
-      createbuckets:
+      objex-init:
         condition: service_completed_successfully
     networks: [private]
     security_opt: [no-new-privileges:true]
@@ -107,43 +107,43 @@ services:
       timeout: 5s
       retries: 8
 
-  minio:
-    image: ${MINIO_IMAGE:?Set MINIO_IMAGE to a pinned MinIO image or digest}
+  objex:
+    image: ${OBJEX_IMAGE:?Set OBJEX_IMAGE to a pinned objex image or digest}
     restart: unless-stopped
-    command: server /data
+    stop_grace_period: 30s
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
-    volumes: [minio-data:/data]
+      OBJEX_ACCESS_KEY: ${OBJEX_ACCESS_KEY:?Set OBJEX_ACCESS_KEY}
+      OBJEX_SECRET_KEY: ${OBJEX_SECRET_KEY:?Set OBJEX_SECRET_KEY}
+      OBJEX_REGION: auto
+    volumes: [objex-data:/data]
     networks: [private]
     security_opt: [no-new-privileges:true]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "/usr/local/bin/objex", "health", "http://127.0.0.1:9000/_objex/health"]
       interval: 10s
       timeout: 5s
       retries: 8
 
-  createbuckets:
-    image: ${MINIO_MC_IMAGE:?Set MINIO_MC_IMAGE to a pinned MinIO Client image or digest}
+  objex-init:
+    image: ${AWS_CLI_IMAGE:?Set AWS_CLI_IMAGE to a pinned amazon/aws-cli image or digest}
     restart: "no"
+    entrypoint: ["sh", "/create-buckets.sh"]
     depends_on:
-      minio:
+      objex:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        mc alias set seentics http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-        mc mb --ignore-existing "seentics/$$S3_BUCKET_REPLAYS"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
-      S3_BUCKET_REPLAYS: ${S3_BUCKET_REPLAYS:-seentics-replays}
+      AWS_ACCESS_KEY_ID: ${OBJEX_ACCESS_KEY:?Set OBJEX_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${OBJEX_SECRET_KEY:?Set OBJEX_SECRET_KEY}
+      BUCKETS: ${S3_BUCKET_REPLAYS:-seentics-replays}
+      CORS_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN}
+    volumes:
+      - ./deploy/objex/create-buckets.sh:/create-buckets.sh:ro
     networks: [private]
     security_opt: [no-new-privileges:true]
 
 volumes:
   postgres-data:
-  minio-data:
+  objex-data:
   caddy-data:
   caddy-config:
 

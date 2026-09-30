@@ -52,7 +52,7 @@ cd seentics
 docker compose up -d --build
 ```
 
-Brings up PostgreSQL, MinIO, the API on `:8001` and the dashboard on `:4000`.
+Brings up PostgreSQL, objex (S3-compatible storage), the API on `:8001` and the dashboard on `:4000`.
 Create a website in the dashboard, then add the tracking script below.
 
 For production, see [DEPLOYMENT.md](DEPLOYMENT.md).
@@ -120,7 +120,7 @@ Browser ──┬─ tracker ──▶ POST /api/v1/tracker/collect ─┐
                                                         ▼
                                               Bun API :8001
                                                  │        │
-                                          PostgreSQL   S3 / MinIO
+                                          PostgreSQL   S3 / objex
                                         (events, meta) (replays, heatmaps)
 ```
 
