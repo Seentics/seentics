@@ -15,6 +15,7 @@ export const demoWebsite = () => ({
   isActive: true,
   automationEnabled: true,
   funnelEnabled: true,
+  errorsEnabled: true,
   heatmapEnabled: true,
   replayEnabled: true,
   replaySamplingRate: 100,

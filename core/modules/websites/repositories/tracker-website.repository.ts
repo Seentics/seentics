@@ -58,6 +58,7 @@ export async function resolveWebsiteForTracker(
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.automation_enabled,
+          websites.errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
@@ -81,6 +82,7 @@ export async function resolveWebsiteForTracker(
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.automation_enabled,
+          websites.errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
@@ -115,7 +117,11 @@ export async function buildPublicTrackerConfig(
 ): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {
     website_id: w.id,
+    // Every feature switch the tracker acts on. A feature switched off is not loaded or
+    // run in the page at all, and ingest drops anything that arrives for it anyway.
     funnel_enabled: w.funnel_enabled,
+    automation_enabled: w.automation_enabled,
+    errors_enabled: w.errors_enabled,
     goals: goals.map((g) => ({ id: g.id, name: g.name, selector: g.selector })),
     replay_enabled: w.replay_enabled,
     replay_sampling_rate: w.replay_sampling_rate,

@@ -7,6 +7,8 @@ import type {
   ProcessTrackerCollectResult,
   TrackerCollectService,
 } from "../interfaces";
+import { anonymousVisitorId } from "../../../platform/privacy/visitor-salt";
+import { anonymizeTrackerBatch } from "./anonymous-batch.service";
 import { routeAnalyticsEvents } from "./analytics-event-routing.service";
 import { routeAutomationTriggers } from "./automation-trigger-routing.service";
 import { routeErrorEvents } from "./error-event-routing.service";
@@ -27,9 +29,9 @@ function processTrackerCollect(
   input: ProcessTrackerCollectInput,
   queue: IngestQueue,
 ): ProcessTrackerCollectResult {
-  const { body, website, headers } = input;
-  const offered = trackerCollectItemCount(body);
-  if (offered === 0) return { kind: "empty" };
+  const { website, headers } = input;
+  let { body } = input;
+  if (trackerCollectItemCount(body) === 0) return { kind: "empty" };
 
   const consentGranted = (body as Record<string, unknown>).consent === true;
   if ((website.respect_dnt && headers.get("DNT") === "1") ||
@@ -38,6 +40,13 @@ function processTrackerCollect(
   }
 
   const userAgent = trackerUserAgent(body, headers.get("User-Agent") ?? "");
+  // No consent on a site that asks for it: only what needs none, under a daily
+  // anonymous id. The controller supplies the salt exactly when this applies.
+  const anonymous = Boolean(input.anonymousSalt);
+  if (input.anonymousSalt) {
+    body = anonymizeTrackerBatch(body, anonymousVisitorId(input.anonymousSalt, website.id, input.clientIp, userAgent));
+    if (trackerCollectItemCount(body) === 0) return { kind: "empty" };
+  }
   const ingestMeta = buildAnalyticsIngestMeta({
     userAgent,
     clientIp: input.clientIp,
@@ -74,7 +83,9 @@ function processTrackerCollect(
   log.debug(fields);
   if (input.diagnosticLog) log.info(fields);
 
-  routeVisitorProfile(context, routeAnalyticsEvents(context));
+  // A visitor profile is a record of one person across visits: only with consent.
+  const analyticsRouted = routeAnalyticsEvents(context);
+  if (!anonymous) routeVisitorProfile(context, analyticsRouted);
   routeFunnelEvents(context);
   routeAutomationTriggers(context);
   routeRecordingEvents(context);

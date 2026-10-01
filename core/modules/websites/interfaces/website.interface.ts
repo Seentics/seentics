@@ -28,6 +28,7 @@ export type Website = {
   isVerified: boolean;
   automationEnabled: boolean;
   funnelEnabled: boolean;
+  errorsEnabled: boolean;
   heatmapEnabled: boolean;
   heatmapIncludePatterns: string | null;
   heatmapExcludePatterns: string | null;
@@ -134,6 +135,7 @@ export type UpdateWebsiteInput = {
   isActive?: boolean;
   automationEnabled?: boolean;
   funnelEnabled?: boolean;
+  errorsEnabled?: boolean;
   heatmapEnabled?: boolean;
   heatmapIncludePatterns?: string | null;
   heatmapExcludePatterns?: string | null;

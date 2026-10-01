@@ -30,7 +30,7 @@ export function updateWebsitePrivacy(deps: WebsiteControllerDeps) {
     const consent = body?.consentMode;
     const retention = body?.dataRetentionDays;
     if (!body || (ip != null && !["none", "partial", "full"].includes(ip)) ||
-      (consent != null && !["cookieless", "strict"].includes(consent)) ||
+      (consent != null && !["cookieless", "strict", "none"].includes(consent)) ||
       (retention != null && (!Number.isInteger(retention) || retention < 1 || retention > 3650)) ||
       (body.respectDnt != null && typeof body.respectDnt !== "boolean")) {
       return c.json({ error: "invalid privacy settings" }, 400);

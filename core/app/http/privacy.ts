@@ -72,6 +72,15 @@ async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
     await tx`DELETE FROM heatmap_points WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM user_profiles WHERE website_id = ${websiteId}::uuid`;
+    // Each of these also holds a visitor's id or what they did, and erasure used to
+    // leave them behind: the links from anonymous ids to the site's user ids, reported
+    // errors with their visitor and session, AI Mode history quoting the analytics, and
+    // webhook delivery logs.
+    await tx`DELETE FROM identity_aliases WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM error_events WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM error_groups WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM ai_queries WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM webhook_deliveries WHERE automation_id IN (SELECT id FROM automations WHERE website_id = ${websiteId}::uuid)`;
     await tx`DELETE FROM automation_impressions WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM automation_events WHERE automation_id IN (SELECT id FROM automations WHERE website_id = ${websiteId}::uuid)`;
     await tx`DELETE FROM automations WHERE website_id = ${websiteId}::uuid`;

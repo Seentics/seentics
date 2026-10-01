@@ -24,6 +24,7 @@ export function toUpdateWebsiteInput(patch: Record<string, unknown>): UpdateWebs
     out.automationEnabled = patch.automation_enabled;
   }
   if (typeof patch.funnel_enabled === "boolean") out.funnelEnabled = patch.funnel_enabled;
+  if (typeof patch.errors_enabled === "boolean") out.errorsEnabled = patch.errors_enabled;
   if (typeof patch.heatmap_enabled === "boolean") out.heatmapEnabled = patch.heatmap_enabled;
   if (typeof patch.heatmap_layout_enabled === "boolean") {
     out.heatmapLayoutEnabled = patch.heatmap_layout_enabled;

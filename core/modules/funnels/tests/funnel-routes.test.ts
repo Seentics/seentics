@@ -46,6 +46,7 @@ function makeWebsite(): Website {
     isVerified: true,
     automationEnabled: true,
     funnelEnabled: true,
+    errorsEnabled: true,
     heatmapEnabled: true,
     heatmapIncludePatterns: null,
     heatmapExcludePatterns: null,

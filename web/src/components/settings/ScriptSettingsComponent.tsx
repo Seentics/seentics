@@ -6,7 +6,7 @@ import { getWebsiteByAnyId, updateWebsite } from '@/lib/websites-api';
 import { isValidId } from '@/lib/utils';
 import { useAuth } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
-import { Loader2, Zap, Target, Info } from 'lucide-react';
+import { Loader2, Zap, Target, Info, Bug } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
     mutationFn: async (data: {
       automationEnabled?: boolean;
       funnelEnabled?: boolean;
+      errorsEnabled?: boolean;
     }) => {
       if (!user?.id) throw new Error("User ID required");
       return await updateWebsite(websiteId, data, user.id);
@@ -67,6 +68,16 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
       color: 'text-indigo-500',
       bgColor: 'bg-indigo-500/10',
     },
+    {
+      id: 'errors',
+      title: 'Error tracking',
+      description: 'Report uncaught JavaScript errors from your pages. Off, none are collected or stored.',
+      icon: Bug,
+      enabled: website?.errorsEnabled ?? true,
+      onToggle: (val: boolean) => updateMutation.mutate({ errorsEnabled: val }),
+      color: 'text-rose-500',
+      bgColor: 'bg-rose-500/10',
+    },
   ];
 
   return (
@@ -91,6 +102,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
               </div>
               <Switch
                 id={item.id}
+                aria-label={item.title}
                 checked={item.enabled}
                 onCheckedChange={item.onToggle}
                 disabled={updateMutation.isPending}

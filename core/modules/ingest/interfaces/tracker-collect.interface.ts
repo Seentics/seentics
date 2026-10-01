@@ -39,6 +39,12 @@ export type ProcessTrackerCollectInput = {
   headers: Headers;
   clientIp: string;
   diagnosticLog: boolean;
+  /**
+   * Today's anonymous-visitor salt, supplied when the batch is from a visitor who has
+   * not consented on a site that asks for consent (`needsAnonymizing`). The batch is
+   * then reduced to what needs no consent and given a daily anonymous id.
+   */
+  anonymousSalt?: Buffer;
 };
 
 export type ProcessTrackerCollectResult =

@@ -151,6 +151,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const retention = new RetentionService(websitesModule.retentionSites, [
     analyticsModule.retention,
     automationsModule.retention,
+    errorsModule.retention,
+    aiModule.retention,
     recordingsModule.retention,
     heatmapsModule.retention,
   ]);

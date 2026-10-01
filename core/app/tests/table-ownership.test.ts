@@ -98,7 +98,7 @@ const ALLOWED: { file: string; tables: string[]; why: string }[] = [
   },
   {
     file: "app/http/privacy.ts",
-    tables: ["websites", "goals", "analytics_events", "funnels", "automations", "automation_events", "user_profiles", "session_replays", "heatmap_points", "heatmap_page_snapshots"],
+    tables: ["websites", "goals", "analytics_events", "funnels", "automations", "automation_events", "user_profiles", "session_replays", "heatmap_points", "heatmap_page_snapshots", "ai_queries"],
     why:
       "Data-subject export and erasure are cross-cutting legal operations. They must verify " +
       "website ownership, export a consistent data scope, remove storage objects before their " +

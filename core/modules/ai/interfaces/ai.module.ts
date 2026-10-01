@@ -1,4 +1,5 @@
 import type { AuthedRouter } from "../../../platform/http/router";
+import type { RetentionPurge } from "../../../platform/retention";
 import type { UsageCounter } from "../../../platform/usage";
 
 /**
@@ -12,6 +13,8 @@ import type { UsageCounter } from "../../../platform/usage";
 export interface AiModule {
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;
+  /** Ages out AI Mode history with the analytics it read. */
+  retention: RetentionPurge;
 
   routes: AuthedRouter;
 }

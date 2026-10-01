@@ -120,9 +120,16 @@ export default function PrivacyPage() {
 
       <DocSection title="Turning features off">
         <P>
-          Session recording and heatmaps are off until enabled per site in{' '}
-          <C>Settings → Features</C>. While recording is off the recorder file is never downloaded,
-          so nothing about a visitor&apos;s session is captured at all.
+          Every feature has its own switch per website in <C>Settings → Features</C>: session
+          recordings, heatmaps, funnels, automations and error tracking. A feature switched off is
+          not loaded in your visitors&apos; browsers at all — its code is never downloaded and none
+          of its listeners run — and anything that still arrives for it is dropped, not stored.
+        </P>
+        <P>
+          Recordings and heatmaps also take page rules: an include list (only these pages) and an
+          exclude list (never these pages), one URL pattern per line, such as <C>/checkout/*</C> or{' '}
+          <C>/account/*</C>. Recordings can also be sampled; a visit is either recorded in full or
+          not at all.
         </P>
       </DocSection>
 

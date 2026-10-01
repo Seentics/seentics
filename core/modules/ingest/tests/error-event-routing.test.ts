@@ -7,7 +7,7 @@ import type { TrackerBatchRoutingContext } from "../services/tracker-event-norma
 
 const SITE = "11111111-1111-4111-8111-111111111111";
 
-function route(errors: unknown[]) {
+function route(errors: unknown[], website: Partial<WebsiteTrackerRow> = {}) {
   const queued: ErrorTrackerEvent[] = [];
   const queue: IngestQueue = {
     enqueue(lane: string, _websiteId: string, rows: readonly unknown[]) {
@@ -17,7 +17,7 @@ function route(errors: unknown[]) {
   } as IngestQueue;
   const ctx = {
     body: { website_id: SITE, errors },
-    website: { id: SITE } as WebsiteTrackerRow,
+    website: { id: SITE, ...website } as WebsiteTrackerRow,
     userAgent: "Mozilla/5.0 (Macintosh) Chrome/130",
     queue,
   } as unknown as TrackerBatchRoutingContext;
@@ -26,6 +26,12 @@ function route(errors: unknown[]) {
 }
 
 describe("routeErrorEvents", () => {
+  it("stores nothing for a site with error tracking switched off", () => {
+    const error = { type: "error", kind: "error", ts: Date.now(), url: "https://x.test/", sid: "s", vid: "v", message: "boom" };
+    expect(route([error], { errors_enabled: false })).toEqual([]);
+    expect(route([error], { errors_enabled: true })).toHaveLength(1);
+  });
+
   // Regression: the shared normalizer kept only the fields every tracker event has, so
   // each error arrived without its message and the ingest service discarded it.
   it("keeps what the tracker reports about the error", () => {

@@ -48,6 +48,7 @@ export const websites = pgTable(
     isVerified: boolean("is_verified").notNull().default(false),
     automationEnabled: boolean("automation_enabled").notNull().default(true),
     funnelEnabled: boolean("funnel_enabled").notNull().default(true),
+    errorsEnabled: boolean("errors_enabled").notNull().default(true),
     heatmapEnabled: boolean("heatmap_enabled").notNull().default(true),
     heatmapIncludePatterns: text("heatmap_include_patterns"),
     heatmapExcludePatterns: text("heatmap_exclude_patterns"),

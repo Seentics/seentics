@@ -2,6 +2,7 @@ import { errorsLane } from "./ingest-lane";
 import { createErrorRoutes } from "./routes";
 import { errorIngestService } from "./services/error-ingest.service";
 import { ErrorMutationService, ErrorQueryService } from "./services/error-query.service";
+import { ErrorsRetentionPurge } from "./services/retention-purge.service";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { ErrorsModule } from "./interfaces";
 
@@ -17,6 +18,7 @@ export function initErrorsModule(deps: { websitesModule: WebsitesModule }): Erro
 
   return {
     lane: errorsLane(() => errorIngestService()),
+    retention: new ErrorsRetentionPurge(),
     ingest: () => errorIngestService(),
     queries,
     mutations,

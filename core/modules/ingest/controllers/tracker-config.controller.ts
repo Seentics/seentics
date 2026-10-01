@@ -26,22 +26,30 @@ export function initTracker(deps: TrackerControllerDeps) {
     }
 
     const config = await deps.trackerWebsites.buildConfig(website, goals);
+    // A feature switched off sends the tracker nothing to run. Funnels and automations
+    // used to be sent whatever their switch said: the page evaluated every funnel and
+    // posted its steps (dropped at ingest), and installed every automation's listeners
+    // and showed its popups — switching automations off did not stop them.
     let funnels: unknown[] = [];
     let automations: unknown[] = [];
-    try {
-      funnels = await deps.funnels.activeForTracker(website.id);
-    } catch {
-      funnels = [];
+    if (website.funnel_enabled) {
+      try {
+        funnels = await deps.funnels.activeForTracker(website.id);
+      } catch {
+        funnels = [];
+      }
     }
-    try {
-      const rows = await deps.automations.activeFor(website.id);
-      automations = rows.map((automation) => ({
-        id: automation.id,
-        name: automation.name,
-        ...automation.definition,
-      }));
-    } catch {
-      automations = [];
+    if (website.automation_enabled) {
+      try {
+        const rows = await deps.automations.activeFor(website.id);
+        automations = rows.map((automation) => ({
+          id: automation.id,
+          name: automation.name,
+          ...automation.definition,
+        }));
+      } catch {
+        automations = [];
+      }
     }
 
     c.header("Cache-Control", "private, max-age=60, stale-while-revalidate=120");

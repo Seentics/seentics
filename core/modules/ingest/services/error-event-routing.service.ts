@@ -7,16 +7,15 @@ import {
 } from "./tracker-event-normalization.service";
 
 /**
- * Queue the uncaught errors a batch carried.
+ * Queue the uncaught errors a batch carried — unless the site has switched error
+ * tracking off, as it can replay, heatmaps, funnels and automations.
  *
- * Unlike heatmaps and recordings this has no per-website feature flag to check. An
- * uncaught error is a fault on the customer's own site, reported by a tracker they
- * installed; there is no sampling decision to respect and nothing to opt into. The
- * privacy gates that matter — DNT and strict consent — are applied to the whole batch in
+ * The privacy gates — DNT and strict consent — are applied to the whole batch in
  * `processTrackerCollect`, before any router runs, and the tracker declines to queue an
- * error at all when `trackingAllowed()` is false.
+ * error at all when `trackingAllowed()` is false or error tracking is off.
  */
 export function routeErrorEvents(ctx: TrackerBatchRoutingContext): number {
+  if (ctx.website.errors_enabled === false) return 0;
   const input = Array.isArray(ctx.body.errors) ? ctx.body.errors : [];
   const raw = normalizeTrackerEvents(input);
   if (raw.length === 0) return 0;

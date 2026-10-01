@@ -2,6 +2,8 @@ import type { Context } from "hono";
 import { env } from "../../../config";
 import type { TrackerCollectBody } from "../interfaces";
 import { clientIpForIngest } from "../../../platform/http/client-ip";
+import { dailyVisitorSalt } from "../../../platform/privacy/visitor-salt";
+import { needsAnonymizing } from "../services/anonymous-batch.service";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
 import { validationErrorResponse } from "../../../platform/validation";
 import { trackerCollectSchema } from "../validators/tracker.schema";
@@ -38,6 +40,7 @@ export function collectTracker(deps: TrackerControllerDeps) {
       return c.json({ error: "domain mismatch" }, 403);
     }
 
+    const consentGranted = (body as Record<string, unknown>).consent === true;
     const result = deps.collect.process({
       body,
       website,
@@ -46,6 +49,9 @@ export function collectTracker(deps: TrackerControllerDeps) {
       headers: c.req.raw.headers,
       clientIp: clientIpForIngest(c, cfg.trustProxy, cfg.isProduction),
       diagnosticLog: cfg.diagnosticLog,
+      anonymousSalt: needsAnonymizing(website.consent_mode, consentGranted)
+        ? await (deps.visitorSalt ?? dailyVisitorSalt)()
+        : undefined,
     });
     if (result.kind === "empty") return c.json({ status: "ok", message: "nothing to process" });
     if (result.kind === "privacy-disabled") {

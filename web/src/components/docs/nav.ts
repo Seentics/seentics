@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   BookOpen,
   Building2,
@@ -6,6 +7,7 @@ import {
   CreditCard,
   Filter,
   Flame,
+  HeartPulse,
   KeyRound,
   LayoutDashboard,
   Rocket,
@@ -88,6 +90,23 @@ export const DOCS_NAV: DocsNavGroup[] = [
         href: '/docs/automations',
         icon: Workflow,
         summary: 'Triggers, conditions and actions that run in the browser.',
+      },
+    ],
+  },
+  {
+    title: 'Products',
+    items: [
+      {
+        title: 'Observability',
+        href: '/docs/observability',
+        icon: Activity,
+        summary: 'Logs, traces, metrics, errors and alerts for your services.',
+      },
+      {
+        title: 'Uptime monitoring',
+        href: '/docs/uptime',
+        icon: HeartPulse,
+        summary: 'Monitors, heartbeats, on-call and public status pages.',
       },
     ],
   },

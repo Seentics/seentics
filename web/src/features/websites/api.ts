@@ -34,6 +34,7 @@ export async function getWebsites(): Promise<Website[]> {
       isActive: w.is_active,
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
+      errorsEnabled: w.errors_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,
@@ -88,6 +89,7 @@ export async function addWebsite(website: { name: string; url: string }, userId:
       isActive: websiteData.is_active || true,
       automationEnabled: websiteData.automation_enabled ?? true,
       funnelEnabled: websiteData.funnel_enabled ?? true,
+      errorsEnabled: websiteData.errors_enabled ?? true,
       heatmapEnabled: websiteData.heatmap_enabled ?? true,
       heatmapIncludePatterns: websiteData.heatmap_include_patterns,
       heatmapExcludePatterns: websiteData.heatmap_exclude_patterns,
@@ -162,6 +164,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
       isActive: w.is_active,
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
+      errorsEnabled: w.errors_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,
@@ -194,7 +197,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
 // Updates an existing website.
 export async function updateWebsite(
   websiteId: string,
-  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'settings'>>,
+  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'errorsEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'settings'>>,
   userId: string
 ): Promise<Website> {
   try {
@@ -204,6 +207,7 @@ export async function updateWebsite(
       is_active: data.isActive,
       automation_enabled: data.automationEnabled,
       funnel_enabled: data.funnelEnabled,
+      errors_enabled: data.errorsEnabled,
       heatmap_enabled: data.heatmapEnabled,
       heatmap_include_patterns: data.heatmapIncludePatterns,
       heatmap_exclude_patterns: data.heatmapExcludePatterns,
@@ -226,6 +230,7 @@ export async function updateWebsite(
       isActive: w.is_active,
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
+      errorsEnabled: w.errors_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,

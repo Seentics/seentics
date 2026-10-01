@@ -35,6 +35,9 @@ export function evaluateTrackerAutomation(deps: TrackerControllerDeps) {
     if (!validateOriginDomain(origin, website.url, env().environment)) {
       return c.json({ error: "domain mismatch" }, 403);
     }
+    // Automations switched off: nothing is evaluated, recorded or run — including for a
+    // page still holding the automations it loaded before the switch.
+    if (!website.automation_enabled) return c.json({ status: "ok", matched: 0, actions: [] });
 
     try {
       const result = await deps.automationEvaluation.evaluate({

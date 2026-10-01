@@ -5,6 +5,7 @@ import type { WebsitesModule } from "../websites/interfaces";
 import type { AiModule } from "./interfaces";
 import type { LlmClient } from "./interfaces/llm-client.interface";
 import { AiUsageCounter } from "./services/usage-count.service";
+import { AiRetentionPurge } from "./services/retention-purge.service";
 import { createAiRoutes } from "./routes";
 import { AgentService } from "./services/agent/agent.service";
 import { ProposalApplier, type ProposalWriters } from "./services/agent/proposal-applier";
@@ -92,6 +93,7 @@ export function initAiModule(deps: {
 
   return {
     usage: new AiUsageCounter(repo),
+    retention: new AiRetentionPurge(),
     routes: createAiRoutes({
       query: runner,
       history: runner,

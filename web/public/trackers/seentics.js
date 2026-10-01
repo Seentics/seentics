@@ -1157,7 +1157,7 @@ const installErrorReporting = () => {
    * server where source maps can live, not here.
    */
   const report = (kind, message, source, lineNo, colNo, stack) => {
-    if (!trackingAllowed()) return;
+    if (!trackingAllowed() || cfg.errors_enabled === false) return;
     if (reported >= MAX_ERRORS_PER_PAGE) return;
 
     const msg = String(message ?? '').slice(0, MAX_ERROR_MESSAGE_CHARS);
@@ -1311,6 +1311,10 @@ const start = (data) => {
     recordingSidecars = null;
   }
   const recording = safely(initRecording);
+
+  // Error tracking switched off: errors caught before the site's configuration arrived
+  // are dropped, and `report` queues no more.
+  if (cfg.errors_enabled === false) queues.errors.length = 0;
 
   if (autoTrack) safely(trackPage);
   schedulePerfTracking();

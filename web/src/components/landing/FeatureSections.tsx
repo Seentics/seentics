@@ -79,7 +79,7 @@ const FEATURES = [
     description:
       'Run cookie-free analytics in our cloud or keep the complete stack and its data on your own infrastructure.',
     tags: ['GDPR-ready', 'Open source', 'Self-hostable'],
-    href: '/docs',
+    href: '#privacy-control',
     icon: ShieldCheck,
     layout: 'md:col-span-2 lg:col-span-12',
     tone: 'bg-primary/10 text-primary',

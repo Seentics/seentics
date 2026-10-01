@@ -16,6 +16,7 @@ function website(id: string): Website {
     isVerified: true,
     automationEnabled: true,
     funnelEnabled: true,
+    errorsEnabled: true,
     heatmapEnabled: true,
     heatmapIncludePatterns: null,
     heatmapExcludePatterns: null,

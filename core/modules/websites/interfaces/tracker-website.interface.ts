@@ -22,9 +22,16 @@ export type WebsiteTrackerRow = {
   replay_include_patterns: string | null;
   replay_exclude_patterns: string | null;
   automation_enabled: boolean;
+  errors_enabled: boolean;
   /** Public privacy policy, resolved with the website and cached on the tracker hot path. */
   respect_dnt: boolean;
-  consent_mode: "cookieless" | "strict";
+  /**
+   * `cookieless` (default): anonymous until the visitor consents — page views, events,
+   * funnels and errors under a daily anonymous id, nothing stored in the browser;
+   * everything else after consent. `strict`: nothing at all until consent. `none`: no
+   * consent asked — for sites with another legal basis; the site owner's call.
+   */
+  consent_mode: "cookieless" | "strict" | "none";
 };
 
 /** A selector-based event goal, as `/tracker/init` sends it. */

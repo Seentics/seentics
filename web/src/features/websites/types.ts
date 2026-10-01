@@ -15,6 +15,7 @@ export type Website = {
   isActive: boolean;
   automationEnabled: boolean;
   funnelEnabled: boolean;
+  errorsEnabled: boolean;
   heatmapEnabled: boolean;
   heatmapIncludePatterns?: string;
   heatmapExcludePatterns?: string;

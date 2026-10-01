@@ -1,6 +1,7 @@
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { LaneSpec } from "../../ingest/interfaces";
 import type { ModuleLifecycle } from "../../../app/module";
+import type { RetentionPurge } from "../../../platform/retention";
 
 /**
  * One error as it arrives from the tracker, after the ingest router has stamped the
@@ -88,6 +89,8 @@ export interface ErrorMutations {
 
 export type ErrorsModule = ModuleLifecycle & {
   lane: LaneSpec;
+  /** Deletes this module's aged rows when the retention sweep asks. */
+  retention: RetentionPurge;
   ingest: () => ErrorIngest;
   queries: ErrorQueries;
   mutations: ErrorMutations;

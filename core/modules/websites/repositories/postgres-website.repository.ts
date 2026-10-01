@@ -52,6 +52,7 @@ function toDomain(row: WebsiteRow): Website {
     isVerified: row.isVerified,
     automationEnabled: row.automationEnabled,
     funnelEnabled: row.funnelEnabled,
+    errorsEnabled: row.errorsEnabled,
     heatmapEnabled: row.heatmapEnabled,
     heatmapIncludePatterns: row.heatmapIncludePatterns,
     heatmapExcludePatterns: row.heatmapExcludePatterns,
@@ -225,6 +226,7 @@ function buildUpdatePatch(input: UpdateWebsiteInput): Partial<typeof websites.$i
   if (input.isActive != null) patch.isActive = input.isActive;
   if (input.automationEnabled != null) patch.automationEnabled = input.automationEnabled;
   if (input.funnelEnabled != null) patch.funnelEnabled = input.funnelEnabled;
+  if (input.errorsEnabled != null) patch.errorsEnabled = input.errorsEnabled;
   if (input.heatmapEnabled != null) patch.heatmapEnabled = input.heatmapEnabled;
   if (input.heatmapLayoutEnabled != null) patch.heatmapLayoutEnabled = input.heatmapLayoutEnabled;
   if (input.replayEnabled != null) patch.replayEnabled = input.replayEnabled;

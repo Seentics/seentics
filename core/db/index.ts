@@ -12,6 +12,20 @@ export const sql = postgres(url, { max: 25 });
 export const db = drizzle(sql, { schema });
 
 /**
+ * Let raw queries on `sql` bind a Date again.
+ *
+ * `drizzle(sql)` replaces the client's date/time serializers with pass-throughs,
+ * because Drizzle turns its Dates into strings itself. On this shared client that broke
+ * every raw query given a Date — `${new Date()}` reached the wire encoder as an object
+ * and threw — and nothing showed it until it ran: the retention sweep passes its
+ * cut-offs as Dates, so every purge failed and aged data was never deleted. A Date is
+ * sent as ISO text, as postgres.js does by default; anything else — Drizzle's strings —
+ * passes through unchanged.
+ */
+const toWire = (value: unknown) => (value instanceof Date ? value.toISOString() : value);
+for (const oid of [1082, 1114, 1184]) sql.options.serializers[oid] = toWire;
+
+/**
  * Dashboard analytics reads, on their own small pool.
  *
  * Benchmarked on realistic data, these were the stack's limit: uncached dashboard

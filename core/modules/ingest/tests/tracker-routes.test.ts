@@ -70,6 +70,7 @@ const ACTIVE_WEBSITE: WebsiteTrackerRow = {
   replay_include_patterns: null,
   replay_exclude_patterns: null,
   automation_enabled: true,
+  errors_enabled: true,
   respect_dnt: false,
   consent_mode: "cookieless",
 };
@@ -288,6 +289,19 @@ describe("GET /init/:website_id", () => {
     const res = await app.request("/init/site_abc");
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("max-age=60");
+  });
+
+  it("sends no funnels or automations for a feature switched off, and never loads them", async () => {
+    // Regression: both were sent whatever their switch said, so the page ran them.
+    mockResolveWebsite.mockResolvedValue({ ...ACTIVE_WEBSITE, funnel_enabled: false, automation_enabled: false });
+    funnels.rows = [{ id: "f1", name: "Checkout" }];
+    automations.rows = [makeAutomationRow()];
+
+    const body = await (await app.request("/init/site_abc")).json() as any;
+    expect(body.funnels).toEqual([]);
+    expect(body.automations).toEqual([]);
+    expect(funnels.calls).toEqual([]);
+    expect(automations.calls).toEqual([]);
   });
 
   it("returns empty funnels and automations when services fail (silent fallback)", async () => {
@@ -714,6 +728,22 @@ describe("POST /automations/evaluate", () => {
         context: {},
       },
     ]);
+  });
+
+  it("evaluates nothing when automations are switched off", async () => {
+    // Regression: switching automations off did not stop a page that had them loaded.
+    mockResolveWebsite.mockResolvedValue({ ...ACTIVE_WEBSITE, automation_enabled: false });
+    automationEvaluation.result = { matched: 1, actions: [{ type: "show_modal", automation_id: "a1", run_id: "r" }] };
+    automationEvaluation.requests.length = 0;
+
+    const res = await app.request("/automations/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validBody),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ok", matched: 0, actions: [] });
+    expect(automationEvaluation.requests).toEqual([]);
   });
 
   it("returns 500 when evaluation throws", async () => {

@@ -6,6 +6,7 @@ import SocialProof from '@/components/landing/SocialProof';
 import ProductShowcase from '@/components/landing/ProductShowcase';
 import FeatureSections from '@/components/landing/FeatureSections';
 import Pricing from '@/components/landing/Pricing';
+import PrivacyControl from '@/components/landing/PrivacyControl';
 import WhySwitch from '@/components/landing/WhySwitch';
 import FAQ from '@/components/landing/FAQ';
 import Footer from '@/components/landing/Footer';
@@ -25,6 +26,7 @@ export default function LandingPage() {
         <ProductShowcase />
         <SocialProof />
         <FeatureSections />
+        <PrivacyControl />
         {/* <WhySwitch /> */}
         <Pricing />
         <FAQ />

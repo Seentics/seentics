@@ -1,7 +1,7 @@
 export type WebsitePrivacySettings = {
   ipAnonymization: "none" | "partial" | "full";
   respectDnt: boolean;
-  consentMode: "cookieless" | "strict";
+  consentMode: "cookieless" | "strict" | "none";
   dataRetentionDays: number | null;
 };
 
