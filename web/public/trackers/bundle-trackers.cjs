@@ -44,7 +44,7 @@ const EXTENSIONS = {
   r: 'ext-replay.js',
 };
 
-const HASHED_OUTPUT = /^seentics-[lar]\.[0-9a-f]{10}\.min\.js$/;
+const HASHED_OUTPUT = /^seentics-[lard]\.[0-9a-f]{10}\.min\.js$/;
 
 async function build(entry, extra = {}) {
   const result = await esbuild.build({ ...common, ...extra, entryPoints: [path.join(trackersDir, entry)] });
@@ -60,19 +60,23 @@ async function main() {
   }
 
   const names = {};
-  for (const [key, entry] of Object.entries(EXTENSIONS)) {
-    const text = await build(entry);
+  const writeHashed = (key, text) => {
     const hash = crypto.createHash('sha256').update(text).digest('hex').slice(0, 10);
     names[key] = `seentics-${key}.${hash}.min.js`;
     fs.writeFileSync(path.join(trackersDir, names[key]), text);
-  }
+  };
+  for (const [key, entry] of Object.entries(EXTENSIONS)) writeHashed(key, await build(entry));
+
+  // rrweb: a content-hashed copy (`d`) the core loads and browsers cache for good, and
+  // the fixed name for `data-rrweb-src` setups and cores built before the hashed copy.
+  const recorder = await build('rrweb-loader.ts');
+  writeHashed('d', recorder);
+  fs.writeFileSync(path.join(trackersDir, 'seentics-dom.min.js'), recorder);
 
   const core = await build('seentics.js', {
     define: { ...common.define, __SNC_EXTENSIONS__: JSON.stringify(names) },
   });
   fs.writeFileSync(path.join(trackersDir, 'seentics.min.js'), core);
-
-  fs.writeFileSync(path.join(trackersDir, 'seentics-dom.min.js'), await build('rrweb-loader.ts'));
 
   console.log(`[bundle-trackers] public/trackers/: seentics.min.js, ${Object.values(names).join(', ')}, seentics-dom.min.js`);
 }

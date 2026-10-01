@@ -18,3 +18,5 @@
   Cache-Control: public, max-age=31536000, immutable
 /trackers/seentics-r.*
   Cache-Control: public, max-age=31536000, immutable
+/trackers/seentics-d.*
+  Cache-Control: public, max-age=31536000, immutable

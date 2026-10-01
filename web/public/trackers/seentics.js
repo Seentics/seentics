@@ -77,11 +77,6 @@ if (!websiteId) {
 const _scriptSrc = script?.src ?? '';
 const siblingUrl = (file) => (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, file) : '');
 
-// The DOM-recorder bundle; override via data-rrweb-src. Named `seentics-dom.min.js`, not
-// `rrweb.min.js`: privacy filter lists match that filename exactly, so the request was
-// cancelled in-browser and replay silently never started.
-const rrwebSrc = script?.getAttribute('data-rrweb-src') ?? siblingUrl('seentics-dom.min.js');
-
 /**
  * The extension files this build ships with, content-hashed by the bundler
  * (bundle-trackers.cjs), e.g. `{ l: 'seentics-l.3f9a1c2b.min.js', ... }`. The hash is in
@@ -90,6 +85,13 @@ const rrwebSrc = script?.getAttribute('data-rrweb-src') ?? siblingUrl('seentics-
  * for the old file and gets either it or nothing, never a newer one it doesn't fit.
  */
 const EXTENSIONS = typeof __SNC_EXTENSIONS__ !== 'undefined' ? __SNC_EXTENSIONS__ : {};
+
+// The DOM-recorder bundle; override via data-rrweb-src. Never named `rrweb.min.js`:
+// privacy filter lists match that filename exactly, so the request was cancelled
+// in-browser and replay silently never started. The content-hashed copy (`d`) is cached
+// for good; under its fixed name it was revalidated on every page, a round trip between
+// a page opening and its recording starting.
+const rrwebSrc = script?.getAttribute('data-rrweb-src') ?? siblingUrl(EXTENSIONS.d ?? 'seentics-dom.min.js');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -110,6 +112,12 @@ const DELIVERY_RETRY_QUEUE_MAX = 12;
  */
 let pageEnterMs = Date.now();
 
+/** Where and when this document opened, before any SPA route change. */
+const documentHref = location.href;
+const documentStartMs = Date.now();
+/** Whether the recorder has accounted for this document's opening page (startRrweb). */
+let recordedDocumentStart = false;
+
 /** Config, funnels, and automations loaded from /tracker/init on boot. */
 let cfg         = {};
 let funnels     = [];
@@ -123,9 +131,9 @@ let started = false;
 const consentGranted = () =>
   script?.getAttribute('data-consent') === 'granted' || window.seenticsConsent === true;
 
-const trackingAllowed = () => {
-  if (cfg.respect_dnt === true && navigator.doNotTrack === '1') return false;
-  return cfg.consent_mode !== 'strict' || consentGranted();
+const trackingAllowed = (config = cfg) => {
+  if (config.respect_dnt === true && navigator.doNotTrack === '1') return false;
+  return config.consent_mode !== 'strict' || consentGranted();
 };
 
 /**
@@ -700,7 +708,10 @@ let activeRecordingSessionId = null;
  * Tuned for bandwidth efficiency: higher sampling intervals, no canvas / font / inline-CSS capture.
  */
 const RRWEB_OPTIONS = {
-  recordAfter:      'load',
+  // As soon as the document is parsed. The recording is a DOM, with stylesheets and
+  // images kept as URLs, so nothing it needs arrives at `load` — and waiting for `load`
+  // lost whatever a visitor did while a page's images, fonts and ads were still coming in.
+  recordAfter:      'DOMContentLoaded',
   checkoutEveryNms: 60_000, // full DOM snapshot every 60 s — shorter helps mobile tab resume recovery
   maskAllInputs:    true,
   /**
@@ -737,14 +748,40 @@ const RRWEB_OPTIONS = {
  *
  * `cfg.recording` stays as an explicit server-side kill switch layered on top.
  */
-const replayEnabledForSite = () => cfg.replay_enabled === true && cfg.recording !== false;
+const replayEnabledForSite = (config = cfg) => config.replay_enabled === true && config.recording !== false;
+
+/**
+ * Whether this session is sampled in — decided once per session and remembered.
+ *
+ * It used to be rolled again on every page load, so at a 50% sampling rate a session's
+ * pages were recorded at random: replays with holes in them, and sessions counted as
+ * recorded that held a fraction of the visit.
+ */
+const SAMPLING_DECISION_KEY = 'snc_rd';
+const sessionSampledIn = (config) => {
+  const sid = getSessionId();
+  const saved = storeGet(SAMPLING_DECISION_KEY);
+  if (saved && saved.slice(0, saved.lastIndexOf(':')) === sid) return saved.endsWith(':1');
+  const rate = typeof config.replay_sampling_rate === 'number' ? config.replay_sampling_rate : 1.0;
+  const sampledIn = rate >= 1 || Math.random() < rate;
+  storeSet(SAMPLING_DECISION_KEY, `${sid}:${sampledIn ? 1 : 0}`);
+  return sampledIn;
+};
 
 /** Returns true when this visitor's session should be shipped as session recording rows. */
-const computeReplaySessionEnabled = () => {
-  if (!replayEnabledForSite()) return false;
-  const samplingRate = typeof cfg.replay_sampling_rate === 'number' ? cfg.replay_sampling_rate : 1.0;
-  if (samplingRate < 1.0 && Math.random() > samplingRate) return false;
-  return urlAllowed(cfg.replay_include_patterns, cfg.replay_exclude_patterns);
+const computeReplaySessionEnabled = (config = cfg) => {
+  if (!replayEnabledForSite(config)) return false;
+  if (!sessionSampledIn(config)) return false;
+  return urlAllowed(config.replay_include_patterns, config.replay_exclude_patterns);
+};
+
+/**
+ * The site's configuration as the last /tracker/init gave it, kept so the next page can
+ * start recording without waiting for the network. See `startRecordingEarly`.
+ */
+const CONFIG_CACHE_KEY = `snc_cfg:${websiteId}`;
+const cachedConfig = () => {
+  try { return JSON.parse(storeGet(CONFIG_CACHE_KEY) ?? 'null'); } catch { return null; }
 };
 
 /**
@@ -759,6 +796,22 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
   }
   activeRecordingSessionId = sessionId;
   sessionCaptureActive     = shouldRecordSession;
+  // The page this document opened at, if a SPA route change has moved off it before the
+  // recorder got going. rrweb labels its first snapshot with the address at that moment,
+  // so a visitor who landed on /app and was routed (or clicked) on within the first few
+  // milliseconds appeared in the replay never to have been on /app at all. The page
+  // marker rrweb itself would have written is added, at the time the page opened.
+  if (shouldRecordSession && !recordedDocumentStart && location.href !== documentHref) {
+    queues.session.push({
+      type: 'rrweb',
+      data: { type: 4 /* Meta */, data: { href: documentHref, width: innerWidth, height: innerHeight }, timestamp: documentStartMs },
+      ts:   documentStartMs,
+      url:  documentHref,
+      sid:  sessionId,
+      vid:  visitorId,
+    });
+  }
+  recordedDocumentStart = true;
   const stop = record({
     ...RRWEB_OPTIONS,
     emit(event) {
@@ -805,17 +858,47 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
  * `console.*` or `window.fetch` at all. They load in parallel with rrweb, and the gate is
  * open before either arrives, so early-page activity is kept.
  */
-const initRecording = () => {
-  if (!computeReplaySessionEnabled()) return null;
+let recordingSidecars = null;
+
+const initRecording = (config = cfg) => {
+  if (recordingSidecars) return recordingSidecars;
+  if (!computeReplaySessionEnabled(config)) return null;
   sessionCaptureActive = true;
-  const sidecars = loadExt('r').then(ext => ext && safely(() => ext.install({
+  recordingSidecars = loadExt('r').then(ext => ext && safely(() => ext.install({
     console: captureConsoleAllowed,
     network: captureNetworkAllowed,
   })));
   loadRrweb().then(record => {
-    if (record) safely(() => startRrweb(record, getSessionId(), true));
+    // Not if /tracker/init has since said this visitor is not to be recorded.
+    if (record && sessionCaptureActive) safely(() => startRrweb(record, getSessionId(), true));
   });
-  return sidecars;
+  return recordingSidecars;
+};
+
+/**
+ * Start recording as the page opens, on what the last visit's configuration said.
+ *
+ * Waiting for /tracker/init on every page put a network round trip, then the recorder's
+ * download, between a page opening and anything on it being recorded. A visitor who
+ * typed into a form or clicked on within that moment — a few hundred milliseconds —
+ * had it missing from the replay, and a page left that quickly was not in it at all.
+ * The decision is checked again when init answers (`start`): a site that has since
+ * switched replay off, or a visitor who has withdrawn consent, is stopped there and what
+ * was captured is discarded. A visitor's first page ever has nothing cached and waits.
+ */
+const startRecordingEarly = () => {
+  const config = cachedConfig();
+  if (!config || !trackingAllowed(config)) return;
+  safely(() => initRecording(config));
+};
+
+/** Stop a recording that was started early and should not have been; drop what it took. */
+const abandonRecording = () => {
+  sessionCaptureActive = false;
+  if (stopRecording) { safely(stopRecording); stopRecording = null; }
+  activeRecordingSessionId = null;
+  queues.session.length = 0;
+  sessionQueueBytes = 0;
 };
 
 /** Ask rrweb to take a fresh full snapshot after a navigation (avoids checkout drift). */
@@ -1026,6 +1109,8 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
     if (!res.ok) return;
     const { actions } = await res.json();
     if (actions?.length) {
+      // Not before `load`: see `start` — an early script holds the page's `load` back.
+      await new Promise((resolve) => afterLoad(resolve));
       const ext = await loadExt('a');
       if (ext) safely(() => ext.execute(actions));
     }
@@ -1200,6 +1285,7 @@ const start = (data) => {
     cfg         = data.config      ?? {};
     funnels     = data.funnels     ?? [];
     automations = data.automations ?? [];
+    storeSet(CONFIG_CACHE_KEY, JSON.stringify(cfg));
   } else {
     console.warn(
       '[Seentics] tracker running in degraded mode (no session recording). ' +
@@ -1211,27 +1297,50 @@ const start = (data) => {
 
   if (!trackingAllowed()) {
     console.info('[Seentics] tracking disabled by the site privacy policy.');
+    abandonRecording();
     drainQueues(); // discards anything queued before the policy was known
     markReady();
     return;
   }
 
-  if (autoTrack) safely(trackPage);
+  // A recording started early on the cached configuration stands only if the current
+  // one agrees (replay still on, this page not excluded). One not started early starts
+  // now — at once, not after `load`: the recorder begins at DOMContentLoaded.
+  if (recordingSidecars && !computeReplaySessionEnabled()) {
+    abandonRecording();
+    recordingSidecars = null;
+  }
+  const recording = safely(initRecording);
 
-  const loads = [];
-  if (cfg.heatmap_enabled !== false) loads.push(loadExt('l').then((ext) => { heat = ext; }));
-  if (automations.length) loads.push(loadExt('a'));
-  loads.push(safely(initRecording));
+  if (autoTrack) safely(trackPage);
   schedulePerfTracking();
 
   flush(); // send the initial pageview immediately
   flushInterval = window.setInterval(flush, FLUSH_MS);
-  Promise.all(loads).then(() => markReady(), () => markReady());
+
+  // The features' files are fetched once the page has loaded. A script inserted before
+  // `load` holds that event back until it arrives — the page's own `load` handlers, and
+  // rrweb, which starts recording at `load`: injected early, they made the recording
+  // begin later than before and lose a visitor's first moments on the page.
+  afterLoad(() => {
+    const loads = [];
+    if (cfg.heatmap_enabled !== false) loads.push(loadExt('l').then((ext) => { heat = ext; }));
+    if (automations.length) loads.push(loadExt('a'));
+    loads.push(recording);
+    Promise.all(loads).then(() => markReady(), () => markReady());
+  });
+};
+
+/** Run `fn` once the window `load` event has fired (now, if it already has). */
+const afterLoad = (fn) => {
+  if (document.readyState === 'complete') fn();
+  else window.addEventListener('load', () => fn(), { once: true });
 };
 
 const init = () => {
   initRouting();
   installErrorReporting();
+  startRecordingEarly();
 
   // Flush all queued data when the page is hidden (tab switch, navigation away, close).
   document.addEventListener('visibilitychange', () => {
