@@ -2,62 +2,79 @@
 /**
  * Pre-bundle browser trackers before `next build` / `next dev`.
  *
- * Everything lives in public/trackers/:
- *   seentics.js       — source you edit (plain JavaScript)
- *   rrweb-loader.ts   — rrweb lazy loader source
+ * Sources in public/trackers/ (plain JavaScript):
+ *   seentics.js         — the core every visitor loads
+ *   ext-heatmaps.js     — heatmap capture, loaded where heatmaps are on
+ *   ext-automations.js  — automation listeners and actions, loaded where a site has some
+ *   ext-replay.js       — recording sidecars, loaded for recorded sessions
+ *   rrweb-loader.ts     — rrweb, the DOM recorder, loaded for recorded sessions
  *
- * This script produces (in the same dir):
- *   seentics.min.js   — minified production bundle  ← used by <script> tag
- *   seentics-dom.min.js — minified rrweb loader (neutral name: filter lists block
- *                         the literal filename `rrweb.min.js`, which silently
- *                         disabled session replay for every blocker user)
+ * Outputs (same directory):
+ *   seentics.min.js            the core ← used by the install snippet's <script> tag
+ *   seentics-{l,a,r}.<hash>.min.js   the extensions, content-hashed so they can be cached
+ *                                    forever; the core is built knowing their names
+ *   seentics-dom.min.js        rrweb (neutral name: filter lists block the literal
+ *                              filename `rrweb.min.js`, which silently disabled session
+ *                              replay for every blocker user)
  *
- * Script tags in the install snippet use seentics.min.js.
+ * Extension names are short and neutral for the same reason — no "heatmap", no "replay".
  */
+const crypto  = require('crypto');
 const esbuild = require('esbuild');
 const fs      = require('fs');
 const path    = require('path');
 
 const trackersDir = __dirname; // script lives inside public/trackers/
 
+const common = {
+  bundle:        true,
+  minify:        true,
+  format:        'iife',
+  target:        ['chrome80', 'firefox80', 'safari14', 'edge80'],
+  treeShaking:   true,
+  platform:      'browser',
+  define:        { 'process.env.NODE_ENV': '"production"' },
+  legalComments: 'none',
+  write:         false,
+};
+
+const EXTENSIONS = {
+  l: 'ext-heatmaps.js',
+  a: 'ext-automations.js',
+  r: 'ext-replay.js',
+};
+
+const HASHED_OUTPUT = /^seentics-[lar]\.[0-9a-f]{10}\.min\.js$/;
+
+async function build(entry, extra = {}) {
+  const result = await esbuild.build({ ...common, ...extra, entryPoints: [path.join(trackersDir, entry)] });
+  const text = result.outputFiles?.[0]?.text;
+  if (!text) throw new Error(`bundle-trackers: no output for ${entry}`);
+  return text;
+}
+
 async function main() {
-  fs.mkdirSync(trackersDir, { recursive: true });
+  // Previous builds' extensions: each build names its own, so old ones would pile up.
+  for (const file of fs.readdirSync(trackersDir)) {
+    if (HASHED_OUTPUT.test(file)) fs.rmSync(path.join(trackersDir, file));
+  }
 
-  // seentics.js lives in public/trackers/ — minify it in place → seentics.min.js
-  const minResult = await esbuild.build({
-    entryPoints:   [path.join(trackersDir, 'seentics.js')],
-    bundle:        true,
-    minify:        true,
-    format:        'iife',
-    target:        ['chrome80', 'firefox80', 'safari14', 'edge80'],
-    treeShaking:   true,
-    platform:      'browser',
-    define:        { 'process.env.NODE_ENV': '"production"' },
-    legalComments: 'none',
-    write:         false,
+  const names = {};
+  for (const [key, entry] of Object.entries(EXTENSIONS)) {
+    const text = await build(entry);
+    const hash = crypto.createHash('sha256').update(text).digest('hex').slice(0, 10);
+    names[key] = `seentics-${key}.${hash}.min.js`;
+    fs.writeFileSync(path.join(trackersDir, names[key]), text);
+  }
+
+  const core = await build('seentics.js', {
+    define: { ...common.define, __SNC_EXTENSIONS__: JSON.stringify(names) },
   });
-  const minFile = minResult.outputFiles?.[0];
-  if (!minFile?.text) throw new Error('bundle-trackers: no output for seentics.min.js');
-  fs.writeFileSync(path.join(trackersDir, 'seentics.min.js'), minFile.text);
+  fs.writeFileSync(path.join(trackersDir, 'seentics.min.js'), core);
 
-  // rrweb-loader.ts lives in public/trackers/ — minify → seentics-dom.min.js
-  const rrwebResult = await esbuild.build({
-    entryPoints:   [path.join(trackersDir, 'rrweb-loader.ts')],
-    bundle:        true,
-    minify:        true,
-    format:        'iife',
-    target:        ['chrome80', 'firefox80', 'safari14', 'edge80'],
-    treeShaking:   true,
-    platform:      'browser',
-    define:        { 'process.env.NODE_ENV': '"production"' },
-    legalComments: 'none',
-    write:         false,
-  });
-  const rrwebFile = rrwebResult.outputFiles?.[0];
-  if (!rrwebFile?.text) throw new Error('bundle-trackers: no output for seentics-dom.min.js');
-  fs.writeFileSync(path.join(trackersDir, 'seentics-dom.min.js'), rrwebFile.text);
+  fs.writeFileSync(path.join(trackersDir, 'seentics-dom.min.js'), await build('rrweb-loader.ts'));
 
-  console.log('[bundle-trackers] public/trackers/: seentics.min.js, seentics-dom.min.js');
+  console.log(`[bundle-trackers] public/trackers/: seentics.min.js, ${Object.values(names).join(', ')}, seentics-dom.min.js`);
 }
 
 main().catch((err) => {

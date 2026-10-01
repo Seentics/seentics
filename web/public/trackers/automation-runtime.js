@@ -7,8 +7,9 @@
  * condition, a snapshot of the facts it resolved, and both outcomes already walked and
  * template-rendered — which this module resolves in the page.
  *
- * It is a separate module from the tracker so it can be tested. esbuild inlines it into
- * `seentics.min.js`, so there is no extra request; the split is a source-level one.
+ * It is a separate module so it can be tested. esbuild inlines it into the automations
+ * extension (ext-automations.js), so there is no extra request; the split is a
+ * source-level one.
  *
  * The operator set mirrors `condition-evaluator.ts` on the server, including its two
  * rules: an unrecognised operator fails closed, and comparison across the string

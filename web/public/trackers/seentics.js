@@ -1,12 +1,21 @@
 /*!
- * Seentics Tracker v2 — analytics, session recording, funnels & automations
- * Recording: rrweb (lazy-loaded after init) + gzip compression + batching
- * Analytics:  batched, sendBeacon, single /collect endpoint
+ * Seentics Tracker v2 — analytics, session recording, heatmaps, funnels & automations
+ *
+ * This file is the core every visitor loads: page views, events, funnels, sessions,
+ * delivery, and the hooks the optional features attach to. The features themselves are
+ * separate files, fetched only where they are used:
+ *
+ *   ext-heatmaps.js     click/scroll capture and layout snapshots   (heatmaps on)
+ *   ext-automations.js  trigger listeners and on-page actions       (site has automations)
+ *   ext-replay.js       console/network/error capture               (session is recorded)
+ *   seentics-dom.min.js rrweb, the DOM recorder                     (session is recorded)
+ *
+ * They used to be one 45 KB bundle that every visitor downloaded and parsed, and whose
+ * listeners (a mousemove handler, a once-a-second timer, scroll handlers reading layout)
+ * every visitor ran, on sites that used none of it.
  */
 
 // ─── Config from script tag ───────────────────────────────────────────────────
-
-import { runContinuation } from './automation-runtime.js';
 
 const script = document.currentScript;
 
@@ -52,10 +61,6 @@ const domain    = window.location.hostname;
  *
  *   data-capture-console="off"   stop overriding console.* entirely
  *   data-capture-network="off"   stop wrapping fetch / XMLHttpRequest entirely
- *
- * Off means the patch is never installed, not merely that events are discarded: the
- * override itself is observable to the host page (it changes the source line DevTools
- * attributes every log to), so "disabled" has to mean absent.
  */
 const captureConsoleAllowed = script?.getAttribute('data-capture-console') !== 'off';
 const captureNetworkAllowed = script?.getAttribute('data-capture-network') !== 'off';
@@ -63,57 +68,37 @@ const captureNetworkAllowed = script?.getAttribute('data-capture-network') !== '
 if (!websiteId) {
   console.warn(
     '[Seentics] data-website-id is missing or empty. ' +
-    'If the script tag has async or defer, remove it — the tracker must execute ' +
-    'synchronously to read its own attributes.',
+    'Load the tracker with a plain <script src> tag (defer is fine, type="module" is ' +
+    'not): it reads its own attributes as it runs.',
   );
 }
 
-// The DOM-recorder bundle lives next to seentics.min.js; override via data-rrweb-src.
-// Named `seentics-dom.min.js`, not `rrweb.min.js`: privacy filter lists match that
-// filename exactly, so the request was cancelled in-browser and replay silently
-// never started — sidecar events arrived with no DOM stream.
+/** A file next to this script — where the extensions and the DOM recorder live. */
 const _scriptSrc = script?.src ?? '';
-const rrwebSrc =
-  script?.getAttribute('data-rrweb-src') ??
-  (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, 'seentics-dom.min.js') : '');
+const siblingUrl = (file) => (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, file) : '');
+
+// The DOM-recorder bundle; override via data-rrweb-src. Named `seentics-dom.min.js`, not
+// `rrweb.min.js`: privacy filter lists match that filename exactly, so the request was
+// cancelled in-browser and replay silently never started.
+const rrwebSrc = script?.getAttribute('data-rrweb-src') ?? siblingUrl('seentics-dom.min.js');
+
+/**
+ * The extension files this build ships with, content-hashed by the bundler
+ * (bundle-trackers.cjs), e.g. `{ l: 'seentics-l.3f9a1c2b.min.js', ... }`. The hash is in
+ * the file name so the files can be cached forever, and so this core only ever runs the
+ * extensions it was built with: after a deploy, a page still holding the old core asks
+ * for the old file and gets either it or nothing, never a newer one it doesn't fit.
+ */
+const EXTENSIONS = typeof __SNC_EXTENSIONS__ !== 'undefined' ? __SNC_EXTENSIONS__ : {};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLLECT        = apiHost + '/api/v1/tracker/collect';
 const FLUSH_MS       = 5_000;           // periodic flush interval (5 s — shorter window reduces unload data on mobile)
 const SESSION_MAX_MS = 30 * 60 * 1000; // hard session cap (30 min)
-const TRACKER_VERSION = '2.1.0';
-const HEATMAP_SCHEMA_VERSION = 2;
-const HEATMAP_QUEUE_MAX = 2_000;
 const DELIVERY_RETRY_MAX = 4;
 const DELIVERY_RETRY_TTL_MS = 2 * 60_000;
 const DELIVERY_RETRY_QUEUE_MAX = 12;
-
-/**
- * Largest serialized DOM snapshot the tracker will send.
- *
- * 3 MB of HTML gzips to a few hundred KB, so this sits far inside the collect
- * endpoint's 8 MB compressed / 50 MB expanded transport limits. It must stay below
- * the schema's own 3.5 MB ceiling: over that the server rejects the entire batch,
- * losing the pageviews and clicks travelling with the snapshot.
- */
-const MAX_DOM_SNAPSHOT_BYTES = 3_000_000;
-
-/**
- * rrweb internal numeric constants used in mirrorHeatmapFromRrweb.
- * Defined here so magic numbers don't appear inline in the logic below.
- * Source: https://github.com/rrweb-io/rrweb/blob/master/packages/types/src/index.ts
- */
-const RRWEB_EVENT_TYPE = {
-  IncrementalSnapshot: 3,
-};
-const RRWEB_INCREMENTAL_SOURCE = {
-  MouseInteraction: 2,
-  Scroll:           3,
-};
-const RRWEB_MOUSE_INTERACTION = {
-  Click: 2,
-};
 
 // ─── Runtime state ────────────────────────────────────────────────────────────
 
@@ -130,6 +115,9 @@ let cfg         = {};
 let funnels     = [];
 let automations = [];
 let flushInterval = null;
+
+/** True once /tracker/init has answered (or failed) and tracking has started or been declined. */
+let started = false;
 
 /** A strict site needs an explicit signal from its CMP or script tag before tracking. */
 const consentGranted = () =>
@@ -150,11 +138,8 @@ const trackingAllowed = () => {
 let automationTriggerTypes = new Set();
 
 /**
- * Trigger types with an evaluate request already in flight.
- *
- * Rapid triggers (clicks, scroll thresholds) can fire several times before the first
- * response lands. Without this, each one costs a round trip and the actions from all of
- * them render on top of each other.
+ * Triggers with an evaluate request already in flight, keyed by type and the value that
+ * distinguishes one event of a type from another (depth, seconds, selector, name).
  */
 const automationInFlight = new Set();
 
@@ -170,20 +155,34 @@ let sessionCaptureActive = false;
  * All queues are drained together into a single /collect POST every FLUSH_MS.
  */
 const queues = {
-  events:             [], // pageviews, custom events, performance, identify
-  funnels:            [], // funnel_step, funnel_complete
-  automations:        [], // automation_trigger
-  session:            [], // rrweb eventWithTime wrapped in a TrackerEvent envelope
-  heatmaps:           [], // heatmap_click, heatmap_scroll
-  heatmap_screenshot:    [], // browser-captured JPEG screenshots (html2canvas, fallback)
-  heatmap_dom_snapshot: [], // full DOM HTML snapshots (primary layout capture)
-  errors:             [], // uncaught JS errors and unhandled promise rejections
+  events:               [], // pageviews, custom events, performance, identify
+  funnels:              [], // funnel_step, funnel_complete
+  automations:          [], // automation_trigger
+  session:              [], // rrweb eventWithTime wrapped in a TrackerEvent envelope
+  heatmaps:             [], // heatmap_click, heatmap_scroll
+  heatmap_dom_snapshot: [], // full DOM HTML snapshots (heatmap backgrounds)
+  errors:               [], // uncaught JS errors and unhandled promise rejections
 };
+
+/**
+ * Approximate size of the queued recording (DOM mutations measured, other events
+ * estimated), and the size at which it is flushed ahead of the periodic flush — well
+ * under the ~64 KB a closing page may still send.
+ */
+const SESSION_EARLY_FLUSH_BYTES = 24_000;
+let sessionQueueBytes = 0;
+let sessionEarlyFlushScheduled = false;
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
 
-/** Safe localStorage access — returns null if storage is blocked (e.g. private mode). */
-const getStore = () => { try { return localStorage; } catch { return null; } };
+/**
+ * Storage that never throws. Reads *and writes* are guarded: a write can throw where a
+ * read succeeds (quota exhausted, Safari's private mode on older versions), and an
+ * unguarded write here used to throw out of the tracker's first statement — no visitor
+ * id, so no tracking at all for that visitor, and an error in the host page's console.
+ */
+const storeGet = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const storeSet = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
 
 /** Cryptographically random token; falls back to Math.random if the crypto API is unavailable. */
 const rnd = () => {
@@ -197,13 +196,11 @@ const rnd = () => {
 };
 
 /** Persistent visitor ID — set once and stored in localStorage forever. */
-let visitorId = (() => {
-  const store = getStore();
-  if (!store) return 'v-' + rnd();
-  let id = store.getItem('snc_vid');
+const visitorId = (() => {
+  let id = storeGet('snc_vid');
   if (!id) {
     id = 'v-' + rnd() + Date.now().toString(36);
-    store.setItem('snc_vid', id);
+    storeSet('snc_vid', id);
   }
   return id;
 })();
@@ -232,36 +229,30 @@ const getSessionId = () => {
     if (now - _lastExpiryWrite > 60_000) {
       _lastExpiryWrite = now;
       _cachedSidExpiry = now + SESSION_MAX_MS;
-      getStore()?.setItem('snc_se', String(_cachedSidExpiry));
+      storeSet('snc_se', String(_cachedSidExpiry));
     }
     return _cachedSid;
   }
 
   // Cache miss — fall back to storage (first call, or after genuine inactivity).
-  const store = getStore();
-  if (!store) {
-    _cachedSid       = 's-' + now.toString(36);
-    _cachedSidExpiry = now + SESSION_MAX_MS;
-    _cachedSidStart  = now;
-    return _cachedSid;
-  }
-
-  let id        = store.getItem('snc_sid');
-  const expiry  = store.getItem('snc_se');   // inactivity expiry timestamp
-  let   started = store.getItem('snc_ss');   // session start time (for hard cap)
+  let id        = storeGet('snc_sid');
+  const expiry  = storeGet('snc_se');   // inactivity expiry timestamp
+  let   started = storeGet('snc_ss');   // session start time (for hard cap)
 
   const inactivityExpired = !id || !expiry || now > +expiry;
   const hardCapExceeded   = !!started && (now - +started) >= SESSION_MAX_MS;
 
   if (inactivityExpired || hardCapExceeded) {
+    // Without working storage this still gives one stable session per page lifetime
+    // (until the cap or inactivity), instead of a new id on every event.
     id = 's-' + rnd() + now.toString(36);
     started = String(now);
-    store.setItem('snc_sid', id);
-    store.setItem('snc_ss', started);
+    storeSet('snc_sid', id);
+    storeSet('snc_ss', started);
   }
 
   _cachedSidExpiry = now + SESSION_MAX_MS;
-  store.setItem('snc_se', String(_cachedSidExpiry));
+  storeSet('snc_se', String(_cachedSidExpiry));
   _cachedSid       = id;
   _cachedSidStart  = started ? +started : now;
   _lastExpiryWrite = now;
@@ -274,7 +265,7 @@ try {
   window.addEventListener('storage', (e) => {
     if (e.key === 'snc_sid' && e.newValue && e.newValue !== _cachedSid) {
       _cachedSid       = e.newValue;
-      _cachedSidStart  = +(getStore()?.getItem('snc_ss') ?? Date.now()) || Date.now();
+      _cachedSidStart  = +(storeGet('snc_ss') ?? Date.now()) || Date.now();
       _cachedSidExpiry = Date.now() + SESSION_MAX_MS;
     }
   });
@@ -286,7 +277,6 @@ try {
 const categoryOf = (type) => {
   if (type === 'funnel_step' || type === 'funnel_complete') return 'funnels';
   if (type === 'automation_trigger')                        return 'automations';
-  if (type === 'heatmap_click' || type === 'heatmap_scroll') return 'heatmaps';
   return 'events';
 };
 
@@ -305,10 +295,9 @@ const pushAnalytics = (type, data) => {
 // ─── Network transport ────────────────────────────────────────────────────────
 
 /**
- * Send JSON compressed with gzip via XHR.
+ * Send JSON (optionally gzip-compressed) via XHR.
  * Used for large payloads (session recording, big heatmap batches) where sendBeacon's
- * ~64 KB limit would be exceeded. Falls back to plain JSON if CompressionStream
- * is unavailable (Firefox < 113, older Safari).
+ * ~64 KB limit would be exceeded.
  */
 const sendXhr = (body, encoding = '') => new Promise((resolve) => {
   try {
@@ -418,19 +407,29 @@ const retryFailedDeliveries = () => {
 /**
  * Build the /collect payload from all non-empty queues and return {payload, json}.
  * Returns null when all queues are empty (nothing to send).
+ *
+ * On a site whose policy declines this visitor (strict consent without a signal, Do Not
+ * Track), queued data is discarded rather than sent. Nothing used to stop it: the page's
+ * own `seentics.track()` calls and any reported errors queued as usual, and the unload
+ * flush — installed before the policy was known — sent them when the visitor left.
  */
 const drainQueues = () => {
-  const events      = queues.events.splice(0);
-  const funnelEvts  = queues.funnels.splice(0);
-  const autoEvts    = queues.automations.splice(0);
-  const sessionEvts = queues.session.splice(0);
+  if (started && !trackingAllowed()) {
+    for (const key in queues) queues[key].length = 0;
+    sessionQueueBytes = 0;
+    return null;
+  }
+
+  const events          = queues.events.splice(0);
+  const funnelEvts      = queues.funnels.splice(0);
+  const autoEvts        = queues.automations.splice(0);
+  const sessionEvts     = queues.session.splice(0);
   sessionQueueBytes = 0;
-  const heatmapEvts = queues.heatmaps.splice(0);
-  const shotEvts        = queues.heatmap_screenshot.splice(0);
+  const heatmapEvts     = queues.heatmaps.splice(0);
   const domSnapshotEvts = queues.heatmap_dom_snapshot.splice(0);
   const errorEvts       = queues.errors.splice(0);
 
-  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length && !domSnapshotEvts.length && !errorEvts.length) {
+  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !domSnapshotEvts.length && !errorEvts.length) {
     return null;
   }
 
@@ -440,11 +439,10 @@ const drainQueues = () => {
   if (autoEvts.length)          payload.automations          = autoEvts;
   if (sessionEvts.length)       payload.session              = sessionEvts;
   if (heatmapEvts.length)       payload.heatmaps             = heatmapEvts;
-  if (shotEvts.length)          payload.heatmap_screenshot   = shotEvts;
   if (domSnapshotEvts.length)   payload.heatmap_dom_snapshot = domSnapshotEvts;
   if (errorEvts.length)         payload.errors               = errorEvts;
 
-  return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, shotEvts };
+  return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, domSnapshotEvts };
 };
 
 // ─── Flush functions ──────────────────────────────────────────────────────────
@@ -468,11 +466,11 @@ const flush = () => {
 
   const drained = drainQueues();
   if (!drained) return;
-  const { json, sessionEvts, heatmapEvts, shotEvts } = drained;
+  const { json, sessionEvts, heatmapEvts, domSnapshotEvts } = drained;
 
-  // Session recording, screenshot payloads, or large batches: acknowledged delivery with
+  // Session recording, layout snapshots, or large batches: acknowledged delivery with
   // retry (keepalive fetch when small, gzipped XHR when large — see dispatchWithRetry).
-  if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
+  if (sessionEvts.length > 0 || domSnapshotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
     dispatchWithRetry({ json, gzip: true, attempt: 0, createdAt: Date.now(), nextAt: 0 });
     return;
   }
@@ -531,7 +529,7 @@ const UNLOAD_SESSION_PIECE = 16_000;
  * page queues a kilobyte per click, and one oversized request loses all of them.
  */
 const unloadParts = (payload) => {
-  const { session, heatmaps, heatmap_dom_snapshot: doms, heatmap_screenshot: shots, ...rest } = payload;
+  const { session, heatmaps, heatmap_dom_snapshot: doms, ...rest } = payload;
   const envelope = { website_id: payload.website_id, domain: payload.domain, ua: payload.ua, consent: payload.consent };
   const hasCore = Object.values(rest).some(v => Array.isArray(v) && v.length > 0);
   const inPieces = (key, items, max = UNLOAD_PART_MAX) => {
@@ -557,10 +555,7 @@ const unloadParts = (payload) => {
     // Small pieces: what is left of the closing page's budget after the analytics and
     // heatmap parts is filled with as much of the recording as fits, in order.
     session: inPieces('session', session, UNLOAD_SESSION_PIECE),
-    snapshots: [
-      ...(doms ?? []).map(item => JSON.stringify({ ...envelope, heatmap_dom_snapshot: [item] })),
-      ...(shots ?? []).map(item => JSON.stringify({ ...envelope, heatmap_screenshot: [item] })),
-    ],
+    snapshots: (doms ?? []).map(item => JSON.stringify({ ...envelope, heatmap_dom_snapshot: [item] })),
   };
 };
 
@@ -580,9 +575,99 @@ const sendOnUnload = (json) => {
   } catch { /* ignore — page is already closing */ }
 };
 
-// ─── rrweb lazy loader ────────────────────────────────────────────────────────
+// ─── Extensions ───────────────────────────────────────────────────────────────
 
-// rrweb is loaded on demand — only when session recording is actually enabled.
+/** Run `fn`, swallowing what it throws: one feature failing must not stop the rest. */
+const safely = (fn) => { try { return fn(); } catch { return undefined; } };
+
+/**
+ * What an extension sees of the core. Getters, so an extension always reads the current
+ * value (config after init, the page view now, whether rrweb is running) rather than a
+ * copy taken when it loaded.
+ */
+const extensionApi = {
+  websiteId,
+  COLLECT,
+  queues,
+  rnd,
+  flush,
+  getSessionId,
+  pushAnalytics,
+  urlAllowed: (include, exclude) => urlAllowed(include, exclude),
+  fireAutomationTrigger: (type, data) => fireAutomationTrigger(type, data),
+  get cfg() { return cfg; },
+  get automations() { return automations; },
+  get automationTriggerTypes() { return automationTriggerTypes; },
+  get pageEnterMs() { return pageEnterMs; },
+  get visitorId() { return visitorId; },
+  get recording() { return stopRecording != null; },
+  get recordingSessionId() { return activeRecordingSessionId; },
+  get captureActive() { return sessionCaptureActive; },
+};
+
+const extensionLoads = {};
+
+/**
+ * Fetch an extension once and start it. Resolves to its interface, or null when it is
+ * not part of this build, is blocked, or fails — callers treat null as "feature off".
+ */
+const loadExt = (key) => {
+  if (extensionLoads[key]) return extensionLoads[key];
+  extensionLoads[key] = new Promise((resolve) => {
+    const file = EXTENSIONS[key];
+    const startIt = () => {
+      const factory = window.__sncx?.[file];
+      resolve(factory ? safely(() => factory(extensionApi)) ?? null : null);
+    };
+    if (!file) { resolve(null); return; }
+    // Another tracker on this page (same build) already loaded it.
+    if (window.__sncx?.[file]) { startIt(); return; }
+    const src = siblingUrl(file);
+    if (!src) { resolve(null); return; }
+    const tag = document.createElement('script');
+    tag.src = src;
+    tag.async = true;
+    tag.onload = startIt;
+    tag.onerror = () => resolve(null);
+    (document.head || document.documentElement).appendChild(tag);
+  });
+  return extensionLoads[key];
+};
+
+/** The heatmap extension once loaded — page views and navigation are reported to it. */
+let heat = null;
+
+// ─── URL rules (recording/heatmap include/exclude) ────────────────────────────
+
+/**
+ * Test a regex pattern against a subject string.
+ * Patterns longer than 500 chars fall back to plain string.includes to guard
+ * against ReDoS attacks from malicious pattern data coming from the server.
+ */
+const safeRegex = (pattern, subject) => {
+  if (pattern.length > 500) return subject.includes(pattern);
+  try { return new RegExp(pattern).test(subject); }
+  catch { return subject.includes(pattern); }
+};
+
+/** Split a newline-delimited pattern string into trimmed, non-empty lines. */
+const patternLines = (patterns) => {
+  if (!patterns) return [];
+  return patterns.split('\n').map(p => p.trim()).filter(Boolean);
+};
+
+/** The current URL passes an include list (when there is one) and misses the exclude list. */
+const urlAllowed = (include, exclude) => {
+  const inc = patternLines(include);
+  if (inc.length && !inc.some(p => safeRegex(p, location.href))) return false;
+  const exc = patternLines(exclude);
+  if (exc.length && exc.some(p => safeRegex(p, location.href))) return false;
+  return true;
+};
+
+// ─── Session recording ────────────────────────────────────────────────────────
+
+// rrweb is loaded on demand — only when this session is recorded.
 // After loading, rrweb sets window.__rrweb_record = record.
 let _rrwebLoadPromise = null;
 
@@ -597,1238 +682,13 @@ const loadRrweb = () => {
     if (!rrwebSrc)              { resolve(null); return; }
     const tag   = document.createElement('script');
     tag.src     = rrwebSrc;
+    tag.async   = true;
     tag.onload  = () => resolve(window.__rrweb_record ?? null);
     tag.onerror = () => resolve(null);
-    document.head.appendChild(tag);
+    (document.head || document.documentElement).appendChild(tag);
   });
   return _rrwebLoadPromise;
 };
-
-/**
- * Attach window error and unhandledrejection listeners that push errors into the
- * session queue so they appear as annotations in the replay timeline.
- * Guards against double-installation with a flag on window.
- */
-const installSessionClientErrorCapture = () => {
-  if (window.__snc_err_cap) return;
-  window.__snc_err_cap = true;
-
-  const enqueueError = (data) => {
-    if (!sessionCaptureActive) return;
-    queues.session.push({
-      type: 'session_error',
-      data,
-      ts:  Date.now(),
-      url: location.href,
-      sid: getSessionId(),
-      vid: visitorId,
-    });
-  };
-
-  // Messages and stacks routinely quote the value that broke and the URL it came from,
-  // so both go through the same scrub as everything else stored in a recording.
-  window.addEventListener('error', (ev) => {
-    enqueueError({
-      message:  redactText(ev.message) || 'Script error',
-      filename: ev.filename ? redactUrl(ev.filename) : undefined,
-      lineno:   ev.lineno   || undefined,
-      colno:    ev.colno    || undefined,
-      stack:    ev.error?.stack ? redactText(ev.error.stack) : undefined,
-    });
-  }, true);
-
-  window.addEventListener('unhandledrejection', (ev) => {
-    const reason = ev.reason;
-    const isErr  = reason instanceof Error;
-    enqueueError({
-      message: redactText(isErr ? reason.message : String(reason ?? 'Unhandled rejection')),
-      stack:   isErr && reason.stack ? redactText(reason.stack) : undefined,
-    });
-  });
-};
-
-// ─── Redaction ────────────────────────────────────────────────────────────────
-
-/**
- * Query keys whose values never leave the browser intact.
- *
- * Recordings are replayed by whoever can see the dashboard, so a password-reset link or
- * a bearer token in a request URL becomes a durable credential sitting in storage. The
- * match is a substring, case-insensitive, so `X-Api-Key`, `access_token` and
- * `resetPasswordCode` are all covered by the short list below.
- */
-const SENSITIVE_KEY_RE =
-  /(pass|pwd|secret|token|auth|bearer|session|sid|api[-_]?key|signature|\bsig\b|credential|otp|code|email|phone|ssn)/i;
-
-const REDACTED = '[redacted]';
-/** URL-safe, so a scrubbed query parameter reads as `?token=redacted`, not `%5B…%5D`. */
-const REDACTED_PARAM = 'redacted';
-
-/** Anything shaped like an address or a long opaque credential, wherever it appears. */
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
-const JWT_RE = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
-const LONG_OPAQUE_RE = /\b[A-Za-z0-9_-]{40,}\b/g;
-
-/** Scrub free text — console arguments, error messages, stack frames. */
-const redactText = (text) => {
-  if (typeof text !== 'string' || !text) return text;
-  return text
-    .replace(JWT_RE, REDACTED)
-    .replace(EMAIL_RE, REDACTED)
-    .replace(LONG_OPAQUE_RE, REDACTED);
-};
-
-/**
- * A URL safe to store: no credentials, no fragment, sensitive query values replaced.
- *
- * Keys are kept because "which parameter" is most of the debugging value and the key
- * itself is rarely the secret. Non-sensitive values are kept but scrubbed for addresses
- * and token-shaped strings, since a `?next=` or `?q=` routinely carries both.
- */
-const redactUrl = (raw) => {
-  if (typeof raw !== 'string' || !raw) return '';
-  let u;
-  try {
-    u = new URL(raw, location.href);
-  } catch {
-    // Not parseable (a relative path on a page with an odd base, say) — scrub as text.
-    return redactText(raw).slice(0, 1000);
-  }
-  // `https://user:pass@host` — never worth keeping.
-  u.username = '';
-  u.password = '';
-  // Fragments are client-only and disproportionately carry tokens (implicit OAuth flows).
-  u.hash = '';
-  for (const key of [...u.searchParams.keys()]) {
-    if (SENSITIVE_KEY_RE.test(key)) {
-      u.searchParams.set(key, REDACTED_PARAM);
-    } else {
-      const value = u.searchParams.get(key);
-      const scrubbed = redactText(value);
-      if (scrubbed !== value) u.searchParams.set(key, scrubbed);
-    }
-  }
-  return u.toString().slice(0, 1000);
-};
-
-// ─── Session console capture ──────────────────────────────────────────────────
-
-/**
- * Override console methods to push log entries into the session queue so they
- * appear in the replay DevTools panel. Originals are still called unchanged.
- * Guards against double-installation with a window flag.
- */
-const installSessionConsoleCapture = () => {
-  if (window.__snc_con_cap) return;
-  window.__snc_con_cap = true;
-
-  // Caps keep console capture cheap even when the host app logs large objects
-  // in tight loops (serializing multi-MB objects on every log call is a real
-  // main-thread cost, and oversized args bloat every /collect payload).
-  const MAX_CONSOLE_ARGS    = 10;
-  const MAX_CONSOLE_ARG_LEN = 1_000;
-
-  const enqueueConsole = (level, args) => {
-    if (!sessionCaptureActive) return;
-    const serialized = args.slice(0, MAX_CONSOLE_ARGS).map(a => {
-      let s;
-      if (typeof a === 'string') s = a;
-      else { try { s = JSON.stringify(a); } catch { s = String(a); } }
-      s = String(s ?? '');
-      // Applications log user objects, API responses and auth headers as a matter of
-      // course. Whatever the reason, none of it should become a durable recording.
-      s = redactText(s);
-      return s.length > MAX_CONSOLE_ARG_LEN ? s.slice(0, MAX_CONSOLE_ARG_LEN) + '…' : s;
-    });
-    queues.session.push({
-      type: 'console_event',
-      data: { level, args: serialized },
-      ts:   Date.now(),
-      url:  location.href,
-      sid:  getSessionId(),
-      vid:  visitorId,
-    });
-  };
-
-  ['log', 'info', 'warn', 'error', 'debug'].forEach(level => {
-    const orig = console[level];
-    console[level] = function() {
-      orig.apply(console, arguments);
-      try { enqueueConsole(level, Array.prototype.slice.call(arguments)); } catch { /* ignore */ }
-    };
-  });
-};
-
-// ─── Session network capture ──────────────────────────────────────────────────
-
-/**
- * Intercept fetch and XHR to record network requests as session events.
- * Excludes the tracker's own /collect calls to avoid infinite event loops.
- * Guards against double-installation with a window flag.
- */
-const installSessionNetworkCapture = () => {
-  if (window.__snc_net_cap) return;
-  window.__snc_net_cap = true;
-
-  const enqueueNetwork = (data) => {
-    if (!sessionCaptureActive) return;
-    queues.session.push({
-      type: 'network_event',
-      // Scrubbed here rather than at each call site, so a new one cannot forget: request
-      // URLs carry reset keys, one-time codes and bearer tokens as query parameters.
-      data: { ...data, url: redactUrl(data.url), error: redactText(data.error) },
-      ts:   data.startTs,
-      url:  location.href,
-      sid:  getSessionId(),
-      vid:  visitorId,
-    });
-  };
-
-  // ── fetch interception ──
-  const origFetch = window.fetch;
-  window.fetch = function(input, init) {
-    const method  = ((init && init.method) || 'GET').toUpperCase();
-    const reqUrl  = typeof input === 'string' ? input
-      : (input instanceof URL ? input.href : (input && typeof input.url === 'string' ? input.url : ''));
-    if (!reqUrl || reqUrl === COLLECT || reqUrl.startsWith(COLLECT + '?')) {
-      return origFetch.apply(this, arguments);
-    }
-    const startTs = Date.now();
-    const p = origFetch.apply(this, arguments);
-    // Observe on a side chain WITHOUT rethrowing: rethrowing here would surface a
-    // second, unhandled rejection for every failed fetch the page itself handles.
-    p.then(
-      function(response) {
-        try { enqueueNetwork({ method, url: reqUrl, status: response.status, duration: Date.now() - startTs, startTs }); } catch { /* ignore */ }
-      },
-      function(err) {
-        try { enqueueNetwork({ method, url: reqUrl, status: 0, duration: Date.now() - startTs, startTs, error: String(err) }); } catch { /* ignore */ }
-      }
-    );
-    return p;
-  };
-
-  // ── XHR interception ──
-  const origOpen = XMLHttpRequest.prototype.open;
-  const origSend = XMLHttpRequest.prototype.send;
-
-  XMLHttpRequest.prototype.open = function(method, url) {
-    this._snc_method = String(method || 'GET');
-    this._snc_url    = String(url || '');
-    this._snc_start  = 0;
-    return origOpen.apply(this, arguments);
-  };
-
-  XMLHttpRequest.prototype.send = function() {
-    const req = this;
-    if (req._snc_url && req._snc_url !== COLLECT && !req._snc_url.startsWith(COLLECT + '?')) {
-      req._snc_start = Date.now();
-      req.addEventListener('loadend', function() {
-        try {
-          enqueueNetwork({
-            method:   (req._snc_method || 'GET').toUpperCase(),
-            url:      req._snc_url,
-            status:   req.status,
-            duration: Date.now() - req._snc_start,
-            startTs:  req._snc_start,
-          });
-        } catch { /* ignore */ }
-      });
-    }
-    return origSend.apply(this, arguments);
-  };
-};
-
-// ─── Heatmap screenshot (server-side Playwright) ──────────────────────────────
-
-/**
- * Per-tab, per-path dedup key stored in sessionStorage.
- * Once a screenshot request succeeds for a path, we don't send another until
- * the user navigates to a different path (or opens a new tab).
- */
-const heatmapScreenshotSentKey = () => {
-  if (!websiteId) return '';
-  try { return `snc_hmshot:${websiteId}:${location.pathname}`; }
-  catch { return ''; }
-};
-
-const hasSentHeatmapScreenshotForPath = () => {
-  const key = heatmapScreenshotSentKey();
-  if (!key) return false;
-  try { return sessionStorage.getItem(key) === '1'; }
-  catch { return false; }
-};
-
-const markHeatmapScreenshotSentForPath = () => {
-  const key = heatmapScreenshotSentKey();
-  if (!key) return;
-  try { sessionStorage.setItem(key, '1'); }
-  catch { /* ignore */ }
-};
-
-/**
- * How long a page must have been on screen before an unload-time capture is worth
- * storing. Below this the document is still assembling and the snapshot would depict a
- * layout no visitor saw — worse than having none, because the points would be drawn on it.
- */
-const MIN_DWELL_FOR_LEAVE_SNAPSHOT_MS = 800;
-
-/** Timeouts queued after load/navigation to let the page fully render first. */
-let screenshotScheduleTimeouts  = [];
-let screenshotLongPageInterval  = null;
-
-const clearScreenshotScheduleTimers = () => {
-  for (const id of screenshotScheduleTimeouts) window.clearTimeout(id);
-  screenshotScheduleTimeouts = [];
-};
-
-const clearScreenshotLongPageInterval = () => {
-  if (screenshotLongPageInterval != null) {
-    window.clearInterval(screenshotLongPageInterval);
-    screenshotLongPageInterval = null;
-  }
-};
-
-/**
- * Fire a lightweight POST to /tracker/request-screenshot.
- * The server handles deduplication (in-memory cache → DB → Playwright), so
- * repeated calls for an unchanged page are fast no-ops on the server side.
- */
-const requestPlaywrightScreenshot = () => {
-  if (cfg.heatmap_layout_enabled === false) return;
-  if (!heatmapAllowed()) return;
-  if (hasSentHeatmapScreenshotForPath()) return;
-  try {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', apiHost + '/api/v1/tracker/request-screenshot', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onload = () => {
-      if (xhr.status === 200 || xhr.status === 202) markHeatmapScreenshotSentForPath();
-    };
-    xhr.send(JSON.stringify({
-      website_id: websiteId,
-      page_url:   location.href,
-      page_path:  location.pathname,
-    }));
-  } catch { /* ignore */ }
-};
-
-/**
- * Schedule staggered screenshot requests after a page load or SPA navigation.
- * The two delays (1.5 s, 4 s) give lazy-loaded content time to appear before
- * Playwright fetches the page server-side. The sessionStorage dedup flag ensures
- * only the first successful request per path triggers an actual capture.
- */
-const scheduleHeatmapScreenshotAfterAppIdle = () => {
-  if (cfg.heatmap_layout_enabled === false) return;
-  if (!heatmapAllowed()) return;
-  clearScreenshotScheduleTimers();
-  clearScreenshotLongPageInterval();
-  // Primary: capture DOM snapshot directly from the browser — always works,
-  // no authentication or X-Frame-Options issues.
-  screenshotScheduleTimeouts.push(window.setTimeout(captureAndQueueDomSnapshot, 2_500));
-};
-
-/**
- * Last chance to capture the layout: the visitor is leaving and the scheduled
- * post-render capture has not run.
- *
- * Without this a page nobody lingers on never gets a background, and its heatmap shows
- * points over nothing — the common case being an app route people click straight
- * through. The dwell floor keeps a half-rendered document out of storage, and the
- * per-path session marker means this costs one serialization per path at most.
- */
-const captureDomSnapshotBeforeLeaving = () => {
-  if (cfg.heatmap_layout_enabled === false) return;
-  if (hasSentHeatmapScreenshotForPath()) {
-    if (pageGrewSinceSnapshot()) captureAndQueueDomSnapshot({ force: true });
-    return;
-  }
-  if (Date.now() - pageEnterMs < MIN_DWELL_FOR_LEAVE_SNAPSHOT_MS) return;
-  clearScreenshotScheduleTimers();
-  captureAndQueueDomSnapshot();
-};
-
-/**
- * Pages that grow as they are read — infinite feeds, "load more" grids, expanding lists.
- *
- * The snapshot is taken 2.5 s after load, when such a page is a fraction of the height
- * it reaches, and it used to be the only one per path per session: every click further
- * down was stored with the right coordinates and then drawn below the bottom of the
- * picture. When the document has grown well past the height it had at the last capture,
- * it is captured again — after a pause in scrolling so the new content has rendered, and
- * a bounded number of times per page view.
- */
-const SNAPSHOT_GROWTH_RATIO = 1.5;
-const SNAPSHOT_GROWTH_MIN_PX = 1_000;
-const SNAPSHOT_RECAPTURES_MAX = 3;
-let lastSnapshot = { path: '', height: 0, recaptures: 0 };
-let growthRecaptureTimer = null;
-
-const pageGrewSinceSnapshot = () => {
-  if (lastSnapshot.path !== location.pathname || !lastSnapshot.height) return false;
-  if (lastSnapshot.recaptures >= SNAPSHOT_RECAPTURES_MAX) return false;
-  const { dh } = heatmapDocumentMetrics();
-  return dh >= Math.max(lastSnapshot.height * SNAPSHOT_GROWTH_RATIO, lastSnapshot.height + SNAPSHOT_GROWTH_MIN_PX);
-};
-
-/** Called on scroll: re-capture once the page has grown and scrolling has paused. */
-const scheduleGrowthRecapture = () => {
-  if (cfg.heatmap_layout_enabled === false || growthRecaptureTimer != null) return;
-  if (!pageGrewSinceSnapshot()) return;
-  growthRecaptureTimer = window.setTimeout(() => {
-    growthRecaptureTimer = null;
-    if (pageGrewSinceSnapshot()) captureAndQueueDomSnapshot({ force: true });
-  }, 1_500);
-};
-
-/**
- * Capture the current page as a DOM snapshot (serialized HTML) and push it onto
- * the heatmap_dom_snapshot queue so it's sent on the next flush.
- *
- * Approach (Hotjar/Clarity style):
- * - Clone the live DOM so we don't mutate the page
- * - Insert <base href> so relative asset URLs resolve correctly when rendered
- * - Remove <script> tags so the snapshot is inert and safe to render in a sandboxed iframe
- * - Remove <iframe> to avoid cross-origin complications
- * - Runs once per path per session — deduped via sessionStorage
- */
-/**
- * Copy each open shadow root under `live` into the matching element under `copy` as a
- * `<template shadowrootmode="open">`, recursively, collecting the templates' contents.
- * `copy` is a fresh clone of `live`, so both trees list their elements in the same order.
- * Stylesheets adopted by a shadow root are written in as <style> — they are otherwise
- * invisible to serialization, and components that style themselves that way would
- * arrive unstyled.
- */
-const attachShadowTemplates = (live, copy, contents) => {
-  const liveEls = live.querySelectorAll('*');
-  const copyEls = copy.querySelectorAll('*');
-  if (liveEls.length !== copyEls.length) return;
-  for (let i = 0; i < liveEls.length; i++) {
-    const shadow = liveEls[i].shadowRoot;
-    if (!shadow) continue;
-    const tpl = document.createElement('template');
-    tpl.setAttribute('shadowrootmode', 'open');
-    for (const child of shadow.childNodes) tpl.content.appendChild(child.cloneNode(true));
-    // Nested roots first: they are paired by element order, which the <style> added
-    // below would shift.
-    attachShadowTemplates(shadow, tpl.content, contents);
-    try {
-      for (const sheet of shadow.adoptedStyleSheets || []) {
-        const style = document.createElement('style');
-        style.textContent = Array.from(sheet.cssRules, rule => rule.cssText).join('\n');
-        tpl.content.prepend(style);
-      }
-    } catch { /* cross-origin sheet */ }
-    contents.push(tpl.content);
-    copyEls[i].prepend(tpl);
-  }
-};
-
-const captureAndQueueDomSnapshot = ({ force = false } = {}) => {
-  if (cfg.heatmap_layout_enabled === false) return;
-  if (!heatmapAllowed()) return;
-  if (!force && hasSentHeatmapScreenshotForPath()) return;
-  try {
-    const clone = document.documentElement.cloneNode(true);
-    // cloneNode never copies shadow roots, so every web component used to arrive empty:
-    // the background had a hole where the component was, and clicks inside it had no
-    // element to land on. Open shadow roots are written in as declarative shadow DOM,
-    // which the preview iframe's parser attaches again. Everything below that sanitizes
-    // the clone goes through `qsa`, so it reaches inside those templates too.
-    const shadowContents = [];
-    attachShadowTemplates(document.documentElement, clone, shadowContents);
-    const roots = [clone, ...shadowContents];
-    const qsa = (selector) => roots.flatMap(root => Array.from(root.querySelectorAll(selector)));
-
-    // Insert <base href> so relative URLs resolve against the original origin
-    const head = clone.querySelector('head');
-    if (head) {
-      const existingBase = head.querySelector('base');
-      if (!existingBase) {
-        const base = document.createElement('base');
-        base.href = location.origin + '/';
-        head.insertBefore(base, head.firstChild);
-      }
-    }
-
-    // Remove elements that are unsafe or unnecessary in a static snapshot
-    qsa('script, noscript').forEach(el => el.remove());
-    // Heatmap snapshots are durable objects, not just a visual preview. Apply the
-    // same explicit privacy controls used by replay before serialising the clone:
-    // blocked regions retain a harmless placeholder so the page geometry remains
-    // useful for coordinate alignment, while masked regions retain only a fixed
-    // redaction marker. Never rely on CSS visibility here — hidden text is still
-    // present in the uploaded HTML.
-    qsa('[data-seentics-block], [data-private], [autocomplete="cc-number"]').forEach(el => {
-      el.replaceChildren('[blocked]');
-      el.setAttribute('aria-label', 'Blocked content');
-    });
-    qsa('[data-seentics-mask], [data-sensitive]').forEach(el => {
-      el.replaceChildren('••••••');
-      el.setAttribute('aria-label', 'Masked content');
-    });
-    // Form values can be prefilled by the site (for example, profile data) and
-    // therefore appear in outerHTML even when the visitor never types. Snapshot
-    // layout needs the controls, not their values, so redact every form control.
-    qsa('input, textarea').forEach(el => {
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-        el.value = '';
-        el.setAttribute('value', '');
-        if (el instanceof HTMLTextAreaElement) el.textContent = '';
-      }
-    });
-    qsa('select').forEach(el => {
-      el.selectedIndex = -1;
-      el.querySelectorAll('option').forEach(option => {
-        option.removeAttribute('selected');
-        option.textContent = '••••••';
-        option.setAttribute('value', '');
-      });
-    });
-    qsa('[contenteditable]:not([contenteditable="false"])').forEach(el => {
-      el.replaceChildren('••••••');
-      el.setAttribute('aria-label', 'Masked editable content');
-    });
-    // A cloned DOM can still execute inline handlers, javascript: URLs, meta refreshes,
-    // form submissions and embedded plugins once loaded in an iframe. Keep only the
-    // inert layout representation. The one script appended below is Seentics-owned and
-    // only reports dimensions / resolves element fingerprints to rectangles.
-    qsa('meta[http-equiv="refresh"], object, embed').forEach(el => el.remove());
-    qsa('*').forEach(el => {
-      for (const attr of Array.from(el.attributes)) {
-        const name = attr.name.toLowerCase();
-        if (name.startsWith('on') || name === 'srcdoc') el.removeAttribute(attr.name);
-        if (['href', 'src', 'action', 'formaction', 'xlink:href'].includes(name)) {
-          if (/^\s*(?:javascript|data:text\/html):/i.test(attr.value)) {
-            el.removeAttribute(attr.name);
-          } else {
-            try {
-              const u = new URL(attr.value, location.href);
-              for (const key of Array.from(u.searchParams.keys())) {
-                if (/token|auth|session|secret|signature|password|email|key/i.test(key)) {
-                  u.searchParams.delete(key);
-                }
-              }
-              el.setAttribute(attr.name, u.toString());
-            } catch { /* relative or non-URL attribute */ }
-          }
-        }
-        if (/token|secret|password|email|account/i.test(name)) el.removeAttribute(attr.name);
-      }
-      if (el instanceof HTMLFormElement) {
-        el.removeAttribute('action');
-        el.setAttribute('inert', '');
-      }
-    });
-    // Conservative PII backstop for gated pages. Explicit mask/block selectors remain
-    // the preferred control because a person's name cannot be inferred safely.
-    try {
-      const sensitiveText = [];
-      for (const root of roots) {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        let node;
-        while ((node = walker.nextNode())) {
-          const value = node.nodeValue || '';
-          if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}|\b(?:\d[ -]?){9,16}\b/i.test(value)) sensitiveText.push(node);
-        }
-      }
-      sensitiveText.forEach(node => { node.nodeValue = '••••••'; });
-    } catch { /* TreeWalker unavailable */ }
-    // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
-    // but the added complexity and payload size aren't worth it for a layout snapshot)
-    qsa('iframe').forEach(el => {
-      const ph = document.createElement('div');
-      ph.style.cssText = 'background:#f3f4f6;border:1px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;';
-      ph.setAttribute('data-snc-placeholder', 'iframe');
-      ph.textContent = '[embedded content]';
-      el.replaceWith(ph);
-    });
-
-    // Inject a measurement script so the preview iframe can report its actual rendered
-    // height via postMessage (works cross-origin). The snapshot HTML is served from S3
-    // (different origin), so the viewer cannot read scrollHeight via contentDocument.
-    // It also places recorded clicks on their elements (`find`). Stable annotations win,
-    // then the recorded structural path when it names exactly one matching element, and
-    // only then the fuzzy tag/role/class score. Scoring first used to put every click on a
-    // repeated component (a card grid, a list, an id-less link) onto its first instance.
-    if (head) {
-      const measureScript = document.createElement('script');
-      measureScript.textContent = `(function(){
-        function esc(v){return window.CSS&&CSS.escape?CSS.escape(String(v)):String(v).replace(/[^a-zA-Z0-9_-]/g,'\\\\$&')}
-        function allDeep(root,out){var els=root.querySelectorAll?root.querySelectorAll('*'):[];for(var i=0;i<els.length;i++){out.push(els[i]);if(els[i].shadowRoot)allDeep(els[i].shadowRoot,out)}return out}
-        function find(l){
-          if(!l||typeof l!=='object')return null;
-          if(l.seentics_id){var x=document.querySelector('[data-seentics-id="'+esc(l.seentics_id)+'"]');if(x)return x}
-          if(l.id){var byId=document.getElementById(l.id);if(byId)return byId}
-          if(l.test_id){var t=document.querySelector('[data-testid="'+esc(l.test_id)+'"]');if(t)return t}
-          if(l.css_path&&!l.shadow_host_path){try{var ps=document.querySelectorAll(l.css_path),p=ps.length===1?ps[0]:null;if(p&&(!l.tag||p.tagName.toLowerCase()===l.tag)&&(!Array.isArray(l.classes)||l.classes.every(function(k){return !k||p.classList.contains(k)})))return p}catch(e){}}
-          var nodes=allDeep(document,[]),best=null,bestScore=-1;
-          for(var i=0;i<nodes.length;i++){
-            var n=nodes[i],score=0;
-            if(l.tag&&n.tagName&&n.tagName.toLowerCase()===l.tag)score+=2;else if(l.tag)continue;
-            if(l.role&&n.getAttribute('role')===l.role)score+=4;
-            if(l.aria_label&&n.getAttribute('aria-label')===l.aria_label)score+=5;
-            if(Array.isArray(l.classes))for(var c=0;c<l.classes.length;c++)if(n.classList.contains(l.classes[c]))score++;
-            if(typeof l.sibling_index==='number'&&n.parentElement&&Array.prototype.indexOf.call(n.parentElement.children,n)===l.sibling_index)score+=0.5;
-            if(score>bestScore){best=n;bestScore=score}
-          }
-          if(best&&bestScore>=2)return best;
-          return null;
-        }
-        function dims(){var h=Math.max(document.documentElement.scrollHeight||0,(document.body||{}).scrollHeight||0),w=Math.max(document.documentElement.scrollWidth||0,(document.body||{}).scrollWidth||0);try{window.parent.postMessage({type:'snc_snap_dims',w:w,h:h},'*')}catch(e){}}
-        window.addEventListener('message',function(e){var d=e.data;if(!d||d.type!=='snc_map_points'||!Array.isArray(d.points))return;var mapped=[];for(var i=0;i<d.points.length;i++){var p=d.points[i],el=find(p.locator);if(!el)continue;var r=el.getBoundingClientRect(),rx=Number.isFinite(p.relativeX)?p.relativeX:.5,ry=Number.isFinite(p.relativeY)?p.relativeY:.5;mapped.push({index:p.index,x:r.left+window.scrollX+r.width*rx,y:r.top+window.scrollY+r.height*ry,method:(p.locator.seentics_id||p.locator.id||p.locator.test_id)?'element':'fingerprint'})}try{window.parent.postMessage({type:'snc_mapped_points',requestId:d.requestId,mapped:mapped},'*')}catch(err){}});
-        if(document.readyState==='complete')dims();else window.addEventListener('load',dims);
-      })();`;
-      head.appendChild(measureScript);
-    }
-
-    const html = '<!DOCTYPE html>' + clone.outerHTML;
-
-    // Oversized snapshots are dropped rather than sent: the collect schema rejects the
-    // *whole* batch when one field is over its limit, so an outsized snapshot would take
-    // that flush's pageviews and clicks down with it. This ceiling stays below the
-    // server's (3.5 MB) so it is always this check that bites, never the 400.
-    //
-    // The warning matters as much as the limit. A heavy app shell can exceed the cap on
-    // every page, and the only symptom is a heatmap that never gets a background — there
-    // is nothing server-side to look at, because nothing was ever sent.
-    if (html.length > MAX_DOM_SNAPSHOT_BYTES) {
-      console.warn(
-        '[Seentics] heatmap DOM snapshot skipped: page is ' +
-        Math.round(html.length / 1024) + ' KB, over the ' +
-        Math.round(MAX_DOM_SNAPSHOT_BYTES / 1024) + ' KB limit. ' +
-        'This page will have no heatmap background.'
-      );
-      return;
-    }
-
-    // Measure the document with the SAME logic the click/scroll coordinates are
-    // normalized against (heatmapDocumentMetrics scans inner overflow:auto regions),
-    // so the stored doc_w/doc_h match the coordinate system. Using a different
-    // measurement here (plain scrollHeight) was making the preview the wrong height
-    // and pushing every dot off its true position.
-    heatmapMetricsCache = null;
-    const { dw, dh } = heatmapDocumentMetrics();
-
-    queues.heatmap_dom_snapshot.push({
-      type:  'heatmap_dom_snapshot',
-      ts:    Date.now(),
-      url:   location.href,
-      sid:   getSessionId(),
-      vid:   visitorId,
-      doc_w: dw,
-      doc_h: dh,
-      vw:    window.innerWidth,
-      vh:    window.innerHeight,
-      data:  { html, page_version: heatmapPageVersion(), page_key: heatmapPageKeyOverride() },
-    });
-
-    lastSnapshot = lastSnapshot.path === location.pathname
-      ? { path: location.pathname, height: dh, recaptures: lastSnapshot.recaptures + (force ? 1 : 0) }
-      : { path: location.pathname, height: dh, recaptures: 0 };
-    markHeatmapScreenshotSentForPath();
-    flush();
-  } catch { /* non-critical — DOM serialization failures must not break the page */ }
-};
-
-// ─── Safe regex ───────────────────────────────────────────────────────────────
-
-/**
- * Test a regex pattern against a subject string.
- * Patterns longer than 500 chars fall back to plain string.includes to guard
- * against ReDoS attacks from malicious pattern data coming from the server.
- */
-const safeRegex = (pattern, subject) => {
-  if (pattern.length > 500) return subject.includes(pattern);
-  try { return new RegExp(pattern).test(subject); }
-  catch { return subject.includes(pattern); }
-};
-
-// ─── URL pattern matching (for recording/heatmap include/exclude rules) ───────
-
-/** Split a newline-delimited pattern string into trimmed, non-empty lines. */
-const patternLines = (patterns) => {
-  if (!patterns) return [];
-  return patterns.split('\n').map(p => p.trim()).filter(Boolean);
-};
-
-/** Returns true when the pattern string contains at least one non-empty line. */
-const hasEffectivePatterns = (patterns) => patternLines(patterns).length > 0;
-
-/** Returns true when the current page URL matches any line in the pattern string. */
-const matchesPatterns = (patterns) => {
-  const lines = patternLines(patterns);
-  if (!lines.length) return false;
-  return lines.some(p => safeRegex(p, location.href));
-};
-
-// ─── Heatmaps (click + scroll depth) ─────────────────────────────────────────
-
-/** Returns true when heatmap capture is enabled and the current URL is not excluded. */
-const heatmapAllowed = () => {
-  if (cfg.heatmap_enabled === false) return false;
-  const includePatterns = cfg.heatmap_include_patterns;
-  const excludePatterns = cfg.heatmap_exclude_patterns;
-  if (hasEffectivePatterns(includePatterns) && !matchesPatterns(includePatterns)) return false;
-  if (hasEffectivePatterns(excludePatterns) && matchesPatterns(excludePatterns))  return false;
-  return true;
-};
-
-/**
- * CSS layout viewport dimensions in pixels.
- * The dashboard uses these to size the heatmap overlay iframe to the correct breakpoint.
- * Uses visualViewport when available to handle pinch-zoom on mobile correctly.
- */
-const heatmapViewportCss = () => {
-  const vv   = typeof visualViewport !== 'undefined' && visualViewport ? visualViewport : null;
-  const rawW = vv?.width  ?? (typeof innerWidth  === 'number' ? innerWidth  : 0);
-  const rawH = vv?.height ?? (typeof innerHeight === 'number' ? innerHeight : 0);
-  return {
-    vw: Math.max(1, Math.round(rawW)),
-    vh: Math.max(1, Math.round(rawH)),
-  };
-};
-
-/**
- * Cached result of the document dimension scan (1 s TTL).
- * The scan is expensive on large DOMs so we share its result across rapid
- * successive calls (e.g. rrweb emit bursts during a scroll).
- */
-let heatmapMetricsCache = null;
-
-/**
- * Compute the full document bounding box (width × height in CSS pixels).
- *
- * documentElement.scrollHeight alone is insufficient for app shells that fix
- * the body height and scroll inside an inner container (e.g. a `main` element
- * with overflow:auto). We walk up to 3 000 body descendant nodes and take the
- * max scrollWidth / scrollHeight of any element that is actually overflowing.
- */
-const heatmapDocumentMetrics = () => {
-  const now = typeof performance?.now === 'function' ? performance.now() : Date.now();
-  if (heatmapMetricsCache && now - heatmapMetricsCache.at < 1_000) {
-    return { dw: heatmapMetricsCache.dw, dh: heatmapMetricsCache.dh };
-  }
-
-  const docEl = document.documentElement;
-  const body  = document.body;
-  let dw = Math.max(1, docEl.scrollWidth, body?.scrollWidth ?? 0, docEl.clientWidth  || 1);
-  let dh = Math.max(1, docEl.scrollHeight, body?.scrollHeight ?? 0, docEl.clientHeight || 1);
-
-  // Scan descendant elements for overflow scroll regions.
-  if (body) {
-    try {
-      const nodes = body.getElementsByTagName('*');
-      const cap   = Math.min(nodes.length, 3_000);
-      for (let i = 0; i < cap; i++) {
-        const node = nodes[i];
-        if (!(node instanceof HTMLElement)) continue;
-        // Only expand the bounding box when the node is genuinely overflowing
-        // (scrollable content exceeds its layout box by more than 4 px).
-        if (node.scrollWidth  > node.clientWidth  + 4) dw = Math.max(dw, node.scrollWidth);
-        if (node.scrollHeight > node.clientHeight + 4) dh = Math.max(dh, node.scrollHeight);
-      }
-    } catch { /* ignore — live NodeList can throw on certain mutations */ }
-  }
-
-  heatmapMetricsCache = { at: now, dw, dh };
-  return { dw, dh };
-};
-
-/**
- * Convert rrweb's viewport-relative (clientX, clientY) coordinates to document
- * (page) coordinates, accounting for both window scroll and any intermediate
- * overflow:auto ancestor scroll offsets (including shadow DOM hosts).
- *
- * rrweb records MouseInteraction and MouseMove positions in viewport space.
- * For apps with scrollable inner regions (dashboards, chat windows, etc.) we
- * need to add the scroll offset of each ancestor element to land on the correct
- * document position.
- */
-const rrwebClientToDocumentXY = (clientX, clientY) => {
-  const docEl = document.documentElement;
-  const body  = document.body;
-  let pageX   = clientX + (window.scrollX ?? window.pageXOffset ?? 0);
-  let pageY   = clientY + (window.scrollY ?? window.pageYOffset ?? 0);
-  try {
-    let el = document.elementFromPoint(clientX, clientY);
-    while (el && el !== docEl && el !== body) {
-      if (el instanceof HTMLElement) {
-        pageX += el.scrollLeft;
-        pageY += el.scrollTop;
-      }
-      // Pierce shadow DOM boundaries so positions inside web components are correct.
-      const root = el.getRootNode();
-      el = (root instanceof ShadowRoot && root.host) ? root.host : el.parentElement;
-    }
-  } catch { /* ignore — elementFromPoint can throw in sandboxed iframes */ }
-  return { pageX, pageY };
-};
-
-/** Normalise absolute page coordinates to 0–1 fractions of the document size. */
-const heatmapNormFromPageXY = (pageX, pageY) => {
-  const { dw, dh } = heatmapDocumentMetrics();
-  return {
-    nx: Math.min(1, Math.max(0, pageX / dw)),
-    ny: Math.min(1, Math.max(0, pageY / dh)),
-  };
-};
-
-/** Build a short CSS-selector hint for the clicked element (used for element-level reports). */
-const heatmapSelectorHint = (el) => {
-  const tag = el.tagName.toLowerCase();
-  if (el.id) return `${tag}#${el.id.replace(/\s/g, '')}`;
-  if (el.className && typeof el.className === 'string') {
-    const classes = el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join('.');
-    if (classes) return `${tag}.${classes}`;
-  }
-  return tag;
-};
-
-/** Fast, deterministic hash for non-sensitive text and structural fingerprints. */
-const heatmapHash = (value) => {
-  let h = 0x811c9dc5;
-  const s = String(value ?? '');
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
-};
-
-const heatmapStableValue = (value, max = 96) => {
-  const s = String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
-  if (!s || /@|\b\d{8,}\b|bearer|token|secret|password/i.test(s)) return '';
-  return s;
-};
-
-const heatmapStableClasses = (el) => {
-  if (!(el instanceof Element) || typeof el.className !== 'string') return [];
-  return el.className.trim().split(/\s+/).filter(c =>
-    c.length <= 48 &&
-    !/[0-9a-f]{8,}/i.test(c) &&
-    !/^css-[a-z0-9]{5,}$/i.test(c) &&
-    !/^_/.test(c)
-  ).slice(0, 4);
-};
-
-/** A structural path is a fallback only; stable annotations and accessibility win. */
-const heatmapElementPath = (el) => {
-  const parts = [];
-  let node = el;
-  for (let depth = 0; node instanceof Element && depth < 6; depth++) {
-    const tag = node.tagName.toLowerCase();
-    let nth = 1;
-    let prev = node.previousElementSibling;
-    while (prev) {
-      if (prev.tagName === node.tagName) nth++;
-      prev = prev.previousElementSibling;
-    }
-    parts.unshift(`${tag}:nth-of-type(${nth})`);
-    const root = node.getRootNode?.();
-    node = root instanceof ShadowRoot ? root.host : node.parentElement;
-  }
-  return parts.join('>');
-};
-
-const heatmapPositionMode = (el) => {
-  let node = el;
-  for (let depth = 0; node instanceof Element && depth < 8; depth++, node = node.parentElement) {
-    try {
-      const p = getComputedStyle(node).position;
-      if (p === 'fixed' || p === 'sticky') return p;
-    } catch { /* detached element */ }
-  }
-  return 'normal';
-};
-
-/** Multi-signal locator. No input value or raw user text is ever included. */
-const heatmapElementLocator = (el) => {
-  const ancestry = [];
-  let parent = el.parentElement;
-  for (let depth = 0; parent && depth < 3; depth++, parent = parent.parentElement) {
-    ancestry.push({
-      tag: parent.tagName.toLowerCase(),
-      id: heatmapStableValue(parent.id, 64),
-      role: heatmapStableValue(parent.getAttribute('role'), 40),
-      classes: heatmapStableClasses(parent),
-    });
-  }
-  const label = heatmapStableValue(
-    el.getAttribute('aria-label') || el.getAttribute('title') || '',
-    96,
-  );
-  const text = heatmapStableValue(el.textContent || '', 120);
-  const root = el.getRootNode?.();
-  return {
-    seentics_id: heatmapStableValue(el.getAttribute('data-seentics-id'), 96),
-    test_id: heatmapStableValue(el.getAttribute('data-testid'), 96),
-    id: heatmapStableValue(el.id, 96),
-    tag: el.tagName.toLowerCase(),
-    role: heatmapStableValue(el.getAttribute('role'), 40),
-    aria_label: label,
-    classes: heatmapStableClasses(el),
-    ancestry,
-    sibling_index: el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0,
-    css_path: heatmapElementPath(el),
-    text_hash: text ? heatmapHash(text.toLowerCase()) : '',
-    shadow_host_path: root instanceof ShadowRoot ? heatmapElementPath(root.host) : '',
-  };
-};
-
-let heatmapPageFingerprintCache = null;
-const heatmapPageVersion = () => {
-  const now = Date.now();
-  if (
-    heatmapPageFingerprintCache &&
-    heatmapPageFingerprintCache.url === location.href &&
-    now - heatmapPageFingerprintCache.at < 1_000
-  ) return heatmapPageFingerprintCache.value;
-
-  const parts = [];
-  try {
-    const nodes = document.body?.querySelectorAll('*') ?? [];
-    const cap = Math.min(nodes.length, 1_200);
-    for (let i = 0; i < cap; i++) {
-      const el = nodes[i];
-      const sid = heatmapStableValue(el.getAttribute('data-seentics-id'), 48);
-      const id = heatmapStableValue(el.id, 48);
-      const role = heatmapStableValue(el.getAttribute('role'), 24);
-      parts.push(`${el.tagName}:${sid || id}:${role}:${el.childElementCount}`);
-    }
-  } catch { /* hostile live DOM */ }
-  const variant = heatmapStableValue(document.body?.getAttribute('data-seentics-variant'), 64);
-  const value = `${variant || 'default'}:${heatmapHash(parts.join('|'))}`;
-  heatmapPageFingerprintCache = { url: location.href, at: now, value };
-  return value;
-};
-
-const heatmapEventId = () => {
-  try { if (crypto?.randomUUID) return crypto.randomUUID(); } catch { /* unavailable */ }
-  return `hm-${Date.now().toString(36)}-${rnd()}`;
-};
-
-/** Explicit logical page name for template heatmaps (`data-seentics-page`). */
-const heatmapPageKeyOverride = () => {
-  const value = heatmapStableValue(document.body?.getAttribute('data-seentics-page'), 96);
-  if (!value) return '';
-  const slug = value.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
-  return slug ? `/@${slug}` : '';
-};
-
-/** CSS-pixel click geometry plus an element-relative anchor. */
-const heatmapClickData = (rawTarget, clientX, clientY, pageX, pageY) => {
-  const target = rawTarget.closest?.(
-    '[data-seentics-id],button,a,input,select,textarea,[role]'
-  ) || rawTarget;
-  const rect = target.getBoundingClientRect();
-  const { dw, dh } = heatmapDocumentMetrics();
-  const vp = heatmapViewportCss();
-  const rx = rect.width > 0 ? (clientX - rect.left) / rect.width : 0.5;
-  const ry = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
-  const locator = heatmapElementLocator(target);
-  const stableTarget = locator.seentics_id
-    ? `[data-seentics-id="${locator.seentics_id}"]`
-    : locator.id
-      ? `${locator.tag}#${locator.id}`
-      : locator.test_id
-        ? `[data-testid="${locator.test_id}"]`
-        : heatmapSelectorHint(target);
-  return {
-    event_id: heatmapEventId(),
-    nx: Math.min(1, Math.max(0, pageX / dw)),
-    ny: Math.min(1, Math.max(0, pageY / dh)),
-    target: stableTarget,
-    vw: vp.vw,
-    vh: vp.vh,
-    client_x: clientX,
-    client_y: clientY,
-    page_x: pageX,
-    page_y: pageY,
-    scroll_x: window.scrollX ?? window.pageXOffset ?? 0,
-    scroll_y: window.scrollY ?? window.pageYOffset ?? 0,
-    document_width: Math.round(dw),
-    document_height: Math.round(dh),
-    device_pixel_ratio: window.devicePixelRatio || 1,
-    target_locator: locator,
-    target_rect: {
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-    },
-    relative_x: Math.min(1, Math.max(0, rx)),
-    relative_y: Math.min(1, Math.max(0, ry)),
-    position_mode: heatmapPositionMode(target),
-    page_version: heatmapPageVersion(),
-    page_key: heatmapPageKeyOverride(),
-    tracker_version: TRACKER_VERSION,
-    schema_version: HEATMAP_SCHEMA_VERSION,
-  };
-};
-
-const queueHeatmapEvent = (event) => {
-  // Clicks are never sampled. Bound memory by evicting the oldest queued scroll
-  // summaries first, then the oldest event if a host page is producing pathological data.
-  if (queues.heatmaps.length >= HEATMAP_QUEUE_MAX) {
-    const scrollIndex = queues.heatmaps.findIndex(e => e.type === 'heatmap_scroll');
-    queues.heatmaps.splice(scrollIndex >= 0 ? scrollIndex : 0, 1);
-  }
-  queues.heatmaps.push(event);
-  // A busy page (many clicks in a few seconds) should not wait for the periodic flush:
-  // the longer the queue, the more of it depends on the unload flush, which browsers
-  // cap at about 64 KB. Flush early once a batch's worth has built up.
-  if (queues.heatmaps.length >= HEATMAP_EARLY_FLUSH && !heatmapEarlyFlushScheduled) {
-    heatmapEarlyFlushScheduled = true;
-    setTimeout(() => { heatmapEarlyFlushScheduled = false; flush(); }, 0);
-  }
-};
-
-/** Queued heatmap events that trigger a flush ahead of the periodic one (~1 KB each). */
-const HEATMAP_EARLY_FLUSH = 25;
-let heatmapEarlyFlushScheduled = false;
-
-/**
- * Approximate size of the queued recording (DOM mutations measured, other events
- * estimated), and the size at which it is flushed ahead of the periodic flush — well
- * under the ~64 KB a closing page may still send.
- */
-const SESSION_EARLY_FLUSH_BYTES = 24_000;
-let sessionQueueBytes = 0;
-let sessionEarlyFlushScheduled = false;
-
-let heatmapListenersInstalled     = false;
-let heatmapPointerBridgeInstalled = false;
-
-/**
- * The most recent pointerdown's page coordinates.
- * rrweb's MouseInteraction click event carries viewport (client) coordinates, but
- * for accurate heatmap positioning we prefer the page coordinates from the native
- * pointerdown which fired just before rrweb's synthetic click. This bridge captures
- * them and the rrweb mirror reads them back within a 900 ms window.
- */
-let lastPointerDocForHeatmap = null;
-
-/**
- * Install a capturing pointerdown listener that records the exact page coordinates
- * of each pointer press. Used as a fallback coordinate source in mirrorHeatmapFromRrweb.
- */
-const installHeatmapPointerPageBridge = () => {
-  if (heatmapPointerBridgeInstalled) return;
-  heatmapPointerBridgeInstalled = true;
-  document.addEventListener('pointerdown', (ev) => {
-    if (cfg.heatmap_enabled === false) return;
-    if (ev.pointerType !== 'mouse' && ev.pointerType !== 'pen' && ev.pointerType !== 'touch') return;
-    lastPointerDocForHeatmap = {
-      pageX:   ev.pageX,
-      pageY:   ev.pageY,
-      clientX: ev.clientX,
-      clientY: ev.clientY,
-      at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
-    };
-  }, true);
-};
-
-let heatmapScrollPageView = null;
-
-const heatmapVisibleRange = () => {
-  const { dh } = heatmapDocumentMetrics();
-  const top = Math.max(0, window.scrollY ?? window.pageYOffset ?? 0);
-  return {
-    start: Math.round(top),
-    end: Math.round(Math.min(dh, top + heatmapViewportCss().vh)),
-    documentHeight: Math.round(dh),
-  };
-};
-
-const updateHeatmapScrollPageView = () => {
-  const view = heatmapScrollPageView;
-  if (!view || view.finished) return;
-  const now = Date.now();
-  const range = heatmapVisibleRange();
-  view.maximumDepth = Math.max(view.maximumDepth, Math.min(1, range.end / Math.max(1, range.documentHeight)));
-  const durationMs = Math.max(0, Math.min(5_000, now - view.lastAt));
-  const last = view.viewedRanges[view.viewedRanges.length - 1];
-  if (last && range.start <= last.end + 24 && range.end >= last.start - 24) {
-    last.start = Math.min(last.start, range.start);
-    last.end = Math.max(last.end, range.end);
-    last.duration_ms += durationMs;
-  } else if (view.viewedRanges.length < 64) {
-    view.viewedRanges.push({ start: range.start, end: range.end, duration_ms: durationMs });
-  }
-  view.lastAt = now;
-  view.documentHeight = range.documentHeight;
-  if (location.href === view.url) view.version = heatmapPageVersion();
-  scheduleGrowthRecapture();
-};
-
-const startHeatmapScrollPageView = () => {
-  const range = heatmapVisibleRange();
-  heatmapScrollPageView = {
-    id: heatmapEventId(),
-    url: location.href,
-    sid: getSessionId(),
-    allowed: heatmapAllowed(),
-    version: heatmapPageVersion(),
-    pageKey: heatmapPageKeyOverride(),
-    maximumDepth: Math.min(1, range.end / Math.max(1, range.documentHeight)),
-    documentHeight: range.documentHeight,
-    lastAt: Date.now(),
-    viewedRanges: [{ start: range.start, end: range.end, duration_ms: 0 }],
-    finished: false,
-  };
-};
-
-/** Exactly one scroll summary per page view; intensity now represents page views. */
-const finishHeatmapScrollPageView = () => {
-  const view = heatmapScrollPageView;
-  if (!view || view.finished) return;
-  updateHeatmapScrollPageView();
-  view.finished = true;
-  if (!view.allowed) return;
-  const vp = heatmapViewportCss();
-  queueHeatmapEvent({
-    type: 'heatmap_scroll',
-    data: {
-      event_id: view.id,
-      page_view_id: view.id,
-      depth: view.maximumDepth,
-      maximum_depth_percent: Math.round(view.maximumDepth * 10_000) / 100,
-      viewed_ranges: view.viewedRanges,
-      vw: vp.vw,
-      vh: vp.vh,
-      document_width: heatmapDocumentMetrics().dw,
-      document_height: view.documentHeight,
-      page_version: view.version,
-      page_key: view.pageKey,
-      tracker_version: TRACKER_VERSION,
-      schema_version: HEATMAP_SCHEMA_VERSION,
-    },
-    ts: Date.now(),
-    url: view.url,
-    sid: view.sid,
-    vid: visitorId,
-  });
-};
-
-/**
- * Inspect each rrweb event emitted during recording and derive heatmap data points.
- * This lets heatmaps work even when session recording is active without adding a
- * second set of separate DOM listeners.
- *
- * NOTE: rrweb MouseMove batches are intentionally NOT mirrored. They used to be
- * queued as `heatmap_click` points, which (a) polluted click heatmaps with hover
- * positions — nothing downstream distinguished them from real clicks — and
- * (b) forced a full document-metrics rescan (~3000 elements, layout reflow)
- * every 350 ms while the mouse moved.
- *
- * rrweb event structure we handle:
- *   type === IncrementalSnapshot (3)
- *     data.source === MouseInteraction (2) → click / tap, data.type === Click (2)
- *     data.source === Scroll (3)           → scroll depth update
- */
-const mirrorHeatmapFromRrweb = (ev) => {
-  // `heatmapAllowed()`, not just `heatmap_enabled` — this path is the *only* one
-  // capturing while replay records, because the DOM listeners below bail out on
-  // `recordingStop != null`. Checking the flag alone meant include/exclude patterns
-  // were silently ignored on every page where a session was being recorded: a site
-  // that excluded /checkout still collected clicks and scroll depth there.
-  if (!heatmapAllowed()) return;
-  if (Number(ev?.type) !== RRWEB_EVENT_TYPE.IncrementalSnapshot) return;
-
-  const inner = ev.data;
-  if (!inner || typeof inner !== 'object') return;
-  const source = Number(inner.source);
-
-  // ── MouseInteraction → Click ──────────────────────────────────────────────
-  if (
-    source === RRWEB_INCREMENTAL_SOURCE.MouseInteraction &&
-    Number(inner.type) === RRWEB_MOUSE_INTERACTION.Click
-  ) {
-    const clientX = Number(inner.x);
-    const clientY = Number(inner.y);
-    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
-
-    // Invalidate the metrics cache: page may have scrolled between last sample and this click.
-    heatmapMetricsCache = null;
-
-    const now    = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const bridge = lastPointerDocForHeatmap;
-    let pageX, pageY;
-
-    // Prefer the page coordinates from the native pointerdown bridge (more accurate for
-    // overflow-scroll regions) if it fired within 900 ms and is within 8 px of this click.
-    if (
-      bridge &&
-      now - bridge.at < 900 &&
-      Math.abs(bridge.clientX - clientX) <= 8 &&
-      Math.abs(bridge.clientY - clientY) <= 8
-    ) {
-      pageX = bridge.pageX;
-      pageY = bridge.pageY;
-      lastPointerDocForHeatmap = null;
-    } else {
-      ({ pageX, pageY } = rrwebClientToDocumentXY(clientX, clientY));
-    }
-
-    let target = null;
-    try { target = document.elementFromPoint(clientX, clientY); } catch { /* sandbox */ }
-    if (!(target instanceof Element) || target.closest('[data-seentics-block], [data-private]')) return;
-    queueHeatmapEvent({
-      type: 'heatmap_click',
-      data: heatmapClickData(target, clientX, clientY, pageX, pageY),
-      ts:  Date.now(),
-      url: location.href,
-      sid: activeRecordingSessionId ?? getSessionId(),
-      vid: visitorId,
-    });
-    return;
-  }
-
-  // ── Scroll: update max depth ──────────────────────────────────────────────
-  if (source === RRWEB_INCREMENTAL_SOURCE.Scroll) {
-    updateHeatmapScrollPageView();
-  }
-};
-
-/**
- * Attach the heatmap click and scroll DOM listeners.
- * When rrweb is running these listeners are skipped (stopRecording != null) because
- * mirrorHeatmapFromRrweb already derives the same data from the rrweb event stream —
- * avoiding double-counting.
- */
-const installHeatmapCapture = () => {
-  if (cfg.heatmap_enabled === false) return;
-  installHeatmapPointerPageBridge();
-  if (heatmapListenersInstalled) return;
-  heatmapListenersInstalled = true;
-
-  document.addEventListener('click', (ev) => {
-    if (stopRecording != null) return; // rrweb is recording — mirrorHeatmapFromRrweb handles clicks
-    if (!heatmapAllowed()) return;
-    const target = ev.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest('[data-seentics-block], [data-private]')) return;
-    queueHeatmapEvent({
-      type: 'heatmap_click',
-      data: heatmapClickData(target, ev.clientX, ev.clientY, ev.pageX, ev.pageY),
-      ts:  Date.now(),
-      url: location.href,
-      sid: getSessionId(),
-      vid: visitorId,
-    });
-  }, true);
-
-  window.addEventListener('scroll', () => {
-    if (stopRecording != null) return; // rrweb handles scroll via mirrorHeatmapFromRrweb
-    if (!heatmapAllowed()) return;
-    updateHeatmapScrollPageView();
-  }, { passive: true });
-};
-
-// ─── rrweb recording ──────────────────────────────────────────────────────────
 
 /** Stop function returned by rrweb record(); null when recording is off. */
 let stopRecording = null;
@@ -1884,9 +744,7 @@ const computeReplaySessionEnabled = () => {
   if (!replayEnabledForSite()) return false;
   const samplingRate = typeof cfg.replay_sampling_rate === 'number' ? cfg.replay_sampling_rate : 1.0;
   if (samplingRate < 1.0 && Math.random() > samplingRate) return false;
-  if (hasEffectivePatterns(cfg.replay_include_patterns) && !matchesPatterns(cfg.replay_include_patterns)) return false;
-  if (hasEffectivePatterns(cfg.replay_exclude_patterns) &&  matchesPatterns(cfg.replay_exclude_patterns)) return false;
-  return true;
+  return urlAllowed(cfg.replay_include_patterns, cfg.replay_exclude_patterns);
 };
 
 /**
@@ -1896,7 +754,7 @@ const computeReplaySessionEnabled = () => {
  */
 const startRrweb = (record, sessionId, shouldRecordSession) => {
   if (stopRecording) {
-    try { stopRecording(); } catch { /* ignore */ }
+    safely(stopRecording);
     stopRecording = null;
   }
   activeRecordingSessionId = sessionId;
@@ -1905,35 +763,34 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
     ...RRWEB_OPTIONS,
     emit(event) {
       // Always mirror into heatmaps (click positions, scroll depth).
-      mirrorHeatmapFromRrweb(event);
+      if (heat) safely(() => heat.mirror(event));
       // Only queue the raw rrweb event for replay if this session is sampled in.
-      if (shouldRecordSession) {
-        queues.session.push({
-          type: 'rrweb',
-          data: event,
-          ts:   event.timestamp,
-          url:  location.href,
-          sid:  activeRecordingSessionId,
-          vid:  visitorId,
-        });
-        // Full snapshots (type 2) can be 50–200 KB. Flush immediately so the data
-        // is already sent before the user navigates away — iOS Safari's keepalive
-        // fetch hard-cap of 64 KB would otherwise silently drop it on pagehide.
-        if (event.type === 2 /* FullSnapshot */) {
-          setTimeout(flush, 0);
-        } else {
-          // The same cap applies to everything a closing page sends, in total. A burst
-          // of DOM changes (a grid re-rendered by a filter, a "load more") can queue far
-          // more than that in a second; left for the periodic flush, a visitor who moves
-          // on straight away took all of it with them. Past a threshold, send now.
-          sessionQueueBytes += event.type === 3 && event.data?.source === 0
-            ? JSON.stringify(event).length
-            : 200;
-          if (sessionQueueBytes > SESSION_EARLY_FLUSH_BYTES && !sessionEarlyFlushScheduled) {
-            sessionEarlyFlushScheduled = true;
-            setTimeout(() => { sessionEarlyFlushScheduled = false; flush(); }, 0);
-          }
-        }
+      if (!shouldRecordSession) return;
+      queues.session.push({
+        type: 'rrweb',
+        data: event,
+        ts:   event.timestamp,
+        url:  location.href,
+        sid:  activeRecordingSessionId,
+        vid:  visitorId,
+      });
+      // Full snapshots (type 2) can be 50–200 KB. Flush immediately so the data
+      // is already sent before the user navigates away — iOS Safari's keepalive
+      // fetch hard-cap of 64 KB would otherwise silently drop it on pagehide.
+      if (event.type === 2 /* FullSnapshot */) {
+        setTimeout(flush, 0);
+        return;
+      }
+      // The same cap applies to everything a closing page sends, in total. A burst
+      // of DOM changes (a grid re-rendered by a filter, a "load more") can queue far
+      // more than that in a second; left for the periodic flush, a visitor who moves
+      // on straight away took all of it with them. Past a threshold, send now.
+      sessionQueueBytes += event.type === 3 && event.data?.source === 0
+        ? JSON.stringify(event).length
+        : 200;
+      if (sessionQueueBytes > SESSION_EARLY_FLUSH_BYTES && !sessionEarlyFlushScheduled) {
+        sessionEarlyFlushScheduled = true;
+        setTimeout(() => { sessionEarlyFlushScheduled = false; flush(); }, 0);
       }
     },
   });
@@ -1943,31 +800,33 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
 /**
  * Start recording, if this visitor is being recorded at all.
  *
- * The console and network sidecars are installed **here**, after the sampling decision,
- * and not at init. They used to go in for every visitor on any site with replay enabled,
- * so at a 5% sampling rate 100% of visitors had `console.*` and `window.fetch`
- * permanently overridden for events that were then discarded — and every log the host
- * application writes is attributed to seentics.js in DevTools for the trouble.
+ * The console and network sidecars (ext-replay.js) are installed only here, after the
+ * sampling decision: at a 5% sampling rate, 95% of visitors get no override of
+ * `console.*` or `window.fetch` at all. They load in parallel with rrweb, and the gate is
+ * open before either arrives, so early-page activity is kept.
  */
-const initRecording = async () => {
-  if (!computeReplaySessionEnabled()) return;
-
-  if (captureConsoleAllowed) installSessionConsoleCapture();
-  if (captureNetworkAllowed) installSessionNetworkCapture();
-  installSessionClientErrorCapture();
-
-  // Open the gate before awaiting rrweb, not after. The sidecars all check this flag,
-  // and rrweb is a separate network fetch — everything logged or requested while it
-  // loads is exactly the early-page activity worth having. If rrweb never loads, these
-  // signals arrive without a DOM stream, which is the case the player already explains.
+const initRecording = () => {
+  if (!computeReplaySessionEnabled()) return null;
   sessionCaptureActive = true;
-
-  const record = await loadRrweb();
-  if (!record) return;
-  startRrweb(record, getSessionId(), true);
+  const sidecars = loadExt('r').then(ext => ext && safely(() => ext.install({
+    console: captureConsoleAllowed,
+    network: captureNetworkAllowed,
+  })));
+  loadRrweb().then(record => {
+    if (record) safely(() => startRrweb(record, getSessionId(), true));
+  });
+  return sidecars;
 };
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+/** Ask rrweb to take a fresh full snapshot after a navigation (avoids checkout drift). */
+const requestRrwebFullSnapshotForNavigation = () => {
+  const rec = window.__rrweb_record;
+  if (!rec?.takeFullSnapshot) return;
+  try { rec.takeFullSnapshot(false); }
+  catch { /* not recording yet */ }
+};
+
+// ─── Page tracking ────────────────────────────────────────────────────────────
 
 /** Extract UTM parameters from the current URL, or return null if none are present. */
 const utmParams = () => {
@@ -1989,20 +848,16 @@ const deviceInfo = () => ({
   vw:   innerWidth,
   vh:   innerHeight,
   dpr:  devicePixelRatio ?? 1,
-  tz:   Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone ?? '',
+  tz:   safely(() => Intl.DateTimeFormat().resolvedOptions().timeZone) ?? '',
 });
-
-// ─── Page tracking ────────────────────────────────────────────────────────────
 
 /**
  * Push a pageview event and evaluate funnels/automations for the current URL.
- * Also finalises the prior scroll summary and starts a new per-page view.
+ * Also closes the previous page view's heatmap scroll summary and opens the next.
  */
 const trackPage = () => {
-  finishHeatmapScrollPageView();
-  heatmapPageFingerprintCache = null;
-  pageEnterMs                = Date.now();
-  lastPointerDocForHeatmap   = null;
+  if (heat) safely(heat.pageEnd);
+  pageEnterMs = Date.now();
 
   const utm = utmParams();
   pushAnalytics('pageview', {
@@ -2018,7 +873,7 @@ const trackPage = () => {
       ...(utm.content  ? { utm_content:  utm.content  } : {}),
     } : {}),
   });
-  startHeatmapScrollPageView();
+  if (heat) safely(heat.pageStart);
   evalFunnels(location.pathname);
   void fireAutomationTrigger('page_view', { path: location.pathname, title: document.title });
 };
@@ -2044,6 +899,15 @@ const saveFunnelState = (funnelId, step) => {
 /** In-memory funnel progress map, seeded from sessionStorage on first access. */
 const funnelState = {};
 
+/** The funnel's next step and its progress record, or null when the funnel is empty. */
+const nextFunnelStep = (funnel) => {
+  const steps = funnel.steps ?? [];
+  if (!steps.length) return null;
+  const state = funnelState[funnel.id] ?? (funnelState[funnel.id] = loadFunnelState(funnel.id) ?? { step: 0 });
+  const step = steps[state.step];
+  return step ? { state, step, type: step.step_type ?? step.stepType ?? 'page_view' } : null;
+};
+
 /**
  * Advance a funnel by one step: emit funnel_step, and if the last step is reached
  * also emit funnel_complete and reset the step counter.
@@ -2064,292 +928,47 @@ const advanceFunnelStep = (funnel, state, stepName, path) => {
   saveFunnelState(funnel.id, state.step);
 };
 
-/** Evaluate page_view-type funnel steps on each SPA navigation. */
+/** Evaluate page_view-type funnel steps on each page view. */
 const evalFunnels = (path) => {
   for (const funnel of funnels) {
-    const steps = funnel.steps ?? [];
-    if (!steps.length) continue;
+    const next = nextFunnelStep(funnel);
+    if (!next || next.type !== 'page_view') continue; // event steps: evalFunnelsForEvent
+    const { state, step } = next;
 
-    const state   = funnelState[funnel.id] ?? (funnelState[funnel.id] = loadFunnelState(funnel.id) ?? { step: 0 });
-    const nextStep = steps[state.step];
-    if (!nextStep) continue;
-
-    const stepType = nextStep.step_type ?? nextStep.stepType ?? 'page_view';
-    if (stepType !== 'page_view') continue; // event-type steps are handled by evalFunnelsForEvent
-
-    const pagePath  = nextStep.page_path ?? nextStep.path;
-    const matchType = nextStep.match_type ?? nextStep.matchType ?? 'exact';
+    const pagePath  = step.page_path ?? step.path;
+    const matchType = step.match_type ?? step.matchType ?? 'exact';
     let matched = false;
     if (pagePath) {
       if (matchType === 'contains')         matched = path.includes(pagePath);
       else if (matchType === 'starts_with') matched = path.startsWith(pagePath);
       else if (matchType === 'regex')       matched = safeRegex(pagePath, path);
       else                                  matched = path === pagePath; // exact
-    } else if (nextStep.pattern) {
-      matched = safeRegex(nextStep.pattern, path);
+    } else if (step.pattern) {
+      matched = safeRegex(step.pattern, path);
     }
-    if (matched) advanceFunnelStep(funnel, state, nextStep.name, path);
+    if (matched) advanceFunnelStep(funnel, state, step.name, path);
   }
 };
 
 /** Evaluate event-type funnel steps — called from seentics.track(). */
 const evalFunnelsForEvent = (eventName) => {
   for (const funnel of funnels) {
-    const steps = funnel.steps ?? [];
-    if (!steps.length) continue;
-
-    const state    = funnelState[funnel.id] ?? (funnelState[funnel.id] = loadFunnelState(funnel.id) ?? { step: 0 });
-    const nextStep = steps[state.step];
-    if (!nextStep) continue;
-
-    const stepType   = nextStep.step_type ?? nextStep.stepType ?? 'page_view';
-    if (stepType !== 'event') continue;
-
-    const targetEvent = nextStep.event_type ?? nextStep.eventType ?? '';
+    const next = nextFunnelStep(funnel);
+    if (!next || next.type !== 'event') continue;
+    const targetEvent = next.step.event_type ?? next.step.eventType ?? '';
     if (targetEvent && targetEvent === eventName) {
-      advanceFunnelStep(funnel, state, nextStep.name, location.pathname);
+      advanceFunnelStep(funnel, next.state, next.step.name, location.pathname);
     }
   }
 };
 
-// ─── Automation engine ────────────────────────────────────────────────────────
-
-/** localStorage key prefix for client-side frequency-cap cache. */
-const AUTO_CAP_PREFIX = 'snc_ac:';
-
-/** Read a client-side frequency-cap entry. Returns { count, lastMs } or null. */
-const readCapCache = (automationId) => {
-  try {
-    const raw = localStorage.getItem(AUTO_CAP_PREFIX + automationId);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
-
-/** Write / increment the client-side frequency-cap entry. */
-const writeCapCache = (automationId) => {
-  try {
-    const prev = readCapCache(automationId) ?? { count: 0 };
-    localStorage.setItem(AUTO_CAP_PREFIX + automationId, JSON.stringify({
-      count:  prev.count + 1,
-      lastMs: Date.now(),
-    }));
-  } catch { /* private mode */ }
-};
-
-/**
- * The wait/condition runtime lives in its own module so it can be tested; esbuild
- * inlines it, so this is a source-level split rather than an extra request.
- */
-const MAX_ACTION_DELAY_MS = 300_000;
-
-/** Perform one action now. Never throws — a broken action must not break the page. */
-const performClientAction = (action) => {
-  try {
-    switch (action.type) {
-      case 'show_modal':    renderModal(action);   break;
-      case 'show_toast':    renderToast(action);   break;
-      case 'show_banner':   renderBanner(action);  break;
-      case 'highlight_element': renderHighlight(action); break;
-      case 'show_tooltip':  renderTooltip(action); break;
-      case 'personalize_content': renderPersonalize(action); break;
-      case 'redirect':      renderRedirect(action); break;
-      case 'tag_session':
-        pushAnalytics('custom', { name: 'session_tag', tag: action.tag, automation_id: action.automation_id });
-        break;
-      case 'continue_when':
-        // Not a visible action: the remainder of the graph, for the page to finish once
-        // the wait resolves.
-        runContinuation(action.continuation, action.delay_ms, executeClientActions, { pageEnterMs });
-        break;
-      default: break;
-    }
-  } catch { /* never crash the page */ }
-};
-
-/**
- * Run a batch of client actions, honouring the `delay_ms` a chain's delay steps produced.
- *
- * Actions are grouped by offset rather than scheduled individually: a chain of five
- * actions behind one delay costs one timer, not five, and the actions in a group still
- * run in the order the server sent them. Anything at offset zero runs synchronously, so
- * the common case — no delays at all — allocates nothing and schedules nothing.
- */
-const executeClientActions = (actions) => {
-  if (!actions || !actions.length) return;
-
-  let deferred = null;
-
-  for (const action of actions) {
-    const delay = Math.min(Math.max(0, action.delay_ms | 0), MAX_ACTION_DELAY_MS);
-    if (delay === 0) {
-      performClientAction(action);
-      continue;
-    }
-    if (!deferred) deferred = new Map();
-    const group = deferred.get(delay);
-    if (group) group.push(action);
-    else deferred.set(delay, [action]);
-  }
-
-  if (!deferred) return;
-  for (const [delay, group] of deferred) {
-    setTimeout(() => {
-      for (const action of group) performClientAction(action);
-    }, delay);
-  }
-};
-
-/** Inject minimal shared styles once. */
-const ensureAutoStyles = (() => {
-  let done = false;
-  return () => {
-    if (done) return;
-    done = true;
-    const s = document.createElement('style');
-    s.textContent = `
-      .snc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center}
-      .snc-modal{background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit}
-      .snc-modal h2{margin:0 0 12px;font-size:20px}
-      .snc-modal p{margin:0 0 16px;line-height:1.5}
-      .snc-modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;line-height:1}
-      .snc-modal-btn{display:inline-block;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer;border:none;font-size:14px}
-      .snc-toast{position:fixed;z-index:2147483647;padding:12px 20px;border-radius:8px;background:#1a1a1a;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;pointer-events:auto;transition:opacity .3s}
-      .snc-toast.top-left{top:20px;left:20px}
-      .snc-toast.top-right{top:20px;right:20px}
-      .snc-toast.bottom-left{bottom:20px;left:20px}
-      .snc-toast.bottom-right{bottom:20px;right:20px}
-      .snc-banner{position:fixed;left:0;right:0;z-index:2147483646;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-      .snc-banner.top{top:0} .snc-banner.bottom{bottom:0}
-      .snc-banner-close{background:none;border:none;font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:.7}
-      .snc-highlight-pulse{outline:3px solid #f59e0b!important;outline-offset:2px;animation:snc-pulse 1.5s infinite}
-      @keyframes snc-pulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#ef4444}}
-      .snc-tooltip{position:absolute;background:#1a1a1a;color:#fff;padding:8px 12px;border-radius:6px;font-size:13px;z-index:2147483647;pointer-events:none;max-width:240px;line-height:1.4}
-      .snc-tooltip::before{content:'';position:absolute;border:6px solid transparent}
-    `;
-    document.head.appendChild(s);
-  };
-})();
-
-/** Escape a string for safe interpolation into innerHTML (text or attribute position). */
-const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
-  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-));
-
-/** Allow only http(s)/relative URLs in injected href/src — blocks javascript: etc. */
-const safeActionUrl = (u) => {
-  const s = String(u ?? '').trim();
-  return /^(https?:\/\/|\/)/i.test(s) ? escapeHtml(s) : '#';
-};
-
-/** Allow only plausible CSS color tokens in injected inline styles. */
-const safeColor = (c, fallback) => {
-  const s = String(c ?? '').trim();
-  return /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(s) && s ? s : fallback;
-};
-
-const renderModal = (action) => {
-  ensureAutoStyles();
-  const overlay = document.createElement('div');
-  overlay.className = 'snc-overlay';
-  const bgColor   = safeColor(action.background_color, '#ffffff');
-  const textColor = safeColor(action.text_color,       '#000000');
-  const btnColor  = safeColor(action.button_color,     '#2563eb');
-  const btnText   = safeColor(action.button_text_color, '#ffffff');
-  overlay.innerHTML = `
-    <div class="snc-modal" style="background:${bgColor};color:${textColor}">
-      <button class="snc-modal-close" aria-label="Close">&times;</button>
-      ${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
-      ${action.title   ? `<h2>${escapeHtml(action.title)}</h2>` : ''}
-      ${action.body    ? `<p>${escapeHtml(action.body)}</p>`    : ''}
-      ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}
-    </div>`;
-  overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-};
-
-const renderToast = (action) => {
-  ensureAutoStyles();
-  const pos   = action.position ?? 'bottom-right';
-  const toast = document.createElement('div');
-  toast.className = `snc-toast ${pos}`;
-  toast.style.background = action.background_color ?? '#1a1a1a';
-  toast.style.color       = action.text_color       ?? '#ffffff';
-  toast.textContent = action.message ?? '';
-  document.body.appendChild(toast);
-  const dur = (action.duration_ms ?? 4000);
-  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, dur);
-};
-
-const renderBanner = (action) => {
-  ensureAutoStyles();
-  const pos    = action.position ?? 'top';
-  const banner = document.createElement('div');
-  banner.className = `snc-banner ${pos}`;
-  banner.style.background = action.background_color ?? '#1e40af';
-  banner.style.color       = action.text_color       ?? '#ffffff';
-  banner.innerHTML = `
-    <span>${escapeHtml(action.message ?? '')}</span>
-    ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${escapeHtml(action.button_text)}</a>` : ''}
-    <button class="snc-banner-close" aria-label="Close">&times;</button>
-  `;
-  banner.querySelector('.snc-banner-close').onclick = () => banner.remove();
-  document.body.appendChild(banner);
-  if (action.duration_ms) setTimeout(() => banner.remove(), action.duration_ms);
-};
-
-const renderHighlight = (action) => {
-  ensureAutoStyles();
-  const el = action.selector ? document.querySelector(action.selector) : null;
-  if (!el) return;
-  el.classList.add('snc-highlight-pulse');
-  if (action.scroll_into_view !== false) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  setTimeout(() => el.classList.remove('snc-highlight-pulse'), action.duration_ms ?? 4000);
-};
-
-const renderTooltip = (action) => {
-  ensureAutoStyles();
-  const anchor = action.selector ? document.querySelector(action.selector) : null;
-  if (!anchor) return;
-  const tip = document.createElement('div');
-  tip.className = 'snc-tooltip';
-  tip.textContent = action.message ?? '';
-  document.body.appendChild(tip);
-  const rect = anchor.getBoundingClientRect();
-  const top  = rect.top + window.scrollY - tip.offsetHeight - 10;
-  tip.style.left = `${rect.left + window.scrollX}px`;
-  tip.style.top  = `${top}px`;
-  setTimeout(() => tip.remove(), action.duration_ms ?? 5000);
-};
-
-const renderPersonalize = (action) => {
-  const els = action.selector ? document.querySelectorAll(action.selector) : [];
-  for (const el of els) {
-    if (action.html) el.innerHTML = action.html;
-    else if (action.text != null) el.textContent = action.text;
-  }
-};
-
-const renderRedirect = (action) => {
-  const url = action.url;
-  if (!url) return;
-  const delay = action.delay_ms ?? 0;
-  const open  = () => {
-    if (action.new_tab) window.open(url, '_blank');
-    else location.href = url;
-  };
-  if (delay > 0) setTimeout(open, delay);
-  else open();
-};
-
-/** The triggers an automation listens for. */
-const automationTriggers = (a) => (a && Array.isArray(a.triggers) ? a.triggers : []);
+// ─── Automations ──────────────────────────────────────────────────────────────
 
 /** Rebuild the trigger-type index. Called once per automations load. */
 const indexAutomationTriggers = () => {
   const types = new Set();
   for (const auto of automations) {
-    for (const t of automationTriggers(auto)) {
+    for (const t of (auto && Array.isArray(auto.triggers) ? auto.triggers : [])) {
       if (t && t.type) types.add(t.type);
     }
   }
@@ -2357,8 +976,12 @@ const indexAutomationTriggers = () => {
 };
 
 /**
- * Fire an automation trigger: POST to /tracker/automations/evaluate,
- * parse response, execute client-side actions.
+ * Fire an automation trigger: ask the server which automations it starts, then run the
+ * actions that come back.
+ *
+ * The request is made here rather than in the automations extension, so a page_view
+ * automation does not wait for that file to download first; the two happen in parallel,
+ * and the actions run once both are in.
  */
 const fireAutomationTrigger = async (triggerType, triggerData) => {
   if (!websiteId) return;
@@ -2371,8 +994,15 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
   // Collapse a burst into one round trip. Rapid triggers can fire several times before
   // the first response lands; without this each costs a request and the actions from
   // all of them render on top of each other.
-  if (automationInFlight.has(triggerType)) return;
-  automationInFlight.add(triggerType);
+  //
+  // Keyed by what distinguishes one event of a type from another, not by the type alone:
+  // a scroll that crosses 50% and 75% at once fires two scroll_depth events, and with a
+  // type-only key the second was dropped while the first was in flight — and, its
+  // milestone already marked, never fired again.
+  const d = triggerData ?? {};
+  const inFlightKey = [triggerType, d.depth, d.seconds, d.selector, d.name].join('\u0000');
+  if (automationInFlight.has(inFlightKey)) return;
+  automationInFlight.add(inFlightKey);
 
   pushAnalytics('automation_trigger', { event: triggerType, props: triggerData });
 
@@ -2396,150 +1026,14 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
     if (!res.ok) return;
     const { actions } = await res.json();
     if (actions?.length) {
-      // Charge the client-side cap once per automation, not once per action — a chain
-      // of four actions is still one impression.
-      const charged = new Set();
-      for (const a of actions) {
-        if (charged.has(a.automation_id)) continue;
-        charged.add(a.automation_id);
-        writeCapCache(a.automation_id);
-      }
-      executeClientActions(actions);
+      const ext = await loadExt('a');
+      if (ext) safely(() => ext.execute(actions));
     }
   } catch { /* best-effort */ }
-  finally { automationInFlight.delete(triggerType); }
+  finally { automationInFlight.delete(inFlightKey); }
 };
 
-// ─── Exit-intent trigger ──────────────────────────────────────────────────────
-
-let exitIntentCooldown = false;
-
-/** Fire the exit_intent automation trigger when the cursor leaves through the top of the viewport. */
-const installExitIntent = () => {
-  document.addEventListener('mouseleave', (ev) => {
-    if (ev.clientY > 0) return; // only fire when leaving through the top edge
-    if (exitIntentCooldown) return;
-    exitIntentCooldown = true;
-    void fireAutomationTrigger('exit_intent', { path: location.pathname });
-    setTimeout(() => { exitIntentCooldown = false; }, 30_000); // 30 s cooldown
-  });
-};
-
-// ─── Inactivity trigger ───────────────────────────────────────────────────────
-
-const INACTIVITY_TRIGGER_MS = 30_000;
-let inactivityTimer     = null;
-let inactivityInstalled = false;
-
-const resetInactivityTimer = () => {
-  if (inactivityTimer) clearTimeout(inactivityTimer);
-  inactivityTimer = setTimeout(() => {
-    void fireAutomationTrigger('inactivity', { path: location.pathname, inactivity_ms: INACTIVITY_TRIGGER_MS });
-    inactivityTimer = null;
-  }, INACTIVITY_TRIGGER_MS);
-};
-
-/** Listen for any user activity and reset the inactivity timer each time. */
-const installInactivity = () => {
-  if (inactivityInstalled) return;
-  inactivityInstalled = true;
-  for (const eventName of ['mousemove', 'keydown', 'scroll', 'click', 'touchstart']) {
-    window.addEventListener(eventName, resetInactivityTimer, { passive: true });
-  }
-  resetInactivityTimer();
-};
-
-// ─── Scroll depth trigger ─────────────────────────────────────────────────────
-
-const installScrollDepth = () => {
-  const milestones = [25, 50, 75, 90];
-  const fired = new Set();
-  const check = () => {
-    const docH = Math.max(document.documentElement.scrollHeight, 1);
-    const pct  = Math.round(((window.scrollY + window.innerHeight) / docH) * 100);
-    for (const m of milestones) {
-      if (pct >= m && !fired.has(m)) {
-        fired.add(m);
-        void fireAutomationTrigger('scroll_depth', { depth: m, path: location.pathname });
-      }
-    }
-  };
-  window.addEventListener('scroll', check, { passive: true });
-};
-
-// ─── Time on page trigger ─────────────────────────────────────────────────────
-
-const installTimeOnPage = () => {
-  const thresholds = [15, 30, 60, 120, 300]; // seconds
-  const fired = new Set();
-  const start = Date.now();
-  const timer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - start) / 1000);
-    for (const t of thresholds) {
-      if (elapsed >= t && !fired.has(t)) {
-        fired.add(t);
-        void fireAutomationTrigger('time_on_page', { seconds: t, path: location.pathname });
-      }
-    }
-    // All thresholds fired — nothing left to observe, stop ticking.
-    if (fired.size === thresholds.length) clearInterval(timer);
-  }, 5_000);
-};
-
-// ─── Rage-click trigger ───────────────────────────────────────────────────────
-
-const installRageClick = () => {
-  const WINDOW_MS  = 1_000;
-  const RADIUS_PX  = 80;
-  const MIN_CLICKS = 3;
-  let clicks = [];
-  let fired = false;
-  document.addEventListener('click', (ev) => {
-    const now = Date.now();
-    clicks = clicks.filter((c) => now - c.t < WINDOW_MS);
-    clicks.push({ x: ev.clientX, y: ev.clientY, t: now });
-    if (clicks.length < MIN_CLICKS) return;
-    const cx = clicks.reduce((s, c) => s + c.x, 0) / clicks.length;
-    const cy = clicks.reduce((s, c) => s + c.y, 0) / clicks.length;
-    const inRadius = clicks.every((c) => Math.hypot(c.x - cx, c.y - cy) < RADIUS_PX);
-    if (inRadius && !fired) {
-      fired = true;
-      void fireAutomationTrigger('rage_click', {
-        path:   location.pathname,
-        count:  clicks.length,
-        x:      Math.round(cx),
-        y:      Math.round(cy),
-        target: (ev.target?.tagName ?? '').toLowerCase(),
-      });
-      setTimeout(() => { fired = false; clicks = []; }, 5_000);
-    }
-  });
-};
-
-// ─── Form abandon trigger ─────────────────────────────────────────────────────
-
-const installFormAbandon = () => {
-  const touched = new Set();
-  document.addEventListener('focusin', (ev) => {
-    if (ev.target?.form) touched.add(ev.target.form);
-  }, true);
-  // Only the submitted form stops being "abandoned" — other touched forms still count.
-  document.addEventListener('submit', (ev) => { if (ev.target) touched.delete(ev.target); }, true);
-  const onLeave = () => {
-    if (!touched.size) return;
-    for (const form of touched) {
-      const id = form.id || form.name || form.action || 'unknown';
-      void fireAutomationTrigger('form_abandon', { path: location.pathname, form_id: id });
-    }
-    // Clear so repeated tab switches don't fire duplicate abandon triggers.
-    touched.clear();
-  };
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') onLeave();
-  });
-};
-
-// ─── JS error trigger ─────────────────────────────────────────────────────────
+// ─── JS errors ────────────────────────────────────────────────────────────────
 
 /** Automation triggers stay rate-limited as they always were — firing a workflow is an action. */
 const MAX_ERROR_TRIGGER_FIRES = 3;
@@ -2553,7 +1047,13 @@ const MAX_ERRORS_PER_PAGE = 10;
 const MAX_STACK_CHARS = 4_000;
 const MAX_ERROR_MESSAGE_CHARS = 1_000;
 
-const installJsErrorTrigger = () => {
+/**
+ * Report uncaught errors and unhandled rejections, and fire the js_error trigger.
+ *
+ * Installed as soon as the tracker runs, not after /tracker/init answers: the errors
+ * thrown while a page loads were the ones it used to miss.
+ */
+const installErrorReporting = () => {
   let errorCount = 0;
   let reported = 0;
   /** Fingerprints already reported for this page, so a repeating fault costs one row. */
@@ -2566,10 +1066,6 @@ const installJsErrorTrigger = () => {
 
   /**
    * Queue one error for the dashboard.
-   *
-   * Gated on `trackingAllowed()` like every other queue: an error carries a URL and a
-   * session id, so a visitor who declined tracking must not be reported on because their
-   * browser happened to throw.
    *
    * The stack is sent as the browser gives it. Minified frames are still the fastest
    * route to the fault when read next to the replay, and un-minifying belongs on the
@@ -2605,6 +1101,8 @@ const installJsErrorTrigger = () => {
   };
 
   window.addEventListener('error', (ev) => {
+    // Resource load failures (an <img> 404) arrive here too, with no message.
+    if (!ev.message) return;
     fire(ev.message, ev.filename);
     // `ev.error` is absent for cross-origin script errors — the browser gives only
     // "Script error." with no location. Report it anyway: a spike of them is itself the
@@ -2620,49 +1118,6 @@ const installJsErrorTrigger = () => {
     const message = reason instanceof Error ? reason.message : String(reason);
     report('unhandledrejection', message, 'promise', undefined, undefined, reason?.stack);
   });
-};
-
-// ─── Tab visibility trigger ───────────────────────────────────────────────────
-
-const installTabVisibility = () => {
-  document.addEventListener('visibilitychange', () => {
-    const type = document.visibilityState === 'hidden' ? 'tab_hidden' : 'tab_visible';
-    void fireAutomationTrigger(type, { path: location.pathname });
-  });
-};
-
-// ─── Click trigger (delegated, CSS-selector-based) ────────────────────────────
-
-const installClickTrigger = () => {
-  // Selectors are collected once at install rather than rebuilt on every click. The
-  // listener is delegated to the document, so it runs for every click on the page —
-  // walking each automation's triggers there is work paid on the interaction path.
-  const selectors = [];
-  const seenSelectors = new Set();
-  for (const auto of automations) {
-    for (const t of automationTriggers(auto)) {
-      if (!t || t.type !== 'click' || !t.selector || seenSelectors.has(t.selector)) continue;
-      seenSelectors.add(t.selector);
-      selectors.push(t.selector);
-    }
-  }
-  if (!selectors.length) return;
-
-  document.addEventListener('click', (ev) => {
-    const el = ev.target;
-    if (!el) return;
-    for (const sel of selectors) {
-      try {
-        if (el.matches(sel) || el.closest(sel)) {
-          void fireAutomationTrigger('click', {
-            path:     location.pathname,
-            selector: sel,
-            text:     (el.textContent ?? '').trim().slice(0, 100),
-          });
-        }
-      } catch { /* invalid selector */ }
-    }
-  }, { passive: true });
 };
 
 // ─── Performance timing ───────────────────────────────────────────────────────
@@ -2682,14 +1137,10 @@ const trackPerf = () => {
   });
 };
 
-/**
- * Schedule the performance event. init() runs at/after the load event, so a
- * plain `addEventListener('load', ...)` registered inside init would never fire
- * — the load event has already happened. Check readyState first.
- */
+/** Report timings once the load event has finished (it may already have). */
 const schedulePerfTracking = () => {
   if (document.readyState === 'complete') setTimeout(trackPerf, 100);
-  else window.addEventListener('load', () => setTimeout(trackPerf, 100));
+  else window.addEventListener('load', () => setTimeout(trackPerf, 100), { once: true });
 };
 
 // ─── SPA routing ──────────────────────────────────────────────────────────────
@@ -2697,137 +1148,123 @@ const schedulePerfTracking = () => {
 /**
  * Detect SPA navigations by patching history.pushState / history.replaceState and
  * listening to popstate. On each navigation: track a new pageview, request a fresh
- * rrweb snapshot for the replay, and schedule a new heatmap screenshot.
+ * rrweb snapshot for the replay, and let heatmaps capture the new route's layout.
+ *
+ * Nothing the tracker does here can break the host's navigation: the original method
+ * always runs first, its return value is passed back, and the tracker's own work is
+ * fenced off. It used to run unguarded inside the patched pushState, so a failure in
+ * tracking (storage throwing, say) threw out of the application's router.
  */
 const initRouting = () => {
   let lastPath = location.pathname;
   const onNavigation = () => {
     if (location.pathname === lastPath) return;
-    clearScreenshotScheduleTimers();
     lastPath = location.pathname;
+    // Before /tracker/init has answered, the first page view (taken then, for whatever
+    // path the page is on by that time) covers it.
+    if (!started || !trackingAllowed()) return;
     if (autoTrack) trackPage();
-    else {
-      finishHeatmapScrollPageView();
-      startHeatmapScrollPageView();
-    }
+    else if (heat) { heat.pageEnd(); heat.pageStart(); }
     // Give the new route 50 ms to mount before asking rrweb for a full snapshot.
     window.setTimeout(requestRrwebFullSnapshotForNavigation, 50);
-    window.setTimeout(() => { heatmapPageFingerprintCache = null; }, 250);
-    if (cfg.heatmap_layout_enabled !== false) {
-      scheduleHeatmapScreenshotAfterAppIdle();
-    }
+    if (heat) heat.navigated();
   };
-  window.addEventListener('popstate', onNavigation);
+  const guarded = () => safely(onNavigation);
+  window.addEventListener('popstate', guarded);
   for (const method of ['pushState', 'replaceState']) {
-    const original = history[method].bind(history);
-    history[method] = (...args) => { original(...args); onNavigation(); };
+    const original = history[method];
+    if (typeof original !== 'function') continue;
+    history[method] = function () {
+      const result = original.apply(this, arguments);
+      guarded();
+      return result;
+    };
   }
-};
-
-/** Ask rrweb to take a fresh full snapshot after a navigation (avoids checkout drift). */
-const requestRrwebFullSnapshotForNavigation = () => {
-  const rec = window.__rrweb_record;
-  if (!rec?.takeFullSnapshot) return;
-  try { rec.takeFullSnapshot(false); }
-  catch { /* not recording yet */ }
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-const init = () => {
-  if (!websiteId) return;
+let markReady;
+const readyPromise = new Promise((resolve) => { markReady = resolve; });
 
+/**
+ * Begin tracking, with the site's configuration (or without it, if init failed).
+ *
+ * One path for both outcomes. There used to be two — the success path and a `.catch`
+ * for the failure one — and an exception anywhere in the success path (the first page
+ * view, a listener) fell into the `.catch` and ran the setup a second time: two
+ * pageviews and every listener installed twice.
+ */
+const start = (data) => {
+  if (data) {
+    cfg         = data.config      ?? {};
+    funnels     = data.funnels     ?? [];
+    automations = data.automations ?? [];
+  } else {
+    console.warn(
+      '[Seentics] tracker running in degraded mode (no session recording). ' +
+      'Fix: data-api-host should point to your API (e.g. same origin as this app in dev).',
+    );
+  }
+  indexAutomationTriggers();
+  started = true;
+
+  if (!trackingAllowed()) {
+    console.info('[Seentics] tracking disabled by the site privacy policy.');
+    drainQueues(); // discards anything queued before the policy was known
+    markReady();
+    return;
+  }
+
+  if (autoTrack) safely(trackPage);
+
+  const loads = [];
+  if (cfg.heatmap_enabled !== false) loads.push(loadExt('l').then((ext) => { heat = ext; }));
+  if (automations.length) loads.push(loadExt('a'));
+  loads.push(safely(initRecording));
+  schedulePerfTracking();
+
+  flush(); // send the initial pageview immediately
+  flushInterval = window.setInterval(flush, FLUSH_MS);
+  Promise.all(loads).then(() => markReady(), () => markReady());
+};
+
+const init = () => {
   initRouting();
+  installErrorReporting();
 
   // Flush all queued data when the page is hidden (tab switch, navigation away, close).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      captureDomSnapshotBeforeLeaving();
-      flushBeacon();
-    }
+    if (document.visibilityState !== 'hidden') return;
+    if (heat) safely(heat.beforeLeave);
+    flushBeacon();
   });
   window.addEventListener('pagehide', () => {
-    finishHeatmapScrollPageView();
-    captureDomSnapshotBeforeLeaving();
+    if (heat) { safely(heat.pageEnd); safely(heat.beforeLeave); }
     flushBeacon();
   });
 
-  fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
+  // /tracker/init is requested the moment the tracker runs, and tracking starts once the
+  // document is parsed. Both used to wait for the window `load` event — every image,
+  // font and ad on the page — so on a slow page the pageview was late, and a visitor who
+  // left before `load` was never counted at all.
+  const config = fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
     .then(async (response) => {
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        console.warn('[Seentics] tracker init failed:', response.status, response.statusText, text?.slice?.(0, 200) ?? '');
-        throw new Error('tracker init failed');
-      }
-      return response.json();
+      if (response.ok) return response.json();
+      const text = await response.text().catch(() => '');
+      console.warn('[Seentics] tracker init failed:', response.status, response.statusText, text.slice(0, 200));
+      return null;
     })
-    .then(async (data) => {
-      cfg         = data.config      ?? {};
-      funnels     = data.funnels     ?? [];
-      automations = data.automations ?? [];
-      indexAutomationTriggers();
-
-      if (!trackingAllowed()) {
-        console.info('[Seentics] tracking disabled by the site privacy policy.');
-        return;
-      }
-
-      if (autoTrack) trackPage();
-      else startHeatmapScrollPageView();
-
-      // Session recording setup. `initRecording` decides whether this visitor is
-      // recorded and installs the capture hooks only if so — nothing is patched for a
-      // visitor who was sampled out.
-      await initRecording();
-
-      // Heatmap screenshot scheduling.
-      if (cfg.heatmap_layout_enabled !== false) {
-        scheduleHeatmapScreenshotAfterAppIdle();
-      }
-
-      installHeatmapCapture();
-      installExitIntent();
-      installInactivity();
-      installScrollDepth();
-      installTimeOnPage();
-      installRageClick();
-      installFormAbandon();
-      installJsErrorTrigger();
-      installTabVisibility();
-      installClickTrigger();
-      schedulePerfTracking();
-
-      flush(); // send the initial pageview + rrweb snapshot immediately
-      flushInterval = window.setInterval(flush, FLUSH_MS);
-    })
-    .catch(() => {
-      // Init failed (network error, wrong domain, etc.) — run in degraded mode.
-      // Analytics and heatmaps still work; session recording is unavailable.
-      console.warn(
-        '[Seentics] tracker running in degraded mode (no session recording). ' +
-        'Fix: data-api-host should point to your API (e.g. same origin as this app in dev).',
-      );
-      if (autoTrack) trackPage();
-      else startHeatmapScrollPageView();
-      installHeatmapCapture();
-      installExitIntent();
-      installInactivity();
-      installScrollDepth();
-      installTimeOnPage();
-      installRageClick();
-      installFormAbandon();
-      installJsErrorTrigger();
-      installTabVisibility();
-      installClickTrigger();
-      schedulePerfTracking();
-      flush();
-      flushInterval = window.setInterval(flush, FLUSH_MS);
-    });
+    .catch(() => null);
+  const parsed = document.readyState === 'loading'
+    ? new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve, { once: true }))
+    : null;
+  Promise.all([config, parsed]).then(([data]) => start(data));
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-window.seentics = {
+const api = {
   /**
    * Track a custom event.
    * @param {string} name  - Event name (e.g. 'signup', 'add_to_cart').
@@ -2842,22 +1279,17 @@ window.seentics = {
   /**
    * Identify the current visitor with a known user ID.
    *
-   * The anonymous visitor id is deliberately left alone. This used to overwrite it —
-   * `snc_vid = userId` — which broke two things at once. It split every identified
-   * visitor into two uniques, because the events before the call and the events after
-   * it carried different ids for one person. And it wrote a customer-supplied
-   * identifier, very often an email address, into `analytics_events.visitor_id`, where
-   * it sat in the raw event log and came back out of `/export`.
-   *
-   * Neither was needed to stitch the identity. The id travels in the event's own
-   * payload, ingest reads it there, and `user_profiles.user_id` is the column that
-   * links a person's anonymous ids together — indexed for exactly that.
+   * The anonymous visitor id is deliberately left alone. Overwriting it split every
+   * identified visitor into two uniques and wrote a customer-supplied identifier (very
+   * often an email address) into the raw event log. The id travels in the event's own
+   * payload; `user_profiles.user_id` links a person's anonymous ids together.
    *
    * @param {string} userId - Your internal user ID.
    * @param {object} traits - Optional user traits (name, email, plan, etc.).
    */
   identify(userId, traits) {
     pushAnalytics('identify', { user_id: userId, traits: traits ?? {} });
+    void fireAutomationTrigger('identify', { user_id: userId, traits: traits ?? {} });
   },
 
   /** Manually push a pageview (useful when auto-tracking is disabled). */
@@ -2865,9 +1297,31 @@ window.seentics = {
 
   /** Manually flush all queued events to /collect immediately. */
   flush,
+
+  /**
+   * Resolves once the tracker has its configuration and every feature this page uses
+   * (heatmaps, automations, recording sidecars) is listening.
+   */
+  ready: () => readyPromise,
 };
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
-if (document.readyState === 'complete') init();
-else window.addEventListener('load', init);
+/**
+ * One tracker per website per page. A snippet pasted twice (a theme header and a tag
+ * manager, say) used to run twice: every pageview, click and event counted double, and
+ * two recorders fighting over one session.
+ */
+const loaded = window.__seentics_sites || (window.__seentics_sites = {});
+if (!websiteId) {
+  // Nothing is sent without a website id, but the page's own `seentics.track()` calls
+  // must still find the API rather than throw.
+  window.seentics = window.seentics || api;
+  markReady();
+} else if (loaded[websiteId]) {
+  console.warn('[Seentics] tracker loaded twice for this website; ignoring the second copy.');
+} else {
+  loaded[websiteId] = true;
+  window.seentics = api;
+  init();
+}

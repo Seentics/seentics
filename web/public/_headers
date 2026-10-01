@@ -7,3 +7,14 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+# Tracker extensions are named by content hash (bundle-trackers.cjs), so a file at a
+# given URL never changes: cache it for a year without revalidating. The core
+# (seentics.min.js) keeps the default — its URL is fixed in every customer's snippet, so
+# it must revalidate to pick up a release.
+/trackers/seentics-l.*
+  Cache-Control: public, max-age=31536000, immutable
+/trackers/seentics-a.*
+  Cache-Control: public, max-age=31536000, immutable
+/trackers/seentics-r.*
+  Cache-Control: public, max-age=31536000, immutable
