@@ -150,6 +150,24 @@ describe("trigger matching", () => {
     expect(listActive).toHaveBeenCalledWith(WEBSITE);
   });
 
+  it("honours trigger settings, not only the type", async () => {
+    automationRows = [automation("a1", { triggers: [{ type: "page_view", path: "/pricing", match_type: "exact" }], graph: oneAction() })];
+    expect((await service().evaluate(request({ trigger: { type: "page_view", path: "/" } }))).matched).toBe(0);
+    expect((await service().evaluate(request({ trigger: { type: "page_view", path: "/pricing" } }))).matched).toBe(1);
+  });
+
+  it("treats a visitor with no profile yet as on their first visit", async () => {
+    // The profile is written by ingestion after the first page view is evaluated, so a
+    // "first-time visitor" condition must not depend on it existing.
+    automationRows = [auto("a1", {
+      entry: "if1",
+      nodes: [ifNode("if1", "visitCount", "1"), act("new", "show_toast"), act("back", "tag_session")],
+      edges: [edge("if1", "new", "true"), edge("if1", "back", "false")],
+    })];
+    const out = await service().evaluate(request());
+    expect(out.actions.map((a) => a.type)).toEqual(["show_toast"]);
+  });
+
   it("fires once for a definition listing the same trigger twice", async () => {
     automationRows = [
       automation("a1", {

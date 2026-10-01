@@ -61,9 +61,13 @@ export const TEMPLATES: Template[] = [
         position: 'bottom-right',
         duration_ms: 5000,
       } },
+          // Every branch must be wired before a graph can be saved; a returning visitor
+          // is tagged rather than left on an empty branch the builder refuses.
+          { id: 'n2', kind: 'action', action: { type: 'tag_session', tag: 'returning-visitor' } },
         ],
         edges: [
           { from: 'n0', to: 'n1', branch: 'true' },
+          { from: 'n0', to: 'n2', branch: 'false' },
         ],
       },
       frequency: { maxPerUser: 1 },
@@ -109,9 +113,12 @@ export const TEMPLATES: Template[] = [
         button_text: 'Book a demo',
         button_url: '/demo',
       } },
+          // See "Welcome New Visitors": the false branch must be wired to save.
+          { id: 'n2', kind: 'action', action: { type: 'tag_session', tag: 'pricing-early-visit' } },
         ],
         edges: [
           { from: 'n0', to: 'n1', branch: 'true' },
+          { from: 'n0', to: 'n2', branch: 'false' },
         ],
       },
       frequency: { maxPerSession: 1, cooldownDays: 7 },

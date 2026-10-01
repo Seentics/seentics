@@ -5,7 +5,7 @@
  * things went. Funnels are their own domain with their own endpoints, and a module that
  * accumulates unrelated features is the shape the architecture doc warns against.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 
 import { isValidId } from '@/lib/utils';
 
@@ -43,11 +43,20 @@ export const useFunnel = (websiteId: string, funnelId: string) => {
   });
 };
 
+const funnelAnalyticsQuery = (funnelId: string, dateRange: number, websiteId?: string) => ({
+  queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange, websiteId ?? ''] as const,
+  queryFn: () => getDashboardFunnelAnalytics(funnelId, dateRange, websiteId),
+  enabled: !!funnelId,
+  staleTime: 2 * 60 * 1000,
+});
+
 export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7, websiteId?: string) => {
-  return useQuery<FunnelAnalyticsResponse>({
-    queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange, websiteId ?? ''] as const,
-    queryFn: () => getDashboardFunnelAnalytics(funnelId, dateRange, websiteId),
-    enabled: !!funnelId,
-    staleTime: 2 * 60 * 1000,
-  });
+  return useQuery<FunnelAnalyticsResponse>(funnelAnalyticsQuery(funnelId, dateRange, websiteId));
+};
+
+/** The same per-funnel reports, for several funnels at once — shares the row cells' cache. */
+export const useFunnelsAnalytics = (funnelIds: string[], dateRange: number = 7, websiteId?: string) => {
+  return useQueries({
+    queries: funnelIds.map(id => funnelAnalyticsQuery(id, dateRange, websiteId)),
+  }) as { data?: FunnelAnalyticsResponse }[];
 };

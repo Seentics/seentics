@@ -32,13 +32,18 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
   const [includePatterns, setIncludePatterns] = useState('');
   const [excludePatterns, setExcludePatterns] = useState('');
 
+  // Seeded from the server once per website, not on every refetch: see
+  // ReplaySettingsComponent — saving that section refetched the website and wiped what
+  // had been typed here but not yet saved.
+  const [seededFor, setSeededFor] = useState<string | null>(null);
   useEffect(() => {
-    if (website) {
+    if (website && seededFor !== websiteId) {
       setHeatmapEnabled(website.heatmapEnabled);
       setIncludePatterns(website.heatmapIncludePatterns || '');
       setExcludePatterns(website.heatmapExcludePatterns || '');
+      setSeededFor(websiteId);
     }
-  }, [website]);
+  }, [website, websiteId, seededFor]);
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => {

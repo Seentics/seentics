@@ -9,7 +9,7 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
-import { useFunnels, useFunnelAnalytics, type Funnel } from '@/features/funnels/queries';
+import { useFunnels, useFunnelAnalytics, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
 import { DataTable, selectionColumn } from '@/components/ui/data-table';
 
 import { Badge } from '@/components/ui/badge';
@@ -69,15 +69,22 @@ export default function FunnelsPage() {
     }
   }, [funnels, isDemoMode, searchParams]);
   const funnelIds = useMemo(() => funnels.map(f => f.id), [funnels]);
+  // From the same per-funnel reports the rows show. The list endpoint's `stats` are
+  // zeroed placeholders (core funnel.repository.ts mapFunnel), so averaging them read
+  // 0.0% on every site whatever the funnels converted at. A funnel nobody has entered
+  // has no rate yet and is left out rather than counted as 0%.
+  const funnelReports = useFunnelsAnalytics(isDemoMode ? [] : funnelIds, dateRange, websiteId);
   const avgConversionStr = useMemo(() => {
     if (isDemoMode || funnelIds.length === 0) return '';
-    const rates = funnels
-      .map(f => f.list_summary?.conversion_rate)
-      .filter((r): r is number => typeof r === 'number' && !Number.isNaN(r));
+    const rates = funnelReports
+      .map(r => r.data?.analytics?.[0])
+      .filter(item => item && (item.total_starts ?? 0) > 0)
+      .map(item => Number(item!.conversion_rate ?? 0))
+      .filter(r => !Number.isNaN(r));
     if (!rates.length) return '—';
     const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
     return `${avg.toFixed(1)}%`;
-  }, [isDemoMode, funnels]);
+  }, [isDemoMode, funnelIds.length, funnelReports]);
   const createFunnelMutation = useCreateFunnel();
   const updateFunnelMutation = useUpdateFunnel();
   const deleteFunnelMutation = useDeleteFunnel();

@@ -35,14 +35,19 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
     queryFn: () => getWebsiteByAnyId(websiteId),
   });
 
+  // Seeded from the server once per website, not on every refetch. Re-seeding on each
+  // fetch wiped unsaved edits whenever the website was refetched: saving the heatmap
+  // section on the same page refetches it, and so does returning to the tab.
+  const [seededFor, setSeededFor] = useState<string | null>(null);
   useEffect(() => {
-    if (website) {
+    if (website && seededFor !== websiteId) {
       setEnabled(website.replayEnabled);
       setSamplingRate(Math.round((website.replaySamplingRate || 1.0) * 100));
       setIncludePatterns(website.replayIncludePatterns || '');
       setExcludePatterns(website.replayExcludePatterns || '');
+      setSeededFor(websiteId);
     }
-  }, [website]);
+  }, [website, websiteId, seededFor]);
 
   const updateMutation = useMutation({
     mutationFn: async (vars: { enabled: boolean; rate: number; include: string; exclude: string }) => {

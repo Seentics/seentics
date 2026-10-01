@@ -65,9 +65,47 @@ function castDef(raw: Record<string, unknown>): AutomationDef {
 }
 
 /** An automation matches when ANY of its triggers has the incoming type. */
-function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger']): boolean {
+export function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger']): boolean {
   const triggers = Array.isArray(def.triggers) ? def.triggers : [];
-  return triggers.some((t) => !!t?.type && t.type === incoming.type);
+  return triggers.some((t) => !!t?.type && t.type === incoming.type && triggerConfigMatches(t, incoming));
+}
+
+/**
+ * Whether one trigger's configuration accepts the incoming event.
+ *
+ * Matching used to stop at the type, so every setting the builder offers was ignored:
+ * a page-view automation for /pricing fired on every page, "scroll to 75%" fired at 25%,
+ * "after 60 seconds" at 15, a custom-event automation on any custom event, and two click
+ * automations on each other's elements. A trigger with nothing configured still matches
+ * every event of its type.
+ */
+export function triggerConfigMatches(t: Record<string, unknown>, incoming: Record<string, unknown>): boolean {
+  const configured = (key: string) => t[key] !== undefined && t[key] !== null && t[key] !== '';
+  switch (t.type) {
+    case 'page_view': {
+      if (!configured('path')) return true;
+      const want = String(t.path);
+      const path = String(incoming.path ?? '').slice(0, 2048);
+      switch (t.match_type ?? 'contains') {
+        case 'exact': return path === want;
+        case 'starts_with': return path.startsWith(want);
+        case 'regex':
+          try { return new RegExp(want).test(path); } catch { return false; }
+        default: return path.includes(want);
+      }
+    }
+    case 'click':
+      return !configured('selector') || incoming.selector === t.selector;
+    case 'scroll_depth':
+      return !configured('depth') || Number(incoming.depth) === Number(t.depth);
+    case 'time_on_page':
+    case 'inactivity':
+      return !configured('seconds') || Number(incoming.seconds) === Number(t.seconds);
+    case 'custom_event':
+      return !configured('name') || incoming.name === t.name;
+    default:
+      return true;
+  }
 }
 
 /**
@@ -107,7 +145,11 @@ async function loadUserProfile(websiteId: string, anonymousId: string): Promise<
       .from(userProfiles)
       .where(and(eq(userProfiles.websiteId, websiteId), eq(userProfiles.anonymousId, anonymousId)))
       .limit(1);
-    if (!row) return {};
+    // No profile yet means a first visit: the profile is written by ingestion, after the
+    // first page view has already been evaluated. Without this, `visitCount` was missing
+    // exactly when it mattered, and "first-time visitor" automations (the Welcome New
+    // Visitors template) never fired for anyone.
+    if (!row) return { visitCount: 1 };
     return {
       visitCount:     row.visitCount,
       totalPageViews: row.totalPageViews,
