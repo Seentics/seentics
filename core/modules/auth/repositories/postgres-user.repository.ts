@@ -71,6 +71,10 @@ export class PostgresUserRepository implements UserRepository {
     return row ?? null;
   }
 
+  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
+    await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+  }
+
   async recordLogin(id: string): Promise<UserRow | null> {
     const now = new Date();
     // `login_count + 1` in SQL rather than a read-modify-write, so two concurrent

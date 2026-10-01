@@ -11,6 +11,14 @@ import { User, Lock, Save, Loader2, Eye, EyeOff, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { isEnterprise } from '@/lib/features';
+
+/**
+ * The server's minimum: the cloud gateway requires 12 (gateway/validators/auth.ts), the
+ * self-hosted core 8 (core/modules/auth/validators). A fixed 8 let a cloud user submit a
+ * password the gateway then refused.
+ */
+const MIN_PASSWORD_LENGTH = isEnterprise ? 12 : 8;
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function ProfileSettingsPage() {
@@ -54,8 +62,8 @@ export default function ProfileSettingsPage() {
       toast({ title: 'Mismatch', description: 'New passwords do not match.', variant: 'destructive' });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ title: 'Too short', description: 'Password must be at least 8 characters.', variant: 'destructive' });
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      toast({ title: 'Too short', description: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`, variant: 'destructive' });
       return;
     }
     setSavingPassword(true);
@@ -139,7 +147,7 @@ export default function ProfileSettingsPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 className="h-10"
               />
             </div>

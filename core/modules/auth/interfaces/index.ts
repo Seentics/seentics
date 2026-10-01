@@ -23,6 +23,8 @@ export type {
   AuthTokens,
   CredentialAuthentication,
   LoginUserInput,
+  PasswordChanger,
+  PasswordChangeResult,
   RegisterUserInput,
 } from "./authentication.interface";
 

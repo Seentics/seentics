@@ -247,3 +247,32 @@ describe("countUsers", () => {
     expect(await new AuthAccountQueryService(repo).countUsers()).toBe(2);
   });
 });
+
+// Regression: the route behind this answered { ok: true } without changing anything.
+describe("changePassword", () => {
+  const userId = async () => (await auth.register(REGISTRATION)).data.user.id as string;
+
+  it("replaces the password when the current one is right", async () => {
+    const id = await userId();
+    expect(await auth.changePassword(id, REGISTRATION.password, "a brand new password")).toBe("changed");
+    await expect(auth.login({ email: REGISTRATION.email, password: REGISTRATION.password })).rejects.toThrow();
+    const after = await auth.login({ email: REGISTRATION.email, password: "a brand new password" });
+    expect(after.data.user.id).toBe(id);
+  });
+
+  it("refuses a wrong current password and changes nothing", async () => {
+    const id = await userId();
+    expect(await auth.changePassword(id, "not my password", "a brand new password")).toBe("bad-current");
+    const still = await auth.login({ email: REGISTRATION.email, password: REGISTRATION.password });
+    expect(still.data.user.id).toBe(id);
+  });
+
+  it("holds a new password to registration's bounds", async () => {
+    const id = await userId();
+    expect(await auth.changePassword(id, REGISTRATION.password, "short")).toBe("invalid-new");
+  });
+
+  it("does nothing for an unknown user", async () => {
+    expect(await auth.changePassword("no-such-user", "x", "a brand new password")).toBe("not-found");
+  });
+});

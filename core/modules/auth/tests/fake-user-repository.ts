@@ -66,6 +66,11 @@ export class FakeUserRepository implements UserRepository {
     return this.rows.find((r) => r.id === id) ?? null;
   }
 
+  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
+    const row = this.rows.find((r) => r.id === id);
+    if (row) row.passwordHash = passwordHash;
+  }
+
   async recordLogin(id: string): Promise<UserRow | null> {
     const row = this.rows.find((r) => r.id === id);
     if (!row) return null;

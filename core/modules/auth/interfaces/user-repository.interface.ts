@@ -70,6 +70,9 @@ export interface UserRepository {
    */
   recordLogin(id: string): Promise<UserRow | null>;
 
+  /** Replace an account's password hash. */
+  setPasswordHash(id: string, passwordHash: string): Promise<void>;
+
   /** Narrow projection by id, for `UserDirectory`. */
   profileById(id: string): Promise<UserProfileRow | null>;
 

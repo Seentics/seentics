@@ -25,6 +25,7 @@ export function initAuthModule(): AuthModule {
 
   return {
     users: new UserDirectoryService(users),
+    passwords: credentials,
     routes: createAuthRoutes(controllers),
     userRoutes: createUserAuthRoutes(controllers),
   };

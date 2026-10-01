@@ -29,7 +29,7 @@ export function createUserBranchRoutes(deps: {
 
   user.route("/auth", deps.authModule.userRoutes);
   user.route("/websites", deps.websites);
-  user.route("/users", createUserProfileRoutes({ users: deps.authModule.users }));
+  user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords }));
 
   /**
    * Accepting an invitation is deliberately outside the websites router: the caller

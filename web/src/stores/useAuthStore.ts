@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthState } from '@/types';
 import { setApiToken } from '@/lib/api';
+import { getApiUrl } from '@/lib/config';
 
 export const useAuth = create<AuthState>()(
   persist(
@@ -60,6 +61,21 @@ export const useAuth = create<AuthState>()(
         })),
 
       logout: () => {
+        // The session lives in httpOnly cookies the gateway set at sign-in; clearing this
+        // store alone left it valid, so "Log out" signed nobody out — a reload, or anyone
+        // else holding the cookie, was still signed in. The gateway revokes the session
+        // and clears the cookies. keepalive, because every caller navigates away at once.
+        if (typeof window !== 'undefined') {
+          try {
+            void fetch(getApiUrl('/user/auth/logout'), {
+              method: 'POST',
+              credentials: 'include',
+              keepalive: true,
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}',
+            }).catch(() => { /* best effort: local state is cleared regardless */ });
+          } catch { /* ignore */ }
+        }
         setApiToken(null);
         return set(() => ({
           user: null,

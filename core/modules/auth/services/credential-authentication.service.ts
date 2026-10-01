@@ -9,6 +9,7 @@ import type {
   AuthResult,
   AuthTokens,
   CredentialAuthentication,
+  PasswordChangeResult,
 } from "../interfaces";
 import type { PasswordHasher } from "../interfaces/password-hasher.interface";
 import type { UserRepository, UserRow } from "../interfaces/user-repository.interface";
@@ -26,6 +27,9 @@ import type { UserRepository, UserRow } from "../interfaces/user-repository.inte
  */
 
 /** The first account in an empty install administers it; everyone after is a user. */
+/** Registration's bounds (validators/auth.schema.ts), applied to a changed password too. */
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 256;
 const FIRST_USER_ROLE = "admin";
 const DEFAULT_ROLE = "user";
 
@@ -93,6 +97,22 @@ export class CredentialAuthenticationService implements CredentialAuthentication
     const row = await this.users.findById(userId);
     if (!row?.isActive) throw new Error("account disabled");
     return this.tokensFor(row.id);
+  }
+
+  /**
+   * Replace a signed-in user's password, after checking the current one.
+   *
+   * The `/users/change-password` route answered `{ ok: true }` without calling anything,
+   * so a self-hosted user was told their password had changed when it had not, and the
+   * current password was never checked. Same bounds as registration.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<PasswordChangeResult> {
+    if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) return "invalid-new";
+    const row = await this.users.findById(userId);
+    if (!row?.isActive) return "not-found";
+    if (!row.passwordHash || !(await this.hasher.verify(currentPassword, row.passwordHash))) return "bad-current";
+    await this.users.setPasswordHash(row.id, await this.hasher.hash(newPassword));
+    return "changed";
   }
 
   private async issue(row: UserRow): Promise<AuthResult> {
