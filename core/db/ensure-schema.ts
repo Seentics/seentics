@@ -1,5 +1,8 @@
 import { join } from "path";
+import { getTableName, is } from "drizzle-orm";
+import { PgTable } from "drizzle-orm/pg-core";
 import postgres from "postgres";
+import * as schema from "./schema";
 
 /**
  * Code expects `analytics_events.website_id` (Drizzle `websiteId`). Older DBs still have `website_site_id`.
@@ -52,6 +55,28 @@ const REQUIRED_TABLES = [
   "ingest_batches",
   "ingest_applied_batches",
 ] as const;
+
+/** Every table the Drizzle schema defines. */
+const SCHEMA_TABLES = (Object.values(schema) as unknown[])
+  .filter((value): value is PgTable => is(value, PgTable))
+  .map((table) => getTableName(table));
+
+/** Tables the Drizzle schema defines that the database does not have yet. */
+async function absentSchemaTables(): Promise<string[]> {
+  const url = process.env.DATABASE_URL;
+  if (!url) return [];
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    const rows = await client<{ table_name: string }[]>`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = ANY(${SCHEMA_TABLES}::text[])
+    `;
+    const present = new Set(rows.map((r) => r.table_name));
+    return SCHEMA_TABLES.filter((t) => !present.has(t));
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
 
 /** Names from `REQUIRED_TABLES` that the database does not have. */
 async function missingCoreTables(): Promise<string[]> {
@@ -159,22 +184,89 @@ export async function ensureCoreSchema(): Promise<void> {
     if (process.env.AUTO_DB_PUSH !== "true" && process.env.AUTO_DB_PUSH !== "1") return;
   }
 
-  const force = process.env.FORCE_DB_PUSH === "true" || process.env.FORCE_DB_PUSH === "1";
-  if (!force) {
-    const missing = await missingCoreTables();
-    if (missing.length === 0) return;
-    console.log(`[schema] missing tables, running push: ${missing.join(", ")}`);
-  }
-
   const coreRoot = join(import.meta.dir, "..");
-  const r = Bun.spawnSync(["bun", "run", "db:push:force"], {
-    cwd: coreRoot,
-    env: process.env,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-
-  if (r.exitCode !== 0) {
-    throw new Error(`drizzle-kit push failed (exit ${r.exitCode ?? "unknown"})`);
+  const force = process.env.FORCE_DB_PUSH === "true" || process.env.FORCE_DB_PUSH === "1";
+  if (force) {
+    // An operator's explicit request: the whole schema, through drizzle-kit.
+    const r = Bun.spawnSync(["bun", "run", "db:push:force"], { cwd: coreRoot, env: process.env, stdout: "inherit", stderr: "inherit" });
+    if (r.exitCode !== 0) throw new Error(`drizzle-kit push failed (exit ${r.exitCode ?? "unknown"})`);
+    return;
   }
+
+  const missing = await missingCoreTables();
+  if (missing.length === 0) return;
+  const absent = await absentSchemaTables();
+  // Nothing the schema creates is absent (the missing ones come from SQL migrations).
+  if (absent.length === 0) return;
+  console.log(`[schema] creating missing tables: ${absent.join(", ")}`);
+  await createAbsentTables(coreRoot, absent);
+}
+
+/**
+ * Create the schema's absent tables, and add the schema's columns to the tables it
+ * shares, without touching anything else.
+ *
+ * This used to be `drizzle-kit push --force`, which compares the whole database with
+ * the schema. The database is shared — the gateway keeps its own tables in it, and
+ * `users` belongs to both, each adding its own columns. When the gateway had migrated
+ * first (a restored or reset database, a restart in the other order), push stopped to
+ * ask whether core's tables were renames of the gateway's — with no terminal, core then
+ * crashed on every start — and, pushed through, it would have dropped the gateway's
+ * columns from `users` (its session revocation counter among them).
+ *
+ * Instead the schema's DDL is exported (no database access), and only these run:
+ * CREATE TABLE / CREATE INDEX for absent tables, and ADD COLUMN IF NOT EXISTS for
+ * columns a shared table lacks. Nothing is altered or dropped.
+ */
+async function createAbsentTables(coreRoot: string, absent: string[]): Promise<void> {
+  const exported = Bun.spawnSync(["bun", "x", "drizzle-kit", "export", "--dialect", "postgresql", "--schema", "./db/schema.ts"], {
+    cwd: coreRoot, env: process.env, stdout: "pipe", stderr: "inherit",
+  });
+  if (exported.exitCode !== 0) throw new Error(`drizzle-kit export failed (exit ${exported.exitCode ?? "unknown"})`);
+  const statements = exported.stdout.toString()
+    .split(/;\s*(?:\n|$)/)
+    .map((s) => s.trim())
+    .filter((s) => /^CREATE /.test(s));
+  const tableOf = (s: string) => (s.match(/^CREATE TABLE "([^"]+)"/) ?? s.match(/ ON "([^"]+)"/))?.[1];
+
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    const absentSet = new Set(absent);
+    await client.begin(async (tx) => {
+      for (const statement of statements) {
+        const table = tableOf(statement);
+        if (!table) continue;
+        if (absentSet.has(table)) {
+          await tx.unsafe(statement
+            .replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ")
+            .replace(/^CREATE (UNIQUE )?INDEX /, "CREATE $1INDEX IF NOT EXISTS "));
+        } else if (statement.startsWith("CREATE TABLE ")) {
+          for (const column of addableColumns(statement)) {
+            await tx.unsafe(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS ${column}`);
+          }
+        }
+      }
+    });
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
+
+/**
+ * The column definitions of an exported CREATE TABLE, in a form that can be added to an
+ * existing table that has rows: no primary key (the table has one), and NOT NULL only
+ * with a default to fill the existing rows.
+ */
+export function addableColumns(createTable: string): string[] {
+  const body = createTable.slice(createTable.indexOf("(") + 1, createTable.lastIndexOf(")"));
+  return body.split(/,\s*\n/)
+    .map((line) => line.trim().replace(/,$/, ""))
+    .filter((line) => line.startsWith('"'))
+    .map((line) => {
+      let column = line.replace(/\s+PRIMARY KEY/, "");
+      if (/NOT NULL/.test(column) && !/DEFAULT/.test(column)) column = column.replace(/\s+NOT NULL/, "");
+      return column;
+    });
 }
