@@ -8,6 +8,14 @@
 # Targets are extensionless on purpose — a target ending in .html fights
 # Pages' own built-in .html -> clean-URL redirect and loops.
 #
+# Every rule has a `.txt` twin, listed just before it. A client-side navigation
+# (a <Link> click) fetches the page's RSC payload — `<url>.txt` — not its HTML.
+# Without the twin that request either 404s or is caught by the HTML rule and
+# answered with HTML, and the App Router falls back to a full page reload on
+# every click into a website's pages. The placeholder's payload is the right
+# one for the same reason the placeholder's HTML is: the page reads its real
+# ids from the URL, never from the payload.
+#
 # Placeholder groups (see src/lib/path-segment.ts comment in each layout for
 # the fuller reasoning): 'w-root' for the /websites/:id overview page alone,
 # 'w-idx' shared by the six index pages that have their own child routes
@@ -21,53 +29,93 @@
 # match, hijacking them. Confirmed necessary by testing (uptime/web hit this
 # exact bug with /dashboard/monitors/new).
 
-/websites/manage                              /websites/manage                             200
-/websites/:websiteId/automations/new          /websites/w-leaf/automations/new              200
-/websites/:websiteId/automations/templates    /websites/w-leaf/automations/templates        200
+/websites/manage.txt                              /websites/manage.txt                             200
+/websites/manage                                  /websites/manage                                 200
+/websites/:websiteId/automations/new.txt          /websites/w-leaf/automations/new.txt              200
+/websites/:websiteId/automations/new              /websites/w-leaf/automations/new                  200
+/websites/:websiteId/automations/templates.txt    /websites/w-leaf/automations/templates.txt        200
+/websites/:websiteId/automations/templates        /websites/w-leaf/automations/templates            200
 
 # Nested-detail routes before their index — order matters, most specific first.
 
-/websites/:websiteId/automations/:automationId  /websites/w-leaf/automations/w-child         200
-/websites/:websiteId/funnels/:funnelId          /websites/w-leaf/funnels/w-child             200
-/websites/:websiteId/goals/:goalId              /websites/w-leaf/goals/w-child                200
-/websites/:websiteId/heatmaps/:slug             /websites/w-leaf/heatmaps/w-child             200
-/websites/:websiteId/replays/:sessionId         /websites/w-leaf/replays/w-child              200
-/websites/:websiteId/revenue/transactions/:transactionId  /websites/w-leaf/revenue/transactions/w-child  200
+/websites/:websiteId/automations/:automationId.txt  /websites/w-leaf/automations/w-child.txt         200
+/websites/:websiteId/automations/:automationId      /websites/w-leaf/automations/w-child             200
+/websites/:websiteId/funnels/:funnelId.txt          /websites/w-leaf/funnels/w-child.txt             200
+/websites/:websiteId/funnels/:funnelId              /websites/w-leaf/funnels/w-child                 200
+/websites/:websiteId/goals/:goalId.txt              /websites/w-leaf/goals/w-child.txt                200
+/websites/:websiteId/goals/:goalId                  /websites/w-leaf/goals/w-child                    200
+/websites/:websiteId/heatmaps/:slug.txt             /websites/w-leaf/heatmaps/w-child.txt             200
+/websites/:websiteId/heatmaps/:slug                 /websites/w-leaf/heatmaps/w-child                 200
+/websites/:websiteId/replays/:sessionId.txt         /websites/w-leaf/replays/w-child.txt              200
+/websites/:websiteId/replays/:sessionId             /websites/w-leaf/replays/w-child                  200
+/websites/:websiteId/revenue/transactions/:transactionId.txt  /websites/w-leaf/revenue/transactions/w-child.txt  200
+/websites/:websiteId/revenue/transactions/:transactionId      /websites/w-leaf/revenue/transactions/w-child      200
 
-/websites/:websiteId/automations              /websites/w-idx/automations                   200
-/websites/:websiteId/funnels                  /websites/w-idx/funnels                       200
-/websites/:websiteId/heatmaps                 /websites/w-idx/heatmaps                      200
-/websites/:websiteId/replays                  /websites/w-idx/replays                       200
-/websites/:websiteId/revenue                  /websites/w-idx/revenue                       200
-/websites/:websiteId/settings                 /websites/w-idx/settings                      200
+/websites/:websiteId/automations.txt              /websites/w-idx/automations.txt                   200
+/websites/:websiteId/automations                  /websites/w-idx/automations                       200
+/websites/:websiteId/funnels.txt                  /websites/w-idx/funnels.txt                       200
+/websites/:websiteId/funnels                      /websites/w-idx/funnels                           200
+/websites/:websiteId/heatmaps.txt                 /websites/w-idx/heatmaps.txt                      200
+/websites/:websiteId/heatmaps                     /websites/w-idx/heatmaps                          200
+/websites/:websiteId/replays.txt                  /websites/w-idx/replays.txt                       200
+/websites/:websiteId/replays                      /websites/w-idx/replays                           200
+/websites/:websiteId/revenue.txt                  /websites/w-idx/revenue.txt                       200
+/websites/:websiteId/revenue                      /websites/w-idx/revenue                           200
+/websites/:websiteId/settings.txt                 /websites/w-idx/settings.txt                      200
+/websites/:websiteId/settings                     /websites/w-idx/settings                          200
 
-/websites/:websiteId/ai                       /websites/w-leaf/ai                           200
-/websites/:websiteId/developers               /websites/w-leaf/developers                   200
-/websites/:websiteId/docs                     /websites/w-leaf/docs                         200
-/websites/:websiteId/errors                   /websites/w-leaf/errors                       200
-/websites/:websiteId/events                   /websites/w-leaf/events                       200
-/websites/:websiteId/paths                    /websites/w-leaf/paths                        200
-/websites/:websiteId/privacy                  /websites/w-leaf/privacy                      200
-/websites/:websiteId/realtime                 /websites/w-leaf/realtime                     200
-/websites/:websiteId/ui-blocks                /websites/w-leaf/ui-blocks                    200
+/websites/:websiteId/ai.txt                       /websites/w-leaf/ai.txt                           200
+/websites/:websiteId/ai                           /websites/w-leaf/ai                               200
+/websites/:websiteId/developers.txt               /websites/w-leaf/developers.txt                   200
+/websites/:websiteId/developers                   /websites/w-leaf/developers                       200
+/websites/:websiteId/docs.txt                     /websites/w-leaf/docs.txt                         200
+/websites/:websiteId/docs                         /websites/w-leaf/docs                             200
+/websites/:websiteId/errors.txt                   /websites/w-leaf/errors.txt                       200
+/websites/:websiteId/errors                       /websites/w-leaf/errors                           200
+/websites/:websiteId/events.txt                   /websites/w-leaf/events.txt                       200
+/websites/:websiteId/events                       /websites/w-leaf/events                           200
+/websites/:websiteId/paths.txt                    /websites/w-leaf/paths.txt                        200
+/websites/:websiteId/paths                        /websites/w-leaf/paths                            200
+/websites/:websiteId/privacy.txt                  /websites/w-leaf/privacy.txt                      200
+/websites/:websiteId/privacy                      /websites/w-leaf/privacy                          200
+/websites/:websiteId/realtime.txt                 /websites/w-leaf/realtime.txt                     200
+/websites/:websiteId/realtime                     /websites/w-leaf/realtime                         200
+/websites/:websiteId/ui-blocks.txt                /websites/w-leaf/ui-blocks.txt                    200
+/websites/:websiteId/ui-blocks                    /websites/w-leaf/ui-blocks                        200
 
-/websites/:websiteId/settings/billing         /websites/w-leaf/settings/billing             200
-/websites/:websiteId/settings/features        /websites/w-leaf/settings/features            200
-/websites/:websiteId/settings/goals           /websites/w-leaf/settings/goals               200
-/websites/:websiteId/settings/privacy         /websites/w-leaf/settings/privacy             200
-/websites/:websiteId/settings/profile         /websites/w-leaf/settings/profile             200
-/websites/:websiteId/settings/support         /websites/w-leaf/settings/support             200
-/websites/:websiteId/settings/team            /websites/w-leaf/settings/team                200
-/websites/:websiteId/settings/tracking        /websites/w-leaf/settings/tracking            200
-/websites/:websiteId/settings/websites        /websites/w-leaf/settings/websites            200
+/websites/:websiteId/settings/billing.txt         /websites/w-leaf/settings/billing.txt             200
+/websites/:websiteId/settings/billing             /websites/w-leaf/settings/billing                 200
+/websites/:websiteId/settings/features.txt        /websites/w-leaf/settings/features.txt            200
+/websites/:websiteId/settings/features            /websites/w-leaf/settings/features                200
+/websites/:websiteId/settings/goals.txt           /websites/w-leaf/settings/goals.txt               200
+/websites/:websiteId/settings/goals               /websites/w-leaf/settings/goals                   200
+/websites/:websiteId/settings/privacy.txt         /websites/w-leaf/settings/privacy.txt             200
+/websites/:websiteId/settings/privacy             /websites/w-leaf/settings/privacy                 200
+/websites/:websiteId/settings/profile.txt         /websites/w-leaf/settings/profile.txt             200
+/websites/:websiteId/settings/profile             /websites/w-leaf/settings/profile                 200
+/websites/:websiteId/settings/support.txt         /websites/w-leaf/settings/support.txt             200
+/websites/:websiteId/settings/support             /websites/w-leaf/settings/support                 200
+/websites/:websiteId/settings/team.txt            /websites/w-leaf/settings/team.txt                200
+/websites/:websiteId/settings/team                /websites/w-leaf/settings/team                    200
+/websites/:websiteId/settings/tracking.txt        /websites/w-leaf/settings/tracking.txt            200
+/websites/:websiteId/settings/tracking            /websites/w-leaf/settings/tracking                200
+/websites/:websiteId/settings/websites.txt        /websites/w-leaf/settings/websites.txt            200
+/websites/:websiteId/settings/websites            /websites/w-leaf/settings/websites                200
 
-/websites/:websiteId                          /websites/w-root                              200
+/websites/:websiteId.txt                          /websites/w-root.txt                              200
+/websites/:websiteId                              /websites/w-root                                  200
 
 # Singleton dynamic routes — no children, no literal siblings to exclude.
 
-/agency/client-users/:userId                  /agency/client-users/shell                    200
-/agency/clients/:clientId                     /agency/clients/shell                         200
-/client-portal/:token                         /client-portal/shell                          200
-/preview/:id                                  /preview/shell                                200
-/public/:publicId                             /public/shell                                 200
-/share/:publicId                              /share/shell                                  200
+/agency/client-users/:userId.txt                  /agency/client-users/shell.txt                    200
+/agency/client-users/:userId                      /agency/client-users/shell                        200
+/agency/clients/:clientId.txt                     /agency/clients/shell.txt                         200
+/agency/clients/:clientId                         /agency/clients/shell                             200
+/client-portal/:token.txt                         /client-portal/shell.txt                          200
+/client-portal/:token                             /client-portal/shell                              200
+/preview/:id.txt                                  /preview/shell.txt                                200
+/preview/:id                                      /preview/shell                                    200
+/public/:publicId.txt                             /public/shell.txt                                 200
+/public/:publicId                                 /public/shell                                     200
+/share/:publicId.txt                              /share/shell.txt                                  200
+/share/:publicId                                  /share/shell                                      200

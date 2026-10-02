@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, HeartPulse, BarChart3, ArrowUpRight,
+  Code2, Bug, Sparkles, Radio, HeartPulse, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { AiModeButton } from '@/components/ai/AiModeButton';
@@ -28,10 +28,15 @@ interface SuiteNavItem {
   product: string;
 }
 
-const SUITE_PRODUCTS: SuiteNavItem[] = [
-  { label: 'Observability', href: config.observeUrl, icon: Radio, product: 'observe' },
-  { label: 'Uptime', href: config.uptimeUrl, icon: HeartPulse, product: 'uptime' },
-];
+// Each app's console, not its root: observe.seentics.com/ and uptime.seentics.com/
+// are public landing pages with a "Sign in" button, which read as being signed out.
+// Every website is also an Observe project, so Observability opens this site's own.
+function buildSuiteProducts(websiteId: string): SuiteNavItem[] {
+  return [
+    { label: 'Observability', href: `${config.observeUrl}/projects/${websiteId}`, icon: Radio, product: 'observe' },
+    { label: 'Uptime', href: `${config.uptimeUrl}/dashboard`, icon: HeartPulse, product: 'uptime' },
+  ];
+}
 
 interface NavItem {
   label: string;
@@ -78,7 +83,9 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const { data: entitlements } = useEntitlements();
   // Suite plans only, free included (features/suite/workspace.ts): a customer
   // who bought Analytics alone is not offered the other apps.
-  const suiteNav = entitlements ? SUITE_PRODUCTS.filter((item) => workspaceIncludes(entitlements, item.product)) : [];
+  const suiteNav = entitlements
+    ? buildSuiteProducts(websiteId).filter((item) => workspaceIncludes(entitlements, item.product))
+    : [];
 
   const initials = useMemo(() => {
     if (!user) return '?';
@@ -209,36 +216,15 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         </ul>
       </nav>
 
-      {/* Workspace — switch between the suite's apps, each on its own
-          subdomain. Analytics is this app, shown as current so the section
-          reads as a switcher. Rendered only when another app is offered
-          (enterprise mode, a Suite plan or free), so OSS and Analytics-only
-          accounts never see it. */}
+      {/* Workspace — the suite's other apps, each on its own subdomain.
+          Rendered only when another app is offered (enterprise mode, a Suite
+          plan or free), so OSS and Analytics-only accounts never see it. */}
       {suiteNav.length > 0 && (
         <div className={cn('shrink-0 border-t border-sidebar-border pt-3 pb-2 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
           )}
           <ul className="space-y-0.5">
-            <li>
-              <span
-                aria-current="true"
-                title={collapsed ? 'Analytics' : undefined}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg',
-                  collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
-                  'text-foreground',
-                )}
-              >
-                <BarChart3 className="h-[17px] w-[17px] shrink-0 text-primary" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-[13.5px] font-medium">Analytics</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
-                  </>
-                )}
-              </span>
-            </li>
             {suiteNav.map(renderSuiteItem)}
           </ul>
         </div>

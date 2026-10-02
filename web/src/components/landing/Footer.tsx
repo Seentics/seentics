@@ -5,6 +5,7 @@ import { FaDiscord } from 'react-icons/fa';
 import { Github } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PRIVACY_CHOICES_EVENT } from '@/components/consent-banner';
 
 export default function Footer() {
   /**
@@ -54,6 +55,15 @@ export default function Footer() {
               <li><Link href="/dpa" className="hover:text-foreground transition-colors">Data Processing Agreement</Link></li>
               <li><Link href="/subprocessors" className="hover:text-foreground transition-colors">Subprocessors</Link></li>
               <li><Link href="/refund-policy" className="hover:text-foreground transition-colors">Refund Policy</Link></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event(PRIVACY_CHOICES_EVENT))}
+                  className="hover:text-foreground transition-colors"
+                >
+                  Privacy choices
+                </button>
+              </li>
             </ul>
           </div>
 

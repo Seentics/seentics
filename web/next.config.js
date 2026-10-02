@@ -19,6 +19,9 @@ function shellRewrites() {
     // Passthroughs (`/websites/manage` onto itself) exist only to stop the
     // wildcards hijacking real pages; Next already serves those first.
     .filter(([source, destination, status]) => status === '200' && source !== destination)
+    // The `.txt` twins serve the static export's RSC payload files; `next dev`
+    // answers RSC requests itself and has no such files.
+    .filter(([source]) => !source.endsWith('.txt'))
     .map(([source, destination]) => ({ source, destination }));
 }
 
