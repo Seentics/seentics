@@ -26,7 +26,7 @@ export interface TrafficOverviewProps {
   onViewChange?: (view: 'chart' | 'hourly') => void;
 }
 
-const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm';
+const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm';
 
 export function TrafficOverview({
   dailyStats,
@@ -50,7 +50,7 @@ export function TrafficOverview({
 
   return (
     <Card className={cn("col-span-full surface overflow-hidden pb-4", className)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 pt-5 px-6 shrink-0 border-b border-border">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 p-5 pb-3 shrink-0 border-b border-border">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Traffic Overview</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Visitor volume over time</p>
@@ -70,7 +70,7 @@ export function TrafficOverview({
 
           {/* View tabs */}
           <Tabs value={activeView} onValueChange={(value) => handleViewChange(value as 'chart' | 'hourly')}>
-            <TabsList className="h-8 bg-muted/50 p-0.5 rounded-lg gap-0.5">
+            <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5">
               <TabsTrigger value="chart" className={TAB_CLS}>
                 <BarChart3 className="h-3.5 w-3.5" />
                 Chart

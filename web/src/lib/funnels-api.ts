@@ -133,12 +133,13 @@ export const bulkDeleteFunnels = async (websiteId: string, funnelIds: string[]):
 export const getFunnelStats = async (
     websiteId: string,
     funnelId: string,
-    days: number = 30
+    days: number = 31
 ): Promise<FunnelStats> => {
     if (isDemo(websiteId)) {
         return demoFunnelStats() as any;
     }
-    const d = Math.min(366, Math.max(1, Math.round(Number(days) || 30)));
+    // Funnels read raw events, kept 31 days; the API caps a report there too.
+    const d = Math.min(31, Math.max(1, Math.round(Number(days) || 31)));
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`, {
         params: { days: d },
     });

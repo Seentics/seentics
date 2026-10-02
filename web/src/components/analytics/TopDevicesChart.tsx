@@ -149,10 +149,10 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
               <h3 className="text-base font-semibold tracking-tight">System Insights</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Devices, OS & tech specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted/50 p-0.5 rounded-lg shrink-0">
-             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
-             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
-             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted p-0.5 rounded-lg shrink-0">
+             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
+             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
+             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
            </TabsList>
         </div>
         

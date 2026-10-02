@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
+import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function FunnelCellStats({ funnel, dateRange, websiteId }: { funnel: Funnel; dateRange: number; websiteId: string }) {
@@ -48,7 +49,7 @@ export default function FunnelsPage() {
   const websiteId = params?.websiteId as string;
   const isDemoMode = isDemo(websiteId);
 
-  const [dateRange] = useState(30);
+  const [dateRange, setDateRange] = useState<number>(DEFAULT_FUNNEL_DAYS);
   const [search, setSearch] = useState('');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<Funnel | null>(null);
@@ -163,7 +164,7 @@ export default function FunnelsPage() {
     },
     {
       id: 'performance',
-      header: 'Performance (30d)',
+      header: `Performance (${FUNNEL_RANGES.find((r) => r.days === dateRange)?.short ?? `${dateRange}d`})`,
       cell: ({ row }: { row: any }) => (
         <FunnelCellStats funnel={row.original} dateRange={dateRange} websiteId={websiteId} />
       )
@@ -240,6 +241,7 @@ export default function FunnelsPage() {
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
       >
+        <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
         <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}
           size="sm"
@@ -251,7 +253,7 @@ export default function FunnelsPage() {
 
       <StatCards cards={summary} isLoading={funnelsLoading} />
 
-      <div className="mt-8">
+      <div className="mt-4">
         <DataTable
           columns={columns as any}
           data={filtered}

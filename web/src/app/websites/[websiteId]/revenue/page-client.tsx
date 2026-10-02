@@ -92,7 +92,7 @@ export default function RevenuePage() {
   if (isLoading) {
     return (
       <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
-        <div className="mb-8 flex justify-between items-start">
+        <div className="mb-4 flex justify-between items-start">
           <div className="space-y-2">
             <Skeleton className="h-8 w-28 rounded-lg" />
             <Skeleton className="h-4 w-60 rounded-lg" />
@@ -148,7 +148,7 @@ export default function RevenuePage() {
 
       {/* ── Attribution breakdown ── */}
       <h3 className="text-sm font-semibold text-foreground mb-2">Attribution breakdown</h3>
-      <Card className="border border-border mb-8 rounded-lg">
+      <Card className="border border-border mb-4 rounded-lg">
         <CardContent className="p-0">
           <Tabs defaultValue="source" className="w-full">
             <div className="border-b border-border overflow-x-auto">
@@ -172,7 +172,7 @@ export default function RevenuePage() {
             </div>
             <div className="p-4">
               <TabsContent value="source" className="mt-0">
-                <DimTable rows={data?.by_source ?? []} currency={cur} emptyMessage="No source data. Add UTM parameters to your marketing links." />
+                <DimTable icon="source" rows={data?.by_source ?? []} currency={cur} emptyMessage="No source data. Add UTM parameters to your marketing links." />
               </TabsContent>
               <TabsContent value="medium" className="mt-0">
                 <DimTable rows={data?.by_medium ?? []} currency={cur} emptyMessage="No medium data yet." />
@@ -184,7 +184,7 @@ export default function RevenuePage() {
                 <DimTable rows={data?.by_product ?? []} currency={cur} emptyMessage="No product data. Add product_name to your purchase events." />
               </TabsContent>
               <TabsContent value="country" className="mt-0">
-                <DimTable rows={data?.by_country ?? []} currency={cur} emptyMessage="No country data yet." />
+                <DimTable icon="country" rows={data?.by_country ?? []} currency={cur} emptyMessage="No country data yet." />
               </TabsContent>
             </div>
           </Tabs>

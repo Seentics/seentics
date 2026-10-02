@@ -5,10 +5,13 @@
  * script share one definition of the endpoint. Raw URLs live here and nowhere else.
  */
 import api from '@/lib/api';
+import { demoMutationGuard, isDemo } from '@/lib/demo';
+import { demoErrorGroup, demoErrorGroups } from '@/lib/demo/errors';
 import type { ErrorGroup, ErrorGroupDetail, ErrorGroupFilters, ErrorStatus } from './types';
 
 export const errorsApi = {
   async listGroups(websiteId: string, filters: ErrorGroupFilters): Promise<ErrorGroup[]> {
+    if (isDemo(websiteId)) return demoErrorGroups(filters);
     const params = new URLSearchParams({ days: String(filters.days) });
     if (filters.status) params.set('status', filters.status);
     if (filters.search) params.set('search', filters.search);
@@ -17,11 +20,13 @@ export const errorsApi = {
   },
 
   async getGroup(websiteId: string, fingerprint: string, days: number): Promise<ErrorGroupDetail> {
+    if (isDemo(websiteId)) return demoErrorGroup(fingerprint);
     const res = await api.get(`/errors/${websiteId}/groups/${fingerprint}?days=${days}`);
     return { group: res.data?.group ?? null, samples: res.data?.samples ?? [] };
   },
 
   async setStatus(websiteId: string, fingerprint: string, status: ErrorStatus): Promise<void> {
+    if (demoMutationGuard(websiteId)) return;
     await api.patch(`/errors/${websiteId}/groups/${fingerprint}`, { status });
   },
 };

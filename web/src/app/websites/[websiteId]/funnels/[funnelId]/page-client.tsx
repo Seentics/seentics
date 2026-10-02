@@ -2,7 +2,7 @@
 
 import { usePathSegment } from '@/lib/path-segment';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCards } from '@/components/seentics-ui/StatCards';
+import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +47,8 @@ export default function FunnelDetailPage() {
   const funnelId = params?.funnelId as string;
 
   const { data: funnels = [], isLoading: funnelsLoading } = useFunnels(websiteId);
-  const { data: analyticsData, isLoading: analyticsLoading } = useFunnelAnalytics(funnelId, 30, websiteId);
+  const [days, setDays] = useState<number>(DEFAULT_FUNNEL_DAYS);
+  const { data: analyticsData, isLoading: analyticsLoading } = useFunnelAnalytics(funnelId, days, websiteId);
 
   const funnel = funnels.find(f => f.id === funnelId);
   const analytics = analyticsData?.analytics?.[0];
@@ -150,7 +152,7 @@ export default function FunnelDetailPage() {
               <p className="mt-1 text-sm text-muted-foreground">{funnel.description}</p>
             ) : null}
           </div>
-          <p className="shrink-0 pt-1.5 text-xs text-muted-foreground">Last 30 days</p>
+          <FunnelRangeSelect value={days} onChange={setDays} />
         </div>
       </div>
 

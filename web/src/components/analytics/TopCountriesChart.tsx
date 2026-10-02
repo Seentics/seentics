@@ -17,9 +17,8 @@ interface TopCountriesChartProps {
   isLoading?: boolean;
 }
 
-export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
-  // Country name to ISO code mapping
-  const getCountryCode = (countryName: string): string => {
+/** Country name to ISO code, for the flags in /images/country. 'UN' when unknown. */
+export const getCountryCode = (countryName: string): string => {
     const countryMap: Record<string, string> = {
       'United States': 'US',
       'United States of America': 'US',
@@ -156,8 +155,9 @@ export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
 
     // Default fallback
     return 'UN';
-  };
+};
 
+export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
   // Use real data if available, otherwise show empty state
   const countryData = data?.top_countries?.map((item, index) => {
     const colors = ['#2563EB', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];

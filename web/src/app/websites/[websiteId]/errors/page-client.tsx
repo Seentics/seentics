@@ -11,11 +11,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, ChevronLeft } from 'lucide-react';
+import { Activity, Bug, ChevronLeft, Clock, Search, Sparkles } from 'lucide-react';
+import { StatCards } from '@/components/seentics-ui/StatCards';
+import { relativeTime } from '@/features/errors/format';
 import { ErrorGroupDetail } from '@/components/errors/error-group-detail';
 import { ErrorGroupList } from '@/components/errors/error-group-list';
 import { useErrorGroup, useErrorGroups } from '@/features/errors/queries';
 import { useSetErrorStatus } from '@/features/errors/mutations';
+import { isDemo } from '@/lib/demo';
+import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
 
 /**
  * Route composition only.
@@ -56,93 +60,116 @@ export default function ErrorsPage() {
   const detail    = useErrorGroup(websiteId, openFingerprint, days);
   const setStatusMutation = useSetErrorStatus(websiteId);
 
+  // Demo data is dated against a fixed clock; relative times read against it too.
+  const now = isDemo(websiteId) ? DEMO_REFERENCE_DATE.getTime() : undefined;
+
+  // Summary of the groups the filters return.
+  const list = groups ?? [];
+  const rangeStart = (now ?? Date.now()) - days * 86_400_000;
+  const newInRange = list.filter((g) => new Date(g.first_seen).getTime() >= rangeStart).length;
+  const lastSeen = list.reduce<string | null>(
+    (latest, g) => (!latest || g.last_seen > latest ? g.last_seen : latest), null,
+  );
+
   const watchReplay = (sessionId: string) =>
     router.push(`/websites/${websiteId}/replays/${sessionId}`);
 
   if (openFingerprint) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center gap-2 px-4 pt-4 sm:px-6">
-          <Button
-            variant="ghost" size="sm"
-            onClick={() => setOpenFingerprint(null)}
-            className="h-8 gap-1 px-2"
-          >
-            <ChevronLeft className="h-4 w-4" /> All errors
-          </Button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
-          {detail.isLoading || !detail.data?.group ? (
-            <div className="mt-3 h-40 animate-pulse rounded-xl bg-muted/50" />
-          ) : (
-            <ErrorGroupDetail
-              className="mt-3"
-              group={detail.data.group}
-              samples={detail.data.samples}
-              isUpdating={setStatusMutation.isPending}
-              onWatchReplay={watchReplay}
-              onSetStatus={(next) =>
-                setStatusMutation.mutate({ fingerprint: openFingerprint, status: next })
-              }
-            />
-          )}
-        </div>
+      <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+        <Button
+          variant="ghost" size="sm"
+          onClick={() => setOpenFingerprint(null)}
+          className="-ml-2 h-8 gap-1 px-2"
+        >
+          <ChevronLeft className="h-4 w-4" /> All errors
+        </Button>
+        {detail.isLoading || !detail.data?.group ? (
+          <div className="mt-3 h-40 animate-pulse rounded-xl bg-muted/50" />
+        ) : (
+          <ErrorGroupDetail
+            className="mt-3"
+            group={detail.data.group}
+            samples={detail.data.samples}
+            now={now}
+            isUpdating={setStatusMutation.isPending}
+            onWatchReplay={watchReplay}
+            onSetStatus={(next) =>
+              setStatusMutation.mutate({ fingerprint: openFingerprint, status: next })
+            }
+          />
+        )}
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Errors"
         description="Uncaught JavaScript errors from real visitors, grouped by fault."
         websiteId={websiteId}
-      />
-
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
-        <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search message or file…"
-            className="h-9 pl-8"
-          />
-        </div>
+      >
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-          <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {RANGES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              <SelectItem key={r.value} value={r.value} className="text-xs">{r.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </DashboardPageHeader>
+
+      <StatCards
+        isLoading={isLoading}
+        cards={[
+          { label: 'Error groups', value: list.length, icon: Bug, tone: 'danger', toneWhen: list.length > 0 },
+          { label: 'Occurrences', value: list.reduce((sum, g) => sum + g.event_count, 0), icon: Activity, tone: 'warning', toneWhen: list.length > 0 },
+          { label: 'New in this range', value: newInRange, icon: Sparkles, tone: 'info' },
+          { label: 'Last error', value: lastSeen ? relativeTime(lastSeen, now) : '—', icon: Clock },
+        ]}
+      />
 
       {error && (
-        <div className="px-4 pb-3 sm:px-6">
-          <Alert variant="destructive">
-            <AlertDescription>{(error as Error).message}</AlertDescription>
-          </Alert>
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{(error as Error).message}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
-        <ErrorGroupList
-          groups={groups ?? []}
-          isLoading={isLoading}
-          status={status}
-          onOpen={setOpenFingerprint}
-        />
-      </div>
+      <ErrorGroupList
+        groups={list}
+        isLoading={isLoading}
+        status={status}
+        now={now}
+        onOpen={setOpenFingerprint}
+        toolbarLeft={
+          <div>
+            <h3 className="font-semibold text-foreground">Error groups</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {list.length} fault{list.length !== 1 ? 's' : ''} in this range
+            </p>
+          </div>
+        }
+        toolbarRight={
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search errors..."
+              className="h-8 w-56 pl-8 text-xs"
+            />
+          </div>
+        }
+      />
     </div>
   );
 }

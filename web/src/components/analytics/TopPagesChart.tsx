@@ -188,10 +188,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
               <h3 className="text-base font-semibold tracking-tight">Top Pages</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Most visited & landing destinations</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded-lg shrink-0">
-             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
-             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
-             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg shrink-0">
+             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
+             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
+             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
            </TabsList>
         </div>
         

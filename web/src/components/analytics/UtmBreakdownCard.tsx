@@ -55,12 +55,12 @@ export function UtmBreakdownCard({
             onValueChange={(v) => onTabChange(v as UtmTab)}
             className="w-full shrink-0 md:w-auto"
           >
-            <TabsList className="grid h-8 w-full grid-cols-3 rounded-lg bg-muted/50 p-0.5">
+            <TabsList className="grid h-8 w-full grid-cols-3 rounded-lg bg-muted p-0.5">
               {TABS.map((t) => (
                 <TabsTrigger
                   key={t.value}
                   value={t.value}
-                  className="h-7 rounded-lg text-xs font-medium data-[state=active]:bg-background data-[state=inactive]:bg-transparent data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-sm"
+                  className="h-7 rounded-lg text-xs font-medium data-[state=active]:bg-card data-[state=inactive]:bg-transparent data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-sm"
                 >
                   {t.label}
                 </TabsTrigger>
@@ -69,7 +69,7 @@ export function UtmBreakdownCard({
           </Tabs>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="p-5 pt-4">
         <ChartErrorBoundary label="UTM breakdown">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <UTMPerformanceChart data={data as any} isLoading={isLoading} controlledTab={tab} />

@@ -74,14 +74,14 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     if (isLoading) {
         return (
-            <Card className={cn("surface overflow-hidden mb-6", className)}>
-                <CardHeader>
+            <Card className={cn("surface overflow-hidden", className)}>
+                <CardHeader className="p-5 pb-3">
                     <div className="animate-pulse space-y-2">
                         <div className="h-6 bg-accent/10 rounded-lg w-48 mb-2"></div>
                         <div className="h-4 bg-accent/10 rounded-lg w-64"></div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                     <div className="animate-pulse h-[600px] bg-accent/5 rounded-lg" />
                 </CardContent>
             </Card>
@@ -90,7 +90,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     return (
         <Card className={cn("surface overflow-hidden", className)}>
-            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-border">
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 pb-3 border-b border-border">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
                         Geographic Intelligence
@@ -99,16 +99,16 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents')}>
-                        <TabsList className="h-8 bg-muted/50 p-0.5 rounded-lg gap-0.5 flex-wrap">
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">2D map</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">3D map</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">Countries</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">Cities</TabsTrigger>
+                        <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5 flex-wrap">
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">2D map</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">3D map</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">Countries</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">Cities</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 </div>
             </CardHeader>
-            <CardContent className=" pt-2">
+            <CardContent className="p-5 pt-4">
                 <div className="min-h-[400px]">
                     {!hasGeoBreakdown && !isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-lg border border-dashed border-border">

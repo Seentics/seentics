@@ -3,7 +3,8 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { errorsApi } from './api';
 import type { ErrorGroupFilters } from './types';
 
-const isValidId = (id: string) => !!id && id !== 'demo';
+// The demo site is valid too: errorsApi answers it from lib/demo/errors.
+const isValidId = (id: string) => !!id;
 
 /**
  * Key factory. Every key descends from `all`, so a mutation can invalidate the whole

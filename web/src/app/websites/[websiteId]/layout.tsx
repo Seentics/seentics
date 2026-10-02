@@ -15,6 +15,8 @@ export default function Layout({ children }: LayoutProps) {
   const websiteId = usePathSegment(1) ?? ''; // /websites/:websiteId/...
   const pathname = usePathname();
   const isAiMode = pathname === `/websites/${websiteId}/ai`;
+  // The analytics overview keeps its denser type; every other page gets .dash-type (globals.css).
+  const isOverview = pathname.replace(/\/$/, '') === `/websites/${websiteId}`;
 
   return (
     <div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
@@ -23,7 +25,7 @@ export default function Layout({ children }: LayoutProps) {
         flex flex-col + min-h-0: children can use flex-1 (e.g. session replay) and get real height.
         flex-1 + h-screen on <main> alone did not pass height into nested flex columns reliably.
       */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+      <main className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto${isOverview ? '' : ' dash-type'}`}>
         {children}
       </main>
       {websiteId && !isAiMode && <DashboardContentOverlay websiteId={websiteId} />}

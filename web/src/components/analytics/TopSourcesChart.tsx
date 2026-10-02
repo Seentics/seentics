@@ -56,7 +56,7 @@ const getCanonicalName = (referrer: string): string => {
   return domain || referrer;
 };
 
-const getSourceImage = (label: string) => {
+export const getSourceImage = (label: string) => {
   const lower = label.toLowerCase();
   if (lower.includes('google')) return '/images/sources/google.png';
   if (lower.includes('bing') || lower.includes('microsoft')) return '/images/sources/bing.png';
@@ -266,10 +266,10 @@ export function TopSourcesChart({
               <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded-lg">
-             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
-             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
-             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg">
+             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
+             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
            </TabsList>
         </div>
 
