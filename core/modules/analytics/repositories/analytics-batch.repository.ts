@@ -133,6 +133,20 @@ export async function ingestAnalyticsBatch(
     SELECT ${websiteId}, d::date FROM unnest(string_to_array(${days.join(",")}, ',')) AS d
     ON CONFLICT (website_id, day) DO UPDATE SET staled_at = now()
   `);
+  // And add them to the per-day counts the monthly quota is summed from (db/sql/040) —
+  // same transaction, so the count and the rows cannot disagree.
+  const perDay = new Map<string, number>();
+  for (const r of rows) {
+    const day = (r.occurredAt as Date).toISOString().slice(0, 10);
+    perDay.set(day, (perDay.get(day) ?? 0) + 1);
+  }
+  await tx.execute(sql`
+    INSERT INTO analytics_event_counts (website_id, day, events)
+    SELECT ${websiteId}, d::date, n::bigint
+    FROM unnest(string_to_array(${[...perDay.keys()].join(",")}, ','),
+                string_to_array(${[...perDay.values()].join(",")}, ',')) AS t(d, n)
+    ON CONFLICT (website_id, day) DO UPDATE SET events = analytics_event_counts.events + EXCLUDED.events
+  `);
   log.debug({
     msg: "analytics_ingest_inserted",
     website_id: websiteId,

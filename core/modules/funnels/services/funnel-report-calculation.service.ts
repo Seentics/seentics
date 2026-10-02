@@ -1,9 +1,13 @@
 import type { FunnelReport, FunnelStep } from "../interfaces";
 import type { FunnelStepCount } from "../interfaces";
 
-/** Widest window the report will look back over, in days. */
-const MAX_REPORT_DAYS = 366;
-const DEFAULT_REPORT_DAYS = 30;
+/**
+ * Widest window the report will look back over, in days. A funnel follows each visitor
+ * through raw events, which are kept 31 days (analytics db/sql/038) — a longer window
+ * would count only its last 31 days and report them as the whole range.
+ */
+const MAX_REPORT_DAYS = 31;
+const DEFAULT_REPORT_DAYS = 31;
 const MS_PER_DAY = 86_400_000;
 
 /**

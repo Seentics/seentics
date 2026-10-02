@@ -20,6 +20,8 @@ import { log as baseLog } from "../../../platform/observability/logger";
 import { coreMetrics } from "../../../platform/observability/observe";
 import { pagePathSql, referrerDomainSql, withoutVersionSql } from "../lib/dimension-sql";
 import { channelCaseSql } from "../lib/traffic-channel";
+import { rawEventsFrom } from "../lib/raw-window";
+import { rebuildRevenueOrders } from "./revenue-orders";
 
 const log = baseLog.child({ category: "analytics_rollups" });
 
@@ -43,9 +45,12 @@ const shiftDay = (day: string, offsetDays: number) => dayBound(day, offsetDays).
 export async function rebuildWebsiteDay(websiteId: string, day: string): Promise<void> {
   const dayStart = dayBound(day, 0);
   const dayEnd = dayBound(day, 1);
-  // Sessions are read with a day either side: one that started the evening before
-  // must not look like it started today, and one that starts today may run past midnight.
-  const scanFrom = dayBound(day, -1);
+  // Sessions are read from this day to the end of the next — one that starts today may
+  // run past midnight. One that started the evening before must not look like it started
+  // today: that is checked per session against the day before (`lookBack`), through the
+  // (website, session, time) index, instead of reading the whole previous day — which
+  // doubled the rows every rebuild of today read.
+  const lookBack = dayBound(day, -1);
   const scanTo = dayBound(day, 2);
   const u = (text: string) => sql.unsafe(text);
 
@@ -75,14 +80,21 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
           ${u(VISITOR_KEY)} AS vk
         FROM analytics_events
         WHERE website_id = ${websiteId}
-          AND occurred_at >= ${scanFrom} AND occurred_at < ${scanTo}
+          AND occurred_at >= ${dayStart} AND occurred_at < ${scanTo}
           AND session_id IS NOT NULL AND length(trim(session_id)) > 0
       ),
       started AS (
-        SELECT session_id FROM ev
-        GROUP BY session_id
-        HAVING min(occurred_at) FILTER (WHERE event_type = 'pageview') >= ${dayStart}
-           AND min(occurred_at) FILTER (WHERE event_type = 'pageview') < ${dayEnd}
+        SELECT g.session_id FROM (
+          SELECT session_id FROM ev
+          GROUP BY session_id
+          HAVING min(occurred_at) FILTER (WHERE event_type = 'pageview') < ${dayEnd}
+        ) g
+        WHERE NOT EXISTS (
+          SELECT 1 FROM analytics_events prev
+          WHERE prev.website_id = ${websiteId} AND prev.session_id = g.session_id
+            AND prev.event_type = 'pageview'
+            AND prev.occurred_at >= ${lookBack} AND prev.occurred_at < ${dayStart}
+        )
       )
       INSERT INTO analytics_rollup_sessions (
         website_id, day, session_id, visitor_key, started_at, ended_at, pageviews,
@@ -254,6 +266,34 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
       GROUP BY properties->>'name'
     `;
 
+    // Event properties: per event type, property and value, how often. Stored in the
+    // `value` column as type, key and value joined by U+001F. Kept to scalar values of
+    // at most 100 characters, the top 20 values of each property, and values seen in at
+    // least two sessions that day — which also leaves out one-off identifiers (emails,
+    // order ids) that would otherwise outlive the raw events in the rollups.
+    await tx`
+      INSERT INTO analytics_rollup_daily (website_id, day, dimension, value, pageviews, sessions, visitors)
+      SELECT ${websiteId}, ${day}::date, 'event_prop', event_type || chr(31) || key || chr(31) || val,
+             n, sessions, hll_empty(${u(HLL_PARAMS)})
+      FROM (
+        SELECT event_type, key, val, count(*) AS n, count(DISTINCT session_id) AS sessions,
+               row_number() OVER (PARTITION BY event_type, key ORDER BY count(*) DESC, val) AS rank
+        FROM (
+          SELECT e.event_type, p.key, p.value #>> '{}' AS val, e.session_id
+          FROM analytics_events e
+          CROSS JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(e.properties) = 'object' THEN e.properties ELSE '{}'::jsonb END) AS p(key, value)
+          WHERE e.website_id = ${websiteId} AND e.event_type <> 'pageview'
+            AND e.occurred_at >= ${dayStart} AND e.occurred_at < ${dayEnd}
+            AND jsonb_typeof(p.value) IN ('string', 'number', 'boolean')
+            AND length(p.value #>> '{}') BETWEEN 1 AND 100
+            AND length(p.key) <= 64
+        ) props
+        GROUP BY event_type, key, val
+        HAVING count(DISTINCT session_id) >= 2
+      ) ranked
+      WHERE rank <= 20
+    `;
+
     // ── Hourly site totals ─────────────────────────────────────────────────────
     await tx`
       DELETE FROM analytics_rollup_hourly
@@ -270,6 +310,9 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
       GROUP BY date_trunc('hour', occurred_at)
     `;
 
+    // ── Orders, for the revenue dashboard over any range ───────────────────────
+    await rebuildRevenueOrders(tx, websiteId, day, dayStart, dayEnd);
+
     // ── First day each visitor was seen ────────────────────────────────────────
     await tx`
       INSERT INTO analytics_rollup_visitor_first_seen (website_id, visitor_key, first_day)
@@ -282,6 +325,62 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         DO UPDATE SET first_day = least(analytics_rollup_visitor_first_seen.first_day, excluded.first_day)
     `;
   });
+}
+
+/**
+ * Days of session rows kept: today and the two before it. A session row is a working
+ * step — rebuildWebsiteDay deletes a day's rows and recreates them from raw events, and
+ * only that day's rows feed its daily rollups — so an old row is never read again.
+ * Ingest accepts timestamps up to 48 h back (platform/http/client-timestamp.ts), so live
+ * rebuilds stay within these days; one further back recreates its rows from raw anyway.
+ * Without this the table kept a row (~600 bytes, with session and visitor ids) for every
+ * session ever — the largest analytics table in the 4 GB benchmark.
+ */
+const SESSION_ROW_DAYS = 3;
+const PRUNE_EVERY_MS = 3_600_000;
+let lastPrune = 0;
+
+async function pruneSessionRows(): Promise<void> {
+  if (Date.now() - lastPrune < PRUNE_EVERY_MS) return;
+  lastPrune = Date.now();
+  const deleted = await sql`
+    DELETE FROM analytics_rollup_sessions
+    WHERE day < (now() AT TIME ZONE 'UTC')::date - ${SESSION_ROW_DAYS - 1}::int
+  `;
+  if (deleted.count) log.info({ msg: "rollup_session_rows_pruned", rows: deleted.count });
+}
+
+/**
+ * Pacing: how soon a website-day may be rebuilt again.
+ *
+ * A rebuild recomputes the whole day from raw events, so its cost grows with the day's
+ * traffic, and a busy site is marked stale by nearly every batch. Rebuilding it on every
+ * 30 s run (and on every dashboard read, rollups/reads.ts) let one large site occupy the
+ * builder and Postgres for most of each interval. A day is rebuilt again only after
+ * REBUILD_COST_FACTOR times its last rebuild's duration — so the builder spends at most
+ * ~1/REBUILD_COST_FACTOR of its time on any one site-day — and never sooner than
+ * MIN_REBUILD_GAP_MS. A small site (rebuilds of a few ms) stays fresh as of each run; a
+ * site whose day takes 2 s to rebuild is at most ~40 s behind. Realtime views read raw
+ * events and are unaffected. Process-local: one builder per Core process.
+ */
+const REBUILD_COST_FACTOR = 20;
+const MIN_REBUILD_GAP_MS = 5_000;
+const LAST_REBUILD_MAX = 50_000;
+const lastRebuild = new Map<string, { at: number; ms: number }>();
+
+function rebuildDue(key: string, now: number): boolean {
+  const last = lastRebuild.get(key);
+  return !last || now - last.at >= Math.max(MIN_REBUILD_GAP_MS, last.ms * REBUILD_COST_FACTOR);
+}
+
+function recordRebuild(key: string, ms: number): void {
+  if (lastRebuild.size >= LAST_REBUILD_MAX) lastRebuild.clear();
+  lastRebuild.set(key, { at: Date.now(), ms });
+}
+
+/** For tests. */
+export function resetRebuildPacingForTests(): void {
+  lastRebuild.clear();
 }
 
 /**
@@ -309,6 +408,8 @@ export async function buildStaleRollups(
   // website-day) and are built on the first run after the extension arrives.
   const [ready] = await sql<{ ok: boolean }[]>`SELECT to_regclass('analytics_rollup_daily') IS NOT NULL AS ok`;
   if (!ready?.ok) return { rebuilt: 0, ms: 0 };
+  // The scheduled run only, not a dashboard read's refresh of one site.
+  if (!opts.websiteId) await pruneSessionRows();
 
   const recentFrom = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
   const stale = await sql<{ website_id: string; day: string; staled_at: Date }[]>`
@@ -322,11 +423,26 @@ export async function buildStaleRollups(
   if (stale.length === 0) return { rebuilt: 0, ms: 0 };
 
   const now = Date.now();
+  const rawFrom = await rawEventsFrom();
   const targets = new Map<string, { websiteId: string; day: string }>();
-  const add = (websiteId: string, day: string) => targets.set(`${websiteId}|${day}`, { websiteId, day });
+  const deferred = new Set<string>();
+  const add = (websiteId: string, day: string) => {
+    // A rebuild deletes the day's rollups and recomputes them from raw events. Past the
+    // raw retention window those events are gone, so it would wipe the day's numbers.
+    if (rawFrom && day < rawFrom) return;
+    const key = `${websiteId}|${day}`;
+    if (!rebuildDue(key, now)) {
+      deferred.add(key);
+      return;
+    }
+    targets.set(key, { websiteId, day });
+  };
   for (const row of stale) {
     if (now - Date.parse(`${row.day}T00:00:00Z`) < 6 * 3_600_000) add(row.website_id, shiftDay(row.day, -1));
     add(row.website_id, row.day);
+  }
+  if (rawFrom && stale.some((row) => row.day < rawFrom)) {
+    log.warn({ msg: "rollup_rebuild_skipped_past_raw_retention", raw_from: rawFrom });
   }
 
   let rebuilt = 0;
@@ -336,7 +452,9 @@ export async function buildStaleRollups(
     try {
       await rebuildWebsiteDay(websiteId, day);
       rebuilt++;
-      coreMetrics.rollupRebuild.record(performance.now() - started, { outcome: "ok" });
+      const ms = performance.now() - started;
+      recordRebuild(`${websiteId}|${day}`, ms);
+      coreMetrics.rollupRebuild.record(ms, { outcome: "ok" });
     } catch (e) {
       coreMetrics.rollupRebuild.record(performance.now() - started, { outcome: "failed" });
       // Left stale and retried next run; one bad day must not block the others.
@@ -346,7 +464,9 @@ export async function buildStaleRollups(
   }
 
   for (const row of stale) {
-    if (failed.has(`${row.website_id}|${row.day}`)) continue;
+    const key = `${row.website_id}|${row.day}`;
+    // A paced day keeps its marker and is built on a later run.
+    if (failed.has(key) || deferred.has(key)) continue;
     await sql`
       DELETE FROM analytics_rollup_stale
       WHERE website_id = ${row.website_id} AND day = ${row.day}::date AND staled_at <= ${row.staled_at}

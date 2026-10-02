@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { fakeDbModule, fakeLogger, queueRows, resetDb, sqlCalls } from "./helpers/fake-db";
 
 /**
@@ -74,17 +74,27 @@ describe("getRevenueDashboard", () => {
     expect(sqlCalls).toHaveLength(1);
   });
 
-  it("defaults to a thirty-day window", async () => {
+  it("defaults to the 31-day raw-event window", async () => {
     revenueRow();
-    expect((await getRevenueDashboard(SITE, {})).days).toBe(30);
+    expect((await getRevenueDashboard(SITE, {})).days).toBe(31);
   });
 
+  // Revenue is computed from raw events, which are kept 31 days.
   it("reports the clamped window, not the raw parameter", async () => {
     revenueRow();
-    expect((await getRevenueDashboard(SITE, { days: "-5" })).days).toBe(30);
+    expect((await getRevenueDashboard(SITE, { days: "-5" })).days).toBe(31);
     resetDb();
     revenueRow();
-    expect((await getRevenueDashboard(SITE, { days: "90" })).days).toBe(90);
+    expect((await getRevenueDashboard(SITE, { days: "90" })).days).toBe(31);
+  });
+
+  // The prior period of a 31-day view reaches 62 days back, past the raw events.
+  it("leaves out the comparison when the prior period is not fully stored", async () => {
+    revenueRow();
+    expect((await getRevenueDashboard(SITE, { days: "31" })).summary.prior_period).toBeUndefined();
+    resetDb();
+    revenueRow();
+    expect((await getRevenueDashboard(SITE, { days: "7" })).summary.prior_period).toBeDefined();
   });
 
   it("sanitises the timezone before bucketing daily revenue", async () => {
@@ -150,12 +160,15 @@ describe("getRevenueDashboard", () => {
   });
 
   describe("period comparison", () => {
+    // A week: its prior period (8–14 days back) is within the raw-event window.
+    const WEEK = { days: "7" };
+
     it("expresses the change as a percentage of prior revenue, to one decimal", async () => {
       revenueRow({
         ...summary({ summary: { total_revenue: 1500, orders: 8, orders_with_value: 8, unique_customers: 6, new_cust_revenue: null } }),
         prior: { prior_revenue: 1000, prior_orders: 5 },
       });
-      const prior = (await getRevenueDashboard(SITE, {})).summary.prior_period;
+      const prior = (await getRevenueDashboard(SITE, WEEK)).summary.prior_period!;
       expect(prior).toEqual({ total_revenue: 1000, orders: 5, change_pct: 50 });
     });
 
@@ -164,7 +177,7 @@ describe("getRevenueDashboard", () => {
         ...summary({ summary: { total_revenue: 750, orders: 3, orders_with_value: 3, unique_customers: 3, new_cust_revenue: null } }),
         prior: { prior_revenue: 1000, prior_orders: 5 },
       });
-      expect((await getRevenueDashboard(SITE, {})).summary.prior_period.change_pct).toBe(-25);
+      expect((await getRevenueDashboard(SITE, WEEK)).summary.prior_period!.change_pct).toBe(-25);
     });
 
     it("returns 0 rather than Infinity when the prior period had no revenue", async () => {
@@ -172,14 +185,14 @@ describe("getRevenueDashboard", () => {
         ...summary({ summary: { total_revenue: 900, orders: 3, orders_with_value: 3, unique_customers: 3, new_cust_revenue: null } }),
         prior: { prior_revenue: 0, prior_orders: 0 },
       });
-      const pct = (await getRevenueDashboard(SITE, {})).summary.prior_period.change_pct;
+      const pct = (await getRevenueDashboard(SITE, WEEK)).summary.prior_period!.change_pct;
       expect(pct).toBe(0);
       expect(Number.isFinite(pct)).toBe(true);
     });
 
     it("survives a null prior block", async () => {
       revenueRow({ ...summary(), prior: null });
-      expect((await getRevenueDashboard(SITE, {})).summary.prior_period).toEqual({
+      expect((await getRevenueDashboard(SITE, WEEK)).summary.prior_period!).toEqual({
         total_revenue: 0,
         orders: 0,
         change_pct: 0,
@@ -456,5 +469,60 @@ describe("getRevenueDashboard", () => {
       expect(out.summary.total_revenue).toBe(0);
       expect(out.data_quality).toBe("no_revenue");
     });
+  });
+});
+
+/**
+ * With the rollups, orders come from the orders rollup (db/sql/039), which the builder
+ * keeps for good — so any range works, unlike raw events (31 days).
+ */
+describe("getRevenueDashboard from the orders rollup", () => {
+  let reads: any;
+
+  beforeAll(async () => {
+    reads = await import("../rollups/reads");
+    reads.setRollupsEnabled(true);
+    reads.setRollupRefresher(async () => {});
+  });
+
+  afterAll(() => reads.setRollupsEnabled(false));
+
+  /** The site totals dashboardRows reads first, then the revenue row. */
+  function queueSiteAndRevenue(revenue: Record<string, unknown> = {}) {
+    queueRows(
+      [{ sessions: 400, uv: 300 }],
+      [{ ...summary(), prior: { prior_revenue: 800, prior_orders: 6 }, ...revenue }],
+    );
+  }
+
+  it("serves a 90-day range without clamping it", async () => {
+    queueSiteAndRevenue();
+    expect((await getRevenueDashboard(SITE, { days: "90" })).days).toBe(90);
+  });
+
+  it("reads the orders rollup over the window's calendar days", async () => {
+    queueSiteAndRevenue();
+    await getRevenueDashboard(SITE, { days: "90" });
+    const revenue = sqlCalls.at(-1)!;
+    expect(revenue.text).toContain("FROM analytics_revenue_orders");
+    // The raw-event side is switched off and the rollup side on.
+    expect(revenue.values).toContain(true);
+    expect(revenue.values).toContain(false);
+    const { from, to, prevFrom, prevTo } = reads.rollupWindow(90);
+    for (const day of [from, to, prevFrom, prevTo]) expect(revenue.values).toContain(day);
+  });
+
+  it("keeps the comparison for a long range", async () => {
+    queueSiteAndRevenue();
+    const prior = (await getRevenueDashboard(SITE, { days: "90" })).summary.prior_period;
+    expect(prior).toEqual({ total_revenue: 800, orders: 6, change_pct: 25 });
+  });
+
+  it("hands the site rollup's sessions and visitors to the query", async () => {
+    queueSiteAndRevenue();
+    await getRevenueDashboard(SITE, { days: "90" });
+    const values = sqlCalls.at(-1)!.values;
+    expect(values).toContain(400);
+    expect(values).toContain(300);
   });
 });

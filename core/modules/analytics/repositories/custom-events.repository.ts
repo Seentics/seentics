@@ -2,6 +2,41 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 import { rollupsEnabled, topRows } from "../rollups/reads";
 
+/** Most (event, property, value) rows read for one window; the top ones by count. */
+const PROPERTY_ROWS = 2000;
+const KEYS_PER_EVENT = 10;
+const VALUES_PER_KEY = 8;
+
+/**
+ * `event_prop` rollup rows — value is "<event type>\x1f<key>\x1f<value>" — into
+ * event type → property → value → count, each property's top values and each event's
+ * top properties by total count.
+ */
+export function groupEventProperties(
+  rows: { k: string; views: number }[],
+): Map<string, Record<string, Record<string, number>>> {
+  const byEvent = new Map<string, Map<string, Map<string, number>>>();
+  for (const { k, views } of rows) {
+    const [event, key, value] = k.split("\x1f");
+    if (event === undefined || key === undefined || value === undefined) continue;
+    const keys = byEvent.get(event) ?? new Map<string, Map<string, number>>();
+    const values = keys.get(key) ?? new Map<string, number>();
+    values.set(value, (values.get(value) ?? 0) + Number(views));
+    keys.set(key, values);
+    byEvent.set(event, keys);
+  }
+  const out = new Map<string, Record<string, Record<string, number>>>();
+  for (const [event, keys] of byEvent) {
+    const total = (values: Map<string, number>) => [...values.values()].reduce((a, n) => a + n, 0);
+    const topKeys = [...keys.entries()].sort((a, b) => total(b[1]) - total(a[1]) || a[0].localeCompare(b[0])).slice(0, KEYS_PER_EVENT);
+    out.set(event, Object.fromEntries(topKeys.map(([key, values]) => [
+      key,
+      Object.fromEntries([...values.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, VALUES_PER_KEY)),
+    ])));
+  }
+  return out;
+}
+
 export async function getCustomEventsAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
@@ -117,6 +152,12 @@ export async function getCustomEventsAnalytics(
     `,
   ]);
 
+  // Property breakdowns, from the `event_prop` rollup (rollups/builder.ts) — so they
+  // cover any range. Without the rollups there are none.
+  const topProperties = rollupsEnabled()
+    ? groupEventProperties(await topRows(websiteId, "event_prop", days, PROPERTY_ROWS, "views", false))
+    : new Map<string, Record<string, Record<string, number>>>();
+
   const eventPayload = rows.map((x) => ({
     event_type:          x.event_type,
     count:               x.c,
@@ -128,6 +169,7 @@ export async function getCustomEventsAnalytics(
     unique_sessions:     Number(x.unique_sessions),
     engagement_rate:     0,
     expected_properties: [] as string[],
+    top_properties:      topProperties.get(x.event_type) ?? {},
   }));
 
   const sources   = sourceRows.map((r)   => ({ source:   r.label, unique_visitors: Number(r.unique_visitors ?? 0), visits: Number(r.visits ?? 0) }));

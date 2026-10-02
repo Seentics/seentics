@@ -487,11 +487,11 @@ describe("getExportAnalytics", () => {
     expect(out.data[0].screen_width).toBeNull();
   });
 
-  it("defaults to a thirty-day window and tolerates a missing query bag", async () => {
+  it("defaults to the 31-day raw-event window and tolerates a missing query bag", async () => {
     queueRows([]);
     const out = await getExportAnalytics(SITE);
-    expect(out.date_range).toBe("30d");
-    expect(windowDays()).toBe(30);
+    expect(out.date_range).toBe("31d");
+    expect(windowDays()).toBe(31);
   });
 
   it("includes every event type, not just pageviews", async () => {

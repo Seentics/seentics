@@ -1,11 +1,13 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { occurredAtToIso, parseDays, windowStartIso } from "./shared";
+import { clampRawDays, RAW_EVENT_DAYS } from "../lib/raw-window";
 
 export async function getExportAnalytics(
   websiteId: string,
   query?: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query?.days, 30);
+  // A raw export: there is no raw data past 31 days (lib/raw-window.ts).
+  const days = clampRawDays(parseDays(query?.days, RAW_EVENT_DAYS));
   const startIso = windowStartIso(days);
 
   const rows = await pgSql<{

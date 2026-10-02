@@ -10,8 +10,9 @@
  */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { channelCaseSql } from "../lib/traffic-channel";
-import { dashboardRows, rollupsEnabled } from "../rollups/reads";
+import { dashboardRows, rollupWindow, rollupsEnabled } from "../rollups/reads";
 import { parseDays, sanitizeTimezone } from "./shared";
+import { clampRawDays, RAW_EVENT_DAYS } from "../lib/raw-window";
 
 function addSharePct(
   rows: Array<{ name: string; revenue: number; orders: number }>,
@@ -132,8 +133,17 @@ async function fetchRevenueRow(
   timezone: string,
   /** Site sessions and visitors from the rollups, when available — see session_cnt. */
   siteCounts: { sessions: number; visitors: number } | null = null,
+  /**
+   * Read orders from the orders rollup (db/sql/039) over these UTC calendar days instead
+   * of from raw events. Raw events are kept 31 days; the rollup covers any range.
+   */
+  orders: { from: string; to: string; prevFrom: string; prevTo: string } | null = null,
 ): Promise<MainRow | undefined> {
   const scanRaw = siteCounts === null;
+  // One query either way: each source's CTEs are gated by a bound boolean, which
+  // Postgres evaluates once as a one-time filter, so the unused side costs nothing.
+  const fromOrders = orders !== null;
+  const w = orders ?? { from: "1970-01-01", to: "1970-01-01", prevFrom: "1970-01-01", prevTo: "1970-01-01" };
   const [row] = await pgSql<MainRow[]>`
     WITH
     -- ── Step 1: all revenue events spanning current + prior window ──────────────
@@ -207,6 +217,7 @@ async function fetchRevenueRow(
         )
         AND occurred_at >= ${prevStartIso}
         AND occurred_at <= ${endIso}
+        AND ${!fromOrders}
     ),
 
     -- ── Step 2: partition into current / prior / refunds ─────────────────────────
@@ -234,7 +245,7 @@ async function fetchRevenueRow(
         END ASC,
         occurred_at DESC
     ),
-    cur_refunds AS (
+    raw_refunds AS (
       SELECT * FROM revenue_base
       WHERE occurred_at >= ${startIso} AND rev_type = 'refund'
     ),
@@ -243,7 +254,7 @@ async function fetchRevenueRow(
       WHERE occurred_at < ${startIso} AND rev_type = 'purchase'
     ),
     -- Same deduplication applied to the prior window for accurate period comparison.
-    prior_purchases AS (
+    raw_prior AS (
       SELECT DISTINCT ON (COALESCE(NULLIF(TRIM(order_id), ''), id))
         *
       FROM prior_purchases_raw
@@ -284,7 +295,7 @@ async function fetchRevenueRow(
     -- Priority: session pageview UTM → purchase-event UTM → referrer domain → 'direct'
     -- When the source comes from the referrer (no UTM), medium is that pageview's
     -- channel, which distinguishes search, social and plain referral traffic.
-    enriched AS (
+    raw_enriched AS (
       SELECT
         p.id,
         p.occurred_at,
@@ -339,6 +350,57 @@ async function fetchRevenueRow(
           ) s
         ) t
       ) pa ON true
+    ),
+
+    -- ── The same three sets from the orders rollup (db/sql/039) ───────────────────
+    -- The builder already deduplicated each day's purchases and attributed them
+    -- (rollups/revenue-orders.ts); an order seen on two days is deduplicated here.
+    orders_cur AS (
+      SELECT DISTINCT ON (order_key)
+        event_id AS id, occurred_at, value AS raw_value, currency, user_type, product_name,
+        order_id, country, visitor_key AS visitor_id, NULL::text AS session_id, items AS items_json,
+        source AS final_source, medium AS final_medium, campaign AS final_campaign
+      FROM analytics_revenue_orders
+      WHERE ${fromOrders} AND website_id = ${websiteId} AND kind = 'purchase'
+        AND day BETWEEN ${w.from}::date AND ${w.to}::date
+      ORDER BY order_key,
+        CASE event_type
+          WHEN 'purchase' THEN 1 WHEN 'order_completed' THEN 2 WHEN 'ecommerce_purchase' THEN 3
+          WHEN 'transaction' THEN 4 WHEN 'checkout_completed' THEN 5 ELSE 6
+        END, occurred_at DESC
+    ),
+    orders_refunds AS (
+      SELECT value AS raw_value FROM analytics_revenue_orders
+      WHERE ${fromOrders} AND website_id = ${websiteId} AND kind = 'refund'
+        AND day BETWEEN ${w.from}::date AND ${w.to}::date
+    ),
+    orders_prior AS (
+      SELECT DISTINCT ON (order_key) value AS raw_value
+      FROM analytics_revenue_orders
+      WHERE ${fromOrders} AND website_id = ${websiteId} AND kind = 'purchase'
+        AND day BETWEEN ${w.prevFrom}::date AND ${w.prevTo}::date
+      ORDER BY order_key,
+        CASE event_type
+          WHEN 'purchase' THEN 1 WHEN 'order_completed' THEN 2 WHEN 'ecommerce_purchase' THEN 3
+          WHEN 'transaction' THEN 4 WHEN 'checkout_completed' THEN 5 ELSE 6
+        END, occurred_at DESC
+    ),
+
+    -- Whichever source is live; the other side is empty.
+    enriched AS (
+      SELECT id, occurred_at, raw_value, currency, user_type, product_name, order_id,
+             country::text, visitor_id, session_id, items_json, final_source, final_medium, final_campaign
+      FROM raw_enriched
+      UNION ALL
+      SELECT id, occurred_at, raw_value, currency, user_type, product_name, order_id,
+             country, visitor_id, session_id, items_json, final_source, final_medium, final_campaign
+      FROM orders_cur
+    ),
+    cur_refunds AS (
+      SELECT raw_value FROM raw_refunds UNION ALL SELECT raw_value FROM orders_refunds
+    ),
+    prior_purchases AS (
+      SELECT raw_value FROM raw_prior UNION ALL SELECT raw_value FROM orders_prior
     ),
 
     -- ── Step 5: scalar aggregations ───────────────────────────────────────────────
@@ -436,7 +498,7 @@ async function fetchRevenueRow(
          ORDER BY occurred_at DESC
          LIMIT 50
        ) t)                                                                              AS recent_transactions
-  `;;
+  `;
   return row;
 }
 
@@ -444,18 +506,29 @@ export async function getRevenueDashboard(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days, 30);
   const timezone = sanitizeTimezone(query.timezone);
 
+  // With the rollups, orders come from the orders rollup (db/sql/039) and any range
+  // works, comparison included. dashboardRows refreshes today's rollups first, orders
+  // among them, so the newest purchase is counted.
+  if (rollupsEnabled()) {
+    const days = parseDays(query.days, 30);
+    const siteCounts = await dashboardRows(websiteId, days)
+      .then(({ agg, sess }) => ({ sessions: sess.session_cnt, visitors: agg.uv }));
+    const w = rollupWindow(days);
+    const row = await fetchRevenueRow(
+      websiteId, `${w.from}T00:00:00Z`, new Date().toISOString(), `${w.prevFrom}T00:00:00Z`,
+      timezone, siteCounts, w,
+    );
+    return row ? shapeRevenueDashboard(websiteId, days, row, true) : emptyRevenueDashboard(websiteId, days);
+  }
+
+  // Without them, from raw events, which are kept 31 days.
+  const days = clampRawDays(parseDays(query.days, RAW_EVENT_DAYS));
   const end = new Date();
   const start = new Date(end.getTime() - days * 86_400_000);
   const prevStart = new Date(start.getTime() - days * 86_400_000);
-
-  // Site sessions and visitors come from the rollups when available; they cover calendar
-  // days rather than this rolling window, which only nudges revenue-per-session.
-  const siteCounts = rollupsEnabled()
-    ? await dashboardRows(websiteId, days).then(({ agg, sess }) => ({ sessions: sess.session_cnt, visitors: agg.uv }))
-    : null;
+  const siteCounts = null;
 
   const row = await fetchRevenueRow(
     websiteId,
@@ -466,7 +539,12 @@ export async function getRevenueDashboard(
     siteCounts,
   );
 
-  return row ? shapeRevenueDashboard(websiteId, days, row) : emptyRevenueDashboard(websiteId, days);
+  // The prior period reaches back twice the range. Past the raw-event window (31 days,
+  // lib/raw-window.ts) part of it is gone, and comparing against a half-empty period
+  // reports growth that never happened — so the comparison is left out instead.
+  const priorComplete = prevStart.getTime() >= end.getTime() - RAW_EVENT_DAYS * 86_400_000;
+
+  return row ? shapeRevenueDashboard(websiteId, days, row, priorComplete) : emptyRevenueDashboard(websiteId, days);
 }
 
 /**
@@ -481,7 +559,7 @@ export async function getRevenueDashboard(
  * share percentages to one. `refund_total` and `new_customer_revenue_pct` are omitted
  * rather than zeroed, which a client distinguishes from "zero refunds".
  */
-function shapeRevenueDashboard(websiteId: string, days: number, row: MainRow) {
+function shapeRevenueDashboard(websiteId: string, days: number, row: MainRow, priorComplete: boolean) {
 const s = row.summary ?? {
   total_revenue: 0,
   orders: 0,
@@ -556,11 +634,13 @@ return {
     unique_customers: uniqueCustomers,
     ...(refundTotal > 0 ? { refund_total: Math.round(refundTotal * 100) / 100 } : {}),
     ...(newCustRevenuePct !== undefined ? { new_customer_revenue_pct: newCustRevenuePct } : {}),
-    prior_period: {
-      total_revenue: Math.round(priorRevenue * 100) / 100,
-      orders: priorOrders,
-      change_pct: changePct,
-    },
+    ...(priorComplete ? {
+      prior_period: {
+        total_revenue: Math.round(priorRevenue * 100) / 100,
+        orders: priorOrders,
+        change_pct: changePct,
+      },
+    } : {}),
   },
   daily,
   ...Object.fromEntries(

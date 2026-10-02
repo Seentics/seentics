@@ -7,8 +7,11 @@ if (!url) {
   throw new Error("DATABASE_URL is required");
 }
 
-/** Shared client: Drizzle + raw tagged-template SQL */
-export const sql = postgres(url, { max: 25 });
+/**
+ * Shared client: Drizzle + raw tagged-template SQL. Every connection costs Postgres
+ * memory of its own, so the 4 GB deployment lowers this (deploy/docker-compose.small.yml).
+ */
+export const sql = postgres(url, { max: Number(process.env.DB_POOL_MAX) || 25 });
 export const db = drizzle(sql, { schema });
 
 /**

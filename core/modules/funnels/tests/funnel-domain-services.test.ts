@@ -153,6 +153,8 @@ function makeWebsite(): Website {
     replaySamplingRate: 1,
     replayIncludePatterns: null,
     replayExcludePatterns: null,
+    maskAllText: false,
+    maskTextPatterns: null,
     verificationToken: "tok",
     publicShareId: null,
     settings: {
@@ -310,7 +312,7 @@ describe("funnel domain services", () => {
 
       const { startIso, endIso } = reportCalls[0]!;
       const spanDays = (Date.parse(endIso) - Date.parse(startIso)) / 86_400_000;
-      expect(spanDays).toBe(366);
+      expect(spanDays).toBe(31);
     });
   });
 

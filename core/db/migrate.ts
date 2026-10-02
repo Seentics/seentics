@@ -67,6 +67,18 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
           continue;
         }
       }
+      // `-- requires-preload: <library>` for an extension that only works from
+      // shared_preload_libraries (TimescaleDB): installed but not preloaded, CREATE
+      // EXTENSION fails, so the migration is skipped the same way until it is.
+      const preload = content.match(/^--\s*requires-preload:\s*(\S+)/m)?.[1];
+      if (preload) {
+        const [row] = await sql<{ libs: string }[]>`SELECT current_setting('shared_preload_libraries') AS libs`;
+        const loaded = (row?.libs ?? '').split(',').map((s) => s.trim()).includes(preload);
+        if (!loaded) {
+          console.warn(`[migrate] skipping ${filename}: "${preload}" is not in shared_preload_libraries`);
+          continue;
+        }
+      }
       await sql.begin(async (tx) => {
         await tx.unsafe(content);
         await tx`

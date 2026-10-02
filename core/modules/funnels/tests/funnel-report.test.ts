@@ -18,23 +18,25 @@ describe("clampReportDays", () => {
     expect(clampReportDays(7)).toBe(7);
   });
 
-  it("defaults to 30 when absent", () => {
-    expect(clampReportDays(undefined)).toBe(30);
+  it("defaults to 31 when absent", () => {
+    expect(clampReportDays(undefined)).toBe(31);
   });
 
   // The route hands over `Number(query)` without validating, so NaN arrives here
   // whenever a bookmark carries `?days=last-month`.
-  it("defaults to 30 for NaN", () => {
-    expect(clampReportDays(Number("not-a-number"))).toBe(30);
+  it("defaults to 31 for NaN", () => {
+    expect(clampReportDays(Number("not-a-number"))).toBe(31);
   });
 
   it("clamps zero and negatives up to 1", () => {
-    expect(clampReportDays(0)).toBe(30);
+    expect(clampReportDays(0)).toBe(31);
     expect(clampReportDays(-5)).toBe(1);
   });
 
-  it("caps at 366", () => {
-    expect(clampReportDays(100_000)).toBe(366);
+  // Raw events — what a funnel reads — are kept 31 days.
+  it("caps at 31", () => {
+    expect(clampReportDays(100_000)).toBe(31);
+    expect(clampReportDays(90)).toBe(31);
   });
 
   it("floors a fractional value", () => {
