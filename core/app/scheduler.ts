@@ -5,6 +5,7 @@ import type { HeatmapScreenshotMaintenance } from "../modules/heatmaps/interface
 import { log as baseLog } from "../platform/observability/logger";
 import type { AnalyticsRollups } from "../modules/analytics/interfaces";
 import { alertOps } from "../platform/observability/ops-alert";
+import { traceJob } from "../platform/observability/observe";
 import { checkTimescaleJobs } from "./services/maintenance/timescale-jobs";
 
 const log = baseLog.child({ category: "scheduler" });
@@ -39,7 +40,7 @@ export function startScheduler(
       async () => {
         log.info({ msg: "scheduler_job_start", job: "data-retention" });
         try {
-          const stats = await deps?.retention?.runSafely(cfg);
+          const stats = await traceJob("data-retention", async () => deps?.retention?.runSafely(cfg));
           log.info({ msg: "scheduler_job_done", job: "data-retention", stats });
         } catch (e) {
           log.error({ msg: "scheduler_job_failed", job: "data-retention", err: String(e) });
@@ -61,7 +62,7 @@ export function startScheduler(
       { timezone: "UTC", name: "analytics-rollups", catch: true, protect: true },
       async () => {
         try {
-          await rollups.buildStale();
+          await traceJob("analytics-rollups", () => rollups.buildStale());
         } catch (e) {
           log.error({ msg: "scheduler_job_failed", job: "analytics-rollups", err: String(e) });
           // The builder also prunes session rows; failing, dashboards go stale and the
@@ -81,7 +82,7 @@ export function startScheduler(
     { timezone: "UTC", name: "timescale-job-check", catch: true, protect: true },
     async () => {
       try {
-        await checkTimescaleJobs();
+        await traceJob("timescale-job-check", () => checkTimescaleJobs());
       } catch (e) {
         log.error({ msg: "scheduler_job_failed", job: "timescale-job-check", err: String(e) });
       }
@@ -106,7 +107,7 @@ export function startScheduler(
     async () => {
       log.info({ msg: "scheduler_job_start", job: "screenshot-refresh" });
       try {
-        const result = await heatmapScreenshots.refreshStaleScreenshots(3);
+        const result = await traceJob("screenshot-refresh", () => heatmapScreenshots.refreshStaleScreenshots(3));
         log.info({ msg: "scheduler_job_done", job: "screenshot-refresh", queued: result.queued });
       } catch (e) {
         log.error({ msg: "scheduler_job_failed", job: "screenshot-refresh", err: String(e) });

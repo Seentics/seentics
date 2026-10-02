@@ -95,7 +95,93 @@ export const coreMetrics = {
     unit: "ms",
     description: "Time to rebuild one website-day of rollups from raw events",
   }),
+
+  // ── Ingest (modules/ingest) — the path every tracked event takes ──
+  /** Rows `/collect` handed to the in-memory buffer, by lane. */
+  ingestRowsAccepted: metrics.createCounter("ingest.rows.accepted", {
+    description: "Tracker rows accepted into the ingest buffer, by lane",
+  }),
+  /** Rows lost before the durable queue, by lane and why (byte_cap, queue_full, flush_failed). */
+  ingestRowsDropped: metrics.createCounter("ingest.rows.dropped", {
+    description: "Tracker rows dropped before reaching the durable queue, by lane and reason",
+  }),
+  /** One buffer drain onto the durable queue. */
+  ingestFlushDuration: metrics.createHistogram("ingest.flush.duration", {
+    unit: "ms",
+    description: "Time to move the ingest buffer onto the durable queue",
+  }),
+  /** Batches put on the durable queue, by lane and outcome (queued, requeued, dropped). */
+  ingestBatchesQueued: metrics.createCounter("ingest.batches.queued", {
+    description: "Batches written to the durable ingest queue, by lane and outcome",
+  }),
+  /** One durable-queue batch processed by BatchWorker, by lane and outcome (ok, failed). */
+  ingestBatchProcessDuration: metrics.createHistogram("ingest.batch.process.duration", {
+    unit: "ms",
+    description: "Time to process one queued batch into its tables, by lane and outcome",
+  }),
+  /** Rows processed out of the durable queue, by lane and outcome. */
+  ingestRowsProcessed: metrics.createCounter("ingest.rows.processed", {
+    description: "Rows processed from the durable ingest queue, by lane and outcome",
+  }),
+
+  // ── Background jobs (app/scheduler.ts) ──
+  /** One scheduled job run, by job and outcome (ok, failed). */
+  jobDuration: metrics.createHistogram("job.duration", {
+    unit: "ms",
+    description: "Time each scheduled job took, by job and outcome",
+  }),
+  /** Rows the retention sweep deleted, by what was deleted. */
+  retentionRowsDeleted: metrics.createCounter("retention.rows.deleted", {
+    description: "Rows deleted by the data retention sweep, by kind",
+  }),
 };
+
+/**
+ * Rows waiting in the ingest buffer, per lane, read when metrics are exported. Called
+ * once by whoever owns the buffer; a gauge rather than a counter because the backlog,
+ * not the throughput, is what shows a flush falling behind.
+ */
+export function observeIngestBacklog(depth: () => Record<string, number>): void {
+  if (!observeEnabled) return;
+  metrics.createObservableGauge("ingest.buffer.rows", { description: "Rows waiting in the ingest buffer, by lane" })
+    .addCallback((r) => {
+      for (const [lane, rows] of Object.entries(depth())) r.observe(rows, { lane });
+    });
+}
+
+/**
+ * A background job as its own trace: one span, its duration in `job.duration`, and
+ * failures marked on both. The job's own result or error passes through untouched.
+ */
+export async function traceJob<T>(job: string, run: () => Promise<T>): Promise<T> {
+  const started = performance.now();
+  const done = (outcome: "ok" | "failed") => coreMetrics.jobDuration.record(performance.now() - started, { job, outcome });
+  if (!observeEnabled) {
+    try {
+      const result = await run();
+      done("ok");
+      return result;
+    } catch (e) {
+      done("failed");
+      throw e;
+    }
+  }
+  return tracer.startActiveSpan(`job ${job}`, { kind: SpanKind.INTERNAL }, async (span) => {
+    span.setAttribute("job.name", job);
+    try {
+      const result = await run();
+      done("ok");
+      return result;
+    } catch (e) {
+      span.recordException(e as Error);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: String(e) });
+      done("failed");
+      throw e;
+    } finally {
+      span.end();
+    }
+  });
+}
 
 if (observeEnabled) {
   metrics.createObservableGauge("process.memory.rss", { unit: "By", description: "Resident memory of the process" })

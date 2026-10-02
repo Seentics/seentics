@@ -1,4 +1,5 @@
 import type { Logger } from "../../../platform/observability/logger";
+import { coreMetrics } from "../../../platform/observability/observe";
 import type { BatchQueue, IngestLane, LaneRegistry, QueuedBatch } from "../interfaces";
 
 export type BatchWorkerOptions = {
@@ -161,12 +162,18 @@ export class BatchWorker {
   }
 
   private async applyOne(batch: QueuedBatch): Promise<boolean> {
+    const started = performance.now();
+    const measure = (outcome: "ok" | "retrying" | "parked") => {
+      coreMetrics.ingestBatchProcessDuration.record(performance.now() - started, { lane: batch.lane, outcome });
+      coreMetrics.ingestRowsProcessed.add(batch.rowCount, { lane: batch.lane, outcome });
+    };
     try {
       await this.dispatch(batch);
       // SQL lanes normally completed the row in their own transaction. This idempotent
       // fallback closes successful no-op and object-storage-only batches too.
       await this.store.markCompleted(batch.batchId);
       this.appliedCount += 1;
+      measure("ok");
       this.log.debug({
         msg: "ingest_batch_applied",
         lane: batch.lane,
@@ -184,6 +191,7 @@ export class BatchWorker {
       });
 
       const parked = attempts >= this.opts.maxAttempts;
+      measure(parked ? "parked" : "retrying");
       this.log[parked ? "error" : "warn"]({
         msg: parked ? "ingest_batch_parked" : "ingest_batch_retrying",
         lane: batch.lane,

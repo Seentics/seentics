@@ -2,6 +2,7 @@ import { serializeBatch } from "../../../platform/idempotency/batch-id";
 import type { AppConfig } from "../../../config";
 import { log as baseLog } from "../../../platform/observability/logger";
 import type { Logger } from "../../../platform/observability/logger";
+import { coreMetrics, observeIngestBacklog } from "../../../platform/observability/observe";
 import type {
   BatchQueue,
   IngestFlusher,
@@ -110,6 +111,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
   start(): void {
     if (this.flushTimer) return;
     this.flushTimer = setInterval(() => void this.scheduleFlush(), this.flushMs);
+    observeIngestBacklog(() => this.depth());
   }
 
   stop(): void {
@@ -145,6 +147,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
           queued_bytes: this.bytes[lane],
           cap_bytes: cap,
         });
+        coreMetrics.ingestRowsDropped.add(rows.length, { lane, reason: "byte_cap" });
         void this.scheduleFlush();
         return { accepted: 0, dropped: rows.length };
       }
@@ -156,6 +159,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
     )) {
       accepted += this.buffer(lane, spec, partitionKey, group);
     }
+    if (accepted) coreMetrics.ingestRowsAccepted.add(accepted, { lane });
     return { accepted, dropped: rows.length - accepted };
   }
 
@@ -172,6 +176,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
         queued: this.counts[lane],
         cap,
       });
+      coreMetrics.ingestRowsDropped.add(rows.length - accepted.length, { lane, reason: "queue_full" });
     }
     if (!accepted.length) return 0;
 
@@ -209,6 +214,15 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
   }
 
   private async executeFlush(): Promise<void> {
+    const started = performance.now();
+    try {
+      await this.drain();
+    } finally {
+      coreMetrics.ingestFlushDuration.record(performance.now() - started);
+    }
+  }
+
+  private async drain(): Promise<void> {
     const snapshot = this.buffers;
     this.buffers = new Map();
     this.counts = this.zeroed();
@@ -245,6 +259,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
         rowCount: rows.length,
       });
       this.attempts.delete(attemptKey(lane, partitionKey));
+      coreMetrics.ingestBatchesQueued.add(1, { lane, outcome: "queued" });
       this.log.debug({ msg: "ingest_batch_queued", lane, partition: partitionKey, rows: rows.length });
     } catch (err) {
       this.requeue(lane, partitionKey, rows, err);
@@ -267,6 +282,8 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
 
     if (attempt >= MAX_FLUSH_ATTEMPTS) {
       this.attempts.delete(key);
+      coreMetrics.ingestBatchesQueued.add(1, { lane, outcome: "dropped" });
+      coreMetrics.ingestRowsDropped.add(rows.length, { lane, reason: "flush_failed" });
       this.log.error({
         msg: "ingest_batch_dropped",
         lane,
@@ -279,6 +296,7 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
     }
 
     this.attempts.set(key, attempt);
+    coreMetrics.ingestBatchesQueued.add(1, { lane, outcome: "requeued" });
     const byPartition = this.buffers.get(lane) ?? new Map<string, unknown[]>();
     const current = byPartition.get(partitionKey);
     // Prepended so ordering survives the retry.

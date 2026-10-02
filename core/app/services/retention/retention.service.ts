@@ -7,6 +7,7 @@ import type {
   RetentionTarget,
 } from "../../../platform/retention/interfaces";
 import { alertOps } from "../../../platform/observability/ops-alert";
+import { coreMetrics } from "../../../platform/observability/observe";
 import { fetchRetentionOverrides, type WebsiteRetentionOverride } from "./overrides";
 
 const log = baseLog.child({ category: "retention" });
@@ -97,6 +98,9 @@ export class RetentionService {
       const started = Date.now();
       const stats = await this.run(cfg);
       log.info({ msg: "retention_cleanup_done", ms: Date.now() - started, ...stats });
+      for (const [kind, rows] of Object.entries(stats)) {
+        if (kind !== "websitesProcessed" && rows > 0) coreMetrics.retentionRowsDeleted.add(rows, { kind });
+      }
       return stats;
     } catch (e) {
       log.error({ msg: "retention_cleanup_failed", err: String(e) });
