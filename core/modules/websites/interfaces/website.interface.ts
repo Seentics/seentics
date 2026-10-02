@@ -37,6 +37,10 @@ export type Website = {
   replaySamplingRate: number;
   replayIncludePatterns: string | null;
   replayExcludePatterns: string | null;
+  /** Recordings and heatmap snapshots mask every text node: everywhere… */
+  maskAllText: boolean;
+  /** …or on the pages these newline-separated patterns match. */
+  maskTextPatterns: string | null;
   verificationToken: string;
   /** Non-null when a public dashboard link is active. */
   publicShareId: string | null;
@@ -144,6 +148,8 @@ export type UpdateWebsiteInput = {
   replaySamplingRate?: number;
   replayIncludePatterns?: string | null;
   replayExcludePatterns?: string | null;
+  maskAllText?: boolean;
+  maskTextPatterns?: string | null;
 };
 
 /**

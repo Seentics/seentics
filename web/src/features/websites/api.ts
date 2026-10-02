@@ -172,6 +172,8 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
       replaySamplingRate: w.replay_sampling_rate ?? 1.0,
       replayIncludePatterns: w.replay_include_patterns,
       replayExcludePatterns: w.replay_exclude_patterns,
+      maskAllText: w.mask_all_text ?? false,
+      maskTextPatterns: w.mask_text_patterns ?? null,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],
@@ -197,7 +199,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
 // Updates an existing website.
 export async function updateWebsite(
   websiteId: string,
-  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'errorsEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'settings'>>,
+  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'errorsEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'maskAllText' | 'maskTextPatterns' | 'settings'>>,
   userId: string
 ): Promise<Website> {
   try {
@@ -214,7 +216,10 @@ export async function updateWebsite(
       replay_enabled: data.replayEnabled,
       replay_sampling_rate: data.replaySamplingRate,
       replay_include_patterns: data.replayIncludePatterns,
-      replay_exclude_patterns: data.replayExcludePatterns
+      replay_exclude_patterns: data.replayExcludePatterns,
+      mask_all_text: data.maskAllText,
+      // null clears the list; undefined (absent from JSON) leaves it as it is.
+      mask_text_patterns: data.maskTextPatterns,
     });
     const w = response.data.data;
 

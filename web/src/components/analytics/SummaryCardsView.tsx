@@ -232,7 +232,7 @@ export function SummaryCardsView({ data, liveVisitors = 0, isLoading = false }: 
   ];
 
   return (
-    <div className="surface overflow-hidden mb-6">
+    <div className="surface overflow-hidden mb-4">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border lg:divide-y-0">
         {cards.map((card) => (
           <SummaryCard key={card.title} {...card} />

@@ -25,6 +25,8 @@ function website(id: string): Website {
     replaySamplingRate: 1,
     replayIncludePatterns: null,
     replayExcludePatterns: null,
+    maskAllText: false,
+    maskTextPatterns: null,
     verificationToken: "v",
     publicShareId: null,
     settings: {} as Website["settings"],

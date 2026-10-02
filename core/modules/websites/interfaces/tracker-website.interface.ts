@@ -21,6 +21,9 @@ export type WebsiteTrackerRow = {
   replay_sampling_rate: number;
   replay_include_patterns: string | null;
   replay_exclude_patterns: string | null;
+  /** Recordings and heatmap snapshots mask every text node — everywhere, or on these pages. */
+  mask_all_text: boolean;
+  mask_text_patterns: string | null;
   automation_enabled: boolean;
   errors_enabled: boolean;
   /** Public privacy policy, resolved with the website and cached on the tracker hot path. */

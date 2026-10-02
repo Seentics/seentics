@@ -43,7 +43,8 @@ registerExtension((core) => {
   let allowedFor = '';
   let allowedValue = false;
   const heatmapAllowed = () => {
-    if (cfg().heatmap_enabled === false) return false;
+    // Consent withdrawn mid-page: this extension is still loaded, but records nothing.
+    if (cfg().heatmap_enabled === false || !core.identified) return false;
     if (allowedFor !== location.href) {
       allowedFor = location.href;
       allowedValue = core.urlAllowed(cfg().heatmap_include_patterns, cfg().heatmap_exclude_patterns);
@@ -300,6 +301,19 @@ registerExtension((core) => {
         }
         sensitiveText.forEach(node => { node.nodeValue = '••••••'; });
       } catch { /* TreeWalker unavailable */ }
+      // A page the site masks in full (all text, or one its patterns match — an account
+      // page, a checkout): every word replaced, its length kept so the layout the clicks
+      // are drawn on stays the page's. Stylesheets are text nodes too, and are left alone.
+      if (core.textMaskedHere()) {
+        for (const root of roots) {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          let node;
+          while ((node = walker.nextNode())) {
+            if (node.parentNode && node.parentNode.nodeName === 'STYLE') continue;
+            if (node.nodeValue) node.nodeValue = node.nodeValue.replace(/\S/g, '•');
+          }
+        }
+      }
       // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
       // but the added complexity and payload size aren't worth it for a layout snapshot)
       qsa('iframe').forEach(el => {

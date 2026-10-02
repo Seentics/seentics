@@ -1,141 +1,144 @@
-'use client';
-
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Lock, Eye, Globe, Mail } from 'lucide-react';
+import { LegalPage } from '@/components/legal/LegalPage';
+
+export const metadata: Metadata = {
+  title: 'Privacy Notice — Seentics',
+  description: 'What personal data Seentics processes, why, for how long, who else handles it, and your rights.',
+};
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
-      {/* Back Button */}
-      <div className="absolute top-6 left-6 z-20">
-        <Link href="/">
-          <Button variant="outline" size="sm" className="flex items-center gap-2 hover:bg-accent transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </div>
+    <LegalPage
+      title="Privacy Notice"
+      current="/privacy"
+      updated="1 October 2026"
+      intro={
+        <p>
+          What personal data Seentics processes, why, for how long, who else handles it, and the rights you have over it
+          under the GDPR and similar laws.
+        </p>
+      }
+    >
+      <section>
+        <h2>1. Two roles</h2>
+        <p>
+          Seentics processes personal data in two different capacities, and which one applies decides who answers for it.
+        </p>
+        <h3>Seentics as controller — your account</h3>
+        <p>
+          When you sign up for and use Seentics, we decide why and how your account data is processed. This notice
+          covers that processing in full.
+        </p>
+        <h3>Seentics as processor — your visitors</h3>
+        <p>
+          When you install Seentics on your website or app, it collects data about <em>your</em> visitors on your
+          behalf: page views, events, session recordings, heatmaps, errors, observability telemetry, uptime status-page
+          subscribers. For that data, you are the controller and we are your processor: we handle it only on your
+          instructions, under our <Link href="/dpa">Data Processing Agreement</Link>. If you are a visitor to a website
+          that uses Seentics, that website&apos;s owner is the one to ask about your data; we will help them answer you.
+        </p>
+      </section>
 
-      <div className="container mx-auto px-4 py-20 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Lock className="h-8 w-8 text-primary" />
-              </div>
-              <h1 className="text-4xl font-bold text-foreground">Privacy Policy</h1>
-            </div>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              We are committed to protecting your privacy. This policy explains how we collect, use, and safeguard your information.
-            </p>
-          </div>
+      <section>
+        <h2>2. What we process about account holders</h2>
+        <ul>
+          <li><strong>Account:</strong> name, email address, a hash of your password (never the password), or the identity Google or GitHub returns if you sign in with them.</li>
+          <li><strong>Teams:</strong> the teams you belong to, your role, and invitations you send or receive.</li>
+          <li><strong>Billing:</strong> your plan and subscription status. Payment details are collected and held by our payment provider, Lemon Squeezy, not by us.</li>
+          <li><strong>Configuration:</strong> the websites, monitors, alert contacts and settings you create.</li>
+          <li><strong>Support:</strong> messages you send us.</li>
+          <li><strong>Security and operations:</strong> sign-in events, IP addresses of requests to our API, and service logs, used to keep the service secure and working.</li>
+          <li><strong>AI Mode:</strong> the questions you ask it.</li>
+        </ul>
+      </section>
 
-          {/* Last Updated */}
-          <Card className="mb-8 border-primary/20 dark:bg-gray-800/50 shadow-none">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <Eye className="h-5 w-5 text-primary" />
-                <span className="text-foreground font-medium">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
-            </CardContent>
-          </Card>
+      <section>
+        <h2>3. Why, and on what legal basis</h2>
+        <ul>
+          <li><strong>To provide the service you signed up for</strong> — running your account, your dashboards and your alerts: performance of a contract (Art. 6(1)(b) GDPR).</li>
+          <li><strong>To bill you</strong>, and keep the records tax law requires: performance of a contract and legal obligation (Art. 6(1)(b) and (c)).</li>
+          <li><strong>To keep the service secure</strong> — preventing abuse, fraud and attacks, and investigating incidents: our legitimate interest in a secure service (Art. 6(1)(f)).</li>
+          <li><strong>To tell you about the service</strong> — security notices, usage limits, changes to these terms: performance of a contract and legitimate interest.</li>
+        </ul>
+        <p>We do not sell personal data, use it for advertising, or train AI models on it.</p>
+      </section>
 
-          {/* Privacy Content */}
-          <div className="space-y-8">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-foreground underline decoration-primary/30 decoration-4 underline-offset-4">1. Information We Collect</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>We collect several types of information to provide and improve our services:</p>
-                
-                <h4 className="font-semibold text-foreground mt-4 italic">Personal Information:</h4>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Name and email address when you create an account</li>
-                  <li>Profile information and preferences</li>
-                  <li>Communication history with our support team</li>
-                  <li>Payment and billing information</li>
-                </ul>
+      <section>
+        <h2>4. Visitor data we process for our customers</h2>
+        <p>
+          How much a customer&apos;s installation collects is under their control: each feature — session recording,
+          heatmaps, funnels, automations, error tracking — can be switched off, limited to certain pages, or sampled.
+          By default the tracker:
+        </p>
+        <ul>
+          <li>counts visits <strong>anonymously until the visitor consents</strong>: no cookie, nothing stored in the browser, and an identifier derived from a salt that changes every day and is then destroyed, so one day&apos;s visits cannot be linked to the next;</li>
+          <li>records sessions and heatmaps <strong>only after consent</strong>, with everything typed into forms masked in the browser before it is sent, and all text masked on pages that usually show personal details (account, settings, checkout and the like);</li>
+          <li>uses the visitor&apos;s IP address only in memory, to look up a coarse location (country, region, city) in a database on our own servers — the address itself is never stored.</li>
+        </ul>
+        <p>
+          Customers can export or erase everything held about one visitor, and erase a whole website&apos;s data, at any
+          time from their dashboard.
+        </p>
+      </section>
 
-                <h4 className="font-semibold text-foreground mt-4 italic">Website Analytics Data:</h4>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Visitor behavior and interactions</li>
-                  <li>Page views and session duration</li>
-                  <li>Traffic sources and referral information</li>
-                  <li>Device and browser information</li>
-                  <li>Geographic location data (country/city level)</li>
-                </ul>
-              </CardContent>
-            </Card>
+      <section>
+        <h2>5. How long we keep it</h2>
+        <ul>
+          <li><strong>Account data:</strong> for as long as your account exists. Deleting your account erases it, with every website, recording, monitor and setting in it, at once.</li>
+          <li><strong>Visitor data:</strong> for the retention period of the customer&apos;s plan, after which it is deleted automatically, or sooner when the customer deletes it.</li>
+          <li><strong>Backups:</strong> encrypted, and kept for 30 days. Data you delete leaves the backups when they expire.</li>
+          <li><strong>Billing records:</strong> kept by Lemon Squeezy for as long as tax law requires.</li>
+        </ul>
+      </section>
 
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-foreground underline decoration-primary/30 decoration-4 underline-offset-4">2. How We Use Your Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>We use the collected information for the following purposes:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Provide, maintain, and improve our services</li>
-                  <li>Process transactions and manage subscriptions</li>
-                  <li>Send important service updates and notifications</li>
-                  <li>Respond to customer support requests</li>
-                  <li>Analyze usage patterns to enhance user experience</li>
-                </ul>
-              </CardContent>
-            </Card>
+      <section>
+        <h2>6. Who else handles it</h2>
+        <p>
+          Our servers are in the European Union. A small number of service providers process data for us — hosting,
+          storage, email, SMS alerts and payments. Each is bound by a data processing agreement, and the full list,
+          with what each one does and where, is on our <Link href="/subprocessors">subprocessors page</Link>.
+        </p>
+        <p>
+          Where a provider is outside the European Economic Area, transfers rely on an adequacy decision (such as the
+          EU–US Data Privacy Framework) or the European Commission&apos;s Standard Contractual Clauses.
+        </p>
+      </section>
 
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-foreground underline decoration-primary/30 decoration-4 underline-offset-4">3. Data Security</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>We implement appropriate technical and organizational measures to protect your information:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Encryption of data in transit and at rest</li>
-                  <li>Regular security assessments and updates</li>
-                  <li>Access controls and authentication measures</li>
-                </ul>
-              </CardContent>
-            </Card>
+      <section>
+        <h2>7. Security</h2>
+        <ul>
+          <li>All traffic to and from Seentics is encrypted in transit (TLS).</li>
+          <li>Backups are encrypted with a key that is not stored on our servers.</li>
+          <li>Passwords are stored only as salted hashes; sessions can be revoked, and changing your password ends every other session.</li>
+          <li>Access to customer data is limited to what running the service requires, and every dashboard request is checked against the team permissions you set.</li>
+        </ul>
+      </section>
 
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-foreground underline decoration-primary/30 decoration-4 underline-offset-4">4. Contact Us</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>If you have any questions about this Privacy Policy, please contact us:</p>
-                <div className="bg-muted/30 p-6 rounded-lg space-y-4 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-foreground">Email: privacy@seentics.com</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-foreground">Website: www.seentics.com</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      <section>
+        <h2>8. Your rights</h2>
+        <p>
+          You can ask us for a copy of your data, to correct it, to delete it, to restrict or object to how we process
+          it, and to receive it in a portable format. Much of this you can do yourself: change your details in your
+          profile, export your data from the privacy settings, and delete your account under Profile → Delete account.
+        </p>
+        <p>
+          For anything else, email <a href="mailto:privacy@seentics.com">privacy@seentics.com</a>. We answer within one
+          month. You also have the right to complain to a data protection supervisory authority, in particular the one
+          where you live or work.
+        </p>
+      </section>
 
-          {/* Footer Navigation */}
-          <div className="text-center mt-16 flex justify-center gap-4">
-            <Link href="/terms">
-              <Button variant="outline" className="hover:bg-accent transition-colors">
-                Terms of Service
-              </Button>
-            </Link>
-            <Link href="/refund-policy">
-              <Button variant="outline" className="hover:bg-accent transition-colors">
-                Refund Policy
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
+      <section>
+        <h2>9. Contact</h2>
+        <p>
+          Questions about this notice or your data: <a href="mailto:privacy@seentics.com">privacy@seentics.com</a>.
+        </p>
+        <p>
+          When this notice changes in a way that matters, we tell account holders by email before the change takes
+          effect.
+        </p>
+      </section>
+    </LegalPage>
   );
 }

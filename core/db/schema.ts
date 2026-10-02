@@ -57,6 +57,10 @@ export const websites = pgTable(
     replaySamplingRate: real("replay_sampling_rate").notNull().default(1),
     replayIncludePatterns: text("replay_include_patterns"),
     replayExcludePatterns: text("replay_exclude_patterns"),
+    /** Recordings and heatmap snapshots: every text node masked, everywhere (036). */
+    maskAllText: boolean("mask_all_text").notNull().default(false),
+    /** …or on the pages these newline-separated patterns match. */
+    maskTextPatterns: text("mask_text_patterns").default("/account\n/profile\n/settings\n/checkout\n/billing\n/orders"),
     verificationToken: text("verification_token").notNull().default(""),
     publicShareId: text("public_share_id"),
     settingsJson: jsonb("settings_json").$type<Record<string, unknown>>(),

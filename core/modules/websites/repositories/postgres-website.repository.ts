@@ -5,6 +5,7 @@ import {
   db,
   funnels,
   goals,
+  websiteInvitations,
   websiteMembers,
   websites,
 } from "../../../db";
@@ -61,6 +62,8 @@ function toDomain(row: WebsiteRow): Website {
     replaySamplingRate: row.replaySamplingRate,
     replayIncludePatterns: row.replayIncludePatterns,
     replayExcludePatterns: row.replayExcludePatterns,
+    maskAllText: row.maskAllText,
+    maskTextPatterns: row.maskTextPatterns,
     verificationToken: row.verificationToken,
     publicShareId: row.publicShareId,
     settings: { ...defaultSettings(), ...((row.settingsJson as Partial<WebsiteSettings>) ?? {}) },
@@ -193,6 +196,8 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       await tx.delete(funnels).where(eq(funnels.websiteId, websiteId));
       await tx.delete(goals).where(eq(goals.websiteId, websiteId));
       await tx.delete(websiteMembers).where(eq(websiteMembers.websiteId, websiteId));
+      // Pending invitations carry the invitee's email address.
+      await tx.delete(websiteInvitations).where(eq(websiteInvitations.websiteId, websiteId));
 
 
       await tx.delete(websites).where(eq(websites.id, websiteId));
@@ -231,6 +236,8 @@ function buildUpdatePatch(input: UpdateWebsiteInput): Partial<typeof websites.$i
   if (input.heatmapLayoutEnabled != null) patch.heatmapLayoutEnabled = input.heatmapLayoutEnabled;
   if (input.replayEnabled != null) patch.replayEnabled = input.replayEnabled;
   if (input.replaySamplingRate != null) patch.replaySamplingRate = input.replaySamplingRate;
+  if (input.maskAllText != null) patch.maskAllText = input.maskAllText;
+  if (input.maskTextPatterns !== undefined) patch.maskTextPatterns = input.maskTextPatterns;
 
   if (input.heatmapIncludePatterns !== undefined) {
     patch.heatmapIncludePatterns = input.heatmapIncludePatterns;

@@ -7,8 +7,7 @@ import type {
   ProcessTrackerCollectResult,
   TrackerCollectService,
 } from "../interfaces";
-import { anonymousVisitorId } from "../../../platform/privacy/visitor-salt";
-import { anonymizeTrackerBatch } from "./anonymous-batch.service";
+import { anonymizeTrackerBatch, anonymousVisitorId } from "../lib/anonymous-batch";
 import { routeAnalyticsEvents } from "./analytics-event-routing.service";
 import { routeAutomationTriggers } from "./automation-trigger-routing.service";
 import { routeErrorEvents } from "./error-event-routing.service";

@@ -67,7 +67,7 @@ export function StatCards({
 
   if (isLoading) {
     return (
-      <div className={cn('grid gap-3 sm:gap-4 mb-6', gridClass, className)}>
+      <div className={cn('grid gap-4 mb-4', gridClass, className)}>
         {Array.from({ length: cols }).map((_, i) => (
           <div key={i} className={cn(tileBase, cardClassName)}>
             <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
@@ -80,7 +80,7 @@ export function StatCards({
   }
 
   return (
-    <div className={cn('grid gap-3 sm:gap-4 mb-6', gridClass, className)}>
+    <div className={cn('grid gap-4 mb-4', gridClass, className)}>
       {cards.map((card, i) => {
         const Icon = card.icon;
         const tone = TONES[card.toneWhen === false ? 'default' : (card.tone ?? 'default')];

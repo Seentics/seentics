@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 import { cn } from '@/lib/utils';
-import { Code2, KeyRound, Layers, BookOpen, Copy, Check, Zap, Terminal } from 'lucide-react';
+import { KeyRound, Terminal } from 'lucide-react';
 import { CodeBlock } from '@/components/ui-blocks/CodeBlock';
 
 /**
@@ -28,10 +28,6 @@ import { CodeBlock } from '@/components/ui-blocks/CodeBlock';
  * the server. Both panels are now driven by the API itself.
  */
 
-// ─── UI Blocks Tab ────────────────────────────────────────────────────────────
-
-import { UIBlocksTab, DocsTab } from '@/components/developers/developer-tabs';
-
 export default function DevelopersPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
@@ -41,7 +37,7 @@ export default function DevelopersPage() {
       <DashboardPageHeader
         websiteId={websiteId}
         title="Developers"
-        description="Keys, endpoints and SDKs for reading this site's data from your own tools."
+        description="Keys and endpoints for reading this site's data from your own tools."
       />
 
       <Tabs defaultValue="api-keys">
@@ -54,14 +50,6 @@ export default function DevelopersPage() {
             <Terminal className="h-3.5 w-3.5" />
             API Reference
           </TabsTrigger>
-          <TabsTrigger value="sdks" className="gap-1.5">
-            <BookOpen className="h-3.5 w-3.5" />
-            SDKs
-          </TabsTrigger>
-          <TabsTrigger value="ui-blocks" className="gap-1.5">
-            <Layers className="h-3.5 w-3.5" />
-            UI Blocks
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="api-keys">
@@ -72,13 +60,6 @@ export default function DevelopersPage() {
           <ApiReferencePanel websiteId={websiteId} />
         </TabsContent>
 
-        <TabsContent value="ui-blocks">
-          <UIBlocksTab websiteId={websiteId} />
-        </TabsContent>
-
-        <TabsContent value="sdks">
-          <DocsTab websiteId={websiteId} />
-        </TabsContent>
       </Tabs>
     </div>
   );

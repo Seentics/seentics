@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { C, Callout, DocPage, DocSection, Li, P, Ul } from '@/components/docs/DocsKit';
+import { C, Callout, CodeBlock, DocPage, DocSection, Endpoint, Li, P, RefTable, Ul } from '@/components/docs/DocsKit';
 
 export const metadata = {
   title: 'Privacy & security · Seentics docs',
@@ -13,25 +13,65 @@ export default function PrivacyPage() {
       title="Privacy & security"
       lead="What is stored, what is not, and how to get it out or remove it."
     >
-      <DocSection title="No cookies">
+      <DocSection title="Consent">
         <P>
-          The tracker never touches <C>document.cookie</C>. It does use browser storage: a visitor ID
-          in <C>localStorage</C>, so a returning visitor is recognised, and <C>sessionStorage</C> for
-          per-tab state such as funnel progress.
+          The tracker never touches <C>document.cookie</C>. What it does before and after a
+          visitor consents depends on the website&apos;s consent mode, set in{' '}
+          <C>Settings → Privacy</C>:
         </P>
-        <Callout kind="warning" title="Storage is not the same as “no consent needed”">
-          A persistent identifier in <C>localStorage</C> is generally treated like a cookie under
-          ePrivacy and the GDPR, even though it is not one. &ldquo;Seentics sets no
-          cookies&rdquo; is accurate and worth saying. Whether your site still needs a consent
-          notice is a question for your own legal advice, not something these docs can answer.
-        </Callout>
+        <RefTable
+          columns={['Mode', 'Before consent', 'After consent']}
+          rows={[
+            [
+              <><C>cookieless</C> (default)</>,
+              'Page views, events, funnels and errors are counted under a daily anonymous id. Nothing is stored in the browser; recordings, heatmaps, automations and identify() do not run.',
+              'Everything the site has switched on, under a visitor id kept in localStorage.',
+            ],
+            [<C key="s">strict</C>, 'Nothing is sent at all.', 'Everything the site has switched on.'],
+            [
+              <C key="n">none</C>,
+              'No consent is asked: everything runs for every visitor. For sites outside the EU, or with another legal basis.',
+              '—',
+            ],
+          ]}
+        />
+        <P>
+          The anonymous id is a hash of the visitor&apos;s IP address and browser with a salt that
+          changes every day and is then destroyed, so a visitor cannot be followed from one day to
+          the next — or identified at all once the day is over.
+        </P>
+        <P>Tell the tracker about consent from your cookie banner, whenever the visitor decides:</P>
+        <CodeBlock
+          language="js"
+          code={`// The visitor accepted analytics: identified features start at once, no reload.
+seentics.consent(true);
+
+// The visitor declined or withdrew: recording stops and every
+// Seentics id in their browser is removed.
+seentics.consent(false);`}
+        />
+        <P>
+          When consent is already known before the tracker loads — your banner remembered an
+          earlier choice — set <C>window.seenticsConsent = true</C> before the script tag, or add{' '}
+          <C>data-consent=&quot;granted&quot;</C> to it. The tracker also remembers the last choice
+          made through <C>seentics.consent()</C> itself.
+        </P>
+        <P>
+          For a cookie banner&apos;s inventory: after consent the tracker stores <C>snc_vid</C>{' '}
+          (visitor id), <C>snc_sid</C>, <C>snc_se</C> and <C>snc_ss</C> (session), <C>snc_rd</C>{' '}
+          (recording sample decision) and <C>snc_cfg:*</C> (the site&apos;s settings, so the next
+          page starts faster) in <C>localStorage</C>, and <C>snc_fs:*</C> (funnel progress) and{' '}
+          <C>snc_hmshot:*</C> (heatmap snapshot sent) in <C>sessionStorage</C>. <C>snc_consent</C>{' '}
+          records the visitor&apos;s choice itself. None is set before consent in the default mode.
+        </P>
       </DocSection>
 
       <DocSection title="What is not collected">
         <Ul>
           <Li>
-            <strong className="font-medium text-foreground">No IP storage.</strong> Country is
-            resolved at ingest; the address is not kept with the event.
+            <strong className="font-medium text-foreground">No IP storage.</strong> The address is
+            used in memory to look up a coarse location (country, region, city) in a database on
+            our own servers, and is never stored.
           </Li>
           <Li>
             <strong className="font-medium text-foreground">No typed input.</strong> Form fields and
@@ -116,6 +156,15 @@ export default function PrivacyPage() {
           <Link href="/docs/tracker" className="text-primary hover:underline">tracker reference</Link>{' '}
           for examples.
         </P>
+        <P>
+          Whole pages can be masked too, in <C>Settings → Session replays → Text masking</C>: every
+          word on them is replaced with asterisks of the same length, in recordings and heatmap
+          snapshots alike, so layout and clicks still show. Either all pages, or those matching a
+          list of patterns — by default the ones that usually show a visitor&apos;s own details:{' '}
+          <C>/account</C>, <C>/profile</C>, <C>/settings</C>, <C>/checkout</C>, <C>/billing</C> and{' '}
+          <C>/orders</C>. It follows single-page-app navigation: route onto a masked page and the
+          masking starts there.
+        </P>
       </DocSection>
 
       <DocSection title="Turning features off">
@@ -135,20 +184,25 @@ export default function PrivacyPage() {
 
       <DocSection title="Data subject requests">
         <P>
-          <strong>Per-visitor export and erasure are not available yet.</strong> The{' '}
-          <C>/api/v1/privacy/*</C> paths are reserved and currently answer{' '}
-          <C>501 Not Implemented</C>. This page previously described them as working; they
-          were never wired up, and the endpoints returned empty success responses.
+          When one of your visitors asks for their data, or for it to be erased, answer from{' '}
+          <C>Settings → Privacy → Visitor data request</C>. Find them by their visitor id — what{' '}
+          <C>seentics.visitorId</C> returns in their browser — or by the user id you passed to{' '}
+          <C>identify()</C>. Export downloads everything held about them as JSON: their events,
+          recordings, errors, profile and linked ids, and the automations that ran for them.
+          Erase removes all of it, recording files included, at once.
         </P>
+        <P>The same is available over the API:</P>
+        <Endpoint method="GET" path="/api/v1/privacy/visitor/:website_id?visitor_id=…  (or ?user_id=…)">
+          Everything held about the visitor, as JSON.
+        </Endpoint>
+        <Endpoint method="DELETE" path="/api/v1/privacy/visitor/:website_id?visitor_id=…  (or ?user_id=…)">
+          Erases it, in every table and in object storage.
+        </Endpoint>
         <P>
-          What you can do today: deleting a website from <C>Settings</C> removes its
-          analytics events, session recordings, heatmap points, funnels and automations.
-          Retention also runs automatically and drops data past your plan&apos;s cutoff — see
-          below.
-        </P>
-        <P>
-          If you need to answer a data subject request before per-visitor tooling ships,
-          contact support and we will run the erasure directly.
+          Deleting a website erases everything it collected, in every product — its observability
+          telemetry included. Deleting your account (<C>Profile → Delete account</C>) erases every
+          website you own, your uptime monitors and status pages, and cancels your subscription.
+          Encrypted backups expire within 30 days, after which no copy remains.
         </P>
       </DocSection>
 
@@ -170,6 +224,8 @@ export default function PrivacyPage() {
       <DocSection title="Our own policies">
         <P>
           <Link href="/privacy" className="text-primary hover:underline">Privacy notice</Link> ·{' '}
+          <Link href="/dpa" className="text-primary hover:underline">Data processing agreement</Link> ·{' '}
+          <Link href="/subprocessors" className="text-primary hover:underline">Subprocessors</Link> ·{' '}
           <Link href="/terms" className="text-primary hover:underline">Terms of service</Link>
         </P>
       </DocSection>

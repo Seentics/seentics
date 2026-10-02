@@ -23,6 +23,9 @@ export type Website = {
   replaySamplingRate: number;
   replayIncludePatterns?: string;
   replayExcludePatterns?: string;
+  /** Recordings and heatmap snapshots mask all page text: everywhere, or on these pages. */
+  maskAllText?: boolean;
+  maskTextPatterns?: string | null;
   verificationToken: string;
   settings: {
     allowedOrigins: string[];

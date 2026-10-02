@@ -1,7 +1,6 @@
 import api from '@/lib/api';
 import { isEnterprise } from '@/lib/features';
 import type {
-  GDPRRequestItem,
   ImportResult,
   WebsitePrivacySettings,
 } from './types';
@@ -39,6 +38,24 @@ class PrivacyAPI {
       console.error('Failed to export website data:', error);
       throw error;
     }
+  }
+
+  // --- One visitor (data subject requests) ---
+
+  /** Everything held about one visitor, found by visitor id or by the site's user id. */
+  async exportVisitorData(websiteId: string, who: { visitorId?: string; userId?: string }): Promise<any> {
+    const response = await api.get(`/privacy/visitor/${websiteId}`, {
+      params: { visitor_id: who.visitorId || undefined, user_id: who.userId || undefined },
+    });
+    return response.data?.data ?? response.data;
+  }
+
+  /** Erase everything held about one visitor. */
+  async eraseVisitorData(websiteId: string, who: { visitorId?: string; userId?: string }): Promise<any> {
+    const response = await api.delete(`/privacy/visitor/${websiteId}`, {
+      params: { visitor_id: who.visitorId || undefined, user_id: who.userId || undefined },
+    });
+    return response.data?.data ?? response.data;
   }
 
   // --- Import ---
@@ -128,17 +145,6 @@ class PrivacyAPI {
     return response.data;
   }
 
-  // --- Enterprise: GDPR request management ---
-
-  async getGDPRRequests(): Promise<{ success: boolean; data: GDPRRequestItem[] }> {
-    const response = await api.get('/user/gdpr/requests');
-    return response.data;
-  }
-
-  async cancelGDPRRequest(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await api.post(`/user/gdpr/requests/${id}/cancel`);
-    return response.data;
-  }
 }
 
 export const privacyAPI = new PrivacyAPI();

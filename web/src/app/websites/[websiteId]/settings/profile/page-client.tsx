@@ -7,7 +7,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { User, Lock, Save, Loader2, Eye, EyeOff, Key } from 'lucide-react';
+import { User, Lock, Save, Loader2, Eye, EyeOff, Key, Trash2 } from 'lucide-react';
+import { DeleteAccountCard } from '@/components/settings/DeleteAccountCard';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -175,6 +176,17 @@ export default function ProfileSettingsPage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* The cloud gateway answers this; a self-hosted install's accounts are its operator's. */}
+      {isEnterprise && (
+        <section className="space-y-2.5">
+          <div className="flex items-center gap-2 px-1">
+            <Trash2 className="h-4 w-4 text-destructive" />
+            <h2 className="text-sm font-semibold text-foreground">Delete account</h2>
+          </div>
+          <DeleteAccountCard />
+        </section>
+      )}
     </div>
   );
 }

@@ -272,9 +272,9 @@ export default function WebsiteDashboardPage() {
       Failed to load analytics data.
     </div>
   ) : (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* ── Header — single compact row ── */}
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
 
           <WebsiteSwitcher
             websites={websites}

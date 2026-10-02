@@ -6,22 +6,10 @@
 export interface WebsitePrivacySettings {
   ipAnonymization: 'none' | 'partial' | 'full';
   respectDnt: boolean;
-  consentMode: 'cookieless' | 'strict';
+  consentMode: 'cookieless' | 'strict' | 'none';
   dataRetentionDays: number | null;
 }
 
-export interface GDPRRequestItem {
-  id: string;
-  userId: string;
-  userEmail?: string;
-  requestType: string;
-  status: string;
-  processedBy?: string;
-  processedAt?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface ImportResult {
   events: number;

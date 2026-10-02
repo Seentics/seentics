@@ -127,13 +127,55 @@ let flushInterval = null;
 /** True once /tracker/init has answered (or failed) and tracking has started or been declined. */
 let started = false;
 
-/** A strict site needs an explicit signal from its CMP or script tag before tracking. */
-const consentGranted = () =>
-  script?.getAttribute('data-consent') === 'granted' || window.seenticsConsent === true;
+// ─── Consent ──────────────────────────────────────────────────────────────────
+//
+// A site's `consent_mode` decides what happens before a visitor consents:
+//   cookieless (default)  anonymous: page views, events, funnels and errors with no id
+//                         and nothing stored in the browser; the server counts visitors
+//                         with a daily-rotating hash. Everything else — the persistent
+//                         id, recordings, heatmaps, automations, identify() — after consent.
+//   strict                nothing at all until consent.
+//   none                  no consent asked: everything, for every visitor (the site
+//                         owner has another legal basis).
+// Consent arrives as `data-consent="granted"`, `window.seenticsConsent = true`, or —
+// from a consent banner at any time — `seentics.consent(true | false)`.
+
+/** Where the visitor's own consent choice is kept: a record of consent, not tracking. */
+const CONSENT_KEY = 'snc_consent';
+/** Set by `seentics.consent()`; null until the page has said anything this visit. */
+let runtimeConsent = null;
+
+const consentGranted = () => {
+  if (runtimeConsent !== null) return runtimeConsent;
+  if (script?.getAttribute('data-consent') === 'granted' || window.seenticsConsent === true) return true;
+  try { return localStorage.getItem(CONSENT_KEY) === '1'; } catch { return false; }
+};
 
 const trackingAllowed = (config = cfg) => {
   if (config.respect_dnt === true && navigator.doNotTrack === '1') return false;
   return config.consent_mode !== 'strict' || consentGranted();
+};
+
+/**
+ * The configuration this page acts on: the site's, once /tracker/init has answered;
+ * before that, the one the last visit cached (only ever written for an identified
+ * visitor), or none.
+ */
+let assumedConfig = null;
+const effectiveConfig = () => (started ? cfg : assumedConfig);
+
+/**
+ * May this visitor be identified — an id stored in their browser, their session
+ * recorded, their clicks mapped, automations run, identify() kept?
+ *
+ * Without a known configuration only an explicit consent says yes: the safe answer
+ * before /tracker/init has answered is the anonymous one.
+ */
+const identified = () => {
+  const config = effectiveConfig();
+  if (!config) return consentGranted();
+  if (!trackingAllowed(config)) return false;
+  return consentGranted() || config.consent_mode === 'none';
 };
 
 /**
@@ -189,8 +231,17 @@ let sessionEarlyFlushScheduled = false;
  * unguarded write here used to throw out of the tracker's first statement — no visitor
  * id, so no tracking at all for that visitor, and an error in the host page's console.
  */
-const storeGet = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
-const storeSet = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
+const rawGet = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const rawSet = (key, value) => { try { localStorage.setItem(key, value); return true; } catch { return false; } };
+
+/**
+ * The browser's storage, for an identified visitor only. An anonymous visitor's
+ * browser is neither read nor written — EU law treats localStorage exactly like
+ * cookies, so "cookie-free" was not enough on its own: the visitor id it kept for ever
+ * needed consent like any cookie would.
+ */
+const storeGet = (key) => (identified() ? rawGet(key) : null);
+const storeSet = (key, value) => (identified() ? rawSet(key, value) : false);
 
 /** Cryptographically random token; falls back to Math.random if the crypto API is unavailable. */
 const rnd = () => {
@@ -203,15 +254,22 @@ const rnd = () => {
   }
 };
 
-/** Persistent visitor ID — set once and stored in localStorage forever. */
-const visitorId = (() => {
+/**
+ * The visitor's id: persistent for an identified visitor, `anon` otherwise — the
+ * server replaces `anon` with the day's anonymous hash.
+ */
+const ANON = 'anon';
+let _visitorId = null;
+const getVisitorId = () => {
+  if (!identified()) return ANON;
+  if (_visitorId) return _visitorId;
   let id = storeGet('snc_vid');
   if (!id) {
     id = 'v-' + rnd() + Date.now().toString(36);
     storeSet('snc_vid', id);
   }
-  return id;
-})();
+  return (_visitorId = id);
+};
 
 /**
  * In-memory session ID cache.
@@ -226,6 +284,7 @@ let _cachedSidStart  = 0;  // session start ms — needed to enforce the hard ca
 let _lastExpiryWrite = 0;  // last time we wrote snc_se to storage
 
 const getSessionId = () => {
+  if (!identified()) return ANON;
   const now = Date.now();
 
   // Fast path: in-memory cache is still warm AND the hard cap hasn't been hit.
@@ -288,16 +347,29 @@ const categoryOf = (type) => {
   return 'events';
 };
 
-/** Push a typed analytics event onto the appropriate queue. */
+/**
+ * Push a typed analytics event onto the appropriate queue.
+ *
+ * Before /tracker/init has answered, the visitor's ids are left for the flush to fill
+ * in (`withIds`): whether they may be identified is not known yet.
+ */
 const pushAnalytics = (type, data) => {
   queues[categoryOf(type)].push({
     type,
     data,
     ts:  Date.now(),
     url: location.href,
-    sid: getSessionId(),
-    vid: visitorId,
+    ...(started ? { sid: getSessionId(), vid: getVisitorId() } : {}),
   });
+};
+
+/** Give queued items queued before the visitor's status was known their ids now. */
+const withIds = (items) => {
+  for (const item of items) {
+    if (item.vid === undefined) item.vid = getVisitorId();
+    if (!item.sid) item.sid = getSessionId();
+  }
+  return items;
 };
 
 // ─── Network transport ────────────────────────────────────────────────────────
@@ -428,20 +500,22 @@ const drainQueues = () => {
     return null;
   }
 
-  const events          = queues.events.splice(0);
-  const funnelEvts      = queues.funnels.splice(0);
-  const autoEvts        = queues.automations.splice(0);
+  const events          = withIds(queues.events.splice(0));
+  const funnelEvts      = withIds(queues.funnels.splice(0));
+  const autoEvts        = withIds(queues.automations.splice(0));
   const sessionEvts     = queues.session.splice(0);
   sessionQueueBytes = 0;
   const heatmapEvts     = queues.heatmaps.splice(0);
   const domSnapshotEvts = queues.heatmap_dom_snapshot.splice(0);
-  const errorEvts       = queues.errors.splice(0);
+  const errorEvts       = withIds(queues.errors.splice(0));
 
   if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !domSnapshotEvts.length && !errorEvts.length) {
     return null;
   }
 
-  const payload = { website_id: websiteId, domain, ua: navigator.userAgent, consent: consentGranted() };
+  // `anonymous`: these ids are placeholders, whatever the site's mode — the server then
+  // gives the batch the day's anonymous id and keeps only what needs no consent.
+  const payload = { website_id: websiteId, domain, ua: navigator.userAgent, consent: consentGranted(), anonymous: !identified() };
   if (events.length)            payload.events               = events;
   if (funnelEvts.length)        payload.funnels              = funnelEvts;
   if (autoEvts.length)          payload.automations          = autoEvts;
@@ -602,12 +676,15 @@ const extensionApi = {
   getSessionId,
   pushAnalytics,
   urlAllowed: (include, exclude) => urlAllowed(include, exclude),
+  textMaskedHere: () => textMaskedHere(),
   fireAutomationTrigger: (type, data) => fireAutomationTrigger(type, data),
   get cfg() { return cfg; },
   get automations() { return automations; },
   get automationTriggerTypes() { return automationTriggerTypes; },
   get pageEnterMs() { return pageEnterMs; },
-  get visitorId() { return visitorId; },
+  get visitorId() { return getVisitorId(); },
+  /** Whether this visitor may be identified; extensions stand down when not. */
+  get identified() { return identified(); },
   get recording() { return stopRecording != null; },
   get recordingSessionId() { return activeRecordingSessionId; },
   get captureActive() { return sessionCaptureActive; },
@@ -703,6 +780,27 @@ let stopRecording = null;
 /** Session ID that the active rrweb instance is recording under. */
 let activeRecordingSessionId = null;
 
+/** Text that is always masked, on every site and page: editors and anything marked. */
+const SENSITIVE_TEXT = '[contenteditable]:not([contenteditable="false"]), [data-seentics-mask], [data-seentics-mask] *, [data-sensitive], [data-sensitive] *';
+
+/**
+ * Does the site mask all page text where the visitor is now? Everywhere with
+ * `mask_all_text`, or on the pages `mask_text_patterns` matches — an account page shows
+ * a visitor's name and address in ordinary text, which input masking never reached.
+ * Read at each text node rather than once, so a single-page app that routes onto
+ * /account is masked from that moment, and the config /tracker/init returns applies
+ * as soon as it arrives.
+ */
+const textMaskedHere = () => {
+  const config = effectiveConfig() || {};
+  if (config.mask_all_text === true) return true;
+  const patterns = patternLines(config.mask_text_patterns);
+  return patterns.length > 0 && patterns.some(p => safeRegex(p, location.href));
+};
+
+/** Same length, whitespace kept, so the replay's layout matches the page. */
+const maskText = (text) => text.replace(/\S/g, '*');
+
 /**
  * rrweb record() options.
  * Tuned for bandwidth efficiency: higher sampling intervals, no canvas / font / inline-CSS capture.
@@ -720,8 +818,14 @@ const RRWEB_OPTIONS = {
    * promise this product makes is that typed input never leaves the browser, so the
    * editors have to be covered too. `data-seentics-mask` is the opt-in for anything
    * else that should render as asterisks rather than be blocked outright.
+   *
+   * Every text node is offered for masking, and `maskTextFn` decides: the sensitive
+   * elements always, everything else on pages the site masks in full. rrweb fixes the
+   * selector when recording starts, and whether a page is masked can change after that.
    */
-  maskTextSelector: '[contenteditable]:not([contenteditable="false"]), [data-seentics-mask], [data-seentics-mask] *, [data-sensitive], [data-sensitive] *',
+  maskTextSelector: '*',
+  maskTextFn: (text, element) =>
+    textMaskedHere() || (element && element.closest && element.closest(SENSITIVE_TEXT)) ? maskText(text) : text,
   blockSelector:    '[data-seentics-block], [data-private], [autocomplete="cc-number"]',
   ignoreSelector:   '[data-seentics-ignore]',
   recordShadowDOM:  true,
@@ -781,7 +885,9 @@ const computeReplaySessionEnabled = (config = cfg) => {
  */
 const CONFIG_CACHE_KEY = `snc_cfg:${websiteId}`;
 const cachedConfig = () => {
-  try { return JSON.parse(storeGet(CONFIG_CACHE_KEY) ?? 'null'); } catch { return null; }
+  // Read before it is known whether this visitor may be identified: it is the site's
+  // configuration, not the visitor's, and it is only ever written for one who may be.
+  try { return JSON.parse(rawGet(CONFIG_CACHE_KEY) ?? 'null'); } catch { return null; }
 };
 
 /**
@@ -808,7 +914,7 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
       ts:   documentStartMs,
       url:  documentHref,
       sid:  sessionId,
-      vid:  visitorId,
+      vid:  getVisitorId(),
     });
   }
   recordedDocumentStart = true;
@@ -825,7 +931,7 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
         ts:   event.timestamp,
         url:  location.href,
         sid:  activeRecordingSessionId,
-        vid:  visitorId,
+        vid:  getVisitorId(),
       });
       // Full snapshots (type 2) can be 50–200 KB. Flush immediately so the data
       // is already sent before the user navigates away — iOS Safari's keepalive
@@ -888,7 +994,8 @@ const initRecording = (config = cfg) => {
  */
 const startRecordingEarly = () => {
   const config = cachedConfig();
-  if (!config || !trackingAllowed(config)) return;
+  assumedConfig = config;
+  if (!config || !identified()) return;
   safely(() => initRecording(config));
 };
 
@@ -964,10 +1071,12 @@ const trackPage = () => {
 // ─── Funnels ──────────────────────────────────────────────────────────────────
 
 // Funnel progress is persisted in sessionStorage so a mid-funnel page refresh
-// doesn't reset the visitor back to step 0.
+// doesn't reset the visitor back to step 0 — for an identified visitor. An anonymous
+// one's progress is kept for the page only; the server still sees each step.
 const funnelStateKey  = (funnelId) => `snc_fs:${websiteId}:${funnelId}`;
 
 const loadFunnelState = (funnelId) => {
+  if (!identified()) return null;
   try {
     const raw = sessionStorage.getItem(funnelStateKey(funnelId));
     return raw != null ? { step: parseInt(raw, 10) || 0 } : null;
@@ -975,6 +1084,7 @@ const loadFunnelState = (funnelId) => {
 };
 
 const saveFunnelState = (funnelId, step) => {
+  if (!identified()) return;
   try { sessionStorage.setItem(funnelStateKey(funnelId), String(step)); }
   catch { /* ignore */ }
 };
@@ -1067,7 +1177,8 @@ const indexAutomationTriggers = () => {
  * and the actions run once both are in.
  */
 const fireAutomationTrigger = async (triggerType, triggerData) => {
-  if (!websiteId) return;
+  // Automations act on one visitor's behaviour: only for one who may be identified.
+  if (!websiteId || !identified()) return;
 
   // One Set lookup, not a scan of every automation's every trigger. This runs on the
   // hot path — clicks, scroll thresholds, visibility changes — so the answer for a
@@ -1095,7 +1206,7 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         website_id:   websiteId,
-        anonymous_id: visitorId,
+        anonymous_id: getVisitorId(),
         session_id:   getSessionId(),
         trigger:      { type: triggerType, ...triggerData },
         context: {
@@ -1175,8 +1286,7 @@ const installErrorReporting = () => {
       kind,
       ts:        Date.now(),
       url:       location.href,
-      sid:       getSessionId(),
-      vid:       visitorId,
+      // Ids filled in at the flush (`withIds`), once whether they may be set is known.
       message:   msg,
       source:    String(source ?? '').slice(0, 500),
       line_no:   Number.isFinite(lineNo) ? lineNo : undefined,
@@ -1285,7 +1395,6 @@ const start = (data) => {
     cfg         = data.config      ?? {};
     funnels     = data.funnels     ?? [];
     automations = data.automations ?? [];
-    storeSet(CONFIG_CACHE_KEY, JSON.stringify(cfg));
   } else {
     console.warn(
       '[Seentics] tracker running in degraded mode (no session recording). ' +
@@ -1296,21 +1405,22 @@ const start = (data) => {
   started = true;
 
   if (!trackingAllowed()) {
+    // Strict consent without it, or Do Not Track: nothing — until `seentics.consent(true)`.
     console.info('[Seentics] tracking disabled by the site privacy policy.');
     abandonRecording();
     drainQueues(); // discards anything queued before the policy was known
     markReady();
     return;
   }
+  beginTracking();
+};
 
-  // A recording started early on the cached configuration stands only if the current
-  // one agrees (replay still on, this page not excluded). One not started early starts
-  // now — at once, not after `load`: the recorder begins at DOMContentLoaded.
-  if (recordingSidecars && !computeReplaySessionEnabled()) {
-    abandonRecording();
-    recordingSidecars = null;
-  }
-  const recording = safely(initRecording);
+let trackingBegun = false;
+
+/** Page views, events, funnels and errors — what an anonymous visitor gets too. */
+const beginTracking = () => {
+  if (trackingBegun) return;
+  trackingBegun = true;
 
   // Error tracking switched off: errors caught before the site's configuration arrived
   // are dropped, and `report` queues no more.
@@ -1321,6 +1431,33 @@ const start = (data) => {
 
   flush(); // send the initial pageview immediately
   flushInterval = window.setInterval(flush, FLUSH_MS);
+
+  if (identified()) enableIdentifiedFeatures();
+  else {
+    // Started early on a cached configuration this visit no longer has consent for.
+    abandonRecording();
+    markReady();
+  }
+};
+
+let identifiedFeaturesOn = false;
+
+/** Recordings, heatmaps and automations: for a visitor who may be identified. */
+const enableIdentifiedFeatures = () => {
+  if (identifiedFeaturesOn || !trackingBegun || !identified()) return;
+  identifiedFeaturesOn = true;
+  // Cached for the next page, which can then start recording without waiting for
+  // /tracker/init. Written only now — for an identified visitor.
+  storeSet(CONFIG_CACHE_KEY, JSON.stringify(cfg));
+
+  // A recording started early on the cached configuration stands only if the current
+  // one agrees (replay still on, this page not excluded). One not started early starts
+  // now — at once, not after `load`: the recorder begins at DOMContentLoaded.
+  if (recordingSidecars && !computeReplaySessionEnabled()) {
+    abandonRecording();
+    recordingSidecars = null;
+  }
+  const recording = safely(initRecording);
 
   // The features' files are fetched once the page has loaded. A script inserted before
   // `load` holds that event back until it arrives — the page's own `load` handlers, and
@@ -1333,6 +1470,26 @@ const start = (data) => {
     loads.push(recording);
     Promise.all(loads).then(() => markReady(), () => markReady());
   });
+};
+
+/** Every key this tracker keeps in the browser for an identified visitor. */
+const isTrackerKey = (key) => /^snc_(vid|sid|se|ss|rd|cfg:|fs:|hmshot:)/.test(key);
+
+/**
+ * Consent withdrawn: stop everything that identifies the visitor, and remove every id
+ * and setting this tracker stored in their browser — the record of the refusal aside.
+ */
+const withdrawConsent = () => {
+  abandonRecording();
+  heat = null;
+  _visitorId = null;
+  _cachedSid = null;
+  for (const area of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = window[area];
+      for (const key of Object.keys(storage)) if (isTrackerKey(key)) storage.removeItem(key);
+    } catch { /* storage unavailable */ }
+  }
 };
 
 /** Run `fn` once the window `load` event has fired (now, if it already has). */
@@ -1401,6 +1558,9 @@ const api = {
    * @param {object} traits - Optional user traits (name, email, plan, etc.).
    */
   identify(userId, traits) {
+    // Ties the visitor to a person: only with consent (or on a site that asks none).
+    // Called earlier, it is dropped rather than kept for later.
+    if (started ? !identified() : !consentGranted()) return;
     pushAnalytics('identify', { user_id: userId, traits: traits ?? {} });
     void fireAutomationTrigger('identify', { user_id: userId, traits: traits ?? {} });
   },
@@ -1416,6 +1576,28 @@ const api = {
    * (heatmaps, automations, recording sidecars) is listening.
    */
   ready: () => readyPromise,
+
+  /**
+   * This visitor's id — `null` for an anonymous visitor, who has none. Show it to a
+   * visitor who wants to ask for their data: the site owner finds them by it.
+   */
+  get visitorId() { return identified() ? getVisitorId() : null; },
+
+  /**
+   * Tell the tracker the visitor's consent choice — from your consent banner, at any
+   * time. `true`: recordings, heatmaps, automations, identify() and the persistent
+   * visitor id start now, without a reload. `false`: they stop, and every id this
+   * tracker stored in the browser is removed. The choice itself is remembered.
+   * @param {boolean} granted
+   */
+  consent(granted) {
+    runtimeConsent = granted === true;
+    rawSet(CONSENT_KEY, runtimeConsent ? '1' : '0');
+    if (!runtimeConsent) { withdrawConsent(); return; }
+    if (!started) return; // start() applies it when the configuration arrives
+    if (!trackingBegun) beginTracking(); // strict mode, now consented
+    else enableIdentifiedFeatures();
+  },
 };
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

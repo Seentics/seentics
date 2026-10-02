@@ -68,6 +68,8 @@ const ACTIVE_WEBSITE: WebsiteTrackerRow = {
   replay_enabled: true,
   replay_sampling_rate: 1.0,
   replay_include_patterns: null,
+  mask_all_text: false,
+  mask_text_patterns: null,
   replay_exclude_patterns: null,
   automation_enabled: true,
   errors_enabled: true,
@@ -163,7 +165,10 @@ function makeFakeQueue() {
   return {
     events: [] as unknown[],
     profiles: [] as unknown[],
+    /** Every lane written, with its rows. */
+    enqueued: [] as { lane: string; rows: readonly unknown[] }[],
     enqueue(lane: string, _websiteId: string, rows: readonly unknown[]) {
+      this.enqueued.push({ lane, rows });
       if (lane === "analytics") this.events.push(...rows);
       if (lane === "profiles") this.profiles.push(...rows);
       return { accepted: rows.length, dropped: 0 };
@@ -208,8 +213,11 @@ beforeEach(() => {
       listGoals: mockListGoals,
       buildConfig: mockBuildConfig,
     },
+    visitorSalt: async () => TEST_SALT,
   });
 });
+
+const TEST_SALT = Buffer.alloc(32, 7);
 
 // ─── GET /init/:website_id ───────────────────────────────────────────────────
 
@@ -224,6 +232,7 @@ describe("GET /init/:website_id", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         website_id: "site_abc",
+        consent: true, // layout snapshots are only taken with the visitor's consent
         heatmap_dom_snapshot: [{
           type: "heatmap_dom_snapshot",
           data: { html: "<!DOCTYPE html><html><body>hi</body></html>" },
@@ -237,6 +246,32 @@ describe("GET /init/:website_id", () => {
     const body = await res.json() as any;
     expect(body.message).not.toBe("nothing to process");
     expect(mockResolveWebsite).toHaveBeenCalled();
+  });
+
+  it("without consent, keeps page views under a daily anonymous id and drops recordings, heatmaps and identify", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const pageview = { type: "pageview", data: { title: "Home" }, ts: Date.now(), url: "https://example.com/", sid: "s-browser", vid: "v-browser" };
+    const send = (extra: Record<string, unknown>) => app.request("/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 Test", "X-Forwarded-For": "203.0.113.9" },
+      body: JSON.stringify({ website_id: "site_abc", events: [pageview, { ...pageview, type: "identify", data: { user_id: "u1" } }], ...extra }),
+    });
+
+    const res = await send({
+      session: [{ type: "rrweb", data: { type: 2 }, ts: 1, url: "https://example.com/", sid: "s-browser" }],
+      heatmaps: [{ type: "heatmap_click", data: { nx: 0.5, ny: 0.5 }, ts: 1, url: "https://example.com/", sid: "s-browser" }],
+    });
+    expect(res.status).toBe(200);
+
+    const lanes = queue.enqueued.map((call: any) => call.lane);
+    expect(lanes).not.toContain("session");
+    expect(lanes).not.toContain("heatmaps");
+    const events = queue.enqueued.flatMap((call: any) => call.rows) as any[];
+    expect(queue.events.length, "the page view itself is kept").toBeGreaterThanOrEqual(1);
+    expect(events.some((e) => e.type === "identify" || e.event_type === "identify")).toBe(false);
+    // Neither id the browser sent survives; both are the day's anonymous id.
+    const ids = new Set(events.flatMap((e) => [e.vid, e.sid, e.visitor_id, e.session_id].filter(Boolean)));
+    expect([...ids].every((id) => String(id).startsWith("h-"))).toBe(true);
   });
 
   it("returns 404 when website is not found", async () => {

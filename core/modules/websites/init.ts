@@ -35,6 +35,8 @@ export function initWebsitesModule(deps: {
   analyticsModule(): AnalyticsModule;
   /** For member names and invitation email checks — `users` belongs to auth. */
   authModule: AuthModule;
+  /** Erases everything a website collected, run before the website itself is deleted. */
+  eraseWebsiteData?: (websiteId: string) => Promise<void>;
 }): WebsitesModule {
   // `cached` is referenced before it is assigned, but only from inside a callback the
   // service invokes after a mutation — by which time the binding is initialised.
@@ -48,7 +50,7 @@ export function initWebsitesModule(deps: {
     cached.clear();
     tracker.clear();
   };
-  const mutations = new WebsiteMutationService(repository, onChanged);
+  const mutations = new WebsiteMutationService(repository, onChanged, deps.eraseWebsiteData);
   const sharing = new WebsitePublicSharingService(repository, onChanged);
   const traffic = new WebsiteTrafficService(repository, deps.analyticsModule);
   const invitations = new WebsiteInvitationService(deps.authModule.users);

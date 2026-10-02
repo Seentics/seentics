@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { sql } from "../../db";
 
 /**
@@ -27,15 +27,4 @@ export async function dailyVisitorSalt(now = new Date()): Promise<Buffer> {
 
   cached = { day, salt: Buffer.from(row!.salt) };
   return cached.salt;
-}
-
-/** The anonymous id for one visitor on one website, for the salt's day. */
-export function anonymousVisitorId(salt: Buffer, websiteId: string, ip: string, userAgent: string): string {
-  const hash = createHash("sha256")
-    .update(salt)
-    .update("\0").update(websiteId)
-    .update("\0").update(ip)
-    .update("\0").update(userAgent)
-    .digest("hex");
-  return `h-${hash.slice(0, 32)}`;
 }

@@ -49,6 +49,8 @@ function makeWebsite(overrides: Partial<Website> = {}): Website {
     replaySamplingRate: 1,
     replayIncludePatterns: null,
     replayExcludePatterns: null,
+    maskAllText: false,
+    maskTextPatterns: null,
     verificationToken: "tok",
     publicShareId: null,
     settings: {

@@ -1,4 +1,20 @@
+import { createHash } from "node:crypto";
 import type { TrackerCollectBody } from "../interfaces";
+
+/**
+ * The anonymous id for one visitor on one website, for the salt's day: same person,
+ * site and day → same id; nothing linkable across days once the salt is deleted
+ * (platform/privacy/visitor-salt.ts). The IP address is hashed here and never stored.
+ */
+export function anonymousVisitorId(salt: Buffer, websiteId: string, ip: string, userAgent: string): string {
+  const hash = createHash("sha256")
+    .update(salt)
+    .update("\0").update(websiteId)
+    .update("\0").update(ip)
+    .update("\0").update(userAgent)
+    .digest("hex");
+  return `h-${hash.slice(0, 32)}`;
+}
 
 /**
  * A batch from a visitor who has not consented, reduced to what needs no consent.
@@ -30,7 +46,15 @@ export function anonymizeTrackerBatch(body: TrackerCollectBody, anonymousId: str
   } as TrackerCollectBody;
 }
 
-/** Whether a batch is to be anonymised: a site that asks for consent, and none given. */
-export function needsAnonymizing(consentMode: string | null | undefined, consentGranted: boolean): boolean {
-  return consentMode !== "none" && !consentGranted;
+/**
+ * Whether a batch is to be anonymised: a site that asks for consent and none given — or
+ * a batch the tracker itself marks anonymous (sent before it knew the site's mode, so
+ * it carries no real ids).
+ */
+export function needsAnonymizing(
+  consentMode: string | null | undefined,
+  consentGranted: boolean,
+  markedAnonymous = false,
+): boolean {
+  return markedAnonymous || (consentMode !== "none" && !consentGranted);
 }

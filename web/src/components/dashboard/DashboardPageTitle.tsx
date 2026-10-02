@@ -21,7 +21,7 @@ export function DashboardPageTitle({
   uppercase = false,
 }: DashboardPageTitleProps) {
   return (
-    <div className={cn('mb-8 flex flex-col justify-between gap-6 xl:flex-row xl:items-center', className)}>
+    <div className={cn('mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-center', className)}>
       <div className="space-y-1">
         <h1
           className={cn(

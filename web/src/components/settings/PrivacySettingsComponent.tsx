@@ -34,7 +34,6 @@ import {
   Info,
   Save,
   Clock,
-  Ban,
   FileText,
   Globe,
   Bot,
@@ -45,36 +44,18 @@ import {
   RefreshCw,
   Database,
 } from 'lucide-react';
-import { privacyAPI, WebsitePrivacySettings, GDPRRequestItem } from '@/lib/privacy-api';
+import { privacyAPI, WebsitePrivacySettings } from '@/lib/privacy-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { isEnterprise } from '@/lib/features';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { VisitorRequestCard } from './VisitorRequestCard';
 
 interface PrivacySettingsProps {
   websiteId?: string;
 }
 
 // --- Sub-components ---
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-    processing: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
-    completed: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-    cancelled: 'bg-muted text-muted-foreground border-border',
-    failed: 'bg-red-500/10 text-red-600 border-red-500/20',
-    rejected: 'bg-red-500/10 text-red-600 border-red-500/20',
-  };
-  return (
-    <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize',
-      styles[status] || styles.pending
-    )}>
-      {status}
-    </span>
-  );
-}
 
 function PrivacyToggleCard({
   icon: Icon,
@@ -134,9 +115,6 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  // --- Enterprise: GDPR requests ---
-  const [gdprRequests, setGdprRequests] = useState<GDPRRequestItem[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
   // --- OSS: load from localStorage ---
   useEffect(() => {
@@ -186,16 +164,6 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       })
       .finally(() => setIsLoadingSettings(false));
   }, [websiteId]);
-
-  // --- Enterprise: load GDPR requests ---
-  useEffect(() => {
-    if (!isEnterprise) return;
-    setIsLoadingRequests(true);
-    privacyAPI.getGDPRRequests()
-      .then(res => setGdprRequests(res.data || []))
-      .catch(() => {})
-      .finally(() => setIsLoadingRequests(false));
-  }, []);
 
   // --- Handlers ---
 
@@ -266,16 +234,6 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       toast.error('Failed to delete data.');
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const handleCancelGdprRequest = async (id: string) => {
-    try {
-      await privacyAPI.cancelGDPRRequest(id);
-      setGdprRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled' } : r));
-      toast.success('Request cancelled.');
-    } catch {
-      toast.error('Failed to cancel request.');
     }
   };
 
@@ -412,11 +370,21 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cookieless">Cookieless (no consent needed)</SelectItem>
-                      <SelectItem value="strict">Strict (explicit consent required)</SelectItem>
+                      <SelectItem value="cookieless">Anonymous until consent (recommended)</SelectItem>
+                      <SelectItem value="strict">Nothing until consent</SelectItem>
+                      <SelectItem value="none">No consent asked (outside the EU / other legal basis)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground">Determines whether visitor consent is required.</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {privacySettings.consentMode === 'none'
+                      ? 'Every visitor is identified, recorded and mapped without consent. Only choose this if you have another legal basis for it.'
+                      : privacySettings.consentMode === 'strict'
+                        ? 'Nothing is collected until the visitor consents.'
+                        : 'Before consent: anonymous page views and events, nothing stored in the browser. After consent: recordings, heatmaps, automations and identify().'}
+                    {privacySettings.consentMode !== 'none' && (
+                      <> From your consent banner, call <code>seentics.consent(true)</code> when the visitor accepts.</>
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -533,6 +501,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           )}
 
         </div>
+        {websiteId && <VisitorRequestCard websiteId={websiteId} />}
       </div>
 
       {/* ====== Data Actions ====== */}
@@ -585,88 +554,6 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
         </div>
       </div>
 
-      {/* ====== Enterprise: GDPR Request History ====== */}
-      {isEnterprise && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-              <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">GDPR Data Requests</h4>
-            </div>
-            {gdprRequests.length > 0 && (
-              <span className="text-[10px] text-muted-foreground">{gdprRequests.length} total</span>
-            )}
-          </div>
-
-          {isLoadingRequests ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : gdprRequests.length === 0 ? (
-            <Card className="border-dashed border-border">
-              <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
-                  <Shield className="h-6 w-6 text-muted-foreground/30" />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground">No data requests yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1 max-w-sm">
-                  GDPR data export and deletion requests from your users will appear here.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {gdprRequests.map((req) => (
-                <Card key={req.id} className="border-border bg-card">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
-                        req.requestType === 'deletion' ? 'bg-red-500/10' : 'bg-primary/10'
-                      )}>
-                        {req.requestType === 'deletion' ? (
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Download className="h-4 w-4 text-primary" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold capitalize">{req.requestType} Request</p>
-                          <StatusBadge status={req.status} />
-                        </div>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          {req.userEmail && (
-                            <p className="text-[11px] text-muted-foreground">{req.userEmail}</p>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-muted-foreground/50" />
-                            <p className="text-[11px] text-muted-foreground">
-                              {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {req.status === 'pending' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCancelGdprRequest(req.id)}
-                        className="text-xs text-muted-foreground hover:text-destructive h-8 gap-1"
-                      >
-                        <Ban className="h-3 w-3" />
-                        Cancel
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ====== Data Retention ====== */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
@@ -705,7 +592,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               {[
                 'No personally identifiable information (PII) collected by default',
                 'All data processed in GDPR-compliant infrastructure',
-                'Cookie-less tracking option eliminates consent banners',
+                'Anonymous until consent: no identifiers stored before the visitor agrees',
                 'Full data portability and right-to-deletion support',
                 'No data sold or shared with third parties',
                 'Open-source tracker script for full transparency',

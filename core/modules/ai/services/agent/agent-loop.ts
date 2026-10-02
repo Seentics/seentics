@@ -4,6 +4,7 @@ import type {
   ToolCallingLlmClient,
 } from "../../interfaces/llm-client.interface";
 import type { ToolRegistry } from "../../tools/registry";
+import { forModel } from "./model-view";
 import type { ActionProposal, ToolContext } from "../../tools/tool.types";
 
 /**
@@ -154,10 +155,10 @@ function toolMessage(
   call: ToolCallRequest,
   result: { ok: true; data: unknown } | { ok: false; error: string },
 ): ChatMessage {
-  // Only `data` reaches the model. The display block is presentation, and sending it
-  // would invite the model to argue with it.
+  // Only `data` reaches the model, and only as forModel leaves it: no identifiers. The
+  // display block is presentation, and sending it would invite the model to argue with it.
   const body = result.ok
-    ? JSON.stringify((result.data as { data?: unknown })?.data ?? result.data)
+    ? JSON.stringify(forModel((result.data as { data?: unknown })?.data ?? result.data))
     : JSON.stringify({ error: result.error });
 
   const content =

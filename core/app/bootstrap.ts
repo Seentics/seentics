@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config";
 import { log, type Logger } from "../platform/observability/logger";
 import { initMaxMindGeo } from "../platform/geo/maxmind-geo";
+import { eraseWebsiteAnalytics } from "./http/privacy";
 import { configureTrackerOriginCache } from "../platform/http/origin";
 import { createInternalRoutes } from "./http/internal/routes";
 import { RetentionService } from "./services/retention/retention.service";
@@ -102,6 +103,9 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const websitesModule = initWebsitesModule({
     analyticsModule: () => analyticsModule,
     authModule,
+    // Deleting a website erases everything it collected — the same erasure as the
+    // privacy endpoint, recordings' stored files included.
+    eraseWebsiteData: eraseWebsiteAnalytics,
   });
 
   const apiKeysModule = initApiKeysModule({ websitesModule });

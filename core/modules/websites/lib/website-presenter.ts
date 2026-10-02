@@ -31,6 +31,8 @@ export type WebsiteResponse = {
   replay_sampling_rate: number;
   replay_include_patterns: string | null;
   replay_exclude_patterns: string | null;
+  mask_all_text: boolean;
+  mask_text_patterns: string | null;
   verification_token: string;
   public_share_id: string | null;
   created_at: string;
@@ -72,6 +74,8 @@ export function presentWebsite(
     replay_sampling_rate: website.replaySamplingRate,
     replay_include_patterns: website.replayIncludePatterns,
     replay_exclude_patterns: website.replayExcludePatterns,
+    mask_all_text: website.maskAllText,
+    mask_text_patterns: website.maskTextPatterns,
     verification_token: website.verificationToken,
     public_share_id: website.publicShareId,
     created_at: website.createdAt.toISOString(),

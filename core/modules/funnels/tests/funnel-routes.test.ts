@@ -55,6 +55,8 @@ function makeWebsite(): Website {
     replaySamplingRate: 1,
     replayIncludePatterns: null,
     replayExcludePatterns: null,
+    maskAllText: false,
+    maskTextPatterns: null,
     verificationToken: "tok",
     publicShareId: null,
     settings: {

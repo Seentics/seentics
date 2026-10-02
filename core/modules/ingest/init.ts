@@ -9,6 +9,7 @@ import { CollectBuffer } from "./services/collect-buffer.service";
 import { BatchWorker } from "./services/batch-worker.service";
 import { createTrackerCollectService } from "./services/tracker-collect.service";
 import { postgresBatchQueue } from "./repositories/postgres-batch-queue";
+import { dailyVisitorSalt } from "../../platform/privacy/visitor-salt";
 
 /**
  * Build the ingest module.
@@ -57,6 +58,7 @@ export function initIngestModule(deps: {
       funnels: deps.funnelsModule.trackerConfig,
       screenshots: deps.heatmapsModule.screenshots,
       trackerWebsites: deps.websitesModule.trackerWebsites,
+      visitorSalt: dailyVisitorSalt,
     }),
 
     start(cfg) {

@@ -33,6 +33,7 @@ export function toUpdateWebsiteInput(patch: Record<string, unknown>): UpdateWebs
   if (typeof patch.replay_sampling_rate === "number") {
     out.replaySamplingRate = patch.replay_sampling_rate;
   }
+  if (typeof patch.mask_all_text === "boolean") out.maskAllText = patch.mask_all_text;
 
   // Nullable: `null` clears, absence leaves alone. `in` distinguishes the two.
   if ("heatmap_include_patterns" in patch) {
@@ -46,6 +47,9 @@ export function toUpdateWebsiteInput(patch: Record<string, unknown>): UpdateWebs
   }
   if ("replay_exclude_patterns" in patch) {
     out.replayExcludePatterns = asNullableString(patch.replay_exclude_patterns);
+  }
+  if ("mask_text_patterns" in patch) {
+    out.maskTextPatterns = asNullableString(patch.mask_text_patterns);
   }
 
   return out;

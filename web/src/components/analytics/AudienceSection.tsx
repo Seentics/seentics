@@ -44,7 +44,7 @@ export function AudienceSection({
 }: AudienceSectionProps) {
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border border-border bg-card">
           <CardContent className="p-5">
             <ChartErrorBoundary label="Top Pages">
@@ -74,7 +74,7 @@ export function AudienceSection({
         <GeolocationOverview data={geolocation.data as any} isLoading={geolocation.isLoading ?? false} />
       </ChartErrorBoundary>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border border-border bg-card">
           <CardContent className="p-5">
             <ChartErrorBoundary label="Top Devices">

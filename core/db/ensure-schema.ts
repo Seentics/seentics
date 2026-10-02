@@ -1,6 +1,6 @@
 import { join } from "path";
 import { getTableName, is } from "drizzle-orm";
-import { PgTable } from "drizzle-orm/pg-core";
+import { PgTable, getTableConfig } from "drizzle-orm/pg-core";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -194,12 +194,69 @@ export async function ensureCoreSchema(): Promise<void> {
   }
 
   const missing = await missingCoreTables();
-  if (missing.length === 0) return;
-  const absent = await absentSchemaTables();
-  // Nothing the schema creates is absent (the missing ones come from SQL migrations).
-  if (absent.length === 0) return;
-  console.log(`[schema] creating missing tables: ${absent.join(", ")}`);
-  await createAbsentTables(coreRoot, absent);
+  if (missing.length > 0) {
+    const absent = await absentSchemaTables();
+    // Nothing the schema creates is absent when the missing ones come from SQL migrations.
+    if (absent.length > 0) {
+      console.log(`[schema] creating missing tables: ${absent.join(", ")}`);
+      await createAbsentTables(coreRoot, absent);
+    }
+  }
+  await createMissingIndexes(coreRoot);
+}
+
+/** Every index the Drizzle schema defines, by name. */
+const SCHEMA_INDEXES = (Object.values(schema) as unknown[])
+  .filter((value): value is PgTable => is(value, PgTable))
+  .flatMap((table) => getTableConfig(table).indexes.map((index) => index.config.name))
+  .filter((name): name is string => Boolean(name));
+
+/**
+ * Create any of the schema's indexes the database lacks.
+ *
+ * Checked on every start, because a schema creation that stopped part-way left tables
+ * without them, and nothing ever noticed: ingest's `ON CONFLICT` writes need their
+ * unique indexes, so every visitor-profile and heatmap batch failed and was parked
+ * until someone read the logs. The check is one catalogue query; the DDL is exported
+ * only when something is actually missing. An index that cannot be built (duplicate
+ * rows under a unique one) is reported, not fatal.
+ */
+async function createMissingIndexes(coreRoot: string): Promise<void> {
+  const url = process.env.DATABASE_URL;
+  if (!url || !SCHEMA_INDEXES.length) return;
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    const rows = await client<{ name: string }[]>`
+      SELECT indexname AS name FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY(${SCHEMA_INDEXES}::text[])
+    `;
+    const present = new Set(rows.map((row) => row.name));
+    const missing = new Set(SCHEMA_INDEXES.filter((name) => !present.has(name)));
+    if (!missing.size) return;
+    console.log(`[schema] creating missing indexes: ${[...missing].join(", ")}`);
+    for (const statement of exportedStatements(coreRoot)) {
+      const name = statement.match(/^CREATE (?:UNIQUE )?INDEX "([^"]+)"/)?.[1];
+      if (!name || !missing.has(name)) continue;
+      try {
+        await client.unsafe(statement.replace(/^CREATE (UNIQUE )?INDEX /, "CREATE $1INDEX IF NOT EXISTS "));
+      } catch (error) {
+        console.error(`[schema] could not create index ${name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
+
+/** The schema's DDL, from drizzle-kit (no database access), one statement each. */
+function exportedStatements(coreRoot: string): string[] {
+  const exported = Bun.spawnSync(["bun", "x", "drizzle-kit", "export", "--dialect", "postgresql", "--schema", "./db/schema.ts"], {
+    cwd: coreRoot, env: process.env, stdout: "pipe", stderr: "inherit",
+  });
+  if (exported.exitCode !== 0) throw new Error(`drizzle-kit export failed (exit ${exported.exitCode ?? "unknown"})`);
+  return exported.stdout.toString()
+    .split(/;\s*(?:\n|$)/)
+    .map((s) => s.trim())
+    .filter((s) => /^CREATE /.test(s));
 }
 
 /**
@@ -219,14 +276,7 @@ export async function ensureCoreSchema(): Promise<void> {
  * columns a shared table lacks. Nothing is altered or dropped.
  */
 async function createAbsentTables(coreRoot: string, absent: string[]): Promise<void> {
-  const exported = Bun.spawnSync(["bun", "x", "drizzle-kit", "export", "--dialect", "postgresql", "--schema", "./db/schema.ts"], {
-    cwd: coreRoot, env: process.env, stdout: "pipe", stderr: "inherit",
-  });
-  if (exported.exitCode !== 0) throw new Error(`drizzle-kit export failed (exit ${exported.exitCode ?? "unknown"})`);
-  const statements = exported.stdout.toString()
-    .split(/;\s*(?:\n|$)/)
-    .map((s) => s.trim())
-    .filter((s) => /^CREATE /.test(s));
+  const statements = exportedStatements(coreRoot);
   const tableOf = (s: string) => (s.match(/^CREATE TABLE "([^"]+)"/) ?? s.match(/ ON "([^"]+)"/))?.[1];
 
   const url = process.env.DATABASE_URL;

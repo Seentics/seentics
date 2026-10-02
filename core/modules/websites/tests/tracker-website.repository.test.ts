@@ -41,6 +41,8 @@ function makeWebsite(overrides: Partial<WebsiteTrackerRow> = {}): WebsiteTracker
     replay_sampling_rate: 0.5,
     replay_include_patterns: null,
     replay_exclude_patterns: null,
+    mask_all_text: false,
+    mask_text_patterns: null,
     automation_enabled: true,
     errors_enabled: true,
     respect_dnt: false,

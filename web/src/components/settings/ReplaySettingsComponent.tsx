@@ -28,6 +28,8 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
   const [samplingRate, setSamplingRate] = useState(100);
   const [includePatterns, setIncludePatterns] = useState('');
   const [excludePatterns, setExcludePatterns] = useState('');
+  const [maskAllText, setMaskAllText] = useState(false);
+  const [maskPatterns, setMaskPatterns] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const { data: website, isLoading } = useQuery<Website | null>({
@@ -45,18 +47,23 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
       setSamplingRate(Math.round((website.replaySamplingRate || 1.0) * 100));
       setIncludePatterns(website.replayIncludePatterns || '');
       setExcludePatterns(website.replayExcludePatterns || '');
+      setMaskAllText(website.maskAllText ?? false);
+      setMaskPatterns(website.maskTextPatterns || '');
       setSeededFor(websiteId);
     }
   }, [website, websiteId, seededFor]);
 
   const updateMutation = useMutation({
-    mutationFn: async (vars: { enabled: boolean; rate: number; include: string; exclude: string }) => {
+    mutationFn: async (vars: { enabled: boolean; rate: number; include: string; exclude: string; maskAll: boolean; maskPatterns: string }) => {
       if (!website) throw new Error('Website data not loaded');
       return updateWebsite(website.id, {
         replayEnabled: vars.enabled,
         replaySamplingRate: vars.rate / 100,
         replayIncludePatterns: vars.include || undefined,
         replayExcludePatterns: vars.exclude || undefined,
+        maskAllText: vars.maskAll,
+        // Emptied means no pages masked in full, so it is sent as a clear, not left out.
+        maskTextPatterns: vars.maskPatterns.trim() || null,
       }, website.userId);
     },
     onSuccess: () => {
@@ -77,7 +84,9 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
       enabled,
       rate: samplingRate,
       include: includePatterns,
-      exclude: excludePatterns
+      exclude: excludePatterns,
+      maskAll: maskAllText,
+      maskPatterns,
     });
   };
 
@@ -187,6 +196,42 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
               </div>
             </div>
           </div>
+
+          {/* Text masking — applies whether or not this page's recording is on: heatmap
+                snapshots carry page text too. */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div>
+                <h4 className="text-xs font-semibold">Text masking</h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Typed input, editable regions and anything marked <code>data-seentics-mask</code> are always masked.
+                  These cover the rest of the page&apos;s text, in recordings and heatmap snapshots alike: each character
+                  becomes <code>*</code>, so the layout and clicks still show.
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="mask-all-text" className="text-xs font-medium text-muted-foreground">Mask all text on every page</Label>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">For sites where any page can show who a visitor is.</p>
+                </div>
+                <Switch id="mask-all-text" checked={maskAllText} onCheckedChange={setMaskAllText} aria-label="Mask all text on every page" />
+              </div>
+              <div className={cn('space-y-1.5', maskAllText && 'opacity-50 pointer-events-none')}>
+                <Label htmlFor="mask-patterns" className="text-xs font-medium text-muted-foreground">
+                  Mask all text on these pages
+                </Label>
+                <Textarea
+                  id="mask-patterns"
+                  placeholder={'/account\n/settings'}
+                  className="min-h-[100px] text-sm bg-muted/20 border-border font-mono"
+                  value={maskPatterns}
+                  onChange={(e) => setMaskPatterns(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  One pattern per line, matched against the page address. By default the pages that usually show a
+                  visitor&apos;s own details: account, profile, settings, checkout, billing and orders.
+                </p>
+              </div>
+            </div>
 
           <div className="flex justify-end pt-4 mt-4 border-t border-border">
             <Button

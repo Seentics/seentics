@@ -110,7 +110,7 @@ export default function EventsPage() {
       )}
 
       {/* Events table */}
-      <div className="mb-4 mt-8">
+      <div className="mb-2 mt-4">
         <h3 className="text-sm font-semibold text-foreground">Custom Events</h3>
         <p className="text-[11px] text-muted-foreground mt-0.5">{filteredEvents.length} event type{filteredEvents.length !== 1 ? 's' : ''} tracked</p>
       </div>

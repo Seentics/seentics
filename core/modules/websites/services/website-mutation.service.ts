@@ -11,6 +11,12 @@ export class WebsiteMutationService implements Pick<WebsiteMutations, "create" |
   constructor(
     private readonly repository: WebsiteRepository,
     private readonly onChanged: (websiteId: string) => void,
+    /**
+     * Erases everything the website collected, across every module, before the website
+     * itself goes — supplied by the composition root, which is where knowledge of every
+     * module's tables and stored files is allowed to meet.
+     */
+    private readonly eraseData: (websiteId: string) => Promise<void> = async () => {},
   ) {}
 
   create(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
@@ -24,6 +30,7 @@ export class WebsiteMutationService implements Pick<WebsiteMutations, "create" |
   }
 
   async delete(websiteId: string): Promise<boolean> {
+    await this.eraseData(websiteId);
     const deleted = await this.repository.delete(websiteId);
     if (deleted) this.onChanged(websiteId);
     return deleted;

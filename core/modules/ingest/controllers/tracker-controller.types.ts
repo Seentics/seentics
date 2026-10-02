@@ -14,6 +14,6 @@ export type TrackerControllerDeps = {
   funnels: FunnelTrackerConfig;
   screenshots: HeatmapScreenshotCapture;
   trackerWebsites: TrackerWebsites;
-  /** Today's anonymous-visitor salt; defaults to the database-backed one (tests replace it). */
-  visitorSalt?: () => Promise<Buffer>;
+  /** Today's anonymous-visitor salt (platform/privacy/visitor-salt.ts). */
+  visitorSalt: () => Promise<Buffer>;
 };
