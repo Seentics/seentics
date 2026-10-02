@@ -62,6 +62,17 @@ export interface CaptureResult {
  *
  * @throws Error if the page cannot be loaded or screenshot fails
  */
+/**
+ * Whether a screenshot can be rendered at all: on Cloudflare, or on a local Chromium
+ * the image actually ships. The production image does not (HEATMAP_LOCAL_SCREENSHOTS
+ * =false): heatmaps are drawn on the tracker's DOM snapshot, and a screenshot is only
+ * the fallback background, so with neither, capture is skipped rather than failing.
+ */
+function screenshotRenderingAvailable(): boolean {
+  const { cloudflare, local } = env().screenshots;
+  return cloudflare !== null || local;
+}
+
 async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
   const cloudflare = env().screenshots.cloudflare;
   if (cloudflare) return captureWithCloudflare(cloudflare, options);
@@ -359,8 +370,8 @@ export async function captureAndStoreScreenshot(
       }
     }
 
-    // If check-only mode and no existing screenshot
-    if (checkOnly) {
+    // If check-only mode and no existing screenshot, or nothing here can render one.
+    if (checkOnly || !screenshotRenderingAvailable()) {
       return null;
     }
 
@@ -395,7 +406,7 @@ export async function captureAndStoreScreenshot(
     // Only retry capture if the error came from the DB/cache layer, not from Playwright itself.
     // Retrying on a Playwright error (e.g. pool exhausted, navigation failed) would double-fire
     // the browser, leak pool slots, and mask the real error.
-    if (checkOnly) return null;
+    if (checkOnly || !screenshotRenderingAvailable()) return null;
     const errMsg = error instanceof Error ? error.message : String(error);
     if (
       errMsg.includes("pool exhausted") ||

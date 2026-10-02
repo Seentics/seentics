@@ -277,11 +277,16 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       ttlMs: Math.max(10_000, screenshotCacheTtlMs),
       maxEntries: Math.max(10, screenshotCacheMaxEntries),
     },
-    /** Where heatmap screenshots render. `cloudflare: null` means the local Chromium. */
+    /**
+     * Where heatmap screenshots render: Cloudflare when configured, else a local
+     * Chromium when `local` — off in the production image, which ships none
+     * (HEATMAP_LOCAL_SCREENSHOTS=false). With neither, no screenshot is taken.
+     */
     screenshots: {
       cloudflare: cloudflareScreenshotsEnabled
         ? { accountId: cloudflareAccountId, apiToken: cloudflareBrowserToken }
         : null,
+      local: parseBool(process.env.HEATMAP_LOCAL_SCREENSHOTS, true),
     },
     dataRetention: {
       enabled: dataRetentionEnabled,

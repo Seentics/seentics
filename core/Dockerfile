@@ -1,50 +1,23 @@
-FROM oven/bun:1.2-debian
-
+# Production image. No browser: heatmaps are drawn on the DOM snapshot the tracker
+# captures, and a screenshot is only the fallback background — rendered on
+# Cloudflare Browser Rendering when CLOUDFLARE_SCREENSHOTS_ENABLED is set, and
+# otherwise skipped (HEATMAP_LOCAL_SCREENSHOTS=false below). Shipping Chromium made
+# this image 3.9 GB and put a browser's memory inside analytics' budget.
+FROM oven/bun:1.2-alpine AS deps
 WORKDIR /app
-
-# System libraries required by Playwright's managed Chromium
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    wget \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libvulkan1 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY package.json bun.lock ./
-# A locked install makes the image reproducible. `bun add` in a Docker build used
-# to mutate the dependency graph independently of the committed lockfile.
+# A locked install makes the image reproducible. Bun runs no postinstall scripts,
+# so @playwright/browser-chromium downloads nothing here.
 RUN bun install --frozen-lockfile
-# Explicitly download Playwright's Chromium (bun doesn't run post-install scripts).
-RUN ./node_modules/.bin/playwright install chromium
-# Keep the runtime browser path outside `/root` because the production API process
-# runs as `seentics`; drop the root-owned copy to avoid carrying it twice.
-RUN mkdir -p /ms-playwright \
-    && cp -a /root/.cache/ms-playwright/. /ms-playwright/ \
-    && rm -rf /root/.cache/ms-playwright
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-COPY . .
-
+FROM oven/bun:1.2-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HEATMAP_LOCAL_SCREENSHOTS=false
 # The API listens on an unprivileged port and has no reason to run as root.
-RUN groupadd --system --gid 10001 seentics \
-    && useradd --system --uid 10001 --gid seentics --create-home seentics \
-    && chown -R seentics:seentics /app /ms-playwright
+RUN addgroup -S -g 10001 seentics && adduser -S -u 10001 -G seentics seentics
+COPY --from=deps --chown=seentics:seentics /app/node_modules ./node_modules
+COPY --chown=seentics:seentics . .
 USER seentics
 
 EXPOSE 8001
