@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, HeartPulse,
+  Code2, Bug, Sparkles, Radio, HeartPulse, BarChart3, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { AiModeButton } from '@/components/ai/AiModeButton';
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/stores/useAuthStore';
 import { useEntitlements } from '@/features/suite/queries';
+import { workspaceIncludes } from '@/features/suite/workspace';
 import { config } from '@/lib/config';
 
 interface SuiteNavItem {
@@ -75,11 +76,9 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const secondNav = buildSecondaryNav(websiteId);
   const [accountOpen, setAccountOpen] = useState(false);
   const { data: entitlements } = useEntitlements();
-  // Every registered product always resolves to at least its free tier now
-  // (see features/suite/types.ts), so this is really just "wait for
-  // entitlements to load" — kept as a filter in case a product this build
-  // doesn't know about yet shows up first.
-  const suiteNav = entitlements ? SUITE_PRODUCTS.filter((item) => item.product in entitlements.products) : [];
+  // Suite plans only, free included (features/suite/workspace.ts): a customer
+  // who bought Analytics alone is not offered the other apps.
+  const suiteNav = entitlements ? SUITE_PRODUCTS.filter((item) => workspaceIncludes(entitlements, item.product)) : [];
 
   const initials = useMemo(() => {
     if (!user) return '?';
@@ -146,7 +145,10 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       >
         <item.icon className="h-[17px] w-[17px] shrink-0" />
         {!collapsed && (
-          <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+          <>
+            <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden />
+          </>
         )}
       </a>
     </li>
@@ -207,16 +209,36 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         </ul>
       </nav>
 
-      {/* Suites — other products this plan includes, on their own subdomain.
-          Only rendered once entitlements resolve to something (enterprise
-          mode with at least one sibling product) so OSS/starter accounts
-          never see an empty section. */}
+      {/* Workspace — switch between the suite's apps, each on its own
+          subdomain. Analytics is this app, shown as current so the section
+          reads as a switcher. Rendered only when another app is offered
+          (enterprise mode, a Suite plan or free), so OSS and Analytics-only
+          accounts never see it. */}
       {suiteNav.length > 0 && (
-        <div className={cn('shrink-0 border-t border-sidebar-border pt-2 pb-1 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('shrink-0 border-t border-sidebar-border pt-3 pb-2 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
           {!collapsed && (
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Suites</p>
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
           )}
           <ul className="space-y-0.5">
+            <li>
+              <span
+                aria-current="true"
+                title={collapsed ? 'Analytics' : undefined}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg',
+                  collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
+                  'text-foreground',
+                )}
+              >
+                <BarChart3 className="h-[17px] w-[17px] shrink-0 text-primary" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-[13.5px] font-medium">Analytics</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                  </>
+                )}
+              </span>
+            </li>
             {suiteNav.map(renderSuiteItem)}
           </ul>
         </div>

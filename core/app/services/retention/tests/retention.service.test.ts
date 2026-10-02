@@ -40,8 +40,17 @@ mock.module("../../../db", () => ({
 }));
 
 const overrideRows = new Map<string, Record<string, number>>();
+let overridesError: string | undefined;
 mock.module("../overrides", () => ({
-  fetchRetentionOverrides: mock(async () => overrideRows),
+  fetchRetentionOverrides: mock(async () => ({ overrides: overrideRows, error: overridesError })),
+}));
+
+// Alerts go to the gateway; here they are recorded.
+const alerts: { title: string; details: Record<string, string | number> }[] = [];
+mock.module("../../../../platform/observability/ops-alert", () => ({
+  alertOps: mock(async (title: string, details: Record<string, string | number> = {}) => {
+    alerts.push({ title, details });
+  }),
 }));
 
 mock.module("../../lib/logger", () => {
@@ -100,6 +109,69 @@ describe("RetentionService", () => {
   beforeEach(() => {
     websiteRows.length = 0;
     overrideRows.clear();
+    overridesError = undefined;
+    alerts.length = 0;
+  });
+
+  describe("a site's privacy promise", () => {
+    // A site that tells its visitors "10 days" must not keep their funnel history,
+    // replays or heatmaps on a longer default.
+    it("caps every kind of data at max_days", async () => {
+      const purge = new FakePurge("analytics");
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      overrideRows.set("u1", { analytics_days: 365, max_days: 10 });
+
+      const before = Date.now();
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
+      const c = purge.calls[0]!.cutoffs;
+      for (const cutoff of [c.analytics, c.funnelAutomation, c.replay, c.heatmap]) {
+        expect(Math.abs(before - 10 * DAY - cutoff.getTime())).toBeLessThan(1000);
+      }
+    });
+
+    it("leaves kinds already shorter than the cap alone", async () => {
+      const purge = new FakePurge("analytics");
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      overrideRows.set("u1", { max_days: 60 });
+
+      const before = Date.now();
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
+      const c = purge.calls[0]!.cutoffs;
+      expect(Math.abs(before - 30 * DAY - c.replay.getTime())).toBeLessThan(1000); // default 30 < 60
+      expect(Math.abs(before - 60 * DAY - c.analytics.getTime())).toBeLessThan(1000); // 365 capped
+    });
+  });
+
+  describe("alerts", () => {
+    it("emails the operators when a module fails, once for the whole sweep", async () => {
+      const purge = new FakePurge("recordings");
+      purge.failing = true;
+      websiteRows.push({ id: "u1", website_id: "s1" }, { id: "u2", website_id: "s2" });
+
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
+
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]!.title).toContain("could not clean up");
+      expect(alerts[0]!.details.failures).toBe(2);
+      expect(String(alerts[0]!.details.recordings)).toContain("recordings exploded");
+    });
+
+    it("emails when per-site retention could not be read, and still sweeps", async () => {
+      const purge = new FakePurge("analytics");
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      overridesError = "gateway answered 502";
+
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
+
+      expect(alerts.map((a) => a.title)).toContain("Data retention ran without per-site retention");
+      expect(purge.calls).toHaveLength(1);
+    });
+
+    it("sends nothing when the sweep succeeds", async () => {
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      await new RetentionService(siteSource, [new FakePurge("analytics")]).runSafely(cfg());
+      expect(alerts).toEqual([]);
+    });
   });
 
   describe("enablement", () => {

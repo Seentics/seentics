@@ -10,8 +10,10 @@ import type { RetentionSiteSource, RetentionTarget } from "../../../platform/ret
  */
 export class WebsiteRetentionSiteSource implements RetentionSiteSource {
   async listAllSites(): Promise<readonly RetentionTarget[]> {
-    const rows = await sql<{ id: string; website_id: string }[]>`
-      SELECT id::text AS id, website_id FROM websites
+    // Only `id`: the second identifier this also selected (`website_id`) is gone from
+    // the table, and asking for it failed the whole nightly sweep before any purge ran.
+    const rows = await sql<{ id: string }[]>`
+      SELECT id::text AS id FROM websites
     `;
     return rows.map((r) => ({ websiteId: r.id }));
   }

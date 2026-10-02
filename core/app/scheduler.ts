@@ -4,6 +4,8 @@ import type { RetentionRunner } from "../platform/retention";
 import type { HeatmapScreenshotMaintenance } from "../modules/heatmaps/interfaces";
 import { log as baseLog } from "../platform/observability/logger";
 import type { AnalyticsRollups } from "../modules/analytics/interfaces";
+import { alertOps } from "../platform/observability/ops-alert";
+import { checkTimescaleJobs } from "./services/maintenance/timescale-jobs";
 
 const log = baseLog.child({ category: "scheduler" });
 
@@ -62,12 +64,31 @@ export function startScheduler(
           await rollups.buildStale();
         } catch (e) {
           log.error({ msg: "scheduler_job_failed", job: "analytics-rollups", err: String(e) });
+          // The builder also prunes session rows; failing, dashboards go stale and the
+          // pruning stops. The gateway sends each title at most once an hour.
+          await alertOps("Analytics rollup builder is failing", { error: String(e) });
         }
       },
     );
     jobs.push(rollupJob);
     log.info({ msg: "scheduler_job_registered", job: "analytics-rollups", schedule: rollupSchedule });
   }
+
+  // TimescaleDB job health — hourly: alerts when compression or retention of raw
+  // analytics events failed or stopped running (services/maintenance/timescale-jobs.ts).
+  const timescaleJob = new Cron(
+    process.env.TIMESCALE_JOB_CHECK_CRON ?? "7 * * * *",
+    { timezone: "UTC", name: "timescale-job-check", catch: true, protect: true },
+    async () => {
+      try {
+        await checkTimescaleJobs();
+      } catch (e) {
+        log.error({ msg: "scheduler_job_failed", job: "timescale-job-check", err: String(e) });
+      }
+    },
+  );
+  jobs.push(timescaleJob);
+  log.info({ msg: "scheduler_job_registered", job: "timescale-job-check", schedule: "hourly" });
 
   // Heatmap screenshot refresh — every 3 days at 03:00 UTC
   const heatmapScreenshots = deps?.heatmapScreenshots;

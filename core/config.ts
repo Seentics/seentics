@@ -296,5 +296,11 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       enterpriseRetentionUrl: enterpriseRetentionUrl || undefined,
       enterpriseFetchTimeoutMs: Math.max(3000, dataRetentionEnterpriseFetchMs),
     },
+    /**
+     * Where a failing background job (retention sweep, compression, cleanup) raises an
+     * alert: the gateway's POST /internal/notify, which mails its OPS_ALERT_EMAILS.
+     * Unset without a gateway (OSS): failures are then only logged.
+     */
+    opsAlertUrl: enterpriseGatewayUrl ? `${enterpriseGatewayUrl}/api/v1/internal/notify` : undefined,
   };
 }

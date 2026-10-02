@@ -8,7 +8,12 @@ export type WebsiteRetentionOverride = {
   heatmap_days?: number;
   funnel_automation_days?: number;
   temp_data_hours?: number;
+  /** The site's own privacy promise: caps every kind of data, whatever its default. */
+  max_days?: number;
 };
+
+/** The overrides, or why they could not be read — the sweep then runs on defaults and alerts. */
+export type RetentionOverrides = { overrides: Map<string, WebsiteRetentionOverride>; error?: string };
 
 type EnterpriseRetentionResponse = {
   websites?: WebsiteRetentionOverride[];
@@ -28,11 +33,15 @@ function optHours(n: unknown): number | undefined {
   return Math.min(x, 24 * 365);
 }
 
-/** Fetch overrides from configured URL; on failure returns empty map (defaults apply). */
-export async function fetchRetentionOverrides(cfg: AppConfig): Promise<Map<string, WebsiteRetentionOverride>> {
+/**
+ * Fetch overrides from the configured URL. On failure the map is empty (defaults
+ * apply) and `error` says why, so the sweep can alert rather than quietly keep or
+ * delete data on the wrong clock.
+ */
+export async function fetchRetentionOverrides(cfg: AppConfig): Promise<RetentionOverrides> {
   const out = new Map<string, WebsiteRetentionOverride>();
   if (!cfg.dataRetention.enterpriseEnabled || !cfg.dataRetention.enterpriseRetentionUrl) {
-    return out;
+    return { overrides: out };
   }
   try {
     const ctrl = new AbortController();
@@ -47,8 +56,7 @@ export async function fetchRetentionOverrides(cfg: AppConfig): Promise<Map<strin
     });
     clearTimeout(t);
     if (!res.ok) {
-      console.warn("retention overrides fetch failed", res.status);
-      return out;
+      return { overrides: out, error: `gateway answered ${res.status}` };
     }
     const body = (await res.json()) as EnterpriseRetentionResponse;
     const list = Array.isArray(body.websites) ? body.websites : [];
@@ -66,10 +74,12 @@ export async function fetchRetentionOverrides(cfg: AppConfig): Promise<Map<strin
       if (hd != null) row.heatmap_days = hd;
       if (fd != null) row.funnel_automation_days = fd;
       if (th != null) row.temp_data_hours = th;
+      const md = optDays(w.max_days);
+      if (md != null) row.max_days = md;
       out.set(id, row);
     }
   } catch (e) {
-    console.warn("retention overrides fetch error", e);
+    return { overrides: out, error: String(e) };
   }
-  return out;
+  return { overrides: out };
 }

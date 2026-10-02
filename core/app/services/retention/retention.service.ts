@@ -6,6 +6,7 @@ import type {
   RetentionSiteSource,
   RetentionTarget,
 } from "../../../platform/retention/interfaces";
+import { alertOps } from "../../../platform/observability/ops-alert";
 import { fetchRetentionOverrides, type WebsiteRetentionOverride } from "./overrides";
 
 const log = baseLog.child({ category: "retention" });
@@ -33,14 +34,18 @@ function mergePolicy(
   overrides: Map<string, WebsiteRetentionOverride>,
 ): EffectivePolicy {
   const o = overrides.get(websiteId);
+  // The site's privacy promise (`max_days`) caps every kind: data about its visitors
+  // is not kept longer than the site told them, whatever the kind's default.
+  const cap = (days: number) => (typeof o?.max_days === "number" ? Math.min(days, o.max_days) : days);
   return {
-    analyticsDays: typeof o?.analytics_days === "number" ? o.analytics_days : base.analyticsDays,
-    replayDays: typeof o?.replay_days === "number" ? o.replay_days : base.replayDays,
-    heatmapDays: typeof o?.heatmap_days === "number" ? o.heatmap_days : base.heatmapDays,
-    funnelAutomationDays:
+    analyticsDays: cap(typeof o?.analytics_days === "number" ? o.analytics_days : base.analyticsDays),
+    replayDays: cap(typeof o?.replay_days === "number" ? o.replay_days : base.replayDays),
+    heatmapDays: cap(typeof o?.heatmap_days === "number" ? o.heatmap_days : base.heatmapDays),
+    funnelAutomationDays: cap(
       typeof o?.funnel_automation_days === "number"
         ? o.funnel_automation_days
         : base.funnelAutomationDays,
+    ),
   };
 }
 
@@ -95,6 +100,7 @@ export class RetentionService {
       return stats;
     } catch (e) {
       log.error({ msg: "retention_cleanup_failed", err: String(e) });
+      await alertOps("Data retention sweep failed", { error: String(e) });
       throw e;
     } finally {
       this.inFlight = false;
@@ -106,9 +112,18 @@ export class RetentionService {
     const stats: DataCleanupStats = { websitesProcessed: 0 };
     if (!cfg.dataRetention.enabled) return stats;
 
-    const overrides = await fetchRetentionOverrides(cfg);
+    const { overrides, error: overridesError } = await fetchRetentionOverrides(cfg);
+    if (overridesError) {
+      // The sweep still runs, on the deployment defaults: plan and privacy retention
+      // are not applied tonight, which someone should know about.
+      await alertOps("Data retention ran without per-site retention", {
+        reason: overridesError,
+        effect: "every site swept on the deployment defaults (DATA_RETENTION_*)",
+      });
+    }
 
     const sites = await this.sites.listAllSites();
+    const failures: { purger: string; websiteId: string; error: string }[] = [];
 
     const options = {
       // Clamped: too small multiplies round trips, too large holds a transaction open
@@ -139,10 +154,29 @@ export class RetentionService {
             website_id: target.websiteId,
             err: String(e),
           });
+          failures.push({ purger: purger.name, websiteId: target.websiteId, error: String(e) });
         }
       }
 
       stats.websitesProcessed += 1;
+    }
+
+    // One alert for the whole sweep, not one per site: which kinds failed, how often,
+    // and the first error of each.
+    if (failures.length) {
+      const byPurger = new Map<string, { n: number; first: (typeof failures)[number] }>();
+      for (const f of failures) {
+        const entry = byPurger.get(f.purger);
+        if (entry) entry.n++;
+        else byPurger.set(f.purger, { n: 1, first: f });
+      }
+      await alertOps("Data retention could not clean up some websites", {
+        failures: failures.length,
+        websites: stats.websitesProcessed,
+        ...Object.fromEntries(
+          [...byPurger].map(([purger, { n, first }]) => [purger, `${n} site(s), e.g. ${first.websiteId}: ${first.error}`]),
+        ),
+      });
     }
 
     return stats;
