@@ -28,11 +28,11 @@ const SUBPROCESSORS: { name: string; purpose: string; data: string; location: st
     transfer: 'EU–US Data Privacy Framework; Standard Contractual Clauses',
   },
   {
-    name: 'Resend, Inc.',
+    name: 'Amazon Web Services, Inc. (Amazon SES)',
     purpose: 'Transactional email: sign-up, password reset, alerts, reports, status-page notices',
     data: 'Recipient email addresses and the message',
-    location: 'United States',
-    transfer: 'Standard Contractual Clauses',
+    location: 'United States (N. Virginia region)',
+    transfer: 'EU–US Data Privacy Framework; Standard Contractual Clauses',
   },
   {
     name: 'Twilio Inc.',
