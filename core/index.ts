@@ -126,7 +126,7 @@ Bun.serve({
   port,
 });
 
-core_log.info({ msg: 'http_listening', service: 'seentics-core', port });
+core_log.info({ msg: 'http_listening', port });
 
 // Run migrations and init after the HTTP server is already accepting connections.
 // /health returns 503 until this completes, so Docker healthcheck waits correctly.
@@ -136,7 +136,7 @@ try {
   // started by the composed application — see `app/bootstrap.ts`.
   await application.start();
   ready = true;
-  core_log.info({ msg: 'startup_complete', service: 'seentics-core', port });
+  core_log.info({ msg: 'startup_complete', port });
 } catch (err) {
   core_log.error({ msg: 'startup_failed', err: String(err) });
   process.exit(1);
