@@ -9,7 +9,7 @@
         "@aws-sdk/s3-request-presigner": "^3.758.0",
         "@maxmind/geoip2-node": "^6.3.4",
         "@playwright/browser-chromium": "^1.48.0",
-        "@seentics/observe": "^0.3.0",
+        "@seentics/observe": "^0.3.2",
         "bcryptjs": "^2.4.3",
         "bowser": "^2.14.1",
         "croner": "^10.0.1",
@@ -214,7 +214,7 @@
 
     "@playwright/browser-chromium": ["@playwright/browser-chromium@1.60.0", "", { "dependencies": { "playwright-core": "1.60.0" } }, "sha512-0ND2pbNWKJYwhlA1LNaDC3DP2x7eguQkQF7Ga7XAlJV0AFieqYNRw/E+gaY9BpSFr1TYwfwXQv1bHq5AK9nbvA=="],
 
-    "@seentics/observe": ["@seentics/observe@0.3.0", "", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/context-async-hooks": "^2.11.0", "@opentelemetry/core": "^2.11.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.222.0", "@opentelemetry/exporter-trace-otlp-http": "^0.222.0", "@opentelemetry/instrumentation": "^0.222.0", "@opentelemetry/instrumentation-http": "^0.222.0", "@opentelemetry/instrumentation-runtime-node": "^0.35.0", "@opentelemetry/instrumentation-undici": "^0.32.0", "@opentelemetry/resources": "^2.11.0", "@opentelemetry/sdk-metrics": "^2.11.0", "@opentelemetry/sdk-trace-node": "^2.11.0", "@opentelemetry/semantic-conventions": "^1.43.0" }, "peerDependencies": { "@opentelemetry/auto-instrumentations-node": ">=0.60.0" }, "optionalPeers": ["@opentelemetry/auto-instrumentations-node"] }, "sha512-ytdrt1uHby6IJdxI7zPeLioz9B2dQo6/Mhf1Ma28aOD9zupXeVJnYTtcUa5yuqvm1oXMbd5zgIsv+UqD7jy9fg=="],
+    "@seentics/observe": ["@seentics/observe@0.3.2", "", { "dependencies": { "@opentelemetry/api": "^1.9.0", "@opentelemetry/context-async-hooks": "^2.11.0", "@opentelemetry/core": "^2.11.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.222.0", "@opentelemetry/exporter-trace-otlp-http": "^0.222.0", "@opentelemetry/instrumentation": "^0.222.0", "@opentelemetry/instrumentation-http": "^0.222.0", "@opentelemetry/instrumentation-runtime-node": "^0.35.0", "@opentelemetry/instrumentation-undici": "^0.32.0", "@opentelemetry/resources": "^2.11.0", "@opentelemetry/sdk-metrics": "^2.11.0", "@opentelemetry/sdk-trace-node": "^2.11.0", "@opentelemetry/semantic-conventions": "^1.43.0" }, "peerDependencies": { "@opentelemetry/auto-instrumentations-node": ">=0.60.0" }, "optionalPeers": ["@opentelemetry/auto-instrumentations-node"] }, "sha512-X72oc9/PPj9/n36jlq4n8BZufMJpyK8hfL8mDS+Tuk8tDYYBFbgj/65J6oE+l9RRKxUe09xTUA0catHHMP0bpg=="],
 
     "@smithy/chunked-blob-reader": ["@smithy/chunked-blob-reader@5.2.2", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-St+kVicSyayWQca+I1rGitaOEH6uKgE8IUWoYnnEX26SWdWQcL6LvMSD19Lg+vYHKdT9B2Zuu7rd3i6Wnyb/iw=="],
 
