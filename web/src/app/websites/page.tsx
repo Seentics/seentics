@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getWebsites, addWebsite } from '@/lib/websites-api';
+import { rememberedWebsite, rememberWebsite } from '@/lib/last-website';
 import { useAuth } from '@/stores/useAuthStore';
 import { Loader2, ArrowRight, CheckCircle, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +35,13 @@ export default function WebsitesOnboardingPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    // The site opened last time: straight there, without waiting for the session check and
+    // the websites list. The dashboard confirms it and comes back here if it is gone.
+    const last = rememberedWebsite();
+    if (last) {
+      router.replace(`/websites/${last}`);
+      return;
+    }
     if (!user) return;
 
     let cancelled = false;
@@ -43,6 +51,7 @@ export default function WebsitesOnboardingPage() {
         const data = await getWebsites();
         if (cancelled) return;
         if (data.length > 0) {
+          rememberWebsite(data[0].id);
           router.replace(`/websites/${data[0].id}`);
           return;
         }

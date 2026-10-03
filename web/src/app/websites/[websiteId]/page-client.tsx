@@ -30,6 +30,7 @@ import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
+import { forgetWebsite, rememberedWebsite, rememberWebsite } from '@/lib/last-website';
 
 export default function WebsiteDashboardPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -172,6 +173,13 @@ export default function WebsiteDashboardPage() {
             setWebsites([demoWebsite(), ...data]);
           } else {
             setWebsites(data);
+            // /websites goes straight to the site remembered here; one that is gone (deleted,
+            // access removed) is forgotten and the visitor sent back to pick another.
+            if (data.some((website) => website.id === websiteId)) rememberWebsite(websiteId);
+            else if (rememberedWebsite() === websiteId) {
+              forgetWebsite();
+              router.replace('/websites');
+            }
           }
         } catch (error) {
           console.error('Failed to load websites', error);
@@ -186,7 +194,7 @@ export default function WebsiteDashboardPage() {
       }
     };
     loadWebsites();
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, websiteId, router]);
 
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
