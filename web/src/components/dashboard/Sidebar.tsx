@@ -12,7 +12,6 @@ import {
   Code2, Bug, Sparkles, Radio, HeartPulse, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
-import { AiModeButton } from '@/components/ai/AiModeButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/stores/useAuthStore';
@@ -229,21 +228,6 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           </ul>
         </div>
       )}
-
-      {/*
-        Above the account row rather than at the top of the nav. AI mode is a different
-        way to use the product, not another section of it, and at the top it competed
-        with Overview for the first thing someone reaches for.
-      */}
-      <div className={cn('shrink-0 pb-2', collapsed ? 'px-2' : 'px-3')}>
-        {/* Collapsed shows the mark alone; the shared button keeps all three in step. */}
-        <AiModeButton
-          websiteId={websiteId}
-          size="md"
-          label={collapsed ? '' : 'AI Mode'}
-          className={cn('w-full', collapsed && 'mx-auto w-10 justify-center px-0')}
-        />
-      </div>
 
       {/* Account */}
       <div className={cn('shrink-0 pb-6 ', collapsed ? 'px-2' : 'px-3')}>
