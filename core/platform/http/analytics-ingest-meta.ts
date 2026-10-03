@@ -90,6 +90,21 @@ function countryFromEdgeHeaders(headers: Headers): string | null {
   return null;
 }
 
+/**
+ * The visitor's country for a privacy decision: the IP's (MaxMind), else the edge's header,
+ * else an explicit GEO_FALLBACK_COUNTRY for a private address. Unlike the analytics country
+ * below, never the development default — a guessed country must not decide that a visitor
+ * needs no consent. Null when unknown.
+ */
+export function visitorCountry(headers: Headers, clientIp: string): string | null {
+  const fromIp = clientIp ? lookupGeo(clientIp)?.country : null;
+  if (fromIp) return fromIp;
+  const edge = countryFromEdgeHeaders(headers);
+  if (edge) return edge;
+  const fb = process.env.GEO_FALLBACK_COUNTRY?.trim().toUpperCase();
+  return fb && /^[A-Z]{2}$/.test(fb) && isNonPublicClientIp(clientIp) ? fb : null;
+}
+
 export function buildAnalyticsIngestMeta(input: {
   userAgent: string;
   clientIp: string;

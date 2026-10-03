@@ -1,6 +1,9 @@
 import type { Context } from "hono";
 import { env } from "../../../config";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
+import { clientIpForIngest } from "../../../platform/http/client-ip";
+import { visitorCountry } from "../../../platform/http/analytics-ingest-meta";
+import { requiresConsent } from "../../../platform/privacy/consent-region";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 type WebsiteParamContext = Context<any, "/init/:website_id">;
@@ -25,7 +28,14 @@ export function initTracker(deps: TrackerControllerDeps) {
       goals = [];
     }
 
-    const config = await deps.trackerWebsites.buildConfig(website, goals);
+    const cfg = env();
+    const config = {
+      ...(await deps.trackerWebsites.buildConfig(website, goals)),
+      // Whether this visitor is where consent is needed (platform/privacy/consent-region.ts).
+      // On the default `cookieless` mode it decides whether they are recorded and identified
+      // straight away or only after the site's consent banner says yes.
+      consent_region: requiresConsent(visitorCountry(c.req.raw.headers, clientIpForIngest(c, cfg.trustProxy, cfg.isProduction))),
+    };
     // A feature switched off sends the tracker nothing to run. Funnels and automations
     // used to be sent whatever their switch said: the page evaluated every funnel and
     // posted its steps (dropped at ingest), and installed every automation's listeners

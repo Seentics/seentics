@@ -3,6 +3,8 @@ import { env } from "../../../config";
 import type { TrackerCollectBody } from "../interfaces";
 import { clientIpForIngest } from "../../../platform/http/client-ip";
 import { needsAnonymizing } from "../lib/anonymous-batch";
+import { visitorCountry } from "../../../platform/http/analytics-ingest-meta";
+import { requiresConsent } from "../../../platform/privacy/consent-region";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
 import { validationErrorResponse } from "../../../platform/validation";
 import { trackerCollectSchema } from "../validators/tracker.schema";
@@ -40,15 +42,19 @@ export function collectTracker(deps: TrackerControllerDeps) {
     }
 
     const consentGranted = (body as Record<string, unknown>).consent === true;
+    const clientIp = clientIpForIngest(c, cfg.trustProxy, cfg.isProduction);
+    // Decided here, from the request, never from the body: the tracker's own idea of the
+    // visitor's region does not get to turn anonymisation off.
+    const consentRegion = requiresConsent(visitorCountry(c.req.raw.headers, clientIp));
     const result = deps.collect.process({
       body,
       website,
       websiteParam: websiteId,
       origin,
       headers: c.req.raw.headers,
-      clientIp: clientIpForIngest(c, cfg.trustProxy, cfg.isProduction),
+      clientIp,
       diagnosticLog: cfg.diagnosticLog,
-      anonymousSalt: needsAnonymizing(website.consent_mode, consentGranted, (body as Record<string, unknown>).anonymous === true)
+      anonymousSalt: needsAnonymizing(website.consent_mode, consentGranted, (body as Record<string, unknown>).anonymous === true, consentRegion)
         ? await deps.visitorSalt()
         : undefined,
     });

@@ -43,8 +43,10 @@ registerExtension((core) => {
   let allowedFor = '';
   let allowedValue = false;
   const heatmapAllowed = () => {
-    // Consent withdrawn mid-page: this extension is still loaded, but records nothing.
-    if (cfg().heatmap_enabled === false || !core.identified) return false;
+    // A page the site's policy does not track (strict mode without consent, Do Not
+    // Track): this extension is still loaded, but records nothing. Clicks and scrolls are
+    // anonymous, so a visitor who has not consented contributes them too.
+    if (cfg().heatmap_enabled === false || !core.heatmapsAllowed) return false;
     if (allowedFor !== location.href) {
       allowedFor = location.href;
       allowedValue = core.urlAllowed(cfg().heatmap_include_patterns, cfg().heatmap_exclude_patterns);
@@ -92,7 +94,8 @@ registerExtension((core) => {
    * images are still arriving records a layout whose heights are still changing.
    */
   const scheduleSnapshot = () => {
-    if (!layoutEnabled() || !heatmapAllowed()) return;
+    // The snapshot waits for consent where it is asked (see captureAndQueueDomSnapshot).
+    if (!layoutEnabled() || !heatmapAllowed() || !core.identified) return;
     clearSnapshotTimers();
     const later = () => snapshotTimers.push(window.setTimeout(captureAndQueueDomSnapshot, 2_500));
     if (document.readyState === 'complete') later();
@@ -196,7 +199,9 @@ registerExtension((core) => {
    * - Runs once per path per session — deduped via sessionStorage
    */
   const captureAndQueueDomSnapshot = ({ force = false } = {}) => {
-    if (!layoutEnabled() || !heatmapAllowed()) return;
+    // What this visitor saw: only with consent where it is asked (also keeps the
+    // sessionStorage marker below out of an anonymous visitor's browser).
+    if (!layoutEnabled() || !heatmapAllowed() || !core.identified) return;
     if (!force && hasSentSnapshotForPath()) return;
     try {
       const clone = document.documentElement.cloneNode(true);

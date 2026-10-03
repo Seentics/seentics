@@ -130,10 +130,15 @@ let started = false;
 // ─── Consent ──────────────────────────────────────────────────────────────────
 //
 // A site's `consent_mode` decides what happens before a visitor consents:
-//   cookieless (default)  anonymous: page views, events, funnels and errors with no id
-//                         and nothing stored in the browser; the server counts visitors
-//                         with a daily-rotating hash. Everything else — the persistent
-//                         id, recordings, heatmaps, automations, identify() — after consent.
+//   cookieless (default)  where the law asks for consent (the EU/EEA, the UK and
+//                         Switzerland — `consent_region`, decided by the server from the
+//                         visitor's country, and assumed when it is unknown): anonymous
+//                         page views, events, funnels, errors and heatmap clicks and
+//                         scrolls, with no id and nothing stored in the browser; the
+//                         server counts visitors with a daily-rotating hash. The
+//                         persistent id, recordings, layout snapshots, automations and
+//                         identify() wait for consent. Everywhere else: everything, as
+//                         with `none`.
 //   strict                nothing at all until consent.
 //   none                  no consent asked: everything, for every visitor (the site
 //                         owner has another legal basis).
@@ -175,8 +180,11 @@ const identified = () => {
   const config = effectiveConfig();
   if (!config) return consentGranted();
   if (!trackingAllowed(config)) return false;
-  return consentGranted() || config.consent_mode === 'none';
+  return consentGranted() || config.consent_mode === 'none' || outsideConsentRegion(config);
 };
+
+/** A visitor the law does not ask consent for: only `consent_region: false` says so. */
+const outsideConsentRegion = (config) => config.consent_mode === 'cookieless' && config.consent_region === false;
 
 /**
  * The set of trigger types any loaded automation listens for.
@@ -685,6 +693,13 @@ const extensionApi = {
   get visitorId() { return getVisitorId(); },
   /** Whether this visitor may be identified; extensions stand down when not. */
   get identified() { return identified(); },
+  /**
+   * Whether heatmap clicks and scrolls may be captured: for any visitor this page tracks.
+   * They are anonymous — a position on a page, under the day's hash — so a visitor who
+   * has not consented contributes them too; the layout snapshot, a picture of what the
+   * visitor saw, still waits for `identified`.
+   */
+  get heatmapsAllowed() { return started && trackingAllowed(); },
   get recording() { return stopRecording != null; },
   get recordingSessionId() { return activeRecordingSessionId; },
   get captureActive() { return sessionCaptureActive; },
@@ -1436,6 +1451,11 @@ const beginTracking = () => {
   else {
     // Started early on a cached configuration this visit no longer has consent for.
     abandonRecording();
+    // Anonymous heatmaps: clicks and scroll depth, nothing stored, no snapshot.
+    if (cfg.heatmap_enabled !== false) afterLoad(() => loadExt('l').then((ext) => { heat = ext; }));
+    // Ask, where the law wants asking and the site has no consent tool of its own. After
+    // load, so a consent tool that answers on page load gets there first.
+    afterLoad(() => safely(showConsentBanner));
     markReady();
   }
 };
@@ -1591,6 +1611,7 @@ const api = {
    * @param {boolean} granted
    */
   consent(granted) {
+    hideConsentBanner(); // answered — from our card or the site's own banner
     runtimeConsent = granted === true;
     rawSet(CONSENT_KEY, runtimeConsent ? '1' : '0');
     if (!runtimeConsent) { withdrawConsent(); return; }
@@ -1598,6 +1619,83 @@ const api = {
     if (!trackingBegun) beginTracking(); // strict mode, now consented
     else enableIdentifiedFeatures();
   },
+};
+
+// ─── Consent banner ───────────────────────────────────────────────────────────
+//
+// For a visitor in a consent region (the EU/EEA, the UK, Switzerland) on a site with
+// session recording on, the default `cookieless` mode asks before recording. A site
+// with its own consent tool passes the answer through `seentics.consent()` and never
+// sees this; one without gets a small, quiet card — no overlay, nothing blocked, the
+// page usable whatever the visitor does. Turn it off with data-consent-banner="off".
+// The answer is kept (snc_consent) and the card is not shown again.
+
+const BANNER_ID = 'seentics-consent';
+let bannerHost = null;
+
+/** Has this page or an earlier visit already said anything about consent? */
+const consentSignalled = () => {
+  if (runtimeConsent !== null || window.seenticsConsent !== undefined || script?.hasAttribute('data-consent')) return true;
+  try { return localStorage.getItem(CONSENT_KEY) !== null; } catch { return true; }
+};
+
+const hideConsentBanner = () => {
+  bannerHost?.remove();
+  bannerHost = null;
+};
+
+const showConsentBanner = () => {
+  if (bannerHost || script?.getAttribute('data-consent-banner') === 'off') return;
+  if (cfg.consent_mode !== 'cookieless' || cfg.consent_region === false || !replayEnabledForSite()) return;
+  if (consentSignalled() || !trackingAllowed()) return;
+
+  const privacyUrl = script?.getAttribute('data-privacy-url');
+  const host = document.createElement('div');
+  host.id = BANNER_ID;
+  const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+  root.innerHTML = `
+<style>
+  :host { all: initial; }
+  .card {
+    --bg: #ffffff; --fg: #18181b; --muted: #52525b; --line: #e4e4e7;
+    --btn: #18181b; --btn-fg: #ffffff; --ghost: #f4f4f5;
+    position: fixed; z-index: 2147483000; left: 16px; bottom: 16px; box-sizing: border-box;
+    width: min(380px, calc(100vw - 32px)); padding: 16px 16px 14px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.06);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    animation: in .22s ease-out;
+  }
+  @media (prefers-color-scheme: dark) {
+    .card { --bg: #18181b; --fg: #fafafa; --muted: #a1a1aa; --line: #27272a; --btn: #fafafa; --btn-fg: #18181b; --ghost: #27272a; }
+  }
+  @media (max-width: 480px) { .card { left: 8px; right: 8px; bottom: 8px; width: auto; } }
+  @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h2 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  p { margin: 0; color: var(--muted); font-size: 13px; }
+  a { color: inherit; text-underline-offset: 2px; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button {
+    flex: 1; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 0; cursor: pointer;
+    font: 600 13px/1 inherit; font-family: inherit;
+  }
+  .yes { background: var(--btn); color: var(--btn-fg); }
+  .no { background: var(--ghost); color: var(--fg); }
+  button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+</style>
+<div class="card" role="dialog" aria-live="polite" aria-labelledby="snc-t" aria-describedby="snc-d">
+  <h2 id="snc-t">Help us improve this site</h2>
+  <p id="snc-d">May we record how you use this site — clicks, scrolling and the pages you visit — to find and fix problems? Anything you type stays hidden.${privacyUrl ? ` <a href="${encodeURI(privacyUrl)}" target="_blank" rel="noopener">Privacy policy</a>` : ''}</p>
+  <div class="row">
+    <button class="no" type="button">No thanks</button>
+    <button class="yes" type="button">Allow</button>
+  </div>
+</div>`;
+  root.querySelector('.yes').addEventListener('click', () => api.consent(true));
+  root.querySelector('.no').addEventListener('click', () => api.consent(false));
+  bannerHost = host;
+  (document.body || document.documentElement).appendChild(host);
 };
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────

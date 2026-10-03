@@ -248,7 +248,7 @@ describe("GET /init/:website_id", () => {
     expect(mockResolveWebsite).toHaveBeenCalled();
   });
 
-  it("without consent, keeps page views under a daily anonymous id and drops recordings, heatmaps and identify", async () => {
+  it("without consent, keeps page views and heatmap points under a daily anonymous id and drops recordings, snapshots and identify", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     const pageview = { type: "pageview", data: { title: "Home" }, ts: Date.now(), url: "https://example.com/", sid: "s-browser", vid: "v-browser" };
     const send = (extra: Record<string, unknown>) => app.request("/collect", {
@@ -259,19 +259,62 @@ describe("GET /init/:website_id", () => {
 
     const res = await send({
       session: [{ type: "rrweb", data: { type: 2 }, ts: 1, url: "https://example.com/", sid: "s-browser" }],
-      heatmaps: [{ type: "heatmap_click", data: { nx: 0.5, ny: 0.5 }, ts: 1, url: "https://example.com/", sid: "s-browser" }],
+      heatmaps: [{ type: "heatmap_click", data: { nx: 0.5, ny: 0.5 }, ts: 1, url: "https://example.com/", sid: "s-browser", vid: "v-browser" }],
+      heatmap_dom_snapshot: [{ type: "heatmap_dom_snapshot", ts: 1, url: "https://example.com/", sid: "s-browser", vid: "v-browser", doc_w: 1200, doc_h: 900, vw: 1200, vh: 800, data: { html: "<html><body>Hello Ada</body></html>" } }],
     });
     expect(res.status).toBe(200);
 
     const lanes = queue.enqueued.map((call: any) => call.lane);
-    expect(lanes).not.toContain("session");
-    expect(lanes).not.toContain("heatmaps");
+    expect(lanes).not.toContain("recordings");
+    // The click is kept, under the day's anonymous id; the snapshot of what they saw is not.
+    const heat = queue.enqueued.filter((call: any) => call.lane === "heatmaps").flatMap((call: any) => call.rows) as any[];
+    expect(heat.some((row) => JSON.stringify(row).includes("heatmap_click"))).toBe(true);
+    expect(heat.some((row) => JSON.stringify(row).includes("Hello Ada"))).toBe(false);
+    expect(heat.every((row) => !JSON.stringify(row).includes("s-browser"))).toBe(true);
     const events = queue.enqueued.flatMap((call: any) => call.rows) as any[];
     expect(queue.events.length, "the page view itself is kept").toBeGreaterThanOrEqual(1);
     expect(events.some((e) => e.type === "identify" || e.event_type === "identify")).toBe(false);
     // Neither id the browser sent survives; both are the day's anonymous id.
     const ids = new Set(events.flatMap((e) => [e.vid, e.sid, e.visitor_id, e.session_id].filter(Boolean)));
     expect([...ids].every((id) => String(id).startsWith("h-"))).toBe(true);
+  });
+
+  // Consent is asked where the law asks for it: the EU/EEA, the UK and Switzerland.
+  const recordedBatch = (country: string) => app.request("/collect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 Test", "X-Forwarded-For": "203.0.113.9", "CF-IPCountry": country },
+    body: JSON.stringify({
+      website_id: "site_abc",
+      events: [{ type: "pageview", data: { title: "Home" }, ts: Date.now(), url: "https://example.com/", sid: "s-browser", vid: "v-browser" }],
+      session: [{ type: "rrweb", data: { type: 2 }, ts: 1, url: "https://example.com/", sid: "s-browser" }],
+    }),
+  });
+
+  it("records a visitor outside the consent regions without a consent banner", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    expect((await recordedBatch("BD")).status).toBe(200);
+    expect(queue.enqueued.map((call: any) => call.lane)).toContain("recordings");
+    const ids = queue.enqueued.flatMap((call: any) => call.rows).flatMap((e: any) => [e.vid, e.visitor_id].filter(Boolean));
+    expect(ids).toContain("v-browser");
+  });
+
+  it("still anonymises a visitor in the EU who has not consented", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    expect((await recordedBatch("DE")).status).toBe(200);
+    expect(queue.enqueued.map((call: any) => call.lane)).not.toContain("recordings");
+  });
+
+  it("tells the tracker whether the visitor is where consent is needed", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const region = async (country?: string) => {
+      const res = await app.request("/init/site_abc", { headers: country ? { "CF-IPCountry": country, "X-Forwarded-For": "203.0.113.9" } : {} });
+      return ((await res.json()) as any).config.consent_region;
+    };
+    expect(await region("FR")).toBe(true);
+    expect(await region("GB")).toBe(true);
+    expect(await region("IN")).toBe(false);
+    expect(await region("US")).toBe(false);
+    expect(await region(), "unknown country: consent assumed").toBe(true);
   });
 
   it("returns 404 when website is not found", async () => {

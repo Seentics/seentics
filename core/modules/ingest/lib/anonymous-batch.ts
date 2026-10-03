@@ -19,11 +19,12 @@ export function anonymousVisitorId(salt: Buffer, websiteId: string, ip: string, 
 /**
  * A batch from a visitor who has not consented, reduced to what needs no consent.
  *
- * Kept: page views, custom events, funnel steps and errors — each carrying the day's
- * anonymous id (platform/privacy/visitor-salt.ts) instead of whatever the browser sent.
- * Removed: session recordings, heatmaps and layout snapshots, automation triggers, and
- * `identify()` calls — each either captures what the visitor sees and does, or ties them
- * to a person.
+ * Kept: page views, custom events, funnel steps, errors and heatmap clicks and scrolls —
+ * each carrying the day's anonymous id (platform/privacy/visitor-salt.ts) instead of
+ * whatever the browser sent. A heatmap point is a position on a page, as anonymous as a
+ * page view. Removed: session recordings, layout snapshots, automation triggers, and
+ * `identify()` calls — each either captures what the visitor sees, or ties them to a
+ * person.
  *
  * Done here, on the server, as well as in the tracker: a page still running an older
  * tracker from cache, or a hand-rolled integration, cannot get round it.
@@ -38,8 +39,8 @@ export function anonymizeTrackerBatch(body: TrackerCollectBody, anonymousId: str
     events: withId(body.events),
     funnels: withId(body.funnels),
     errors: withId(body.errors),
+    heatmaps: withId(body.heatmaps),
     session: [],
-    heatmaps: [],
     heatmap_dom_snapshot: [],
     heatmap_screenshot: [],
     automations: [],
@@ -49,12 +50,16 @@ export function anonymizeTrackerBatch(body: TrackerCollectBody, anonymousId: str
 /**
  * Whether a batch is to be anonymised: a site that asks for consent and none given — or
  * a batch the tracker itself marks anonymous (sent before it knew the site's mode, so
- * it carries no real ids).
+ * it carries no real ids). On the default `cookieless` mode consent is asked only where
+ * the law asks for it (`consentRegion`); `strict` asks everyone.
  */
 export function needsAnonymizing(
   consentMode: string | null | undefined,
   consentGranted: boolean,
   markedAnonymous = false,
+  consentRegion = true,
 ): boolean {
-  return markedAnonymous || (consentMode !== "none" && !consentGranted);
+  if (markedAnonymous) return true;
+  if (consentMode === "none" || consentGranted) return false;
+  return consentMode !== "cookieless" || consentRegion;
 }
