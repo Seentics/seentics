@@ -1646,7 +1646,9 @@ const hideConsentBanner = () => {
 
 const showConsentBanner = () => {
   if (bannerHost || script?.getAttribute('data-consent-banner') === 'off') return;
-  if (cfg.consent_mode !== 'cookieless' || cfg.consent_region === false || !replayEnabledForSite()) return;
+  // Only when the server says this visitor is where consent is needed (an unknown country
+  // included): a core too old to say — a tracker deployed ahead of it — shows no card.
+  if (cfg.consent_mode !== 'cookieless' || cfg.consent_region !== true || !replayEnabledForSite()) return;
   if (consentSignalled() || !trackingAllowed()) return;
 
   const privacyUrl = script?.getAttribute('data-privacy-url');
