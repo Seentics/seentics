@@ -17,7 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@maxmind/geoip2-node": "^6.3.4",
     "@playwright/browser-chromium": "^1.48.0",
-    "@seentics/observe": "^0.2.0",
+    "@seentics/observe": "^0.3.0",
     "bcryptjs": "^2.4.3",
     "bowser": "^2.14.1",
     "croner": "^10.0.1",
