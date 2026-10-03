@@ -3,6 +3,7 @@
 # TLS/HSTS deliberately stays out: Cloudflare already terminates TLS and
 # adds its own security headers at the edge for this zone.
 /*
+  Cache-Control: public, max-age=0, must-revalidate
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
@@ -13,10 +14,47 @@
 # (seentics.min.js) keeps the default — its URL is fixed in every customer's snippet, so
 # it must revalidate to pick up a release.
 /trackers/seentics-l.*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 /trackers/seentics-a.*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 /trackers/seentics-r.*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 /trackers/seentics-d.*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
+
+# Content-hashed build output: a new build gets new names, so a year is safe and saves
+# every returning visitor a revalidation per file per visit. Without this they took the
+# zone's default four hours.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Pages (HTML) are revalidated on every load, so a deploy is seen at once. Kept for hours,
+# an old page asked for the previous deploy's chunks, which are no longer served: a blank
+# page until it expired. (The zone's cache rule must leave the browser TTL to the origin
+# for this to apply where that rule caches HTML — see docs/CLOUDFLARE.md.)
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# The tracker core keeps one name (customers' snippets point at it), so it cannot be
+# immutable. Five minutes, then served while it revalidates: a tracker fix reaches sites
+# within minutes, not after the zone's four hours.
+/trackers/seentics.min.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+# Content-hashed build output: a year, as the extensions above.
+/_next/static/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+# The tracker core keeps one name (customers' snippets point at it), so it cannot be
+# immutable. Five minutes, then served while it revalidates: a tracker fix reaches sites
+# within minutes, not after the zone's four hours.
+/trackers/seentics.min.js
+  ! Cache-Control
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
