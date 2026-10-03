@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="460" rx="16" fill="#f8fafc"/>
+<text x="450" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Two layers of analytics</text>
+<rect x="60" y="64" width="780" height="150" rx="12" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+<text x="84" y="96" font-size="19" font-weight="700" fill="#1e1b4b">Layer 1: Pageview analytics (the "what")</text>
+<text x="84" y="128" font-size="16" fill="#1e293b">Visitors, pageviews, referrers, countries, devices, UTM campaigns</text>
+<text x="84" y="154" font-size="16" fill="#1e293b">Custom events, goals, basic funnels</text>
+<text x="84" y="186" font-size="15" fill="#334155">Answers: how much traffic, from where, to which pages?</text>
+<rect x="60" y="238" width="780" height="150" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="84" y="270" font-size="19" font-weight="700" fill="#052e16">Layer 2: Behavior analytics (the "why")</text>
+<text x="84" y="302" font-size="16" fill="#1e293b">Session replay, click and scroll heatmaps, rage-click detection, JS errors</text>
+<text x="84" y="328" font-size="16" fill="#1e293b">Per-session context behind a funnel drop-off</text>
+<text x="84" y="360" font-size="15" fill="#334155">Answers: what did people actually do before they left?</text>
+<text x="450" y="424" text-anchor="middle" font-size="15" fill="#475569">Plausible, Fathom, Simple Analytics focus on layer 1. Layer 2 needs another tool or an all-in-one.</text>
+</svg>

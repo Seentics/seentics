@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="960" height="320" rx="16" fill="#f8fafc"/>
+<text x="480" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">How GA4 classifies a session</text>
+<rect x="40" y="75" width="270" height="90" rx="12" fill="#fff" stroke="#334155" stroke-width="2"/>
+<text x="175" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">Session lasts longer</text><text x="175" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">than 10 seconds</text>
+<rect x="345" y="75" width="270" height="90" rx="12" fill="#fff" stroke="#334155" stroke-width="2"/>
+<text x="480" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">Session has</text><text x="480" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">a key event</text>
+<rect x="650" y="75" width="270" height="90" rx="12" fill="#fff" stroke="#334155" stroke-width="2"/>
+<text x="785" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">2 or more page</text><text x="785" y="136" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">or screen views</text>
+<text x="480" y="200" text-anchor="middle" font-size="15" fill="#334155">Any one of these = engaged session</text>
+<rect x="140" y="225" width="320" height="64" rx="12" fill="#dcfce7" stroke="#166534" stroke-width="2"/>
+<text x="300" y="253" text-anchor="middle" font-size="15" font-weight="700" fill="#14532d">Engagement rate</text><text x="300" y="274" text-anchor="middle" font-size="14" fill="#14532d">% of sessions that were engaged</text>
+<rect x="500" y="225" width="320" height="64" rx="12" fill="#fee2e2" stroke="#991b1b" stroke-width="2"/>
+<text x="660" y="253" text-anchor="middle" font-size="15" font-weight="700" fill="#7f1d1d">Bounce rate</text><text x="660" y="274" text-anchor="middle" font-size="14" fill="#7f1d1d">% of sessions that were not engaged</text>
+</svg>

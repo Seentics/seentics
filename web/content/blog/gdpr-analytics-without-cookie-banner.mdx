@@ -1,159 +1,231 @@
 ---
-title: "GDPR Analytics Without a Cookie Banner: What's Actually Legal"
-description: "Most websites are either over-blocking analytics out of fear or under-complying out of ignorance. Here's what GDPR actually requires for analytics — and how to collect accurate data without a consent banner."
+title: "Cookie-Free Analytics: GDPR-Compliant Analytics Without a Cookie Banner"
+description: "Cookie-free analytics explained: how it works, what ePrivacy and GDPR actually require, what you gain and lose, and a checklist for GDPR-compliant analytics."
 date: "2026-06-10"
-author: "Seentics Team"
-tags: ["gdpr", "privacy", "compliance", "analytics", "cookie-banner"]
+author: "Seentics"
+tags: ["cookie-free analytics", "gdpr", "privacy", "compliance", "cookie-banner"]
+cover_image: /blog/gdpr-analytics-without-cookie-banner/cover.jpg
 ---
 
-# GDPR Analytics Without a Cookie Banner: What's Actually Legal
+Most websites handle analytics compliance in one of two ways. Some ignore the rules and run a tracking tool without asking anyone. Others bolt on a consent banner and quietly accept that a chunk of their traffic will never show up in the numbers.
 
-Most websites handle analytics compliance one of two ways: they ignore GDPR entirely and run Google Analytics without consent, or they install a cookie consent banner that tanks their data quality by 40–60% as users refuse consent.
+There is a third option: **cookie-free analytics**, a measurement design where the tool never stores or reads anything on the visitor's device and never builds a profile of a person. Done properly, it can give you **GDPR-compliant analytics** without a consent pop-up for the analytics itself. Done badly, it is just a marketing label.
 
-Both approaches are wrong — one legally, one practically.
+This guide explains how cookie-free measurement actually works, what the law says (with sources you can check), what you gain and what you give up, and how to audit your own setup.
 
-There is a third path: analytics that is genuinely GDPR-compliant by design, requiring no consent banner at all. Not as a legal technicality, but as an accurate description of how the data is collected and used. Understanding which analytics tools and configurations fall into this category, and why, requires understanding what GDPR actually governs.
+![A silver combination padlock lying open on a white computer keyboard](/blog/gdpr-analytics-without-cookie-banner/cover.jpg)
 
-## What GDPR Actually Regulates
+*Photo by Sasun Bughdaryan on [Unsplash](https://unsplash.com/photos/a-combination-lock-rests-on-a-computer-keyboard-WUJmdr8pNwk).*
 
-GDPR is a regulation about personal data — data that identifies, or could identify, a specific natural person. It doesn't regulate data collection broadly. It regulates the collection of data that is personally identifiable.
+> **Not legal advice.** This article is general information written by an analytics vendor, not a lawyer. Data protection law differs between EU member states, regulators update their guidance, and your facts matter. Check the primary sources linked below and ask qualified counsel (or your data protection officer) before you remove a banner.
 
-The key question for analytics is: does your tool collect personal data?
+## TL;DR
 
-If yes, you need one of six lawful bases to process it. Consent is the most commonly used basis, but it has strict requirements (freely given, specific, informed, unambiguous). That's why consent banners are necessary when you're using personal-data-collecting tools like Google Analytics — the banner is the mechanism for collecting that consent.
+- Two different laws are in play. The **ePrivacy Directive (Article 5(3))** governs storing or accessing information on a visitor's device, which is where "cookie banners" come from. The **GDPR** governs processing of personal data. A tool has to satisfy both.
+- Cookie-free analytics aims to pass the first test by not touching the device, and the second by not creating personal data (or by handling it under a lawful basis other than consent).
+- "Cookie-free" is not a magic word. IP addresses, persistent identifiers, fingerprinting and cross-site sharing can all bring consent or GDPR duties back.
+- Regulators have published concrete conditions. France's CNIL, for example, lists the criteria under which audience measurement can be exempt from consent, and the EDPB has clarified that Article 5(3) reaches beyond cookies.
+- Practical upside: when nobody has to click "Accept", every visit can be counted. Practical downside: you give up some person-level questions.
+- You will still want a privacy notice. "No banner" does not mean "no transparency".
 
-If no — if your analytics tool doesn't collect personal data — you don't need a consent basis, because GDPR doesn't apply to data that isn't personal.
+## What "cookie-free analytics" actually means
 
-This is the legal foundation for cookie-banner-free analytics. It's not a workaround. It's a correct application of the regulation.
+A traditional analytics tool works like this. On a visitor's first page view, a script writes a small identifier (a cookie, or a value in local storage) onto their browser. On every later visit and every later event, the script reads that identifier and sends it along. The server can then say "this is the same browser as last Tuesday" and stitch events into a long-lived profile.
 
-## What Makes Analytics Data "Personal"
+Cookie-free analytics removes that loop. Concretely, it means:
 
-Whether analytics data is personal under GDPR depends on what is actually collected and how it's stored.
+1. **Nothing is written to the device** for analytics purposes. No analytics cookie, no local storage key, no similar identifier.
+2. **Nothing is read back from the device** to recognize the visitor.
+3. **No fingerprinting.** The tool does not combine screen size, fonts, canvas rendering and similar signals into a quasi-identifier. This matters because fingerprinting recreates a persistent ID without a cookie, and the EDPB treats it as within the scope of the same rules (more on that below).
+4. **No cross-site tracking.** Data collected on your site is not merged with data about the same person on other sites.
 
-**IP addresses** are typically considered personal data under GDPR because they can, in many cases, be used to identify an individual (particularly when combined with an ISP's logs). Google Analytics collects and stores full IP addresses by default, which is one reason it's been ruled non-compliant in several EU jurisdictions. Truncating IPs to the first two octets (e.g., 192.168.x.x) is anonymization that removes identifiability.
+The data you do get is what a page view or an event reveals on its own: which page, which referrer, which campaign tags, an approximate location, a device class, and what happened on the page. You can still answer the questions most teams actually have: which pages work, where do visitors come from, where do they drop out of a signup flow.
 
-**User IDs and persistent identifiers** are personal data if they're tied to a user account or profile. First-party cookies that assign a stable visitor ID and persist across sessions are identifying — they build a behavioral profile linked to a specific device.
+Different tools implement this differently, and some give up a little accuracy in unique-visitor counts to avoid persistent IDs. For Seentics, the README states the design goal plainly: self-hosted analytics **without cookies, fingerprinting, or third-party data sharing**, with your data staying on your own infrastructure. If you want the broader philosophy, our [privacy-first analytics](/blog/privacy-first-analytics) post covers it, and [self-hosted analytics](/blog/self-hosted-analytics) explains why hosting location matters.
 
-**Cross-session tracking** is where most analytics tools accumulate personal data risk. Knowing that the same person visited your homepage on Monday, your pricing page on Wednesday, and your checkout on Friday is a behavioral profile. If the identifier used to link these visits is persistent and potentially linkable to a real person, it's personal data.
+![Diagram comparing the data flow of cookie-based analytics, where a consent banner gates a persistent visitor ID and per-person profile, with cookie-free analytics, where pageviews become aggregate statistics with nothing stored on the device](/blog/gdpr-analytics-without-cookie-banner/data-flow.svg)
 
-**Event data without persistent identifiers** — aggregated counts of page views, clicks, scroll events, or custom actions that are not linked to a specific tracked individual — is generally not personal data, and GDPR does not apply.
+*Cookie-based versus cookie-free data flow. A simplified illustration, not a legal analysis.*
 
-## The ePrivacy Directive and "Strictly Necessary" Cookies
+## The legal picture: two laws, two questions
 
-Alongside GDPR, the ePrivacy Directive (which pre-dates GDPR and governs cookie use specifically) is the regulation behind most consent banners.
+Most confusion about "GDPR and cookies" comes from treating them as one rule. They are two, and they overlap.
 
-The ePrivacy Directive requires consent for cookies that are not "strictly necessary" for a service the user has requested. Functional cookies (keeping a user logged in, preserving shopping cart contents) are strictly necessary. Analytics cookies that track user behavior for the business's benefit are not strictly necessary.
+![Diagram of two separate legal questions: ePrivacy Article 5(3) asks whether information is stored or accessed on the device, GDPR asks whether personal data is processed](/blog/gdpr-analytics-without-cookie-banner/legal-layers.svg)
 
-However, if your analytics doesn't use cookies at all — or uses only short-lived, session-scoped identifiers that expire when the browser closes — the ePrivacy Directive's consent requirement may not apply. This is how cookieless analytics tools can legitimately avoid the consent banner.
+*The two questions every analytics setup has to answer.*
 
-## Why Google Analytics Requires Consent in the EU
+### Question 1: Are you storing or accessing information on the visitor's device?
 
-Google Analytics has been ruled non-compliant with GDPR by data protection authorities in Austria, France, Italy, Denmark, and several other EU member states. The core issues:
+This is the ePrivacy Directive (2002/58/EC, as amended). Article 5(3) says that storing information, or gaining access to information already stored, in a user's terminal equipment is allowed only if the user has given consent after clear and comprehensive information. The exceptions are narrow: technical storage or access for the sole purpose of carrying out the transmission of a communication, or what is **strictly necessary** for a service the user explicitly requested. You can read the [Directive on EUR-Lex](https://eur-lex.europa.eu/eli/dir/2002/58/oj).
 
-**Data transfer to the US.** Google Analytics sends data to Google's servers in the United States. Under GDPR, transferring personal data outside the EU/EEA requires adequate protections. Following the invalidation of Privacy Shield and the uncertainty around SCCs in the Google context, these transfers have been ruled inadequate.
+A shopping cart cookie or a login session cookie fits the strictly necessary exception. A cookie that lets you measure your own traffic is useful to you, but the European regulators generally do not treat "useful to the publisher" as "strictly necessary for the service the user asked for". That is why analytics cookies normally trigger a banner.
 
-**Persistent identifiers.** GA uses cookies that persist across sessions and assign stable user IDs. These are personal data under GDPR.
+Two points that people often miss:
 
-**No meaningful anonymization.** Google's IP anonymization setting (`anonymize_ip`) truncates the last octet of the IP address but still processes the full IP on Google's servers before truncating. The data protection authorities have noted this doesn't prevent identification.
+- **The rule is not about the word "cookie".** In October 2024 the EDPB adopted the final version of its [Guidelines 2/2023 on the technical scope of Article 5(3)](https://www.edpb.europa.eu/system/files/2024-10/edpb_guidelines_202302_technical_scope_art_53_eprivacydirective_v2_en_0.pdf). According to published summaries of those guidelines, the Board's view is that URL and pixel tracking can fall within Article 5(3), that "gaining access" to stored information is independent from "storing" it, and that IP-address-based tracking is a more nuanced case in which the EDPB advises caution unless you can be sure the address does not originate from the user's terminal equipment. Read the document itself for the precise wording and conditions.
+- **Article 5(3) is about the device, not about personal data.** It applies whether or not the information is personal data. So "we anonymize everything" does not by itself answer question 1 if your script still writes or reads a persistent identifier.
 
-This is not a configuration problem you can fix by adjusting settings in the GA admin. The architecture of Google Analytics — where data flows to Google's servers and is processed under Google's privacy framework — is what makes it non-compliant under EU data protection law.
+### Question 2: Are you processing personal data?
 
-## What Compliant Analytics Looks Like
+This is the GDPR ([Regulation (EU) 2016/679 on EUR-Lex](https://eur-lex.europa.eu/eli/reg/2016/679/oj)). Personal data is any information relating to an identified or identifiable natural person. Whether a piece of analytics data is "identifiable" depends on what the tool collects and what else can be linked to it. The usual suspects:
 
-An analytics tool is compatible with GDPR-first operation (no consent banner required) when it meets all of these criteria:
+- **IP addresses.** Often treated as personal data, particularly when stored in full.
+- **Persistent identifiers** that single out a browser over time, whether from a cookie, local storage or fingerprinting.
+- **User IDs** you attach through an identify call or similar, such as an account ID or email.
+- **Rich behavioral timelines** tied to any of the above.
 
-**1. No personal data collection**
-No IP address storage (or immediate and complete anonymization before storage), no persistent cross-session identifiers, no user profiles linked to personally identifiable information.
+If your tool does process personal data, you need a lawful basis under Article 6. Consent is one (and it has strict requirements: freely given, specific, informed, unambiguous). Legitimate interest is another, but it requires a balancing test and works best where the processing is expected and low-impact. You also owe transparency under Articles 13 and 14, a retention policy, and safeguards for any transfer outside the EU or EEA.
 
-**2. Data stored in your jurisdiction**
-If you're an EU business, data should be stored on servers in the EU. If you're operating under GDPR, transferring data to a US third party reintroduces compliance risk.
+If your tool genuinely processes only data that is not personal, because it cannot be linked to an identifiable person by you or anyone else with reasonable means, the GDPR's obligations are lighter for that data. But be honest about the word "genuinely". Regulators look at how the data is actually produced and stored, not at the vendor's description.
 
-**3. No third-party data sharing**
-The analytics provider should not use your visitors' data for their own purposes, for ad targeting, or for sharing with other parties.
+### How the two combine
 
-**4. First-party only**
-Data collection happens on your domain, not via a third-party tracking script that also runs on other sites and can be used for cross-site tracking.
+| Your setup | ePrivacy Art. 5(3) | GDPR |
+|---|---|---|
+| Persistent analytics cookie, full IP stored, data sent to a third-party processor | Consent needed | Personal data processed, lawful basis and transfer rules apply |
+| No cookie, but fingerprinting to recognize repeat visitors | Likely in scope, consent expected | Likely personal data |
+| No cookie, no device access, no persistent ID, aggregate output only | Question 1 is generally answered "no consent trigger" | Little or no personal data, but still document it |
+| Cookie used, but it meets a regulator's published exemption conditions (for example CNIL) | Exempt in that jurisdiction, with conditions | Still check GDPR duties and notice |
 
-**5. Aggregated by design**
-Behavioral data — page views, scroll depth, click events — is aggregated rather than stored per-user over time. You see that 300 people visited a page, not that a specific cookied individual has visited 14 times over 6 months.
+The table is a map of the reasoning, not a verdict. National implementations of ePrivacy differ, and your own facts decide where you land.
 
-## The Data Quality Argument for Consent-Free Analytics
+### What the CNIL says about consent-free audience measurement
 
-This is often overlooked: compliant, cookie-banner-free analytics typically produces better data than consent-gated analytics.
+France's regulator has gone furthest in writing down the conditions. On its [audience measurement guidance](https://www.cnil.fr/fr/cookies-solutions-pour-les-outils-de-mesure-daudience) the CNIL says certain trackers can be exempt from consent if, among other things:
 
-When you show a consent banner:
-- 40–70% of users dismiss or reject it (varies by implementation)
-- The users who reject are not uniformly distributed — they skew toward more privacy-aware users, technical users, and sometimes your most valuable visitors
-- Your analytics is now based on the 30–60% of visitors who clicked "Accept All," which is a biased sample
+- they are **strictly limited to audience measurement** of your own site or application (performance, navigation problems, capacity, content analysis), exclusively for the publisher's benefit;
+- they produce **anonymous statistical data only**;
+- they do **not allow cross-referencing** with other processing or transmission of non-anonymous data to third parties;
+- they do **not track users across multiple sites or apps** using the same identifier;
+- where cookies are used, the lifespan is limited (the CNIL recommends **13 months maximum**, not automatically extended on new visits) and data is kept for a limited period (**25 months maximum**), with both durations periodically reassessed;
+- users are **informed** (typically via the privacy policy).
 
-With consent-free analytics that collects no personal data:
-- Every visit is counted
-- No sampling bias from consent refusal
-- Your traffic numbers reflect reality, not the subset of visitors who engaged with your banner
-- You don't have to correlate "consent rate" with "analytics accuracy" as separate variables
+Notice what this teaches. Even the most permissive regulator exemption comes with an information duty and tight purpose limits, and it covers a defined measurement use, not "any analytics at all". It also shows why a design that never touches the device is easier to reason about than one that relies on an exemption: there is simply less to qualify.
 
-The paradox: the "more compliant" approach of showing a consent banner and tracking only those who accept often produces less accurate data than a privacy-first tool that counts all visitors without identifying any of them.
+Other authorities have their own positions, and some are stricter. If you operate mainly in one country, read that regulator's own guidance.
 
-## Session Replays and GDPR
+### What about the Google Analytics rulings?
 
-Session recordings are a more complex case than basic analytics. A recording captures user behavior — including keystrokes, form interactions, and navigation. This raises legitimate questions about what's being recorded.
+Our post on [why teams leave Google Analytics](/blog/why-switch-from-google-analytics) covers the migration side. The legal side deserves a careful sentence or two, because it is often oversimplified.
 
-Compliant session replay handles this through:
+Several European data protection authorities, acting on complaints in 2022, concluded that specific Google Analytics configurations led to unlawful transfers of personal data to the United States. The reasoning centred on transfers under Chapter V of the GDPR and on the identifiers used, rather than on the idea that analytics is illegal.
 
-**Automatic masking of input fields.** Any field where a user types (passwords, names, email addresses, credit card numbers) should be masked before the data is sent to any server. The recording captures that the user typed in the field and how long they took, but not what they typed.
+The transfer picture has changed since. The European Commission adopted the EU-US Data Privacy Framework adequacy decision in 2023, and on 3 September 2025 the EU General Court [dismissed a challenge to it](https://iapp.org/news/a/european-general-court-dismisses-latombe-challenge-upholds-eu-us-data-privacy-framework) (Case T-553/23, Latombe v Commission), confirming that transfers to certified US organizations can continue on that basis. That addresses the *transfer* concern for certified providers. It does not remove the Article 5(3) question: if a tool still sets persistent identifiers on the device, consent is still the usual route. And the decision has been challenged before, so it is worth watching rather than assuming.
 
-**No keylogging of sensitive data.** The recording script should never capture the content of form fields, even if they're not standard `<input>` elements.
+The takeaway is not "never use Google Analytics". It is that "which tool" matters less than "what the tool stores on the device, what personal data it processes, where it flows, and what you told the visitor".
 
-**Data residence.** Recordings should be stored on infrastructure you control, not on a third-party analytics provider's servers in an unspecified jurisdiction.
+## What you gain with cookie-free analytics
 
-**No cross-site tracking.** Session recordings should only exist within your own site. They shouldn't be used to build behavioral profiles linked to the user's activity on other websites.
+### More complete numbers
 
-With these protections in place, session replays can be operated under a legitimate interest basis or, depending on interpretation, may not require consent at all — because the data captured is about your website's behavior from the user's perspective, not personal data about the user themselves.
+When analytics depends on a banner, your data only covers visitors who accept. The share who accept varies by country, banner design and audience, and you generally cannot know how it skews your sample, because the people who decline are not a random subset. If your measurement does not require consent, there is no consent gap: a visit is a visit. You can measure real traffic and conversion rates against a complete baseline instead of a self-selected one.
 
-That said, legal requirements vary by jurisdiction and are evolving. The conservative approach is to include session replay in your privacy policy, explain clearly what is and isn't captured, and give users a way to opt out if they wish.
+### Less compliance surface
 
-## How to Audit Your Current Analytics Setup
+Fewer moving parts means fewer things to get wrong. No banner vendor, no consent log to defend, no risk that a tag fires before consent because of a misconfigured tag manager. A common finding in privacy audits is that "rejecting" cookies does not actually stop the analytics script; a cookie-free design removes that entire failure class.
 
-If you're not sure whether your current analytics setup is GDPR-compliant, work through these questions:
+### Easier data minimization
 
-1. **Does your analytics tool use persistent cookies?** Check your cookie policy and your analytics admin for any cookie with an expiry longer than the current session.
+If the tool never receives an identifier, you cannot leak one. Data minimization (Article 5(1)(c) GDPR) stops being a policy and becomes a property of the system.
 
-2. **Where is your analytics data stored?** Log into your analytics provider and find out where data is stored geographically. If the answer is "on Google's servers" or "AWS us-east-1," that's relevant to your EU compliance picture.
+## What you lose, honestly
 
-3. **Does your provider share data with third parties?** Read your analytics provider's data processing agreement. Are they using your data for their own purposes or sharing with ad networks?
+Cookie-free is a trade, and it helps to name the costs.
 
-4. **What does your consent banner actually do?** If you have a consent banner, test it: accept all cookies and record what loads. Reject all cookies and record what loads. Does your analytics actually stop loading when users reject? In many implementations, it doesn't.
+- **Weaker returning-visitor recognition.** Without a persistent ID, "unique visitors" over long periods become approximate. A person who visits on Monday and again on Friday may be counted as two visitors in some designs. Expect less precise multi-week cohort and retention analysis.
+- **No long-term cross-session paths for anonymous people.** You can still see what happens inside a visit, and you can analyze funnels within a session. A journey that spans weeks and devices is something you can only reconstruct for people who identify themselves (by logging in, for instance), and at that point you have personal data again and the GDPR duties that go with it.
+- **Limited cross-device attribution.** Marketing attribution that depends on stitching a user across devices and channels over a long window is harder, by design.
+- **Some features are inherently more sensitive.** Session replay captures what a visitor does on a page, which is a richer data type than a page view. See the next section.
 
-5. **Is your data anonymized before storage?** Check whether IP addresses are truncated before being written to your database. Check whether visitor identifiers expire at session end.
+If your business genuinely needs person-level analytics, for example product analytics on logged-in users, treat that as a separate processing activity with its own lawful basis and notice, rather than trying to blur it into a "cookie-free" claim.
 
-## Switching to Compliant Analytics
+## Session replays, heatmaps and the "no banner" claim
 
-The practical steps for moving to GDPR-compliant analytics:
+Aggregate counts are the easy case. Session replays and heatmaps ask harder questions, because they record or reflect individual interaction with your pages.
 
-**Step 1: Decide what you actually need.** Do you need user-level tracking (individual behavioral profiles)? Or do you need to understand your audience and improve your site? Most teams that think they need personal-data analytics actually just need good aggregate data.
+Seentics offers session replays (built on rrweb, with rage-click and JavaScript error detection) and heatmaps (click maps, scroll depth and page screenshots), alongside funnels, goals and revenue attribution. Those are useful features, and you should not assume the "no banner" conclusion for analytics counts automatically transfers to a recording of a visitor's session. Whether a given replay setup needs consent, a legitimate-interest assessment, or neither depends on what it captures, how long you keep it, who can see it, and your national regulator's view.
 
-**Step 2: Choose a tool built for compliance.** Privacy-first analytics tools include Seentics, Plausible, Fathom, and others. The distinguishing factor isn't their marketing claims — it's the technical architecture: no persistent cross-session identifiers, no third-party data transfers, data stored in your jurisdiction.
+Sensible habits regardless of tool:
 
-**Step 3: Remove or disable non-compliant tools.** Don't run two analytics tools in parallel if one is compliant and one isn't. The non-compliant one still creates liability.
+- Keep recordings on infrastructure you control (self-hosting helps here; see our [session replay guide](/blog/session-replay-guide)).
+- Review what your replays can capture on forms and sensitive pages, and exclude pages (account, payments, health or similar) where recording makes no sense.
+- Set a retention period and stick to it.
+- Say in your privacy notice that session replays are used and why.
+- If you tie recordings to a known user through an identify call, treat that as processing of personal data.
 
-**Step 4: Update your privacy policy.** Describe what analytics you run, what data is collected (or not collected), how long it's retained, and how users can request deletion.
+## A compliance checklist for cookie-free, GDPR-compliant analytics
 
-**Step 5: Remove the consent banner — if your new tool doesn't require it.** If you've switched to a genuinely cookieless, personal-data-free analytics tool, the consent banner is no longer necessary for analytics. Removing it improves user experience and eliminates the data quality degradation from consent refusals.
+Use this to audit your current setup or vet a new tool. Every item in the first two blocks should be checked before you remove a banner.
 
-## How Seentics Is Designed for Compliance
+![A small combination padlock with a set of keys standing on a computer keyboard](/blog/gdpr-analytics-without-cookie-banner/lock.jpg)
 
-Seentics is built on the principle that good analytics doesn't require personal data. The tracking script does not set persistent cross-session cookies. IP addresses are not stored — they're used only for geographic resolution (country/region) and then discarded. No data is sent to Google, Facebook, or any advertising network.
+*Photo by Sasun Bughdaryan on [Unsplash](https://unsplash.com/photos/padlock-and-keys-resting-on-a-computer-keyboard-cX8kNl8X0Ys).*
 
-All data is stored on infrastructure you control — either self-hosted on your own servers or on EU-based cloud infrastructure. You own your data. Seentics has no access to your visitors' behavioral data and cannot use it for its own purposes.
+**Device access (ePrivacy)**
 
-Session replays automatically mask all input fields before data leaves the browser. Recordings are stored on your infrastructure. Users are not tracked across sites.
+- [ ] The analytics script does not set cookies, local storage entries or similar identifiers. (Check in your browser's developer tools, Application tab, before and after load.)
+- [ ] It does not read identifiers set by anything else for analytics purposes.
+- [ ] The vendor states, in writing, that it does not use fingerprinting.
+- [ ] Other scripts on the page (tag managers, chat widgets, ad pixels) are audited separately. One stray marketing tag can undo everything.
 
-The result is a full analytics stack — traffic, sessions, heatmaps, funnels, recordings — that operates without a consent banner under the ePrivacy Directive and without a consent basis under GDPR, because it doesn't collect personal data.
+**Personal data (GDPR)**
 
-## Conclusion
+- [ ] You know what the tool does with IP addresses (stored, truncated, used once and discarded) and you can explain it.
+- [ ] No persistent identifier links visits across days or weeks.
+- [ ] You do not attach emails, names or account IDs to analytics events, or, if you do, you treat that data as personal data with a lawful basis.
+- [ ] Data is not shared with third parties for their own purposes (advertising, profiling, product improvement).
+- [ ] Hosting location and any international transfers are documented. Self-hosting simplifies this.
+- [ ] A retention period is set and enforced.
 
-GDPR compliance for analytics is not a tradeoff between legal safety and data quality. The common assumption — that you need invasive tracking to get useful analytics — is wrong. Privacy-first analytics tools collect everything you need to understand your audience, improve your site, and grow your business, without collecting anything about specific individuals.
+**Transparency and records**
 
-The teams that have already made this switch typically report two things: their analytics numbers are higher (because everyone is counted, not just consent-givers), and the compliance headache is gone. The consent banner was protecting the analytics tool's data collection model, not their users' privacy.
+- [ ] Your privacy notice describes the analytics you run, what is collected, why, how long it is kept, and how to object.
+- [ ] You have written down your reasoning (a short assessment of why you concluded no consent is needed). If a regulator asks, this is your first exhibit.
+- [ ] If you operate in a country whose regulator has published specific conditions (such as France's CNIL), you have checked them.
+- [ ] You have confirmed any other cookie or tracker on the site still has its own lawful basis; removing the analytics banner does not remove the need for consent for advertising cookies, for example.
 
-Removing the banner and running genuinely privacy-first analytics serves both goals at once.
+**Verification**
+
+- [ ] You tested in a clean browser profile, with and without blockers, and watched the network tab.
+- [ ] You re-test after major site changes, new tags or tool upgrades.
+
+## How to move to cookie-free analytics
+
+1. **List what you actually need to know.** Most teams need traffic sources, top content, conversion funnels and an idea of where visitors get stuck. Very few need an individual's six-month browsing history.
+2. **Pick a tool whose architecture matches the claim.** Read the documentation and the source if it is open. For Seentics, the repository is public at [github.com/Seentics/seentics](https://github.com/Seentics/seentics), and you can read exactly what the tracker does. The snippet is a single deferred script tag with your website ID.
+3. **Run it next to the old tool briefly**, compare the numbers, then retire the old one. Do not leave a consent-requiring tool running quietly in parallel.
+4. **Update your privacy notice** to describe the new setup.
+5. **Re-test the banner.** If analytics was the only reason for it, you can remove it. If you still run advertising or other non-essential trackers, keep a banner for those, and make sure analytics is not loading behind it.
+
+Our [what is web analytics](/blog/what-is-web-analytics) primer and [funnel analysis guide](/blog/funnel-analysis-guide) help once data is flowing.
+
+## Frequently asked questions
+
+### Is cookie-free analytics automatically GDPR compliant?
+
+No. Cookie-free addresses the device-access question under ePrivacy. GDPR compliance also depends on whether you process personal data, your lawful basis, transparency, retention and transfers. A cookie-free tool that stores full IP addresses and ships them to a third party can still raise GDPR issues.
+
+### Do I still need a privacy policy if I do not use cookies?
+
+Yes. The CNIL's consent-exemption conditions, for instance, include informing users, and the GDPR's transparency duties apply whenever personal data is processed. Describe your analytics in your privacy notice in plain language.
+
+### Can I really remove my cookie banner?
+
+Possibly, if the banner exists only for analytics and your analytics truly does not store or access anything on the device and does not need consent as personal data processing. Any other non-essential cookie or tracker on your site (advertising, embedded third-party content, social pixels) still needs its own treatment. Verify with a network and storage audit, then get legal sign-off.
+
+### Is IP address handling a problem for cookie-free tools?
+
+It can be. IP addresses are often personal data, and the EDPB has said IP-based tracking can be in scope of Article 5(3) in some situations. What matters is what the tool does with the address (for example resolving an approximate location and not retaining the address) and whether it is used to recognize or follow a person. Ask the vendor, or read the code if the tool is open source.
+
+### What about session replays and heatmaps without consent?
+
+Treat them as a separate question from aggregate page-view counts. They capture richer behavioral data, so review what is recorded, minimize it, set retention, disclose it in your privacy notice, and check your regulator's guidance. If you are unsure, a short legitimate-interest assessment or a consent prompt scoped to replay only is a defensible, cautious path.
+
+## The bottom line
+
+The consent banner exists because some analytics tools store identifiers on your visitors' devices and build profiles from them. If you choose a tool that does neither, by design and not just by label, you can often drop the banner for analytics, count every visit, and spend less time on compliance paperwork. The condition is that you check the claim: inspect the storage, understand the IP handling, write down your reasoning, tell visitors what you measure, and get advice for your jurisdiction.
+
+If you want to see what cookie-free analytics looks like in practice, the [live demo](https://seentics.com/websites/demo) needs no account, and the project is open source on [GitHub](https://github.com/Seentics/seentics).
+
+*Information as of October 2026. Not legal advice.*

@@ -1,166 +1,312 @@
 ---
-title: "Conversion Funnel Analysis: How to Find and Fix Revenue Leaks"
-description: "Learn how conversion funnel analysis reveals exactly where visitors drop off — and how to use session replays and heatmaps to diagnose the cause and fix it."
+title: "Conversion Funnel Tracking: A Complete Guide to Funnel Analysis"
+description: "Conversion funnel tracking and funnel analysis, step by step: define steps, calculate drop-off, segment, and use session replays to find why users leave."
 date: "2026-06-01"
 author: "Seentics Team"
 tags: ["funnels", "conversion", "analytics", "optimization"]
+cover_image: /blog/funnel-analysis-guide/cover.jpg
 ---
 
-# Conversion Funnel Analysis: How to Find and Fix Revenue Leaks
+# Conversion Funnel Tracking: A Complete Guide to Funnel Analysis
 
-Every website has a funnel — a path visitors travel from first arriving to completing a goal. That goal might be a purchase, a sign-up, a demo request, or a download. Most visitors who start the path never finish it. Funnel analysis tells you exactly where they're abandoning — and gives you what you need to do something about it.
+Your traffic chart is climbing. Your revenue chart is flat. Somewhere between "someone arrived" and "someone paid", people are quietly leaving, and nothing in a pageview report tells you where. Conversion funnel tracking is how you find that place. It turns a vague sense that "the site isn't converting" into a specific, fixable fact: this step, this segment, this many people.
 
-Without funnel visibility, you're left guessing. Traffic is up, but revenue isn't growing. Your homepage looks fine, your checkout page looks fine, but something is broken somewhere in between. Funnel analysis makes the invisible visible.
+This guide covers funnel analysis end to end. You will learn what a funnel is, how to define steps that mean something, how to calculate step and overall conversion, how to segment, and how to pair the numbers with session recordings so you learn *why* people drop, not only *where*. It finishes with funnel templates for SaaS signup, ecommerce checkout, and lead generation.
 
-## What Conversion Funnel Analysis Actually Is
+![A laptop showing an analytics dashboard with charts](/blog/funnel-analysis-guide/cover.jpg)
 
-A conversion funnel maps a sequence of steps that users go through to complete a goal. For an e-commerce store it might be:
+*Photo: Unsplash.*
 
-1. Product page
-2. Add to cart
-3. Cart review
-4. Checkout — shipping info
-5. Checkout — payment
-6. Order confirmation
+**TL;DR**
 
-Each step has an entry count and an exit count. The exit rate between steps is your drop-off. Funnel analysis shows you this drop-off precisely: 82% of visitors who add to cart abandon before entering payment info. That's your leak. That's where the revenue is going.
+- A funnel is an ordered list of steps toward one goal. Funnel analysis measures how many people reach each step.
+- Define the goal first, then pick 3 to 7 steps that are real checkpoints. Use page, event, or CSS-selector conversions depending on what the step is.
+- Step conversion tells you where the leak is. Overall conversion tells you whether you are winning. Track both.
+- Numbers show *where* people leave. Session recordings and heatmaps show *why*. Always do both.
+- Change one thing at a time, then re-measure the same step for the same segment.
 
-The goal isn't to achieve zero drop-off — that's not realistic. The goal is to understand *why* drop-off is happening so you can fix the fixable causes and accept the unavoidable ones.
+## What Is a Conversion Funnel?
 
-## How to Define a Funnel That's Actually Useful
+A conversion funnel is a sequence of steps a visitor takes to complete a goal: a purchase, a signup, a demo request, a download. It is called a funnel because each step has fewer people than the one before. Some visitors leave, some get distracted, some were never going to buy.
 
-Most teams set up funnels wrong. They track steps that are too broad, too narrow, or poorly defined. Here's how to do it right:
+For an online store the path might be product page, add to cart, begin checkout, payment, order confirmation. For a SaaS product it might be pricing page, signup form, email verification, first project created.
 
-### Start with a goal, not a page
+Funnel analysis is the practice of counting how many people make it from each step to the next and then asking what is different about the ones who didn't. Two numbers do most of the work:
 
-Define the conversion you care about first — a purchase, a paid subscription, a completed lead form. Then work backwards through the steps a user must complete to reach that goal. Don't add steps just because they're measurable; add steps because they're meaningful checkpoints.
+- **Step conversion:** of the people who reached step N, what share reached step N+1?
+- **Overall conversion:** of the people who entered the funnel, what share completed it?
 
-### Keep steps sequential but not rigid
+Zero drop-off is not the goal. Plenty of visitors are researching, comparing, or in the wrong place. The goal is to separate the drop-off you can fix (a broken coupon field, a surprise fee, a button that sits below the fold on phones) from the drop-off you can't.
 
-A funnel works best when steps are genuinely sequential — users have to pass through them in order. But real user journeys aren't always linear. Someone might visit the pricing page three times before clicking sign-up. Your funnel should capture the key steps without punishing non-linear behavior.
+Funnels are one part of a bigger picture. If you want the wider view of how people move through your site, see our guide to [user journey mapping with analytics](/blog/user-journey-mapping-with-analytics). A funnel is the narrow, measurable slice of that journey that ends in revenue.
 
-### Separate funnels by traffic source or device
+## How Conversion Funnel Tracking Works
 
-Mobile users and desktop users often behave completely differently in a funnel. A checkout flow that converts at 4% on desktop might convert at 1.5% on mobile — not because mobile users are less motivated, but because the mobile experience has more friction. Track them separately.
+A funnel tracker records the events that make up each step, then groups them by visitor or session and checks whether the steps happened. A visitor who viewed the pricing page, started the signup form, and then left is counted in steps one and two but not three.
 
-## Reading the Drop-Off: What the Numbers Tell You
+That means a funnel is only as good as its step definitions. A step should be something your analytics can observe reliably, and it should represent a meaningful checkpoint, not a convenient-to-measure click.
 
-When you run a funnel report, you'll see something like this:
+### Page, event, and selector steps
 
-| Step | Visitors | Drop-off |
+Seentics supports three kinds of conversions for goals and funnel steps, per the project README: **page**, **event**, or **CSS-selector** conversions. Choosing the right type for each step is the most important setup decision you will make.
+
+| Step type | What it matches | Use it when | Example |
+|---|---|---|---|
+| Page | A visit to a URL | The step is a distinct page | `/pricing`, `/checkout/shipping`, `/thank-you` |
+| Event | A custom event your code sends | The step happens without a page change, or you need properties like value | `seentics.track('signup_click')` |
+| CSS selector | A click on an element that matches a selector | You can't or don't want to change the site's code | `#start-trial-button` |
+
+A few practical notes on choosing between them:
+
+- **Use pages for confirmations.** A "thank you" or "order confirmed" URL is the cleanest final step because it is hard to reach by accident.
+- **Use events for things that don't change the URL.** Single-page apps, modals, and multi-step forms that never change the address bar are better tracked with events. In Seentics that is a one-liner: `seentics.track('signup_click')`, optionally with properties. Revenue events can carry `value` and `currency`, as in `seentics.track('purchase', { value: 49.99, currency: 'USD', order_id: 'ORD-1234' })`.
+- **Use selectors when you can't touch the code.** If a marketer owns the landing page and you can't ship tracking changes, a selector conversion on the CTA button gets you a step without a deploy.
+- **Mix freely.** A single funnel can start with a page, continue with a selector, and end with an event.
+
+Goals themselves are configured in the dashboard rather than in code, per the README, so a funnel can reuse the same definitions as your conversion goals.
+
+## How to Define Funnel Steps That Are Useful
+
+Most broken funnels are broken at the definition stage. Here is the process that avoids the common failures.
+
+### Start with the goal, not a page
+
+Write down the single conversion you care about: paid subscription, completed order, booked demo. Then work backwards through what a person must do to get there. Add a step only if it is a real checkpoint, meaning that failing to pass it means failing to convert. Don't add steps because they are easy to track.
+
+### Keep it between three and seven steps
+
+Fewer than three steps tells you little: "visited, converted" has no diagnostic power. More than seven and the funnel turns into a wall of numbers where every step has a different owner and no one acts. If you genuinely have a long flow, build one funnel per phase, such as acquisition-to-signup and signup-to-activation, rather than one giant funnel.
+
+### Make steps observable and unambiguous
+
+Ask of each step: if this fires, did the visitor definitely do the thing? A pageview of `/checkout` means they reached checkout. A click on a "Buy" button that might open a validation error does not necessarily mean they succeeded. Prefer the signal that sits after the action, not before it.
+
+### Decide on ordering and time window
+
+Real journeys are messy. Someone may read the pricing page three times before signing up. Decide in advance whether your funnel treats steps as strictly sequential and what window you allow between the first and last step. A window that is too short undercounts slow deciders, and one that is too long counts a visit from last month as part of today's journey. Whatever you choose, keep it consistent so that before and after comparisons are fair.
+
+## Reading a Funnel: A Diagram With Illustrative Numbers
+
+Here is what a funnel looks like once the steps are tracked. The numbers below are **illustrative**, invented to show how to read the shape, not benchmarks from any real site.
+
+![Illustrative checkout funnel from product page at 100 percent down to order at 4 percent, with drop-off labels between steps](/blog/funnel-analysis-guide/funnel-diagram.svg)
+
+*Illustrative funnel for a hypothetical store. Percentages are relative to the first step.*
+
+Reading it from the top:
+
+1. Out of every 100 people who view a product page, 25 add something to the cart. Three quarters leave. That is normal for a top-of-funnel step, because many people are just browsing.
+2. Of those 25, 12 begin checkout. Roughly half drop between cart and checkout.
+3. Of the 12 who begin checkout, 8 reach payment, so a third drop.
+4. Of the 8 who reach payment, 4 complete the order, which is another 50% loss.
+
+Notice that the *largest* percentage drop (the first step) is not necessarily the one most worth fixing. Losing half of the people who already put something in a cart and typed in their details is usually more painful, and often more fixable, than losing browsers at the top. Which leaks to prioritise is exactly what the next section helps you calculate.
+
+## How to Calculate Funnel Conversion Rates
+
+You need only two formulas.
+
+**Step conversion rate** = visitors at this step / visitors at the previous step
+
+**Overall conversion rate** = visitors at the final step / visitors at the first step
+
+Drop-off is just the inverse: drop-off = 1 minus step conversion.
+
+### A worked example (hypothetical)
+
+Suppose a hypothetical SaaS site tracks a signup funnel over one week. These numbers are invented for the example.
+
+| Step | Visitors | Step conversion | Drop-off |
+|---|---|---|---|
+| 1. Landing page view | 10,000 | n/a | n/a |
+| 2. Clicked "Start free trial" | 3,000 | 30% (3,000 / 10,000) | 70% |
+| 3. Submitted signup form | 2,100 | 70% (2,100 / 3,000) | 30% |
+| 4. Verified email | 1,470 | 70% (1,470 / 2,100) | 30% |
+| 5. Created first project | 735 | 50% (735 / 1,470) | 50% |
+
+Overall conversion is 735 / 10,000 = **7.35%**.
+
+The biggest percentage drop is step 2 (70% leave), but that is a landing-page question heavily influenced by traffic quality. The next-biggest is step 5, where half of the people who verified their email never create a project. Those people already said yes. They signed up and confirmed their email. Losing them is a product and onboarding problem, and it is often the easiest to improve.
+
+### Which fix is worth more?
+
+Because step conversions multiply, you can model the effect of an improvement before you build it. Using the same hypothetical numbers:
+
+- Lift step 5 from 50% to 60%: 1,470 x 0.60 = 882 projects, an overall rate of **8.82%** (up from 7.35%).
+- Lift step 3 from 70% to 80%: 3,000 x 0.80 x 0.70 x 0.50 = 840 projects, an overall rate of **8.40%**.
+
+A ten-point gain at the last step beats one at step 3 here. A useful rule of thumb: look for the step with the lowest conversion *among people who have already shown strong intent*.
+
+Before acting on a change in a step conversion, check how many people sit behind the percentage. Small counts are noisy, so widen the date range if a step has little traffic.
+
+## Segment Your Funnels
+
+An overall funnel is an average, and averages hide the interesting failures. The same funnel often performs very differently for different groups, so segment before you diagnose.
+
+Useful segments include:
+
+- **Device:** desktop, mobile, tablet. Mobile funnels often fail on form inputs and button placement.
+- **Traffic source or UTM campaign:** paid social visitors behave differently from organic search visitors or people typing your URL directly. Seentics includes UTM channel attribution, so you can connect funnel performance to the campaigns that sent the traffic.
+- **New vs. returning visitors:** returning visitors tend to skip the early steps.
+- **Landing page or entry point:** the page where people enter can change everything downstream.
+- **Plan or customer type:** if you identify users with `seentics.identify('user_123', { plan: 'pro' })`, traits like plan are available for slicing.
+
+### A hypothetical segmentation example
+
+Imagine the funnel from the previous section split by device (again, invented numbers):
+
+| Segment | Landing views | Overall conversion |
 |---|---|---|
-| Product page | 10,000 | — |
-| Add to cart | 2,400 | 76% |
-| Begin checkout | 1,100 | 54% |
-| Shipping info | 820 | 25% |
-| Payment info | 510 | 38% |
-| Order confirmed | 390 | 24% |
+| Desktop | 6,000 | 9.5% |
+| Mobile | 4,000 | 4.0% |
+| All | 10,000 | 7.3% |
 
-The two biggest leaks here are the first step (76% of people viewing a product never add to cart) and the payment step (38% drop-off after entering shipping info).
+The blended figure of about 7.3% looks acceptable and hides the fact that mobile converts at less than half the rate of desktop. Without the split, you would be optimising the wrong thing, or nothing at all. Once you see it, you know to watch mobile recordings at the step where mobile diverges.
 
-These numbers tell you *where* to look. They don't tell you *why*. That's the next step.
+If you are working on conversion across your whole site, our post on [conversion rate optimization with analytics](/blog/conversion-rate-optimization-with-analytics) covers how segments fit into a broader testing programme.
 
-## Diagnosing Drop-Off: From Numbers to Root Cause
+## Why Do They Leave? Pair Funnels With Session Recordings
 
-This is where funnel analysis becomes genuinely useful — when you combine it with qualitative tools.
+A funnel answers *where*. It cannot answer *why*. For that you need to watch what the people who dropped actually did.
 
-### Step 1: Filter sessions by funnel stage
+Seentics records session replays using rrweb, with automatic rage-click and JavaScript error detection. Paired with a funnel, that gives you a repeatable diagnosis loop.
 
-Take the drop-off step you want to investigate. Pull up the session recordings for users who reached that step but abandoned. For the payment drop-off in the example above, you'd filter for: "visited checkout/shipping page AND did not reach order confirmation."
+![A six-step loop: measure the leakiest step, watch replays of users who dropped, form a hypothesis, change one thing, re-measure, repeat](/blog/funnel-analysis-guide/diagnosis-loop.svg)
 
-Watch 10–20 of those sessions. You'll see patterns emerge quickly. Common patterns:
+*The funnel diagnosis loop: numbers find the leak, recordings explain it, one change tests the fix.*
 
-- Users pause on the payment form and then close the tab (trust issue — maybe no security badge)
-- Users enter a coupon code that doesn't work and abandon (broken discount system)
-- Mobile users struggle with the card number field (bad input handling)
-- Users scroll back to review shipping cost and then leave (surprise fee revealed too late)
+### 1. Measure: find the leakiest step
 
-### Step 2: Run a heatmap on the high drop-off page
+Run the funnel for a representative period and segment it. Pick one step, ideally one with real volume and high intent, to investigate.
 
-For the page where users are dropping off, run a heatmap filtered to sessions that abandoned at that step. You'll see where users are clicking, what they're ignoring, and how far they're scrolling.
+### 2. Watch: replays of people who dropped
 
-A common finding: the "Complete Purchase" button is below the fold on mobile, and users never scroll that far. The fix is obvious once you can see it.
+Find sessions of visitors who reached that step and then left. Watch ten to twenty of them. Don't hunt for a single dramatic recording. Look for the same thing happening repeatedly. For a payment-step drop, you might see patterns like:
 
-### Step 3: Check form analytics
+- People pause on the payment form and close the tab, which suggests a trust problem.
+- People enter a coupon code, get an error, and leave, which suggests a broken discount flow.
+- People on phones repeatedly tap a field that doesn't respond, which suggests an input or layout bug.
+- People scroll back up to re-read shipping costs and then leave, which suggests a surprise fee revealed too late.
 
-For drop-off on form pages, look at field-level interaction data. Which field do users start filling in and then abandon? Which field triggers the longest hesitation? Which field do users correct multiple times?
+Those are example patterns, not guaranteed findings. Your own recordings will tell you what is actually true on your site. Our [session replay guide](/blog/session-replay-guide) goes deeper on how to watch recordings efficiently.
 
-A field that causes repeated corrections (like a phone number with strict formatting requirements) creates friction that pushes users to abandon.
+Seentics flags rage clicks and JavaScript errors in recordings, which helps you prioritise. A drop-off step that is full of rage clicks is telling you something is not responding the way users expect. See [rage clicks explained](/blog/rage-clicks-explained) for what to do with those.
 
-## Common Funnel Leaks and Their Fixes
+### 3. Add a heatmap for the page
 
-### The "Add to Cart" problem
+Seentics provides click maps, scroll-depth maps, and captured page screenshots. On the page where people drop, a heatmap shows whether the main button is even being seen. A classic finding is a primary call to action that sits below the fold on mobile, so many visitors never scroll to it. Our post on [heatmaps explained](/blog/heatmaps-explained) covers how to read these.
 
-High drop-off between product page and add to cart usually means the product page isn't convincing enough. Session replays will typically show users who scroll partway down, don't read the description, and leave.
+### 4. Hypothesize, change one thing, re-measure
 
-Fixes: Stronger product photos, social proof (reviews) visible above the fold, clearer pricing, a more prominent CTA button.
+Write the cause as a sentence you can be wrong about: "Mobile users abandon payment because the card field doesn't open the numeric keyboard." Make one change. Re-measure the same step for the same segment over a comparable period. If you change five things at once, you will never know which one worked.
 
-### The "Checkout Entry" problem
+![A shopper paying with a phone at a checkout counter](/blog/funnel-analysis-guide/checkout.jpg)
 
-Users add to cart but don't start checkout. Common causes: forced account creation, surprise shipping costs revealed in cart, no guest checkout option.
+*Checkout friction is easier to find when you watch real sessions. Photo: Unsplash.*
 
-Fix: Always offer guest checkout. Show shipping cost estimation before the cart. Don't make account creation a prerequisite for buying.
+## Common Funnel Tracking Mistakes
 
-### The "Payment Hesitation" problem
+**Too many or too few steps.** Three to seven steps is a good working range. Anything outside tends to either hide the problem or drown it.
 
-Users reach payment but don't complete. This is almost always about trust. They've committed time but something in the checkout experience made them uncertain.
+**Not segmenting.** Blended numbers hide failures, as the mobile example showed.
 
-Fixes: Add trust signals (security badges, SSL indicators, money-back guarantee). Show a clear order summary. Make it obvious they can review before confirming.
+**Ignoring traffic quality.** A big drop at the very first step can be a traffic problem, not a page problem. If a new campaign sends a lot of low-intent visitors, step 1 to 2 will look worse without your site changing at all.
 
-### The "Post-Signup Drop-off" problem (for SaaS)
+**Tracking the step before the action.** A click on "Pay" is not a payment. Prefer the signal that fires after the thing succeeded, such as a confirmation page or a purchase event.
 
-This is less about the funnel and more about onboarding — users sign up but never activate. The drop-off isn't on the landing page; it's in the first session after they create an account.
+**Fixing without watching.** Redesigning a page because a number looks bad, without ever watching a recording, is guessing with extra steps.
 
-Fixes: A clearer onboarding flow, a welcome email with a specific call to action, behavioral automations that trigger help content when users don't complete a key action within the first 24 hours.
+**Forgetting about tracking gaps.** Seentics is cookie-free and privacy-first, which means a visitor who changes device mid-funnel is generally not stitched back together unless you identify them. If cross-device journeys matter to you, identify logged-in users with `seentics.identify` and keep that limitation in mind when reading the numbers.
 
-## Tracking Micro-Conversions, Not Just the Final Goal
+## Funnel Templates
 
-Most funnel thinking focuses on the main conversion: the purchase, the sign-up, the demo request. But micro-conversions are equally valuable signals.
+Use these as starting points and adapt the steps to your own site. The "typical suspects" column lists things worth checking in recordings, not predictions.
 
-A micro-conversion is any meaningful step toward the main goal:
-- Viewed pricing page
-- Started filling out a form
-- Clicked the CTA but then went back
-- Spent more than 3 minutes on a product page
+### SaaS signup funnel
 
-Tracking micro-conversions gives you a much earlier warning signal. If your pricing page engagement drops 40% after a redesign, you'll know a week before it shows up as a drop in sign-ups.
+| Step | How to track it | Typical suspects when people drop |
+|---|---|---|
+| Pricing or landing page view | Page | Unclear value, wrong traffic |
+| Click on start trial | Selector or event | CTA not visible, weak copy |
+| Signup form submitted | Event | Too many fields, validation errors |
+| Email verified | Page or event | Email delay, verification link confusion |
+| First key action completed | Event | Empty states, unclear next step |
 
-## Running Funnel Experiments Without Guessing
+The last step is the one that predicts retention, so treat it as the real finish line. Our [SaaS onboarding analytics guide](/blog/saas-onboarding-analytics) covers the activation side in depth. Seentics behavioral automations (modals, banners, webhooks, and redirects triggered by behaviour) can also be used to nudge people who stall, which is covered in the [behavioral automations guide](/blog/behavioral-automations-guide).
 
-Once you've identified a leak and diagnosed a likely cause, you need to test a fix. The key is isolating variables.
+### Ecommerce checkout funnel
 
-Don't redesign the entire checkout flow and then try to figure out which change helped. Instead:
+| Step | How to track it | Typical suspects when people drop |
+|---|---|---|
+| Product page view | Page | Weak photos, no reviews, unclear price |
+| Add to cart | Event or selector | Button placement, variant selection friction |
+| Cart view / begin checkout | Page | Forced account creation, shipping cost surprise |
+| Shipping details | Page | Long forms, address validation |
+| Payment | Page | Trust, coupon errors, card field issues on mobile |
+| Order confirmed | Page or event with `value` | Payment failures, errors after submit |
 
-1. Identify one hypothesis ("users don't trust the payment page because there's no security badge")
-2. Make one change (add a security badge near the payment button)
-3. Run the change for long enough to reach statistical significance
-4. Measure the specific drop-off rate at the payment step
+Revenue events with `value` and `currency` let you tie funnel steps to money. For more on store analytics see [ecommerce analytics](/blog/ecommerce-analytics).
 
-This discipline — one change, one measurement — is what separates conversion optimization from gut-feel redesigns.
+### Lead generation funnel
 
-## Setting Funnel Benchmarks
+| Step | How to track it | Typical suspects when people drop |
+|---|---|---|
+| Landing page view | Page | Message mismatch with the ad or link |
+| Scrolled to or viewed the form | Selector or event | Form buried too low |
+| Started the form | Event | Intimidating first field |
+| Submitted the form | Event | Required fields, validation errors, spam filters |
+| Thank-you page | Page | Submit fired but confirmation failed |
 
-Benchmarks vary enormously by industry and funnel type. But as rough reference points:
+A gap between "started the form" and "submitted the form" is a strong sign to watch recordings of that form specifically.
 
-- **E-commerce checkout conversion** (add to cart → purchase): 20–30% is solid; below 15% suggests significant friction
-- **SaaS free trial → paid**: 15–25% is typical for product-led growth
-- **Lead generation form completion**: 20–50% depending on form length and traffic quality
-- **Onboarding completion** (signup → key activation step): 40–60% for a well-designed flow
+## How Seentics Handles Funnels
 
-Your goal isn't to hit a benchmark — it's to steadily improve your own baseline. A 5% improvement in each funnel step compounds dramatically over a quarter.
+The Seentics README describes funnels as multi-step conversion analysis with drop-off rates, alongside events and goals that can be page, event, or CSS-selector conversions. Because funnels, session replays, and heatmaps all live in the same product and run off the same tracking script, you can move from "which step is leaking" to "what are people doing there" without exporting data between tools.
 
-## How Seentics Handles Funnel Analysis
+Seentics is open source and self-hostable, uses no cookies or fingerprinting, and ships its tracker as a single script:
 
-Seentics lets you define funnel steps using page URLs, custom events, or any combination of the two. You can track a three-step funnel or a twenty-step onboarding flow. Drop-off rates are calculated automatically, and you can drill directly from a funnel step into the session recordings for users who abandoned at that step.
+```html
+<script
+  defer
+  src="https://your-seentics-domain.com/trackers/seentics.js"
+  data-website-id="YOUR_WEBSITE_ID"
+></script>
+```
 
-Heatmaps run on the same data pipeline, so there's no separate setup. You define the funnel, identify the drop-off, click into sessions, open the heatmap for the same page — all without leaving the tool or exporting data to a spreadsheet.
+Pageviews, scroll depth, exit intent, and rage clicks are captured automatically, so page-based funnel steps work from day one. Add `seentics.track(...)` calls only for the steps that pages can't express.
 
-Funnel filters let you segment by device, traffic source, date range, or any custom attribute. Comparing mobile vs. desktop drop-off, or this week vs. last month, takes a few clicks.
+![The Seentics analytics dashboard](/assets/dashboard.png)
 
-## Conclusion
+*The Seentics dashboard.*
 
-Funnel analysis is not a report you run once. It's a continuous practice of measuring where users leave, diagnosing why, and testing fixes. The teams that get good at this compound their conversion rate improvements over months and quarters — not because they had a single breakthrough, but because they built a systematic process for finding and eliminating friction.
+## Frequently Asked Questions
 
-Start with your highest-value funnel. Define the steps clearly. Find the biggest leak. Watch the sessions. Hypothesize the cause. Test one fix at a time. Measure the result. Repeat.
+### What is conversion funnel tracking?
 
-That's the whole process. The tools are there to make each step faster and more precise.
+It is the practice of defining the ordered steps toward a goal, such as a purchase or signup, and measuring how many visitors reach each step. The output is a set of step conversion and drop-off rates that show where you lose people.
+
+### How many steps should a funnel have?
+
+Three to seven is a practical range. Fewer gives you little diagnostic power, and more usually means you should split the flow into two funnels, such as acquisition-to-signup and signup-to-activation.
+
+### What is a good funnel conversion rate?
+
+It depends heavily on your industry, traffic quality, price, and what the funnel measures, so a universal number would be misleading. Treat your own history as the baseline and aim to improve it step by step. Compare segments within your own site before you compare yourself to anyone else.
+
+### What is the difference between a funnel and a user journey?
+
+A user journey is the full, messy, non-linear path someone takes through your site. A funnel is a deliberately simplified, ordered slice of that journey that ends in a specific goal. Journeys help you discover what to measure, and funnels measure it.
+
+### Why is my funnel dropping at the first step?
+
+Often that is traffic quality or message mismatch rather than a page bug. Segment by source or campaign first. If one source converts far worse than the others, the problem may be the targeting, not the page.
+
+### How do I find out why people drop off?
+
+Funnels only tell you where. To learn why, watch session recordings of visitors who dropped at that step, check a heatmap of the page, and look for rage clicks or JavaScript errors. Then form one hypothesis, change one thing, and re-measure.
+
+## Start With One Funnel
+
+Pick your most valuable conversion. Define three to seven honest steps. Segment by device. Find the leakiest high-intent step, watch real sessions, and change one thing. That is the whole discipline, and it compounds.
+
+If you want to see funnels, session replays, and heatmaps working together, you can try the [live demo](https://seentics.com/websites/demo) or explore the open-source project on [GitHub](https://github.com/Seentics/seentics).

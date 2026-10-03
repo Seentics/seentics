@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="960" height="340" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="480" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Six criteria we used to compare tools</text>
+<g font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="70" width="290" height="100" rx="12" fill="#e0f2fe" stroke="#0284c7"/><text x="175" y="105">Privacy masking</text><text x="175" y="136" font-size="14" font-weight="400" fill="#334155">Default-on or opt-in?</text>
+<rect x="335" y="70" width="290" height="100" rx="12" fill="#ede9fe" stroke="#7c3aed"/><text x="480" y="105">Performance impact</text><text x="480" y="136" font-size="14" font-weight="400" fill="#334155">Script size, CPU, network</text>
+<rect x="640" y="70" width="290" height="100" rx="12" fill="#dcfce7" stroke="#16a34a"/><text x="785" y="105">Sampling and filters</text><text x="785" y="136" font-size="14" font-weight="400" fill="#334155">Record what matters</text>
+<rect x="30" y="190" width="290" height="100" rx="12" fill="#fef3c7" stroke="#d97706"/><text x="175" y="225">Retention</text><text x="175" y="256" font-size="14" font-weight="400" fill="#334155">How long recordings last</text>
+<rect x="335" y="190" width="290" height="100" rx="12" fill="#fee2e2" stroke="#dc2626"/><text x="480" y="225">Pricing model</text><text x="480" y="256" font-size="14" font-weight="400" fill="#334155">Per session, per seat, free</text>
+<rect x="640" y="190" width="290" height="100" rx="12" fill="#f1f5f9" stroke="#64748b"/><text x="785" y="225">Self-hosting</text><text x="785" y="256" font-size="14" font-weight="400" fill="#334155">Where the data lives</text>
+</g></svg>

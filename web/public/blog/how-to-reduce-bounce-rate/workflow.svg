@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="960" height="360" rx="16" fill="#f8fafc"/>
+<text x="480" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">The bounce-rate diagnosis loop</text>
+<g fill="#ffffff" stroke="#334155" stroke-width="2">
+<rect x="30" y="100" width="130" height="110" rx="12"/><rect x="190" y="100" width="130" height="110" rx="12"/><rect x="350" y="100" width="130" height="110" rx="12"/><rect x="510" y="100" width="130" height="110" rx="12"/><rect x="670" y="100" width="120" height="110" rx="12"/><rect x="820" y="100" width="110" height="110" rx="12"/></g>
+<g fill="#0f172a" text-anchor="middle" font-size="16" font-weight="700">
+<text x="95" y="135">1. Segment</text><text x="255" y="135">2. Heatmap</text><text x="415" y="135">3. Recordings</text><text x="575" y="135">4. Hypothesis</text><text x="730" y="135">5. Fix</text><text x="875" y="135">6. Measure</text></g>
+<g fill="#334155" text-anchor="middle" font-size="13">
+<text x="95" y="162">source, device,</text><text x="95" y="180">landing page</text>
+<text x="255" y="162">where do they</text><text x="255" y="180">click and scroll?</text>
+<text x="415" y="162">watch what</text><text x="415" y="180">actually happens</text>
+<text x="575" y="162">one specific,</text><text x="575" y="180">testable guess</text>
+<text x="730" y="162">one change</text><text x="730" y="180">at a time</text>
+<text x="875" y="162">same segment,</text><text x="875" y="180">before vs after</text></g>
+<g stroke="#2563eb" stroke-width="3" fill="none"><path d="M162 155h24M322 155h24M482 155h24M642 155h24M792 155h24"/></g>
+<g fill="#2563eb"><path d="M186 148l10 7-10 7zM346 148l10 7-10 7zM506 148l10 7-10 7zM666 148l10 7-10 7zM816 148l10 7-10 7z"/></g>
+<path d="M875 215v50H95v-50" stroke="#2563eb" stroke-width="3" fill="none" stroke-dasharray="8 6"/>
+<path d="M88 225l7-10 7 10z" fill="#2563eb"/>
+<text x="480" y="300" text-anchor="middle" font-size="15" fill="#334155">Repeat on the next worst segment</text>
+</svg>

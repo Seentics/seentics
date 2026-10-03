@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 380" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="380" rx="16" fill="#f8fafc"/>
+<text x="450" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Which direction fits?</text>
+<rect x="40" y="70" width="250" height="220" rx="12" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+<text x="165" y="104" text-anchor="middle" font-size="18" font-weight="700" fill="#1e1b4b">Stay simple</text>
+<text x="165" y="140" text-anchor="middle" font-size="15" fill="#1e293b">You only need traffic</text>
+<text x="165" y="164" text-anchor="middle" font-size="15" fill="#1e293b">and conversion numbers</text>
+<text x="165" y="214" text-anchor="middle" font-size="15" font-weight="600" fill="#1e1b4b">Plausible, Fathom,</text>
+<text x="165" y="238" text-anchor="middle" font-size="15" font-weight="600" fill="#1e1b4b">Simple Analytics, Pirsch</text>
+<rect x="325" y="70" width="250" height="220" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="450" y="104" text-anchor="middle" font-size="18" font-weight="700" fill="#451a03">Go broad</text>
+<text x="450" y="140" text-anchor="middle" font-size="15" fill="#1e293b">You want a full suite</text>
+<text x="450" y="164" text-anchor="middle" font-size="15" fill="#1e293b">and can handle complexity</text>
+<text x="450" y="214" text-anchor="middle" font-size="15" font-weight="600" fill="#451a03">Matomo, PostHog,</text>
+<text x="450" y="238" text-anchor="middle" font-size="15" font-weight="600" fill="#451a03">Umami</text>
+<rect x="610" y="70" width="250" height="220" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="735" y="104" text-anchor="middle" font-size="18" font-weight="700" fill="#052e16">Simple plus behavior</text>
+<text x="735" y="140" text-anchor="middle" font-size="15" fill="#1e293b">Privacy-first, no cookies,</text>
+<text x="735" y="164" text-anchor="middle" font-size="15" fill="#1e293b">with replay and heatmaps</text>
+<text x="735" y="214" text-anchor="middle" font-size="15" font-weight="600" fill="#052e16">Seentics</text>
+<text x="450" y="336" text-anchor="middle" font-size="15" fill="#475569">Start from what question you can't answer today, not from the feature list.</text>
+</svg>

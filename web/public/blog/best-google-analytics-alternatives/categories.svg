@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="360" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="450" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Three kinds of Google Analytics alternative</text>
+<rect x="30" y="64" width="265" height="268" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="162" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#14532d">1. Lightweight traffic stats</text>
+<text x="162" y="124" text-anchor="middle" font-size="13" fill="#14532d">Answers: where do visitors</text>
+<text x="162" y="142" text-anchor="middle" font-size="13" fill="#14532d">come from, what do they read?</text>
+<text x="162" y="184" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Plausible, Fathom,</text>
+<text x="162" y="206" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Simple Analytics, Pirsch,</text>
+<text x="162" y="228" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Umami</text>
+<text x="162" y="280" text-anchor="middle" font-size="12" fill="#334155">One page, minutes to read</text>
+<rect x="318" y="64" width="265" height="268" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="450" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#78350f">2. Web analytics + behavior</text>
+<text x="450" y="124" text-anchor="middle" font-size="13" fill="#78350f">Answers: what do visitors do,</text>
+<text x="450" y="142" text-anchor="middle" font-size="13" fill="#78350f">and where do they get stuck?</text>
+<text x="450" y="184" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Matomo, Seentics,</text>
+<text x="450" y="206" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Clarity (as add-on)</text>
+<text x="450" y="280" text-anchor="middle" font-size="12" fill="#334155">Replays, heatmaps, funnels</text>
+<rect x="606" y="64" width="265" height="268" rx="12" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+<text x="738" y="96" text-anchor="middle" font-size="16" font-weight="700" fill="#0c4a6e">3. Product analytics</text>
+<text x="738" y="124" text-anchor="middle" font-size="13" fill="#0c4a6e">Answers: how do logged-in users</text>
+<text x="738" y="142" text-anchor="middle" font-size="13" fill="#0c4a6e">use features over time?</text>
+<text x="738" y="184" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">PostHog, Mixpanel</text>
+<text x="738" y="280" text-anchor="middle" font-size="12" fill="#334155">Event-centric, more setup</text>
+</svg>

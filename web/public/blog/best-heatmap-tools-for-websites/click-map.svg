@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 440" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="800" height="440" rx="16" fill="#f8fafc"/>
+<text x="400" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Click map: where visitors click</text>
+<rect x="40" y="60" width="440" height="350" rx="8" fill="#fff" stroke="#cbd5e1"/>
+<rect x="40" y="60" width="440" height="36" rx="8" fill="#e2e8f0"/>
+<text x="60" y="84" font-size="13" fill="#334155">Logo     Features     Pricing     Docs     Sign up</text>
+<rect x="70" y="120" width="260" height="22" rx="4" fill="#cbd5e1"/>
+<rect x="70" y="152" width="200" height="12" rx="4" fill="#e2e8f0"/>
+<rect x="70" y="190" width="120" height="36" rx="6" fill="#94a3b8"/>
+
+<rect x="70" y="270" width="380" height="110" rx="6" fill="#f1f5f9"/>
+<text x="260" y="330" text-anchor="middle" font-size="13" fill="#64748b">Feature image (not a link)</text>
+<circle cx="130" cy="208" r="42" fill="#ef4444" fill-opacity=".35"/><circle cx="130" cy="208" r="22" fill="#ef4444" fill-opacity=".5"/>
+<text x="130" y="213" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Start free</text>
+<circle cx="372" cy="84" r="30" fill="#f59e0b" fill-opacity=".45"/>
+<circle cx="260" cy="320" r="34" fill="#f59e0b" fill-opacity=".4"/>
+<circle cx="190" cy="132" r="22" fill="#3b82f6" fill-opacity=".35"/>
+<g font-size="14" fill="#0f172a">
+<text x="510" y="110" font-weight="700">How to read it</text>
+<text x="510" y="140">Red: the primary CTA is</text><text x="510" y="160">getting the most clicks.</text>
+<text x="510" y="196">Orange on the image: people</text><text x="510" y="216">expect it to be clickable.</text>
+<text x="510" y="252">Orange in the nav: a link</text><text x="510" y="272">people rely on.</text>
+<text x="510" y="308">Blue on a heading: a few</text><text x="510" y="328">clicks on plain text.</text>
+<text x="510" y="372" fill="#64748b" font-size="12">Illustrative example, not real data.</text>
+</g></svg>

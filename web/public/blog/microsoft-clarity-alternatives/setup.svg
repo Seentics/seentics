@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="360" rx="16" fill="#f8fafc"/>
+<text x="450" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Option: Clarity for replays, a cookieless tool for the numbers</text>
+<rect x="340" y="62" width="220" height="54" rx="10" fill="#ffffff" stroke="#334155" stroke-width="2"/>
+<text x="450" y="95" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">Your website</text>
+<path d="M390 116 L210 190" stroke="#334155" stroke-width="2" fill="none"/>
+<path d="M510 116 L690 190" stroke="#334155" stroke-width="2" fill="none"/>
+<rect x="60" y="190" width="300" height="110" rx="12" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<rect x="540" y="190" width="300" height="110" rx="12" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<g text-anchor="middle" fill="#0f172a">
+<text x="210" y="222" font-size="16" font-weight="700">Microsoft Clarity</text>
+<text x="210" y="248" font-size="13">Loaded after consent (EEA, UK, CH)</text>
+<text x="210" y="268" font-size="13">Replays, heatmaps, 30-day retention</text>
+<text x="210" y="288" font-size="13">Used for qualitative debugging</text>
+<text x="690" y="222" font-size="16" font-weight="700">Cookieless analytics</text>
+<text x="690" y="248" font-size="13">Loads for every visitor, no banner needed</text>
+<text x="690" y="268" font-size="13">Traffic, goals, funnels, revenue</text>
+<text x="690" y="288" font-size="13">Your source of truth for the numbers</text>
+</g>
+<text x="450" y="336" text-anchor="middle" font-size="13" fill="#475569">Consent-gated data is partial by design, so do not use it for counting.</text>
+</svg>

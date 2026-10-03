@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<rect width="900" height="260" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="450" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Rage-click triage workflow</text>
+<g font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">
+<rect x="25" y="70" width="140" height="90" rx="12" fill="#e0f2fe" stroke="#0284c7"/><text x="95" y="108">1. Detect</text>
+<rect x="190" y="70" width="140" height="90" rx="12" fill="#ede9fe" stroke="#7c3aed"/><text x="260" y="108">2. Watch</text>
+<rect x="355" y="70" width="140" height="90" rx="12" fill="#fef3c7" stroke="#d97706"/><text x="425" y="108">3. Reproduce</text>
+<rect x="520" y="70" width="140" height="90" rx="12" fill="#fee2e2" stroke="#dc2626"/><text x="590" y="108">4. Fix</text>
+<rect x="685" y="70" width="190" height="90" rx="12" fill="#dcfce7" stroke="#16a34a"/><text x="780" y="108">5. Verify</text>
+</g>
+<g font-size="13" fill="#334155" text-anchor="middle">
+<text x="95" y="132">Filter flagged</text><text x="95" y="150">sessions</text>
+<text x="260" y="132">Recording and</text><text x="260" y="150">console errors</text>
+<text x="425" y="132">Same browser,</text><text x="425" y="150">device, path</text>
+<text x="590" y="132">Bug, affordance,</text><text x="590" y="150">or feedback</text>
+<text x="780" y="132">Rage clicks on that element</text><text x="780" y="150">drop; conversion holds</text>
+</g>
+<g stroke="#475569" stroke-width="2.5" fill="#475569">
+<path d="M167 115 H185"/><path d="M182 108 L190 115 L182 122 Z"/>
+<path d="M332 115 H350"/><path d="M347 108 L355 115 L347 122 Z"/>
+<path d="M497 115 H515"/><path d="M512 108 L520 115 L512 122 Z"/>
+<path d="M662 115 H680"/><path d="M677 108 L685 115 L677 122 Z"/>
+</g>
+<text x="450" y="205" text-anchor="middle" font-size="14" fill="#334155">Cannot reproduce it? Go back to step 2 and check what differs: device, browser, network speed, or data.</text>
+<text x="450" y="230" text-anchor="middle" font-size="14" fill="#334155">Prioritize before step 2 by affected sessions and where the element sits in your funnel.</text>
+</svg>

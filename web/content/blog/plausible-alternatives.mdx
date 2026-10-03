@@ -1,0 +1,221 @@
+---
+title: "Plausible Alternatives: Privacy-Friendly Analytics With Session Replay and Heatmaps"
+description: "Looking for Plausible alternatives? Compare Fathom, Simple Analytics, Umami, Matomo, Pirsch, PostHog and Seentics, with session replay and heatmaps in mind."
+date: 2026-10-03
+author: Seentics
+tags: ["plausible-alternatives", "privacy-first-analytics", "comparison", "session-replay"]
+cover_image: /blog/plausible-alternatives/cover.jpg
+---
+
+# Plausible Alternatives: Privacy-Friendly Analytics With Session Replay and Heatmaps
+
+You switched away from Google Analytics, installed Plausible, and the dashboard felt like a breath of fresh air: one page, no cookie banner, numbers you actually understand. Then someone asks a question the dashboard cannot answer. *Why do people drop off at the pricing page? What are they clicking that is not a link?* Suddenly you are searching for **Plausible alternatives**.
+
+This guide is a fair look at that search. Plausible is a very good product that does a deliberately small job. We will cover what it does, what it intentionally leaves out, how Fathom, Simple Analytics, Umami, Matomo, Pirsch and PostHog compare, and where Seentics (the tool we build) fits. Facts about other products come from their own public sites, checked in October 2026. Features and prices change, so confirm on their pages before you decide.
+
+![A laptop showing an analytics dashboard with charts](/blog/plausible-alternatives/cover.jpg)
+
+*Photo: Unsplash (photo-1551288049-bebda4e38f71).*
+
+## TL;DR
+
+- **Plausible is great at pageview analytics**: lightweight script, open source, EU-hosted, no cookies, simple dashboard. It also offers funnels and path exploration. Its homepage does not mention session replay or heatmaps, and that is by design, not an oversight.
+- **If you only need traffic and conversion numbers**, Plausible, Fathom, Simple Analytics and Pirsch are close cousins. Pick on hosting, price and openness.
+- **If you need to see behavior** (replays, heatmaps), look at Matomo, PostHog, Umami (check current feature set) or Seentics.
+- **Seentics** is open source and self-hostable, cookie-free, and bundles analytics, session replay, heatmaps and funnels in one dashboard.
+- Do not switch just because a list says so. Switch when there is a question you cannot answer today.
+
+## Why Plausible is popular (and deserves respect)
+
+Plausible's homepage makes a handful of promises, and they are the reason people like it:
+
+- **Lightweight.** It claims its script is 54 times smaller than Google Analytics.
+- **Open source.** In its words, the code is public and auditable, and you can run it yourself.
+- **EU-hosted.** Built and hosted in the EU on European-owned infrastructure.
+- **No cookies.** It says there is no need for cookie banners or GDPR consent.
+- **Simple pricing.** Subscription plans, starting at $9 per month for up to 10k monthly pageviews at the time we checked.
+- **Funnels.** You can measure drop-off across a fixed sequence of steps, or explore the paths visitors take.
+
+Source: [plausible.io](https://plausible.io). If you are happy with it, you probably should stay. Replacing a tool that works is a cost, not a feature.
+
+## What Plausible intentionally does not do
+
+Plausible is built around one idea: a single-page, privacy-respecting view of your traffic. That focus means certain categories of tooling sit outside its scope. On its homepage we found no mention of:
+
+- **Session replay**, which plays back what a visitor did on a page.
+- **Heatmaps**, which show where people click and how far they scroll.
+- **Behavior automation**, such as showing a banner when someone is about to leave.
+
+That is a reasonable product decision. Recording interactions is a different privacy and engineering problem from counting pageviews, and many teams do not want it. But it creates a gap that is easy to hit as a site matures.
+
+### Pageview analytics versus behavior analytics
+
+It helps to think of analytics as two layers.
+
+![Diagram of two stacked layers: pageview analytics (what happened) and behavior analytics (why it happened)](/blog/plausible-alternatives/layers.svg)
+
+*Layer 1 tells you what happened. Layer 2 helps you work out why.*
+
+**Layer 1, pageview analytics**, answers "how much, from where, to which page?" Plausible lives here and does it well. Funnels sit on the border: they tell you *where* people leave, but not *why*.
+
+**Layer 2, behavior analytics**, answers "what did they do right before they left?" A funnel might show 60 percent drop-off between "add to cart" and "checkout". A session replay might show a coupon field that swallows the Enter key. A heatmap might show that people keep clicking a heading that is not a link. These are different kinds of evidence, and you usually need both over time. For deeper reading, see our guides to [session replay](/blog/session-replay-guide), [heatmaps](/blog/heatmaps-explained) and [funnel analysis](/blog/funnel-analysis-guide).
+
+(The 60 percent figure above is a made-up illustration, not data.)
+
+## What to look for in a Plausible alternative
+
+Before comparing names, decide what actually matters to you:
+
+1. **Cookies and consent.** Do you need a no-cookie setup that avoids consent banners? Several tools here say they do this. Your own legal advice still applies.
+2. **Where the data lives.** EU hosting, Canadian hosting, or your own server.
+3. **Open source and self-hosting.** Can you read the code and run it?
+4. **Behavior tooling.** Replay, heatmaps, rage-click detection, error capture.
+5. **Complexity.** Is a single page a feature or a limitation for you?
+6. **Price and pageview volume.** Compare current plans at your traffic level.
+
+## The Plausible alternatives, one by one
+
+### Fathom Analytics
+
+Fathom is the closest like-for-like peer. Its site describes anonymous pageview tracking with no cookies and no consent banner. It is a Canadian company and says EU traffic is routed through European-owned infrastructure. Features include real-time dashboards, UTM campaign tracking, custom events with monetary values, email reports and unlimited data retention. Plans started at $15 per month after a 7-day trial when we checked. We did not find replay or heatmaps on its homepage, and it does not state that it is open source.
+
+### Simple Analytics
+
+Simple Analytics is EU-based (hosted in Amsterdam) and states that it uses no cookies, no stored IPs and no visitor IDs. It covers pageviews, events, referrers and campaign parameters, plus an API, exports and BI integrations such as Looker Studio and Power BI. It can also run alongside Google Analytics. We found no mention of replay or heatmaps, and no statement that it is open source. Check its pricing page for current numbers.
+
+### Umami
+
+Umami is open source and self-hostable, with a managed cloud option as well. Its site lists conversion tracking, user journey visualization and session replays among its tools. Because Umami moves quickly, verify the current feature set, how replay is offered and how it handles privacy before you commit. It is a strong choice if you want open source and a little more than pageviews.
+
+### Matomo
+
+Matomo is the veteran. Its site lists unsampled data, heatmaps and session recordings, conversion tracking, funnels and A/B testing. You can self-host for free or use its cloud, and it mentions cookieless tracking options and ISO 27001 certification. The breadth is the point, and also the trade-off: it is closer to a full analytics suite than a one-page dashboard. Some capabilities may sit in paid add-ons or plans, so read the pricing details.
+
+### Pirsch
+
+Pirsch is made and hosted in Germany by Emvi Software GmbH. It is cookie-free, advertises an open-source core, and offers funnels, session exploration, events, goals, A/B testing and webhooks. It did not mention session replay on the page we checked. Expect a Plausible-style experience with a few extra analysis tools.
+
+### PostHog
+
+PostHog is a product analytics platform rather than a lightweight web analytics tool. Its site lists product analytics, session replay, heatmaps and funnels, along with open-source availability, self-hosting and a free tier. That makes it very capable, but it is oriented toward product teams and is a larger system to learn than Plausible. Review its privacy and cookie configuration for your own compliance needs.
+
+### Seentics
+
+[Seentics](https://github.com/Seentics/seentics) is an open-source, self-hostable, privacy-first analytics platform that tries to keep the simplicity of Plausible while adding the behavior layer. Per its README:
+
+- No cookies and no fingerprinting. Your data stays on your infrastructure.
+- Real-time analytics with a live visitor map and active pages.
+- Session replays (built on rrweb) with rage-click and JavaScript error detection.
+- Heatmaps: click maps, scroll depth and captured page screenshots.
+- Funnels with drop-off rates.
+- Revenue and UTM channel attribution.
+- Events and goals, including CSS-selector conversions.
+- Behavioral automations such as modals, banners, webhooks and redirects.
+- Natural-language questions answered with charts.
+
+Install is one script tag:
+
+```html
+<script
+  defer
+  src="https://your-seentics-domain.com/trackers/seentics.js"
+  data-website-id="YOUR_WEBSITE_ID"
+></script>
+```
+
+Fair caveat: it is a younger project than Plausible, Matomo or PostHog, and self-hosting means you run it. See our [self-hosted analytics guide](/blog/self-hosted-analytics) for what that involves.
+
+![Seentics dashboard showing summary cards, traffic chart, top pages and sources](/assets/dashboard.png)
+
+*The Seentics analytics overview.*
+
+## Comparison table
+
+As of October 2026, based on each vendor's public site. A dash means we did not find it stated on the pages we checked, not that it does not exist.
+
+| Tool | Open source | Self-host | Cookies | Hosting (cloud) | Session replay | Heatmaps | Funnels |
+|---|---|---|---|---|---|---|---|
+| Plausible | Yes | Yes | None claimed | EU | Not listed | Not listed | Yes |
+| Fathom | Not stated | Not stated | None | EU routing, Canadian company | Not listed | Not listed | Not listed |
+| Simple Analytics | Not stated | Not stated | None | EU (Amsterdam) | Not listed | Not listed | Not listed |
+| Umami | Yes | Yes | Check docs | Cloud available | Listed | Not listed | Conversion and journeys |
+| Matomo | Yes | Yes | Cookieless options | Cloud available | Yes | Yes | Yes |
+| Pirsch | Open-source core | Not stated | None | Germany | Not listed | Not listed | Yes |
+| PostHog | Yes | Yes | Configurable, check docs | Cloud available | Yes | Yes | Yes |
+| Seentics | Yes | Yes | None | Self-hosted | Yes | Yes | Yes |
+
+Pricing is omitted on purpose, because it depends on volume and changes often. Compare current plans at your own pageview count.
+
+## Plausible vs Fathom
+
+This is one of the most common head-to-head searches, so here is a direct comparison.
+
+**What they share.** Both are paid, privacy-focused, cookie-free and built for people who find Google Analytics heavy. Both give you a clean dashboard, UTM tracking and custom events, and neither needs a cookie banner by its own claims.
+
+**Where they differ, per their public sites:**
+
+- **Openness.** Plausible's homepage says its code is public and that you can run it yourself. Fathom's homepage does not say it is open source.
+- **Hosting story.** Plausible says it is built and hosted in the EU. Fathom is a Canadian company that says EU traffic is routed through European-owned infrastructure and cites Canada's EU adequacy decision.
+- **Entry price.** At the time we checked, Plausible started at $9 per month for 10k pageviews and Fathom at $15 per month after a 7-day trial. Plans differ in what they include, so compare at your traffic level.
+- **Features.** Plausible highlights funnels and path exploration. Fathom highlights event values, email reports and unlimited retention.
+
+**Which to choose?** If open source and a self-hosting option matter, Plausible. If you prefer Fathom's feature mix or billing, Fathom. If your real problem is that neither shows *why* visitors leave, neither is the answer, and you should look at the behavior layer instead.
+
+## How to choose
+
+![Decision diagram: stay simple, go broad, or choose simple plus behavior analytics](/blog/plausible-alternatives/decision.svg)
+
+*Start from the question you cannot answer today.*
+
+- **"I just want clean traffic numbers."** Stay with Plausible, or pick Fathom, Simple Analytics or Pirsch based on hosting and price.
+- **"I need replays and heatmaps and I'm fine with a bigger tool."** Matomo or PostHog are mature options.
+- **"I want open source, cookie-free, and a simple dashboard that also has replay and heatmaps."** Try Seentics.
+- **"I need BI exports and API-first reporting."** Simple Analytics highlights its API and BI integrations.
+
+A pattern we see work: keep it light. Use one tool for traffic, and look at replays only when a funnel step looks wrong. That keeps your privacy footprint small. If you go the replay route, mask sensitive fields and tell users what you do.
+
+![A laptop on a desk displaying charts and a dashboard](/blog/plausible-alternatives/analytics-desk.jpg)
+
+*Photo: Unsplash (photo-1460925895917-afdab827c52f).*
+
+## Migrating from Plausible
+
+Switching is mostly a script swap, but a few practical notes:
+
+1. **Run both for a couple of weeks.** Numbers will not match exactly. Different tools define visits and bounces differently.
+2. **Export what you need.** Keep your historical data somewhere before cancelling.
+3. **Recreate goals and funnels** in the new tool, then verify they fire.
+4. **Update your privacy policy** if you add replay or change the processor.
+5. **Check consent requirements** for your jurisdiction. Cookie-free is not the same as legal sign-off. Our [GDPR analytics guide](/blog/gdpr-analytics-without-cookie-banner) covers the basics.
+
+For the broader case behind privacy-first tooling, see [privacy-first analytics](/blog/privacy-first-analytics).
+
+## FAQ
+
+### What is the best Plausible alternative?
+
+It depends on your gap. For a similar experience, Fathom, Simple Analytics and Pirsch. For behavior features, Matomo, PostHog or Seentics. For open source with a replay option, Umami or Seentics.
+
+### Does Plausible have session replay or heatmaps?
+
+Its homepage does not mention either. It does describe funnels and path exploration. Check its documentation for the latest.
+
+### Is Plausible better than Fathom?
+
+Neither is universally better. Plausible says it is open source and EU-hosted, while Fathom is Canadian with EU routing. Compare features, hosting and price for your volume, as described in the Plausible vs Fathom section above.
+
+### Can I self-host a Plausible alternative?
+
+Yes. Umami, Matomo, PostHog and Seentics are self-hostable, and Plausible itself can be run yourself per its homepage.
+
+### Do I need a cookie banner with these tools?
+
+Several tools here say they work without cookies and without banners. Your obligations depend on what you collect and where your visitors are, so take legal advice for your situation.
+
+### Is Seentics a drop-in replacement for Plausible?
+
+It covers pageview analytics, funnels and goals, and adds replay and heatmaps. It is younger and self-hosted by default, so test it on a staging site first.
+
+## Try it
+
+You can poke at a live dashboard in the [Seentics demo](https://seentics.com/websites/demo), no account needed, or read and run the code on [GitHub](https://github.com/Seentics/seentics). If Plausible is already doing the job, keep it. If you have a "why" question it cannot answer, you now have a short list.

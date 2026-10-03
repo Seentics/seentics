@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker></defs>
+  <rect width="800" height="380" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="400" y="36" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">The funnel diagnosis loop</text>
+  <g font-size="14" font-weight="600" text-anchor="middle">
+    <rect x="40" y="80" width="200" height="80" rx="10" fill="#0ea5e9"/>
+    <text x="140" y="112" fill="#fff">1. Measure</text><text x="140" y="134" fill="#fff" font-weight="400" font-size="12">Find the leakiest step</text>
+    <rect x="300" y="80" width="200" height="80" rx="10" fill="#0369a1"/>
+    <text x="400" y="112" fill="#fff">2. Watch</text><text x="400" y="134" fill="#fff" font-weight="400" font-size="12">Replays of users who dropped</text>
+    <rect x="560" y="80" width="200" height="80" rx="10" fill="#075985"/>
+    <text x="660" y="112" fill="#fff">3. Hypothesize</text><text x="660" y="134" fill="#fff" font-weight="400" font-size="12">Name one likely cause</text>
+    <rect x="560" y="240" width="200" height="80" rx="10" fill="#0c4a6e"/>
+    <text x="660" y="272" fill="#fff">4. Change one thing</text><text x="660" y="294" fill="#fff" font-weight="400" font-size="12">Ship a single fix</text>
+    <rect x="300" y="240" width="200" height="80" rx="10" fill="#0369a1"/>
+    <text x="400" y="272" fill="#fff">5. Re-measure</text><text x="400" y="294" fill="#fff" font-weight="400" font-size="12">Same step, same segment</text>
+    <rect x="40" y="240" width="200" height="80" rx="10" fill="#0ea5e9"/>
+    <text x="140" y="272" fill="#fff">6. Repeat</text><text x="140" y="294" fill="#fff" font-weight="400" font-size="12">Next leakiest step</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#a)">
+    <path d="M240 120 L296 120"/><path d="M500 120 L556 120"/><path d="M660 160 L660 236"/>
+    <path d="M560 280 L504 280"/><path d="M300 280 L244 280"/><path d="M140 236 L140 164"/>
+  </g>
+</svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<rect width="900" height="340" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="450" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">How rage-click detection works (general concept)</text>
+<g font-size="15" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="80" width="190" height="130" rx="12" fill="#e0f2fe" stroke="#0284c7"/>
+<text x="125" y="110" font-weight="700">1. Capture clicks</text>
+<text x="125" y="136" font-size="13">Each click is recorded</text>
+<text x="125" y="156" font-size="13">with a timestamp and</text>
+<text x="125" y="176" font-size="13">a position / target</text>
+<rect x="255" y="80" width="190" height="130" rx="12" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="350" y="110" font-weight="700">2. Group clicks</text>
+<text x="350" y="136" font-size="13">Same element or small</text>
+<text x="350" y="156" font-size="13">area, close together</text>
+<text x="350" y="176" font-size="13">in time</text>
+<rect x="480" y="80" width="190" height="130" rx="12" fill="#fef3c7" stroke="#d97706"/>
+<text x="575" y="110" font-weight="700">3. Apply a rule</text>
+<text x="575" y="136" font-size="13">Several clicks in a short</text>
+<text x="575" y="156" font-size="13">window = rage click</text>
+<text x="575" y="176" font-size="13">(exact numbers vary)</text>
+<rect x="705" y="80" width="165" height="130" rx="12" fill="#dcfce7" stroke="#16a34a"/>
+<text x="787" y="110" font-weight="700">4. Flag it</text>
+<text x="787" y="136" font-size="13">Mark the session and</text>
+<text x="787" y="156" font-size="13">the moment so you can</text>
+<text x="787" y="176" font-size="13">filter and replay it</text>
+</g>
+<g stroke="#475569" stroke-width="2.5" fill="#475569">
+<path d="M222 145 H250"/><path d="M247 138 L255 145 L247 152 Z"/>
+<path d="M447 145 H475"/><path d="M472 138 L480 145 L472 152 Z"/>
+<path d="M672 145 H700"/><path d="M697 138 L705 145 L697 152 Z"/>
+</g>
+<text x="450" y="260" text-anchor="middle" font-size="14" fill="#334155">Tools differ in the click count, time window and radius they use. Check your tool's docs.</text>
+<text x="450" y="290" text-anchor="middle" font-size="14" fill="#334155">A flag means "look here", not "this is a bug". Confirm in the recording.</text>
+</svg>

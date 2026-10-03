@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="520" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="450" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Which Hotjar alternative fits your team?</text>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#475569"/></marker></defs>
+<rect x="330" y="60" width="240" height="46" rx="10" fill="#0f172a"/>
+<text x="450" y="88" text-anchor="middle" font-size="15" fill="#fff">Start: what matters most?</text>
+<g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#a)">
+<path d="M450 106 V130 H120 V160"/><path d="M450 106 V130 H335 V160"/><path d="M450 106 V130 H565 V160"/><path d="M450 106 V130 H780 V160"/></g>
+<g font-size="13" fill="#0f172a" text-anchor="middle">
+<rect x="20" y="160" width="200" height="64" rx="10" fill="#e0f2fe" stroke="#7dd3fc"/><text x="120" y="188">Zero budget,</text><text x="120" y="207">just need the basics</text>
+<rect x="235" y="160" width="200" height="64" rx="10" fill="#dcfce7" stroke="#86efac"/><text x="335" y="188">Data must stay on</text><text x="335" y="207">your own servers</text>
+<rect x="350" y="160" width="200" height="0" rx="10" fill="none"/>
+<rect x="465" y="160" width="200" height="64" rx="10" fill="#fef9c3" stroke="#fde047"/><text x="565" y="188">Product team with</text><text x="565" y="207">funnels and events</text>
+<rect x="680" y="160" width="200" height="64" rx="10" fill="#fce7f3" stroke="#f9a8d4"/><text x="780" y="188">Marketing / CRO,</text><text x="780" y="207">landing pages</text>
+</g>
+<text x="450" y="150" text-anchor="middle" font-size="12" fill="#64748b" opacity="0">.</text>
+<g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#a)">
+<path d="M120 224 V300"/><path d="M335 224 V300"/><path d="M565 224 V300"/><path d="M780 224 V300"/></g>
+<g font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">
+<rect x="20" y="300" width="200" height="90" rx="10" fill="#fff" stroke="#94a3b8"/><text x="120" y="330">Microsoft Clarity</text><text x="120" y="352" font-size="12" font-weight="400">free, recordings +</text><text x="120" y="370" font-size="12" font-weight="400">heatmaps</text>
+<rect x="235" y="300" width="200" height="90" rx="10" fill="#fff" stroke="#94a3b8"/><text x="335" y="330">Seentics or OpenReplay</text><text x="335" y="352" font-size="12" font-weight="400">open source,</text><text x="335" y="370" font-size="12" font-weight="400">self-hostable</text>
+<rect x="465" y="300" width="200" height="90" rx="10" fill="#fff" stroke="#94a3b8"/><text x="565" y="330">PostHog or Fullstory</text><text x="565" y="352" font-size="12" font-weight="400">replay inside a</text><text x="565" y="370" font-size="12" font-weight="400">product analytics suite</text>
+<rect x="680" y="300" width="200" height="90" rx="10" fill="#fff" stroke="#94a3b8"/><text x="780" y="330">Mouseflow, Lucky Orange,</text><text x="780" y="348">Crazy Egg</text><text x="780" y="372" font-size="12" font-weight="400">all-in-one behavior tools</text>
+</g>
+<rect x="20" y="420" width="860" height="80" rx="10" fill="#fff7ed" stroke="#fdba74"/>
+<text x="450" y="450" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">Rules of thumb</text>
+<text x="450" y="474" text-anchor="middle" font-size="13" fill="#0f172a">Smartlook is closed to new subscriptions (end of sale May 31, 2026), so skip it for a fresh start.</text>
+<text x="450" y="492" text-anchor="middle" font-size="13" fill="#0f172a">Shortlist two, run both for two weeks, and compare what each lets you fix.</text>
+</svg>

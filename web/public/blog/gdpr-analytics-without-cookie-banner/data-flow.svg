@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" role="img" aria-label="Cookie-based analytics flow versus cookie-free analytics flow" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker></defs>
+<rect width="1000" height="560" rx="18" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="500" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Cookie-based vs cookie-free analytics: the data flow</text>
+
+<text x="30" y="82" font-size="17" font-weight="700" fill="#9a3412">A. Cookie-based analytics</text>
+<g font-size="14" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="98" width="170" height="80" rx="10" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="115" y="132">Visitor loads</text><text x="115" y="152">your page</text>
+<rect x="240" y="98" width="170" height="80" rx="10" fill="#fed7aa" stroke="#ea580c"/>
+<text x="325" y="132">Consent banner</text><text x="325" y="152">asks first</text>
+<rect x="450" y="98" width="170" height="80" rx="10" fill="#fed7aa" stroke="#ea580c"/>
+<text x="535" y="132">Script writes a</text><text x="535" y="152">persistent visitor ID</text>
+<rect x="660" y="98" width="150" height="80" rx="10" fill="#fed7aa" stroke="#ea580c"/>
+<text x="735" y="132">Every event</text><text x="735" y="152">carries the ID</text>
+<rect x="850" y="98" width="125" height="80" rx="10" fill="#fed7aa" stroke="#ea580c"/>
+<text x="912" y="132">Per-person</text><text x="912" y="152">profile</text>
+</g>
+<g stroke="#334155" stroke-width="2" marker-end="url(#a)">
+<line x1="200" y1="138" x2="236" y2="138"/><line x1="410" y1="138" x2="446" y2="138"/><line x1="620" y1="138" x2="656" y2="138"/><line x1="810" y1="138" x2="846" y2="138"/>
+</g>
+<text x="336" y="200" font-size="13" fill="#7c2d12">no consent</text><text x="412" y="92" font-size="13" fill="#7c2d12">consent given</text>
+<rect x="240" y="216" width="170" height="52" rx="10" fill="#fee2e2" stroke="#dc2626"/>
+<text x="325" y="239" text-anchor="middle" font-size="14" fill="#0f172a">Reject or ignore:</text>
+<text x="325" y="258" text-anchor="middle" font-size="14" fill="#0f172a">visit not counted</text>
+<line x1="325" y1="178" x2="325" y2="212" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+<text x="470" y="250" font-size="14" fill="#7c2d12">Result: gaps in your numbers, plus a</text>
+<text x="470" y="270" font-size="14" fill="#7c2d12">consent record you must be able to show.</text>
+
+<line x1="30" y1="300" x2="970" y2="300" stroke="#cbd5e1" stroke-dasharray="6 6"/>
+
+<text x="30" y="338" font-size="17" font-weight="700" fill="#166534">B. Cookie-free analytics</text>
+<g font-size="14" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="354" width="170" height="80" rx="10" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="115" y="388">Visitor loads</text><text x="115" y="408">your page</text>
+<rect x="240" y="354" width="200" height="80" rx="10" fill="#bbf7d0" stroke="#16a34a"/>
+<text x="340" y="388">Script sends pageview</text><text x="340" y="408">and events</text>
+<rect x="480" y="354" width="220" height="80" rx="10" fill="#bbf7d0" stroke="#16a34a"/>
+<text x="590" y="388">Nothing stored on or</text><text x="590" y="408">read from the device</text>
+<rect x="740" y="354" width="235" height="80" rx="10" fill="#bbf7d0" stroke="#16a34a"/>
+<text x="857" y="388">Server turns visits into</text><text x="857" y="408">aggregate statistics</text>
+</g>
+<g stroke="#334155" stroke-width="2" marker-end="url(#a)">
+<line x1="200" y1="394" x2="236" y2="394"/><line x1="440" y1="394" x2="476" y2="394"/><line x1="700" y1="394" x2="736" y2="394"/>
+</g>
+<text x="500" y="478" text-anchor="middle" font-size="14" fill="#14532d">Every visit is counted. No banner is needed for the analytics itself,</text>
+<text x="500" y="500" text-anchor="middle" font-size="14" fill="#14532d">provided the design really is cookie-free and data stays unlinked from individuals.</text>
+<text x="500" y="540" text-anchor="middle" font-size="12" fill="#475569">Simplified illustration. Your legal basis still depends on the exact tool and configuration.</text>
+</svg>

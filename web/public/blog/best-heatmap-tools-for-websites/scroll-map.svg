@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 440" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ef4444"/><stop offset=".3" stop-color="#f59e0b"/><stop offset=".6" stop-color="#22c55e"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+<rect width="800" height="440" rx="16" fill="#f8fafc"/>
+<text x="400" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Scroll map: how far visitors get</text>
+<rect x="60" y="60" width="300" height="350" rx="8" fill="url(#g)" fill-opacity=".55" stroke="#cbd5e1"/>
+<g font-size="13" fill="#0f172a" font-weight="600">
+<text x="75" y="90">Hero</text><text x="75" y="190">Benefits</text><text x="75" y="290">Pricing</text><text x="75" y="385">Footer CTA</text></g>
+<line x1="60" y1="160" x2="360" y2="160" stroke="#0f172a" stroke-dasharray="6 4"/>
+<text x="350" y="154" text-anchor="end" font-size="12" fill="#0f172a">First-screen cutoff</text>
+<g font-size="14" fill="#0f172a">
+<text x="420" y="110" font-weight="700">How to read it</text>
+<text x="420" y="140">Top is always the hottest:</text><text x="420" y="162">everyone sees the start.</text>
+<text x="420" y="230">Look for the colour drop.</text><text x="420" y="252">Content past a sharp drop</text><text x="420" y="274">is seen by far fewer people.</text>
+<text x="420" y="316">Move key content above the</text><text x="420" y="338">drop, or fix what causes it</text><text x="420" y="360">(a fake footer, a hard stop).</text>
+<text x="420" y="396" fill="#64748b" font-size="12">Illustrative example, not real data.</text></g></svg>

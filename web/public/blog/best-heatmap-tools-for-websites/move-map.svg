@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 440" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="800" height="440" rx="16" fill="#f8fafc"/>
+<text x="400" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Move map: where the cursor lingers</text>
+<rect x="40" y="60" width="440" height="350" rx="8" fill="#fff" stroke="#cbd5e1"/>
+<rect x="70" y="90" width="380" height="60" rx="6" fill="#f1f5f9"/>
+<rect x="70" y="170" width="180" height="100" rx="6" fill="#f1f5f9"/>
+<rect x="270" y="170" width="180" height="100" rx="6" fill="#f1f5f9"/>
+<rect x="70" y="290" width="380" height="90" rx="6" fill="#f1f5f9"/>
+<ellipse cx="160" cy="215" rx="70" ry="45" fill="#ef4444" fill-opacity=".35"/>
+<ellipse cx="160" cy="215" rx="35" ry="22" fill="#ef4444" fill-opacity=".4"/>
+<ellipse cx="350" cy="230" rx="55" ry="35" fill="#f59e0b" fill-opacity=".35"/>
+<ellipse cx="260" cy="335" rx="80" ry="28" fill="#3b82f6" fill-opacity=".3"/>
+<g font-size="14" fill="#0f172a">
+<text x="510" y="110" font-weight="700">How to read it</text>
+<text x="510" y="140">Hot spots show where the</text><text x="510" y="160">pointer rests, a rough proxy</text><text x="510" y="180">for attention.</text>
+<text x="510" y="220">It is a proxy, not proof:</text><text x="510" y="240">a cursor can sit still while</text><text x="510" y="260">someone reads elsewhere.</text>
+<text x="510" y="300">Desktop only. Touch screens</text><text x="510" y="320">have no hover.</text>
+<text x="510" y="372" fill="#64748b" font-size="12">Illustrative example, not real data.</text></g></svg>

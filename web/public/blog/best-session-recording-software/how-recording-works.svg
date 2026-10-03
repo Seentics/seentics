@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker></defs>
+<rect width="960" height="360" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="480" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">How session recording works</text>
+<g font-size="16" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="90" width="190" height="120" rx="12" fill="#e0f2fe" stroke="#0284c7"/>
+<text x="125" y="125" font-weight="700">1. Snapshot + observe</text>
+<text x="125" y="152" font-size="14">Full DOM snapshot, then</text><text x="125" y="172" font-size="14">MutationObserver deltas,</text><text x="125" y="192" font-size="14">clicks, scrolls, inputs</text>
+<rect x="260" y="90" width="190" height="120" rx="12" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="355" y="125" font-weight="700">2. Mask + buffer</text>
+<text x="355" y="152" font-size="14">Sensitive fields masked</text><text x="355" y="172" font-size="14">in the browser, events</text><text x="355" y="192" font-size="14">batched into chunks</text>
+<rect x="490" y="90" width="190" height="120" rx="12" fill="#dcfce7" stroke="#16a34a"/>
+<text x="585" y="125" font-weight="700">3. Ship + store</text>
+<text x="585" y="152" font-size="14">Chunks sent over HTTPS,</text><text x="585" y="172" font-size="14">stored as JSON blobs,</text><text x="585" y="192" font-size="14">indexed by session</text>
+<rect x="720" y="90" width="210" height="120" rx="12" fill="#fef3c7" stroke="#d97706"/>
+<text x="825" y="125" font-weight="700">4. Replay player</text>
+<text x="825" y="152" font-size="14">Rebuilds the page in a</text><text x="825" y="172" font-size="14">sandboxed iframe and</text><text x="825" y="192" font-size="14">re-applies events by time</text>
+</g>
+<g stroke="#475569" stroke-width="2" marker-end="url(#a)"><line x1="222" y1="150" x2="256" y2="150"/><line x1="452" y1="150" x2="486" y2="150"/><line x1="682" y1="150" x2="716" y2="150"/></g>
+<rect x="30" y="250" width="900" height="70" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="480" y="280" text-anchor="middle" font-size="16" fill="#0f172a" font-weight="700">What you are watching is a reconstruction, not a video</text>
+<text x="480" y="304" text-anchor="middle" font-size="14" fill="#334155">Data volume stays small, text stays selectable, and masking happens before anything leaves the browser.</text>
+</svg>

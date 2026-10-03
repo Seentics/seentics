@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="900" height="300" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="450" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Four common reasons teams look past Hotjar</text>
+<g font-size="14" fill="#0f172a" text-anchor="middle">
+<rect x="20" y="64" width="205" height="200" rx="12" fill="#fee2e2" stroke="#fca5a5"/>
+<text x="122" y="100" font-weight="700" font-size="16">Cost curve</text><text x="122" y="132">Pricing scales with</text><text x="122" y="152">daily sessions, and</text><text x="122" y="172">each product is</text><text x="122" y="192">priced separately</text>
+<rect x="238" y="64" width="205" height="200" rx="12" fill="#e0f2fe" stroke="#7dd3fc"/>
+<text x="340" y="100" font-weight="700" font-size="16">Data location</text><text x="340" y="132">Recordings live on a</text><text x="340" y="152">vendor cloud, which</text><text x="340" y="172">complicates strict</text><text x="340" y="192">privacy reviews</text>
+<rect x="457" y="64" width="205" height="200" rx="12" fill="#fef9c3" stroke="#fde047"/>
+<text x="559" y="100" font-weight="700" font-size="16">Page weight</text><text x="559" y="132">Another third-party</text><text x="559" y="152">script to load next</text><text x="559" y="172">to your own bundle</text><text x="559" y="192">and other tags</text>
+<rect x="675" y="64" width="205" height="200" rx="12" fill="#dcfce7" stroke="#86efac"/>
+<text x="777" y="100" font-weight="700" font-size="16">Analytics gap</text><text x="777" y="132">Replay and heatmaps</text><text x="777" y="152">sit apart from funnels,</text><text x="777" y="172">events and revenue</text><text x="777" y="192">data</text>
+</g></svg>

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker></defs>
+<rect width="900" height="640" rx="16" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="450" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Which Google Analytics alternative fits you?</text>
+<g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#a)">
+<path d="M450,112 V150"/>
+<path d="M300,215 H190 V262"/>
+<path d="M600,215 H710 V262"/>
+<path d="M190,330 V380"/>
+<path d="M710,330 V380"/>
+<path d="M120,450 V510"/>
+<path d="M270,450 V510"/>
+<path d="M640,450 V510"/>
+<path d="M790,450 V510"/>
+</g>
+<rect x="320" y="62" width="260" height="50" rx="25" fill="#0f172a"/>
+<text x="450" y="93" text-anchor="middle" font-size="16" font-weight="600" fill="#fff">Leaving Google Analytics</text>
+<polygon points="450,150 600,215 450,280 300,215" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+<text x="450" y="210" text-anchor="middle" font-size="14" fill="#0f172a" font-weight="600">What do you need</text>
+<text x="450" y="230" text-anchor="middle" font-size="14" fill="#0f172a" font-weight="600">to learn?</text>
+<text x="245" y="205" text-anchor="middle" font-size="12" fill="#475569">traffic and sources</text>
+<text x="655" y="205" text-anchor="middle" font-size="12" fill="#475569">why users behave</text>
+<rect x="70" y="262" width="240" height="68" rx="10" fill="#fff" stroke="#94a3b8" stroke-width="2"/>
+<text x="190" y="290" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Simple pageview stats</text>
+<text x="190" y="312" text-anchor="middle" font-size="13" fill="#334155">Managed or self-hosted?</text>
+<rect x="590" y="262" width="240" height="68" rx="10" fill="#fff" stroke="#94a3b8" stroke-width="2"/>
+<text x="710" y="290" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">Behavior and conversion</text>
+<text x="710" y="312" text-anchor="middle" font-size="13" fill="#334155">Product events or web UX?</text>
+<rect x="40" y="380" width="300" height="70" rx="10" fill="#fff" stroke="#94a3b8" stroke-width="2"/>
+<text x="190" y="408" text-anchor="middle" font-size="13" fill="#334155">Managed service or</text>
+<text x="190" y="428" text-anchor="middle" font-size="13" fill="#334155">run it yourself?</text>
+<rect x="560" y="380" width="300" height="70" rx="10" fill="#fff" stroke="#94a3b8" stroke-width="2"/>
+<text x="710" y="408" text-anchor="middle" font-size="13" fill="#334155">Product: PostHog, Mixpanel</text>
+<text x="710" y="428" text-anchor="middle" font-size="13" fill="#334155">Web UX: Seentics, Matomo, Clarity</text>
+<rect x="40" y="510" width="160" height="90" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="120" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Hosted, simple</text>
+<text x="120" y="568" text-anchor="middle" font-size="13" fill="#14532d">Plausible, Fathom,</text>
+<text x="120" y="586" text-anchor="middle" font-size="13" fill="#14532d">Simple Analytics, Pirsch</text>
+<rect x="210" y="510" width="150" height="90" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="285" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#14532d">Self-hosted</text>
+<text x="285" y="568" text-anchor="middle" font-size="13" fill="#14532d">Umami, Plausible CE,</text>
+<text x="285" y="586" text-anchor="middle" font-size="13" fill="#14532d">Matomo, Seentics</text>
+<rect x="540" y="510" width="200" height="90" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="640" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">Analytics + replay</text>
+<text x="640" y="568" text-anchor="middle" font-size="13" fill="#78350f">in one tool, open source:</text>
+<text x="640" y="586" text-anchor="middle" font-size="13" fill="#78350f">Seentics</text>
+<rect x="750" y="510" width="120" height="90" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="810" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#78350f">Add-on</text>
+<text x="810" y="568" text-anchor="middle" font-size="13" fill="#78350f">Clarity (free)</text>
+<text x="810" y="586" text-anchor="middle" font-size="13" fill="#78350f">beside any tool</text>
+</svg>

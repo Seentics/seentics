@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" role="img" aria-label="Two legal questions for analytics: ePrivacy first, then GDPR" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker></defs>
+<rect width="1000" height="420" rx="18" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="500" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Two separate legal questions for analytics</text>
+<g font-size="15" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="70" width="440" height="150" rx="12" fill="#dbeafe" stroke="#2563eb"/>
+<text x="250" y="100" font-size="17" font-weight="700">1. ePrivacy, Article 5(3)</text>
+<text x="250" y="130">Does the tool store or access information</text>
+<text x="250" y="152">on the visitor's device?</text>
+<text x="250" y="184" font-size="14">If yes: consent, unless an exemption applies</text>
+<text x="250" y="204" font-size="14">(for example, strictly necessary).</text>
+<rect x="530" y="70" width="440" height="150" rx="12" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="750" y="100" font-size="17" font-weight="700">2. GDPR</text>
+<text x="750" y="130">Does the tool process personal data?</text>
+<text x="750" y="152">(IP addresses, persistent IDs, profiles)</text>
+<text x="750" y="184" font-size="14">If yes: you need a lawful basis, a notice,</text>
+<text x="750" y="204" font-size="14">and rules for transfers and retention.</text>
+</g>
+<line x1="470" y1="145" x2="526" y2="145" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+<g font-size="15" fill="#0f172a" text-anchor="middle">
+<rect x="30" y="250" width="940" height="130" rx="12" fill="#fef9c3" stroke="#ca8a04"/>
+<text x="500" y="282" font-size="17" font-weight="700">Why "cookie-free" is not the whole story</text>
+<text x="500" y="312">Dropping cookies mainly answers question 1, and only if nothing else is stored or read on the device.</text>
+<text x="500" y="336">Question 2 still applies if you keep IP addresses or build identifiers that single out a person.</text>
+<text x="500" y="360" font-size="14">Both answers come from your design and configuration, not from a label.</text>
+</g>
+</svg>
