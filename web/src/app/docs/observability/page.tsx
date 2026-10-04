@@ -15,6 +15,14 @@ export default function ObservabilityPage() {
       title="Observability"
       lead="Logs, traces, metrics and errors from your backend services, next to the analytics of the site they power. Send with our Node.js, Go or Python SDK, or any OpenTelemetry exporter."
     >
+      <Callout kind="note" title="Full Observability documentation">
+        Setup, SDK guides, deployment and the reference live at{' '}
+        <Link href="https://observe.seentics.com/docs" className="font-medium text-primary hover:underline">
+          observe.seentics.com/docs
+        </Link>
+        .
+      </Callout>
+
       <DocSection title="How it is organised">
         <P>
           Observe lives at <C>observe.seentics.com</C> and uses your Seentics account. Every website
@@ -53,14 +61,14 @@ export default function ObservabilityPage() {
         <RefTable
           columns={['Language', 'Package', 'Guide']}
           rows={[
-            ['Node.js 18.19+ (and Bun)', <C key="n">@seentics/observe</C>, <Link key="nl" href="/docs/observability/node" className="font-medium text-primary hover:underline">Node.js guide</Link>],
-            ['Go 1.24+', <C key="g">github.com/seentics/observe-go</C>, <Link key="gl" href="/docs/observability/go" className="font-medium text-primary hover:underline">Go guide</Link>],
-            ['Python 3.8+', <C key="p">seentics-observe</C>, <Link key="pl" href="/docs/observability/python" className="font-medium text-primary hover:underline">Python guide</Link>],
+            ['Node.js 18.19+ (and Bun)', <C key="n">@seentics/observe</C>, <Link key="nl" href="https://observe.seentics.com/docs/sdks/node" className="font-medium text-primary hover:underline">Node.js guide</Link>],
+            ['Go 1.24+', <C key="g">github.com/seentics/observe-go</C>, <Link key="gl" href="https://observe.seentics.com/docs/sdks/go" className="font-medium text-primary hover:underline">Go guide</Link>],
+            ['Python 3.8+', <C key="p">seentics-observe</C>, <Link key="pl" href="https://observe.seentics.com/docs/sdks/python" className="font-medium text-primary hover:underline">Python guide</Link>],
           ]}
         />
         <P>
           Running more than one service or server on a key? See{' '}
-          <Link href="/docs/observability/deploy" className="font-medium text-primary hover:underline">
+          <Link href="https://observe.seentics.com/docs/guides/deployment" className="font-medium text-primary hover:underline">
             Services, servers and deployment
           </Link>{' '}
           for what to set on a bare VM, in Docker, Docker Compose or Kubernetes.
@@ -102,7 +110,7 @@ ordersPlaced.add(1, { status: 'success' });`}
         />
         <P>
           The full walkthrough is in the{' '}
-          <Link href="/docs/observability/node" className="font-medium text-primary hover:underline">Node.js guide</Link>;
+          <Link href="https://observe.seentics.com/docs/sdks/node" className="font-medium text-primary hover:underline">Node.js guide</Link>;
           Go and Python have their own, linked above.
         </P>
         <Ul>
