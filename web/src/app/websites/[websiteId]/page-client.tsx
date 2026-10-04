@@ -31,6 +31,7 @@ import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
 import { forgetWebsite, rememberedWebsite, rememberWebsite } from '@/lib/last-website';
+import { useNearViewport } from '@/hooks/use-near-viewport';
 
 export default function WebsiteDashboardPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -199,24 +200,38 @@ export default function WebsiteDashboardPage() {
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
-  const { data: hourlyStats } = useHourlyStats(websiteId, dateRange, advancedFilters);
-  const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
+  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
 
-  const { data: dimensionsData, isLoading: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(websiteId, dateRange, advancedFilters);
+  // ── DEFERRED: everything below the traffic chart ──
+  // Asked for once the cards and chart have their answers and the section is near the screen.
+  // All nine reads used to leave together and queue behind each other on the server, so the
+  // cards waited on the map. Once released the section stays released: a new range or filter
+  // refetches it with the rest instead of waiting again.
+  const audienceRef = useRef<HTMLDivElement>(null);
+  const audienceNear = useNearViewport(audienceRef);
+  const priorityDone = !dashboardLoading && !dailyLoading && !hourlyLoading;
+  const [belowFoldReleased, setBelowFoldReleased] = useState(false);
+  if (priorityDone && audienceNear && !belowFoldReleased) setBelowFoldReleased(true);
+  const loadBelowFold = belowFoldReleased && !isDemoMode;
+
+  // `isPending` rather than `isLoading`: a read still held back has no data and is not
+  // loading, and its panel should show the skeleton, not "no data".
+  const { data: visitorInsights, isPending: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange, loadBelowFold);
+  const { data: dimensionsData, isPending: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(websiteId, dateRange, advancedFilters, loadBelowFold);
   const topPages     = dimensionsData ? { top_pages:     dimensionsData.top_pages }     : undefined;
   const topReferrers = dimensionsData ? { top_referrers: dimensionsData.top_referrers } : undefined;
   const topCountries = dimensionsData ? { top_countries: dimensionsData.top_countries } : undefined;
   const topBrowsers  = dimensionsData ? { top_browsers:  dimensionsData.top_browsers }  : undefined;
   const topDevices   = dimensionsData ? { top_devices:   dimensionsData.top_devices }   : undefined;
   const topOS        = dimensionsData ? { top_os:        dimensionsData.top_os }        : undefined;
-  const pagesLoading    = dimensionsLoading;
-  const referrersLoading = dimensionsLoading;
-  const countriesLoading = dimensionsLoading;
-  const browsersLoading  = dimensionsLoading;
-  const devicesLoading   = dimensionsLoading;
-  const osLoading        = dimensionsLoading;
-  const { data: geolocationData, isLoading: geolocationLoading } = useGeolocationBreakdown(websiteId, dateRange);
-  const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
+  const pagesLoading    = !isDemoMode && dimensionsLoading;
+  const referrersLoading = pagesLoading;
+  const countriesLoading = pagesLoading;
+  const browsersLoading  = pagesLoading;
+  const devicesLoading   = pagesLoading;
+  const osLoading        = pagesLoading;
+  const { data: geolocationData, isPending: geolocationLoading } = useGeolocationBreakdown(websiteId, dateRange, loadBelowFold);
+  const { data: customEvents, isPending: customEventsLoading } = useCustomEvents(websiteId, dateRange, loadBelowFold);
 
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, dateRange, showComparison);
@@ -358,12 +373,13 @@ export default function WebsiteDashboardPage() {
         </section>
 
         {/* AUDIENCE INTELLIGENCE */}
+        <div ref={audienceRef}>
         <AudienceSection
           pages={{
             data: transformedTopPages,
             entryPages: finalVisitorInsights?.visitor_insights?.top_entry_pages,
             exitPages: finalVisitorInsights?.visitor_insights?.top_exit_pages,
-            isLoading: pagesLoading || visitorInsightsLoading,
+            isLoading: pagesLoading || (!isDemoMode && visitorInsightsLoading),
           }}
           sources={{ data: transformedTopReferrers, isLoading: referrersLoading }}
           geolocation={{ data: finalGeolocationData, isLoading: !isDemoMode && geolocationLoading }}
@@ -377,14 +393,15 @@ export default function WebsiteDashboardPage() {
             data: transformedCustomEvents.utm_performance,
             tab: utmTab,
             onTabChange: setUtmTab,
-            isLoading: customEventsLoading,
+            isLoading: !isDemoMode && customEventsLoading,
           }}
           footer={
             <ChartErrorBoundary label="Goals">
-              <WebsiteGoalsSection websiteId={websiteId} days={dateRange} />
+              <WebsiteGoalsSection websiteId={websiteId} days={dateRange} enabled={belowFoldReleased} />
             </ChartErrorBoundary>
           }
         />
+        </div>
 
         {/* Detailed Data Modal */}
         {selectedModal && (

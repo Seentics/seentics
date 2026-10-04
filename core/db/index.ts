@@ -9,7 +9,7 @@ if (!url) {
 
 /**
  * Shared client: Drizzle + raw tagged-template SQL. Every connection costs Postgres
- * memory of its own, so the 4 GB deployment lowers this (deploy/docker-compose.small.yml).
+ * memory of its own: DB_POOL_MAX and Postgres' max_connections are sized together.
  */
 export const sql = postgres(url, { max: Number(process.env.DB_POOL_MAX) || 25 });
 export const db = drizzle(sql, { schema });

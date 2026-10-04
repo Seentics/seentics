@@ -165,11 +165,11 @@ export const useTopOS = (websiteId: string, days: number = 7, filters: Analytics
 };
 
 // Single hook that fetches all 6 dimension breakdowns in one request
-export const useDimensionsBulk = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useDimensionsBulk = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}, enabled = true) => {
   return useQuery({
     queryKey: analyticsKeys.dimensionsBulk(websiteId, days, filters),
     queryFn:  () => getDimensionsBulk(websiteId, days, filters),
-    enabled:  isValidId(websiteId),
+    enabled:  enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -216,18 +216,18 @@ export const useDailyStats = (websiteId: string, days: number = 30, filters: Ana
 };
 
 // Custom Events Hook
-export const useCustomEvents = (websiteId: string, days: number = 30) => {
+export const useCustomEvents = (websiteId: string, days: number = 30, enabled = true) => {
   return useQuery({
     queryKey: analyticsKeys.customEvents(websiteId, days),
     queryFn: () => getCustomEventsStats(websiteId, days),
-    enabled: isValidId(websiteId),
+    enabled: enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 };
 
 // Goal Stats Hook
-export const useGoalStats = (websiteId: string, days: number = 30) => {
+export const useGoalStats = (websiteId: string, days: number = 30, enabled = true) => {
   return useQuery({
     queryKey: analyticsKeys.goalStats(websiteId, days),
     queryFn: async () => {
@@ -237,7 +237,7 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
       const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
     },
-    enabled: isValidId(websiteId),
+    enabled: enabled && isValidId(websiteId),
   });
 };
 
@@ -276,21 +276,21 @@ export const useRealtimeGeoData = (websiteId: string, withinMinutes = 30) => {
 };
 
 // Visitor Insights Hook
-export const useVisitorInsights = (websiteId: string, days: number = 7) => {
+export const useVisitorInsights = (websiteId: string, days: number = 7, enabled = true) => {
   return useQuery<GetVisitorInsightsResponse>({
     queryKey: analyticsKeys.visitorInsights(websiteId, days),
     queryFn: () => getVisitorInsights(websiteId, days),
-    enabled: isValidId(websiteId),
+    enabled: enabled && isValidId(websiteId),
     staleTime: 10 * 60 * 1000, // 10 minutes for insights
   });
 };
 
 // Hooks
-export const useGeolocationBreakdown = (websiteId: string, days: number = 7) => {
+export const useGeolocationBreakdown = (websiteId: string, days: number = 7, enabled = true) => {
   return useQuery({
     queryKey: [...analyticsKeys.all, 'geolocation-breakdown', websiteId, days],
     queryFn: () => getGeolocationBreakdown(websiteId, days),
-    enabled: isValidId(websiteId),
+    enabled: enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });

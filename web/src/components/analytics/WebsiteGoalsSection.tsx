@@ -56,9 +56,12 @@ function demoTrend(completions: number, points: number) {
 export function WebsiteGoalsSection({
   websiteId,
   days,
+  enabled = true,
 }: {
   websiteId: string;
   days: number;
+  /** False holds both reads back — the dashboard loads this section after what is above it. */
+  enabled?: boolean;
 }) {
   const queryClient = useQueryClient();
   const chartGradId = useId().replace(/:/g, '');
@@ -66,12 +69,13 @@ export function WebsiteGoalsSection({
   const [editingGoalForModal, setEditingGoalForModal] = useState<Goal | null>(null);
   const [detailGoal, setDetailGoal] = useState<GoalRow | null>(null);
 
-  const { data: goalData, isLoading } = useGoalStats(websiteId, days);
+  const { data: goalData, isPending } = useGoalStats(websiteId, days, enabled);
+  const isLoading = enabled ? isPending : true;
 
   const { data: goalDefinitions = [] } = useQuery({
     queryKey: ['goals', websiteId],
     queryFn: () => getGoals(websiteId),
-    enabled: isValidId(websiteId),
+    enabled: enabled && isValidId(websiteId),
   });
 
   /** Dashboard table uses goal stats rows; API used to return an empty list while definitions existed. */
