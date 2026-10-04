@@ -22,7 +22,6 @@ const FEATURES = [
     title: 'Web analytics',
     description:
       'Know where visitors come from, what they do and which journeys turn into customers.',
-    tags: ['Realtime', 'Paths', 'Attribution'],
     href: '/docs/analytics',
     icon: BarChart3,
     layout: 'lg:col-span-7',
@@ -33,7 +32,6 @@ const FEATURES = [
     title: 'Funnels',
     description:
       'Find the exact step that loses people and open the sessions behind the drop-off.',
-    tags: ['Page + event steps', 'Segments'],
     href: '/docs/funnels',
     icon: Filter,
     layout: 'lg:col-span-5',
@@ -44,7 +42,6 @@ const FEATURES = [
     title: 'Session recordings',
     description:
       'Watch real journeys with console, network and JavaScript errors on the same timeline.',
-    tags: ['Rage clicks', 'Masked inputs'],
     href: '/docs/session-replays',
     icon: PlayCircle,
     layout: 'lg:col-span-4',
@@ -55,7 +52,6 @@ const FEATURES = [
     title: 'Heatmaps',
     description:
       'See what gets clicked, what is ignored and where attention stops on every device.',
-    tags: ['Click maps', 'Scroll depth'],
     href: '/docs/heatmaps',
     icon: MousePointer2,
     layout: 'lg:col-span-4',
@@ -67,7 +63,6 @@ const FEATURES = [
     title: 'Automations',
     description:
       'Act the moment behavior happens: catch exit intent, rage clicks or an abandoned form and respond with a message, redirect or webhook.',
-    tags: ['Behavior triggers', 'On-page actions', 'Webhooks'],
     href: '/docs/automations',
     icon: Zap,
     layout: 'lg:col-span-4',
@@ -78,7 +73,6 @@ const FEATURES = [
     title: 'Privacy and control',
     description:
       'Run cookie-free analytics in our cloud, or self-host the open-source analytics core and keep its data on your own infrastructure.',
-    tags: ['GDPR-ready', 'Open-source core', 'Self-hostable analytics'],
     href: '#privacy-control',
     icon: ShieldCheck,
     layout: 'md:col-span-2 lg:col-span-12',
@@ -86,7 +80,7 @@ const FEATURES = [
   },
 ] as const;
 
-function FeatureGrid() {
+export function FeatureGrid() {
   return (
     <section id="features" className="landing-section">
       <div className="landing-container">
@@ -119,13 +113,6 @@ function FeatureGrid() {
                 <div className="min-w-0 flex-1">
                   <h3 className="landing-h3 mb-3">{feature.title}</h3>
                   <p className="landing-body max-w-2xl text-muted-foreground">{feature.description}</p>
-                </div>
-                <div className={cn('mt-auto flex flex-wrap gap-2 pt-7', feature.id === 'privacy' && 'sm:mt-0 sm:w-auto sm:justify-end sm:pt-0')}>
-                  {feature.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                      {tag}
-                    </span>
-                  ))}
                 </div>
               </div>
               <span className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/70 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:text-primary">

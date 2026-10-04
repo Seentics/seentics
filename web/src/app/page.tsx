@@ -3,7 +3,7 @@ import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
 import ObservabilityBonus from '@/components/landing/ObservabilityBonus';
-import ProductInAction from '@/components/landing/ProductInAction';
+import { FeatureGrid } from '@/components/landing/FeatureSections';
 import WhyChoose from '@/components/landing/WhyChoose';
 import Pricing from '@/components/landing/Pricing';
 import FaqCta from '@/components/landing/FaqCta';
@@ -21,7 +21,7 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
-        <ProductInAction />
+        <FeatureGrid />
         <WhyChoose />
         <ObservabilityBonus />
         <Pricing />
