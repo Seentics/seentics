@@ -1,7 +1,7 @@
 import { Check, Github } from 'lucide-react';
 import { HeroCTA } from './HeroCTA';
 
-const HERO_TRUST = ['No credit card required', '100% open source', 'No cookies', 'Self-host in minutes'];
+const HERO_TRUST = ['No credit card required', 'Open-source analytics core', 'No cookies', 'Self-host in minutes'];
 
 export default function Hero() {
   return (
@@ -11,14 +11,13 @@ export default function Hero() {
       <div className="landing-container relative z-10">
         <div className="mx-auto mt-4 max-w-5xl text-center">
 
-          <h1 className="mb-6">
-            <span className="landing-h1 block">Understand your visitors.</span>
-            <span className="landing-h1  mt-1 block">Then act — automatically.</span>
+          <h1 className="mx-auto mb-5 max-w-4xl text-balance text-3xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            See everything happening <span className="text-primary">on your website.</span>
           </h1>
 
-          <p className="landing-lead mx-auto mb-9 max-w-2xl">
-            One privacy-first platform to measure traffic, find conversion problems,
-            watch the sessions behind them and respond with no-code automations.
+          <p className="landing-lead mx-auto mb-9 max-w-2xl text-balance">
+            Analytics, session replay, logs, uptime monitoring and automations
+            in one <span className="whitespace-nowrap">privacy-first</span> platform.
           </p>
 
           <div>

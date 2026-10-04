@@ -5,6 +5,7 @@ import Hero from '@/components/landing/Hero';
 import SocialProof from '@/components/landing/SocialProof';
 import ProductShowcase from '@/components/landing/ProductShowcase';
 import FeatureSections from '@/components/landing/FeatureSections';
+import SuiteSection from '@/components/landing/SuiteSection';
 import Pricing from '@/components/landing/Pricing';
 import PrivacyControl from '@/components/landing/PrivacyControl';
 import WhySwitch from '@/components/landing/WhySwitch';
@@ -28,6 +29,7 @@ export default function LandingPage() {
         <FeatureSections />
         <PrivacyControl />
         {/* <WhySwitch /> */}
+        <SuiteSection />
         <Pricing />
         <FAQ />
       </main>

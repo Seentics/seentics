@@ -27,7 +27,7 @@ import { config } from '@/lib/config';
  * app cannot reach across to them. They are small and they change rarely; the
  * comment is the reminder to update all three together when they do.
  */
-function ObserveGlyph({ className }: { className?: string }) {
+export function ObserveGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <path

@@ -25,10 +25,10 @@ function formatStars(n: number): string {
 const TRUST_ITEMS = [
   // AGPL-3.0, not MIT. Only the ui/blocks package (@seentics/ui) is MIT, and
   // claiming MIT for the platform on a public page misstates the licence.
-  { icon: GitBranch, label: 'AGPL-3.0' },
+  { icon: GitBranch, label: 'Open-source core (AGPL-3.0)' },
   { icon: ShieldCheck, label: 'GDPR-ready' },
   { icon: Cookie, label: 'No cookies' },
-  { icon: Server, label: 'Self-hostable' },
+  { icon: Server, label: 'Self-host analytics' },
 ];
 
 export default async function SocialProof() {

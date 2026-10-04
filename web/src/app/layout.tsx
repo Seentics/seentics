@@ -29,11 +29,11 @@ import LemonSqueezyScript from '@/components/lemon-squeezy-script';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'Seentics | Analytics that actually drives growth',
-  description: 'Privacy-focused real-time website analytics with built-in behavioral automations. Understand your traffic and act on it automatically.',
+  title: 'Seentics | See everything happening on your website',
+  description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
   openGraph: {
-    title: 'Seentics | Analytics that actually drives growth',
-    description: 'Privacy-focused real-time website analytics with built-in behavioral automations. Understand your traffic and act on it automatically.',
+    title: 'Seentics | See everything happening on your website',
+    description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
     url: 'https://seentics.com',
     siteName: 'Seentics',
     images: [
@@ -49,8 +49,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Seentics | Analytics that actually drives growth',
-    description: 'Privacy-focused real-time website analytics with built-in behavioral automations.',
+    title: 'Seentics | See everything happening on your website',
+    description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
     images: ['https://seentics.com/images/app/photo-1.png'],
   },
 };

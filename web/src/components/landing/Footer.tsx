@@ -25,7 +25,7 @@ export default function Footer() {
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Open-source, privacy-first web analytics. No cookies, fast, and easy to use.
+              Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.
             </p>
           </div>
 
@@ -81,7 +81,7 @@ export default function Footer() {
             repeated here from the columns above — ten links, four of them duplicates. */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-6 text-sm text-muted-foreground/60 md:flex-row">
           <p>&copy; {new Date().getFullYear()} Seentics. All rights reserved.</p>
-          <p>Open source under AGPL-3.0.</p>
+          <p>Analytics core open source under AGPL-3.0.</p>
         </div>
       </div>
     </footer>

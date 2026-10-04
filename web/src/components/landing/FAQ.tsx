@@ -10,17 +10,17 @@ const FAQS = [
   {
     question: 'Can I self-host Seentics?',
     answer:
-      'Yes. The complete platform is open source and can run on your own infrastructure with Docker, Kubernetes or your preferred cloud provider.',
+      'Yes, the analytics core: web analytics, funnels, session replay, heatmaps and automations are open source (AGPL-3.0) and run on your own infrastructure with Docker, Kubernetes or your preferred cloud provider. Observability and Uptime monitoring are managed products on Seentics Cloud.',
   },
   {
     question: 'Is there a free plan?',
     answer:
-      'Yes. Self-hosting is free with no artificial usage limits. Seentics Cloud also includes a free tier, with paid plans for managed hosting and higher event volumes.',
+      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud also includes a free tier, with paid plans for managed hosting, higher volumes and the Observability and Uptime products.',
   },
   {
     question: 'How does Seentics protect visitor privacy?',
     answer:
-      'Tracking is cookie-free by default, sensitive form values are masked, and self-hosting gives you complete control over where analytics data is stored.',
+      'Tracking is cookie-free by default, sensitive form values are masked, and self-hosting the analytics core gives you complete control over where that data is stored.',
   },
   {
     question: 'Will the tracking script slow down my site?',
@@ -35,7 +35,7 @@ const FAQS = [
   {
     question: 'How is this different from GA4, Plausible or Hotjar?',
     answer:
-      'Those products specialize in individual parts of the journey. Seentics combines analytics, funnels, recordings, heatmaps, AI insights and automations in one self-hostable platform.',
+      'Those products specialize in individual parts of the journey. Seentics combines analytics, funnels, recordings, heatmaps, AI insights, automations, observability and uptime monitoring in one platform, and the analytics core is self-hostable.',
   },
   {
     question: 'Does AI Mode make changes automatically?',
