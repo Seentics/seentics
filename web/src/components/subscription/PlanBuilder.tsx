@@ -31,7 +31,7 @@ interface PlanBuilderProps {
   mode?: 'individual' | 'agency';
   /**
    * Which price ladders to offer, one tab each, first selected. seentics.com
-   * shows Suite + Analytics; the Uptime and Observability sites show Suite +
+   * shows Suite + Analytics; the Observability site shows Suite +
    * their own product. A single family renders without tabs.
    */
   families?: PlanFamily[];
@@ -53,7 +53,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
   const { data: allPlans, isLoading, isError } = usePlans();
   const [family, setFamily] = React.useState<PlanFamily>(families[0] ?? 'suite');
   const [comparing, setComparing] = React.useState(false);
-  // A caller switching `families` (e.g. /pricing?product=uptime) resets the tab.
+  // A caller switching `families` (e.g. /pricing?product=observe) resets the tab.
   const familiesKey = families.join(',');
   React.useEffect(() => {
     setFamily(families[0] ?? 'suite');
@@ -343,7 +343,7 @@ function SuiteReplaces({ plans }: { plans: Plan[] }) {
 
       <p className="mt-4 text-center text-[11px] text-muted-foreground">
         Vendors&apos; published entry prices, September 2026. Separate tools also mean separate logins, bills and
-        data that doesn&apos;t link up — Seentics connects logs, traces, uptime and analytics in one place.
+        data that doesn&apos;t link up — Seentics connects logs, traces and analytics in one place.
       </p>
     </div>
   );

@@ -201,7 +201,7 @@ seentics.consent(false);`}
         <P>
           Deleting a website erases everything it collected, in every product — its observability
           telemetry included. Deleting your account (<C>Profile → Delete account</C>) erases every
-          website you own, your uptime monitors and status pages, and cancels your subscription.
+          website you own, and cancels your subscription.
           Encrypted backups expire within 30 days, after which no copy remains.
         </P>
       </DocSection>

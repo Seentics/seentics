@@ -5,7 +5,6 @@ import {
   Code2,
   Flame,
   GitBranch,
-  HeartPulse,
   LayoutDashboard,
   PanelLeftClose,
   Radio,
@@ -40,7 +39,6 @@ const NAV = [
 /** The suite's other apps, as the real sidebar lists them under "Workspace". */
 const WORKSPACE = [
   { label: 'Observability', icon: Radio, tint: 'text-[hsl(267_60%_47%)] dark:text-[hsl(267_75%_70%)]' },
-  { label: 'Uptime', icon: HeartPulse, tint: 'text-[hsl(145_72%_38%)] dark:text-[hsl(145_65%_55%)]' },
 ] as const;
 
 export type MockNavLabel = (typeof NAV)[number]['label'];

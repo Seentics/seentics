@@ -43,7 +43,7 @@ export function DeleteAccountCard() {
         <div className="space-y-1.5 text-sm text-muted-foreground">
           <p>
             Deletes your account and everything it holds: every website you own with all the analytics, recordings,
-            heatmaps and errors it collected, its observability data, your uptime monitors and status pages, and your
+            heatmaps and errors it collected, its observability data, and your
             subscription. It cannot be undone.
           </p>
           <p>Own a team other people use? Transfer it to someone first.</p>

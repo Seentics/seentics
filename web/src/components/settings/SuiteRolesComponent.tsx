@@ -36,14 +36,13 @@ import { cn } from '@/lib/utils';
  *
  * Separate from the website members screen beside it, and worded to say so. A
  * website member is who may open *this site*, which this app owns. A suite
- * role decides what someone may do across Analytics, Uptime and Observability
+ * role decides what someone may do across Analytics and Observability
  * together — and it narrows their website role rather than replacing it, since
  * both checks run on every request.
  */
 
 const PRODUCT_LABELS: Record<string, string> = {
   observability: 'Observability',
-  uptime: 'Uptime',
   analytics: 'Analytics',
   team: 'Team',
 };
@@ -188,7 +187,7 @@ export function SuiteRolesComponent() {
             Suite roles
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            What people may do across Analytics, Uptime and Observability. Separate from this
+            What people may do across Analytics and Observability. Separate from this
             site&rsquo;s members — a suite role narrows what someone can do, it does not decide which
             sites they can open.
           </p>
@@ -322,7 +321,7 @@ function RoleSummary({ role }: { role: CustomRole }) {
  * Build a role by saying what it may do.
  *
  * Grouped by product and then subject, because that is how the decision is
- * actually made — "they should see Analytics but not Uptime" is one click on a
+ * actually made — "they should see Analytics but not Observability" is one click on a
  * heading, not eleven on individual keys.
  */
 function RoleEditor({

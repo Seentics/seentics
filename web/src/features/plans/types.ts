@@ -1,11 +1,10 @@
 /** Which price ladder a plan belongs to — one pricing tab each. */
-export type PlanFamily = 'suite' | 'core' | 'observe' | 'uptime';
+export type PlanFamily = 'suite' | 'core' | 'observe';
 
 export const PLAN_FAMILY_LABEL: Record<PlanFamily, string> = {
   suite: 'Suite',
   core: 'Analytics',
   observe: 'Observability',
-  uptime: 'Uptime',
 };
 
 export type Plan = {
@@ -18,10 +17,10 @@ export type Plan = {
   priceMonthly: number;
   priceYearly: number;
   isBundle: boolean;
-  /** Which suite products this plan grants access to, e.g. ['core', 'uptime']. */
+  /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];
   features: string[];
-  /** Per-product numeric limits, e.g. limits.uptime.max_monitors. -1 means unlimited. */
+  /** Per-product numeric limits, e.g. limits.observe.storage_gb. -1 means unlimited. */
   limits: Record<string, Record<string, number>>;
 };
 

@@ -13,7 +13,6 @@ export const config = {
   // shared-cookie session (Domain=.seentics.com in production) carries over,
   // so these are plain links, not an auth handoff.
   observeUrl: process.env.NEXT_PUBLIC_OBSERVE_URL || 'https://observe.seentics.com',
-  uptimeUrl: process.env.NEXT_PUBLIC_UPTIME_URL || 'https://uptime.seentics.com',
 
   // Signin/signup/password-reset/invite/OAuth-callback now live in their own
   // app (auth/web) so every product in the suite shares one login UI. The

@@ -5,19 +5,15 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { HeroCTA } from './HeroCTA';
 import { DashboardMock } from './mocks/DashboardMock';
 
-/** The part of the headline that changes: each product, in its own colour. */
+/** The second line of the headline: it changes, one sentence per thing Seentics does. */
 const ROTATING = [
-  { label: 'Analytics & replay', color: 'text-primary' },
-  { label: 'Backend observability', color: 'text-[hsl(267_60%_47%)] dark:text-[hsl(267_75%_70%)]' },
-  { label: 'Uptime monitoring', color: 'text-[hsl(145_72%_38%)] dark:text-[hsl(145_65%_55%)]' },
-  { label: 'Smart automations', color: 'text-amber-500' },
+  { label: 'Fix drop-offs.', color: 'text-primary' },
+  { label: 'Watch sessions.', color: 'text-[hsl(199_80%_42%)] dark:text-[hsl(199_85%_62%)]' },
+  { label: 'Map clicks.', color: 'text-[hsl(145_72%_38%)] dark:text-[hsl(145_65%_55%)]' },
+  { label: 'Automate follow-ups.', color: 'text-amber-500' },
+  { label: 'Trace errors.', color: 'text-[hsl(267_60%_47%)] dark:text-[hsl(267_75%_70%)]' },
 ];
 const ROTATE_MS = 2800;
-
-
-/** Design size of the dashboard shot, before it is scaled into the column. */
-const SHOT_W = 1440;
-const SHOT_H = 840;
 
 function RotatingPhrase() {
   const reduceMotion = useReducedMotion();
@@ -31,7 +27,7 @@ function RotatingPhrase() {
 
   return (
     // Fixed height, so the headline never changes size as the phrase changes.
-    <span className="relative block h-[1.3em] overflow-hidden">
+    <span className="relative block h-[1.25em] overflow-hidden" style={{ marginTop: '0.1em' }}>
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={index}
@@ -47,6 +43,10 @@ function RotatingPhrase() {
     </span>
   );
 }
+
+/** Design size of the dashboard shot, before it is scaled into the column. */
+const SHOT_W = 1440;
+const SHOT_H = 840;
 
 /**
  * The dashboard, as a picture: not clickable, not focusable, not announced.
@@ -102,14 +102,14 @@ export default function Hero() {
 
       <div className="landing-container relative z-10">
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-8">
-          <div className="max-w-[660px]">
-            <h1 className="text-[2.1rem] font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-[3.6rem]">
-              <span className="block">One platform for</span>
+          <div>
+            <h1 className="text-[2.1rem] font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-[3.4rem] xl:text-[3.7rem]">
+              <span className="block whitespace-nowrap">Understand visitors.</span>
               <RotatingPhrase />
             </h1>
 
             <p className="landing-lead mt-6 max-w-xl text-balance">
-              Web analytics, session replay, observability and uptime monitoring in one{' '}
+              Product analytics, session recordings, heatmaps and automations in one open-source,{' '}
               <span className="whitespace-nowrap">privacy-first</span> platform.
             </p>
 
@@ -118,7 +118,7 @@ export default function Hero() {
             </div>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Need just one? Take only that product and pay only for it. Or get all three with the Suite.
+              Free plan · No credit card · One script tag, live in 2 minutes.
             </p>
           </div>
 

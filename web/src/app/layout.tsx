@@ -30,10 +30,10 @@ import LemonSqueezyScript from '@/components/lemon-squeezy-script';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: 'Seentics | See everything happening on your website',
-  description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
+  description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
   openGraph: {
     title: 'Seentics | See everything happening on your website',
-    description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
+    description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
     url: 'https://seentics.com',
     siteName: 'Seentics',
     images: [
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Seentics | See everything happening on your website',
-    description: 'Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.',
+    description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
     images: ['https://seentics.com/images/app/photo-1.png'],
   },
 };

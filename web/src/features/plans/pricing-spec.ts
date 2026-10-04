@@ -8,7 +8,7 @@
  * (components/landing/pricing-spec.ts); the three apps share no code.
  */
 
-export type PricingFamily = 'suite' | 'core' | 'observe' | 'uptime';
+export type PricingFamily = 'suite' | 'core' | 'observe';
 export type PricingTier = 'free' | 'starter' | 'pro' | 'business';
 
 /** The slice of a gateway plan this module reads. */
@@ -40,9 +40,9 @@ export function supportFor(tier: PricingTier): string {
 export const FAMILY_TAB: Record<PricingFamily, { label: string; caption: string; lead: string; includes: string }> = {
   suite: {
     label: 'Suite',
-    caption: 'All 5 products',
-    lead: 'Analytics, Session Replay, AI, Observability and Uptime in one plan, for less than buying them separately.',
-    includes: 'Every Suite plan includes unlimited websites, logs, metrics and traces, and HTTP, API and SSL monitoring.',
+    caption: 'Analytics + Observability',
+    lead: 'Analytics, Session Replay and AI, plus Observability for your backend, in one plan, for less than buying them separately.',
+    includes: 'Every Suite plan includes unlimited websites, logs, metrics and traces.',
   },
   core: {
     label: 'Analytics',
@@ -55,12 +55,6 @@ export const FAMILY_TAB: Record<PricingFamily, { label: string; caption: string;
     caption: 'Logs, metrics & traces',
     lead: 'Logs, metrics and traces on their own, with more storage than the Suite includes.',
     includes: 'Every plan includes logs, metrics, distributed traces and OpenTelemetry ingestion.',
-  },
-  uptime: {
-    label: 'Uptime',
-    caption: 'Monitors & status pages',
-    lead: 'Website, API and SSL monitoring on its own.',
-    includes: 'Every plan includes HTTP/HTTPS, API and SSL monitoring, response-time tracking and email alerts.',
   },
 };
 
@@ -110,14 +104,6 @@ export function monthlySendGb(plan: PricedPlan): number | undefined {
 
 const gb = (value: number | undefined) => (value === undefined ? '—' : value === -1 ? 'Unlimited' : `${value} GB`);
 
-/** Uptime's fastest interval, from the seconds key or the older minutes one. */
-function fastestCheck(plan: PricedPlan): string {
-  const seconds = limit(plan, 'uptime', 'min_check_interval_seconds');
-  if (seconds !== undefined) return formatInterval(seconds);
-  const minutes = limit(plan, 'uptime', 'min_check_interval_minutes');
-  return minutes === undefined ? '—' : formatInterval(minutes * 60);
-}
-
 const byTier = <T,>(values: [T, T, T, T]) => (plan: PricedPlan) => values[TIERS.indexOf(plan.tier)] ?? values[0];
 
 // ---------------------------------------------------------------------------
@@ -158,17 +144,6 @@ function coreItems(plan: PricedPlan, withWebsites: boolean): Highlight[] {
  *  allowances; the rest of the feature list is in the comparison table. */
 const CORE_FEATURES = [feature('Revenue & attribution'), feature('Cookieless, GDPR-ready')];
 
-function alertItem(plan: PricedPlan): Highlight {
-  return plan.tier === 'free'
-    ? { value: 'Email', label: 'alerts, limited integrations' }
-    : feature('Slack, Discord & webhook alerts');
-}
-
-function statusPages(plan: PricedPlan): Highlight {
-  const pages = limit(plan, 'uptime', 'max_status_pages');
-  return { value: formatCount(pages), label: plural(pages, 'status page', 'status pages') };
-}
-
 /** Which Analytics lines a Suite card keeps. */
 const SUITE_CORE_LABELS = new Set(['events / month', 'session recordings / month', 'AI analyses / month', 'automation', 'automations', 'data retention']);
 
@@ -177,9 +152,6 @@ export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSe
   const observeRetention: Highlight = { value: formatDays(limit(plan, 'observe', 'retention_days')), label: 'retention' };
   const send = monthlySendGb(plan);
   const observeSend: Highlight = { value: send === undefined ? '—' : `≈ ${send} GB`, label: 'sent / month' };
-  const monitors = limit(plan, 'uptime', 'max_monitors');
-  const monitorItem: Highlight = { value: formatCount(monitors), label: plural(monitors, 'monitor', 'monitors') };
-  const checkItem: Highlight = { value: fastestCheck(plan), label: 'fastest check' };
 
   switch (family) {
     case 'suite':
@@ -188,7 +160,6 @@ export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSe
         // in the comparison table.
         { title: 'Analytics', items: coreItems(plan, false).filter((item) => SUITE_CORE_LABELS.has(item.label)) },
         { title: 'Observability', items: [storage, observeRetention, observeSend] },
-        { title: 'Uptime', items: [monitorItem, checkItem] },
       ];
     case 'core':
       return [{ items: [...coreItems(plan, false), ...CORE_FEATURES] }];
@@ -206,21 +177,6 @@ export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSe
             { value: free ? 'Basic' : 'Full', label: 'alerting' },
             feature('Error grouping'),
             feature('OpenTelemetry ingestion'),
-          ],
-        },
-      ];
-    }
-    case 'uptime': {
-      return [
-        {
-          items: [
-            monitorItem,
-            checkItem,
-            statusPages(plan),
-            { value: formatDays(limit(plan, 'uptime', 'retention_days')), label: 'check history' },
-            alertItem(plan),
-            feature('HTTP, keyword, ping & port'),
-            feature('Heartbeat (cron) monitors'),
           ],
         },
       ];
@@ -252,11 +208,6 @@ const observeRows: CompareRow[] = [
   { label: 'Logs, metrics & traces', value: () => true },
 ];
 
-const uptimeRows: CompareRow[] = [
-  { label: 'Monitors', value: (p) => formatCount(limit(p, 'uptime', 'max_monitors')) },
-  { label: 'Fastest check interval', value: fastestCheck },
-];
-
 const supportRow: CompareRow = { label: 'Support', value: (p) => SUPPORT[p.tier].replace(' support', '') };
 
 export function compareGroupsFor(family: PricingFamily): CompareGroup[] {
@@ -265,7 +216,6 @@ export function compareGroupsFor(family: PricingFamily): CompareGroup[] {
       return [
         { title: 'Analytics', rows: coreRows('Analytics retention') },
         { title: 'Observability', rows: observeRows },
-        { title: 'Uptime', rows: uptimeRows },
         { rows: [supportRow] },
       ];
     case 'core':
@@ -282,23 +232,6 @@ export function compareGroupsFor(family: PricingFamily): CompareGroup[] {
             { label: 'Projects / services', value: (p) => formatCount(limit(p, 'observe', 'max_projects')) },
             { label: 'Dashboards', value: byTier(['Basic', 'Unlimited', 'Unlimited', 'Unlimited']) },
             { label: 'Alerting', value: byTier<string | boolean>(['Basic', true, true, true]) },
-            supportRow,
-          ],
-        },
-      ];
-    case 'uptime':
-      return [
-        {
-          rows: [
-            ...uptimeRows,
-            { label: 'HTTP/HTTPS monitoring', value: () => true },
-            { label: 'API monitoring', value: () => true },
-            { label: 'SSL monitoring', value: () => true },
-            { label: 'Response-time tracking', value: () => true },
-            { label: 'Email alerts', value: () => true },
-            { label: 'Other alert integrations', value: byTier<string | boolean>(['Limited', true, true, true]) },
-            { label: 'Status pages', value: (p) => formatCount(limit(p, 'uptime', 'max_status_pages')) },
-            { label: 'Retention', value: (p) => formatDays(limit(p, 'uptime', 'retention_days')) },
             supportRow,
           ],
         },

@@ -217,8 +217,7 @@ export function PageSpeedTester() {
           <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-6 text-center sm:p-8">
             <h2 className="text-lg font-bold text-foreground">Want to catch regressions before your users do?</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Seentics Uptime checks your site around the clock and alerts you the moment something
-              breaks or slows down — free to start.
+              Seentics analytics shows how real visitors experience your site, page by page — free to start.
             </p>
             <Link href="/signup">
               <Button className="mt-5 h-10 rounded-lg px-5 text-sm font-semibold">

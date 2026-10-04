@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Github, ActivitySquare, Gauge, ChevronDown } from 'lucide-react';
+import { Menu, X, Github, Gauge, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
@@ -13,8 +13,7 @@ import { config } from '@/lib/config';
 
 /**
  * Each sibling product is shown with its own mark and its own brand colour —
- * Observability's stepped-signal glyph in purple, Uptime's pulse in green,
- * the same ones those sites use. They are separate products, and a menu that
+ * Observability's stepped-signal glyph in purple, the same one that site uses. They are separate products, and a menu that
  * renders them in this app's blue with two interchangeable lucide icons tells
  * the reader they are features of the analytics app rather than places to go.
  *
@@ -23,9 +22,9 @@ import { config } from '@/lib/config';
  * changes palette and shape mid-header reads as though you have already left.
  *
  * The glyphs are inlined rather than imported because each lives in its own
- * repo — observability/web and uptime/web are separate deployments, and this
- * app cannot reach across to them. They are small and they change rarely; the
- * comment is the reminder to update all three together when they do.
+ * repo — observability/web is a separate deployment, and this
+ * app cannot reach across to it. It is small and changes rarely; the
+ * comment is the reminder to update both when it does.
  */
 export function ObserveGlyph({ className }: { className?: string }) {
   return (
@@ -49,14 +48,6 @@ const SUITE_PRODUCTS = [
     glyph: ObserveGlyph,
     // observability/web --accent-solid
     tint: 'bg-[hsl(267_60%_47%)]',
-  },
-  {
-    name: 'Uptime',
-    description: 'Endpoint checks every 60 seconds, alerts to Slack or SMS, and a public status page.',
-    href: config.uptimeUrl,
-    glyph: ActivitySquare,
-    // uptime/web --primary
-    tint: 'bg-[hsl(145_72%_38%)]',
   },
 ];
 
@@ -228,7 +219,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   // between this, the logo, and the Products & Tools menu, the header was
   // getting crowded.
   const navLinks = [
-    { name: 'Products',  href: anchorHref('#products') },
+    { name: 'Products',  href: anchorHref('#why') },
     { name: 'Docs',      href: '/docs' },
     { name: 'Pricing',   href: anchorHref('#pricing') },
   ];

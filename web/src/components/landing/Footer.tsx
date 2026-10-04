@@ -25,14 +25,14 @@ export default function Footer() {
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Analytics, session replay, logs, uptime monitoring and automations in one privacy-first platform.
+              Product analytics, session replay and automations in one privacy-first platform, with observability for SaaS teams.
             </p>
           </div>
 
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Product</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href={anchor('#products')} className="hover:text-foreground transition-colors">Products</Link></li>
+              <li><Link href={anchor('#why')} className="hover:text-foreground transition-colors">Products</Link></li>
               <li><Link href={anchor('#pricing')} className="hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href={anchor('#faq')} className="hover:text-foreground transition-colors">FAQ</Link></li>
             </ul>

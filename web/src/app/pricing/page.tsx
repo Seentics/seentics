@@ -15,15 +15,14 @@ export default function PricingPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState<'individual' | 'agency'>('individual');
-    // The Uptime and Observability sites link here with ?product=uptime /
-    // ?product=observe, so the page opens on Suite + that product — the
-    // same two tabs their own pricing sections show. Read once on mount
+    // The Observability site links here with ?product=observe, so the page opens on Suite + that product — the
+    // same two tabs its own pricing section shows. Read once on mount
     // rather than via useSearchParams, which would need a Suspense boundary
     // around the whole page for no benefit.
     const [families, setFamilies] = useState<PlanFamily[]>(['suite', 'core']);
     useEffect(() => {
         const product = new URLSearchParams(window.location.search).get('product');
-        if (product === 'uptime' || product === 'observe') setFamilies(['suite', product]);
+        if (product === 'observe') setFamilies(['suite', product]);
     }, []);
 
     useEffect(() => {

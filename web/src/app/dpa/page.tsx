@@ -33,7 +33,7 @@ export default function DpaPage() {
         <p>
           This agreement covers the personal data Seentics processes for you when you use it on your websites and
           applications: visitor analytics, session recordings, heatmaps, funnels, automations, error tracking,
-          observability telemetry, and uptime monitoring with status pages (&ldquo;Customer Personal Data&rdquo;).
+          and observability telemetry (&ldquo;Customer Personal Data&rdquo;).
           The details — subject matter, purpose, data and data subjects — are in Annex 1. It lasts as long as we process
           Customer Personal Data for you.
         </p>
@@ -160,7 +160,7 @@ export default function DpaPage() {
           <tbody>
             <tr>
               <th>Subject matter and purpose</th>
-              <td>Providing Seentics to you: measuring and analysing how visitors use your websites and applications, replaying sessions, mapping interactions, running automations, tracking errors, collecting observability telemetry, and monitoring uptime.</td>
+              <td>Providing Seentics to you: measuring and analysing how visitors use your websites and applications, replaying sessions, mapping interactions, running automations, tracking errors, and collecting observability telemetry.</td>
             </tr>
             <tr>
               <th>Nature</th>

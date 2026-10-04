@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, HeartPulse, ArrowUpRight,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,13 +27,12 @@ interface SuiteNavItem {
   product: string;
 }
 
-// Each app's console, not its root: observe.seentics.com/ and uptime.seentics.com/
-// are public landing pages with a "Sign in" button, which read as being signed out.
+// Each app's console, not its root: observe.seentics.com/
+// is a public landing page with a "Sign in" button, which read as being signed out.
 // Every website is also an Observe project, so Observability opens this site's own.
 function buildSuiteProducts(websiteId: string): SuiteNavItem[] {
   return [
     { label: 'Observability', href: `${config.observeUrl}/projects/${websiteId}`, icon: Radio, product: 'observe' },
-    { label: 'Uptime', href: `${config.uptimeUrl}/dashboard`, icon: HeartPulse, product: 'uptime' },
   ];
 }
 

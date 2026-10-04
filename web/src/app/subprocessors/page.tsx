@@ -29,17 +29,10 @@ const SUBPROCESSORS: { name: string; purpose: string; data: string; location: st
   },
   {
     name: 'Amazon Web Services, Inc. (Amazon SES)',
-    purpose: 'Transactional email: sign-up, password reset, alerts, reports, status-page notices',
+    purpose: 'Transactional email: sign-up, password reset, alerts, reports',
     data: 'Recipient email addresses and the message',
     location: 'United States (N. Virginia region)',
     transfer: 'EU–US Data Privacy Framework; Standard Contractual Clauses',
-  },
-  {
-    name: 'Twilio Inc.',
-    purpose: 'SMS alerts, only for customers who add a phone number to an uptime alert',
-    data: 'Phone number and the alert text',
-    location: 'United States',
-    transfer: 'EU–US Data Privacy Framework; Binding Corporate Rules',
   },
   {
     name: 'OpenAI, L.L.C.',

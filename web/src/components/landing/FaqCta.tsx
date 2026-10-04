@@ -8,28 +8,28 @@ import { useAuth } from '@/stores/useAuthStore';
 
 const FAQS = [
   {
-    q: 'Do I have to buy all three products?',
-    a: 'No. Analytics, Observability and Uptime each have their own plans, and each has a free one. A standalone plan includes more of that one product than the Suite does. The Suite bundles all three for less.',
+    q: 'Do I need Observability?',
+    a: 'No. Analytics is the product, and it works on its own. Observability is an extra for SaaS teams that also want logs, metrics and traces from their backend. It has its own plans and a free one, and the Suite bundles both for less.',
   },
   {
     q: 'How much does it cost?',
-    a: 'Paid plans start at $9 a month for Analytics, $9 for Observability and $5 for Uptime, or $14 a month for the Suite. Yearly billing is 20% cheaper.',
+    a: 'Paid plans start at $9 a month for Analytics and $9 for Observability, or $14 a month for the Suite. Yearly billing is 20% cheaper.',
   },
   {
     q: 'Is there a free plan?',
-    a: 'Yes, one for each product. Analytics: unlimited websites, 20K events a month and 30 session recordings. Observability: 3 GB of storage and one project. Uptime: 3 monitors with 1-minute checks.',
+    a: 'Yes, one for each product. Analytics: unlimited websites, 20K events a month and 30 session recordings. Observability: 3 GB of storage and one project.',
   },
   {
     q: 'Can I self-host Seentics?',
-    a: 'The analytics core, yes. It is open source under AGPL-3.0 and runs on your own servers with no usage limits. Observability and Uptime run on Seentics Cloud.',
+    a: 'The analytics core, yes. It is open source under AGPL-3.0 and runs on your own servers with no usage limits. Observability runs on Seentics Cloud.',
   },
   {
     q: 'Does it use cookies?',
     a: 'No cookies and no fingerprinting. The tracker keeps one anonymous visitor ID in the browser, and IP addresses are used to find the country and are not stored.',
   },
   {
-    q: 'What do I install for Observability and Uptime?',
-    a: 'For Observability, send logs, metrics and traces to Seentics over OpenTelemetry. For Uptime, nothing: we check your URLs from our servers.',
+    q: 'What do I install for Observability?',
+    a: 'Send logs, metrics and traces to Seentics over OpenTelemetry. Your analytics tracker is a separate one-line script tag.',
   },
   {
     q: 'Will the tracker slow my site down?',

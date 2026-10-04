@@ -5,7 +5,7 @@ import api from '@/lib/api';
  *
  * Distinct from the website members managed elsewhere in settings: a website
  * member is who may open *this site*, which Core owns. A suite role decides
- * what someone may do across Analytics, Uptime and Observability together, and
+ * what someone may do across Analytics and Observability together, and
  * narrows their website role rather than replacing it — both checks run.
  */
 

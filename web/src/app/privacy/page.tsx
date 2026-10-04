@@ -33,8 +33,7 @@ export default function PrivacyPolicyPage() {
         <h3>Seentics as processor — your visitors</h3>
         <p>
           When you install Seentics on your website or app, it collects data about <em>your</em> visitors on your
-          behalf: page views, events, session recordings, heatmaps, errors, observability telemetry, uptime status-page
-          subscribers. For that data, you are the controller and we are your processor: we handle it only on your
+          behalf: page views, events, session recordings, heatmaps, errors, observability telemetry. For that data, you are the controller and we are your processor: we handle it only on your
           instructions, under our <Link href="/dpa">Data Processing Agreement</Link>. If you are a visitor to a website
           that uses Seentics, that website&apos;s owner is the one to ask about your data; we will help them answer you.
         </p>
