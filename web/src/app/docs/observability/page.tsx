@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { C, Callout, CodeBlock, DocPage, DocSection, Li, P, RefTable, Ul } from '@/components/docs/DocsKit';
 
 export const metadata = {
@@ -12,7 +13,7 @@ export default function ObservabilityPage() {
     <DocPage
       eyebrow="Products"
       title="Observability"
-      lead="Logs, traces, metrics and errors from your backend services, next to the analytics of the site they power. Send with our Node SDK or any OpenTelemetry exporter."
+      lead="Logs, traces, metrics and errors from your backend services, next to the analytics of the site they power. Send with our Node.js, Go or Python SDK, or any OpenTelemetry exporter."
     >
       <DocSection title="How it is organised">
         <P>
@@ -41,6 +42,29 @@ export default function ObservabilityPage() {
           An ingest key adds telemetry to one project. It cannot read anything, so it is safe to give
           to the services that send data — but treat it as a secret all the same.
         </Callout>
+      </DocSection>
+
+      <DocSection title="Pick your SDK">
+        <P>
+          Every SDK sends logs, traces and metrics to the same endpoint with that one key — no
+          collector to run. Each guide covers install, setup, logs, traces, metrics and what to do
+          before a short script exits.
+        </P>
+        <RefTable
+          columns={['Language', 'Package', 'Guide']}
+          rows={[
+            ['Node.js 18.19+ (and Bun)', <C key="n">@seentics/observe</C>, <Link key="nl" href="/docs/observability/node" className="font-medium text-primary hover:underline">Node.js guide</Link>],
+            ['Go 1.24+', <C key="g">github.com/seentics/observe-go</C>, <Link key="gl" href="/docs/observability/go" className="font-medium text-primary hover:underline">Go guide</Link>],
+            ['Python 3.8+', <C key="p">seentics-observe</C>, <Link key="pl" href="/docs/observability/python" className="font-medium text-primary hover:underline">Python guide</Link>],
+          ]}
+        />
+        <P>
+          Running more than one service or server on a key? See{' '}
+          <Link href="/docs/observability/deploy" className="font-medium text-primary hover:underline">
+            Services, servers and deployment
+          </Link>{' '}
+          for what to set on a bare VM, in Docker, Docker Compose or Kubernetes.
+        </P>
       </DocSection>
 
       <DocSection title="2a. Send from Node.js">
@@ -76,6 +100,11 @@ try {
 const ordersPlaced = metrics.createCounter('orders.placed');
 ordersPlaced.add(1, { status: 'success' });`}
         />
+        <P>
+          The full walkthrough is in the{' '}
+          <Link href="/docs/observability/node" className="font-medium text-primary hover:underline">Node.js guide</Link>;
+          Go and Python have their own, linked above.
+        </P>
         <Ul>
           <Li>Every field you log becomes a searchable column — <C>orderId:81423</C> in the Logs search.</Li>
           <Li>A log line written during a request carries its <C>trace_id</C>, so you can jump from the line to the request and back.</Li>
