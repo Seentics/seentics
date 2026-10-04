@@ -2,6 +2,9 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { db, websiteInvitations, websiteMembers } from "../../../db";
 import type { UserDirectory } from "../../auth/interfaces";
 import { normalizeWebsiteRole, roleAtLeast, type WebsiteInvitations, type WebsiteRole } from "../interfaces";
+import { log } from "../../../platform/observability/logger";
+
+const website_log = log.child({ category: "websites" });
 
 function forbiddenRole(): Error & { status: number } {
   return Object.assign(new Error("forbidden"), { status: 403 });
@@ -53,6 +56,7 @@ export class WebsiteInvitationService implements WebsiteInvitations {
       invitedBy: actorUserId,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     }).returning();
+    website_log.info({ msg: "website_invitation_created", website_id: websiteId, user_id: actorUserId, invitation_id: invitation!.id, role: grantedRole });
     return { data: presentInvitation(invitation!) };
   }
 
@@ -70,6 +74,7 @@ export class WebsiteInvitationService implements WebsiteInvitations {
       eq(websiteInvitations.id, invitationId),
       eq(websiteInvitations.websiteId, websiteId),
     ));
+    website_log.info({ msg: "website_invitation_revoked", website_id: websiteId, invitation_id: invitationId });
   }
 
   async acceptByToken(userId: string, token: string): Promise<{ data: { websiteId: string } }> {
@@ -107,6 +112,7 @@ export class WebsiteInvitationService implements WebsiteInvitations {
     await db.update(websiteInvitations)
       .set({ acceptedAt: new Date() })
       .where(eq(websiteInvitations.id, invitation.id));
+    website_log.info({ msg: "website_invitation_accepted", website_id: invitation.websiteId, user_id: userId, role: invitation.role });
     return { data: { websiteId: invitation.websiteId } };
   }
 }

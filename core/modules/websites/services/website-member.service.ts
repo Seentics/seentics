@@ -3,6 +3,9 @@ import { db, websiteMembers } from "../../../db";
 import type { AddWebsiteMemberBody } from "../interfaces";
 import type { UserDirectory } from "../../auth/interfaces";
 import { normalizeWebsiteRole, roleAtLeast, type WebsiteRole } from "../interfaces";
+import { log } from "../../../platform/observability/logger";
+
+const website_log = log.child({ category: "websites" });
 
 function forbiddenRole(): Error & { status: number } {
   return Object.assign(new Error("forbidden"), { status: 403 });
@@ -87,6 +90,7 @@ export class WebsiteMemberService {
     await db
       .delete(websiteMembers)
       .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, targetUserId)));
+    website_log.info({ msg: "website_member_removed", website_id: websiteId, user_id: actorUserId, member_id: targetUserId });
   }
 
   async updateRole(
@@ -104,5 +108,6 @@ export class WebsiteMemberService {
       .update(websiteMembers)
       .set({ role: grantedRole, updatedAt: new Date() })
       .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, targetUserId)));
+    website_log.info({ msg: "website_member_role_changed", website_id: websiteId, user_id: actorUserId, member_id: targetUserId, role: grantedRole });
   }
 }

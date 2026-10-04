@@ -16,6 +16,7 @@
  * readable by anyone who gets a session.
  */
 
+import { log } from "../../../platform/observability/logger";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
@@ -95,6 +96,7 @@ export async function createApiKey(
     .values({ websiteId, userId, name, keyHash, keyPrefix: prefix, scopes })
     .returning();
 
+  log.info({ category: "api_keys", msg: "api_key_created", website_id: websiteId, user_id: userId, key_id: row!.id, scopes });
   // The only moment the plaintext exists outside the caller's request.
   return { ...toSummary(row!), secret };
 }
@@ -111,5 +113,6 @@ export async function revokeApiKey(websiteId: string, keyId: string): Promise<bo
     .delete(apiKeys)
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.websiteId, websiteId)))
     .returning({ id: apiKeys.id });
+  if (rows.length > 0) log.info({ category: "api_keys", msg: "api_key_revoked", website_id: websiteId, key_id: keyId });
   return rows.length > 0;
 }

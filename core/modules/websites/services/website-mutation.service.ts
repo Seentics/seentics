@@ -5,6 +5,9 @@ import type {
   WebsiteMutations,
   WebsiteRepository,
 } from "../interfaces";
+import { log } from "../../../platform/observability/logger";
+
+const website_log = log.child({ category: "websites" });
 
 /** Website creation, settings updates, and deletion. */
 export class WebsiteMutationService implements Pick<WebsiteMutations, "create" | "update" | "delete"> {
@@ -19,20 +22,30 @@ export class WebsiteMutationService implements Pick<WebsiteMutations, "create" |
     private readonly eraseData: (websiteId: string) => Promise<void> = async () => {},
   ) {}
 
-  create(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
-    return this.repository.create(ownerId, input);
+  async create(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
+    const website = await this.repository.create(ownerId, input);
+    website_log.info({ msg: "website_created", website_id: website.id, owner_id: ownerId });
+    return website;
   }
 
   async update(websiteId: string, input: UpdateWebsiteInput): Promise<Website | null> {
     const updated = await this.repository.update(websiteId, input);
-    if (updated) this.onChanged(websiteId);
+    if (updated) {
+      this.onChanged(websiteId);
+      // Which settings, not their values: a domain or a privacy choice is the owner's business.
+      website_log.info({ msg: "website_updated", website_id: websiteId, fields: Object.keys(input) });
+    }
     return updated;
   }
 
   async delete(websiteId: string): Promise<boolean> {
+    const started = Date.now();
     await this.eraseData(websiteId);
     const deleted = await this.repository.delete(websiteId);
-    if (deleted) this.onChanged(websiteId);
+    if (deleted) {
+      this.onChanged(websiteId);
+      website_log.info({ msg: "website_deleted", website_id: websiteId, erase_ms: Date.now() - started });
+    }
     return deleted;
   }
 }
