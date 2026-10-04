@@ -35,20 +35,33 @@ function normalizeApiBase(raw) {
 }
 
 /**
- * When `data-api-host` is omitted, derive the host from this script's own URL.
- * The same host serves /api/v1/... (e.g. via a Next.js rewrite to the gateway),
- * so pageviews, heatmaps, and session batches all hit the customer's own stack.
- * Falls back to https://api.seentics.com only for inline scripts (no src).
+ * Hosts that serve this script but not the API: Seentics Cloud's dashboard on Cloudflare
+ * Pages. Their /api/v1/tracker/* was a Pages Function forwarding to the gateway, and on
+ * that second hop Cloudflare reports the Function's own address as the client — one US
+ * address for every visitor — so every visitor was located in the US: EU visitors were
+ * recorded without the consent `consent_region` exists to ask for, and every country,
+ * region and city report was wrong. The gateway answers trackers on any origin itself.
+ */
+const CLOUD_SCRIPT_HOSTS = ['seentics.com', 'www.seentics.com'];
+const CLOUD_API = 'https://api.seentics.com';
+
+/**
+ * When `data-api-host` is omitted, derive the host from this script's own URL: a
+ * self-hosted install serves /api/v1/... from the same host as the script, so
+ * pageviews, heatmaps and session batches all hit the customer's own stack. Seentics
+ * Cloud's script host sends to its API directly (above). Inline scripts (no src) use
+ * the Cloud API too.
  */
 function defaultApiHostFromScript() {
   const src = script?.src?.trim();
-  if (!src) return 'https://api.seentics.com';
+  if (!src) return CLOUD_API;
   try {
     const u = new URL(src);
-    if (!u.host) return 'https://api.seentics.com';
+    if (!u.host) return CLOUD_API;
+    if (CLOUD_SCRIPT_HOSTS.includes(u.hostname.toLowerCase())) return CLOUD_API;
     return `${u.protocol}//${u.host}`;
   } catch {
-    return 'https://api.seentics.com';
+    return CLOUD_API;
   }
 }
 
