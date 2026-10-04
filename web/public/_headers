@@ -9,6 +9,11 @@
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
 
+# The analytics demo is embedded in the landing page's product showcase.
+/websites/demo*
+  ! X-Frame-Options
+  X-Frame-Options: SAMEORIGIN
+
 # Tracker extensions are named by content hash (bundle-trackers.cjs), so a file at a
 # given URL never changes: cache it for a year without revalidating. The core
 # (seentics.min.js) keeps the default — its URL is fixed in every customer's snippet, so

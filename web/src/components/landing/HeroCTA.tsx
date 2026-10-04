@@ -21,11 +21,11 @@ import { useAuth } from '@/stores/useAuthStore';
 
 const PRIMARY = 'h-12 w-full gap-2 rounded-lg text-base font-semibold sm:h-14 sm:w-auto sm:px-9';
 
-export function HeroCTA() {
+export function HeroCTA({ align = 'center' }: { align?: 'center' | 'left' }) {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="mb-9 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
+    <div className={`mb-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4 ${align === 'center' ? 'sm:justify-center' : ''}`}>
       <Link href={isAuthenticated ? '/websites' : '/signup'} className="w-full sm:w-auto">
         <Button className={PRIMARY}>
           {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}

@@ -72,7 +72,7 @@ export default function RootLayout({
 
           <QueryProvider>
             <ThemeCustomizationProvider>
-            <div className="relative min-h-screen isolate overflow-x-hidden">
+            <div className="relative min-h-screen isolate overflow-x-clip">
               {/* Ambient Background Blobs */}
               {/* <div className="ambient-blob w-[500px] h-[500px] bg-primary/20 -top-24 -left-24 animate-[pulse_8s_infinite]" />
               <div className="ambient-blob w-[400px] h-[400px] bg-indigo-600/10 top-1/2 -right-24 animate-[pulse_10s_infinite] delay-1000" />

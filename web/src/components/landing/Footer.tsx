@@ -32,7 +32,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Product</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href={anchor('#features')} className="hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href={anchor('#products')} className="hover:text-foreground transition-colors">Products</Link></li>
               <li><Link href={anchor('#pricing')} className="hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href={anchor('#faq')} className="hover:text-foreground transition-colors">FAQ</Link></li>
             </ul>

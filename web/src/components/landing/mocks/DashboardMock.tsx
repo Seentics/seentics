@@ -22,7 +22,11 @@ import { MockSidebar } from './MockSidebar';
 /** How far the dashboard is zoomed out inside the lid. See the note in the render. */
 const INNER_SCALE = 0.86;
 
-export function DashboardMock() {
+/**
+ * `flush` hugs the content to the sidebar instead of centring it in the column. The hero
+ * crops this shot at the right edge, so the centring margin only showed up as a gap.
+ */
+export function DashboardMock({ flush = false }: { flush?: boolean }) {
   const demoData = useMemo(() => demoAnalyticsData(), []);
 
   const topPages = useMemo(
@@ -87,7 +91,7 @@ export function DashboardMock() {
           against the sidebar. 1290 is the compromise: the stretch is gone and the
           leftover margin is small enough not to read as a gap.
         */}
-        <div className="mx-auto w-full max-w-[1290px] space-y-6 p-8">
+        <div className={`w-full max-w-[1290px] space-y-6 ${flush ? 'p-6' : 'mx-auto p-8'}`}>
           {/* Header — the real page's single compact control row */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 w-[180px] items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm dark:border-none">

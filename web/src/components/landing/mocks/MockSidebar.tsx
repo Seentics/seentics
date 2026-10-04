@@ -5,8 +5,10 @@ import {
   Code2,
   Flame,
   GitBranch,
+  HeartPulse,
   LayoutDashboard,
   PanelLeftClose,
+  Radio,
   Settings,
   Video,
 } from 'lucide-react';
@@ -33,6 +35,12 @@ const NAV = [
   { label: 'Revenue', icon: Banknote },
   { label: 'Developers', icon: Code2 },
   { label: 'Settings', icon: Settings },
+] as const;
+
+/** The suite's other apps, as the real sidebar lists them under "Workspace". */
+const WORKSPACE = [
+  { label: 'Observability', icon: Radio, tint: 'text-[hsl(267_60%_47%)] dark:text-[hsl(267_75%_70%)]' },
+  { label: 'Uptime', icon: HeartPulse, tint: 'text-[hsl(145_72%_38%)] dark:text-[hsl(145_65%_55%)]' },
 ] as const;
 
 export type MockNavLabel = (typeof NAV)[number]['label'];
@@ -73,6 +81,21 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
           ))}
         </ul>
       </nav>
+
+      {/* Workspace */}
+      <div className="shrink-0 border-t border-sidebar-border px-3 pb-2 pt-3 dark:border-border/60">
+        <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
+        <ul className="space-y-0.5">
+          {WORKSPACE.map((item) => (
+            <li key={item.label}>
+              <span className="flex h-10 items-center gap-3 rounded-lg px-3 text-foreground/60">
+                <item.icon className={cn('h-[17px] w-[17px] shrink-0', item.tint)} />
+                <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {/* Account */}
       <div className="shrink-0 px-3 pb-6">

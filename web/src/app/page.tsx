@@ -2,14 +2,10 @@ import { isEnterprise } from '@/lib/features';
 import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
-import SocialProof from '@/components/landing/SocialProof';
-import ProductShowcase from '@/components/landing/ProductShowcase';
-import FeatureSections from '@/components/landing/FeatureSections';
-import SuiteSection from '@/components/landing/SuiteSection';
+import SuiteTabs from '@/components/landing/SuiteTabs';
+import WhyChoose from '@/components/landing/WhyChoose';
 import Pricing from '@/components/landing/Pricing';
-import PrivacyControl from '@/components/landing/PrivacyControl';
-import WhySwitch from '@/components/landing/WhySwitch';
-import FAQ from '@/components/landing/FAQ';
+import FaqCta from '@/components/landing/FaqCta';
 import Footer from '@/components/landing/Footer';
 
 export const dynamic = 'force-static';
@@ -20,18 +16,14 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="landing-light min-h-screen bg-background relative overflow-x-hidden">
+    <div className="landing-light min-h-screen bg-background relative overflow-x-clip">
       <LandingHeader />
       <main>
         <Hero />
-        <ProductShowcase />
-        <SocialProof />
-        <FeatureSections />
-        <PrivacyControl />
-        {/* <WhySwitch /> */}
-        <SuiteSection />
+        <SuiteTabs />
+        <WhyChoose />
         <Pricing />
-        <FAQ />
+        <FaqCta />
       </main>
       <Footer />
     </div>
