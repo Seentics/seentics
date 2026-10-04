@@ -5,6 +5,7 @@ import type { ModuleLifecycle } from "../../../app/module";
 import type {
   TrackerWebsites,
   WebsiteInvitations,
+  WebsiteMutations,
   WebsitePublicSharing,
   WebsiteQuery,
 } from "./index";
@@ -38,6 +39,9 @@ export interface WebsitesModule extends ModuleLifecycle {
    * access.
    */
   accessChecks: WebsiteQuery;
+
+  /** Settings changes outside a user's request — an operator's, through /internal. */
+  mutations: Pick<WebsiteMutations, "update">;
 
   /**
    * Share-link resolution, for the public dashboard.

@@ -226,6 +226,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         retention,
         trackerWebsites: websitesModule.trackerWebsites,
         websiteAccess: websitesModule.accessChecks,
+        websiteMutations: websitesModule.mutations,
         usage,
       }),
     },

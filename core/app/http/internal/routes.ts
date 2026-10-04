@@ -9,11 +9,12 @@ import type {
 import { buildAnalyticsIngestMeta } from "../../../platform/http/analytics-ingest-meta";
 import { clientIpForIngest } from "../../../platform/http/client-ip";
 import { isGlobalApiKeyValid } from "../../../platform/security/global-key";
+import { log } from "../../../platform/observability/logger";
 import type { AnalyticsIngestEvent } from "../../../modules/analytics/interfaces";
 import type { TrackerEvent } from "../../../modules/ingest/interfaces";
 import type { RetentionRunner } from "../../../platform/retention";
 import type { IngestQueue } from "../../../modules/ingest/interfaces";
-import type { TrackerWebsites, WebsiteQuery } from "../../../modules/websites/interfaces";
+import type { TrackerWebsites, WebsiteMutations, WebsiteQuery } from "../../../modules/websites/interfaces";
 import type { UserUsageService } from "../../services/usage/usage.service";
 import { parseJson } from "../../../platform/validation";
 import {
@@ -61,6 +62,8 @@ export function createInternalRoutes(deps: {
   websiteAccess: WebsiteQuery;
   /** Per-user usage, assembled from each module's own count. */
   usage: UserUsageService;
+  /** Turning a website's tracking off and on, for the admin dashboard. */
+  websiteMutations: Pick<WebsiteMutations, "update">;
 }) {
   const { queue, retention } = deps;
   const internalRoutes = new Hono();
@@ -81,6 +84,19 @@ internalRoutes.get("/user-resource-counts", async (c) => {
   }
 });
 internalRoutes.post("/user/sync", (c) => c.json({ data: { ok: true } }));
+/**
+ * Turn a website's tracking off or back on — an operator's control (admin dashboard), for
+ * abuse or runaway traffic. The tracker refuses an inactive site at init and collect; its
+ * data is kept.
+ */
+internalRoutes.put("/websites/:id/active", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { active?: unknown };
+  if (typeof body.active !== "boolean") return c.json({ error: "active must be true or false" }, 400);
+  const updated = await deps.websiteMutations.update(c.req.param("id"), { isActive: body.active });
+  if (!updated) return c.json({ error: "website not found" }, 404);
+  log.warn({ category: "websites", msg: body.active ? "website_enabled_by_operator" : "website_disabled_by_operator", website_id: c.req.param("id") });
+  return c.json({ data: { websiteId: c.req.param("id"), active: body.active } });
+});
 internalRoutes.get("/system/stats", (c) => c.json({ data: {} }));
 internalRoutes.get("/website-owner", async (c) => {
   const websiteId = c.req.query("website_id")?.trim() ?? "";
