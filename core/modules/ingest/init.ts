@@ -48,6 +48,7 @@ export function initIngestModule(deps: {
   // batches in flight rather than every in-memory buffer.
   const buffer = new CollectBuffer(deps.registry, postgresBatchQueue, logger);
   const worker = new BatchWorker(postgresBatchQueue, deps.registry, logger);
+  let appliesQueue = true;
 
   return {
     queue: buffer,
@@ -64,7 +65,9 @@ export function initIngestModule(deps: {
     start(cfg) {
       buffer.configure(cfg);
       buffer.start();
-      worker.start();
+      // An `api` process only queues; the `worker` process applies (config.ts `role`).
+      appliesQueue = cfg.role !== "api";
+      if (appliesQueue) worker.start();
     },
 
     /**
@@ -80,6 +83,7 @@ export function initIngestModule(deps: {
     async stop() {
       buffer.stop();
       await buffer.flushNow();
+      if (!appliesQueue) return;
       await worker.stop();
       // `stop` prevents timer races; the explicit flag permits this one final drain.
       await worker.drainOnce(true);

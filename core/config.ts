@@ -207,6 +207,20 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   const logLevel = (process.env.LOG_LEVEL ?? (isProduction ? "info" : "debug")).toLowerCase();
   /** When true, emit structured `tracker_collect` / ingest summaries at `info` (see also `LOG_LEVEL=debug`). */
   const diagnosticLog = parseBool(process.env.SEENTICS_DIAGNOSTIC_LOG, false);
+  /**
+   * What this process runs. `all` (the default) is everything in one process. A deployment
+   * that outgrows one core runs two: `api` serves HTTP and queues tracker batches, `worker`
+   * applies the queue and runs the scheduled jobs. Bun runs JavaScript on one thread, so
+   * one process tops out at one core however many the container may use; in the benchmark
+   * that is where ingest stopped keeping up. Exactly one process may apply the queue — the
+   * replay spool lives in the process that applies it (SessionChunkBuffer).
+   */
+  const roleEnv = (process.env.CORE_ROLE ?? "all").trim().toLowerCase();
+  if (roleEnv !== "all" && roleEnv !== "api" && roleEnv !== "worker") {
+    throw new Error(`CORE_ROLE must be all, api or worker (got "${roleEnv}")`);
+  }
+  const role = roleEnv as "all" | "api" | "worker";
+
   /** Requests that exceed this duration emit an additional slow_request warn log. 0 disables. */
   const slowRequestThresholdMs = parseIntEnv(process.env.SLOW_REQUEST_THRESHOLD_MS, 500);
 
@@ -218,6 +232,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     jwtSecret,
     globalApiKey,
     gatewayOnly,
+    role,
     environment,
     isProduction,
     s3: { bucket, heatmapBucket, region, endpoint, publicEndpoint: s3PublicEndpoint, accessKey, secretKey },

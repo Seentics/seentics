@@ -131,7 +131,9 @@ core_log.info({ msg: 'http_listening', port });
 // Run migrations and init after the HTTP server is already accepting connections.
 // /health returns 503 until this completes, so Docker healthcheck waits correctly.
 try {
-  await runCoreMigrations(cfg.databaseUrl);
+  // The API process migrates; a worker starts after it is healthy (deploy/docker-compose.prod.yml)
+  // and must not race it with a second push of the same schema.
+  if (cfg.role !== "worker") await runCoreMigrations(cfg.databaseUrl);
   // Geo database, tracker caches, engines, flushers and the scheduler are all
   // started by the composed application — see `app/bootstrap.ts`.
   await application.start();

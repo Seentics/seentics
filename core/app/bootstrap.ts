@@ -244,11 +244,15 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       // `hll` extension) and raw events otherwise.
       await analyticsModule.rollups.detect();
 
-      startScheduler(cfg, {
-        heatmapScreenshots: heatmapsModule.maintenance,
-        retention,
-        analyticsRollups: analyticsModule.rollups,
-      });
+      // Scheduled jobs belong to the process that does background work, not the one serving
+      // requests: a rollup rebuild on the API process held up every request behind it.
+      if (cfg.role !== "api") {
+        startScheduler(cfg, {
+          heatmapScreenshots: heatmapsModule.maintenance,
+          retention,
+          analyticsRollups: analyticsModule.rollups,
+        });
+      }
 
       logger.info({ msg: "modules_started", modules: Object.keys(modules) });
     },

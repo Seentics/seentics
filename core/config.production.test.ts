@@ -4,7 +4,7 @@ import { env } from "./config";
 const keys = [
   "DATABASE_URL", "ENVIRONMENT", "NODE_ENV", "JWT_SECRET", "GLOBAL_API_KEY",
   "CORS_ALLOWED_ORIGINS", "S3_ENDPOINT", "S3_PUBLIC_ENDPOINT",
-  "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+  "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "CORE_ROLE",
 ] as const;
 const saved = new Map<string, string | undefined>();
 
@@ -32,6 +32,17 @@ describe("production configuration", () => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+  });
+
+  it("runs every role in one process unless CORE_ROLE splits them", () => {
+    delete process.env.CORE_ROLE;
+    expect(env().role).toBe("all");
+    process.env.CORE_ROLE = " Worker ";
+    expect(env().role).toBe("worker");
+    process.env.CORE_ROLE = "api";
+    expect(env().role).toBe("api");
+    process.env.CORE_ROLE = "both";
+    expect(() => env()).toThrow("CORE_ROLE");
   });
 
   it("normalizes the environment name and accepts explicit, secure settings", () => {
