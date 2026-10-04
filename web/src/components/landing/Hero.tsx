@@ -15,9 +15,10 @@ export default function Hero() {
             See everything happening <span className="text-primary">on your website.</span>
           </h1>
 
-          <p className="landing-lead mx-auto mb-9 max-w-2xl text-balance">
-            Analytics, session replay, logs, uptime monitoring and automations
-            in one <span className="whitespace-nowrap">privacy-first</span> platform.
+          <p className="landing-lead mx-auto mb-9 max-w-4xl text-balance">
+            Track visitors, replay sessions, collect logs and traces, monitor uptime and trigger
+            automations in one <span className="whitespace-nowrap">privacy-first</span> platform.
+            Start with analytics and add the rest when you need it.
           </p>
 
           <div>
