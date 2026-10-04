@@ -10,6 +10,8 @@
 
 interface Env {
   GATEWAY_URL?: string;
+  /** Shared with the gateway: proves the visitor address below came from this Function. */
+  EDGE_PROXY_SECRET?: string;
 }
 
 interface RequestContext {
@@ -25,5 +27,14 @@ export const onRequest = async (context: RequestContext): Promise<Response> => {
   const upstreamUrl = new URL(`/api/v1/${segments.join('/')}`, env.GATEWAY_URL ?? 'https://api.seentics.com');
   upstreamUrl.search = new URL(request.url).search;
 
-  return fetch(new Request(upstreamUrl, request));
+  // On this second hop Cloudflare reports this Function as the client, so every user would
+  // share one address at the gateway. The visitor's own address goes along, with the
+  // secret that lets the gateway believe it (gateway/lib/client-ip.ts).
+  const forwarded = new Request(upstreamUrl, request);
+  const visitor = request.headers.get('CF-Connecting-IP');
+  if (env.EDGE_PROXY_SECRET && visitor) {
+    forwarded.headers.set('X-Seentics-Edge-Client-IP', visitor);
+    forwarded.headers.set('X-Seentics-Edge-Secret', env.EDGE_PROXY_SECRET);
+  }
+  return fetch(forwarded);
 };
