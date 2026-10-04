@@ -219,7 +219,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   // between this, the logo, and the Products & Tools menu, the header was
   // getting crowded.
   const navLinks = [
-    { name: 'Products',  href: anchorHref('#why') },
     { name: 'Docs',      href: '/docs' },
     { name: 'Pricing',   href: anchorHref('#pricing') },
   ];
