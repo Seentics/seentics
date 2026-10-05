@@ -21,7 +21,7 @@ import type {
 type RepoCall = { fn: string; websiteId: string };
 
 const repoCalls: RepoCall[] = [];
-const reportCalls: { websiteId: string; funnelId: string; startIso: string; endIso: string }[] = [];
+const reportCalls: { websiteId: string; steps: unknown[]; startIso: string; endIso: string; windowHours: number | null }[] = [];
 
 let funnelRows: Funnel[] = [];
 
@@ -90,12 +90,16 @@ mock.module("../repositories/funnel.repository", () => ({
  * replaces what used to be a `mock.module` of a funnels-owned repository.
  */
 const analyticsEvents: AnalyticsFunnelEvents = {
-  async countFunnelStepVisitors(websiteId, funnelId, startIso, endIso) {
-    reportCalls.push({ websiteId, funnelId, startIso, endIso });
-    return [
-      { step_order: -1, cnt: 4 },
-      { step_order: 0, cnt: 10 },
-    ];
+  async countFunnelStepVisitors() {
+    throw new Error("the report no longer reads the browser's funnel events");
+  },
+  async isValidPattern(pattern) {
+    return !pattern.startsWith("(unclosed");
+  },
+  async countFunnelProgress(websiteId, steps, startIso, endIso, windowHours) {
+    reportCalls.push({ websiteId, steps, startIso, endIso, windowHours: windowHours ?? null });
+    const reached = [10, 4, 2, 1];
+    return [...steps.map((_, i) => ({ step_order: i, cnt: reached[i] ?? 0 })), { step_order: -1, cnt: reached[steps.length - 1] ?? 0 }];
   },
 };
 
@@ -115,8 +119,8 @@ const silentLogger: Logger = {
 
 function makeFunnel(overrides: Partial<Funnel> = {}): Funnel {
   const steps = overrides.steps ?? [
-    { id: "s0", name: "View", order: 0, step_type: "page_view", match_type: "exact" as const },
-    { id: "s1", name: "Pay", order: 1, step_type: "page_view", match_type: "exact" as const },
+    { id: "s0", name: "View", order: 0, step_type: "page_view", page_path: "/view", match_type: "exact" as const },
+    { id: "s1", name: "Pay", order: 1, step_type: "page_view", page_path: "/pay", match_type: "exact" as const },
   ];
   return {
     id: "fn_1",
@@ -125,6 +129,7 @@ function makeFunnel(overrides: Partial<Funnel> = {}): Funnel {
     name: "Checkout",
     description: "",
     is_active: true,
+    conversion_window_hours: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     stats: { totalEntries: 0, completions: 0, conversionRate: 0, stepBreakdown: [] },
@@ -300,6 +305,64 @@ describe("funnel domain services", () => {
         conversionRate: 40,
       });
       expect(report?.stepBreakdown.map((s) => s.stepName)).toEqual(["View", "Pay"]);
+    });
+
+    it("counts from the page views and events, handing over each step as a definition", async () => {
+      await service.report(WEBSITE_UUID, "fn_1");
+      expect(reportCalls[0]?.steps).toEqual([
+        { kind: "page", path: "/view", match: "exact" },
+        { kind: "page", path: "/pay", match: "exact" },
+      ]);
+    });
+
+    it("reads an event step by its event name", async () => {
+      mockFindFunnel.mockResolvedValueOnce(makeFunnel({
+        steps: [
+          { id: "s0", name: "Land", order: 0, step_type: "page_view", page_path: "/", match_type: "exact" },
+          { id: "s1", name: "Buy", order: 1, step_type: "event", event_type: "purchase", match_type: "exact" },
+        ],
+      }));
+      await service.report(WEBSITE_UUID, "fn_1");
+      expect(reportCalls[0]?.steps).toEqual([
+        { kind: "page", path: "/", match: "exact" },
+        { kind: "event", event: "purchase" },
+      ]);
+    });
+
+    it("hands the funnel's time between steps to the count", async () => {
+      mockFindFunnel.mockResolvedValueOnce(makeFunnel({ conversion_window_hours: 24 }));
+      await service.report(WEBSITE_UUID, "fn_1");
+      expect(reportCalls[0]?.windowHours).toBe(24);
+      await service.report(WEBSITE_UUID, "fn_1");
+      expect(reportCalls[1]?.windowHours).toBeNull();
+    });
+
+    it("does not fail on a pattern the database cannot run, and says which step it is", async () => {
+      mockFindFunnel.mockResolvedValueOnce(makeFunnel({
+        steps: [
+          { id: "s0", name: "View", order: 0, step_type: "page_view", page_path: "/view", match_type: "exact" },
+          { id: "s1", name: "Checkout", order: 1, step_type: "page_view", page_path: "(unclosed", match_type: "regex" },
+        ],
+      }));
+      const report = await service.report(WEBSITE_UUID, "fn_1");
+      expect(report?.completions).toBe(0);
+      expect(report?.warnings?.[0]).toContain("Checkout");
+      expect(report?.warnings?.[0]).toContain("not a valid regular expression");
+    });
+
+    it("never completes a funnel that has a step with nothing to match", async () => {
+      mockFindFunnel.mockResolvedValueOnce(makeFunnel({
+        steps: [
+          { id: "s0", name: "View", order: 0, step_type: "page_view", page_path: "/view", match_type: "exact" },
+          { id: "s1", name: "Broken", order: 1, step_type: "page_view", match_type: "exact" },
+          { id: "s2", name: "Pay", order: 2, step_type: "page_view", page_path: "/pay", match_type: "exact" },
+        ],
+      }));
+      const report = await service.report(WEBSITE_UUID, "fn_1");
+      expect(reportCalls[0]?.steps).toHaveLength(1);   // only the part that can be reached is counted
+      expect(report?.totalEntries).toBe(10);
+      expect(report?.completions).toBe(0);
+      expect(report?.stepBreakdown.map((s) => s.count)).toEqual([10, 0, 0]);
     });
 
     it("returns null for a funnel that does not exist", async () => {

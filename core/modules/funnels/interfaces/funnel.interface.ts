@@ -51,6 +51,8 @@ export type Funnel = {
   description: string;
   is_active: boolean;
   steps: FunnelStep[];
+  /** Hours allowed between one step and the next; `null` is no limit. */
+  conversion_window_hours: number | null;
   created_at: string;
   updated_at: string;
   /** Placeholder counters; the real numbers come from `FunnelPerformance`. */
@@ -75,6 +77,8 @@ export type FunnelReport = {
     dropoffCount: number;
     dropoffRate: number;
   }[];
+  /** Things the owner should know about how this was counted, such as a step that cannot match. */
+  warnings?: string[];
 };
 
 export type CreateFunnelInput = {
@@ -82,6 +86,7 @@ export type CreateFunnelInput = {
   description?: string;
   steps?: Record<string, unknown>[];
   is_active?: boolean;
+  conversion_window_hours?: number | null;
 };
 
 /**
@@ -96,6 +101,7 @@ export type UpdateFunnelInput = {
   description?: string;
   is_active?: boolean;
   steps?: Record<string, unknown>[];
+  conversion_window_hours?: number | null;
 };
 
 /**

@@ -80,6 +80,7 @@ function makeFunnel(overrides: Partial<Funnel> = {}): Funnel {
     name: "Checkout",
     description: "",
     is_active: true,
+    conversion_window_hours: null,
     steps: [
       { id: "s0", name: "View", order: 0, step_type: "page_view", match_type: "exact" },
     ],

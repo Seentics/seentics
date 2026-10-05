@@ -1,4 +1,5 @@
 import { analyticsReadSql as pgSql } from "../../../db";
+import { buildFunnelProgressQuery, type FunnelProgressStep } from "../lib/funnel-progress-sql";
 
 /** One bucket of the aggregation: a step index (or `-1`) and its distinct visitors. */
 export type FunnelStepCount = { step_order: number | null; cnt: number };
@@ -36,4 +37,42 @@ export async function countFunnelStepVisitors(
     GROUP BY step_order
     ORDER BY step_order ASC
   `;
+}
+
+/**
+ * How far each visitor got through a funnel, counted from the page views and events themselves.
+ *
+ * Returns one row per step (`step_order` 0, 1, …) with the visitors who reached it in order,
+ * and the completions (`-1`) as the last step's count, the shape the funnel report reads. See
+ * {@link buildFunnelProgressQuery} for what counts as reaching a step.
+ */
+export async function countFunnelProgress(
+  websiteId: string,
+  steps: FunnelProgressStep[],
+  startIso: string,
+  endIso: string,
+  windowHours: number | null = null,
+): Promise<FunnelStepCount[]> {
+  if (steps.length === 0) return [];
+  const { text, params } = buildFunnelProgressQuery(websiteId, steps, startIso, endIso, windowHours);
+  const rows = await pgSql.unsafe<FunnelStepCount[]>(text, params as never[]);
+  const last = rows.find((r) => r.step_order === steps.length - 1);
+  return [...rows, { step_order: -1, cnt: last?.cnt ?? 0 }];
+}
+
+/**
+ * Whether the database accepts `pattern` as a regular expression.
+ *
+ * Asked of the database rather than a JavaScript engine, because the syntaxes differ: a named
+ * group is fine in a browser and an error here, and it is the database that runs the pattern.
+ */
+export async function isValidRegexPattern(pattern: string): Promise<boolean> {
+  try {
+    await pgSql`SELECT '' ~ ${pattern} AS ok`;
+    return true;
+  } catch (error) {
+    // 2201B: invalid_regular_expression. Anything else is a fault, not an answer.
+    if ((error as { code?: string }).code === "2201B") return false;
+    throw error;
+  }
 }

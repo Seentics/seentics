@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { AuthVars } from "../../../platform/middleware/auth";
 import { parseJson, validationErrorResponse } from "../../../platform/validation";
 import type { CreateFunnelInput, UpdateFunnelInput } from "../interfaces";
+import { FunnelValidationError } from "../lib/funnel-validation";
 import { funnelsBulkDeleteSchema, funnelsUpsertBodySchema } from "../validators/funnel.schema";
 import { funnelFailure, requireFunnelAccess } from "./funnel-access";
 import type { FunnelControllerDeps } from "./funnel-controller.types";
@@ -37,6 +38,7 @@ export function createFunnel(deps: FunnelControllerDeps) {
       );
       return c.json({ data }, 201);
     } catch (error) {
+      if (error instanceof FunnelValidationError) return c.json({ error: error.message, issues: error.issues }, 400);
       return funnelFailure(c, "create", websiteRef, error);
     }
   };
@@ -88,6 +90,7 @@ export function updateFunnel(deps: FunnelControllerDeps) {
       );
       return data ? c.json({ data }) : c.json({ error: "not found" }, 404);
     } catch (error) {
+      if (error instanceof FunnelValidationError) return c.json({ error: error.message, issues: error.issues }, 400);
       return funnelFailure(c, "update", websiteRef, error);
     }
   };

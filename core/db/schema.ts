@@ -218,6 +218,8 @@ export const funnels = pgTable(
     description: text("description"),
     isActive: boolean("is_active").notNull().default(true),
     steps: jsonb("steps").notNull().$type<Record<string, unknown>[]>(),
+    /** Hours allowed between one step and the next; null is no limit. */
+    conversionWindowHours: integer("conversion_window_hours"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

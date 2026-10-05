@@ -13,9 +13,18 @@ import {
   listFunnels,
   updateFunnel,
 } from "../repositories/funnel.repository";
+import { FunnelValidationError, validateFunnelDefinition } from "../lib/funnel-validation";
 
 /** CRUD for funnel definitions. The controller supplies an authorized website id. */
 export class FunnelDefinitionService implements FunnelQuery, FunnelMutations {
+  /** `isValidPattern` asks the database whether a regular expression is one it can run. */
+  constructor(private readonly isValidPattern: (pattern: string) => Promise<boolean> = async () => true) {}
+
+  private async check(input: { steps?: Record<string, unknown>[] | undefined; conversion_window_hours?: unknown }) {
+    const issues = await validateFunnelDefinition(input, this.isValidPattern);
+    if (issues.length) throw new FunnelValidationError(issues);
+  }
+
   list(websiteId: string): Promise<Funnel[]> {
     return listFunnels(websiteId);
   }
@@ -24,15 +33,17 @@ export class FunnelDefinitionService implements FunnelQuery, FunnelMutations {
     return findFunnel(websiteId, funnelId);
   }
 
-  create(websiteId: string, userId: string, input: CreateFunnelInput): Promise<Funnel> {
+  async create(websiteId: string, userId: string, input: CreateFunnelInput): Promise<Funnel> {
+    await this.check(input);
     return insertFunnel(websiteId, userId, input);
   }
 
-  update(
+  async update(
     websiteId: string,
     funnelId: string,
     input: UpdateFunnelInput,
   ): Promise<Funnel | null> {
+    await this.check(input);
     return updateFunnel(websiteId, funnelId, input);
   }
 

@@ -10,6 +10,7 @@ export type { AnalyticsModule, AnalyticsRollups } from "./analytics.module";
 
 export type { TrafficSummary } from "./traffic-summary.interface";
 export { emptyTrafficSummary } from "./traffic-summary.interface";
+export { MAX_FUNNEL_STEPS } from "./analytics.interface";
 
 export type {
   AnalyticsBehaviour,
@@ -17,6 +18,7 @@ export type {
   AnalyticsDimensions,
   AnalyticsExport,
   AnalyticsFunnelEvents,
+  FunnelProgressStep,
   AnalyticsGoals,
   AnalyticsIngestEvent,
   AnalyticsIngestWriter,

@@ -13,7 +13,7 @@ export function initFunnelsModule(deps: {
   /** Funnel step counts are an `analytics_events` aggregation. */
   analyticsModule: AnalyticsModule;
 }): FunnelsModule {
-  const definitions = new FunnelDefinitionService();
+  const definitions = new FunnelDefinitionService((pattern) => deps.analyticsModule.funnelEvents.isValidPattern(pattern));
   const performance = new FunnelPerformanceService(deps.analyticsModule.funnelEvents);
   const trackerConfig = new TrackerFunnelConfigService();
 

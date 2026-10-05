@@ -49,6 +49,7 @@ function mapFunnel(row: typeof funnels.$inferSelect): Funnel {
     description: row.description ?? "",
     is_active: row.isActive,
     steps,
+    conversion_window_hours: row.conversionWindowHours ?? null,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
     // Zeroed rather than omitted: the funnel list renders these cells before the
@@ -101,6 +102,7 @@ export async function insertFunnel(
       description: input.description ?? null,
       isActive: input.is_active ?? true,
       steps: input.steps ?? [],
+      conversionWindowHours: input.conversion_window_hours ?? null,
     })
     .returning();
   return mapFunnel(row!);
@@ -121,6 +123,8 @@ export async function updateFunnel(
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.is_active != null ? { isActive: patch.is_active } : {}),
       ...(patch.steps != null ? { steps: patch.steps } : {}),
+      // null is a real value here: it clears the window.
+      ...(patch.conversion_window_hours !== undefined ? { conversionWindowHours: patch.conversion_window_hours } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteId)))

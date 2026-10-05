@@ -266,4 +266,32 @@ export interface AnalyticsFunnelEvents {
     startIso: string,
     endIso: string,
   ): Promise<Array<{ step_order: number | null; cnt: number }>>;
+
+  /**
+   * Visitors per step of a funnel, counted from the page views and events in the range rather
+   * than from progress the browser reported. `-1` is the completions.
+   */
+  countFunnelProgress(
+    websiteId: string,
+    steps: FunnelProgressStep[],
+    startIso: string,
+    endIso: string,
+    windowHours?: number | null,
+  ): Promise<Array<{ step_order: number | null; cnt: number }>>;
+
+  /** Whether the database accepts this as a regular expression. */
+  isValidPattern(pattern: string): Promise<boolean>;
 }
+
+/**
+ * One funnel step, in the terms the events table understands.
+ *
+ * A page step matches a pageview's path (the URL without host, query or fragment); an event
+ * step matches a custom event by name. `match` says how a page step reads its path.
+ */
+export type FunnelProgressStep =
+  | { kind: "page"; path: string; match: "exact" | "contains" | "starts_with" | "regex" }
+  | { kind: "event"; event: string };
+
+/** Most steps a funnel may have. */
+export const MAX_FUNNEL_STEPS = 20;
