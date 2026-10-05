@@ -15,7 +15,6 @@ export type Plan = {
   tier: 'free' | 'starter' | 'pro' | 'business';
   description: string | null;
   priceMonthly: number;
-  priceYearly: number;
   isBundle: boolean;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];

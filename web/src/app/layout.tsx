@@ -13,7 +13,6 @@ import ConsentBanner from '@/components/consent-banner';
 import CrispChat from '@/components/crisp-chat';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import LemonSqueezyScript from '@/components/lemon-squeezy-script';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -99,9 +98,6 @@ export default function RootLayout({
 
         {/* Global Chat Support */}
         <CrispChat />
-
-        {/* Lemon Squeezy Checkout Script - Enterprise only */}
-        {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}
       </body>
     </html>
   );

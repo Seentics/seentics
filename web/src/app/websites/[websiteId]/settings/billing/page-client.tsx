@@ -61,7 +61,7 @@ export default function BillingSettingsPage() {
   const planPrice = subscription?.priceMonthly ?? 0;
   const isFreePlan = planPrice === 0;
   const displayName = subscription?.plan || 'Free';
-  const periodLabel = isFreePlan ? '' : subscription?.billingInterval === 'yearly' ? '/mo (billed yearly)' : '/month';
+  const periodLabel = isFreePlan ? '' : '/month';
 
   const handleManagePayments = async () => {
     if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
@@ -70,7 +70,8 @@ export default function BillingSettingsPage() {
     const tab = window.open('', '_blank');
     try {
       const res = await api.post('/user/billing/portal');
-      const url = res.data?.data?.url ?? 'https://seentics.lemonsqueezy.com/billing';
+      const url = res.data?.data?.url;
+      if (!url) throw new Error('no portal');
       if (tab) tab.location.href = url; else window.location.href = url;
     } catch {
       tab?.close();
@@ -97,7 +98,7 @@ export default function BillingSettingsPage() {
     if (selection.price === 0) { router.push(`/websites/${websiteId}`); return; }
     try {
       setCheckoutLoading(true);
-      const res = await api.post('/user/billing/checkout', { plan: selection.plan, billing: selection.billing });
+      const res = await api.post('/user/billing/checkout', { plan: selection.plan });
       if (res.data.success && res.data.data.changed) {
         // Switched in place on the existing subscription — no checkout.
         toast.success('Plan changed. The difference is prorated on your bill.');

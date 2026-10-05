@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PostgreSQL-backed user and website storage in the Gateway
   - Core analytics features: page views, sessions, custom events
   - Modern, premium dashboard UI and brand identity
-  - Lemon Squeezy integration for cloud-enabled billing
+  - Polar integration for cloud-enabled billing
 
 ### Removed
 - **Funnel Features**: Removed all funnel-related code and UI to focus on core metrics

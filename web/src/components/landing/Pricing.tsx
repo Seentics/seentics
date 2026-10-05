@@ -49,10 +49,8 @@ export default function Pricing() {
       }
       const response = await api.post('/user/billing/checkout', {
         plan: selection.plan,
-        billing: selection.billing,
       });
       if (response.data.success && response.data.data.checkoutUrl) {
-        setWaitingForPayment(true);
         openCheckout(
           response.data.data.checkoutUrl,
           () => {
@@ -64,6 +62,7 @@ export default function Pricing() {
             toast.info('Payment received — your plan will activate shortly.');
             router.push('/websites');
           },
+          () => setWaitingForPayment(true),
         );
       }
     } catch {

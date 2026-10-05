@@ -138,17 +138,6 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
           Every plan includes the full product. Pay for the traffic you actually get, and
           change plan whenever you like.
         </p>
-        {/* Both halves of the billing toggle get clicked — people flip it to compare */}
-        <div className="mt-5 inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/[0.03] p-0.5">
-          <span className="relative rounded-full bg-white px-3 py-1 text-[10px] font-semibold shadow-sm">
-            Monthly
-            <HotSpot size={62} strength={0.42} />
-          </span>
-          <span className="relative px-3 py-1 text-[10px] font-medium text-black/50">
-            Yearly · save 20%
-            <HotSpot size={78} strength={0.66} />
-          </span>
-        </div>
       </div>
 
       {/* Plans */}

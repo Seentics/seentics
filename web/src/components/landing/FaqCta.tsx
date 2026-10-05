@@ -13,7 +13,7 @@ const FAQS = [
   },
   {
     q: 'How much does it cost?',
-    a: 'Paid plans start at $9 a month for Analytics and $9 for Observability, or $14 a month for the Suite. Yearly billing is 20% cheaper.',
+    a: 'Paid plans are monthly: Analytics starts at $9 a month and the Suite, which adds Observability, at $14. Cancel any time from the billing page.',
   },
   {
     q: 'Is there a free plan?',

@@ -27,13 +27,11 @@ export interface SubscriptionData {
   /** Real catalog id, e.g. `core-free`/`suite-pro` — use this for comparisons, `plan` is just the display name. */
   planId?: string;
   status: string;
-  billingInterval?: string;
   usage: SubscriptionUsage;
   features: string[];
   isActive: boolean;
   isCustomPlan?: boolean;
   priceMonthly?: number;
-  priceYearly?: number;
   currentPeriodEnd?: string;
   cancelAtPeriodEnd?: boolean;
 }

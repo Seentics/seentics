@@ -81,16 +81,6 @@ const formatNum = (n: number) => {
   return n.toLocaleString();
 };
 
-declare global {
-  interface Window {
-    createLemonSqueezy?: () => void;
-    LemonSqueezy?: {
-      Url: { Open: (url: string) => void };
-      Setup: () => void;
-    };
-  }
-}
-
 const colorMap = {
   teal:   { bg: 'bg-teal-500',   hover: 'hover:bg-teal-600',   check: 'text-teal-500',   border: 'border-teal-500',   light: 'bg-teal-500/10' },
   violet: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500', border: 'border-indigo-500', light: 'bg-indigo-500/10' },
@@ -111,7 +101,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const { isAuthenticated } = useAuth();
   const { data: allPlans, isLoading: plansLoading } = usePlans('core');
   const [loading, setLoading] = React.useState(false);
-  const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
   const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
   const normalizedPlan = currentPlan === 'free' ? 'core-free' : currentPlan;
@@ -138,7 +127,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
     try {
       setLoading(true);
-      const response = await api.post('/user/billing/checkout', { plan: planId, billing });
+      const response = await api.post('/user/billing/checkout', { plan: planId });
 
       // Already paying for these products: the subscription was switched in
       // place, prorated — there is no checkout to open.
@@ -150,7 +139,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       }
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        setWaitingForPayment(true);
         openCheckout(
           response.data.data.checkoutUrl,
           () => {
@@ -163,6 +151,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
             onClose();
             router.push('/websites');
           },
+          () => setWaitingForPayment(true),
         );
       } else {
         throw new Error(response.data.message || 'Failed to create checkout session');
@@ -222,44 +211,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           </div>
         </DialogHeader>
 
-        {/* Billing toggle */}
-        <div className="flex items-center justify-center gap-3 mt-5">
-          <button
-            onClick={() => setBilling('monthly')}
-            className={cn(
-              "text-sm font-medium transition-colors",
-              billing === 'monthly' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
-            className={cn(
-              "relative w-10 h-5 rounded-full transition-colors focus:outline-none",
-              billing === 'yearly' ? "bg-primary" : "bg-muted"
-            )}
-            aria-label="Toggle billing period"
-          >
-            <span className={cn(
-              "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-              billing === 'yearly' && "translate-x-5"
-            )} />
-          </button>
-          <button
-            onClick={() => setBilling('yearly')}
-            className={cn(
-              "text-sm font-medium transition-colors flex items-center gap-1.5",
-              billing === 'yearly' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Yearly
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-              Save 20%
-            </span>
-          </button>
-        </div>
-
         {plansLoading && (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -276,11 +227,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
               const presentation = TIER_PRESENTATION[plan.tier] ?? DEFAULT_PRESENTATION;
               const PlanIcon = presentation.icon;
               const colors = colorMap[presentation.color];
-              // priceYearly from the API is the TOTAL yearly charge, not a
-              // monthly-equivalent — divide it back down for the "/mo" line.
-              const yearlyMonthlyEquivalent = Math.round(plan.priceYearly / 12);
-              const displayPrice = billing === 'yearly' ? yearlyMonthlyEquivalent : plan.priceMonthly;
-              const savingsPerYear = plan.priceMonthly * 12 - plan.priceYearly;
               const highlighted = plan.tier === 'pro';
 
               return (
@@ -303,17 +249,9 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                       </div>
                       <h3 className="text-base font-semibold">{planLabel(plan)}</h3>
                       <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-2xl font-bold tracking-tight">${displayPrice}</span>
+                        <span className="text-2xl font-bold tracking-tight">${plan.priceMonthly}</span>
                         <span className="text-xs text-muted-foreground">/mo</span>
                       </div>
-                      {billing === 'yearly' && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          ${plan.priceYearly}/yr
-                          {savingsPerYear > 0 && (
-                            <span className="ml-1 text-emerald-600 font-medium">Save ${savingsPerYear}/yr</span>
-                          )}
-                        </p>
-                      )}
                     </div>
 
                     <ul className="space-y-2 flex-1 mb-5">

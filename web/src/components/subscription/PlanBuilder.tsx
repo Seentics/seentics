@@ -20,7 +20,6 @@ export interface PlanSelection {
   /** A real plan id from gateway's catalog, e.g. `core-free`/`suite-pro` — opaque here, gateway validates it at checkout. */
   plan: string;
   price: number;
-  billing: 'monthly' | 'yearly';
 }
 
 interface PlanBuilderProps {
@@ -66,7 +65,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
-    onSubscribe({ plan: plan.id, price: plan.priceMonthly, billing: 'monthly' });
+    onSubscribe({ plan: plan.id, price: plan.priceMonthly });
   };
 
   const renderCard = (plan: Plan) => {

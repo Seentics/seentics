@@ -28,9 +28,6 @@ export const config = {
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@seentics.com',
   resendFromEmail: process.env.NEXT_PUBLIC_RESEND_FROM_EMAIL || 'noreply@seentics.com',
 
-  // External Services
-  lemonSqueezyUrl: 'https://assets.lemonsqueezy.com/lemon.js',
-
   // Feature Flags
   enableEmailSupport: process.env.NEXT_PUBLIC_ENABLE_EMAIL_SUPPORT !== 'false',
   enableOAuth: process.env.NEXT_PUBLIC_ENABLE_OAUTH !== 'false',

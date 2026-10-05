@@ -538,14 +538,6 @@
   display: none;  /* Chrome, Safari, Opera */
 }
 
-/* Lemon Squeezy Checkout Overlay — wider modal */
-.lemonsqueezy-overlay iframe {
-  max-width: 580px !important;
-  width: 95vw !important;
-  max-height: 90vh !important;
-  border-radius: 12px !important;
-}
-
 /* ── Density modes (set via data-density on <html>) ───────────────── */
 :root[data-density="compact"] .p-4 { padding: 0.75rem; }
 :root[data-density="compact"] .p-6 { padding: 1rem; }

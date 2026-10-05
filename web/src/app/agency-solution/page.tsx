@@ -85,7 +85,6 @@ const METHOD_COLOR: Record<string, string> = {
     POST: 'text-indigo-500 bg-indigo-500/10',
 };
 
-// The global LemonSqueezy interface is already defined elsewhere in the project.
 export default function AgencySolutionPage() {
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
