@@ -21,12 +21,16 @@ export default function CheckoutSuccessPage() {
       try {
         const res = await api.get('/user/billing/usage');
         const plan: string = (res.data?.data?.plan ?? 'free').toLowerCase();
+        const planId: string = String(res.data?.data?.planId ?? '').toLowerCase();
 
         if (initialPlan.current === null) {
           initialPlan.current = plan;
         }
 
-        const planChanged = plan !== initialPlan.current;
+        // The gateway sends customers back with the plan they bought, so this is done the moment the
+        // webhook has switched them to it (it may already have, by the time they are back here).
+        const bought = new URLSearchParams(window.location.search).get('plan')?.toLowerCase();
+        const planChanged = bought ? planId === bought : plan !== initialPlan.current;
         const elapsed = Date.now() - startedAt.current;
 
         if (planChanged) {

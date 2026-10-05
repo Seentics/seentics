@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
-import { openCheckout } from '@/lib/checkout';
+import { startCheckout } from '@/lib/checkout';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
@@ -98,13 +98,11 @@ export default function BillingSettingsPage() {
     if (selection.price === 0) { router.push(`/websites/${websiteId}`); return; }
     try {
       setCheckoutLoading(true);
-      const res = await api.post('/user/billing/checkout', { plan: selection.plan });
-      if (res.data.success && res.data.data.changed) {
-        // Switched in place on the existing subscription — no checkout.
+      const result = await startCheckout(selection.plan);
+      if (result.kind === 'changed') {
+        // Switched in place on the existing subscription: no checkout.
         toast.success('Plan changed. The difference is prorated on your bill.');
         await refetch();
-      } else if (res.data.success && res.data.data.checkoutUrl) {
-        openCheckout(res.data.data.checkoutUrl);
       }
     } catch (e: unknown) {
       const data = e && typeof e === 'object' && 'response' in e

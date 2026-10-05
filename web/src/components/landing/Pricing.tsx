@@ -3,14 +3,11 @@
 import { useAuth } from '@/stores/useAuthStore';
 import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
-import api from '@/lib/api';
-import { openCheckout } from '@/lib/checkout';
+import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const CHECKOUT_INTENT_KEY = 'seentics_checkout_intent';
-import { Loader2 } from 'lucide-react';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
@@ -18,52 +15,24 @@ export default function Pricing() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [waitingForPayment, setWaitingForPayment] = useState(false);
-
-  // Auto-trigger checkout if user just signed up with a plan intent
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const raw = sessionStorage.getItem(CHECKOUT_INTENT_KEY);
-    if (!raw) return;
-    try {
-      const intent = JSON.parse(raw) as PlanSelection;
-      sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
-      handleSubscribe(intent);
-    } catch {
-      sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
 
   const handleSubscribe = async (selection: PlanSelection) => {
+    if (selection.price === 0) {
+      router.push(isAuthenticated ? '/websites' : '/signup');
+      return;
+    }
     if (!isAuthenticated) {
-      sessionStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify(selection));
+      // Sign up first; the dashboard then takes them straight to this plan's checkout.
+      rememberCheckoutIntent(selection.plan);
       router.push('/signup');
       return;
     }
     try {
       setLoading(true);
-      if (selection.price === 0) {
+      const result = await startCheckout(selection.plan);
+      if (result.kind === 'changed') {
+        toast.success('Plan changed. The difference is prorated on your bill.');
         router.push('/websites');
-        return;
-      }
-      const response = await api.post('/user/billing/checkout', {
-        plan: selection.plan,
-      });
-      if (response.data.success && response.data.data.checkoutUrl) {
-        openCheckout(
-          response.data.data.checkoutUrl,
-          () => {
-            toast.success('Plan activated! Taking you to your dashboard…');
-            router.push('/websites');
-          },
-          () => {
-            setWaitingForPayment(false);
-            toast.info('Payment received — your plan will activate shortly.');
-            router.push('/websites');
-          },
-          () => setWaitingForPayment(true),
-        );
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
@@ -71,22 +40,6 @@ export default function Pricing() {
       setLoading(false);
     }
   };
-
-  if (waitingForPayment) {
-    return (
-      <section id="pricing" className="landing-section bg-background flex items-center justify-center min-h-[400px]">
-        <div className="text-center max-w-sm px-6">
-          <div className="flex justify-center mb-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Loader2 className="h-7 w-7 text-primary animate-spin" />
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold mb-2">Complete your payment</h2>
-          <p className="text-sm text-muted-foreground">Finish the checkout in the tab that just opened. Your plan will activate automatically once payment is confirmed.</p>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section id="pricing" className="landing-section landing-band landing-band-reverse">

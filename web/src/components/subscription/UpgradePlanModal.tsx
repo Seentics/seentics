@@ -7,7 +7,7 @@ import { CheckCircle, Crown, ArrowRight, X, TrendingUp, Rocket, Loader2 } from '
 import { useAuth } from '@/stores/useAuthStore';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { openCheckout } from '@/lib/checkout';
+import { startCheckout } from '@/lib/checkout';
 import { isEnterprise } from '@/lib/features';
 import { usePlans } from '@/features/plans/queries';
 import { PLAN_FAMILY_LABEL, planFamily } from '@/features/plans/types';
@@ -101,7 +101,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const { isAuthenticated } = useAuth();
   const { data: allPlans, isLoading: plansLoading } = usePlans('core');
   const [loading, setLoading] = React.useState(false);
-  const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
   const normalizedPlan = currentPlan === 'free' ? 'core-free' : currentPlan;
   const currentRank = TIER_RANK[(allPlans ?? []).find((p) => p.id === normalizedPlan)?.tier ?? 'free'] ?? 0;
@@ -127,34 +126,13 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
     try {
       setLoading(true);
-      const response = await api.post('/user/billing/checkout', { plan: planId });
-
+      const result = await startCheckout(planId);
       // Already paying for these products: the subscription was switched in
       // place, prorated — there is no checkout to open.
-      if (response.data.success && response.data.data.changed) {
+      if (result.kind === 'changed') {
         toast.success('Plan changed. The difference is prorated on your bill.');
         onClose();
         router.refresh();
-        return;
-      }
-
-      if (response.data.success && response.data.data.checkoutUrl) {
-        openCheckout(
-          response.data.data.checkoutUrl,
-          () => {
-            toast.success('Plan activated! Taking you to your dashboard…');
-            onClose();
-            router.push('/websites');
-          },
-          () => {
-            toast.info('Payment received — your plan will activate shortly.');
-            onClose();
-            router.push('/websites');
-          },
-          () => setWaitingForPayment(true),
-        );
-      } else {
-        throw new Error(response.data.message || 'Failed to create checkout session');
       }
     } catch (error: any) {
       console.error('Upgrade error:', error);
@@ -163,24 +141,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       setLoading(false);
     }
   };
-
-  if (waitingForPayment) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-sm">
-          <div className="flex flex-col items-center text-center py-8 gap-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Loader2 className="h-7 w-7 text-primary animate-spin" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-1">Complete your payment</h3>
-              <p className="text-sm text-muted-foreground">Finish the checkout in the tab that just opened. Your plan will activate automatically.</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

@@ -1,57 +1,53 @@
 import api from './api';
 
-const POLL_INTERVAL_MS = 2500;
-const MAX_WAIT_MS = 60_000;
+/**
+ * Checkout is the payment provider's own page: the customer is sent there, pays, and comes back to
+ * /checkout/success, which waits for the plan to switch and then opens the dashboard.
+ */
+export function openCheckout(url: string): void {
+  window.location.assign(url);
+}
 
-async function currentPlan(): Promise<string | null> {
+const INTENT_KEY = 'seentics_checkout_intent';
+const INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A visitor who picks a paid plan before they have an account: remember the plan across sign-up (and
+ * the verification email, which may open in another tab), so the first thing they see after signing
+ * up is that plan's checkout, not an empty dashboard.
+ */
+export function rememberCheckoutIntent(plan: string): void {
   try {
-    const res = await api.get('/user/billing/usage');
-    return String(res.data?.data?.plan ?? 'free').toLowerCase();
+    localStorage.setItem(INTENT_KEY, JSON.stringify({ plan, at: Date.now() }));
   } catch {
-    return null; // auth / network blip: the caller keeps waiting
+    // storage blocked: they pick the plan again from the dashboard
   }
 }
 
-/**
- * Shows Polar's checkout in a frame over this page, so the customer pays without leaving Seentics.
- * (The gateway tells Polar which origin may embed it when it creates the checkout.) If the frame
- * cannot be created the customer is sent to the hosted checkout instead.
- *
- * Payment is confirmed by Polar's webhook, a moment after the frame reports success, so on success
- * this polls /user/billing/usage until the plan changes: `onActivated`, or `onTimeout` after 60 s.
- */
-export async function openCheckout(
-  url: string,
-  onActivated: () => void = () => window.location.assign('/websites?checkout=success'),
-  onTimeout: () => void = () => window.location.assign('/websites?checkout=success'),
-  /** The card was accepted; the plan follows once Polar's webhook lands. */
-  onPaid?: () => void,
-): Promise<void> {
-  const before = await currentPlan();
-
-  let checkout;
+/** The remembered plan, once: it is cleared as it is read. */
+export function takeCheckoutIntent(): string | null {
   try {
-    const { PolarEmbedCheckout } = await import('@polar-sh/checkout/embed');
-    checkout = await PolarEmbedCheckout.create(url, {
-      theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
-    });
+    const raw = localStorage.getItem(INTENT_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(INTENT_KEY);
+    const { plan, at } = JSON.parse(raw) as { plan?: string; at?: number };
+    return plan && typeof at === 'number' && Date.now() - at < INTENT_TTL_MS ? plan : null;
   } catch {
-    window.location.assign(url);
-    return;
+    return null;
   }
+}
 
-  checkout.addEventListener('success', (event) => {
-    // Stay on this page; the default would navigate to the success URL.
-    event.preventDefault();
-    checkout.close();
-    onPaid?.();
-    const startedAt = Date.now();
-    const poll = async () => {
-      const plan = await currentPlan();
-      if (plan !== null && before !== null && plan !== before) return onActivated();
-      if (Date.now() - startedAt >= MAX_WAIT_MS) return onTimeout();
-      setTimeout(poll, POLL_INTERVAL_MS);
-    };
-    void poll();
-  });
+export type CheckoutStart = { kind: 'redirected' } | { kind: 'changed' };
+
+/**
+ * Buy `plan`: send the customer to checkout, or, when they already pay for these products, switch
+ * their subscription in place (nothing to pay at a checkout). Throws with the gateway's message.
+ */
+export async function startCheckout(plan: string): Promise<CheckoutStart> {
+  const res = await api.post('/user/billing/checkout', { plan });
+  if (res.data?.success && res.data.data?.changed) return { kind: 'changed' };
+  const url: string | undefined = res.data?.data?.checkoutUrl;
+  if (!url) throw new Error(res.data?.error ?? 'No checkout was returned');
+  openCheckout(url);
+  return { kind: 'redirected' };
 }

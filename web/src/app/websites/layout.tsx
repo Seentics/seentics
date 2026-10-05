@@ -5,6 +5,7 @@ import { BarChart3 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { usePathSegment } from '@/lib/path-segment';
+import CheckoutIntent from '@/components/subscription/CheckoutIntent';
 
 export default function WebsitesLayout({
   children,
@@ -58,6 +59,7 @@ export default function WebsitesLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      <CheckoutIntent />
       {children}
     </div>
   );

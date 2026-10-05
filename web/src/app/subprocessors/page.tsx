@@ -45,7 +45,7 @@ const SUBPROCESSORS: { name: string; purpose: string; data: string; location: st
 
 const INDEPENDENT: { name: string; role: string }[] = [
   {
-    name: 'Polar Software, Inc.',
+    name: 'Lemon Squeezy, LLC',
     role: 'Our merchant of record. It sells Seentics subscriptions in its own name, and processes payment and tax data as a controller under its own privacy policy.',
   },
   {

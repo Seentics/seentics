@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
         <ul>
           <li><strong>Account:</strong> name, email address, a hash of your password (never the password), or the identity Google or GitHub returns if you sign in with them.</li>
           <li><strong>Teams:</strong> the teams you belong to, your role, and invitations you send or receive.</li>
-          <li><strong>Billing:</strong> your plan and subscription status. Payment details are collected and held by our payment provider, Polar, not by us.</li>
+          <li><strong>Billing:</strong> your plan and subscription status. Payment details are collected and held by our payment provider, Lemon Squeezy, not by us.</li>
           <li><strong>Configuration:</strong> the websites, monitors, alert contacts and settings you create.</li>
           <li><strong>Support:</strong> messages you send us.</li>
           <li><strong>Security and operations:</strong> sign-in events, IP addresses of requests to our API, and service logs, used to keep the service secure and working.</li>
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           <li><strong>Account data:</strong> for as long as your account exists. Deleting your account erases it, with every website, recording, monitor and setting in it, at once.</li>
           <li><strong>Visitor data:</strong> for the retention period of the customer&apos;s plan, after which it is deleted automatically, or sooner when the customer deletes it.</li>
           <li><strong>Backups:</strong> encrypted, and kept for 30 days. Data you delete leaves the backups when they expire.</li>
-          <li><strong>Billing records:</strong> kept by Polar for as long as tax law requires.</li>
+          <li><strong>Billing records:</strong> kept by Lemon Squeezy for as long as tax law requires.</li>
         </ul>
       </section>
 

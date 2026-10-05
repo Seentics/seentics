@@ -6,13 +6,14 @@ import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import type { PlanFamily } from '@/features/plans/types';
-import api from '@/lib/api';
-import { openCheckout } from '@/lib/checkout';
+import { useAuth } from '@/stores/useAuthStore';
+import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import { cn } from '@/lib/utils';
 import { Users, Building2 } from 'lucide-react';
 
 export default function PricingPage() {
     const router = useRouter();
+    const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState<'individual' | 'agency'>('individual');
     // The Observability site links here with ?product=observe, so the page opens on Suite + that product — the
@@ -34,22 +35,25 @@ export default function PricingPage() {
     if (!isEnterprise) return null;
 
     const handleSubscribe = async (selection: PlanSelection) => {
+        if (selection.price === 0) {
+            window.location.href = isAuthenticated ? '/websites' : '/signup';
+            return;
+        }
+        if (!isAuthenticated) {
+            // Sign up first; the dashboard then takes them straight to this plan's checkout.
+            rememberCheckoutIntent(selection.plan);
+            router.push('/signup');
+            return;
+        }
         try {
             setLoading(true);
-            if (selection.price === 0) {
-                window.location.href = '/websites';
-                return;
-            }
-
-            const response = await api.post('/user/billing/checkout', {
-                plan: selection.plan,
-            });
-
-            if (response.data.success && response.data.data.checkoutUrl) {
-                openCheckout(response.data.data.checkoutUrl);
+            const result = await startCheckout(selection.plan);
+            if (result.kind === 'changed') {
+                toast.success('Plan changed. The difference is prorated on your bill.');
+                router.push('/websites');
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Failed to create checkout. Please try again.');
+            toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to create checkout. Please try again.');
         } finally {
             setLoading(false);
         }
