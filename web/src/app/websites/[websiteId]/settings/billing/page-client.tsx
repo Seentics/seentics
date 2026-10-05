@@ -320,7 +320,7 @@ export default function BillingSettingsPage() {
         currentPlan={currentPlanId}
         limitType="monthlyEvents"
         currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
-        limit={subscription?.usage?.monthlyEvents?.limit || 10000}
+        limit={subscription?.usage?.monthlyEvents?.limit || 0}
       />
     </div>
   );
