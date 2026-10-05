@@ -155,9 +155,15 @@ export default function BillingSettingsPage() {
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Plan</span>
-                        <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">
-                          Active
-                        </Badge>
+                        {subscription?.cancelAtPeriodEnd ? (
+                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">
+                            Ending
+                          </Badge>
+                        ) : (
+                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">
+                            Active
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-baseline gap-2">
                         <h2 className="text-4xl font-bold tracking-tight">
@@ -172,7 +178,7 @@ export default function BillingSettingsPage() {
                       </p>
                     </div>
 
-                    {!isFreePlan && subscription?.currentPeriodEnd && (
+                    {!isFreePlan && subscription?.currentPeriodEnd && !subscription?.cancelAtPeriodEnd && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2 shrink-0">
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
                         <span>Renews {fmtDate(subscription.currentPeriodEnd)}</span>
@@ -181,7 +187,9 @@ export default function BillingSettingsPage() {
                     {subscription?.cancelAtPeriodEnd && (
                       <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 shrink-0">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        <span>Cancels {fmtDate(subscription.currentPeriodEnd)}</span>
+                        <span>
+                          Your plan ends {fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free
+                        </span>
                       </div>
                     )}
                   </div>
