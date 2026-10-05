@@ -699,6 +699,7 @@ const extensionApi = {
   urlAllowed: (include, exclude) => urlAllowed(include, exclude),
   textMaskedHere: () => textMaskedHere(),
   fireAutomationTrigger: (type, data) => fireAutomationTrigger(type, data),
+  funnelsInProgress: () => funnelsInProgress(),
   get cfg() { return cfg; },
   get automations() { return automations; },
   get automationTriggerTypes() { return automationTriggerTypes; },
@@ -1093,7 +1094,47 @@ const trackPage = () => {
   });
   if (heat) safely(heat.pageStart);
   evalFunnels(location.pathname);
+  evalGoalsForPage(location.pathname);
   void fireAutomationTrigger('page_view', { path: location.pathname, title: document.title });
+};
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+//
+// The site's goals arrive in the config. Reports count them on the server; this is the page
+// noticing one so an automation can answer it: a custom event named for the goal, a visit to
+// its page, or (for an event goal with a selector) a click on that element, which records the
+// event the goal waits for.
+
+const goalsOfType = (type) => (Array.isArray(cfg.goals) ? cfg.goals : []).filter((g) => (g.type ?? 'event') === type);
+
+/** Trailing slashes do not make a different page, as in the reports. */
+const trimSlash = (p) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
+
+const reachGoal = (goal, extra) => {
+  void fireAutomationTrigger('goal_reached', {
+    goal_id: goal.id, goal_name: goal.label ?? goal.name, identifier: goal.name, path: location.pathname, ...extra,
+  });
+};
+
+const evalGoalsForEvent = (name) => {
+  for (const goal of goalsOfType('event')) if (goal.name === name) reachGoal(goal);
+};
+
+const evalGoalsForPage = (path) => {
+  for (const goal of goalsOfType('pageview')) if (trimSlash(String(goal.name)) === trimSlash(path)) reachGoal(goal);
+};
+
+/** One delegated click listener for every event goal that names an element. */
+const installSelectorGoals = () => {
+  const goals = goalsOfType('event').filter((g) => typeof g.selector === 'string' && g.selector.trim());
+  if (!goals.length) return;
+  document.addEventListener('click', (ev) => {
+    const el = ev.target;
+    if (!el || !el.closest) return;
+    for (const goal of goals) {
+      try { if (el.closest(goal.selector)) api.track(goal.name); } catch { /* an invalid selector */ }
+    }
+  }, true);
 };
 
 // ─── Funnels ──────────────────────────────────────────────────────────────────
@@ -1142,11 +1183,35 @@ const advanceFunnelStep = (funnel, state, stepName, path) => {
     path,
   });
   state.step++;
-  if (state.step >= (funnel.steps ?? []).length) {
+  const total = (funnel.steps ?? []).length;
+  // What an automation sees: the step as a visitor counts it (the first is 1), not the index.
+  const info = { funnel_id: funnel.id, funnel_name: funnel.name, step: state.step, step_name: stepName, steps_total: total, path };
+  if (state.step === 1) void fireAutomationTrigger('funnel', { ...info, event: 'entry' });
+  void fireAutomationTrigger('funnel', { ...info, event: 'step' });
+  if (state.step >= total) {
     pushAnalytics('funnel_complete', { funnel_id: funnel.id, name: funnel.name });
+    void fireAutomationTrigger('funnel', { ...info, event: 'complete' });
     state.step = 0;
   }
   saveFunnelState(funnel.id, state.step);
+};
+
+/**
+ * The funnels this visitor has started and not finished, and where each one stands. What
+ * "dropping off" is measured against: a visitor at step 2 of 4 who stops, or goes to leave.
+ */
+const funnelsInProgress = () => {
+  const out = [];
+  for (const funnel of funnels) {
+    const state = funnelState[funnel.id] ?? (funnelState[funnel.id] = loadFunnelState(funnel.id) ?? { step: 0 });
+    const steps = funnel.steps ?? [];
+    if (state.step < 1 || state.step >= steps.length) continue;
+    out.push({
+      funnel_id: funnel.id, funnel_name: funnel.name, step: state.step,
+      step_name: steps[state.step - 1]?.name ?? '', steps_total: steps.length, path: location.pathname,
+    });
+  }
+  return out;
 };
 
 /** Evaluate page_view-type funnel steps on each page view. */
@@ -1222,7 +1287,7 @@ const fireAutomationTrigger = async (triggerType, triggerData) => {
   // type-only key the second was dropped while the first was in flight — and, its
   // milestone already marked, never fired again.
   const d = triggerData ?? {};
-  const inFlightKey = [triggerType, d.depth, d.seconds, d.selector, d.name].join('\u0000');
+  const inFlightKey = [triggerType, d.depth, d.seconds, d.selector, d.name, d.funnel_id, d.event, d.step, d.goal_id].join('\u0000');
   if (automationInFlight.has(inFlightKey)) return;
   automationInFlight.add(inFlightKey);
 
@@ -1454,6 +1519,7 @@ const beginTracking = () => {
   // are dropped, and `report` queues no more.
   if (cfg.errors_enabled === false) queues.errors.length = 0;
 
+  safely(installSelectorGoals);
   if (autoTrack) safely(trackPage);
   schedulePerfTracking();
 
@@ -1576,6 +1642,7 @@ const api = {
   track(name, props) {
     pushAnalytics('custom', { name, ...(props ?? {}) });
     evalFunnelsForEvent(name);
+    evalGoalsForEvent(name);
     void fireAutomationTrigger('custom_event', { name, ...(props ?? {}) });
   },
 

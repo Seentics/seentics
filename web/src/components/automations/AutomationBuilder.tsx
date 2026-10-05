@@ -12,8 +12,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { motion } from 'framer-motion';
-import { Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap, AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout, Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2, Settings, X, Filter, GripVertical, Braces, CheckCircle2, AlertCircle, GitBranch, Hourglass } from 'lucide-react';
+import { Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap, AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout, Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2, Settings, X, Filter, GripVertical, Braces, CheckCircle2, AlertCircle, GitBranch, Hourglass, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePathSegment } from '@/lib/path-segment';
+import { useFunnels } from '@/features/funnels/queries';
+import { getGoals } from '@/features/websites/api';
+import { useQuery } from '@tanstack/react-query';
 import { AutomationCanvas } from './canvas/AutomationCanvas';
 import { MAX_DELAY_SECONDS, MAX_SWITCH_CASES, edgeFor, indexGraph, layoutGraph, newNodeId, outletsFor, removeNode, validateGraph, type AutomationGraph, type ConditionGroup, type ConditionRule, type GraphNode, type NodeId, type SwitchCase } from '@/lib/automation-graph';
 
@@ -190,6 +194,8 @@ const TRIGGER_TYPES: TriggerType[] = [
   { value: 'tab_visible',  label: 'Tab Visible',      icon: Eye,           description: 'Triggers when the tab becomes visible again', hasConfig: false, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
   { value: 'custom_event', label: 'Custom Event',     icon: Zap,           description: 'Triggers on a named custom event',            hasConfig: true, iconBg: 'bg-violet-500/10', iconColor: 'text-violet-500' },
   { value: 'identify',     label: 'Identify',         icon: UserCheck,     description: 'Triggers when a user is identified',          hasConfig: false, iconBg: 'bg-fuchsia-500/10', iconColor: 'text-fuchsia-500' },
+  { value: 'goal_reached', label: 'Goal Reached',     icon: Target,        description: 'Triggers when a visitor reaches one of your goals', hasConfig: true, iconBg: 'bg-lime-500/10', iconColor: 'text-lime-500' },
+  { value: 'funnel',       label: 'Funnel',           icon: Filter,        description: 'Triggers on funnel entry, a step, drop-off or completion', hasConfig: true, iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-500' },
 ];
 
 type ActionType = {
@@ -226,7 +232,7 @@ const FACT_SUGGESTIONS: { group: string; facts: string[] }[] = [
   { group: 'Visitor', facts: ['country', 'region', 'city', 'device', 'browser', 'os', 'language'] },
   { group: 'History', facts: ['visitCount', 'totalPageViews', 'firstSeenAt', 'lastSeenAt'] },
   { group: 'During a wait', facts: ['scrollPercent', 'timeOnPage'] },
-  { group: 'This trigger', facts: ['trigger.type', 'session.id'] },
+  { group: 'This trigger', facts: ['trigger.type', 'session.id', 'variant', 'trigger.funnel_id', 'trigger.step', 'trigger.step_name', 'trigger.event', 'trigger.goal_name'] },
 ];
 
 const ALL_FACT_SUGGESTIONS = FACT_SUGGESTIONS.flatMap(g => g.facts);
@@ -344,6 +350,120 @@ function FieldGroup({ label, hint, children }: { label: string; hint?: string; c
   );
 }
 
+// ─── Funnel trigger ───────────────────────────────────────────────────────────
+
+const FUNNEL_EVENTS = [
+  { value: 'entry',    label: 'Enters the funnel',   hint: 'The visitor reaches the first step.' },
+  { value: 'step',     label: 'Reaches a step',      hint: 'Each time the visitor reaches a step: every step, or the one you pick below.' },
+  { value: 'dropoff',  label: 'Drops off',           hint: 'The visitor started the funnel and then stalls, or looks about to leave, before finishing it.' },
+  { value: 'complete', label: 'Completes the funnel', hint: 'The visitor reaches the last step.' },
+];
+
+/**
+ * Which funnel, and what happens in it. Anything left open matches any: any funnel, and for a
+ * step or a drop-off, any step. A drop-off is measured while the visitor is still on the page,
+ * because that is the only time an action can reach them.
+ */
+function FunnelTriggerFields({
+  config, set, onChange,
+}: { config: Record<string, unknown>; set: (key: string, val: unknown) => void; onChange: (cfg: Record<string, unknown>) => void }) {
+  const websiteId = usePathSegment(1) ?? '';
+  const { data: funnels = [] } = useFunnels(websiteId);
+  const event = String(config.event ?? 'entry');
+  const funnel = funnels.find(f => f.id === config.funnel_id);
+  const steps = funnel?.steps ?? [];
+  const input = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
+
+  return (
+    <div className="space-y-3">
+      <FieldGroup label="Funnel">
+        <Select
+          value={String(config.funnel_id ?? 'any')}
+          // A step belongs to one funnel, so changing the funnel clears it.
+          onValueChange={v => onChange({ ...config, funnel_id: v === 'any' ? undefined : v, step: undefined })}
+        >
+          <SelectTrigger className={input}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">Any funnel</SelectItem>
+            {funnels.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FieldGroup>
+
+      <FieldGroup label="When a visitor" hint={FUNNEL_EVENTS.find(e => e.value === event)?.hint}>
+        <Select value={event} onValueChange={v => set('event', v)}>
+          <SelectTrigger className={input}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FUNNEL_EVENTS.map(e => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FieldGroup>
+
+      {(event === 'step' || event === 'dropoff') && (
+        <FieldGroup
+          label={event === 'dropoff' ? 'At step (optional)' : 'Step (optional)'}
+          hint={funnel ? undefined : 'Steps belong to a funnel. Pick a funnel above to choose one, or leave this for any step.'}
+        >
+          <Select
+            value={config.step == null ? 'any' : String(config.step)}
+            onValueChange={v => set('step', v === 'any' ? undefined : Number(v))}
+            disabled={!funnel}
+          >
+            <SelectTrigger className={input}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Any step</SelectItem>
+              {steps.map((s, i) => <SelectItem key={s.id ?? i} value={String(i + 1)}>{i + 1}. {s.name || `Step ${i + 1}`}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
+      )}
+
+      {event === 'dropoff' && (
+        <FieldGroup label="Counts as stalled after" hint="Or as soon as the visitor looks about to leave, whichever comes first.">
+          <Select value={String(config.seconds ?? '60')} onValueChange={v => set('seconds', Number(v))}>
+            <SelectTrigger className={input}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30">30 seconds idle</SelectItem>
+              <SelectItem value="60">1 minute idle</SelectItem>
+              <SelectItem value="120">2 minutes idle</SelectItem>
+              <SelectItem value="300">5 minutes idle</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldGroup>
+      )}
+    </div>
+  );
+}
+
+/** Which goal. Goals are defined under Settings; this only picks one, or takes any. */
+function GoalTriggerFields({
+  config, set,
+}: { config: Record<string, unknown>; set: (key: string, val: unknown) => void }) {
+  const websiteId = usePathSegment(1) ?? '';
+  const { data: goals = [] } = useQuery({ queryKey: ['automation-goals', websiteId], queryFn: () => getGoals(websiteId), enabled: Boolean(websiteId), staleTime: 60_000 });
+  const goal = goals.find(g => g.id === config.goal_id);
+  const input = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
+
+  return (
+    <FieldGroup
+      label="Goal"
+      hint={goals.length === 0
+        ? 'No goals yet. Add one under Settings → Goal Conversions, then pick it here.'
+        : goal
+          ? (goal.type === 'pageview' ? `Fires when a visitor views ${goal.identifier}.` : goal.selector ? `Fires when a visitor clicks ${goal.selector}.` : `Fires when your site tracks the event "${goal.identifier}".`)
+          : 'Fires for any goal. Pick one to name it.'}
+    >
+      <Select value={String(config.goal_id ?? 'any')} onValueChange={v => set('goal_id', v === 'any' ? undefined : v)}>
+        <SelectTrigger className={input}><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">Any goal</SelectItem>
+          {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </FieldGroup>
+  );
+}
+
 // ─── Trigger Config Form ──────────────────────────────────────────────────────
 
 function TriggerConfigForm({
@@ -415,6 +535,8 @@ function TriggerConfigForm({
       </FieldGroup>
     );
   }
+  if (type === 'funnel') return <FunnelTriggerFields config={config} set={set} onChange={onChange} />;
+  if (type === 'goal_reached') return <GoalTriggerFields config={config} set={set} />;
   if (type === 'custom_event') {
     return (
       <FieldGroup label="Event Name" hint="Exact name used in snc('track', ...)">
@@ -425,9 +547,62 @@ function TriggerConfigForm({
   return <p className="text-xs text-muted-foreground italic">No configuration needed for this trigger.</p>;
 }
 
+// ─── Custom code ──────────────────────────────────────────────────────────────
+
+/** The actions that put something on the page, and so can carry the author's own markup. */
+const CUSTOM_CODE_ACTIONS = new Set(['show_modal', 'show_toast', 'show_banner', 'show_tooltip']);
+
+/**
+ * Optional HTML, CSS and JavaScript for a modal, toast, banner or tooltip.
+ *
+ * Collapsed until it is wanted, and open when the action already carries code, so a saved
+ * customisation is never hidden. The HTML replaces the built-in content; the CSS is added
+ * with it; the script runs once it is on the page, with `root` (the element) and `action`.
+ */
+function CustomCodeFields({
+  action, set,
+}: { action: { type: string; [k: string]: unknown }; set: (key: string, val: unknown) => void }) {
+  const code = 'bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs';
+  const hasCode = ['custom_html', 'custom_css', 'custom_js'].some(k => String(action[k] ?? '').trim() !== '');
+  const root = action.type.replace('show_', '');
+
+  return (
+    <details open={hasCode} className="group rounded-lg border border-border">
+      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-foreground">
+        Custom HTML, CSS and JavaScript
+        <span className="ml-2 font-normal text-muted-foreground">optional</span>
+      </summary>
+      <div className="space-y-3 border-t border-border p-3">
+        <FieldGroup label="HTML" hint={`Replaces the built-in ${root} content. Visitor values like {{page}} are escaped.`}>
+          <Textarea value={String(action.custom_html ?? '')} onChange={e => set('custom_html', e.target.value)} rows={4} spellCheck={false} placeholder={'<h3>Hello {{user.firstName | default:there}}</h3>'} className={code} />
+        </FieldGroup>
+        <FieldGroup label="CSS" hint={`Style the ${root} with [data-snc="${root}"] or your own classes.`}>
+          <Textarea value={String(action.custom_css ?? '')} onChange={e => set('custom_css', e.target.value)} rows={4} spellCheck={false} placeholder={`[data-snc="${root}"] { border-radius: 16px; }`} className={code} />
+        </FieldGroup>
+        <FieldGroup label="JavaScript" hint="Runs once it is shown, with `root` (the element) and `action` in scope. A site that blocks inline scripts will skip it.">
+          <Textarea value={String(action.custom_js ?? '')} onChange={e => set('custom_js', e.target.value)} rows={4} spellCheck={false} placeholder={"root.querySelector('button')?.addEventListener('click', () => { /* … */ });"} className={code} />
+        </FieldGroup>
+      </div>
+    </details>
+  );
+}
+
 // ─── Action Config Form ───────────────────────────────────────────────────────
 
 function ActionConfigForm({
+  action, onChange,
+}: { action: { type: string; [k: string]: unknown }; onChange: (a: { type: string; [k: string]: unknown }) => void }) {
+  const set = (key: string, val: unknown) => onChange({ ...action, [key]: val });
+  if (!CUSTOM_CODE_ACTIONS.has(action.type)) return <ActionFields action={action} onChange={onChange} />;
+  return (
+    <div className="space-y-3">
+      <ActionFields action={action} onChange={onChange} />
+      <CustomCodeFields action={action} set={set} />
+    </div>
+  );
+}
+
+function ActionFields({
   action, onChange,
 }: { action: { type: string; [k: string]: unknown }; onChange: (a: { type: string; [k: string]: unknown }) => void }) {
   const set = (key: string, val: unknown) => onChange({ ...action, [key]: val });

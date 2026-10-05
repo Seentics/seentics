@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  Filter,
   Feather,
   Globe,
   Highlighter,
@@ -44,6 +45,7 @@ export const TRIGGERS: Record<string, { label: string; icon: React.ElementType }
   tab_visible:  { label: 'Tab Visible',      icon: Eye },
   custom_event: { label: 'Custom Event',     icon: Zap },
   identify:     { label: 'Identify',         icon: UserCheck },
+  funnel:       { label: 'Funnel',           icon: Filter },
   goal_reached: { label: 'Goal Reached',     icon: Target },
 };
 

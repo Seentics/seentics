@@ -10,6 +10,7 @@ interface FunnelStatsPayload {
   totalEntries?: number;
   completions?: number;
   conversionRate?: number;
+  warnings?: string[];
   stepBreakdown?: Array<{
     stepOrder: number;
     count: number;
@@ -47,6 +48,8 @@ export interface DashboardFunnel {
   user_id?: string;
   steps: DashboardFunnelStep[];
   is_active: boolean;
+  /** Hours allowed between one step and the next; null or absent is no limit. */
+  conversion_window_hours?: number | null;
   created_at: string;
   updated_at: string;
   list_summary?: FunnelListSummary;
@@ -77,6 +80,8 @@ export interface FunnelAnalyticsResponse {
   status: string;
   analytics: FunnelAnalyticsItem[];
   count: number;
+  /** What the owner should know about how this was counted, such as a step that cannot match. */
+  warnings?: string[];
 }
 
 function normalizeDashboardStep(raw: Record<string, unknown>): DashboardFunnelStep {
@@ -123,6 +128,7 @@ export function normalizeDashboardFunnelFromApi(raw: Record<string, unknown>): D
     user_id: (raw.user_id ?? raw.userId) as string | undefined,
     steps,
     is_active: Boolean(raw.is_active ?? raw.isActive),
+    conversion_window_hours: typeof raw.conversion_window_hours === 'number' ? raw.conversion_window_hours : null,
     created_at: String(raw.created_at ?? raw.createdAt ?? ''),
     updated_at: String(raw.updated_at ?? raw.updatedAt ?? ''),
     list_summary,
@@ -196,6 +202,7 @@ export function funnelStatsToAnalyticsResponse(
       step_metrics,
     }],
     count: 1,
+    ...(Array.isArray(s.warnings) && s.warnings.length ? { warnings: s.warnings } : {}),
   };
 }
 
@@ -252,6 +259,7 @@ export async function createDashboardFunnel(
       name: funnelData.name,
       description: funnelData.description ?? '',
       steps: dashboardStepsToCore(funnelData.steps),
+      conversion_window_hours: funnelData.conversion_window_hours ?? null,
     });
     const raw = response.data as Record<string, unknown>;
     return normalizeDashboardFunnelFromApi(raw?.id ? raw : (raw?.funnel as Record<string, unknown>) ?? raw);
@@ -289,7 +297,9 @@ export async function updateDashboardFunnel(
   const body: Record<string, unknown> = {};
   if (funnelData.name !== undefined) body.name = funnelData.name;
   if (funnelData.description !== undefined) body.description = funnelData.description;
-  if (funnelData.is_active !== undefined) body.isActive = funnelData.is_active;
+  // The server reads `is_active`; this was sent as `isActive`, which it ignored.
+  if (funnelData.is_active !== undefined) body.is_active = funnelData.is_active;
+  if (funnelData.conversion_window_hours !== undefined) body.conversion_window_hours = funnelData.conversion_window_hours;
   if (funnelData.steps !== undefined) body.steps = dashboardStepsToCore(funnelData.steps);
   const response = await api.put(`/websites/${websiteId}/funnels/${funnelId}`, body);
   const raw = response.data as Record<string, unknown>;

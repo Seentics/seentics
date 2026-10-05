@@ -156,6 +156,12 @@ export default function FunnelDetailPage() {
         </div>
       </div>
 
+      {(analyticsData?.warnings?.length ?? 0) > 0 && (
+        <ul role="status" className="mb-4 space-y-1 text-sm text-amber-700 dark:text-amber-400">
+          {analyticsData?.warnings?.map(warning => <li key={warning}>{warning}</li>)}
+        </ul>
+      )}
+
       <StatCards
         isLoading={analyticsLoading}
         cards={[
@@ -181,6 +187,11 @@ export default function FunnelDetailPage() {
           },
         ]}
       />
+
+      <p className="mb-6 text-xs text-muted-foreground">
+        Counted from page views and events. Visitors who have not agreed to tracking are followed within a single day only, so a journey that crosses midnight counts them at the step they reached before it.
+        {funnel.conversion_window_hours ? ` Each step has to follow the one before within ${funnel.conversion_window_hours >= 24 && funnel.conversion_window_hours % 24 === 0 ? `${funnel.conversion_window_hours / 24} day${funnel.conversion_window_hours === 24 ? '' : 's'}` : `${funnel.conversion_window_hours} hour${funnel.conversion_window_hours === 1 ? '' : 's'}`}.` : ''}
+      </p>
 
       {/*
         The single worst transition, called out rather than left to be spotted — and

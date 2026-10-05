@@ -82,10 +82,16 @@ registerExtension((core) => {
     const s = document.createElement('style');
     s.textContent =
       '.snc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center}' +
-      '.snc-modal{background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit}' +
-      '.snc-modal h2{margin:0 0 12px;font-size:20px}' +
-      '.snc-modal p{margin:0 0 16px;line-height:1.5}' +
-      '.snc-modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;line-height:1}' +
+      '.snc-modal{background:#fff;color:#111827;border-radius:8px;padding:24px;max-width:480px;width:90%;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit}' +
+      // The host page's own `h2 {…}` and `p {…}` rules must not recolour what we show: a site
+      // that greys its headings made the modal's title and text hard to read. Colour, font and
+      // opacity are taken from the modal itself, which is where the author set them.
+      '.snc-modal,.snc-modal *{box-sizing:border-box}' +
+      '.snc-modal h2,.snc-modal p,.snc-modal a.snc-modal-btn{font-family:inherit!important;opacity:1!important;text-transform:none!important;letter-spacing:normal!important}' +
+      '.snc-modal h2,.snc-modal p{color:inherit!important}' +
+      '.snc-modal h2{margin:0 0 12px!important;font-size:20px!important;font-weight:700!important;line-height:1.3!important}' +
+      '.snc-modal p{margin:0 0 16px!important;font-size:15px!important;line-height:1.5!important}' +
+      '.snc-modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;line-height:1;color:inherit;opacity:.7}' +
       '.snc-modal-btn{display:inline-block;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer;border:none;font-size:14px}' +
       '.snc-toast{position:fixed;z-index:2147483647;padding:12px 20px;border-radius:8px;background:#1a1a1a;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;pointer-events:auto;transition:opacity .3s}' +
       '.snc-toast.top-left{top:20px;left:20px}' +
@@ -119,6 +125,30 @@ registerExtension((core) => {
     return /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(s) && s ? s : fallback;
   };
 
+  /**
+   * The author's own markup, style and script for an action.
+   *
+   * `custom_html` replaces the action's built-in content, `custom_css` is added as a style
+   * element inside the action's root (so it is removed with it), and `custom_js` runs once the
+   * root is on the page, with `root` and `action` in scope. They are the site owner's own
+   * code on the site owner's own page: a script that throws is caught and must never break
+   * the page, and a site whose CSP forbids evaluating code simply skips the script.
+   */
+  const hasCustomHtml = (action) => typeof action.custom_html === 'string' && action.custom_html.trim() !== '';
+
+  const applyCustomCode = (root, action) => {
+    if (typeof action.custom_css === 'string' && action.custom_css.trim() !== '') {
+      const style = document.createElement('style');
+      style.setAttribute('data-snc-custom', '');
+      style.textContent = action.custom_css;
+      root.appendChild(style);
+    }
+    if (typeof action.custom_js === 'string' && action.custom_js.trim() !== '') {
+      try { new Function('root', 'action', action.custom_js)(root, action); }
+      catch (err) { try { console.warn('[seentics] custom_js failed:', err); } catch { /* no console */ } }
+    }
+  };
+
   const renderModal = (action) => {
     ensureAutoStyles();
     const overlay = document.createElement('div');
@@ -127,17 +157,21 @@ registerExtension((core) => {
     const textColor = safeColor(action.text_color,       '#000000');
     const btnColor  = safeColor(action.button_color,     '#2563eb');
     const btnText   = safeColor(action.button_text_color, '#ffffff');
-    overlay.innerHTML = `
-    <div class="snc-modal" style="background:${bgColor};color:${textColor}">
-      <button class="snc-modal-close" aria-label="Close">&times;</button>
-      ${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
+    const content = hasCustomHtml(action)
+      ? `<div class="snc-custom">${action.custom_html}</div>`
+      : `${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
       ${action.title   ? `<h2>${escapeHtml(action.title)}</h2>` : ''}
       ${action.body    ? `<p>${escapeHtml(action.body)}</p>`    : ''}
-      ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}
+      ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}`;
+    overlay.innerHTML = `
+    <div class="snc-modal" data-snc="modal" style="background:${bgColor};color:${textColor}">
+      <button class="snc-modal-close" aria-label="Close">&times;</button>
+      ${content}
     </div>`;
     overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
+    applyCustomCode(overlay, action);
   };
 
   const renderToast = (action) => {
@@ -147,8 +181,11 @@ registerExtension((core) => {
     toast.className = `snc-toast ${pos}`;
     toast.style.background = action.background_color ?? '#1a1a1a';
     toast.style.color       = action.text_color       ?? '#ffffff';
-    toast.textContent = action.message ?? '';
+    toast.setAttribute('data-snc', 'toast');
+    if (hasCustomHtml(action)) toast.innerHTML = action.custom_html;
+    else toast.textContent = action.message ?? '';
     document.body.appendChild(toast);
+    applyCustomCode(toast, action);
     const dur = (action.duration_ms ?? 4000);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, dur);
   };
@@ -160,13 +197,17 @@ registerExtension((core) => {
     banner.className = `snc-banner ${pos}`;
     banner.style.background = action.background_color ?? '#1e40af';
     banner.style.color       = action.text_color       ?? '#ffffff';
-    banner.innerHTML = `
+    banner.setAttribute('data-snc', 'banner');
+    banner.innerHTML = hasCustomHtml(action)
+      ? `<div class="snc-custom" style="flex:1">${action.custom_html}</div><button class="snc-banner-close" aria-label="Close">&times;</button>`
+      : `
     <span>${escapeHtml(action.message ?? '')}</span>
     ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${escapeHtml(action.button_text)}</a>` : ''}
     <button class="snc-banner-close" aria-label="Close">&times;</button>
   `;
     banner.querySelector('.snc-banner-close').onclick = () => banner.remove();
     document.body.appendChild(banner);
+    applyCustomCode(banner, action);
     if (action.duration_ms) setTimeout(() => banner.remove(), action.duration_ms);
   };
 
@@ -185,8 +226,11 @@ registerExtension((core) => {
     if (!anchor) return;
     const tip = document.createElement('div');
     tip.className = 'snc-tooltip';
-    tip.textContent = action.message ?? '';
+    tip.setAttribute('data-snc', 'tooltip');
+    if (hasCustomHtml(action)) tip.innerHTML = action.custom_html;
+    else tip.textContent = action.message ?? '';
     document.body.appendChild(tip);
+    applyCustomCode(tip, action);
     const rect = anchor.getBoundingClientRect();
     const top  = rect.top + window.scrollY - tip.offsetHeight - 10;
     tip.style.left = `${rect.left + window.scrollX}px`;
@@ -243,15 +287,94 @@ registerExtension((core) => {
     return [...values].sort((a, b) => a - b);
   };
 
-  /** Fire when the cursor leaves through the top of the viewport (30 s cooldown). */
+  /**
+   * "About to leave", detected once and shared by whatever listens for it.
+   *
+   * On a desktop that is the cursor leaving through the top of the window. A phone has no
+   * cursor, so there the signal is the one most mobile exit popups use: a quick pull back up
+   * towards the top of the page, which is how people reach the address bar or the tabs. It is a
+   * guess at intent, not a certainty, and it is deliberately not tied to the Back button.
+   */
+  const exitListeners = [];
+  let exitDetectionInstalled = false;
+  const onExitSignal = (listener) => {
+    exitListeners.push(listener);
+    if (exitDetectionInstalled) return;
+    exitDetectionInstalled = true;
+
+    const emit = (source) => { for (const l of exitListeners) l(source); };
+    document.addEventListener('mouseleave', (ev) => {
+      if (ev.clientY > 0) return;
+      emit('mouse');
+    });
+
+    const touch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse), (hover: none)').matches;
+    if (!touch) return;
+
+    const WINDOW_MS = 600;   // how quickly the pull has to happen
+    let samples = [];        // recent scroll positions, newest last
+    window.addEventListener('scroll', () => {
+      const now = Date.now();
+      const y = window.scrollY;
+      samples.push({ y, t: now });
+      samples = samples.filter((p) => now - p.t <= WINDOW_MS);
+      const highest = Math.max(...samples.map((p) => p.y));
+      const farEnough = highest - y >= Math.max(300, window.innerHeight * 0.4);
+      // It has to end near the top: scrolling up the middle of a page is just reading.
+      if (farEnough && y <= window.innerHeight * 0.25) {
+        samples = [];
+        emit('scroll_up');
+      }
+    }, { passive: true });
+  };
+
+  /** Fire when the visitor looks about to leave (30 s cooldown). */
   const installExitIntent = () => {
     let cooldown = false;
-    document.addEventListener('mouseleave', (ev) => {
-      if (ev.clientY > 0 || cooldown) return;
+    onExitSignal((source) => {
+      if (cooldown) return;
       cooldown = true;
-      fire('exit_intent', { path: location.pathname });
+      fire('exit_intent', { path: location.pathname, source });
       setTimeout(() => { cooldown = false; }, 30_000);
     });
+  };
+
+  /**
+   * Funnel drop-off: a visitor part-way through a funnel who stops or goes to leave.
+   *
+   * The server cannot know a visitor dropped off until the session is long over, and an action
+   * has to reach them while they are still here, so drop-off means the two signals available on
+   * the page: they have been idle for a while (60 s unless the trigger says otherwise), or they
+   * look about to leave. Each is reported once per funnel and step.
+   */
+  const installFunnelDropoff = () => {
+    const configs = triggersOf('funnel').filter((t) => t.event === 'dropoff');
+    if (!configs.length || typeof core.funnelsInProgress !== 'function') return;
+
+    const seen = new Set();   // funnel:step:reason, so a stall or exit is reported once per step
+    const report = (reason, extra) => {
+      for (const progress of core.funnelsInProgress()) {
+        const key = `${progress.funnel_id}:${progress.step}:${reason}:${extra.seconds ?? ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        fire('funnel', { ...progress, ...extra, event: 'dropoff', reason });
+      }
+    };
+
+    onExitSignal((source) => report('exit_intent', { source }));
+
+    const thresholds = configuredThresholds('funnel', 'seconds', [60]);
+    let lastActivity = Date.now();
+    const onActivity = () => { lastActivity = Date.now(); };
+    for (const eventName of ['mousemove', 'keydown', 'scroll', 'click', 'touchstart']) {
+      window.addEventListener(eventName, onActivity, { passive: true, capture: true });
+    }
+    setInterval(() => {
+      const idleMs = Date.now() - lastActivity;
+      for (const seconds of thresholds) {
+        if (idleMs >= seconds * 1000) report('inactive', { seconds });
+      }
+    }, 1_000);
   };
 
   /**
@@ -408,6 +531,7 @@ registerExtension((core) => {
    */
   const installers = {
     exit_intent:  installExitIntent,
+    funnel:       installFunnelDropoff,
     inactivity:   installInactivity,
     scroll_depth: installScrollDepth,
     time_on_page: installTimeOnPage,

@@ -23,6 +23,10 @@ interface FunnelBuilderProps {
 export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: FunnelBuilderProps) {
   const [name, setName] = useState(existingFunnel?.name || '');
   const [description, setDescription] = useState(existingFunnel?.description || '');
+  // Hours a visitor may take between one step and the next; empty is no limit.
+  const [windowHours, setWindowHours] = useState<string>(
+    existingFunnel?.conversion_window_hours ? String(existingFunnel.conversion_window_hours) : 'none',
+  );
   const [steps, setSteps] = useState<FunnelStep[]>(
     existingFunnel?.steps || [
       {
@@ -101,8 +105,9 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
       description: description.trim(),
       steps,
       is_active: existingFunnel?.is_active ?? true,
+      conversion_window_hours: windowHours === 'none' ? null : Number(windowHours),
     });
-  }, [name, description, steps, onSave, existingFunnel?.is_active]);
+  }, [name, description, steps, windowHours, onSave, existingFunnel?.is_active]);
 
   const getStepIcon = (type: string) => {
     switch (type) {
@@ -148,6 +153,23 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
               placeholder="Describe what this funnel tracks..."
               className="mt-1"
             />
+          </div>
+          <div>
+            <Label htmlFor="funnel-window">Each step must follow within</Label>
+            <Select value={windowHours} onValueChange={setWindowHours}>
+              <SelectTrigger id="funnel-window" className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No limit</SelectItem>
+                <SelectItem value="1">1 hour</SelectItem>
+                <SelectItem value="24">1 day</SelectItem>
+                <SelectItem value="72">3 days</SelectItem>
+                <SelectItem value="168">7 days</SelectItem>
+                <SelectItem value="720">30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              A visitor counts at the next step only if they reach it within this time of the step before.
+            </p>
           </div>
         </div>
 
