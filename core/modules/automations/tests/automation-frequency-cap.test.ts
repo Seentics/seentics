@@ -84,8 +84,8 @@ describe("isCappedFromStats", () => {
       expect(isCappedFromStats(stats({ sessionCount: 3 }), { maxPerSession: 3 })).toBe(true);
     });
 
-    it("blocks immediately for a cap of zero", () => {
-      expect(isCappedFromStats(stats({ sessionCount: 0 }), { maxPerSession: 0 })).toBe(true);
+    it("treats a stored cap of zero as no cap", () => {
+      expect(isCappedFromStats(stats({ sessionCount: 0 }), { maxPerSession: 0 })).toBe(false);
     });
 
     it("stays capped past the limit", () => {
@@ -105,8 +105,8 @@ describe("isCappedFromStats", () => {
       expect(isCappedFromStats(stats({ lifetimeCount: 5 }), { maxPerUser: 5 })).toBe(true);
     });
 
-    it("blocks immediately for a cap of zero", () => {
-      expect(isCappedFromStats(stats({ lifetimeCount: 0 }), { maxPerUser: 0 })).toBe(true);
+    it("treats a stored cap of zero as no cap", () => {
+      expect(isCappedFromStats(stats({ lifetimeCount: 0 }), { maxPerUser: 0 })).toBe(false);
     });
 
     it("ignores session history when only a lifetime cap is set", () => {
@@ -183,5 +183,19 @@ describe("isCappedFromStats", () => {
         ),
       ).toBe(false);
     });
+  });
+});
+
+describe("a cap of zero", () => {
+  const stats = (sessionCount: number, lifetimeCount: number): ImpressionStats => ({ sessionCount, lifetimeCount, lastShownAt: new Date() });
+
+  it("is no cap, not a cap that blocks everything", () => {
+    expect(isCappedFromStats(stats(5, 50), { maxPerSession: 0 })).toBe(false);
+    expect(isCappedFromStats(stats(5, 50), { maxPerUser: 0 })).toBe(false);
+    expect(isCappedFromStats(stats(5, 50), { cooldownDays: 0 })).toBe(false);
+  });
+
+  it("still enforces a real cap next to a zero one", () => {
+    expect(isCappedFromStats(stats(1, 50), { maxPerSession: 1, maxPerUser: 0 })).toBe(true);
   });
 });

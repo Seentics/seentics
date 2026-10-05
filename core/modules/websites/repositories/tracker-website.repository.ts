@@ -105,12 +105,10 @@ export async function resolveWebsiteForTracker(
 
 export async function listTrackerGoals(websiteId: string): Promise<TrackerGoal[]> {
   return sql<TrackerGoal[]>`
-    SELECT id::text AS id, identifier AS name, selector AS selector
+    SELECT id::text AS id, identifier AS name, name AS label, type,
+           CASE WHEN type = 'event' AND btrim(coalesce(selector, '')) <> '' THEN selector END AS selector
     FROM goals
     WHERE website_id = ${websiteId}::uuid
-      AND type = 'event'
-      AND selector IS NOT NULL
-      AND btrim(selector) <> ''
     ORDER BY created_at ASC
   `;
 }
@@ -126,7 +124,7 @@ export async function buildPublicTrackerConfig(
     funnel_enabled: w.funnel_enabled,
     automation_enabled: w.automation_enabled,
     errors_enabled: w.errors_enabled,
-    goals: goals.map((g) => ({ id: g.id, name: g.name, selector: g.selector })),
+    goals: goals.map((g) => ({ id: g.id, name: g.name, label: g.label ?? g.name, type: g.type ?? 'event', selector: g.selector ?? null })),
     replay_enabled: w.replay_enabled,
     replay_sampling_rate: w.replay_sampling_rate,
     replay_include_patterns: w.replay_include_patterns,

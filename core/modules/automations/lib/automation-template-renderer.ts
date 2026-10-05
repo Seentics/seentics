@@ -72,9 +72,28 @@ function resolveToken(token: string, context: Record<string, unknown>): string {
   return value == null ? '' : String(value);
 }
 
-export function renderTemplate(template: string, context: Record<string, unknown>): string {
-  return template.replace(TEMPLATE_RE, (_, token: string) => resolveToken(token, context));
+const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]!);
+
+export function renderTemplate(
+  template: string,
+  context: Record<string, unknown>,
+  options: { escapeHtml?: boolean } = {},
+): string {
+  return template.replace(TEMPLATE_RE, (_, token: string) => {
+    const value = resolveToken(token, context);
+    return options.escapeHtml ? escapeHtml(value) : value;
+  });
 }
+
+/**
+ * The fields an author fills with their own code. The markup is the author's, but what is
+ * interpolated into it is a visitor's data (a page URL, a referrer, a trait), so values are
+ * HTML-escaped there; a `{{ url }}` in custom markup must not become the visitor's markup.
+ * Style and script are the author's alone and are never interpolated.
+ */
+const CUSTOM_HTML_KEY = "custom_html";
+const CUSTOM_VERBATIM_KEYS = new Set(["custom_css", "custom_js"]);
 
 export function renderTemplateDeep(obj: unknown, context: Record<string, unknown>): unknown {
   if (typeof obj === 'string') return renderTemplate(obj, context);
@@ -82,7 +101,9 @@ export function renderTemplateDeep(obj: unknown, context: Record<string, unknown
   if (obj && typeof obj === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      out[k] = renderTemplateDeep(v, context);
+      if (CUSTOM_VERBATIM_KEYS.has(k)) out[k] = v;
+      else if (k === CUSTOM_HTML_KEY && typeof v === "string") out[k] = renderTemplate(v, context, { escapeHtml: true });
+      else out[k] = renderTemplateDeep(v, context);
     }
     return out;
   }

@@ -12,7 +12,7 @@
  */
 
 import { and, eq } from 'drizzle-orm';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
 import { log } from '../../../platform/observability/logger';
 import type {
@@ -103,6 +103,19 @@ export function triggerConfigMatches(t: Record<string, unknown>, incoming: Recor
       return !configured('seconds') || Number(incoming.seconds) === Number(t.seconds);
     case 'custom_event':
       return !configured('name') || incoming.name === t.name;
+    // A goal trigger names the goal it waits for, or takes any.
+    case 'goal_reached':
+      return !configured('goal_id') || incoming.goal_id === t.goal_id;
+    // A funnel trigger names a funnel, what happened in it (entry, step, dropoff, complete) and,
+    // for a step or a drop-off, optionally which step. Anything left out matches any.
+    case 'funnel':
+      return (!configured('funnel_id') || incoming.funnel_id === t.funnel_id)
+        && (!configured('event') || incoming.event === t.event)
+        && (!configured('step') || Number(incoming.step) === Number(t.step))
+        // A drop-off by stalling is reported at each idle threshold the site's automations ask
+        // for; this trigger takes the one it names. A drop-off by leaving has no threshold.
+        && (t.event !== 'dropoff' || !configured('seconds') || incoming.reason !== 'inactive'
+          || Number(incoming.seconds) === Number(t.seconds));
     default:
       return true;
   }
@@ -126,14 +139,25 @@ function renderContinuation(c: Continuation, context: Record<string, unknown>): 
   };
 }
 
-function pickVariant(abTest: AutomationDef['abTest']): string | null {
+/**
+ * The variant this visitor is in, for this automation.
+ *
+ * Decided by a hash of the visitor and the automation, not by a fresh dice roll: a test is only a
+ * test if a visitor stays in the same group every time the trigger fires. The same visitor always
+ * lands in the same variant, and across visitors the split follows the weights.
+ */
+export function pickVariant(abTest: AutomationDef['abTest'], anonymousId: string, automationId: string): string | null {
   if (!abTest?.enabled || !abTest.variants?.length) return null;
   const variants = abTest.variants;
   const totalWeight = variants.reduce((s, v) => s + (v.weight ?? 1), 0);
-  let roll = Math.random() * totalWeight;
+  if (totalWeight <= 0) return variants[0]?.id ?? null;
+  const digest = createHash("sha256").update(`${automationId}:${anonymousId}`).digest();
+  // The first 6 bytes as a fraction of 2^48: uniform enough, and stable.
+  const fraction = digest.readUIntBE(0, 6) / 2 ** 48;
+  let roll = fraction * totalWeight;
   for (const v of variants) {
     roll -= (v.weight ?? 1);
-    if (roll <= 0) return v.id;
+    if (roll < 0) return v.id;
   }
   return variants[variants.length - 1]?.id ?? null;
 }
@@ -312,6 +336,7 @@ export class AutomationEvaluationService
       def: AutomationDef;
       caps: FrequencyCapSpec;
       walked: ReturnType<typeof walkGraph>;
+      variant: string | null;
     }[] = [];
     for (const auto of rows) {
       const def = castDef(auto.definition);
@@ -320,12 +345,15 @@ export class AutomationEvaluationService
       // Walked before the cap lookup so an automation whose route reaches nothing can
       // be discarded without paying for its impression stats. Walking is pure and
       // cheap — no database, no clock — so doing it twice would be the greater cost.
-      const walked = def.graph ? walkGraph(def.graph, fullContext) : null;
+      // The variant is a fact the graph can branch on (`variant equals "b"`), so the groups of
+      // a test can be shown different things.
+      const variant = pickVariant(def.abTest, anonymousId, auto.id);
+      const walked = def.graph ? walkGraph(def.graph, variant === null ? fullContext : { ...fullContext, variant }) : null;
       if (!walked || (!walked.actions.length && !walked.webhooks.length && !walked.continuation)) {
         continue;
       }
 
-      candidates.push({ auto, def, caps: def.frequency ?? {}, walked });
+      candidates.push({ auto, def, caps: def.frequency ?? {}, walked, variant });
     }
 
     // One batched impression-stats query for every candidate that has a cap needing a
@@ -339,12 +367,11 @@ export class AutomationEvaluationService
     const eventLog: AutomationEventRow[] = [];
     let matched = 0;
 
-    for (const { auto, def, caps, walked } of candidates) {
+    for (const { auto, def, caps, walked, variant } of candidates) {
       if (isCappedFromStats(stats.get(auto.id), caps)) continue;
 
       matched++;
       const runId   = randomUUID();
-      const variant = pickVariant(def.abTest);
 
       // Buffered, not written: the whole run log for this evaluate goes out in one insert.
       eventLog.push(

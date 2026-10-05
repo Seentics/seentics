@@ -38,7 +38,12 @@ export type WebsiteTrackerRow = {
 };
 
 /** A selector-based event goal, as `/tracker/init` sends it. */
-export type TrackerGoal = { id: string; name: string; selector: string };
+/**
+ * A goal as the tracker needs it. `name` is the identifier (the event name, or the page path),
+ * `label` what the owner called it, `type` is `event` or `pageview`, and `selector` is set on an
+ * event goal that fires when that element is clicked.
+ */
+export type TrackerGoal = { id: string; name: string; selector: string | null; label?: string; type?: string };
 
 /**
  * Tracker-facing website lookup.

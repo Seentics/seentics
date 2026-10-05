@@ -25,7 +25,7 @@ import { validateGraph } from "../lib/automation-graph-validation";
 export const TRIGGER_TYPES = [
   "page_view", "click", "scroll_depth", "time_on_page", "exit_intent",
   "inactivity", "rage_click", "form_abandon", "js_error", "tab_hidden",
-  "tab_visible", "custom_event", "identify",
+  "tab_visible", "custom_event", "identify", "funnel", "goal_reached",
 ] as const;
 
 /** Action types the tracker knows how to perform, plus the one the server performs. */
@@ -112,8 +112,17 @@ const webhookActionSchema = z.object({
  * fields, the builder evolves them faster than this file, and getting one wrong costs a
  * mis-rendered banner rather than an outbound request. The `type` itself is still closed.
  */
+const MAX_CUSTOM_CODE_CHARS = 20_000;
+const customCode = z.string().max(MAX_CUSTOM_CODE_CHARS, `Custom code can be at most ${MAX_CUSTOM_CODE_CHARS} characters`).optional();
+
 const clientActionSchema = z
-  .object({ type: z.enum(CLIENT_ACTION_TYPES) })
+  .object({
+    type: z.enum(CLIENT_ACTION_TYPES),
+    // The author's own markup, style and script for modals, toasts, banners and tooltips.
+    custom_html: customCode,
+    custom_css: customCode,
+    custom_js: customCode,
+  })
   .passthrough();
 
 const actionSchema = z.union([webhookActionSchema, clientActionSchema]);
@@ -197,8 +206,11 @@ export const automationDefinitionSchema = z
     graph: graphSchema,
     frequency: z
       .object({
-        maxPerSession: z.number().int().nonnegative().max(1000).optional(),
-        maxPerUser: z.number().int().nonnegative().max(10_000).optional(),
+        // A cap of 0 would mean "never show", which is switching the automation off by another
+        // name. Leave the cap out to have none.
+        maxPerSession: z.number().int().min(1, "A cap per session must be at least 1. Leave it out for no cap.").max(1000).optional(),
+        maxPerUser: z.number().int().min(1, "A cap per visitor must be at least 1. Leave it out for no cap.").max(10_000).optional(),
+        // 0 days is no cooldown.
         cooldownDays: z.number().int().nonnegative().max(365).optional(),
       })
       .optional(),

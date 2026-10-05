@@ -93,6 +93,8 @@ const TRIGGERS: Array<{ type: string; payload: Record<string, unknown> }> = [
   { type: "tab_visible", payload: {} },
   { type: "custom_event", payload: { name: "signup" } },
   { type: "identify", payload: { userId: "u1" } },
+  { type: "funnel", payload: { funnel_id: "f1", event: "dropoff", step: 2 } },
+  { type: "goal_reached", payload: { goal_id: "g1", goal_name: "Signed up" } },
 ];
 
 describe("trigger nodes", () => {

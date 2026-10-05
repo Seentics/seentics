@@ -5,6 +5,7 @@
 import { db, webhookDeliveries } from '../../../db';
 import { log } from '../../../platform/observability/logger';
 import { validateWebhookUrl } from '../../../platform/http/origin';
+import { assertPublicHost } from '../../../platform/http/public-host';
 import { renderTemplateDeep } from '../lib/automation-template-renderer';
 
 export interface WebhookAction {
@@ -28,6 +29,12 @@ export const DEFAULT_WEBHOOK_RETRY: WebhookRetryPolicy = { maxAttempts: 4, baseD
 async function sleep(ms: number) {
   if (ms <= 0) return;
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** The DNS check, replaceable so a test can run without a network. */
+let hostGuard: (hostname: string) => Promise<void> = assertPublicHost;
+export function setHostGuard(guard: (hostname: string) => Promise<void> = assertPublicHost) {
+  hostGuard = guard;
 }
 
 export async function executeWebhook(
@@ -61,6 +68,21 @@ export async function executeWebhook(
     return;
   }
 
+  // The URL check above reads the address as text. This asks DNS where it really goes, so a name
+  // pointed at an internal service (or at the cloud metadata address) is refused as well.
+  try {
+    await hostGuard(new URL(url).hostname);
+  } catch (err) {
+    log.warn({ msg: 'webhook_blocked_dns', automationId, url, err: err instanceof Error ? err.message : String(err) });
+    try {
+      await db.insert(webhookDeliveries).values({
+        automationId, runId: runId ?? null, url, statusCode: null, success: false, attemptCount: 0,
+        lastAttemptAt: new Date(), responseMs: 0, error: 'URL blocked: resolves to a non-public address',
+      });
+    } catch { /* best-effort log */ }
+    return;
+  }
+
   const renderedBody = renderTemplateDeep(rawBody, context);
   const payload = JSON.stringify({ ...renderedBody as object, _automation_id: automationId, _ts: Date.now() });
 
@@ -80,12 +102,19 @@ export async function executeWebhook(
         headers: { 'Content-Type': 'application/json', ...headers },
         body: payload,
         signal: AbortSignal.timeout(10_000),
+        // A redirect could carry the request, body and headers to an address the check above
+        // never saw. It is reported as a failure instead of followed.
+        redirect: 'manual',
       });
       responseMs  = Date.now() - start;
       lastCode    = res.status;
       success     = res.ok;
       lastError   = res.ok ? null : `HTTP ${res.status}`;
       if (res.ok) break;
+      if (res.status >= 300 && res.status < 400) {
+        lastError = `redirect not followed (HTTP ${res.status})`;
+        break; // asking again gets the same redirect
+      }
     } catch (err) {
       responseMs = Date.now() - start;
       lastError  = err instanceof Error ? err.message : String(err);

@@ -122,9 +122,11 @@ export function isCappedFromStats(stats: ImpressionStats | undefined, caps: Freq
   const lifetimeCount = stats?.lifetimeCount ?? 0;
   const lastShownAt   = stats?.lastShownAt   ?? null;
 
-  if (caps.maxPerSession != null && sessionCount  >= caps.maxPerSession) return true;
-  if (caps.maxPerUser    != null && lifetimeCount >= caps.maxPerUser)    return true;
-  if (caps.cooldownDays  != null && lastShownAt) {
+  // A cap of 0 or less is no cap: it can only come from a definition stored before the schema
+  // refused it, and it was never meant to switch the automation off.
+  if (caps.maxPerSession != null && caps.maxPerSession > 0 && sessionCount  >= caps.maxPerSession) return true;
+  if (caps.maxPerUser    != null && caps.maxPerUser    > 0 && lifetimeCount >= caps.maxPerUser)    return true;
+  if (caps.cooldownDays  != null && caps.cooldownDays  > 0 && lastShownAt) {
     const since = Date.now() - caps.cooldownDays * 86_400_000;
     if (lastShownAt.getTime() >= since) return true;
   }

@@ -18,9 +18,12 @@ mock.module("../../../platform/observability/logger", fakeLogger);
 
 let executeWebhook: typeof import("../services/automation-webhook-execution.service").executeWebhook;
 let DEFAULT_WEBHOOK_RETRY: typeof import("../services/automation-webhook-execution.service").DEFAULT_WEBHOOK_RETRY;
+let setHostGuard: typeof import("../services/automation-webhook-execution.service").setHostGuard;
 
 beforeAll(async () => {
-  ({ executeWebhook, DEFAULT_WEBHOOK_RETRY } = await import("../services/automation-webhook-execution.service"));
+  ({ executeWebhook, DEFAULT_WEBHOOK_RETRY, setHostGuard } = await import("../services/automation-webhook-execution.service"));
+  // DNS is public-host.test.ts's business; here every name is public.
+  setHostGuard(async () => {});
 });
 
 const AUTOMATION = "auto_1";
@@ -317,5 +320,26 @@ describe("delivery log", () => {
     await expect(
       executeWebhook(AUTOMATION, { url: SAFE_URL }, {}, "run_1", FAST),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("DNS guard and redirects", () => {
+  it("records a blocked delivery and makes no request when the name resolves to an internal address", async () => {
+    setHostGuard(async () => { throw new Error("host resolves to a non-public address"); });
+    try {
+      await executeWebhook(AUTOMATION, { url: SAFE_URL }, {}, "run_1", FAST);
+    } finally {
+      setHostGuard(async () => {});
+    }
+    expect(fetchCalls).toHaveLength(0);
+    expect(deliveryRow()).toMatchObject({ success: false, attemptCount: 0, error: "URL blocked: resolves to a non-public address" });
+  });
+
+  it("does not follow a redirect, and does not retry it", async () => {
+    scriptFetch(new Response("", { status: 307, headers: { location: "http://analytics:8001/internal" } }));
+    await executeWebhook(AUTOMATION, { url: SAFE_URL }, {}, "run_1", FAST);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0]!.init.redirect).toBe("manual");
+    expect(deliveryRow()).toMatchObject({ success: false, statusCode: 307, attemptCount: 1, error: "redirect not followed (HTTP 307)" });
   });
 });

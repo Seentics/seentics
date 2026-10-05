@@ -483,8 +483,10 @@ describe("frequency caps", () => {
     }
   });
 
-  it("accepts a cap of zero, which means never", () => {
-    expect(automationDefinitionSchema.safeParse(definition({ frequency: { maxPerSession: 0 } })).success).toBe(true);
+  it("refuses a cap of zero, which would switch the automation off by another name", () => {
+    expect(automationDefinitionSchema.safeParse(definition({ frequency: { maxPerSession: 0 } })).success).toBe(false);
+    expect(automationDefinitionSchema.safeParse(definition({ frequency: { maxPerUser: 0 } })).success).toBe(false);
+    expect(automationDefinitionSchema.safeParse(definition({ frequency: { cooldownDays: 0 } })).success).toBe(true);
   });
 
   it("rejects a negative or fractional cap", () => {

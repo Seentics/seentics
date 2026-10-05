@@ -81,7 +81,7 @@ describe("buildPublicTrackerConfig", () => {
   it("maps goals array with id, name, selector", async () => {
     const goals = [makeGoal({ id: "g1", name: "btn_click", selector: "#btn" })];
     const cfg = await buildPublicTrackerConfig(makeWebsite(), goals);
-    expect(cfg.goals).toEqual([{ id: "g1", name: "btn_click", selector: "#btn" }]);
+    expect(cfg.goals).toEqual([{ id: "g1", name: "btn_click", label: "btn_click", type: "event", selector: "#btn" }]);
   });
 
   it("returns empty goals array when no goals", async () => {
