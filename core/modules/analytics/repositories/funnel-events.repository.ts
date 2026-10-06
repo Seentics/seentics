@@ -1,5 +1,5 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { buildFunnelProgressQuery, type FunnelProgressStep } from "../lib/funnel-progress-sql";
+import { buildFunnelProgressBatchQuery, buildFunnelProgressQuery, type FunnelProgressStep } from "../lib/funnel-progress-sql";
 
 /** One bucket of the aggregation: a step index (or `-1`) and its distinct visitors. */
 export type FunnelStepCount = { step_order: number | null; cnt: number };
@@ -75,4 +75,22 @@ export async function isValidRegexPattern(pattern: string): Promise<boolean> {
     if ((error as { code?: string }).code === "2201B") return false;
     throw error;
   }
+}
+
+
+export async function countFunnelsProgress(websiteId: string,
+  funnels: Array<{ id: string; steps: FunnelProgressStep[]; windowHours: number | null }>, startIso: string, endIso: string): Promise<Record<string, FunnelStepCount[]>> {
+  const result: Record<string, FunnelStepCount[]> = {};
+  for (let offset = 0; offset < funnels.length; offset += 50) {
+    const batch = funnels.slice(offset, offset + 50);
+    const query = buildFunnelProgressBatchQuery(websiteId, batch, startIso, endIso);
+    const rows = await pgSql.unsafe<Array<{ funnel_id: string; step_order: number; cnt: number }>>(query.text, query.params as never[]);
+    for (const row of rows) (result[row.funnel_id] ??= []).push({ step_order: row.step_order, cnt: row.cnt });
+    for (const funnel of batch) {
+      const counts = result[funnel.id] ?? [];
+      counts.push({ step_order: -1, cnt: counts.find(c => c.step_order === funnel.steps.length - 1)?.cnt ?? 0 });
+      result[funnel.id] = counts;
+    }
+  }
+  return result;
 }

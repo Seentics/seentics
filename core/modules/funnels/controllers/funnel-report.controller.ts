@@ -18,3 +18,14 @@ export function getFunnelReport(deps: FunnelControllerDeps) {
     }
   };
 }
+
+export function getFunnelReports(deps: FunnelControllerDeps) {
+  return async (c: Context<{ Variables: AuthVars }, '/:website_id/funnels/stats'>) => {
+    const websiteRef = c.req.param('website_id');
+    const access = await requireFunnelAccess(c, deps, websiteRef);
+    if ('denied' in access) return access.denied;
+    try {
+      return c.json({ data: await deps.performance.reports(websiteRef, Number(c.req.query('days')) || undefined) });
+    } catch (error) { return funnelFailure(c, 'reports', websiteRef, error); }
+  };
+}

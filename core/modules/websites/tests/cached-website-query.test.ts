@@ -82,6 +82,19 @@ describe("CachedWebsiteQuery", () => {
     cached = new CachedWebsiteQuery(inner);
   });
 
+  it("shares concurrent misses and does not restore an invalidated in-flight result", async () => {
+    await Promise.all(Array.from({ length: 20 }, () => cached.getById(site.id)));
+    expect(inner.getByIdCalls).toHaveLength(1);
+    cached.clear();
+    let release!: (value: Website) => void;
+    inner.getById = () => new Promise(resolve => { release = resolve; });
+    const stale = cached.getById(site.id);
+    cached.invalidate(site.id);
+    release(site); await stale;
+    inner.getById = async () => ({ ...site, name: "Updated" });
+    expect((await cached.getById(site.id))?.name).toBe("Updated");
+  });
+
   describe("getById", () => {
     it("returns the website", async () => {
       expect(await cached.getById(site.id)).toEqual(site);

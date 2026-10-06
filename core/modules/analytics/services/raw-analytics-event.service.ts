@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { analyticsEvents, db } from "../../../db";
 import type { AnalyticsFunnelEvents, AnalyticsRawEvents } from "../interfaces";
-import { countFunnelProgress, countFunnelStepVisitors, isValidRegexPattern } from "../repositories/funnel-events.repository";
+import { countFunnelsProgress, countFunnelProgress, countFunnelStepVisitors, isValidRegexPattern } from "../repositories/funnel-events.repository";
 import type { FunnelProgressStep } from "../lib/funnel-progress-sql";
 
 /**
@@ -65,6 +65,8 @@ export class AnalyticsEventFeedService implements AnalyticsRawEvents, AnalyticsF
   async countFunnelProgress(websiteId: string, steps: FunnelProgressStep[], startIso: string, endIso: string, windowHours: number | null = null) {
     return countFunnelProgress(websiteId, steps, startIso, endIso, windowHours);
   }
+
+  countFunnelsProgress(...args: Parameters<typeof countFunnelsProgress>) { return countFunnelsProgress(...args); }
 
   async isValidPattern(pattern: string) {
     return isValidRegexPattern(pattern);

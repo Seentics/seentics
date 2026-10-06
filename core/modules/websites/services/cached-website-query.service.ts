@@ -29,6 +29,9 @@ export class CachedWebsiteQuery implements WebsiteQuery {
   /** Keyed by the caller's reference, which may be the id or another accepted form. */
   private readonly cache = new Map<string, CacheEntry>();
 
+  private readonly pending = new Map<string, Promise<Website | null>>();
+  private generation = 0;
+
   constructor(
     private readonly inner: WebsiteQuery,
     private readonly ttlMs: number = TTL_MS,
@@ -39,22 +42,19 @@ export class CachedWebsiteQuery implements WebsiteQuery {
     const hit = this.cache.get(websiteRef);
     if (hit && hit.expiresAt > now) return hit.website;
 
-    const website = await this.inner.getById(websiteRef);
-
-    // Negative results are cached too: a dashboard polling a deleted site would
-    // otherwise hit the database on every request forever.
-    this.cache.set(websiteRef, { website, expiresAt: now + this.ttlMs });
-
-    // A reference that is not already the id gets the id cached too, so a later lookup
-    // by either reaches the same entry. (This used to read `websiteRef === website.id ?
-    // website.id : website.id` — both branches identical — left over from when a website
-    // had a second `site_id` identifier. That column is gone.)
-    if (website && websiteRef !== website.id) {
-      this.cache.set(website.id, { website, expiresAt: now + this.ttlMs });
-    }
-
-    if (Math.random() < SWEEP_PROBABILITY) this.sweep(now);
-    return website;
+    const active = this.pending.get(websiteRef);
+    if (active) return active;
+    const generation = this.generation;
+    const started = this.inner.getById(websiteRef).then((website) => {
+      if (generation !== this.generation) return website;
+      const entry = { website, expiresAt: Date.now() + this.ttlMs };
+      this.cache.set(websiteRef, entry);
+      if (website && websiteRef !== website.id) this.cache.set(website.id, entry);
+      if (Math.random() < SWEEP_PROBABILITY) this.sweep(Date.now());
+      return website;
+    }).finally(() => { if (this.pending.get(websiteRef) === started) this.pending.delete(websiteRef); });
+    this.pending.set(websiteRef, started);
+    return started;
   }
 
   /** Not cached — the underlying list changes whenever the user adds a site. */
@@ -76,12 +76,15 @@ export class CachedWebsiteQuery implements WebsiteQuery {
    * without the mutating code needing to know the cache exists.
    */
   invalidate(...websiteRefs: string[]): void {
-    for (const ref of websiteRefs) this.cache.delete(ref);
+    this.generation++;
+    for (const ref of websiteRefs) { this.cache.delete(ref); this.pending.delete(ref); }
   }
 
   /** Drop everything. */
   clear(): void {
+    this.generation++;
     this.cache.clear();
+    this.pending.clear();
   }
 
   private sweep(now: number): void {

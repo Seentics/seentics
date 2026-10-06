@@ -19,7 +19,7 @@ export const getDashboardData = async (
   if (isDemo(websiteId)) {
     return demoAnalyticsData().dashboardData;
   }
-  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone(), live: '0' });
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.append(key, value);
   });

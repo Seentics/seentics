@@ -21,6 +21,7 @@ import type {
 type RepoCall = { fn: string; websiteId: string };
 
 const repoCalls: RepoCall[] = [];
+const batchCalls: string[][] = [];
 const reportCalls: { websiteId: string; steps: unknown[]; startIso: string; endIso: string; windowHours: number | null }[] = [];
 
 let funnelRows: Funnel[] = [];
@@ -90,6 +91,10 @@ mock.module("../repositories/funnel.repository", () => ({
  * replaces what used to be a `mock.module` of a funnels-owned repository.
  */
 const analyticsEvents: AnalyticsFunnelEvents = {
+  async countFunnelsProgress(websiteId, funnels, startIso, endIso) {
+    batchCalls.push(funnels.map(f => f.id));
+    return Object.fromEntries(await Promise.all(funnels.map(async f => [f.id, await this.countFunnelProgress(websiteId, f.steps, startIso, endIso, f.windowHours)])));
+  },
   async countFunnelStepVisitors() {
     throw new Error("the report no longer reads the browser's funnel events");
   },
@@ -223,6 +228,7 @@ describe("funnel domain services", () => {
   let service: FunnelQuery & FunnelMutations & FunnelPerformance & FunnelTrackerConfig;
 
   beforeEach(() => {
+    batchCalls.length = 0;
     repoCalls.length = 0;
     reportCalls.length = 0;
     funnelRows = [makeFunnel()];
@@ -239,6 +245,7 @@ describe("funnel domain services", () => {
       remove: definitions.remove.bind(definitions),
       bulkRemove: definitions.bulkRemove.bind(definitions),
       report: performance.report.bind(performance),
+      reports: performance.reports.bind(performance),
       activeForTracker: tracker.activeForTracker.bind(tracker),
     };
   });
@@ -296,6 +303,15 @@ describe("funnel domain services", () => {
   });
 
   describe("report", () => {
+    it("loads all definitions once and requests one aggregation batch", async () => {
+      funnelRows = [makeFunnel({ id: "first" }), makeFunnel({ id: "second" })];
+      const reports = await service.reports(WEBSITE_UUID, 7);
+      expect(Object.keys(reports)).toEqual(["first", "second"]);
+      expect(batchCalls).toEqual([["first", "second"]]);
+      expect(repoCalls.filter(c => c.fn === "listFunnels")).toHaveLength(1);
+      expect(repoCalls.filter(c => c.fn === "findFunnel")).toHaveLength(0);
+      expect(reports.first.completions).toBe(4);
+    });
     it("computes the report from the definition's steps", async () => {
       const report = await service.report(WEBSITE_UUID, "fn_1");
 

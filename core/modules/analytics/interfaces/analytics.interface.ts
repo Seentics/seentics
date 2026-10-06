@@ -279,6 +279,10 @@ export interface AnalyticsFunnelEvents {
     windowHours?: number | null,
   ): Promise<Array<{ step_order: number | null; cnt: number }>>;
 
+  countFunnelsProgress(websiteId: string,
+    funnels: Array<{ id: string; steps: FunnelProgressStep[]; windowHours: number | null }>, startIso: string, endIso: string,
+  ): Promise<Record<string, Array<{ step_order: number | null; cnt: number }>>>;
+
   /** Whether the database accepts this as a regular expression. */
   isValidPattern(pattern: string): Promise<boolean>;
 }

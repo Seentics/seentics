@@ -9,7 +9,7 @@ import {
   listFunnels,
   updateFunnel,
 } from "./controllers/funnel-crud.controller";
-import { getFunnelReport } from "./controllers/funnel-report.controller";
+import { getFunnelReport, getFunnelReports } from "./controllers/funnel-report.controller";
 import { getActiveFunnels } from "./controllers/funnel-tracker.controller";
 
 export function createFunnelRoutes(deps: FunnelControllerDeps) {
@@ -21,6 +21,7 @@ export function createFunnelRoutes(deps: FunnelControllerDeps) {
   authRoutes.get("/:website_id/funnels", listFunnels(deps));
   authRoutes.post("/:website_id/funnels", createFunnel(deps));
   authRoutes.delete("/:website_id/funnels/bulk-delete", bulkDeleteFunnels(deps));
+  authRoutes.get("/:website_id/funnels/stats", getFunnelReports(deps));
   authRoutes.get("/:website_id/funnels/:funnel_id", getFunnel(deps));
   authRoutes.put("/:website_id/funnels/:funnel_id", updateFunnel(deps));
   authRoutes.delete("/:website_id/funnels/:funnel_id", deleteFunnel(deps));

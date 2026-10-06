@@ -355,3 +355,16 @@ export async function getDashboardFunnelAnalytics(
     return emptyFunnelAnalyticsResponse(funnelId, websiteId ?? '', 'error');
   }
 }
+
+
+/** One report request for the list, independent of how many funnels it contains. */
+export async function getDashboardFunnelsAnalytics(websiteId: string, dateRange = 7): Promise<Record<string, FunnelAnalyticsResponse>> {
+  if (isDemo(websiteId)) {
+    const { demoFunnelAnalytics } = await import('./demo');
+    return Object.fromEntries(await Promise.all((await fetchDashboardFunnelList(websiteId)).map(async funnel => [funnel.id, await demoFunnelAnalytics(funnel.id)])));
+  }
+  const days = Math.min(366, Math.max(1, Math.round(Number(dateRange) || 7)));
+  const response = await api.get(`/websites/${websiteId}/funnels/stats`, { params: { days } });
+  const reports = (response.data?.data ?? {}) as Record<string, FunnelStatsPayload>;
+  return Object.fromEntries(Object.entries(reports).map(([id, report]) => [id, funnelStatsToAnalyticsResponse(id, websiteId, report)]));
+}

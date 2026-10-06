@@ -9,7 +9,7 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
-import { useFunnels, useFunnelAnalytics, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
+import { useFunnels, useFunnelsAnalytics, type Funnel, type FunnelAnalyticsResponse } from '@/features/funnels/queries';
 import { DataTable, selectionColumn } from '@/components/ui/data-table';
 
 import { Badge } from '@/components/ui/badge';
@@ -20,9 +20,7 @@ import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function FunnelCellStats({ funnel, dateRange, websiteId }: { funnel: Funnel; dateRange: number; websiteId: string }) {
-  const { data: analytics, isLoading } = useFunnelAnalytics(funnel.id, dateRange, websiteId);
-
+function FunnelCellStats({ analytics, isLoading }: { analytics?: FunnelAnalyticsResponse; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-4 w-24" />;
   const item = analytics?.analytics?.[0];
   if (!item || (!item.total_starts && !item.total_conversions)) {
@@ -74,18 +72,18 @@ export default function FunnelsPage() {
   // zeroed placeholders (core funnel.repository.ts mapFunnel), so averaging them read
   // 0.0% on every site whatever the funnels converted at. A funnel nobody has entered
   // has no rate yet and is left out rather than counted as 0%.
-  const funnelReports = useFunnelsAnalytics(isDemoMode ? [] : funnelIds, dateRange, websiteId);
+  const funnelReports = useFunnelsAnalytics(funnelIds, dateRange, websiteId);
   const avgConversionStr = useMemo(() => {
     if (isDemoMode || funnelIds.length === 0) return '';
-    const rates = funnelReports
-      .map(r => r.data?.analytics?.[0])
+    const rates = Object.values(funnelReports.data ?? {})
+      .map(r => r.analytics?.[0])
       .filter(item => item && (item.total_starts ?? 0) > 0)
       .map(item => Number(item!.conversion_rate ?? 0))
       .filter(r => !Number.isNaN(r));
     if (!rates.length) return '—';
     const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
     return `${avg.toFixed(1)}%`;
-  }, [isDemoMode, funnelIds.length, funnelReports]);
+  }, [isDemoMode, funnelIds.length, funnelReports.data]);
   const createFunnelMutation = useCreateFunnel();
   const updateFunnelMutation = useUpdateFunnel();
   const deleteFunnelMutation = useDeleteFunnel();
@@ -166,7 +164,7 @@ export default function FunnelsPage() {
       id: 'performance',
       header: `Performance (${FUNNEL_RANGES.find((r) => r.days === dateRange)?.short ?? `${dateRange}d`})`,
       cell: ({ row }: { row: any }) => (
-        <FunnelCellStats funnel={row.original} dateRange={dateRange} websiteId={websiteId} />
+        <FunnelCellStats analytics={funnelReports.data?.[row.original.id]} isLoading={funnelReports.isLoading} />
       )
     },
     {
@@ -208,7 +206,7 @@ export default function FunnelsPage() {
         </div>
       )
     }
-  ], [websiteId, dateRange, router]);
+  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading]);
 
 
   // Summary Metrics

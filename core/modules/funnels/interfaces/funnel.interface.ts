@@ -149,6 +149,7 @@ export interface FunnelMutations {
  * being crossed — and crossing them returns zeroes rather than an error.
  */
 export interface FunnelPerformance {
+  reports(websiteRef: string, days?: number): Promise<Record<string, FunnelReport>>;
   /**
    * Conversion figures over the last `days` days, or `null` when the funnel does
    * not exist. `days` is clamped to 1..366 by the implementation.

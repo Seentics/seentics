@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import postgres from "postgres";
-import { buildFunnelProgressQuery, type FunnelProgressStep } from "../lib/funnel-progress-sql";
+import { buildFunnelProgressBatchQuery, buildFunnelProgressQuery, type FunnelProgressStep } from "../lib/funnel-progress-sql";
 
 /**
  * The funnel query against a real Postgres, since what it means to "reach a step" is a property
@@ -44,6 +44,23 @@ describe.skipIf(!url)("funnel progress, counted from events", () => {
   afterAll(async () => {
     await sql.unsafe("DROP SCHEMA IF EXISTS funnel_probe CASCADE");
     await sql.end();
+  });
+
+  it("counts several funnels from one shared event scan, with isolated results", async () => {
+    const rows = [view("one", "/", day(2)), view("one", "/docs", day(2, 1)),
+      view("two", "/pricing", day(2)), view("two", "/pay", day(2, 1))];
+    await counts(HOME_DOCS_APPLY, rows);
+    const funnels = [
+      { id: "docs", steps: [page("/"), page("/docs")], windowHours: null },
+      { id: "pay", steps: [page("/pricing"), page("/pay")], windowHours: 1 },
+      { id: "empty", steps: [page("/missing")], windowHours: null },
+    ];
+    const { text, params } = buildFunnelProgressBatchQuery(SITE, funnels, START, END);
+    expect(text.match(/FROM analytics_events/g)).toHaveLength(1);
+    const actual = await sql.unsafe<Array<{ funnel_id: string; step_order: number; cnt: number }>>(text, params as never[]);
+    expect(actual.filter(row => row.funnel_id === "docs").map(row => row.cnt)).toEqual([1, 1]);
+    expect(actual.filter(row => row.funnel_id === "pay").map(row => row.cnt)).toEqual([1, 1]);
+    expect(actual.filter(row => row.funnel_id === "empty").map(row => row.cnt)).toEqual([0]);
   });
 
   it("counts each visitor at the furthest step they reached, in order", async () => {

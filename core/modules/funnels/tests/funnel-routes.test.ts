@@ -188,6 +188,8 @@ class FakeFunnels
     return this.report_;
   }
 
+  async reports() { return this.report_ ? Object.fromEntries(this.funnels.map(f => [f.id, this.report_!])) : {}; }
+
   async activeForTracker(websiteId: string): Promise<Funnel[]> {
     this.activeRefs.push(websiteId);
     return this.funnels.filter((f) => f.is_active);
@@ -302,6 +304,14 @@ describe("funnel routes", () => {
   });
 
   describe("list and get", () => {
+    it("routes the batch report before the funnel-id route and protects access", async () => {
+      const path = `/api/v1/websites/${WEBSITE_UUID}/funnels/stats?days=7`;
+      expect((await app.request(path)).status).toBe(401);
+      const response = await asOwner(path);
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.fn_1).toEqual(funnels.report_);
+      expect((await app.request(path, { headers: { "X-Test-User": "stranger" } })).status).toBe(403);
+    });
     it("wraps the list in `data`", async () => {
       const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels`);
       expect(res.status).toBe(200);

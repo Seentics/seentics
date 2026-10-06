@@ -5,12 +5,12 @@
  * things went. Funnels are their own domain with their own endpoints, and a module that
  * accumulates unrelated features is the shape the architecture doc warns against.
  */
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import { isValidId } from '@/lib/utils';
 
 
-import { fetchDashboardFunnelList, getDashboardFunnel, getDashboardFunnelAnalytics } from '@/lib/funnels-dashboard';
+import { getDashboardFunnelsAnalytics, fetchDashboardFunnelList, getDashboardFunnel, getDashboardFunnelAnalytics } from '@/lib/funnels-dashboard';
 import type {
   DashboardFunnel as Funnel,
   DashboardFunnelStep as FunnelStep,
@@ -54,9 +54,12 @@ export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7, webs
   return useQuery<FunnelAnalyticsResponse>(funnelAnalyticsQuery(funnelId, dateRange, websiteId));
 };
 
-/** The same per-funnel reports, for several funnels at once — shares the row cells' cache. */
-export const useFunnelsAnalytics = (funnelIds: string[], dateRange: number = 7, websiteId?: string) => {
-  return useQueries({
-    queries: funnelIds.map(id => funnelAnalyticsQuery(id, dateRange, websiteId)),
-  }) as { data?: FunnelAnalyticsResponse }[];
+/** One list report fetch; row cells read the same response without their own requests. */
+export const useFunnelsAnalytics = (funnelIds: string[], dateRange = 7, websiteId = '') => {
+  return useQuery({
+    queryKey: [...analyticsKeys.all, 'funnel-analytics', 'batch', dateRange, websiteId, [...funnelIds].sort()],
+    queryFn: () => getDashboardFunnelsAnalytics(websiteId, dateRange),
+    enabled: isValidId(websiteId) && funnelIds.length > 0,
+    staleTime: 2 * 60_000,
+  });
 };

@@ -34,6 +34,7 @@ export function buildFunnelProgressQuery(
   endIso: string,
   /** Hours a visitor may take between one step and the next; none means no limit. */
   windowHours: number | null = null,
+  sharedEvents = false,
 ): { text: string; params: unknown[] } {
   if (steps.length === 0) throw new Error("A funnel needs at least one step");
   if (steps.length > MAX_FUNNEL_STEPS) throw new Error(`A funnel can have at most ${MAX_FUNNEL_STEPS} steps`);
@@ -84,7 +85,7 @@ export function buildFunnelProgressQuery(
     WITH base AS (
       SELECT coalesce(nullif(trim(e.visitor_id), ''), e.session_id) AS vkey,
              e.occurred_at AS t, e.event_type, e.page, e.properties
-      FROM analytics_events e
+      FROM ${sharedEvents ? "batch_events" : "analytics_events"} e
       WHERE e.website_id = $1
         AND e.occurred_at >= $2::timestamptz
         AND e.occurred_at <= $3::timestamptz
@@ -94,4 +95,24 @@ export function buildFunnelProgressQuery(
     ${steps.map((_, i) => `SELECT ${i} AS step_order, count(*)::int AS cnt FROM s${i}`).join("\n    UNION ALL\n    ")}
   `;
   return { text, params };
+}
+
+
+/** A bounded batch shares one materialized read of the site's events. Values stay bound. */
+export function buildFunnelProgressBatchQuery(websiteId: string,
+  funnels: Array<{ id: string; steps: FunnelProgressStep[]; windowHours: number | null }>, startIso: string, endIso: string) {
+  if (!funnels.length || funnels.length > 50) throw new Error('A funnel report batch must contain 1..50 funnels');
+  const params: unknown[] = [websiteId, startIso, endIso];
+  const reports = funnels.map(funnel => {
+    const query = buildFunnelProgressQuery(websiteId, funnel.steps, startIso, endIso, funnel.windowHours, true);
+    const offset = params.length;
+    params.push(...query.params);
+    const text = query.text.replace(/\$(\d+)/g, (_, index: string) => `$${Number(index) + offset}`);
+    params.push(funnel.id);
+    return `SELECT $${params.length}::text AS funnel_id, p.* FROM (${text}) p`;
+  });
+  return { params, text: `WITH batch_events AS MATERIALIZED (
+    SELECT website_id, visitor_id, session_id, occurred_at, event_type, page, properties FROM analytics_events
+    WHERE website_id = $1 AND occurred_at >= $2::timestamptz AND occurred_at <= $3::timestamptz
+  ) ${reports.join(' UNION ALL ')}` };
 }

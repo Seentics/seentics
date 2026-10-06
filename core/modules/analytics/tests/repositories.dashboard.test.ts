@@ -60,6 +60,12 @@ function dashboardRows(
 }
 
 describe("getDashboardStats", () => {
+  it("skips the live count when the console polls it separately", async () => {
+    dashboardRows();
+    await getDashboardStats(SITE, { live: "0" });
+    expect(sqlCalls).toHaveLength(2);
+    expect(sqlCalls.every(call => !call.text.includes("count(DISTINCT coalesce"))).toBe(true);
+  });
   it("issues exactly three queries — the aggregate, the session pass, and the live count", async () => {
     dashboardRows();
     await getDashboardStats(SITE, {});

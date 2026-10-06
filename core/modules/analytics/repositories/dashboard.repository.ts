@@ -46,6 +46,7 @@ async function fetchDashboardRows(
   startIso: string,
   endIso: string,
   prevStartIso: string,
+  includeLive = true,
 ): Promise<DashboardRows> {
   const [[agg], [sess], liveRow] = await Promise.all([
     pgSql<TrafficAgg[]>`
@@ -155,13 +156,13 @@ async function fetchDashboardRows(
           0
         ) AS prev_bounce_pct
     `,
-    pgSql<{ c: number }[]>`
+    includeLive ? pgSql<{ c: number }[]>`
       SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString()}
-    `,
+    ` : Promise.resolve([]),
   ]);
 
   return { agg, sess, liveVisitors: Number(liveRow[0]?.c ?? 0) };
@@ -291,7 +292,7 @@ export async function getDashboardStats(
   if (rollupsEnabled()) {
     const [{ agg, sess }, liveVisitors] = await Promise.all([
       dashboardRows(websiteId, days),
-      fetchLiveVisitors(websiteId),
+      query.live === '0' ? Promise.resolve(0) : fetchLiveVisitors(websiteId),
     ]);
     return shapeDashboardStats(websiteId, days, { agg, sess, liveVisitors });
   }
@@ -306,6 +307,7 @@ export async function getDashboardStats(
     start.toISOString(),
     end.toISOString(),
     prevStart.toISOString(),
+    query.live !== '0',
   );
 
   return shapeDashboardStats(websiteId, days, rows);

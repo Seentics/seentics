@@ -3,6 +3,9 @@ import { eq } from "drizzle-orm";
 import { apiKeys, db } from "../../../db";
 import type { ApiScope, VerifiedApiKeyContext } from "../interfaces";
 
+const lastUsedWritten = new Map<string, number>();
+const LAST_USED_INTERVAL_MS = 60_000;
+
 /**
  * Validate an `X-API-Key` against `api_keys` for one website.
  *
@@ -33,13 +36,19 @@ export async function verifyWebsiteApiKey(
 
     // Best-effort, and deliberately not awaited: a last-used stamp is telemetry, and a
     // slow write on it should not delay the request that earned it.
-    void (async () => {
-      try {
-        await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-      } catch {
-        /* ignore */
-      }
-    })();
+    const previous = lastUsedWritten.get(row.id);
+    if (previous === undefined || Date.now() - previous >= LAST_USED_INTERVAL_MS) {
+      if (lastUsedWritten.size >= 5_000) lastUsedWritten.delete(lastUsedWritten.keys().next().value!);
+      const writtenAt = Date.now();
+      lastUsedWritten.set(row.id, writtenAt);
+      void (async () => {
+        try {
+          await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
+        } catch {
+          if (lastUsedWritten.get(row.id) === writtenAt) lastUsedWritten.delete(row.id);
+        }
+      })();
+    }
 
     return {
       websiteId: row.websiteId,

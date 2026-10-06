@@ -11,6 +11,7 @@ export function analyticsQuery(c: AnalyticsContext): AnalyticsQueryParams {
     days: c.req.query("days"),
     timezone: c.req.query("timezone"),
     limit: c.req.query("limit"),
+    ...(c.req.query("live") === "0" ? { live: "0" } : {}),
   };
 }
 
