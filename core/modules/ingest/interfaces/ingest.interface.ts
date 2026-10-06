@@ -175,6 +175,13 @@ export interface BatchQueue {
    */
   releaseClaims(batchIds: string[]): Promise<void>;
 
+  /**
+   * Renew the lease of a batch still being applied. Without it a batch that outlasts the lease
+   * is claimed a second time while the first worker is mid-write — for recordings, breaking the
+   * per-session chunk order. Optional: a store with no leases has nothing to renew.
+   */
+  extendClaim?(batchId: string): Promise<void>;
+
   countPending(lane: IngestLane, maxAttempts: number): Promise<number>;
   countParked(maxAttempts: number): Promise<number>;
   pruneCompleted(olderThan: Date): Promise<number>;

@@ -41,7 +41,7 @@ const REFERRER_NAMES: Array<[RegExp, string]> = [
   [/^news\.ycombinator\.com$/, 'Hacker News'],
 ];
 
-function categorizeReferrer(referrer: string): string {
+export function categorizeReferrer(referrer: string): string {
   const raw = (referrer ?? '').trim();
   if (!raw || raw.toLowerCase() === 'direct') return 'Direct';
   const domain = raw.toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[/?#:].*$/, '').replace(/^www\./, '');

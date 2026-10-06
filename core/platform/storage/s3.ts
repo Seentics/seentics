@@ -16,6 +16,10 @@ function createS3ClientForEndpoint(endpoint: string | undefined): S3Client {
   const c = env().s3;
   const cfg: S3ClientConfig = {
     region: c.region,
+    // Without these a stalled connection waits forever, and so does the ingest batch (and the
+    // lane behind it) that is writing to it. A put of a screenshot or replay chunk is seconds.
+    requestHandler: { requestTimeout: 60_000, connectionTimeout: 5_000 },
+    maxAttempts: 3,
     credentials:
       c.accessKey && c.secretKey
         ? { accessKeyId: c.accessKey, secretAccessKey: c.secretKey }

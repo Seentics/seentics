@@ -16,6 +16,7 @@
  *    uniform rather than left to `==`, whose surprises (`0 == ''`, `'' == false`) are
  *    exactly the wrong answers here.
  */
+import { safeRegexTest } from './safe-regex';
 
 export type Operator =
   | 'equals' | 'notEquals'
@@ -47,19 +48,6 @@ export type ConditionGroup = {
   operator: 'AND' | 'OR' | 'NOT';
   rules: Array<Rule | ConditionGroup>;
 };
-
-/**
- * Reject a regex that could backtrack catastrophically.
- *
- * The pattern comes from a definition and runs on the request path, so a nested
- * quantifier is a denial-of-service primitive rather than a stylistic problem.
- */
-function isSafeRegexPattern(pattern: string): boolean {
-  if (pattern.length > 200) return false;
-  if (/(\*|\+|\{[0-9,]+\})(\*|\+|\{[0-9,]+\})/.test(pattern)) return false;
-  if (/\([^)]*(\*|\+)\)[*+]/.test(pattern)) return false;
-  return true;
-}
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   if (!path) return undefined;
@@ -162,13 +150,8 @@ function applyOperator(value: unknown, op: Operator, expected: unknown): boolean
     }
     case 'matches': {
       if (value == null) return false;
-      const pattern = String(expected ?? '');
-      if (!isSafeRegexPattern(pattern)) return false;
-      try {
-        return new RegExp(pattern).test(String(value));
-      } catch {
-        return false;
-      }
+      // Customer pattern against visitor text, on the shared thread: see lib/safe-regex.ts.
+      return safeRegexTest(String(expected ?? ''), String(value));
     }
 
     case 'isSet':

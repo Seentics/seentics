@@ -18,6 +18,7 @@
 
 import { log } from "../../../platform/observability/logger";
 import bcrypt from "bcryptjs";
+import { forgetVerifiedKeys } from "./api-key-verification.service";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { apiKeys, db } from "../../../db";
@@ -113,6 +114,7 @@ export async function revokeApiKey(websiteId: string, keyId: string): Promise<bo
     .delete(apiKeys)
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.websiteId, websiteId)))
     .returning({ id: apiKeys.id });
+  forgetVerifiedKeys();
   if (rows.length > 0) log.info({ category: "api_keys", msg: "api_key_revoked", website_id: websiteId, key_id: keyId });
   return rows.length > 0;
 }

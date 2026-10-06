@@ -87,10 +87,20 @@ describe("PublicDashboardService", () => {
     dashboardRows(500, 120);
     const out = await service.getPublicDashboard("share_live", { days: "30" });
 
-    expect(out.website_id).toBe("site_1");
+    // The site's internal id stays with the owner; the link is the public name for it.
+    expect(out).not.toHaveProperty("website_id");
     expect(out.page_views).toBe(500);
     expect(out.unique_visitors).toBe(120);
     expect(out.date_range).toBe("30d");
+  });
+
+  it("carries the breakdown tables the shared page draws under the figures", async () => {
+    // Without them every card on a shared dashboard was empty, whatever the traffic.
+    dashboardRows(10, 5);
+    const out = await service.getPublicDashboard("share_live", {});
+    for (const key of ["top_pages", "top_referrers", "top_countries", "top_browsers", "top_devices", "top_os"]) {
+      expect(Array.isArray((out as Record<string, unknown>)[key])).toBe(true);
+    }
   });
 
   it("queries the resolved website id, not the share id", async () => {

@@ -226,16 +226,28 @@ describe("CollectBuffer", () => {
       expect(queue.written[0]!.rowCount).toBe(2);
     });
 
-    it("gives up after three attempts rather than holding the buffer forever", async () => {
+    it("rides out a short outage, then gives up rather than holding the buffer forever", async () => {
       queue.failWith = new Error("down");
       buffer.enqueue("analytics", "site_a", rows(2));
 
-      await buffer.flushNow();
-      await buffer.flushNow();
-      await buffer.flushNow();
+      // Three seconds of database trouble used to cost the rows.
+      for (let i = 0; i < 10; i++) await buffer.flushNow();
+      expect(buffer.depth().analytics).toBe(2);
 
+      for (let i = 0; i < 120; i++) await buffer.flushNow();
       expect(buffer.depth().analytics).toBe(0);
       expect(queue.written).toHaveLength(0);
+    });
+
+    it("delivers the rows once the database is back", async () => {
+      queue.failWith = new Error("down");
+      buffer.enqueue("analytics", "site_a", rows(2));
+      for (let i = 0; i < 10; i++) await buffer.flushNow();
+
+      queue.failWith = null;
+      await buffer.flushNow();
+      expect(queue.written).toHaveLength(1);
+      expect(queue.written[0]!.rowCount).toBe(2);
     });
 
     it("retries every lane, not just analytics", async () => {

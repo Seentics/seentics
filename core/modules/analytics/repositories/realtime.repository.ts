@@ -1,12 +1,19 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { pagePathSql, withoutVersionSql } from "../lib/dimension-sql";
-import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
+import { pagePathSql, referrerDomainSql, withoutVersionSql } from "../lib/dimension-sql";
+import { arrivalPageviewSql, CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 
 /** Rolling window for `/analytics/realtime` (matches dashboard "last ~30 minutes"). */
 export const REALTIME_WINDOW_MS = 30 * 60_000;
 
-/** Window for "Live Visitors" badge — people with a pageview in the last 30 seconds. */
-export const LIVE_VISITOR_WINDOW_MS = 30_000;
+/**
+ * Window for the "Live Visitors" badge — people with a pageview in the last five minutes.
+ *
+ * It was thirty seconds, but the tracker sends no heartbeat while a page is open, so the only
+ * sign of a visitor is the pageview that opened it: someone reading for a minute was no longer
+ * "live", and the badge dropped to zero between page loads on a site people read rather than
+ * click through. Five minutes is the usual stand-in when presence cannot be observed.
+ */
+export const LIVE_VISITOR_WINDOW_MS = 5 * 60_000;
 
 /** Bucket label for a minute, matching the query's `to_char(grp_at, 'HH24:MI')`. */
 export function utcMinuteKey(d: Date): string {
@@ -70,7 +77,9 @@ export async function getRealtimeStats(websiteId: string) {
         session_id,
         occurred_at,
         date_trunc('minute', occurred_at AT TIME ZONE 'UTC') AS grp_at,
-        coalesce(channel, ${pgSql.unsafe(CHANNEL_CASE_SQL)}) AS ch
+        coalesce(channel, ${pgSql.unsafe(CHANNEL_CASE_SQL)}) AS ch,
+        ${pgSql.unsafe(referrerDomainSql("referrer"))} AS ref_host,
+        ${pgSql.unsafe(referrerDomainSql("page"))} AS page_host
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
@@ -115,7 +124,8 @@ export async function getRealtimeStats(websiteId: string) {
         FROM base
         -- In-site navigation carries the site's own previous page as referrer; it is
         -- not a referrer, and counted as one it topped the list on any multi-page site.
-        WHERE referrer IS NOT NULL AND length(trim(referrer)) > 0 AND ch <> 'internal'
+        -- Nor are the site's other hosts or a checkout or sign-in the visitor returned from.
+        WHERE referrer IS NOT NULL AND length(trim(referrer)) > 0 AND ${pgSql.unsafe(arrivalPageviewSql("ch", "ref_host", "page_host"))}
         GROUP BY 1 ORDER BY visitors DESC LIMIT 10
       ) t
     ),
@@ -163,7 +173,7 @@ export async function getRealtimeStats(websiteId: string) {
   const row = rows[0];
   const pageviews   = Number(row?.pageviews ?? 0);
   const sessions    = Number(row?.sessions  ?? 0);
-  // active = distinct visitors in the last 30 minutes; live = last 30 seconds.
+  // active = distinct visitors in the last 30 minutes; live = last five minutes.
   const activeCount = Number(row?.visitors       ?? 0);
   const liveCount   = Number(row?.live_visitors  ?? 0);
 

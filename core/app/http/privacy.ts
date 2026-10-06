@@ -10,6 +10,8 @@ r.use("*", authMiddleware);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPORT_ROW_LIMIT = Math.max(1_000, Number(process.env.PRIVACY_EXPORT_MAX_ROWS) || 100_000);
+/** Rows across one whole export (all collections, all sites). */
+const EXPORT_TOTAL_ROW_LIMIT = Math.max(EXPORT_ROW_LIMIT, Number(process.env.PRIVACY_EXPORT_MAX_TOTAL_ROWS) || 250_000);
 
 type Website = { id: string; name: string; url: string; created_at: Date };
 
@@ -33,7 +35,25 @@ async function requireWebsite(c: Context<{ Variables: AuthVars }>, websiteId: st
   return website ?? c.json({ error: "website not found" }, 404);
 }
 
-async function exportWebsite(website: Website) {
+/**
+ * Rows held across one whole export. Each collection was capped on its own, but an account with
+ * several sites ran all of them at once: seven queries of up to 100,000 rows per site, every row
+ * in memory until the response was built — enough to take the API process down.
+ */
+class ExportBudget {
+  private used = 0;
+  constructor(private readonly limit: number) {}
+  spend(name: string, rows: number): void {
+    this.used += rows;
+    if (this.used > this.limit) {
+      const error = new Error(`export exceeds ${this.limit} rows in ${name}; request a managed export`);
+      (error as Error & { status: number }).status = 413;
+      throw error;
+    }
+  }
+}
+
+async function exportWebsite(website: Website, budget = new ExportBudget(EXPORT_TOTAL_ROW_LIMIT)) {
   const id = website.id;
   const [events, replays, heatmaps, profiles, goals, funnels, automations] = await Promise.all([
     sql`SELECT * FROM analytics_events WHERE website_id = ${id} ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
@@ -52,6 +72,7 @@ async function exportWebsite(website: Website) {
       throw error;
     }
   }
+  for (const [name, rows] of Object.entries(collections)) budget.spend(name, rows.length);
   return { website, ...collections };
 }
 
@@ -115,7 +136,11 @@ r.get("/export/:user_id", async (c) => {
   if ((c.req.param("user_id") ?? "") !== userId) return c.json({ error: "forbidden" }, 403);
   const websites = await sql<Website[]>`SELECT id::text, name, url, created_at FROM websites WHERE user_id = ${userId}::uuid ORDER BY created_at`;
   try {
-    return c.json({ success: true, data: { exportedAt: new Date().toISOString(), websites: await Promise.all(websites.map(exportWebsite)) } });
+    // One site at a time, against one budget for the whole account.
+    const budget = new ExportBudget(EXPORT_TOTAL_ROW_LIMIT);
+    const exported = [];
+    for (const website of websites) exported.push(await exportWebsite(website, budget));
+    return c.json({ success: true, data: { exportedAt: new Date().toISOString(), websites: exported } });
   } catch (error) {
     const status = (error as Error & { status?: number }).status ?? 500;
     return c.json({ error: error instanceof Error ? error.message : "export failed" }, status as 413);

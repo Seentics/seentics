@@ -97,6 +97,11 @@ export async function executeWebhook(
     attemptsMade = attempt;
     const start = Date.now();
     try {
+      // Asked again before every attempt, not once: a name that answered with a public address
+      // when first checked can be repointed before the request leaves (DNS rebinding), and a
+      // retry seconds later is the widest such window. fetch resolves the name itself, so this
+      // narrows the window rather than closing it; the real boundary is network egress policy.
+      if (attempt > 1) await hostGuard(new URL(url).hostname);
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', ...headers },

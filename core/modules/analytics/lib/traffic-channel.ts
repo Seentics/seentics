@@ -106,3 +106,77 @@ END`;
 
 /** `channelCaseSql()` over unqualified columns, for single-table queries. */
 export const CHANNEL_CASE_SQL = channelCaseSql();
+
+/* ── Referrers that are not a way anyone arrived ──────────────────────────────────────────
+ *
+ * `internal` above is a pageview whose referrer host is the page's own host. Two more kinds of
+ * referrer are the same thing in practice — the visitor did not arrive from somewhere else, they
+ * were sent away and came back — and counted as sources they made a site's own plumbing its top
+ * "traffic":
+ *
+ *   - the site's other hosts: `observe.seentics.com`, `auth.seentics.com` and `seentics.com` are
+ *     one product. A referrer on the same registrable domain is the site itself.
+ *   - the providers a journey passes through and returns from: a checkout (Lemon Squeezy, Polar,
+ *     Stripe, PayPal, Paddle) or a sign-in (Google, Apple, Microsoft, Auth0, Okta). A visitor who
+ *     goes to pay and comes back is the same visit, not a new arrival from the payment page.
+ *
+ * Neither is stored differently: events keep the channel they were classified with, and a report
+ * that credits a session to its source skips these at read time, so history needs no backfill.
+ */
+const EXCLUDED_REFERRER_DOMAINS = [
+  "lemonsqueezy.com", "polar.sh", "stripe.com", "paypal.com", "paddle.com",
+  "auth0.com", "okta.com", "appleid.apple.com", "login.microsoftonline.com", "login.live.com",
+];
+/** Exact hosts only: `accounts.google.com` is a sign-in, `google.com` is a search. */
+const EXCLUDED_REFERRER_HOSTS = ["accounts.google.com"];
+
+/** Second-level labels under which the registrable domain has one more label (`example.co.uk`). */
+const SECOND_LEVEL = "com?|org|net|gov|edu|ac";
+const REGISTRABLE_RE = new RegExp(`([^.]+\\.(?:(?:${SECOND_LEVEL})\\.[a-z]{2})|[^.]+\\.[^.]+)$`);
+
+/** `blog.example.co.uk` → `example.co.uk`; an address or a bare host is returned as it is. */
+export function registrableDomain(host: string | null | undefined): string | null {
+  if (!host) return null;
+  const h = host.toLowerCase();
+  if (!h.includes(".") || /^[0-9.]+$/.test(h)) return h;
+  return REGISTRABLE_RE.exec(h)?.[1] ?? h;
+}
+
+/**
+ * Whether a pageview's referrer should not be credited as how the visit arrived: the site's own
+ * hosts, or a payment or sign-in provider. `refHost` and `pageHost` are bare hosts without `www.`.
+ */
+export function isSelfOrPassThroughReferrer(refHost: string | null | undefined, pageHost: string | null | undefined): boolean {
+  if (!refHost) return false;
+  const ref = refHost.toLowerCase();
+  if (registrableDomain(ref) !== null && registrableDomain(ref) === registrableDomain(pageHost)) return true;
+  if (EXCLUDED_REFERRER_HOSTS.includes(ref)) return true;
+  return EXCLUDED_REFERRER_DOMAINS.some((d) => ref === d || ref.endsWith(`.${d}`));
+}
+
+/** `registrableDomain` as SQL over a host expression. */
+export const registrableDomainSql = (host: string) => `(CASE
+  WHEN ${host} IS NULL THEN NULL
+  WHEN position('.' in ${host}) = 0 OR ${host} ~ '^[0-9.]+$' THEN ${host}
+  ELSE coalesce(substring(${host} from ${sqlPattern(REGISTRABLE_RE.source)}), ${host})
+END)`;
+
+/**
+ * `isSelfOrPassThroughReferrer` as a SQL boolean over two host expressions (the referrer's, as
+ * `referrerDomainSql` gives it, and the page's). False — never NULL — when there is no referrer.
+ * Static text built from the constants above; no caller input reaches it.
+ */
+export const selfOrPassThroughReferrerSql = (refHost: string, pageHost: string) => `coalesce(
+  (${refHost} IS NOT NULL AND (
+    ${registrableDomainSql(refHost)} = ${registrableDomainSql(pageHost)}
+    OR ${refHost} IN (${sqlList(EXCLUDED_REFERRER_HOSTS)})
+    OR ${refHost} ~ ${sqlPattern(`(^|\\.)(${EXCLUDED_REFERRER_DOMAINS.map((d) => d.replace(/\./g, "\\.")).join("|")})$`)}
+  )), false)`;
+
+/**
+ * Whether a pageview counts toward how its session arrived: not in-site navigation, and not the
+ * site's own hosts or a provider the visitor passed through. `ch`, `refHost` and `pageHost` are
+ * SQL expressions.
+ */
+export const arrivalPageviewSql = (ch: string, refHost: string, pageHost: string) =>
+  `(${ch} <> 'internal' AND NOT ${selfOrPassThroughReferrerSql(refHost, pageHost)})`;

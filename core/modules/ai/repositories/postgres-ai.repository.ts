@@ -34,6 +34,10 @@ export class PostgresAiRepository implements AiRepository {
     return (await sql.begin(async (tx) => {
       await tx.unsafe(`SET LOCAL statement_timeout = ${AI_STATEMENT_TIMEOUT_MS}`);
       await tx.unsafe("SET LOCAL transaction_read_only = on");
+      // The tenant check in the guard is a text check. This is the boundary behind it: a role that
+      // can read only the AI domains' tables (db/sql/044), so a statement the guard misses still
+      // cannot reach users, credentials or billing. Fails closed if the role is missing.
+      await tx.unsafe("SET LOCAL ROLE seentics_ai_readonly");
       // `boundId` is a bound parameter, never interpolated into the statement.
       return (await tx.unsafe(statement, [boundId])) as Record<string, unknown>[];
     })) as Record<string, unknown>[];

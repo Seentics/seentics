@@ -39,10 +39,13 @@ const SITE = "site_1";
 
 /** How many days back the query's window bind reaches. */
 function windowDays(callIndex = 0): number {
-  const start = sqlCalls[callIndex]!.values.find(
-    (v): v is string => typeof v === "string" && v.endsWith("Z"),
-  )!;
-  return Math.round((Date.now() - new Date(start).getTime()) / 86_400_000);
+  const values = sqlCalls[callIndex]!.values;
+  const start = values.find((v): v is string => typeof v === "string" && v.endsWith("Z"));
+  if (start) return Math.round((Date.now() - new Date(start).getTime()) / 86_400_000);
+  // The per-day queries start at the viewer's local midnight and bind the days to go back
+  // (today plus that many before it), instead of a rolling timestamp.
+  const back = values.find((v): v is number => typeof v === "number")!;
+  return back + 1;
 }
 
 /** The timezone the query interpolated, as the identifier/bind it was passed as. */

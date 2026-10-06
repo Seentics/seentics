@@ -11,7 +11,22 @@ if (!url) {
  * Shared client: Drizzle + raw tagged-template SQL. Every connection costs Postgres
  * memory of its own: DB_POOL_MAX and Postgres' max_connections are sized together.
  */
-export const sql = postgres(url, { max: Number(process.env.DB_POOL_MAX) || 25 });
+export const sql = postgres(url, {
+  max: Number(process.env.DB_POOL_MAX) || 25,
+  // A database that does not answer must fail a request, not hold it (and its pooled connection) forever.
+  connect_timeout: 10,
+  // Connections are recycled, so a long-lived one does not pin memory or a stale plan forever.
+  max_lifetime: 60 * 30,
+  connection: {
+    // Off unless asked for. Retention purges, erasure and the rollup builder run long deletes and
+    // rebuilds on this pool on purpose (a compressed hypertable decompresses what a delete touches),
+    // and a default that cut them off would leave data that must go undeleted. Dashboard reads have
+    // their own pool and timeout below; set DB_STATEMENT_TIMEOUT_MS to put a ceiling here too.
+    ...(Number(process.env.DB_STATEMENT_TIMEOUT_MS) > 0 ? { statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT_MS) } : {}),
+    // A transaction left open by a crashed or stalled request holds locks and blocks vacuum.
+    idle_in_transaction_session_timeout: Number(process.env.DB_IDLE_IN_TRANSACTION_MS) || 60_000,
+  },
+});
 export const db = drizzle(sql, { schema });
 
 /**

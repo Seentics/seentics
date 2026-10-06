@@ -11,6 +11,17 @@ export type BatchWorkerOptions = {
   maxAttempts?: number;
   /** How long applied batches are kept before pruning. */
   retainCompletedMs?: number;
+  /** How often a batch being applied renews its lease; keep it well under the lease itself. */
+  leaseHeartbeatMs?: number;
+  /**
+   * The longest a batch may take to apply. A write that hangs would otherwise keep renewing its
+   * own lease forever and stall its lane; past this the attempt counts as failed and is retried.
+   */
+  applyTimeoutMs?: number;
+  /** How often the queue is checked for parked batches and a growing backlog. */
+  healthCheckMs?: number;
+  /** Pending batches in one lane that count as a backlog worth an error line. */
+  backlogWarnAt?: number;
 };
 
 /** Ceiling for the claim-failure backoff. Long enough to stay quiet, short enough to recover promptly. */
@@ -21,6 +32,10 @@ const DEFAULTS: Required<BatchWorkerOptions> = {
   idleIntervalMs: 250,
   maxAttempts: 5,
   retainCompletedMs: 6 * 60 * 60 * 1000,
+  leaseHeartbeatMs: 90_000,
+  applyTimeoutMs: 4 * 60_000,
+  healthCheckMs: 60_000,
+  backlogWarnAt: 10_000,
 };
 
 /**
@@ -54,6 +69,7 @@ export class BatchWorker {
   private appliedCount = 0;
   private failedCount = 0;
   private lastPruneAt = 0;
+  private lastHealthCheckAt = 0;
 
   /**
    * Consecutive ticks where claiming failed outright.
@@ -105,12 +121,14 @@ export class BatchWorker {
     this.draining = true;
     try {
       let applied = 0;
-      // Sequentially, not in parallel: the lanes share a connection pool, and draining
-      // all six at once would starve the request path that shares it.
-      for (const lane of Object.keys(this.registry) as IngestLane[]) {
-        applied += await this.drainLane(lane, whileStopped);
-      }
+      // In parallel: lanes are independent, and one slow to apply (heatmaps in object storage,
+      // an automation webhook retrying) must not hold up the others. Each lane still applies its
+      // own batches one at a time, so at most one connection per lane is in use.
+      const lanes = Object.keys(this.registry) as IngestLane[];
+      const results = await Promise.all(lanes.map((lane) => this.drainLane(lane, whileStopped)));
+      applied = results.reduce((sum, n) => sum + n, 0);
       await this.pruneIfDue();
+      await this.checkHealthIfDue();
       return applied;
     } finally {
       this.draining = false;
@@ -167,6 +185,10 @@ export class BatchWorker {
       coreMetrics.ingestBatchProcessDuration.record(performance.now() - started, { lane: batch.lane, outcome });
       coreMetrics.ingestRowsProcessed.add(batch.rowCount, { lane: batch.lane, outcome });
     };
+    // A batch that outlasts the lease would be claimed again mid-apply.
+    const heartbeat = this.store.extendClaim
+      ? setInterval(() => void this.store.extendClaim!(batch.batchId).catch(() => undefined), this.opts.leaseHeartbeatMs)
+      : null;
     try {
       await this.dispatch(batch);
       // SQL lanes normally completed the row in their own transaction. This idempotent
@@ -201,6 +223,8 @@ export class BatchWorker {
         err: errText(err),
       });
       return false;
+    } finally {
+      if (heartbeat) clearInterval(heartbeat);
     }
   }
 
@@ -218,7 +242,18 @@ export class BatchWorker {
       // queued. Parking beats throwing on every tick forever.
       throw new Error(`no lane registered for '${batch.lane}'`);
     }
-    await spec.apply(batch.batchId, batch.partitionKey, batch.payload.rows as never[]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`batch apply timed out after ${this.opts.applyTimeoutMs}ms`)),
+        this.opts.applyTimeoutMs,
+      );
+    });
+    try {
+      await Promise.race([spec.apply(batch.batchId, batch.partitionKey, batch.payload.rows as never[]), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /** Prune applied rows on the same cadence as the outbox does, not every tick. */
@@ -231,6 +266,27 @@ export class BatchWorker {
       if (pruned > 0) this.log.info({ msg: "ingest_batches_pruned", n: pruned });
     } catch (err) {
       this.log.warn({ msg: "ingest_prune_failed", err: errText(err) });
+    }
+  }
+
+  /**
+   * Parked batches never drain on their own, and nothing else reports them: without this a
+   * batch that failed its last attempt is simply data that never arrives. Logged at error level
+   * every check while any exist, so an alert on the log line sees them.
+   */
+  private async checkHealthIfDue(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastHealthCheckAt < this.opts.healthCheckMs) return;
+    this.lastHealthCheckAt = now;
+    try {
+      const parked = await this.store.countParked(this.opts.maxAttempts);
+      if (parked > 0) this.log.error({ msg: "ingest_batches_parked_total", parked });
+      for (const lane of Object.keys(this.registry) as IngestLane[]) {
+        const pending = await this.store.countPending(lane, this.opts.maxAttempts);
+        if (pending >= this.opts.backlogWarnAt) this.log.error({ msg: "ingest_backlog_high", lane, pending });
+      }
+    } catch (err) {
+      this.log.warn({ msg: "ingest_health_check_failed", err: errText(err) });
     }
   }
 

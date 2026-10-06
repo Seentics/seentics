@@ -12,8 +12,17 @@ import type {
   LaneSpec,
 } from "../interfaces";
 
-/** Flush attempts for one partition before its rows are dropped with a logged count. */
-const MAX_FLUSH_ATTEMPTS = 3;
+/**
+ * Flush attempts for one partition before its rows are dropped with a logged count.
+ *
+ * One attempt a flush interval, so this is how long a database outage is ridden out before
+ * data that `/collect` already acknowledged is lost: three attempts was three seconds. While
+ * the rows wait they count toward the lane's hard cap, which sheds new load instead of memory.
+ */
+const MAX_FLUSH_ATTEMPTS = 120;
+
+/** Queue inserts in flight at once. A flush with a row per site per lane must not take every pooled connection. */
+const MAX_CONCURRENT_ENQUEUES = 8;
 
 /**
  * Hard per-lane row cap, as a multiple of the force-flush threshold.
@@ -228,14 +237,19 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
     this.counts = this.zeroed();
     this.bytes = this.zeroed();
 
-    const writes: Promise<void>[] = [];
+    const pending: Array<() => Promise<void>> = [];
     for (const [lane, byPartition] of snapshot) {
       for (const [partitionKey, rows] of byPartition) {
-        if (rows.length) writes.push(this.queueBatch(lane, partitionKey, rows));
+        if (rows.length) pending.push(() => this.queueBatch(lane, partitionKey, rows));
       }
     }
-    // Independent by construction — one partition failing must not hold up the rest.
-    await Promise.all(writes);
+    // Independent by construction — one partition failing must not hold up the rest — but a few
+    // at a time: each is an insert, and the request path shares the pool.
+    let next = 0;
+    const worker = async () => {
+      while (next < pending.length) await pending[next++]!();
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_ENQUEUES, pending.length) }, worker));
   }
 
   /**

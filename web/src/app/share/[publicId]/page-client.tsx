@@ -1,5 +1,6 @@
 'use client';
 
+import { selectTopCountries, selectTopDevices, selectTopPages, selectTopReferrers } from '@/features/analytics/selectors';
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
@@ -85,19 +86,19 @@ export default function PublicDashboardPage() {
                 {/* Breakdowns */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <TopPagesChart 
-                        data={data?.top_pages || []} 
+                        data={selectTopPages(data)} 
                         isLoading={isLoading} 
                     />
                     <TopSourcesChart 
-                        data={data?.top_sources || []} 
+                        data={selectTopReferrers(data)} 
                         isLoading={isLoading} 
                     />
                     <TopCountriesChart 
-                        data={data?.top_countries || []} 
+                        data={selectTopCountries(data)} 
                         isLoading={isLoading} 
                     />
                     <TopDevicesChart 
-                        data={data?.top_devices || []} 
+                        data={selectTopDevices(data)} 
                         isLoading={isLoading} 
                     />
                 </div>

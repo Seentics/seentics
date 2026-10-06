@@ -1,6 +1,7 @@
 import type { WebsitePublicSharing } from "../../websites/interfaces";
 import type { AnalyticsPublicDashboard, AnalyticsQueryParams } from "../interfaces";
 import { getDashboardStats } from "../repositories/dashboard.repository";
+import { getDimensionsBulkAnalytics } from "../repositories/dimensions-bulk.repository";
 
 /**
  * The unauthenticated public dashboard.
@@ -29,6 +30,17 @@ export class PublicDashboardService implements AnalyticsPublicDashboard {
     const resolved = await this.sharing.resolvePublicShareId(publicShareId);
     if (!resolved) return null;
 
-    return getDashboardStats(resolved.websiteId, query);
+    // The figures and the breakdowns the page draws under them (pages, referrers, countries,
+    // browsers, devices, systems). It used to return the figures alone, so every breakdown card
+    // on a shared dashboard was empty, whatever the traffic.
+    const [stats, breakdowns] = await Promise.all([
+      getDashboardStats(resolved.websiteId, query),
+      getDimensionsBulkAnalytics(resolved.websiteId, query),
+    ]);
+    // Neither carries the site's internal id out: a share link is the public name for the site,
+    // and the id behind it is not for the people it is shared with.
+    const { website_id: _statsId, ...figures } = stats;
+    const { website_id: _breakdownsId, date_range: _range, ...tables } = breakdowns;
+    return { ...figures, ...tables };
   }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { selectTopCountries, selectTopDevices, selectTopPages, selectTopReferrers } from '@/features/analytics/selectors';
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
@@ -115,13 +116,13 @@ export default function PublicDashboardPage() {
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <TopPagesChart data={dashboardData.top_pages || []} isLoading={false} />
-                    <TopSourcesChart data={dashboardData.top_sources || []} isLoading={false} />
+                    <TopPagesChart data={selectTopPages(dashboardData)} isLoading={false} />
+                    <TopSourcesChart data={selectTopReferrers(dashboardData)} isLoading={false} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <TopCountriesChart data={dashboardData.top_countries || []} isLoading={false} />
-                    <TopDevicesChart data={dashboardData.top_devices || []} isLoading={false} />
+                    <TopCountriesChart data={selectTopCountries(dashboardData)} isLoading={false} />
+                    <TopDevicesChart data={selectTopDevices(dashboardData)} isLoading={false} />
                     <div className="flex items-center justify-center p-8 bg-accent/5 rounded-lg border border-dashed border-border/60">
                          <div className="text-center">
                             <Zap className="h-12 w-12 text-slate-200 mx-auto mb-4" />

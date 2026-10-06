@@ -1,6 +1,7 @@
 import {
   claimPendingBatches,
   countPendingBatches,
+  extendBatchClaim,
   countParkedBatches,
   enqueueBatch,
   markBatchCompleted,
@@ -23,6 +24,7 @@ export const postgresBatchQueue: BatchQueue = {
   markCompleted: markBatchCompleted,
   markFailed: markBatchFailed,
   releaseClaims: releaseBatchClaims,
+  extendClaim: extendBatchClaim,
   countPending: countPendingBatches,
   countParked: countParkedBatches,
   pruneCompleted: pruneCompletedBatches,

@@ -19,7 +19,7 @@ import { sql } from "../../../db";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { coreMetrics } from "../../../platform/observability/observe";
 import { pagePathSql, referrerDomainSql, withoutVersionSql } from "../lib/dimension-sql";
-import { channelCaseSql } from "../lib/traffic-channel";
+import { arrivalPageviewSql, channelCaseSql } from "../lib/traffic-channel";
 import { rawEventsFrom } from "../lib/raw-window";
 import { rebuildRevenueOrders } from "./revenue-orders";
 
@@ -68,6 +68,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
           ${u(pagePathSql("page"))} AS path,
           coalesce(channel, ${u(channelCaseSql())}) AS ch,
           ${u(referrerDomainSql("referrer"))} AS domain,
+          ${u(referrerDomainSql("page"))} AS page_host,
           nullif(trim(utm_source), '') AS utm_source,
           nullif(trim(utm_medium), '') AS utm_medium,
           nullif(trim(utm_campaign), '') AS utm_campaign,
@@ -111,10 +112,14 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         (array_agg(e.path ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview'))[1],
         (array_agg(e.path ORDER BY e.occurred_at DESC, e.id DESC) FILTER (WHERE e.event_type = 'pageview'))[1],
         (array_agg(e.path ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview'))[1:3],
-        -- The dashboard's session rule (see traffic-summary / referrers): a known source
-        -- wins over direct; in-site navigation never sets it.
-        coalesce(max(e.ch) FILTER (WHERE e.event_type = 'pageview' AND e.ch NOT IN ('internal', 'direct')), 'direct'),
-        coalesce(max(e.domain) FILTER (WHERE e.event_type = 'pageview' AND e.ch <> 'internal'), 'direct'),
+        -- How the session arrived: its first pageview that was an arrival at all. In-site clicks,
+        -- the site's own hosts and a payment or sign-in provider the visitor was sent to and came
+        -- back from are not (lib/traffic-channel.ts). This used to be the alphabetically greatest
+        -- channel and domain over every pageview, so a visit that came from Google and returned from
+        -- checkout was credited to the checkout, and a visit that began direct to whatever it later
+        -- returned from. A session with no arrival pageview (it began before the window) is direct.
+        coalesce((array_agg(e.ch ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview' AND ${u(arrivalPageviewSql("e.ch", "e.domain", "e.page_host"))}))[1], 'direct'),
+        coalesce((array_agg(e.domain ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview' AND ${u(arrivalPageviewSql("e.ch", "e.domain", "e.page_host"))}))[1], 'direct'),
         (array_agg(e.utm_source ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview' AND e.utm_source IS NOT NULL))[1],
         (array_agg(e.utm_medium ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview' AND e.utm_medium IS NOT NULL))[1],
         (array_agg(e.utm_campaign ORDER BY e.occurred_at, e.id) FILTER (WHERE e.event_type = 'pageview' AND e.utm_campaign IS NOT NULL))[1],

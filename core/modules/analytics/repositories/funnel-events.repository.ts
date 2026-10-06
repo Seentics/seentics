@@ -67,6 +67,9 @@ export async function countFunnelProgress(
  * group is fine in a browser and an error here, and it is the database that runs the pattern.
  */
 export async function isValidRegexPattern(pattern: string): Promise<boolean> {
+  // Back-references are what make Postgres's matcher exponential, and a funnel step runs its
+  // pattern over every page view in the range on a small shared pool: refused, not run.
+  if (/\\[1-9]/.test(pattern)) return false;
   try {
     await pgSql`SELECT '' ~ ${pattern} AS ok`;
     return true;

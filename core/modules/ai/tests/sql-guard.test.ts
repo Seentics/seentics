@@ -301,4 +301,30 @@ describe("validateAndSanitizeSQL", () => {
       expect(r.sql).not.toContain(";");
     });
   });
+
+  describe("text that imitates a rule", () => {
+    it("does not let a string literal stand in for the tenant predicate", () => {
+      reject(
+        "SELECT (SELECT count(*) FROM analytics_events WHERE 'website_id = $1' = 'website_id = $1') AS leak " +
+        "FROM analytics_events WHERE website_id = $1",
+      );
+      reject(
+        "SELECT path FROM analytics_events WHERE website_id = $1 AND session_id IN " +
+        "(SELECT session_id FROM analytics_events WHERE 'website_id = $1' IS NOT NULL)",
+      );
+    });
+
+    it("sees tables joined with a comma", () => {
+      reject("SELECT u.email, u.password_hash FROM analytics_events e, users u WHERE e.website_id = $1");
+      reject("SELECT 1 FROM analytics_events e JOIN funnels f ON f.id = e.id, users u WHERE e.website_id = $1", [
+        "analytics_events", "funnels",
+      ]);
+    });
+
+    it("refuses syntax that hides an identifier or a literal", () => {
+      reject('SELECT * FROM analytics_events e, "users" WHERE e.website_id = $1');
+      reject("SELECT $$x$$ FROM analytics_events WHERE website_id = $1");
+      reject("SELECT E'\\x41' FROM analytics_events WHERE website_id = $1");
+    });
+  });
 });

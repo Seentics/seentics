@@ -2,7 +2,7 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { LIVE_VISITOR_WINDOW_MS, REALTIME_WINDOW_MS } from "./realtime.repository";
 
 export async function getLiveVisitorsStats(websiteId: string) {
-  // live = pageview in the last 30 seconds; active = last 30 minutes.
+  // live = pageview in the last five minutes; active = last 30 minutes.
   const liveSinceIso = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString();
   const activeSinceIso = new Date(Date.now() - REALTIME_WINDOW_MS).toISOString();
 

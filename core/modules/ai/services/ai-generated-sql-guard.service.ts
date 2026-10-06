@@ -44,14 +44,24 @@ export function validateAndSanitizeSQL(
   }
 
   const trimmed = rawSql.trim().replace(/;+\s*$/, "");
-  const upper = trimmed.toUpperCase();
+
+  // Syntax that hides identifiers or text from the checks below is refused, not parsed: quoted
+  // identifiers (`FROM "users"`), dollar-quoting, escape strings and backslashes.
+  if (/["`\\]|\$\$|\$[A-Za-z_]|\b[EUeu]&?'/.test(trimmed)) {
+    return { ok: false, reason: "Quoted identifiers, dollar-quoting and escape strings are not allowed" };
+  }
+  // Every check reads the statement with its string literals emptied. A literal that merely
+  // *spells* `website_id = $1`, or a table name, must neither satisfy a rule nor hide from one.
+  const text = maskLiterals(trimmed);
+  if (text === null) return { ok: false, reason: "Unterminated string literal" };
+  const upper = text.toUpperCase();
 
   if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) {
     return { ok: false, reason: "Only SELECT statements are allowed" };
   }
 
   // No statement chaining — a mid-string ';' means a second statement.
-  if (trimmed.includes(";")) {
+  if (text.includes(";")) {
     return { ok: false, reason: "Multiple statements are not allowed" };
   }
 
@@ -63,8 +73,10 @@ export function validateAndSanitizeSQL(
     "TRUNCATE", "GRANT", "REVOKE", "EXECUTE", "CALL", "MERGE",
     "UNION", "INTERSECT", "EXCEPT",
   ];
+  // Read unmasked: a keyword inside a literal is refused too, which costs nothing real.
+  const rawUpper = trimmed.toUpperCase();
   for (const kw of forbidden) {
-    if (new RegExp(`\\b${kw}\\b`).test(upper)) {
+    if (new RegExp(`\\b${kw}\\b`).test(rawUpper)) {
       return { ok: false, reason: `Forbidden keyword: ${kw}` };
     }
   }
@@ -102,10 +114,10 @@ export function validateAndSanitizeSQL(
   }
 
   // Ensure website_id parameter placeholder is present (and no other $N params).
-  if (!trimmed.includes("$1")) {
+  if (!text.includes("$1")) {
     return { ok: false, reason: "Query must include the website_id filter ($1)" };
   }
-  if (/\$(?!1\b)\d+/.test(trimmed)) {
+  if (/\$(?!1\b)\d+/.test(text)) {
     return { ok: false, reason: "Only the $1 (website_id) parameter is allowed" };
   }
 
@@ -114,8 +126,8 @@ export function validateAndSanitizeSQL(
   // once is what rejects `website_id = $1 AND website_id != $1`-style mixtures: a `$1`
   // that is not part of a tenant equality leaves the two counts unequal.
   const TENANT_PREDICATE = /\b(?:[A-Za-z_]\w*\s*\.\s*)?website_id\b(?:\s*::\s*\w+)?\s*=\s*\$1\b/gi;
-  const tenantPredicates = trimmed.match(TENANT_PREDICATE)?.length ?? 0;
-  const paramUses = trimmed.match(/\$1\b/g)?.length ?? 0;
+  const tenantPredicates = text.match(TENANT_PREDICATE)?.length ?? 0;
+  const paramUses = text.match(/\$1\b/g)?.length ?? 0;
   if (tenantPredicates === 0) {
     return { ok: false, reason: "Query must filter on website_id = $1" };
   }
@@ -129,7 +141,7 @@ export function validateAndSanitizeSQL(
     const cteNames = new Set<string>();
     const ctePattern = /\b([A-Za-z_]\w*)\s+AS\s*\(/gi;
     let cteMatch: RegExpExecArray | null;
-    while ((cteMatch = ctePattern.exec(trimmed)) !== null) {
+    while ((cteMatch = ctePattern.exec(text)) !== null) {
       cteNames.add((cteMatch[1] ?? "").toLowerCase());
     }
     const allowed = new Set([...allowedTables.map((t) => t.toLowerCase()), ...cteNames]);
@@ -138,7 +150,7 @@ export function validateAndSanitizeSQL(
     let match: RegExpExecArray | null;
     // Physical tables only — a CTE is a local alias over rows already filtered.
     let physicalRefs = 0;
-    while ((match = tablePattern.exec(trimmed)) !== null) {
+    while ((match = tablePattern.exec(text)) !== null) {
       const table = (match[1] ?? match[2] ?? "").toLowerCase();
       if (!table) continue;
       // Reject any schema-qualified reference (e.g. pg_catalog.x) and anything off-whitelist.
@@ -153,7 +165,7 @@ export function validateAndSanitizeSQL(
     // WHERE website_id = $1` has one reference and one predicate, but the CTE still
     // scans every tenant. So each scope is checked on its own — see `unscopedScope`.
     void physicalRefs;
-    const offending = unscopedScope(trimmed, cteNames);
+    const offending = unscopedScope(text, cteNames, allowed);
     if (offending) {
       return {
         ok: false,
@@ -198,7 +210,7 @@ export const TENANT_BY_JOIN: ReadonlySet<string> = new Set(["automation_events"]
  *
  * Returns the offending table name, or `null` when every scope is filtered.
  */
-function unscopedScope(sql: string, cteNames: ReadonlySet<string>): string | null {
+function unscopedScope(sql: string, cteNames: ReadonlySet<string>, allowed?: ReadonlySet<string>): string | null {
   const groups: string[] = [];
   let own = "";
   let depth = 0;
@@ -229,11 +241,11 @@ function unscopedScope(sql: string, cteNames: ReadonlySet<string>): string | nul
 
   // Physical tables read directly in this scope (CTE names are local aliases).
   const refs: string[] = [];
-  const tablePattern = /\bFROM\s+([A-Za-z_]\w*)|\bJOIN\s+([A-Za-z_]\w*)/gi;
-  let m: RegExpExecArray | null;
-  while ((m = tablePattern.exec(own)) !== null) {
-    const t = (m[1] ?? m[2] ?? "").toLowerCase();
-    if (t && !cteNames.has(t)) refs.push(t);
+  for (const t of tablesInScope(own)) {
+    if (cteNames.has(t)) continue;
+    // Off the domain's list, wherever it is written — a comma join included.
+    if (allowed && (t.includes(".") || !allowed.has(t))) return `${t} (not allowed here)`;
+    refs.push(t);
   }
 
   if (refs.length > 0) {
@@ -254,8 +266,49 @@ function unscopedScope(sql: string, cteNames: ReadonlySet<string>): string | nul
   }
 
   for (const g of groups) {
-    const bad = unscopedScope(g, cteNames);
+    const bad = unscopedScope(g, cteNames, allowed);
     if (bad) return bad;
   }
   return null;
+}
+
+/** The statement with every string literal emptied to `''`; null when one is unterminated. */
+function maskLiterals(sql: string): string | null {
+  let out = "";
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (ch !== "'") { out += ch; continue; }
+    i++;
+    for (;;) {
+      if (i >= sql.length) return null;
+      if (sql[i] === "'") {
+        if (sql[i + 1] === "'") { i += 2; continue; }
+        break;
+      }
+      i++;
+    }
+    out += "''";
+  }
+  return out;
+}
+
+/**
+ * Every physical table a scope reads, including the ones after a comma
+ * (`FROM events e, users u` is a join with no JOIN keyword). `scope` has its parenthesised
+ * groups already lifted out.
+ */
+function tablesInScope(scope: string): string[] {
+  const tables: string[] = [];
+  const fromList = /\bFROM\s+([\s\S]*?)(?=\b(?:WHERE|GROUP|ORDER|HAVING|LIMIT|OFFSET|WINDOW|FETCH|FOR)\b|$)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = fromList.exec(scope)) !== null) {
+    for (const piece of (m[1] ?? "").split(",")) {
+      const parts = piece.split(/\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS|NATURAL)\s+)?(?:OUTER\s+)?JOIN\b/i);
+      for (const part of parts) {
+        const name = /^\s*(?:LATERAL\s+|ONLY\s+)?([A-Za-z_][\w.]*)/i.exec(part)?.[1];
+        if (name) tables.push(name.toLowerCase());
+      }
+    }
+  }
+  return tables;
 }

@@ -9,7 +9,8 @@
  * Requires indexes from db/sql/004_revenue_indexes.sql for best performance.
  */
 import { analyticsReadSql as pgSql } from "../../../db";
-import { channelCaseSql } from "../lib/traffic-channel";
+import { referrerDomainSql } from "../lib/dimension-sql";
+import { arrivalPageviewSql, channelCaseSql } from "../lib/traffic-channel";
 import { dashboardRows, rollupWindow, rollupsEnabled } from "../rollups/reads";
 import { parseDays, sanitizeTimezone } from "./shared";
 import { clampRawDays, RAW_EVENT_DAYS } from "../lib/raw-window";
@@ -334,12 +335,14 @@ async function fetchRevenueRow(
           (array_agg(t.channel      ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_channel,
           (array_agg(t.domain       ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_referrer_domain
         FROM (
-          SELECT s.*, (s.has_referrer AND s.channel <> 'internal') AS external
+          SELECT s.*, (s.has_referrer AND ${pgSql.unsafe(arrivalPageviewSql("s.channel", "s.ref_host", "s.page_host"))}) AS external
           FROM (
             SELECT ae.id, ae.occurred_at, ae.utm_source, ae.utm_medium, ae.utm_campaign,
                    (ae.utm_source IS NOT NULL AND length(trim(ae.utm_source)) > 0) AS has_utm,
                    (ae.referrer IS NOT NULL AND length(trim(ae.referrer)) > 0) AS has_referrer,
                    coalesce(ae.channel, ${pgSql.unsafe(channelCaseSql("ae"))}) AS channel,
+                   ${pgSql.unsafe(referrerDomainSql("ae.referrer"))} AS ref_host,
+                   ${pgSql.unsafe(referrerDomainSql("ae.page"))} AS page_host,
                    NULLIF(lower(trim(regexp_replace(regexp_replace(ae.referrer, '^https?://(www\.)?', '', 'i'), '[/?#].*$', ''))), '') AS domain
             FROM analytics_events ae
             WHERE ae.website_id  = ${websiteId}

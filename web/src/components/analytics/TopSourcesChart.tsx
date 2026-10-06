@@ -6,6 +6,7 @@ import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/features/analytics/format';
+import { categorizeReferrer } from '@/features/analytics/selectors';
 
 import { useControllableState } from '@/hooks/useControllableState';
 
@@ -29,32 +30,8 @@ const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> 
   Direct: { icon: MousePointerClick, color: '#4285F4' },
 };
 
-// Map raw referrer strings to a canonical platform name
-const getCanonicalName = (referrer: string): string => {
-  const s = (referrer || '').toLowerCase();
-  if (s.includes('accounts.google.com')) return 'Google OAuth';
-  if (s.includes('google')) return 'Google';
-  if (s.includes('bing') || s.includes('microsoft')) return 'Bing';
-  if (s.includes('yahoo')) return 'Yahoo';
-  if (s.includes('duckduckgo')) return 'DuckDuckGo';
-  if (s.includes('baidu')) return 'Baidu';
-  if (s.includes('yandex')) return 'Yandex';
-  if (s.includes('facebook') || s.includes('fb.')) return 'Facebook';
-  if (s.includes('instagram')) return 'Instagram';
-  if (s.includes('twitter') || s.includes('x.com') || s.includes('t.co')) return 'X (Twitter)';
-  if (s.includes('reddit')) return 'Reddit';
-  if (s.includes('youtube')) return 'YouTube';
-  if (s.includes('pinterest')) return 'Pinterest';
-  if (s.includes('linkedin')) return 'LinkedIn';
-  if (s.includes('tiktok')) return 'TikTok';
-  if (s.includes('snapchat')) return 'Snapchat';
-  if (s.includes('whatsapp')) return 'WhatsApp';
-  if (s.includes('telegram')) return 'Telegram';
-  if (s.includes('mailchimp') || s.includes('sendgrid') || s.includes('newsletter')) return referrer;
-  // Extract domain for unknown referrers instead of showing full URL
-  const domain = s.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-  return domain || referrer;
-};
+// Map a raw referrer to its dashboard name — by the host, as features/analytics/selectors.ts does.
+const getCanonicalName = (referrer: string): string => categorizeReferrer(referrer);
 
 export const getSourceImage = (label: string) => {
   const lower = label.toLowerCase();
@@ -81,6 +58,18 @@ export const getSourceImage = (label: string) => {
   return null;
 };
 
+/** The names the dashboard gives these sources (features/analytics/selectors.ts `REFERRER_NAMES`). */
+const SEARCH_LABELS = new Set(['google', 'bing', 'yahoo', 'duckduckgo', 'baidu', 'yandex', 'ecosia', 'brave']);
+const SOCIAL_LABELS = new Set([
+  'facebook', 'x (twitter)', 'linkedin', 'youtube', 'instagram', 'reddit', 'pinterest', 'tiktok',
+  'snapchat', 'whatsapp', 'telegram',
+]);
+const SEARCH_HOST = /(^|\.)(google|bing|duckduckgo|yahoo|baidu|yandex|ecosia|brave)\.[a-z.]+$/;
+const SOCIAL_HOST = /(^|\.)(facebook\.com|fb\.com|twitter\.com|x\.com|t\.co|linkedin\.com|lnkd\.in|instagram\.com|reddit\.com|pinterest\.com|tiktok\.com|snapchat\.com|youtube\.com|youtu\.be|whatsapp\.com|t\.me|telegram\.org)$/;
+
+/** The host of a label that is one, else the label (a name like "google" has no dot and is matched above). */
+const hostOf = (value: string) => value.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/[/?#:].*$/, '').replace(/^www\./, '');
+
 export function TopSourcesChart({
   data,
   isLoading,
@@ -94,32 +83,23 @@ export function TopSourcesChart({
     onChange: onActiveTabChange,
   });
 
-  // Helpers to classify categories
+  // Which tab a source belongs under. By the whole name or the whole host, never by a piece of it:
+  // `includes('direct')` made "redirect.example.com" Direct, `includes('search')` put ResearchGate
+  // under Search, and "Google OAuth" (a sign-in the visitor returned from) is not a search.
   const isOrganic = (r: string) => {
-    const s = (r || '').toLowerCase();
-    return s.includes('google') || s.includes('bing') || s.includes('yahoo') ||
-           s.includes('duckduckgo') || s.includes('search') || s.includes('baidu') ||
-           s.includes('yandex');
+    const s = (r || '').trim().toLowerCase();
+    if (s === 'google oauth') return false;
+    return SEARCH_LABELS.has(s) || SEARCH_HOST.test(hostOf(s));
   };
 
   const isDirect = (r: string) => {
-    const s = (r || '').toLowerCase();
-    return s.includes('direct') || s.includes('none') || s.includes('null') ||
-           s === '' || s.includes('(not set)');
+    const s = (r || '').trim().toLowerCase();
+    return s === '' || s === 'direct' || s === '(direct)' || s === '(none)' || s === 'none' || s === 'null' || s === '(not set)';
   };
 
   const isSocial = (r: string) => {
-    const s = (r || '').toLowerCase();
-    return s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') ||
-           s.includes('instagram') || s.includes('reddit') || s.includes('tiktok') ||
-           s.includes('pinterest') || s.includes('youtube') || s.includes('snapchat') ||
-           s.includes('whatsapp') || s.includes('telegram');
-  };
-
-  const isEmail = (r: string) => {
-    const s = (r || '').toLowerCase();
-    return s.includes('email') || s.includes('mail') || s.includes('newsletter') ||
-           s.includes('mailchimp') || s.includes('sendgrid');
+    const s = (r || '').trim().toLowerCase();
+    return SOCIAL_LABELS.has(s) || SOCIAL_HOST.test(hostOf(s));
   };
 
   if (isLoading) {

@@ -69,6 +69,7 @@ export const websites = pgTable(
   },
   (t) => [
     index("ix_websites_user_id").on(t.userId),
+    index("ix_websites_tracking_id").on(t.trackingId),
     uniqueIndex("ix_websites_public_share_id").on(t.publicShareId),
   ],
 );

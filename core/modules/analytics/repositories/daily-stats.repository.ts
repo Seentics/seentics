@@ -1,5 +1,5 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, sanitizeTimezone, windowStartIso } from "./shared";
+import { parseDays, sanitizeTimezone } from "./shared";
 import { dailyRows, rollupsEnabled } from "../rollups/reads";
 
 export async function getDailyStatsAnalytics(
@@ -8,7 +8,6 @@ export async function getDailyStatsAnalytics(
 ) {
   const days = parseDays(query.days, 30);
   const tz = sanitizeTimezone(query.timezone);
-  const startIso = windowStartIso(days);
 
   const rows = rollupsEnabled() ? await dailyRows(websiteId, days, tz) : await pgSql<{
     date: string;
@@ -29,7 +28,9 @@ export async function getDailyStatsAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+        -- The start of the viewer's local day, days-1 days back: a rolling now-minus-N-days window
+        -- began mid-day, so the first bar was a partial one.
+        AND occurred_at >= (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz}
       GROUP BY 1, 2
     ) per_visitor
     GROUP BY date

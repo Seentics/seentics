@@ -222,6 +222,14 @@ export async function releaseBatchClaims(batchIds: string[]): Promise<void> {
     .where(and(isNull(ingestBatches.completedAt), raw`batch_id = ANY(${batchIds})`));
 }
 
+/** Push a held lease forward while the batch is still being applied. */
+export async function extendBatchClaim(batchId: string): Promise<void> {
+  await db
+    .update(ingestBatches)
+    .set({ claimedAt: new Date() })
+    .where(and(eq(ingestBatches.batchId, batchId), isNull(ingestBatches.completedAt), isNotNull(ingestBatches.claimedAt)));
+}
+
 /** Pending batches in one lane — the queue depth a health check reports. */
 export async function countPendingBatches(
   lane: IngestLane,
@@ -253,11 +261,32 @@ export async function countParkedBatches(maxAttempts: number): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Drop applied batches older than the retention window. */
+/** Rows deleted per statement, and statements per call: a prune must never be one huge delete. */
+const PRUNE_CHUNK = 5_000;
+const PRUNE_MAX_CHUNKS = 20;
+
+/**
+ * Drop applied batches older than the retention window.
+ *
+ * In chunks, counting rather than returning ids: after a busy retention window this is
+ * millions of rows, and one `DELETE … RETURNING` held them all in memory and in one lock.
+ * What is left over goes on the next call.
+ */
 export async function pruneCompletedBatches(olderThan: Date): Promise<number> {
-  const deleted = await db
-    .delete(ingestBatches)
-    .where(and(isNotNull(ingestBatches.completedAt), lt(ingestBatches.completedAt, olderThan)))
-    .returning({ batchId: ingestBatches.batchId });
-  return deleted.length;
+  let total = 0;
+  for (let i = 0; i < PRUNE_MAX_CHUNKS; i++) {
+    const rows = await sql<{ n: number }[]>`
+      WITH doomed AS (
+        SELECT batch_id FROM ingest_batches
+        WHERE completed_at IS NOT NULL AND completed_at < ${olderThan}
+        LIMIT ${PRUNE_CHUNK}
+      ), gone AS (
+        DELETE FROM ingest_batches WHERE batch_id IN (SELECT batch_id FROM doomed) RETURNING 1
+      )
+      SELECT count(*)::int AS n FROM gone`;
+    const n = rows[0]?.n ?? 0;
+    total += n;
+    if (n < PRUNE_CHUNK) break;
+  }
+  return total;
 }

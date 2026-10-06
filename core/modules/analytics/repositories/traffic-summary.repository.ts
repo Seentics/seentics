@@ -1,6 +1,7 @@
 /** Traffic channel summary: direct, organic, referral, social, email, paid, campaign. */
 import { analyticsReadSql as pgSql } from "../../../db";
-import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
+import { referrerDomainSql } from "../lib/dimension-sql";
+import { arrivalPageviewSql, CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 import { parseDays, windowStartIso } from "./shared";
 import { rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
 
@@ -36,11 +37,13 @@ export async function getTrafficSummaryStats(
    * referrer — as this did — reported a multi-page site's in-site navigation as
    * "referral", which measured at ~60% of all pageviews on realistic traffic.
    *
-   * A session's channel is its known arrival channel; `direct` only when it has none.
-   * `internal` pageviews (in-site clicks) never set it, and a later pageview with no
-   * referrer (a reload, a bookmark mid-visit) does not override a known source — the
-   * usual analytics convention. A session whose pageviews in the window are all
-   * internal (it began before the window) counts as direct.
+   * A session's channel is the one it arrived through: that of its first pageview that was
+   * an arrival at all. In-site clicks, the site's own hosts and a checkout or sign-in the
+   * visitor was sent to and came back from are not arrivals (`arrivalPageviewSql`), so they
+   * never set it, and neither does anything that happens later in the visit. It used to be
+   * the alphabetically greatest channel of all the session's pageviews, which moved a visit
+   * from search to "referral" the moment it returned from paying. A session whose pageviews
+   * in the window are all non-arrivals (it began before the window) counts as direct.
    *
    * The channel comes from the column ingest stores; the CASE runs only for a row with
    * none. `GROUPING SETS ((channel), ())` yields each channel plus one site-wide row in
@@ -51,7 +54,7 @@ export async function getTrafficSummaryStats(
     WITH per_session AS (
       SELECT
         coalesce(
-          max(ch) FILTER (WHERE ch NOT IN ('internal', 'direct')),
+          (array_agg(ch ORDER BY occurred_at, id) FILTER (WHERE ${pgSql.unsafe(arrivalPageviewSql("ch", "domain", "page_host"))}))[1],
           'direct'
         ) AS channel,
         count(*) AS views,
@@ -59,7 +62,10 @@ export async function getTrafficSummaryStats(
       FROM (
         SELECT
           coalesce(nullif(trim(session_id), ''), id::text) AS sid,
+          occurred_at, id,
           coalesce(channel, ${pgSql.unsafe(CHANNEL_CASE_SQL)}) AS ch,
+          ${pgSql.unsafe(referrerDomainSql("referrer"))} AS domain,
+          ${pgSql.unsafe(referrerDomainSql("page"))} AS page_host,
           -- The dashboard's own visitor key, so the two report the same visitors.
           coalesce(nullif(trim(visitor_id), ''), session_id) AS vkey
         FROM analytics_events

@@ -70,9 +70,10 @@ class FakeQueue implements BatchQueue {
     this.claimCalls += 1;
     if (this.claimError) throw this.claimError;
     // One batch per partition key, and never one already leased — the two properties
-    // `claimPendingBatches` enforces in SQL.
+    // `claimPendingBatches` enforces in SQL, within the lane (`category = lane`): lanes drain
+    // side by side, so a key leased in one must not hold up the same key in another.
     const takenKeys = new Set(
-      this.rows.filter((r) => !r.completed && r.claimed).map((r) => r.partitionKey),
+      this.rows.filter((r) => !r.completed && r.claimed && r.lane === lane).map((r) => r.partitionKey),
     );
     const out: QueuedBatch[] = [];
     for (const r of this.rows) {

@@ -262,20 +262,23 @@ export async function siteUniques(websiteId: string, days: number): Promise<numb
 }
 
 /**
- * Pageviews and visitors per local day in `tz`, regrouped from UTC hours. Exact for
- * whole-hour offsets; in a half-hour zone an hour straddling local midnight is counted
- * on the day it started.
+ * Pageviews and visitors per local day in `tz`, regrouped from UTC hours, for today and the
+ * `days − 1` local days before it. Exact for whole-hour offsets; in a half-hour zone an hour
+ * straddling local midnight is counted on the day it started.
  */
 export async function dailyRows(websiteId: string, days: number, tz: string) {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
   const rows = await pgSql<{ date: string; views: number; unique_visitors: number }[]>`
     SELECT
       (hour AT TIME ZONE ${tz})::date::text AS date,
       sum(pageviews)::bigint AS views,
       ${uniques()} AS unique_visitors
     FROM analytics_rollup_hourly
-    WHERE website_id = ${websiteId} AND hour >= ${w.from}::date
+    -- From the start of the viewer's local day, days-1 days back — not from midnight UTC, which
+    -- is mid-afternoon or mid-morning where they are and made the first bar a partial day (or an
+    -- extra one) in every zone but UTC.
+    WHERE website_id = ${websiteId}
+      AND hour >= (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz}
     GROUP BY 1
     ORDER BY 1
   `;

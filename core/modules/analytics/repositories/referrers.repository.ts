@@ -1,7 +1,7 @@
 /** Top referrers, attributed per session. */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { referrerDomainSql } from "../lib/dimension-sql";
-import { CHANNEL_CASE_SQL } from "../lib/traffic-channel";
+import { arrivalPageviewSql, CHANNEL_CASE_SQL } from "../lib/traffic-channel";
 import { parseDays, windowStartIso } from "./shared";
 import { rollupsEnabled, topRows } from "../rollups/reads";
 
@@ -14,16 +14,14 @@ export type SessionReferrerRow = { referrer: string; views: number; unique_visit
  * by URL every shared link was its own row, and the UI re-merged them by domain from
  * the top 50 only, summing unique visitors across rows as it went.
  *
- * A session's referrer is its external referrer, or 'direct' when it has none. In-site
- * navigation (`channel = 'internal'`) never counts: previously this took the session's
- * *first* referrer, so a session that began mid-visit — its first pageview reached from
- * another page of the site — listed the site itself as a referrer.
+ * A session's referrer is where it arrived from: its first pageview that was an arrival at all
+ * (lib/traffic-channel.ts `arrivalPageviewSql` — not in-site navigation, not the site's own hosts,
+ * not a checkout or sign-in the visitor was sent to and came back from), or 'direct' when it has
+ * none. It was the alphabetically greatest of all of a session's referrers, which credited a
+ * visit that came from Google and returned from checkout to the checkout.
  *
  * One grouping pass per session instead of `first_value() OVER (PARTITION BY session_id
- * ORDER BY occurred_at)`, which sorted every pageview in the window by session and was
- * the bulk of this query's cost. If a session somehow has two different external
- * referrers, the greatest is taken — deterministic, and vanishingly rare once internal
- * navigation is excluded.
+ * ORDER BY occurred_at)`; the first arrival is taken with an ordered `array_agg`.
  */
 export async function sessionReferrerRows(websiteId: string, days: number, limit = 50): Promise<SessionReferrerRow[]> {
   if (rollupsEnabled()) {
@@ -36,15 +34,16 @@ export async function sessionReferrerRows(websiteId: string, days: number, limit
     WITH per_session AS (
       SELECT
         coalesce(
-          max(domain) FILTER (WHERE ch <> 'internal'),
+          (array_agg(domain ORDER BY occurred_at, id) FILTER (WHERE ${pgSql.unsafe(arrivalPageviewSql("ch", "domain", "page_host"))}))[1],
           'direct'
         ) AS referrer,
         count(*) AS views,
         max(vk) AS vk
       FROM (
         SELECT
-          session_id,
+          session_id, occurred_at, id,
           ${pgSql.unsafe(referrerDomainSql("referrer"))} AS domain,
+          ${pgSql.unsafe(referrerDomainSql("page"))} AS page_host,
           coalesce(channel, ${pgSql.unsafe(CHANNEL_CASE_SQL)}) AS ch,
           coalesce(nullif(trim(visitor_id), ''), session_id) AS vk
         FROM analytics_events

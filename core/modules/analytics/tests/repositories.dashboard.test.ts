@@ -273,7 +273,7 @@ describe("getDashboardStats", () => {
     expect(out.comparison.pageview_change).toBeCloseTo(400, 10);
   });
 
-  it("counts live visitors over a 30-second window independent of the report range", async () => {
+  it("counts live visitors over a five-minute window independent of the report range", async () => {
     dashboardRows({}, {}, 12);
     await getDashboardStats(SITE, { days: "365" });
 
@@ -281,11 +281,11 @@ describe("getDashboardStats", () => {
     const since = liveCall.values.find(
       (v): v is string => typeof v === "string" && v.endsWith("Z"),
     )!;
-    // 30 seconds back, whatever the report range — a 365-day request must not widen
+    // Five minutes back, whatever the report range — a 365-day request must not widen
     // the "who is here right now" badge into a year-long count.
     const age = Date.now() - new Date(since).getTime();
-    expect(age).toBeGreaterThanOrEqual(30_000);
-    expect(age).toBeLessThan(31_000);
+    expect(age).toBeGreaterThanOrEqual(300_000);
+    expect(age).toBeLessThan(301_000);
   });
 });
 
@@ -372,7 +372,9 @@ describe("getTrafficSummaryStats", () => {
     await getTrafficSummaryStats(SITE, {});
     const text = sqlCalls[0]!.text;
     expect(text).toContain("GROUP BY sid");
-    expect(text).toContain("FILTER (WHERE ch NOT IN ('internal', 'direct'))");
+    // The first pageview that was an arrival, not the greatest channel name of the session.
+    expect(text).toContain("array_agg(ch ORDER BY occurred_at, id) FILTER (WHERE ");
+    expect(text).not.toContain("max(ch)");
   });
 });
 

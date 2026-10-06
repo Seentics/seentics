@@ -47,11 +47,11 @@ function isoBinds(callIndex: number): string[] {
 // ─── Window constants ────────────────────────────────────────────────────────
 
 describe("realtime windows", () => {
-  it("defines 30 minutes for the active window and 30 seconds for the live badge", async () => {
+  it("defines 30 minutes for the active window and five minutes for the live badge", async () => {
     // Both are read by other repositories (dashboard, live-visitors), so a change here
     // silently moves three surfaces at once.
     expect(REALTIME_WINDOW_MS).toBe(1_800_000);
-    expect(LIVE_VISITOR_WINDOW_MS).toBe(30_000);
+    expect(LIVE_VISITOR_WINDOW_MS).toBe(300_000);
   });
 });
 
@@ -183,7 +183,7 @@ describe("getRealtimeStats", () => {
     expect(sqlCalls).toHaveLength(1);
   });
 
-  it("binds a 30-minute window and a 30-second live cutoff", async () => {
+  it("binds a 30-minute window and a five-minute live cutoff", async () => {
     realtimeRow();
     await getRealtimeStats(SITE);
 
@@ -194,7 +194,7 @@ describe("getRealtimeStats", () => {
     expect(liveSince).toBeLessThan(LIVE_VISITOR_WINDOW_MS + 1_000);
   });
 
-  it("separates active visitors (30 min) from live visitors (30 s)", async () => {
+  it("separates active visitors (30 min) from live visitors (5 min)", async () => {
     // Collapsing these was the original bug the two windows exist to prevent: the
     // "active now" tile and the pulsing live badge count different populations.
     realtimeRow({ visitors: 40, live_visitors: 3 });
@@ -420,7 +420,7 @@ describe("getLiveVisitorsStats", () => {
     expect(out.active_visitors).toBe(41);
   });
 
-  it("scans a 30-minute range while filtering the live count to 30 seconds", async () => {
+  it("scans a 30-minute range while filtering the live count to five minutes", async () => {
     queueRows([{ live_visitors: 0, active_visitors: 0 }], []);
     await getLiveVisitorsStats(SITE);
 

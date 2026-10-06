@@ -11,6 +11,7 @@
  *  5. Return client-side action payloads
  */
 
+import { safeRegexTest } from '../lib/safe-regex';
 import { and, eq } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
@@ -90,7 +91,7 @@ export function triggerConfigMatches(t: Record<string, unknown>, incoming: Recor
         case 'exact': return path === want;
         case 'starts_with': return path.startsWith(want);
         case 'regex':
-          try { return new RegExp(want).test(path); } catch { return false; }
+          return safeRegexTest(want, path);
         default: return path.includes(want);
       }
     }

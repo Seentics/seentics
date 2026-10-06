@@ -41,8 +41,7 @@ const isFragment = (v: unknown): v is Fragment =>
 
 /**
  * Run the report and return the two generated dimension fragments. They are the last
- * two interpolated; the ones before them are the traffic-channel CASE, used by the
- * referrer attribution step.
+ * two interpolated; the ones before them belong to the referrer attribution step.
  */
 async function generatedSql(): Promise<{ ctes: string; projections: string }> {
   queueRows([{}]);
@@ -51,7 +50,11 @@ async function generatedSql(): Promise<{ ctes: string; projections: string }> {
   const fragments = (sqlCalls[0]?.values ?? []).filter(isFragment).map((f) => f.__fragment);
   const dimensions = fragments.slice(-2);
   expect(dimensions).toHaveLength(2);
-  for (const other of fragments.slice(0, -2)) expect(other).toContain("THEN 'internal'");
+  // Before them: the channel CASE, the referrer and page hosts, and the arrival rule that decides
+  // which pageview counts as how the visit came (in-site, the site's own hosts and providers do not).
+  const others = fragments.slice(0, -2);
+  expect(others.some((f) => f.includes("THEN 'internal'"))).toBe(true);
+  expect(others.some((f) => f.includes("<> 'internal'"))).toBe(true);
   return { ctes: dimensions[0]!, projections: dimensions[1]! };
 }
 

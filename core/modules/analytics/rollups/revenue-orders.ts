@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
-import { channelCaseSql } from "../lib/traffic-channel";
+import { referrerDomainSql } from "../lib/dimension-sql";
+import { arrivalPageviewSql, channelCaseSql } from "../lib/traffic-channel";
 
 /**
  * One website-day's orders into `analytics_revenue_orders` (db/sql/039), for the
@@ -87,6 +88,8 @@ export async function rebuildRevenueOrders(
              (ae.utm_source IS NOT NULL AND length(trim(ae.utm_source)) > 0) AS has_utm,
              (ae.referrer IS NOT NULL AND length(trim(ae.referrer)) > 0) AS has_referrer,
              coalesce(ae.channel, ${u(channelCaseSql("ae"))}) AS channel,
+             ${u(referrerDomainSql("ae.referrer"))} AS ref_host,
+             ${u(referrerDomainSql("ae.page"))} AS page_host,
              NULLIF(lower(trim(regexp_replace(regexp_replace(ae.referrer, '^https?://(www\.)?', '', 'i'), '[/?#].*$', ''))), '') AS domain
       FROM analytics_events ae
       WHERE ae.website_id = ${websiteId}
@@ -119,7 +122,7 @@ export async function rebuildRevenueOrders(
         (array_agg(t.channel      ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_channel,
         (array_agg(t.domain       ORDER BY t.occurred_at DESC, t.id DESC) FILTER (WHERE t.external))[1] AS attr_referrer_domain
       FROM (
-        SELECT s.*, (s.has_referrer AND s.channel <> 'internal') AS external
+        SELECT s.*, (s.has_referrer AND ${u(arrivalPageviewSql("s.channel", "s.ref_host", "s.page_host"))}) AS external
         FROM session_pv s
         WHERE s.session_id = p.session_id
           AND s.occurred_at <= p.occurred_at

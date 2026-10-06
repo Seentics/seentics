@@ -168,7 +168,7 @@ async function fetchDashboardRows(
   return { agg, sess, liveVisitors: Number(liveRow[0]?.c ?? 0) };
 }
 
-/** Distinct visitors with a pageview in the live window (the last 30 seconds). */
+/** Distinct visitors with a pageview in the live window (the last five minutes). */
 async function fetchLiveVisitors(websiteId: string): Promise<number> {
   const [row] = await pgSql<{ c: number }[]>`
     SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c

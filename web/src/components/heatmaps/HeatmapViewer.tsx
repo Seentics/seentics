@@ -510,6 +510,10 @@ export function HeatmapViewer({
                     src={pageScreenshot.html_url}
                     title="Page snapshot"
                     sandbox="allow-scripts"
+                    // The snapshot is page content any visitor's browser could have posted for this site,
+                    // and the measurement script has to run in it. Whatever else runs there may draw, but
+                    // cannot phone out, submit a form or open a frame (Chromium enforces `csp` on iframes).
+                    {...({ csp: "connect-src 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'" } as Record<string, string>)}
                     scrolling="no"
                     className="pointer-events-none block border-0"
                     style={{ width: dims.w, height: dims.h }}
