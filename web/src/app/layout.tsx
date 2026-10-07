@@ -9,7 +9,6 @@ import './globals.css';
 
 import AuthInitializer from '@/components/auth-initializer';
 import TrackerScript from '@/components/tracker-script';
-import ConsentBanner from '@/components/consent-banner';
 import CrispChat from '@/components/crisp-chat';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -94,7 +93,6 @@ export default function RootLayout({
         {/* Tracking Code Components */}
         <TrackerScript />
         {/* Asks before recording replays and heatmaps, on public pages only */}
-        <ConsentBanner />
 
         {/* Global Chat Support */}
         <CrispChat />
