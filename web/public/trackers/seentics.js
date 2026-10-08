@@ -557,8 +557,9 @@ const drainQueues = () => {
  */
 const flush = () => {
   retryFailedDeliveries();
-  // Restart rrweb if the session rotated (inactivity or hard cap hit).
-  if (activeRecordingSessionId !== null) {
+  // Restart rrweb if the session rotated (inactivity or hard cap hit). Not while the tab
+  // is hidden and recording is paused — resumeRecordingOnVisible handles a rotation then.
+  if (activeRecordingSessionId !== null && !recordingPausedHidden) {
     const currentSid = getSessionId();
     if (currentSid !== activeRecordingSessionId) {
       loadRrweb().then(record => {
@@ -947,6 +948,10 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
     });
   }
   recordedDocumentStart = true;
+  // A page opened in a background tab, or hidden again before rrweb loaded, starts
+  // paused; `resumeRecordingOnVisible` starts it when the visitor first looks at it.
+  recordingPausedHidden = document.visibilityState === 'hidden';
+  if (recordingPausedHidden) return;
   const stop = record({
     ...RRWEB_OPTIONS,
     emit(event) {
@@ -1028,8 +1033,42 @@ const startRecordingEarly = () => {
   safely(() => initRecording(config));
 };
 
+/**
+ * Recording pauses while the tab is hidden.
+ *
+ * A background tab has no viewer, yet rrweb kept recording it: every carousel tick, chat
+ * widget update and polling re-render was uploaded and stored, and a visitor who spent
+ * ten minutes in another tab left ten minutes of that in the replay for the player to
+ * fast-forward through. rrweb has no pause, so it is stopped on hide and started again
+ * on return, which opens with a fresh full snapshot — the page as the visitor finds it.
+ */
+let recordingPausedHidden = false;
+
+const pauseRecordingOnHidden = () => {
+  if (!stopRecording) return;
+  safely(stopRecording);
+  stopRecording = null;
+  recordingPausedHidden = true;
+};
+
+const resumeRecordingOnVisible = () => {
+  if (!recordingPausedHidden) return;
+  recordingPausedHidden = false;
+  // The session may have rotated while hidden (30 minutes idle). Same session: the same
+  // decision as before. A new one: decided afresh, as a rotation in `flush` would be.
+  const sid = getSessionId();
+  const shouldRecord = sid === activeRecordingSessionId ? sessionCaptureActive : computeReplaySessionEnabled();
+  loadRrweb().then(record => {
+    // Not if the tab went away again, or recording was abandoned, in the meantime.
+    if (record && !stopRecording && activeRecordingSessionId !== null && document.visibilityState !== 'hidden') {
+      safely(() => startRrweb(record, sid, shouldRecord));
+    }
+  });
+};
+
 /** Stop a recording that was started early and should not have been; drop what it took. */
 const abandonRecording = () => {
+  recordingPausedHidden = false;
   sessionCaptureActive = false;
   if (stopRecording) { safely(stopRecording); stopRecording = null; }
   activeRecordingSessionId = null;
@@ -1604,7 +1643,11 @@ const init = () => {
 
   // Flush all queued data when the page is hidden (tab switch, navigation away, close).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'hidden') return;
+    if (document.visibilityState !== 'hidden') {
+      resumeRecordingOnVisible();
+      return;
+    }
+    pauseRecordingOnHidden();
     if (heat) safely(heat.beforeLeave);
     flushBeacon();
   });

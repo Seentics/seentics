@@ -34,6 +34,7 @@ import {
   FileText,
   Gauge,
   Maximize2,
+  Moon,
   MousePointerClick,
   Pause,
   Play,
@@ -56,11 +57,19 @@ const firstFrameMs = new WeakMap<PlayerInstance, number>();
  * nothing: the timeline read 0:00 while the frame stayed on whatever was shown last —
  * the end of the visit, typically, since that is where people rewind from. A paused
  * seek is clamped to just past the first snapshot so it is always drawn.
+ *
+ * A seek also ends an idle skip. rrweb leaves fast-forward on until it plays the
+ * interaction it was skipping towards, and a seek does not reset that — so scrubbing
+ * out of an idle stretch kept playing at up to 360× until that moment came round again.
+ * `backToNormal` restores the chosen speed and emits `skip-end`, which clears the idle
+ * overlay; if the new position is idle too, rrweb starts a fresh skip on its next event.
  */
 function seekPlayer(player: PlayerInstance, offsetMs: number, play: boolean) {
   const target = play ? offsetMs : Math.max(offsetMs, firstFrameMs.get(player) ?? 0);
   try {
     player.goto(target, play);
+    // Private in rrweb's types; present on the instance in the pinned 2.0.0-alpha.18.
+    (player.getReplayer() as unknown as { backToNormal?: () => void }).backToNormal?.();
   } catch {
     /* ignore — stale player */
   }
@@ -1072,6 +1081,129 @@ function SessionReplayTransportBar({
   );
 }
 
+/**
+ * rrweb's `isUserInteraction`: an incremental snapshot whose source is past Mutation (0)
+ * and up to Input (5) — mouse move, mouse interaction, scroll, viewport resize, input.
+ * Skip-idle fast-forwards through any gap between two of these longer than ten seconds.
+ */
+function isUserInteraction(ev: RRWebEvent): boolean {
+  if (ev.type !== RRWEB_INC) return false;
+  const source = (ev.data as { source?: number } | undefined)?.source;
+  return typeof source === 'number' && source > 0 && source <= 5;
+}
+
+/** Timestamp of the first user interaction after `afterTs`, or null when none follows. */
+function nextInteractionAfter(events: RRWebEvent[], afterTs: number): number | null {
+  for (const ev of events) {
+    if (ev.timestamp > afterTs && isUserInteraction(ev)) return ev.timestamp;
+  }
+  return null;
+}
+
+/** "45s", "9m 12s", "1h 4m" — an idle stretch's length, read at a glance. */
+function fmtIdle(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+/** Played just before the next interaction, so a skip lands with a moment of context. */
+const IDLE_SKIP_LEAD_MS = 1_000;
+
+/**
+ * Covers the replay while skip-idle fast-forwards through a stretch with no activity.
+ *
+ * Fast-forward runs at up to 360×, and on a page with any movement — a carousel, a chat
+ * widget, a ticking clock — the frame flickers through minutes of it in a few seconds,
+ * which reads as a broken player rather than an idle visitor. The overlay hides that and
+ * says what is happening instead, and Skip jumps straight to the next activity.
+ *
+ * Driven by rrweb's own `skip-start` / `skip-end`, so it appears exactly when rrweb
+ * decides to skip, and never while skip-idle is off.
+ */
+function ReplayIdleOverlay({
+  player,
+  replayer,
+  events,
+  t0,
+}: {
+  player: PlayerInstance;
+  replayer: SessionReplayerCore;
+  events: RRWebEvent[];
+  t0: number;
+}) {
+  const { currentMs, syncNow } = useReplayPlayback();
+  /** Offsets (ms from the first event) of the stretch being skipped. */
+  const [idle, setIdle] = useState<{ fromMs: number; toMs: number } | null>(null);
+
+  useEffect(() => {
+    const onStart = () => {
+      const fromMs = replayer.getCurrentTime();
+      // rrweb has already picked the interaction it is skipping to. Its own pick is read
+      // first because it also sees events streamed in after mount, which `events` lacks.
+      const target = (replayer as { nextUserInteractionEvent?: { timestamp?: number } | null })
+        .nextUserInteractionEvent?.timestamp;
+      const nextTs = typeof target === 'number' ? target : nextInteractionAfter(events, t0 + fromMs);
+      if (nextTs === null) return;
+      setIdle({ fromMs, toMs: nextTs - t0 });
+    };
+    const onEnd = () => setIdle(null);
+    replayer.on('skip-start', onStart);
+    replayer.on('skip-end', onEnd);
+    return () => {
+      try {
+        replayer.off('skip-start', onStart);
+        replayer.off('skip-end', onEnd);
+      } catch {
+        /* ignore — stale replayer */
+      }
+      setIdle(null);
+    };
+  }, [replayer, events, t0]);
+
+  if (!idle) return null;
+
+  const span = Math.max(1, idle.toMs - idle.fromMs);
+  const pct = Math.min(100, Math.max(0, ((currentMs - idle.fromMs) / span) * 100));
+
+  const skip = () => {
+    seekPlayer(player, Math.max(currentMs, idle.toMs - IDLE_SKIP_LEAD_MS), true);
+    setIdle(null);
+    requestAnimationFrame(() => syncNow());
+  };
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/85 backdrop-blur-sm"
+    >
+      <div className="flex w-[min(20rem,calc(100%-2rem))] flex-col items-center gap-3 text-center">
+        <Moon className="h-5 w-5 text-zinc-400" aria-hidden />
+        <div>
+          <p className="text-sm font-medium text-zinc-100">Visitor idle · {fmtIdle(span)}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">No mouse, scroll or typing — fast-forwarding</p>
+        </div>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-700/60">
+          <div className="h-full rounded-full bg-white/70" style={{ width: `${pct}%` }} />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="h-7 gap-1 rounded-lg px-3 text-xs"
+          onClick={skip}
+        >
+          Skip
+          <SkipForward className="h-3 w-3" aria-hidden />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function SessionReplaySurface({
   events,
   customEvents,
@@ -1445,6 +1577,9 @@ export function SessionReplaySurface({
                 '[&_.replayer-wrapper>iframe]:!border-0 [&_.replayer-wrapper>iframe]:!bg-black [&_.replayer-wrapper>iframe]:!shadow-none',
               )}
             />
+            {bridge && (
+              <ReplayIdleOverlay player={bridge.player} replayer={bridge.replayer} events={events} t0={t0} />
+            )}
           </div>
         </div>
         {bridge && <SessionReplayTransportBar player={bridge.player} durationMs={durationMs} />}
