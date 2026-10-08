@@ -4,6 +4,7 @@ import { collectTracker } from "./controllers/tracker-collect.controller";
 import { getTrackerConfig, initTracker } from "./controllers/tracker-config.controller";
 import type { TrackerControllerDeps } from "./controllers/tracker-controller.types";
 import { requestTrackerScreenshot } from "./controllers/tracker-screenshot.controller";
+import { snapshotNeeded } from "./controllers/tracker-snapshot-demand.controller";
 
 export function createTrackerRoutes(deps: TrackerControllerDeps) {
   const routes = new Hono();
@@ -12,6 +13,7 @@ export function createTrackerRoutes(deps: TrackerControllerDeps) {
   routes.get("/config/:website_id", getTrackerConfig(deps));
   routes.post("/collect", collectTracker(deps));
   routes.post("/request-screenshot", requestTrackerScreenshot(deps));
+  routes.get("/snapshot-needed/:website_id", snapshotNeeded(deps));
   routes.post("/automations/evaluate", evaluateTrackerAutomation(deps));
 
   return routes;

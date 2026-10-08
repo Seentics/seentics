@@ -16,9 +16,9 @@ export function isJpeg(b: Uint8Array): boolean {
  * time: rows written before `/orders/:id` existed still carry `/orders/8213`, and
  * the dashboard must show one row for the page rather than one per order.
  *
- * `avg_scroll` is averaged over the *rows* being merged, not weighted by their
- * scroll counts. That is what the endpoint has always returned, and the figure is
- * a rough depth indicator rather than a statistic anyone sums.
+ * `avg_scroll` is weighted by each row's scroll count, as `listPages` weights it within
+ * a row: `/orders/1` read by a thousand people and `/orders/2` read by one are not two
+ * equal halves of the page's average depth.
  */
 export function mergeNormalizedPages(pages: PageSummaryRow[]): HeatmapPageSummary[] {
   type Acc = {
@@ -36,16 +36,16 @@ export function mergeNormalizedPages(pages: PageSummaryRow[]): HeatmapPageSummar
     if (e) {
       e.click_count  += p.click_count;
       e.scroll_count += p.scroll_count;
-      e.scroll_sum   += p.avg_scroll;
-      e.scroll_n     += 1;
+      e.scroll_sum   += p.avg_scroll * p.scroll_count;
+      e.scroll_n     += p.scroll_count;
       if (p.last_seen > e.last_seen) e.last_seen = p.last_seen;
     } else {
       by.set(key, {
         page_path: key,
         click_count: p.click_count,
         scroll_count: p.scroll_count,
-        scroll_sum: p.avg_scroll,
-        scroll_n: 1,
+        scroll_sum: p.avg_scroll * p.scroll_count,
+        scroll_n: p.scroll_count,
         last_seen: p.last_seen,
       });
     }

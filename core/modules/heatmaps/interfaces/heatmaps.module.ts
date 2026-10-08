@@ -7,6 +7,7 @@ import type {
   HeatmapIngest,
   HeatmapScreenshotCapture,
   HeatmapScreenshotMaintenance,
+  HeatmapSnapshotDemand,
   HeatmapRawReads,
 } from "./index";
 
@@ -22,6 +23,9 @@ export interface HeatmapsModule extends ModuleLifecycle {
    * caller validates the target URL against the site's own domain first.
    */
   screenshots: HeatmapScreenshotCapture;
+
+  /** Which visitor captures a page's background, for the tracker's `/snapshot-needed`. */
+  snapshotDemand: HeatmapSnapshotDemand;
 
   /**
    * Re-capture of stale snapshots, for the scheduler.

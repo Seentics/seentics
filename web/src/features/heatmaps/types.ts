@@ -60,6 +60,8 @@ export interface HeatmapPageScreenshot {
   device_type?:          string;
   /** True when the requested bucket had no capture and another one is being shown. */
   device_fallback?:      boolean;
+  /** The real page captured — `/orders/8213` for `/orders/:id`; empty when unknown. */
+  source_path?:          string;
   dom_fingerprint?:      string;
 }
 

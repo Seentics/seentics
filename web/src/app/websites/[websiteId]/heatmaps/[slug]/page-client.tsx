@@ -20,6 +20,8 @@ import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, L
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPageSlug, normalizeHeatmapPagePath, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
+import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
+import { useSearchParams } from 'next/navigation';
 import {
   clampLayoutPx,
   heatmapCaptureBox,
@@ -47,6 +49,19 @@ export default function HeatmapDetailPage() {
 
   const [heatType,  setHeatType]  = useState<HeatType>('click');
   const [device,    setDevice]    = useState<DeviceType>('all');
+  // Carried in `?days=` so the list's range follows into a page, and back.
+  const searchParams = useSearchParams();
+  const [days, setDaysState] = useState<number>(() => {
+    const n = Number(searchParams.get('days'));
+    return HEATMAP_RANGES.some(r => r.days === n) ? n : DEFAULT_HEATMAP_DAYS;
+  });
+  const setDays = (next: number) => {
+    setDaysState(next);
+    const url = new URL(window.location.href);
+    if (next === DEFAULT_HEATMAP_DAYS) url.searchParams.delete('days');
+    else url.searchParams.set('days', String(next));
+    window.history.replaceState(null, '', url.toString());
+  };
   const [customUrl, setCustomUrl] = useState('');
   const [previewTouched, setPreviewTouched] = useState(false);
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
@@ -87,8 +102,8 @@ export default function HeatmapDetailPage() {
   }, [sitePreviewBase, urlPath]);
 
   const { data: heatmapData, isLoading, isError, error, refetch } = useQuery({
-    queryKey:  ['heatmap-data', websiteId, urlPath, heatType],
-    queryFn:   () => getHeatmapData(websiteId, urlPath, heatType === 'scroll' ? 'scroll' : 'click'),
+    queryKey:  ['heatmap-data', websiteId, urlPath, heatType, days],
+    queryFn:   () => getHeatmapData(websiteId, urlPath, heatType === 'scroll' ? 'scroll' : 'click', days),
     enabled:   !isDemoMode,
     staleTime: 60_000,
   });
@@ -110,17 +125,21 @@ export default function HeatmapDetailPage() {
     },
   });
 
+  const layoutCaptureOff = websiteMeta?.heatmapLayoutEnabled === false;
+
   const previewModeOptions = useMemo(() => {
     const pageHint = pageScreenshot
-      ? 'Server-side screenshot captured for this page path.'
+      ? 'Background captured for this page path.'
       : screenshotLoading
         ? 'Capturing screenshot…'
-        : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
+        : layoutCaptureOff
+          ? 'No background: layout capture is off for this site, so visitors’ browsers do not capture pages. Use “Capture screenshot” from the menu.'
+          : 'No background yet. A visitor’s browser captures each page about once a day per device; one will appear after the next visit, or use “Capture screenshot” from the menu.';
     return [
       ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
       ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
     ];
-  }, [pageScreenshot, screenshotLoading]);
+  }, [pageScreenshot, screenshotLoading, layoutCaptureOff]);
 
   const demoPointsNormalized: HeatPoint[] = useMemo(() => {
     const raw = demoHeatmapPoints(heatType === 'scroll' ? 'move' : 'click');
@@ -323,6 +342,21 @@ export default function HeatmapDetailPage() {
               ))}
             </div>
 
+            <Select value={String(days)} onValueChange={v => setDays(Number(v))}>
+              <SelectTrigger
+                className="h-8 w-[92px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-28 sm:text-xs"
+                title="Date range"
+                aria-label="Date range"
+              >
+                <SelectValue placeholder="Range" />
+              </SelectTrigger>
+              <SelectContent>
+                {HEATMAP_RANGES.map(r => (
+                  <SelectItem key={r.days} value={String(r.days)} className="text-xs">{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
               <SelectTrigger
                 className="h-8 w-[108px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
@@ -417,6 +451,16 @@ export default function HeatmapDetailPage() {
           </p>
         </div>
       )}
+
+      {isParamPath && !isDemoMode && pageScreenshot?.source_path ? (
+        <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-1.5">
+          <p className="text-xs text-muted-foreground">
+            Background from <code className="rounded bg-muted px-1 font-mono text-foreground">{pageScreenshot.source_path}</code>,
+            one of the pages <code className="font-mono">{urlPath}</code> combines. Clicks from the others are drawn on the
+            same elements where those exist here.
+          </p>
+        </div>
+      ) : null}
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">

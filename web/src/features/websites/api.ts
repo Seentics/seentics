@@ -91,6 +91,7 @@ export async function addWebsite(website: { name: string; url: string }, userId:
       funnelEnabled: websiteData.funnel_enabled ?? true,
       errorsEnabled: websiteData.errors_enabled ?? true,
       heatmapEnabled: websiteData.heatmap_enabled ?? true,
+      heatmapLayoutEnabled: websiteData.heatmap_layout_enabled ?? true,
       heatmapIncludePatterns: websiteData.heatmap_include_patterns,
       heatmapExcludePatterns: websiteData.heatmap_exclude_patterns,
       replayEnabled: websiteData.replay_enabled ?? true,

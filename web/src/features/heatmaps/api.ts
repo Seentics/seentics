@@ -11,8 +11,17 @@ import type {
 
 
 
-export async function listHeatmapPages(websiteId: string): Promise<HeatmapPageSummary[]> {
-  const res = await api.get(`/heatmaps/${websiteId}/pages`);
+/** Heatmap date ranges, in days ending today — what the pages list and a heatmap read over. */
+export const HEATMAP_RANGES = [
+  { days: 1, label: 'Today' },
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: 90, label: '90 days' },
+] as const;
+export const DEFAULT_HEATMAP_DAYS = 30;
+
+export async function listHeatmapPages(websiteId: string, days?: number): Promise<HeatmapPageSummary[]> {
+  const res = await api.get(`/heatmaps/${websiteId}/pages`, { params: days ? { days } : {} });
   return (res.data?.pages ?? []) as HeatmapPageSummary[];
 }
 
@@ -43,9 +52,14 @@ export async function getHeatmapData(
   websiteId: string,
   pagePath:  string,
   eventType: 'click' | 'scroll' = 'click',
+  days?: number,
 ): Promise<HeatmapData> {
   const res = await api.get(`/heatmaps/${websiteId}/data`, {
-    params: { page_path: normalizeHeatmapPagePath(pagePath), event_type: eventType },
+    params: {
+      page_path: normalizeHeatmapPagePath(pagePath),
+      event_type: eventType,
+      ...(days ? { days } : {}),
+    },
   });
   return res.data as HeatmapData;
 }

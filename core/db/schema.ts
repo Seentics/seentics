@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -421,6 +422,8 @@ export const heatmapPoints = pgTable(
     trackerVersion: text("tracker_version").notNull().default(""),
     schemaVersion: integer("schema_version").notNull().default(1),
     lastUpdated: timestamp("last_updated", { withTimezone: true }).notNull().defaultNow(),
+    /** UTC day the clicks in this row happened — one row per cell per day (db/sql/046). */
+    day: date("day").notNull().default(sql`((now() AT TIME ZONE 'UTC')::date)`),
   },
   (t) => [
     uniqueIndex("heatmap_points_cell_uq").on(
@@ -432,9 +435,10 @@ export const heatmapPoints = pgTable(
       t.yPercent,
       t.targetSelector,
       t.pageVersion,
+      t.day,
     ),
-    index("ix_heatmap_points_website_updated").on(t.websiteId, t.lastUpdated),
-    index("ix_heatmap_points_website_page_event").on(t.websiteId, t.pagePath, t.eventType),
+    index("ix_heatmap_points_website_day").on(t.websiteId, t.day),
+    index("ix_heatmap_points_website_page_event_day").on(t.websiteId, t.pagePath, t.eventType, t.day),
   ],
 );
 
@@ -502,6 +506,10 @@ export const heatmapPageSnapshots = pgTable(
      */
     deviceType: text("device_type").notNull().default("desktop"),
     domFingerprint: text("dom_fingerprint").notNull().default(""),
+    /** The real page the background was captured on — for /orders/:id, which order. */
+    sourcePath: text("source_path").notNull().default(""),
+    /** Last time a visitor's capture confirmed this background, stored or not (db/sql/046). */
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

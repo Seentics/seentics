@@ -1,7 +1,17 @@
+import { clampClientTs } from "../../../platform/http/client-timestamp";
 import { deviceTypeFromUA } from "../lib/device";
 import { heatmapPagePathForEvent } from "../lib/paths";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../interfaces";
 import { isJpeg } from "./heatmap-data-normalization.service";
+
+/**
+ * The UTC day an event happened, as `YYYY-MM-DD` — the day its cell is counted on.
+ * The client's clock, clamped like every other tracker timestamp, so a click sent late
+ * by a closing tab still lands on the day it was made.
+ */
+export function eventDay(ts: number, now: number = Date.now()): string {
+  return new Date(clampClientTs(ts, now)).toISOString().slice(0, 10);
+}
 
 /**
  * Tracker events to storable rows.
@@ -96,6 +106,7 @@ export function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] 
     const device = deviceTypeFromUA(ua);
     const data = ev.data ?? {};
     const pagePath = heatmapPagePathForEvent(ev.url ?? "", data);
+    const day = eventDay(ev.ts);
 
     if (ev.type === "heatmap_click") {
       const nx = Math.min(1, Math.max(0, toFloat(data.nx)));
@@ -127,6 +138,7 @@ export function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] 
         devicePixelRatio: finiteInRange(data.device_pixel_ratio, 0.1, 16),
         trackerVersion: shortString(data.tracker_version, 32),
         schemaVersion: Math.trunc(finiteInRange(data.schema_version, 1, 100) ?? 1),
+        day,
       });
     } else if (ev.type === "heatmap_scroll") {
       const depth = Math.min(1, Math.max(0, toFloat(data.depth)));
@@ -157,6 +169,7 @@ export function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] 
         devicePixelRatio: finiteInRange(data.device_pixel_ratio, 0.1, 16),
         trackerVersion: shortString(data.tracker_version, 32),
         schemaVersion: Math.trunc(finiteInRange(data.schema_version, 1, 100) ?? 1),
+        day,
       });
     }
   }

@@ -27,6 +27,8 @@ import {
   heatmapPageSlug,
   type HeatmapPageSummary,
 } from '@/lib/heatmaps-api';
+import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
 
@@ -96,11 +98,14 @@ export default function HeatmapsPage() {
   const queryClient = useQueryClient();
   const { toast }   = useToast();
   const [search, setSearch] = useState('');
+  const [days, setDays] = useState<number>(DEFAULT_HEATMAP_DAYS);
 
+  // The range follows into the page's heatmap, so its counts match the row clicked.
   const heatmapHref = useCallback(
     (pagePath: string) =>
-      `/websites/${websiteId}/heatmaps/${heatmapPageSlug(pagePath)}`,
-    [websiteId],
+      `/websites/${websiteId}/heatmaps/${heatmapPageSlug(pagePath)}` +
+      (days === DEFAULT_HEATMAP_DAYS ? '' : `?days=${days}`),
+    [websiteId, days],
   );
 
   const deleteMutation = useMutation({
@@ -122,8 +127,8 @@ export default function HeatmapsPage() {
 
   // Real API
   const { data: apiPages, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey:  ['heatmap-pages', websiteId],
-    queryFn:   () => listHeatmapPages(websiteId),
+    queryKey:  ['heatmap-pages', websiteId, days],
+    queryFn:   () => listHeatmapPages(websiteId, days),
     // Empty until usePathSegment reads the URL after mount — see the replays list.
     enabled:   !isDemoMode && !!websiteId,
     staleTime: 5 * 60 * 1000,
@@ -329,14 +334,26 @@ export default function HeatmapsPage() {
 
 
         toolbarRight={
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search pages..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 text-xs w-48"
-            />
+          <div className="flex items-center gap-2">
+            <Select value={String(days)} onValueChange={v => setDays(Number(v))}>
+              <SelectTrigger className="h-8 w-28 text-xs" aria-label="Date range">
+                <SelectValue placeholder="Range" />
+              </SelectTrigger>
+              <SelectContent>
+                {HEATMAP_RANGES.map(r => (
+                  <SelectItem key={r.days} value={String(r.days)} className="text-xs">{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search pages..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-8 h-8 text-xs w-48"
+              />
+            </div>
           </div>
         }
         onRowClick={row => router.push(heatmapHref(row.url))}

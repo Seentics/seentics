@@ -17,6 +17,8 @@ export type Website = {
   funnelEnabled: boolean;
   errorsEnabled: boolean;
   heatmapEnabled: boolean;
+  /** Whether visitors' browsers capture page backgrounds for heatmaps. Read only on the detail fetch. */
+  heatmapLayoutEnabled?: boolean;
   heatmapIncludePatterns?: string;
   heatmapExcludePatterns?: string;
   replayEnabled: boolean;

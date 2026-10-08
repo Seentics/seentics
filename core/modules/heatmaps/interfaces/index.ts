@@ -24,6 +24,7 @@ export type {
   HeatmapScreenshotCapture,
   HeatmapScreenshotMaintenance,
   HeatmapSettings,
+  HeatmapSnapshotDemand,
   HeatmapTrackerEvent,
   ResolvedWebsite,
 } from "./heatmap.interface";

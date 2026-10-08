@@ -12,8 +12,9 @@ import { mergeNormalizedPages } from "./heatmap-data-normalization.service";
  */
 export async function listHeatmapPages(
   websiteId: string,
+  days?: number,
 ): Promise<{ pages: HeatmapPageSummary[] }> {
-  const pages = await listPages(websiteId);
+  const pages = await listPages(websiteId, days);
   return { pages: mergeNormalizedPages(pages) };
 }
 
@@ -21,9 +22,10 @@ export async function getHeatmapPoints(
   websiteId: string,
   pagePath: string,
   eventType: string,
+  days?: number,
 ): Promise<{ page_path: string; points: HeatmapPointOut[] }> {
   const norm = normalizeHeatmapPagePath(pagePath);
-  const points = await getHeatmapData(websiteId, norm, eventType || "click");
+  const points = await getHeatmapData(websiteId, norm, eventType || "click", days);
   return { page_path: norm, points };
 }
 

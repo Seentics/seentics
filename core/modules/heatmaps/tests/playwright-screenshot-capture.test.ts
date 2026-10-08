@@ -56,6 +56,8 @@ mock.module("../lib/layout-db", () => ({
   upsertLayoutHtmlSnapshot: async () => {},
   getLayoutSnapshot: async () => null,
   getCachedSnapshotSha256: () => null,
+  markLayoutSnapshotChecked: async () => {},
+  snapshotCheckedAt: async () => null,
 }));
 
 const { HeatmapScreenshotService } = await import("../services/playwright-screenshot-capture.service");

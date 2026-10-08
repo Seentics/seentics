@@ -72,6 +72,45 @@ registerExtension((core) => {
     catch { /* ignore */ }
   };
 
+  // ─── Snapshot demand ───────────────────────────────────────────────────────────
+
+  /**
+   * Whether this visitor should capture the current page, as the server decides.
+   *
+   * Every visitor used to capture every page they opened — serializing up to 3 MB of
+   * HTML on their main thread and uploading it — though the server needs about one
+   * capture per page a day. The server now says which visitor (core
+   * `HeatmapSnapshotDemandService`); everyone else captures nothing.
+   *
+   * Asked once per path per page load. Kept as the answer, not the promise, because the
+   * leaving-the-page capture runs synchronously on `pagehide` and can only act on an
+   * answer that has already arrived.
+   */
+  const SNAPSHOT_NEEDED_URL = core.COLLECT.replace(/\/collect$/, '/snapshot-needed/') + encodeURIComponent(websiteId);
+  /** Path → `true` / `false` once answered; a path being asked about maps to a promise. */
+  const snapshotWanted = new Map();
+
+  const askSnapshotNeeded = () => {
+    const path = location.pathname;
+    const known = snapshotWanted.get(path);
+    if (known !== undefined) return Promise.resolve(known);
+    const params = new URLSearchParams({ path });
+    const pageKey = pageKeyOverride();
+    if (pageKey) params.set('page_key', pageKey);
+    const asking = fetch(SNAPSHOT_NEEDED_URL + '?' + params.toString(), { credentials: 'omit' })
+      // 404: a server from before this endpoint, which wants every capture as it always
+      // did. Anything else unexpected: capture nothing — a missed background is retried
+      // tomorrow, a flood of captures is the thing this exists to stop.
+      .then(r => r.status === 404 ? { needed: true } : r.ok ? r.json() : { needed: false })
+      .then(body => body?.needed === true, () => false)
+      .then(needed => { snapshotWanted.set(path, needed); return needed; });
+    snapshotWanted.set(path, asking);
+    return asking;
+  };
+
+  /** This visitor holds the current page's capture (an answer has arrived, and it was yes). */
+  const snapshotWantedHere = () => snapshotWanted.get(location.pathname) === true;
+
   /**
    * How long a page must have been on screen before an unload-time capture is worth
    * storing. Below this the document is still assembling and the snapshot would depict a
@@ -97,9 +136,15 @@ registerExtension((core) => {
     // The snapshot waits for consent where it is asked (see captureAndQueueDomSnapshot).
     if (!layoutEnabled() || !heatmapAllowed() || !core.identified) return;
     clearSnapshotTimers();
-    const later = () => snapshotTimers.push(window.setTimeout(captureAndQueueDomSnapshot, 2_500));
-    if (document.readyState === 'complete') later();
-    else window.addEventListener('load', later, { once: true });
+    if (hasSentSnapshotForPath()) return;
+    const path = location.pathname;
+    askSnapshotNeeded().then((needed) => {
+      // Not needed, or the visitor has moved on to another route while we asked.
+      if (!needed || location.pathname !== path) return;
+      const later = () => snapshotTimers.push(window.setTimeout(captureAndQueueDomSnapshot, 2_500));
+      if (document.readyState === 'complete') later();
+      else window.addEventListener('load', later, { once: true });
+    });
   };
 
   /**
@@ -117,6 +162,7 @@ registerExtension((core) => {
       if (pageGrewSinceSnapshot()) captureAndQueueDomSnapshot({ force: true });
       return;
     }
+    if (!snapshotWantedHere()) return;
     if (Date.now() - core.pageEnterMs < MIN_DWELL_FOR_LEAVE_SNAPSHOT_MS) return;
     clearSnapshotTimers();
     captureAndQueueDomSnapshot();
@@ -188,6 +234,49 @@ registerExtension((core) => {
     }
   };
 
+  /** Inline data longer than this is dropped from an oversized snapshot. */
+  const SLIM_DATA_URI_MIN = 2_048;
+  /** A transparent pixel, so a stripped image still renders as an (empty) box. */
+  const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  const LONG_DATA_URL_RE = new RegExp('url\\(\\s*([\'"]?)data:[^)]{' + SLIM_DATA_URI_MIN + ',}?\\1\\s*\\)', 'gi');
+
+  /**
+   * Remove inline data from a snapshot clone that is over the size limit: long `data:`
+   * URLs in `src`, `href`, `poster` and `srcset`, and in CSS `url(...)` inside style
+   * attributes and <style> blocks (where fonts are usually embedded). Layout comes from
+   * elements and CSS rules, not from the bytes of an image or a font, so the background
+   * keeps its shape.
+   */
+  const slimSnapshot = (roots, qsa) => {
+    qsa('[src^="data:"], [href^="data:"], [poster^="data:"]').forEach(el => {
+      for (const name of ['src', 'href', 'poster']) {
+        const v = el.getAttribute(name);
+        if (v && v.startsWith('data:') && v.length > SLIM_DATA_URI_MIN) {
+          if (el.tagName === 'IMG' && name === 'src') el.setAttribute('src', BLANK_IMAGE);
+          else el.removeAttribute(name);
+        }
+      }
+    });
+    qsa('[srcset*="data:"]').forEach(el => {
+      if ((el.getAttribute('srcset') || '').length > SLIM_DATA_URI_MIN) el.removeAttribute('srcset');
+    });
+    qsa('[style*="data:"]').forEach(el => {
+      el.setAttribute('style', (el.getAttribute('style') || '').replace(LONG_DATA_URL_RE, 'none'));
+    });
+    for (const root of roots) {
+      root.querySelectorAll('style').forEach(style => {
+        if (style.textContent && style.textContent.includes('data:')) {
+          style.textContent = style.textContent.replace(LONG_DATA_URL_RE, 'none');
+        }
+      });
+    }
+    // Inline <svg> sprite sheets (hidden symbol libraries) are often the bulk of an app
+    // shell; a hidden one draws nothing, so its symbols can go.
+    qsa('svg[style*="display: none"], svg[style*="display:none"], svg[hidden]').forEach(el => {
+      if (el.querySelector('symbol')) el.replaceChildren();
+    });
+  };
+
   /**
    * Capture the current page as a DOM snapshot (serialized HTML) and queue it.
    *
@@ -203,6 +292,9 @@ registerExtension((core) => {
     // sessionStorage marker below out of an anonymous visitor's browser).
     if (!layoutEnabled() || !heatmapAllowed() || !core.identified) return;
     if (!force && hasSentSnapshotForPath()) return;
+    // A first capture needs the server's yes; a forced one is a re-capture of a page this
+    // very page view already captured (it grew), so the yes was already given.
+    if (!force && !snapshotWantedHere()) return;
     try {
       const clone = document.documentElement.cloneNode(true);
       // cloneNode never copies shadow roots, so every web component used to arrive empty:
@@ -367,7 +459,23 @@ registerExtension((core) => {
         head.appendChild(measureScript);
       }
 
-      const html = '<!DOCTYPE html>' + clone.outerHTML;
+      let html = '<!DOCTYPE html>' + clone.outerHTML;
+
+      // Over the limit, the usual cause is inline data — base64 images, icon sprites and
+      // fonts written into attributes and <style> — which a layout background can do
+      // without: an image keeps its box from its attributes and CSS. Strip it and try again
+      // before giving the page up, since a page given up never gets a background at all.
+      if (html.length > MAX_DOM_SNAPSHOT_BYTES) {
+        const before = html.length;
+        slimSnapshot(roots, qsa);
+        html = '<!DOCTYPE html>' + clone.outerHTML;
+        if (html.length <= MAX_DOM_SNAPSHOT_BYTES) {
+          console.info(
+            '[Seentics] heatmap DOM snapshot: inline images and fonts removed to fit (' +
+            Math.round(before / 1024) + ' KB → ' + Math.round(html.length / 1024) + ' KB).'
+          );
+        }
+      }
 
       // Oversized snapshots are dropped rather than sent: the collect schema rejects the
       // *whole* batch when one field is over its limit, so an outsized snapshot would take

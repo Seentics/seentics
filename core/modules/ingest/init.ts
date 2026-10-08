@@ -58,6 +58,7 @@ export function initIngestModule(deps: {
       automationEvaluation: deps.automationsModule.evaluation,
       funnels: deps.funnelsModule.trackerConfig,
       screenshots: deps.heatmapsModule.screenshots,
+      snapshotDemand: deps.heatmapsModule.snapshotDemand,
       trackerWebsites: deps.websitesModule.trackerWebsites,
       visitorSalt: dailyVisitorSalt,
     }),

@@ -1,7 +1,11 @@
 import type { Context } from "hono";
 import type { AuthVars } from "../../../platform/middleware/auth";
 import { parseQuery } from "../../../platform/validation";
-import { heatmapDataQuerySchema, heatmapSnapshotQuerySchema } from "../validators/heatmap.schema";
+import {
+  heatmapDataQuerySchema,
+  heatmapPagesQuerySchema,
+  heatmapSnapshotQuerySchema,
+} from "../validators/heatmap.schema";
 import { requireHeatmapAccess } from "./heatmap-access";
 import type { HeatmapControllerDeps } from "./heatmap-controller.types";
 
@@ -10,7 +14,9 @@ export function listHeatmapPages(deps: HeatmapControllerDeps) {
     const websiteRef = c.req.param("website_id");
     const denied = await requireHeatmapAccess(c, deps, websiteRef);
     if (denied) return denied;
-    return c.json(await deps.heatmapQueries.listPages(websiteRef));
+    const query = parseQuery(c, heatmapPagesQuerySchema);
+    if (!query.ok) return query.res;
+    return c.json(await deps.heatmapQueries.listPages(websiteRef, query.data.days));
   };
 }
 
@@ -25,6 +31,7 @@ export function getHeatmapData(deps: HeatmapControllerDeps) {
       websiteRef,
       query.data.page_path,
       query.data.event_type || "click",
+      query.data.days,
     ));
   };
 }

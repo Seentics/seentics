@@ -51,6 +51,8 @@ mock.module("../lib/layout-db", () => ({
     upserts.push({ websiteId, pagePath, device, key, sha, w, h });
   },
   upsertLayoutHtmlSnapshot: async () => {},
+  markLayoutSnapshotChecked: async () => {},
+  snapshotCheckedAt: async () => null,
 }));
 
 const jpegPuts: { key: string; bytes: number }[] = [];

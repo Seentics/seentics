@@ -19,16 +19,17 @@ export class HeatmapQueryService implements HeatmapQuery {
     private readonly autoCapture: HeatmapAutoCapture,
   ) {}
 
-  listPages(websiteId: string): Promise<{ pages: HeatmapPageSummary[] }> {
-    return listHeatmapPages(websiteId);
+  listPages(websiteId: string, days?: number): Promise<{ pages: HeatmapPageSummary[] }> {
+    return listHeatmapPages(websiteId, days);
   }
 
   getPoints(
     websiteId: string,
     pagePath: string,
     eventType: string,
+    days?: number,
   ): Promise<{ page_path: string; points: HeatmapPointOut[] }> {
-    return getHeatmapPoints(websiteId, pagePath, eventType);
+    return getHeatmapPoints(websiteId, pagePath, eventType, days);
   }
 
   async getLayoutSnapshot(

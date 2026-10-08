@@ -27,27 +27,55 @@ function pgTimestampToIso(v: unknown): string {
   return new Date(0).toISOString();
 }
 
+/**
+ * The first UTC day inside a window of `days` days ending today, or null for no window
+ * (every day still retained).
+ */
+function windowStartDay(days: number | undefined): string | null {
+  if (days === undefined || !Number.isFinite(days) || days < 1) return null;
+  const start = Date.now() - (Math.floor(days) - 1) * 86_400_000;
+  return new Date(start).toISOString().slice(0, 10);
+}
+
+/**
+ * A page's cells over the last `days` days (every retained day when omitted).
+ *
+ * Rows are one per cell per day; a cell's days are summed into one point. The cell's
+ * geometry (locator, rect, viewport…) is taken from its most recent day, which is the
+ * one most likely to match the page as it is now — the same choice the write path made
+ * when it kept one row per cell and let each click refresh those columns.
+ */
 export async function getHeatmapData(
   websiteId: string,
   pagePath: string,
   eventType: string,
+  days?: number,
 ): Promise<HeatmapPointOut[]> {
+  const fromDay = windowStartDay(days);
   const rows = await sql`
-    SELECT page_path, event_type, device_type, x_percent, y_percent, intensity,
-           COALESCE(target_selector, '') AS target_selector,
-           cap_vw, cap_vh, page_version, target_locator, target_rect,
-           relative_x, relative_y, position_mode, client_x, client_y, page_x, page_y,
-           scroll_x, scroll_y, document_width, document_height, device_pixel_ratio,
-           tracker_version, schema_version
-    FROM heatmap_points
-    WHERE website_id = ${websiteId}::uuid
-      AND event_type = ${eventType}
-      AND (
-        regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
-          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
-        OR regexp_replace(${NORM_PAGE_PATH_EXPR}, '/$', '')
-          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
-      )
+    SELECT * FROM (
+      SELECT DISTINCT ON (page_path, device_type, x_percent, y_percent, target_selector, page_version)
+             page_path, event_type, device_type, x_percent, y_percent,
+             (sum(intensity) OVER (
+               PARTITION BY page_path, device_type, x_percent, y_percent, target_selector, page_version
+             ))::int AS intensity,
+             COALESCE(target_selector, '') AS target_selector,
+             cap_vw, cap_vh, page_version, target_locator, target_rect,
+             relative_x, relative_y, position_mode, client_x, client_y, page_x, page_y,
+             scroll_x, scroll_y, document_width, document_height, device_pixel_ratio,
+             tracker_version, schema_version
+      FROM heatmap_points
+      WHERE website_id = ${websiteId}::uuid
+        AND event_type = ${eventType}
+        AND (${fromDay}::date IS NULL OR day >= ${fromDay}::date)
+        AND (
+          regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
+            = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+          OR regexp_replace(${NORM_PAGE_PATH_EXPR}, '/$', '')
+            = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+        )
+      ORDER BY page_path, device_type, x_percent, y_percent, target_selector, page_version, day DESC
+    ) cells
     ORDER BY intensity DESC
   `;
   return (rows as Record<string, unknown>[]).map((r) => ({
@@ -86,15 +114,25 @@ export async function getHeatmapData(
   }));
 }
 
-export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
+/** Every page with heatmap data over the last `days` days (every retained day when omitted). */
+export async function listPages(websiteId: string, days?: number): Promise<PageSummaryRow[]> {
+  const fromDay = windowStartDay(days);
   const rows = await sql`
     SELECT page_path,
            COALESCE(SUM(CASE WHEN event_type = 'click'  THEN intensity ELSE 0 END), 0)::int AS click_count,
            COALESCE(SUM(CASE WHEN event_type = 'scroll' THEN intensity ELSE 0 END), 0)::int AS scroll_count,
-           COALESCE(AVG(CASE WHEN event_type = 'scroll' THEN y_percent END), 0)::int AS avg_scroll_raw,
+           -- Each scroll row is a depth (0–100) and how many page views reached it, so the
+           -- average is weighted by that count — an unweighted AVG counted a depth one
+           -- visitor reached the same as one a thousand did.
+           COALESCE(
+             SUM(CASE WHEN event_type = 'scroll' THEN y_percent * intensity END)::float
+               / NULLIF(SUM(CASE WHEN event_type = 'scroll' THEN intensity END), 0),
+             0
+           ) AS avg_scroll_raw,
            MAX(last_updated) AS last_seen
     FROM heatmap_points
     WHERE website_id = ${websiteId}::uuid
+      AND (${fromDay}::date IS NULL OR day >= ${fromDay}::date)
     GROUP BY page_path
     ORDER BY click_count DESC
   `;
@@ -102,7 +140,9 @@ export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
     page_path: String(r.page_path),
     click_count: Number(r.click_count),
     scroll_count: Number(r.scroll_count),
-    avg_scroll: Math.floor(Number(r.avg_scroll_raw) / 100),
+    // Already a percentage: scroll depth is stored at 100× (point-scaling.test.ts), so the
+    // division by 100 this used to do turned every page's average into 0 (or 1 at 100%).
+    avg_scroll: Math.round(Number(r.avg_scroll_raw)),
     last_seen: pgTimestampToIso(r.last_seen),
   }));
 }

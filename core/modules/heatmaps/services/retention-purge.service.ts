@@ -32,23 +32,27 @@ export class HeatmapRetentionPurge implements RetentionPurge {
   ): Promise<Record<string, number>> {
     const websiteId = target.websiteId;
 
+    // By the day the clicks happened. Deleting by `last_updated` kept a cell whole for as
+    // long as anyone kept clicking it, old clicks included.
     const points = await sql`
       DELETE FROM heatmap_points
       WHERE website_id = ${websiteId}::uuid
-        AND last_updated < ${cutoffs.heatmap}
+        AND day < ${cutoffs.heatmap.toISOString().slice(0, 10)}::date
     `;
 
     let snapshotRows = 0;
     let snapshotObjects = 0;
 
-    const shots = await sql<{ s3_key: string }[]>`
-      SELECT s3_key FROM heatmap_page_snapshots
+    const shots = await sql<{ s3_key: string; html_s3_key: string | null }[]>`
+      SELECT s3_key, html_s3_key FROM heatmap_page_snapshots
       WHERE website_id = ${websiteId}::uuid
         AND updated_at < ${cutoffs.heatmap}
     `;
 
     if (shots.length > 0) {
-      const keys = shots.map((s) => s.s3_key).filter(Boolean);
+      // Both objects: the HTML snapshot is the primary background now, and leaving it
+      // behind kept a copy of the page in storage after its row was gone.
+      const keys = shots.flatMap((s) => [s.s3_key, s.html_s3_key ?? ""]).filter(Boolean);
       try {
         await deleteS3Objects(options.heatmapBucket, keys);
         snapshotObjects += keys.length;

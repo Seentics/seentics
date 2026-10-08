@@ -69,6 +69,8 @@ export type HeatmapPointRow = {
   devicePixelRatio: number | null;
   trackerVersion: string;
   schemaVersion: number;
+  /** UTC day (`YYYY-MM-DD`) the event happened; a cell is counted per day. */
+  day: string;
 };
 
 /** One aggregated heatmap cell in the dashboard and raw API wire shape. */
@@ -161,6 +163,11 @@ export type HeatmapLayout = {
    * dashboard says so rather than presenting it as an accurate overlay.
    */
   device_fallback: boolean;
+  /**
+   * The real page this background was captured on — `/orders/8213` for `/orders/:id`.
+   * Empty when unknown (captures from before it was recorded, and server-side captures).
+   */
+  source_path: string;
   /** Structural version of the DOM snapshot; empty for image-only/legacy captures. */
   dom_fingerprint?: string;
 };
@@ -192,10 +199,11 @@ export interface HeatmapQuery {
    * both become `/orders/:id`) are merged here rather than in SQL, because rows
    * written before a normalization rule existed still carry the raw path.
    */
-  listPages(websiteRef: string): Promise<{ pages: HeatmapPageSummary[] }>;
+  listPages(websiteRef: string, days?: number): Promise<{ pages: HeatmapPageSummary[] }>;
 
   /**
-   * Click or scroll points for one page.
+   * Click or scroll points for one page, over the last `days` days (every retained
+   * day when omitted).
    *
    * Returns the normalized `page_path` it actually matched on, so the client can
    * tell that `/orders/8213` was answered from the `/orders/:id` bucket.
@@ -204,6 +212,7 @@ export interface HeatmapQuery {
     websiteRef: string,
     pagePath: string,
     eventType: string,
+    days?: number,
   ): Promise<{ page_path: string; points: HeatmapPointOut[] }>;
 
   /**
@@ -338,6 +347,23 @@ export class ScreenshotTargetNotAllowedError extends Error {
     super(`page_url not allowed: ${pageUrl}`);
     this.name = "ScreenshotTargetNotAllowedError";
   }
+}
+
+/**
+ * Whether a visitor's browser should capture this page's background now.
+ *
+ * Asked by the tracker before it serializes a page, so a page is captured about once a
+ * day rather than once per visitor. Reads nothing but freshness, and an answer of `true`
+ * is a short claim on the page — see `HeatmapSnapshotDemandService`.
+ */
+export interface HeatmapSnapshotDemand {
+  /**
+   * @param websiteId  `websites.id`, already resolved by the caller.
+   * @param pageUrl    The page's URL or path; normalised the way its snapshot is stored.
+   * @param pageKey    The SDK's `data-seentics-page` override, when the page sets one.
+   * @param userAgent  The visitor's, which decides the device bucket as it does at ingest.
+   */
+  snapshotNeeded(websiteId: string, pageUrl: string, pageKey: string | undefined, userAgent: string): Promise<boolean>;
 }
 
 /**

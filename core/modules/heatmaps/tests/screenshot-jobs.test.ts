@@ -424,16 +424,16 @@ describe("mergeNormalizedPages", () => {
     expect(out[0]!.last_seen).toBe("2026-09-01T00:00:00.000Z");
   });
 
-  it("averages avg_scroll over the merged rows, unweighted", () => {
-    // Documented behaviour, not an oversight: the figure is a rough depth indicator
-    // rather than a statistic anyone sums, and this is what the endpoint has always
-    // returned. Pinned so a change to a count-weighted mean is a deliberate one.
+  it("weights avg_scroll by each merged row's scroll count", () => {
+    // Was an unweighted mean of the rows. It was also always 0 — listPages divided an
+    // already-percent depth by 100 — so nothing could have relied on it; with the depth
+    // fixed, a page read once must not count as much as one read 999 times.
     const out = mergeNormalizedPages([
       row({ page_path: "/orders/1111111", avg_scroll: 20, scroll_count: 1 }),
       row({ page_path: "/orders/2222222", avg_scroll: 80, scroll_count: 999 }),
     ]);
 
-    expect(out[0]!.avg_scroll).toBe(50);
+    expect(out[0]!.avg_scroll).toBe(80);
   });
 
   it("rounds the averaged scroll depth", () => {

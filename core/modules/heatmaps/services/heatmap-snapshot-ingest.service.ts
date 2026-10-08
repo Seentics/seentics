@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   getCachedSnapshotSha256,
   getLayoutSnapshot,
+  markLayoutSnapshotChecked,
   upsertLayoutSnapshot,
   upsertLayoutHtmlSnapshot,
 } from "../lib/layout-db";
@@ -205,6 +206,7 @@ export class SnapshotIngestService {
     // snapshot and still needs the HTML written, and a row from a *different* bucket
     // is not this bucket's background however identical its bytes are.
     if (existing?.html_s3_key && existing.content_sha256 === sum && existing.device_type === device) {
+      await markLayoutSnapshotChecked(ev.websiteId, norm, device);
       return;
     }
 
@@ -229,6 +231,7 @@ export class SnapshotIngestService {
         stored_height: existing.doc_height,
         incoming_height: docH,
       });
+      await markLayoutSnapshotChecked(ev.websiteId, norm, device);
       return;
     }
 
@@ -242,7 +245,9 @@ export class SnapshotIngestService {
       pageVersion ? `${baseSlot}_${sum.slice(0, 16)}` : baseSlot,
     );
     await putHtml(this.bucket, key, withSnapshotPolicy(html));
-    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion);
+    // The path only: a query string is where tokens and emails turn up.
+    const sourcePath = extractPath(ev.url ?? "").slice(0, 2048);
+    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion, sourcePath);
     if (pageVersion) {
       await upsertLayoutVersion(ev.websiteId, norm, device, pageVersion, key, sum, docW, docH);
     }

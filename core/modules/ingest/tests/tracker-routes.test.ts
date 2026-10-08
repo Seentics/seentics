@@ -183,6 +183,17 @@ let automations: FakeAutomationSettings;
 let automationEvaluation: FakeAutomationEvaluation;
 let screenshots: FakeScreenshotCapture;
 
+/** Answers `/snapshot-needed` with `answer` and records what it was asked. */
+class FakeSnapshotDemand {
+  answer = true;
+  asked: { websiteId: string; pageUrl: string; pageKey: string | undefined; userAgent: string }[] = [];
+  async snapshotNeeded(websiteId: string, pageUrl: string, pageKey: string | undefined, userAgent: string) {
+    this.asked.push({ websiteId, pageUrl, pageKey, userAgent });
+    return this.answer;
+  }
+}
+let snapshotDemand: FakeSnapshotDemand;
+
 beforeAll(async () => {
   ({ createTrackerRoutes } = await import("../routes"));
   ({ createTrackerCollectService } = await import("../services/tracker-collect.service"));
@@ -199,6 +210,7 @@ beforeEach(() => {
   automations = new FakeAutomationSettings();
   automationEvaluation = new FakeAutomationEvaluation();
   screenshots = new FakeScreenshotCapture();
+  snapshotDemand = new FakeSnapshotDemand();
 
   // Requested at the paths `index.ts` mounts under `/api/v1/tracker`.
   queue = makeFakeQueue();
@@ -208,6 +220,7 @@ beforeEach(() => {
     automationEvaluation,
     funnels,
     screenshots,
+    snapshotDemand,
     trackerWebsites: {
       resolve: mockResolveWebsite,
       listGoals: mockListGoals,
@@ -578,6 +591,45 @@ describe("POST /collect", () => {
     });
     // Just assert it didn't crash — the UA override path was exercised
     expect(queue.events).toHaveLength(1);
+  });
+});
+
+// ─── GET /snapshot-needed/:website_id ────────────────────────────────────────
+
+describe("GET /snapshot-needed/:website_id", () => {
+  const LAYOUT_SITE = { ...ACTIVE_WEBSITE, heatmap_layout_enabled: true };
+  const ask = (query: string, origin = "https://example.com") =>
+    app.request(`/snapshot-needed/site_abc?${query}`, {
+      headers: { Origin: origin, "User-Agent": "Mozilla/5.0 (iPhone)" },
+    });
+
+  it("passes the site, path, page key and user agent to the decision, and returns it", async () => {
+    mockResolveWebsite.mockResolvedValue(LAYOUT_SITE);
+    const res = await ask("path=%2Fpricing&page_key=%2F%40checkout");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(await res.json()).toEqual({ needed: true });
+    expect(snapshotDemand.asked).toEqual([{
+      websiteId: LAYOUT_SITE.id,
+      pageUrl: "/pricing",
+      pageKey: "/@checkout",
+      userAgent: "Mozilla/5.0 (iPhone)",
+    }]);
+  });
+
+  it("says no without asking when layout capture is off for the site", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE); // heatmap_layout_enabled: false
+    expect(await (await ask("path=%2Fpricing")).json()).toEqual({ needed: false });
+    expect(snapshotDemand.asked).toEqual([]);
+  });
+
+  it("says no for an unknown site, a missing path, or another domain's page", async () => {
+    expect(await (await ask("path=%2Fpricing")).json()).toEqual({ needed: false });
+    mockResolveWebsite.mockResolvedValue(LAYOUT_SITE);
+    expect(await (await ask("")).json()).toEqual({ needed: false });
+    expect(await (await ask("path=%2Fpricing", "https://evil.test")).json()).toEqual({ needed: false });
+    expect(snapshotDemand.asked).toEqual([]);
   });
 });
 

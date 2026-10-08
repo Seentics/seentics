@@ -58,7 +58,10 @@ const htmlUpserts: {
   sha: string;
   w: number;
   h: number;
+  sourcePath?: string;
 }[] = [];
+/** Every `markLayoutSnapshotChecked` call, as `websiteId:pagePath:device`. */
+const checkedMarks: string[] = [];
 /** Set to make the row read fail, so a test can check the failure is not swallowed. */
 let layoutReadThrows = false;
 
@@ -88,9 +91,15 @@ mock.module("../lib/layout-db", () => ({
     sha: string,
     w: number,
     h: number,
+    _pageVersion?: string,
+    sourcePath?: string,
   ) => {
-    htmlUpserts.push({ websiteId, pagePath, device, key, sha, w, h });
+    htmlUpserts.push({ websiteId, pagePath, device, key, sha, w, h, sourcePath });
   },
+  markLayoutSnapshotChecked: async (websiteId: string, pagePath: string, device: string) => {
+    checkedMarks.push(`${websiteId}:${pagePath}:${device}`);
+  },
+  snapshotCheckedAt: async () => null,
 }));
 
 /** URLs Playwright was asked to capture, in order. */
@@ -248,6 +257,7 @@ beforeEach(() => {
   storedRows.clear();
   jpegUpserts.length = 0;
   htmlUpserts.length = 0;
+  checkedMarks.length = 0;
   jpegPuts.length = 0;
   htmlPuts.length = 0;
   playwrightCaptures.length = 0;
@@ -766,6 +776,12 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
       });
     });
 
+    it("records the real page a parameterised path's background came from, without its query", async () => {
+      await service().storeDomSnapshot(domEvent({ url: "https://shop.test/orders/902133?token=secret" }));
+
+      expect(htmlUpserts[0]).toMatchObject({ pagePath: "/orders/:id", sourcePath: "/orders/902133" });
+    });
+
     it("stores the snapshot with its CSP ahead of everything after the doctype", async () => {
       const html = "<!DOCTYPE html><html><head><script>1</script></head><body>".padEnd(200, "y") + "</body></html>";
 
@@ -828,6 +844,9 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
 
       expect(htmlPuts).toEqual([]);
       expect(htmlUpserts).toEqual([]);
+      // Confirmed current all the same, or the page would be asked for a capture by
+      // every visitor (snapshot-demand).
+      expect(checkedMarks).toHaveLength(1);
     });
 
     it("still writes html for a row with a matching hash but no html key", async () => {
@@ -871,6 +890,7 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
 
       expect(htmlPuts).toEqual([]);
       expect(htmlUpserts).toEqual([]);
+      expect(checkedMarks).toHaveLength(1);
     });
 
     it("replaces a taller background once it is stale, so a redesign comes through", async () => {

@@ -26,6 +26,8 @@ export type LayoutSnapshotRow = {
   html_s3_key: string | null;
   device_type: string;
   dom_fingerprint?: string;
+  /** The real page captured, for a parameterised path; '' on rows from before 046. */
+  source_path?: string;
   updated_at: Date;
 };
 
@@ -66,6 +68,7 @@ function toRow(r: Record<string, unknown>): LayoutSnapshotRow {
     html_s3_key: r.html_s3_key != null ? String(r.html_s3_key) : null,
     device_type: String(r.device_type ?? "desktop"),
     dom_fingerprint: String(r.dom_fingerprint ?? ""),
+    source_path: String(r.source_path ?? ""),
     updated_at: r.updated_at as Date,
   };
 }
@@ -88,7 +91,7 @@ async function listLayoutSnapshots(
 ): Promise<LayoutSnapshotRow[]> {
   const rows = await sql`
     SELECT page_path, s3_key, content_sha256, doc_width, doc_height, html_s3_key,
-           device_type, dom_fingerprint, updated_at
+           device_type, dom_fingerprint, source_path, updated_at
     FROM heatmap_page_snapshots
     WHERE website_id = ${websiteId}::uuid
       AND (
@@ -189,19 +192,64 @@ export async function upsertLayoutHtmlSnapshot(
   docW: number,
   docH: number,
   domFingerprint = "",
+  sourcePath = "",
 ): Promise<void> {
   await sql`
     INSERT INTO heatmap_page_snapshots
-      (website_id, page_path, device_type, s3_key, content_sha256, doc_width, doc_height, html_s3_key, dom_fingerprint, updated_at)
+      (website_id, page_path, device_type, s3_key, content_sha256, doc_width, doc_height, html_s3_key, dom_fingerprint, source_path, updated_at)
     VALUES
-      (${websiteId}::uuid, ${pagePath}, ${device}, '', ${sha256}, ${docW}, ${docH}, ${htmlS3Key}, ${domFingerprint}, NOW())
+      (${websiteId}::uuid, ${pagePath}, ${device}, '', ${sha256}, ${docW}, ${docH}, ${htmlS3Key}, ${domFingerprint}, ${sourcePath}, NOW())
     ON CONFLICT (website_id, page_path, device_type) DO UPDATE SET
       html_s3_key    = EXCLUDED.html_s3_key,
       content_sha256 = EXCLUDED.content_sha256,
       doc_width      = EXCLUDED.doc_width,
       doc_height     = EXCLUDED.doc_height,
       dom_fingerprint = EXCLUDED.dom_fingerprint,
+      source_path    = EXCLUDED.source_path,
       updated_at     = NOW()
   `;
   snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath, device), { sha256, at: Date.now() });
+}
+
+/**
+ * Record that a visitor's capture confirmed this page's background, without rewriting it.
+ *
+ * For a capture that was received and not stored — identical to the stored one, or a
+ * shorter view of a page whose taller capture is kept. Without it, a page whose captures
+ * are always identical would be asked for one by every visitor (`snapshotCheckedAt`).
+ * `updated_at` is left alone: it ages the background itself out, and refreshing it here
+ * would keep a taller capture "recent" for as long as anyone visits, so a redesign could
+ * never replace it.
+ */
+export async function markLayoutSnapshotChecked(
+  websiteId: string,
+  pagePath: string,
+  device: SnapshotDeviceBucket,
+): Promise<void> {
+  await sql`
+    UPDATE heatmap_page_snapshots SET checked_at = NOW()
+    WHERE website_id = ${websiteId}::uuid AND page_path = ${pagePath} AND device_type = ${device}
+  `;
+}
+
+/**
+ * When this page's background on this device was last captured or confirmed, or null
+ * when it has none. Exact path and bucket only — unlike `getLayoutSnapshot`, no fallback
+ * to another device: a mobile visitor is needed to capture the mobile layout.
+ */
+export async function snapshotCheckedAt(
+  websiteId: string,
+  pagePath: string,
+  device: SnapshotDeviceBucket,
+): Promise<Date | null> {
+  const [row] = await sql<{ at: Date | string }[]>`
+    SELECT GREATEST(updated_at, COALESCE(checked_at, updated_at)) AS at
+    FROM heatmap_page_snapshots
+    WHERE website_id = ${websiteId}::uuid AND page_path = ${pagePath} AND device_type = ${device}
+      AND (html_s3_key IS NOT NULL OR s3_key <> '')
+  `;
+  // The driver hands this computed column back as a string, not a Date.
+  if (!row?.at) return null;
+  const at = new Date(row.at);
+  return Number.isNaN(at.getTime()) ? null : at;
 }

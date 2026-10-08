@@ -70,6 +70,8 @@ mock.module("../lib/layout-db", () => ({
   upsertLayoutHtmlSnapshot: async () => {},
   getLayoutSnapshot: async () => null,
   getCachedSnapshotSha256: () => null,
+  markLayoutSnapshotChecked: async () => {},
+  snapshotCheckedAt: async () => null,
 }));
 
 const { createHeatmapRoutes } = await import("../routes");
@@ -130,6 +132,7 @@ const LAYOUT: HeatmapLayout = {
   doc_height: 4200,
   device_type: "desktop",
   device_fallback: false,
+  source_path: "",
 };
 
 /** Records every call, so a test can assert a refused request never reached the service. */

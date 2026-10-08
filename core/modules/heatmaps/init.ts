@@ -14,6 +14,7 @@ import { initializeScreenshotCache } from "./services/screenshot-cache.service";
 import { HeatmapScreenshotRefreshService } from "./services/heatmap-screenshot-refresh.service";
 import { HeatmapScreenshotService } from "./services/playwright-screenshot-capture.service";
 import { HeatmapSettingsService } from "./services/heatmap-capture-settings.service";
+import { HeatmapSnapshotDemandService } from "./services/heatmap-snapshot-demand.service";
 import { shutdownScreenshotBrowser } from "./lib/playwright-screenshots";
 
 /**
@@ -45,6 +46,7 @@ export function initHeatmapsModule(deps: {
     lane: heatmapsLane(() => heatmapIngestService()),
 
     screenshots,
+    snapshotDemand: new HeatmapSnapshotDemandService(),
     maintenance: new HeatmapScreenshotRefreshService(settings, autoCapture),
     ingest: () => heatmapIngestService(),
     retention: new HeatmapRetentionPurge(),

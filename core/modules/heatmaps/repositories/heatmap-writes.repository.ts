@@ -33,11 +33,12 @@ export async function batchUpsertPoints(
   if (rows.length === 0) return 0;
 
   // Aggregate duplicate cells within the batch so the DB sees intensity=N instead of
-  // N separate single-count rows for the same (website, page, type, device, x, y, selector).
+  // N separate single-count rows for the same (website, page, type, device, x, y, selector,
+  // version, day).
   type Cell = HeatmapPointRow & { intensity: number };
   const cells = new Map<string, Cell>();
   for (const p of rows) {
-    const k = `${p.websiteId}\0${p.pagePath}\0${p.eventType}\0${p.deviceType}\0${p.xPercent}\0${p.yPercent}\0${p.targetSelector}\0${p.pageVersion}`;
+    const k = `${p.websiteId}\0${p.pagePath}\0${p.eventType}\0${p.deviceType}\0${p.xPercent}\0${p.yPercent}\0${p.targetSelector}\0${p.pageVersion}\0${p.day}`;
     const c = cells.get(k);
     if (c) {
       c.intensity++;
@@ -60,12 +61,12 @@ export async function batchUpsertPoints(
          target_selector, cap_vw, cap_vh, page_version, target_locator, target_rect,
          relative_x, relative_y, position_mode, client_x, client_y, page_x, page_y,
          scroll_x, scroll_y, document_width, document_height, device_pixel_ratio,
-         tracker_version, schema_version, last_updated)
+         tracker_version, schema_version, last_updated, day)
       SELECT
         wid::uuid, pp, et, dt, xp::int, yp::int, iv::int, sel, cvw::int, cvh::int,
         pv, tl::jsonb, tr::jsonb, rx::real, ry::real, pm, cx::real, cy::real,
         px::real, py::real, sx::real, sy::real, dw::int, dh::int, dpr::real,
-        tv, sv::int, NOW()
+        tv, sv::int, NOW(), dy::date
       FROM unnest(
         ${chunk.map((p) => p.websiteId)}::text[],
         ${chunk.map((p) => p.pagePath)}::text[],
@@ -93,10 +94,11 @@ export async function batchUpsertPoints(
         ${chunk.map((p) => p.documentHeight)}::int[],
         ${chunk.map((p) => p.devicePixelRatio)}::real[],
         ${chunk.map((p) => p.trackerVersion)}::text[],
-        ${chunk.map((p) => p.schemaVersion)}::int[]
+        ${chunk.map((p) => p.schemaVersion)}::int[],
+        ${chunk.map((p) => p.day)}::text[]
       ) AS t(wid, pp, et, dt, xp, yp, iv, sel, cvw, cvh, pv, tl, tr, rx, ry, pm,
-             cx, cy, px, py, sx, sy, dw, dh, dpr, tv, sv)
-      ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, page_version)
+             cx, cy, px, py, sx, sy, dw, dh, dpr, tv, sv, dy)
+      ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, page_version, day)
       DO UPDATE SET
         intensity    = heatmap_points.intensity + EXCLUDED.intensity,
         last_updated = NOW(),
