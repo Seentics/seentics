@@ -141,7 +141,7 @@ mock.module("../../../platform/storage/s3", () => ({
   getJsonGzip: async () => [],
 }));
 
-const { SnapshotIngestService } = await import("../services/heatmap-snapshot-ingest.service");
+const { SnapshotIngestService, withSnapshotPolicy } = await import("../services/heatmap-snapshot-ingest.service");
 
 const BUCKET = "test-bucket";
 const SITE = "11111111-1111-4111-8111-111111111111";
@@ -757,12 +757,26 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
       await service().storeDomSnapshot(domEvent({ data: { html } }));
 
       expect(htmlPuts).toHaveLength(1);
-      expect(htmlPuts[0]!.body).toBe(html);
+      expect(htmlPuts[0]!.body).toBe(withSnapshotPolicy(html));
+      // The hash is of what the tracker sent, so an unchanged page still deduplicates.
       expect(htmlUpserts[0]).toMatchObject({
         websiteId: SITE,
         pagePath: "/pricing",
         sha: sha256(html),
       });
+    });
+
+    it("stores the snapshot with its CSP ahead of everything after the doctype", async () => {
+      const html = "<!DOCTYPE html><html><head><script>1</script></head><body>".padEnd(200, "y") + "</body></html>";
+
+      await service().storeDomSnapshot(domEvent({ data: { html } }));
+
+      const body = htmlPuts[0]!.body;
+      expect(body.startsWith('<!DOCTYPE html><meta http-equiv="Content-Security-Policy"')).toBe(true);
+      expect(body).toContain("connect-src 'none'");
+      expect(body.indexOf("Content-Security-Policy")).toBeLessThan(body.indexOf("<script>"));
+      // No base-uri: the tracker's <base href> is what makes the page's assets load.
+      expect(body).not.toContain("base-uri");
     });
 
     it("records the row against the key it uploaded to", async () => {

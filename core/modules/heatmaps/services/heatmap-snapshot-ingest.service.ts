@@ -32,6 +32,38 @@ const MIN_HTML_BYTES = 100;
 const TALLER_SNAPSHOT_RATIO = 1.5;
 
 /**
+ * What a stored DOM snapshot may do when the dashboard renders it.
+ *
+ * The snapshot is page content any visitor's browser could have posted for the site, and
+ * the dashboard runs its scripts (the tracker's measurement and click-mapping script has
+ * to run). This lets them draw and talk to the dashboard over `postMessage`, and nothing
+ * else: no fetch, XHR, WebSocket or beacon, no form submission, no frames, no plugins.
+ *
+ * It travels inside the document because the iframe `csp` attribute that used to carry
+ * it is CSP Embedded Enforcement: Chromium then refuses to load any response that does
+ * not opt in with `Allow-CSP-From` or a matching CSP header, and a presigned object-store
+ * URL can send neither — so every HTML snapshot rendered blank and no click was drawn.
+ *
+ * No `base-uri`: the tracker adds a `<base href>` so the page's relative stylesheets and
+ * images resolve against the site, and the snapshot is unreadable without it.
+ */
+const SNAPSHOT_CSP = "connect-src 'none'; form-action 'none'; frame-src 'none'; object-src 'none'";
+
+/**
+ * The snapshot with `SNAPSHOT_CSP` as its very first element, after the doctype.
+ *
+ * First, because a meta policy only governs what the parser meets after it — placed later,
+ * a script ahead of it would run unrestricted. The parser moves a `<meta>` that comes
+ * before `<html>` into `<head>`, so this needs no knowledge of the document's structure.
+ */
+export function withSnapshotPolicy(html: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${SNAPSHOT_CSP}">`;
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html);
+  if (!doctype) return meta + html;
+  return doctype[0] + meta + html.slice(doctype[0].length);
+}
+
+/**
  * The page-background half of heatmap ingest.
  *
  * A heatmap is points drawn over a picture of the page, and this is where the picture
@@ -209,7 +241,7 @@ export class SnapshotIngestService {
       ev.websiteId,
       pageVersion ? `${baseSlot}_${sum.slice(0, 16)}` : baseSlot,
     );
-    await putHtml(this.bucket, key, html);
+    await putHtml(this.bucket, key, withSnapshotPolicy(html));
     await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion);
     if (pageVersion) {
       await upsertLayoutVersion(ev.websiteId, norm, device, pageVersion, key, sum, docW, docH);
