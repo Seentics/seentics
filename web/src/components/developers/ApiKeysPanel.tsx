@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertTriangle, Check, Copy, KeyRound, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { format, formatDistanceToNow } from 'date-fns';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
   useApiKeys,
   useApiScopes,
@@ -17,7 +19,7 @@ import {
   useRevokeApiKey,
   type ApiKey,
   type CreatedApiKey,
-} from '@/lib/api-keys-api';
+} from '@/features/api-keys';
 
 /**
  * API keys, for the developer settings tab.
@@ -192,11 +194,26 @@ function CreateKeyDialog({
   );
 }
 
-function KeyRow({ websiteId, apiKey }: { websiteId: string; apiKey: ApiKey }) {
+/**
+ * One website's read-only keys, as a card matching the account keys above it: title,
+ * the site picker and New key in one header row, then a table.
+ */
+export function WebsiteKeysCard({ websiteId, sitePicker }: { websiteId: string; sitePicker: React.ReactNode }) {
+  const { data: keys, isLoading } = useApiKeys(websiteId);
   const revoke = useRevokeApiKey(websiteId);
+  const [confirm, confirmDialog] = useConfirm();
   const { toast } = useToast();
+  const [showCreate, setShowCreate] = useState(false);
+  const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
 
-  const remove = async () => {
+  const remove = async (apiKey: ApiKey) => {
+    const ok = await confirm({
+      title: `Revoke "${apiKey.name}"?`,
+      description: 'Requests using this key are rejected from now on. This cannot be undone.',
+      confirmLabel: 'Revoke key',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await revoke.mutateAsync(apiKey.id);
       toast({ title: 'Key revoked', description: 'Requests using it will now be rejected.' });
@@ -206,88 +223,79 @@ function KeyRow({ websiteId, apiKey }: { websiteId: string; apiKey: ApiKey }) {
   };
 
   return (
-    <div className="flex items-center gap-4 border-b border-border p-4 last:border-b-0">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-        <KeyRound className="h-4 w-4 text-muted-foreground" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{apiKey.name}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <code className="font-mono">{apiKey.prefix}…</code>
-          <span>Created {new Date(apiKey.created_at).toLocaleDateString()}</span>
-          <span>
-            {apiKey.last_used_at
-              ? `Last used ${new Date(apiKey.last_used_at).toLocaleDateString()}`
-              : 'Never used'}
-          </span>
+    <section className="surface overflow-hidden">
+      {confirmDialog}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Website keys</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Analytics API — read one website&apos;s data. Scoped, so a reporting key cannot read recordings.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {sitePicker}
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            New key
+          </Button>
         </div>
       </div>
 
-      <div className="hidden flex-wrap gap-1 sm:flex">
-        {apiKey.scopes.map(s => (
-          <Badge key={s} variant="secondary" className="font-mono text-[10px]">{s}</Badge>
-        ))}
-      </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={remove}
-        disabled={revoke.isPending}
-        className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Revoke
-      </Button>
-    </div>
-  );
-}
-
-
-export function ApiKeysPanel({ websiteId }: { websiteId: string }) {
-  const { data: keys, isLoading } = useApiKeys(websiteId);
-  const [showCreate, setShowCreate] = useState(false);
-  const [newKey, setNewKey] = useState<CreatedApiKey | null>(null);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
-          A key lets a script or another dashboard read this site&apos;s data. Each key carries
-          scopes, so a key built for traffic reporting cannot read session replays.
-        </p>
-        <Button size="sm" className="h-8 shrink-0 gap-1.5" onClick={() => setShowCreate(true)}>
-          <Plus className="h-3.5 w-3.5" />
-          New key
-        </Button>
-      </div>
-
-      <div className="surface overflow-hidden">
-        {isLoading ? (
-          <div className="space-y-3 p-4">
-            {[0, 1].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
+      {isLoading ? (
+        <div className="space-y-3 p-5">
+          {[0, 1].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)}
+        </div>
+      ) : !keys?.length ? (
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+            <KeyRound className="h-5 w-5 text-muted-foreground" />
           </div>
-        ) : !keys?.length ? (
-          <div className="flex flex-col items-center gap-3 py-14 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-              <KeyRound className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">No API keys yet</p>
-              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                Create one to start reading this site&apos;s data from your own tools.
-              </p>
-            </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(true)}>
-              <Plus className="h-3.5 w-3.5" />
-              Create your first key
-            </Button>
-          </div>
-        ) : (
-          keys.map(k => <KeyRow key={k.id} websiteId={websiteId} apiKey={k} />)
-        )}
-      </div>
+          <p className="text-sm font-semibold text-foreground">No keys for this website</p>
+          <p className="max-w-sm text-xs text-muted-foreground">Create one to read its data from your own tools.</p>
+        </div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <th className="px-5 py-3 font-medium">Name</th>
+              <th className="px-5 py-3 font-medium">Key</th>
+              <th className="px-5 py-3 font-medium">Scopes</th>
+              <th className="px-5 py-3 font-medium">Last used</th>
+              <th className="px-5 py-3 font-medium">Created</th>
+              <th className="w-14 px-5 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {keys.map(k => (
+              <tr key={k.id} className="hover:bg-muted/35">
+                <td className="px-5 py-3.5 font-medium text-foreground">{k.name}</td>
+                <td className="px-5 py-3.5">
+                  <code className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{k.prefix}…</code>
+                </td>
+                <td className="px-5 py-3.5">
+                  <div className="flex flex-wrap gap-1">
+                    {k.scopes.map(s => (
+                      <span key={s} className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{s}</span>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-5 py-3.5 text-muted-foreground">
+                  {k.last_used_at ? formatDistanceToNow(new Date(k.last_used_at), { addSuffix: true }) : 'Never'}
+                </td>
+                <td className="px-5 py-3.5 text-muted-foreground">{format(new Date(k.created_at), 'MMM d, yyyy')}</td>
+                <td className="px-5 py-3.5 text-right">
+                  <Button
+                    variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    title="Revoke key" disabled={revoke.isPending} onClick={() => remove(k)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {showCreate && (
         <CreateKeyDialog
@@ -296,8 +304,7 @@ export function ApiKeysPanel({ websiteId }: { websiteId: string }) {
           onCreated={k => { setShowCreate(false); setNewKey(k); }}
         />
       )}
-
       {newKey && <SecretDialog apiKey={newKey} onClose={() => setNewKey(null)} />}
-    </div>
+    </section>
   );
 }

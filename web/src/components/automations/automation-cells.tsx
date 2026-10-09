@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
   Activity,
   AlertTriangle,
@@ -136,8 +137,13 @@ export function StatusCell({ automation, websiteId }: { automation: Automation; 
 
 export function RowMenu({ automation, websiteId, onEdit }: { automation: Automation; websiteId: string; onEdit: () => void }) {
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
+  const [confirm, confirmDialog] = useConfirm();
 
   return (
+    <>
+    {/* The row is clickable, and React bubbles portal clicks through the tree: without
+        this, pressing Cancel in the dialog would also open the automation. */}
+    <span onClick={e => e.stopPropagation()}>{confirmDialog}</span>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={e => e.stopPropagation()}>
@@ -153,10 +159,15 @@ export function RowMenu({ automation, websiteId, onEdit }: { automation: Automat
         <DropdownMenuItem
           disabled={deleting}
           className="text-destructive"
-          onClick={e => {
+          onClick={async e => {
             e.stopPropagation();
-            if (!confirm(`Delete "${automation.name}"?`)) return;
-            remove({ websiteId, automationId: automation.id });
+            const ok = await confirm({
+              title: `Delete "${automation.name}"?`,
+              description: 'The automation stops running and its run history is removed.',
+              confirmLabel: 'Delete automation',
+              destructive: true,
+            });
+            if (ok) remove({ websiteId, automationId: automation.id });
           }}
         >
           <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -164,5 +175,6 @@ export function RowMenu({ automation, websiteId, onEdit }: { automation: Automat
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </>
   );
 }

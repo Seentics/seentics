@@ -10,6 +10,7 @@
  */
 
 import type { ApiScope } from "../../../modules/api-keys/interfaces";
+import { API_EXAMPLES } from "./api-examples";
 
 export type ApiParam = {
   name: string;
@@ -27,6 +28,8 @@ export type ApiEndpoint = {
   summary: string;
   scope: ApiScope;
   params: ApiParam[];
+  /** A real response, trimmed — see `api-examples.ts`. */
+  example: unknown;
 };
 
 /** The three parameters most analytics endpoints share. */
@@ -38,11 +41,13 @@ const WINDOW_PARAMS: ApiParam[] = [
 
 const SITE = '/v1/websites/:website_id';
 
-function analyticsEndpoint(path: string, summary: string, params = WINDOW_PARAMS): ApiEndpoint {
+type EndpointSpec = Omit<ApiEndpoint, 'example'>;
+
+function analyticsEndpoint(path: string, summary: string, params = WINDOW_PARAMS): EndpointSpec {
   return { path: `${SITE}/analytics/${path}`, method: 'GET', group: 'Analytics', summary, scope: 'analytics:read', params };
 }
 
-export const API_CATALOGUE: ApiEndpoint[] = [
+const ENDPOINTS: EndpointSpec[] = [
   // ─── Headline figures ──────────────────────────────────────────────────────
   analyticsEndpoint('dashboard', 'Headline KPIs with a period-over-period comparison.'),
   analyticsEndpoint('traffic-summary', 'Visitors and views split by acquisition channel.'),
@@ -157,6 +162,8 @@ export const API_CATALOGUE: ApiEndpoint[] = [
     ],
   },
 ];
+
+export const API_CATALOGUE: ApiEndpoint[] = ENDPOINTS.map((e) => ({ ...e, example: API_EXAMPLES[e.path] ?? null }));
 
 /** The base every catalogue path is relative to. */
 export const API_BASE_PATH = '/api/v1/raw';

@@ -37,6 +37,48 @@ export const users = pgTable(
   },
 );
 
+/**
+ * An account's own customers — an agency's clients, or a platform's tenants — each
+ * grouping some of that account's websites (047).
+ *
+ * `external_id` is the caller's identifier for the tenant. It is unique per owner so a
+ * signup handler that retries `POST /manage/clients` gets the client it already made
+ * rather than a second one.
+ */
+export const clients = pgTable(
+  "clients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    externalId: text("external_id"),
+    company: text("company").notNull().default(""),
+    email: text("email").notNull().default(""),
+    websiteUrl: text("website_url").notNull().default(""),
+    note: text("note").notNull().default(""),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    /**
+     * Per-feature switches, `{ replays: false, … }`. A key that is absent is on. Applied on
+     * top of each site's own flags when the tracker resolves the site.
+     */
+    featuresEnabled: jsonb("features_enabled").$type<Record<string, boolean>>().notNull().default({}),
+    /**
+     * Per-client caps, `{ max_monthly_events: 10000, … }`; absent or null is uncapped.
+     * `max_websites` is enforced here; the usage caps by the gateway's ingest quota.
+     */
+    limits: jsonb("limits").$type<Record<string, number | null>>().notNull().default({}),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_clients_user_id").on(t.userId),
+    uniqueIndex("ux_clients_user_external_id")
+      .on(t.userId, t.externalId)
+      .where(sql`${t.externalId} IS NOT NULL`),
+  ],
+);
+
 export const websites = pgTable(
   "websites",
   {
@@ -65,12 +107,15 @@ export const websites = pgTable(
     verificationToken: text("verification_token").notNull().default(""),
     publicShareId: text("public_share_id"),
     settingsJson: jsonb("settings_json").$type<Record<string, unknown>>(),
+    /** The owner's client this site belongs to, if any; cleared when the client is deleted (047). */
+    clientId: uuid("client_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("ix_websites_user_id").on(t.userId),
     index("ix_websites_tracking_id").on(t.trackingId),
+    index("ix_websites_client_id").on(t.clientId),
     uniqueIndex("ix_websites_public_share_id").on(t.publicShareId),
   ],
 );
@@ -356,6 +401,30 @@ export const apiKeys = pgTable(
   (t) => [
     index("ix_api_keys_website_id").on(t.websiteId),
     index("ix_api_keys_key_prefix").on(t.keyPrefix),
+  ],
+);
+
+/**
+ * Account-level keys for the management API (047).
+ *
+ * `api_keys` are per website and read-only. These act for the account that minted them:
+ * creating clients and websites from a signup handler, where no dashboard session exists.
+ */
+export const accountApiKeys = pgTable(
+  "account_api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(),
+    keyPrefix: varchar("key_prefix", { length: 16 }).notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_account_api_keys_user_id").on(t.userId),
+    index("ix_account_api_keys_key_prefix").on(t.keyPrefix),
   ],
 );
 

@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { fakeDbModule, fakeLogger } from "../../../tests/helpers/fake-db";
 import { API_BASE_PATH, API_CATALOGUE } from "../api-catalogue";
+import { API_EXAMPLES } from "../api-examples";
 import { API_SCOPES } from "../../../../modules/api-keys/interfaces";
 import { testConfig } from "../../../tests/helpers/test-config";
 
@@ -124,6 +125,16 @@ describe("API catalogue", () => {
     for (const endpoint of API_CATALOGUE) {
       expect(endpoint.path.startsWith("/v1/websites/:website_id")).toBe(true);
     }
+  });
+
+  it("shows an example response for every endpoint", () => {
+    const missing = API_CATALOGUE.filter((e) => e.example === null).map((e) => e.path);
+    expect(missing).toEqual([]);
+  });
+
+  it("has no example for an endpoint that is not in the catalogue", () => {
+    const paths = new Set(API_CATALOGUE.map((e) => e.path));
+    expect(Object.keys(API_EXAMPLES).filter((p) => !paths.has(p))).toEqual([]);
   });
 });
 

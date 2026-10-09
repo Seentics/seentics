@@ -11,15 +11,14 @@ export const metadata = {
  *
  * The page this replaces hand-listed endpoints and documented
  * `Authorization: Bearer YOUR_API_KEY` in eight places. The server accepts
- * `X-API-Key` (see `curlFor` in `lib/api-keys-api.ts`), so every example in those
- * docs returned 401 — and the endpoint list had drifted from the router besides.
+ * `X-API-Key`, so every example in those docs returned 401 — and the endpoint list had
+ * drifted from the router besides.
  *
- * `components/developers/ApiReferencePanel` already solves this: it renders the
- * catalogue the server publishes at `GET /api/v1/raw/v1/catalogue`, so it "cannot
- * document an endpoint that does not exist, or miss one that does". That endpoint
- * needs a key, so a public page cannot render it — which is exactly why this page
- * documents only what is stable and sends you to the in-app reference for the list,
- * rather than starting a third copy that will drift again.
+ * The dashboard's Agency → Analytics API tab already solves this: it renders the
+ * catalogue the server publishes at `GET /api/v1/raw/v1/catalogue`, example responses
+ * included, so it cannot document an endpoint that does not exist or miss one that does.
+ * This page documents only what is stable and sends you there for the list, rather than
+ * starting another copy that will drift again.
  */
 export default function ApiPage() {
   return (
@@ -71,7 +70,7 @@ export default function ApiPage() {
         </Endpoint>
         <P>
           The dashboard renders the same catalogue for you, already filled in with your website ID.
-          Open <C>Developers → API reference</C> on any site — that is the authoritative list, and
+          Open <C>Agency → Analytics API</C> in the dashboard — that is the authoritative list, and
           it cannot describe an endpoint that no longer exists.
         </P>
         <Callout kind="tip" title="Why it lives there and not here">

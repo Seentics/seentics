@@ -18,8 +18,8 @@
 #
 # Placeholder groups (see src/lib/path-segment.ts comment in each layout for
 # the fuller reasoning): 'w-root' for the /websites/:id overview page alone,
-# 'w-idx' shared by the six index pages that have their own child routes
-# (automations, funnels, heatmaps, replays, revenue, settings), 'w-leaf'
+# 'w-idx' shared by the index pages that have their own child routes
+# (agency, automations, funnels, heatmaps, replays, revenue, settings), 'w-leaf'
 # shared by everything else. Different groups exist only to avoid a file and
 # a same-named folder colliding on disk — not because the values mean
 # anything at runtime.
@@ -40,6 +40,8 @@
 
 /websites/:websiteId/automations/:automationId.txt  /websites/w-leaf/automations/w-child.txt         200
 /websites/:websiteId/automations/:automationId      /websites/w-leaf/automations/w-child             200
+/websites/:websiteId/agency/clients/:clientId.txt  /websites/w-leaf/agency/clients/w-child.txt      200
+/websites/:websiteId/agency/clients/:clientId      /websites/w-leaf/agency/clients/w-child          200
 /websites/:websiteId/funnels/:funnelId.txt          /websites/w-leaf/funnels/w-child.txt             200
 /websites/:websiteId/funnels/:funnelId              /websites/w-leaf/funnels/w-child                 200
 /websites/:websiteId/goals/:goalId.txt              /websites/w-leaf/goals/w-child.txt                200
@@ -51,6 +53,8 @@
 /websites/:websiteId/revenue/transactions/:transactionId.txt  /websites/w-leaf/revenue/transactions/w-child.txt  200
 /websites/:websiteId/revenue/transactions/:transactionId      /websites/w-leaf/revenue/transactions/w-child      200
 
+/websites/:websiteId/agency.txt                   /websites/w-idx/agency.txt                        200
+/websites/:websiteId/agency                       /websites/w-idx/agency                            200
 /websites/:websiteId/automations.txt              /websites/w-idx/automations.txt                   200
 /websites/:websiteId/automations                  /websites/w-idx/automations                       200
 /websites/:websiteId/funnels.txt                  /websites/w-idx/funnels.txt                       200
@@ -66,8 +70,6 @@
 
 /websites/:websiteId/ai.txt                       /websites/w-leaf/ai.txt                           200
 /websites/:websiteId/ai                           /websites/w-leaf/ai                               200
-/websites/:websiteId/developers.txt               /websites/w-leaf/developers.txt                   200
-/websites/:websiteId/developers                   /websites/w-leaf/developers                       200
 /websites/:websiteId/docs.txt                     /websites/w-leaf/docs.txt                         200
 /websites/:websiteId/docs                         /websites/w-leaf/docs                             200
 /websites/:websiteId/errors.txt                   /websites/w-leaf/errors.txt                       200
@@ -107,10 +109,8 @@
 
 # Singleton dynamic routes — no children, no literal siblings to exclude.
 
-/agency/client-users/:userId.txt                  /agency/client-users/shell.txt                    200
-/agency/client-users/:userId                      /agency/client-users/shell                        200
-/agency/clients/:clientId.txt                     /agency/clients/shell.txt                         200
-/agency/clients/:clientId                         /agency/clients/shell                             200
+/embed/:websiteId.txt                             /embed/shell.txt                                  200
+/embed/:websiteId                                 /embed/shell                                      200
 /client-portal/:token.txt                         /client-portal/shell.txt                          200
 /client-portal/:token                             /client-portal/shell                              200
 /preview/:id.txt                                  /preview/shell.txt                                200

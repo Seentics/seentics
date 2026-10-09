@@ -59,6 +59,7 @@ function makeWebsite(): Website {
     maskTextPatterns: null,
     verificationToken: "tok",
     publicShareId: null,
+    clientId: null,
     settings: {
       allowedOrigins: [],
       trackingEnabled: true,

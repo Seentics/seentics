@@ -32,3 +32,45 @@ export type VerifiedApiKeyContext = {
 export interface ApiKeyVerifier {
   verify(rawKey: string | undefined, websiteId: string): Promise<VerifiedApiKeyContext | null>;
 }
+
+/**
+ * What an account key may do in the management API. `read` lists and fetches clients
+ * and websites; `write` creates, changes and deletes them and mints website keys.
+ */
+export const ACCOUNT_SCOPES = ['websites:read', 'websites:write'] as const;
+
+export type AccountScope = (typeof ACCOUNT_SCOPES)[number];
+
+export const ACCOUNT_SCOPE_DESCRIPTIONS: Record<AccountScope, string> = {
+  'websites:read': 'List and fetch clients, websites and tracking snippets',
+  'websites:write': 'Create, update and delete clients and websites; mint website API keys',
+};
+
+/** The account a management-API request acts for. */
+export type VerifiedAccountKey = {
+  userId: string;
+  apiKeyId: string;
+  scopes: AccountScope[];
+};
+
+export interface AccountKeyVerifier {
+  /** `null` for anything that is not a live account key — wrong shape, unknown, revoked. */
+  verify(rawKey: string | undefined): Promise<VerifiedAccountKey | null>;
+}
+
+export type IssuedEmbedToken = { token: string; expiresAt: Date };
+
+/**
+ * Short-lived, read-only tokens for an iframed dashboard of one website. Issuing does not
+ * check access: the caller has already proven it may share the website.
+ */
+export interface EmbedTokenIssuer {
+  issue(websiteId: string, ttlSeconds?: number): Promise<IssuedEmbedToken>;
+  /** `null` for anything that is not a live embed token. */
+  verify(token: string | undefined): Promise<{ websiteId: string } | null>;
+}
+
+/** Minting website keys from the management API, where the caller has already proven ownership. */
+export interface WebsiteKeyIssuer {
+  create(websiteId: string, userId: string, name: string, scopes: ApiScope[]): Promise<Record<string, unknown>>;
+}

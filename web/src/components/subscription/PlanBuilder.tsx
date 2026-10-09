@@ -26,8 +26,6 @@ interface PlanBuilderProps {
   onSubscribe?: (selection: PlanSelection) => void;
   loading?: boolean;
   currentPlan?: string;
-  /** If true, shows agency plans instead of individual */
-  mode?: 'individual' | 'agency';
   /**
    * Which price ladders to offer, one tab each, first selected. seentics.com
    * shows Suite + Analytics; the Observability site shows Suite +
@@ -48,7 +46,7 @@ function planLabel(plan: Plan): string {
  * allowances, support — and everything else lives in the comparison table
  * behind "Compare all features", so a card can be read at a glance.
  */
-export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individual', families = ['suite', 'core'] }: PlanBuilderProps) {
+export function PlanBuilder({ onSubscribe, loading, currentPlan, families = ['suite', 'core'] }: PlanBuilderProps) {
   const { data: allPlans, isLoading, isError } = usePlans();
   const [family, setFamily] = React.useState<PlanFamily>(families[0] ?? 'suite');
   const [comparing, setComparing] = React.useState(false);
@@ -206,12 +204,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
 
       {plans && (
         <>
-          <div
-            className={cn(
-              'grid gap-5 pt-3',
-              mode === 'agency' ? 'mx-auto max-w-3xl grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-            )}
-          >
+          <div className="grid gap-5 pt-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {plans.map(renderCard)}
           </div>
 

@@ -12,6 +12,8 @@ import { requestSpans, shutdownObserve } from "./platform/observability/observe"
 import { isGlobalApiKeyValid } from "./platform/security/global-key";
 import { privacyRoutes } from "./app/http/privacy";
 import { createRawDataRoutes } from "./app/http/public-api/routes";
+import { createManagementRoutes } from "./app/http/management-api/routes";
+import { createEmbedRoutes } from "./app/http/embed/routes";
 import { createUserBranchRoutes } from "./app/http/user-branch";
 
 
@@ -77,6 +79,11 @@ app.route(
     websites: application.routes.websites,
     invitations: application.modules.websites.invitations,
     authModule: application.modules.auth,
+    agency: {
+      clients: application.modules.websites.agencyRoutes,
+      apiKeys: application.modules.apiKeys.accountRoutes,
+      embedTokens: application.modules.apiKeys.embedRoutes,
+    },
   }),
 );
 app.route("/api/v1/ai", application.routes.ai);
@@ -91,6 +98,27 @@ app.route(
       heatmaps: application.modules.heatmaps.rawReads,
       recordings: application.modules.recordings.rawReads,
     },
+  }),
+);
+// Provisioning clients and websites with an account API key — what a multi-tenant
+// platform calls from its own signup handler. See app/http/management-api/routes.ts.
+app.route(
+  "/api/v1/manage",
+  createManagementRoutes({
+    accountKeys: application.modules.apiKeys.accountVerifier,
+    websiteKeys: application.modules.apiKeys.websiteKeys,
+    embedTokens: application.modules.apiKeys.embedTokens,
+    ownedWebsites: application.modules.websites.ownedWebsites,
+    routers: application.modules.websites.managementRoutes,
+  }),
+);
+// Iframed dashboards, read with a short-lived embed token. See app/http/embed/routes.ts.
+app.route(
+  "/api/v1/embed",
+  createEmbedRoutes({
+    embedTokens: application.modules.apiKeys.embedTokens,
+    analytics: application.modules.analytics.reads,
+    websites: application.modules.websites.query,
   }),
 );
 app.route("/api/v1/privacy", privacyRoutes);

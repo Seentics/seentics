@@ -49,6 +49,8 @@ const TABLE_OWNER: Record<string, string> = {
   heatmap_page_snapshots: "heatmaps",
   users: "auth",
   api_keys: "api-keys",
+  account_api_keys: "api-keys",
+  clients: "websites",
 };
 
 /** Drizzle identifier → table name, for the builder form. */
@@ -68,6 +70,8 @@ const DRIZZLE_IDENT: Record<string, string> = {
   heatmapPageSnapshots: "heatmap_page_snapshots",
   users: "users",
   apiKeys: "api_keys",
+  accountApiKeys: "account_api_keys",
+  clients: "clients",
 };
 
 /**

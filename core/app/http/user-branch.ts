@@ -24,12 +24,21 @@ export function createUserBranchRoutes(deps: {
   invitations: WebsiteInvitations;
   /** Auth's two contributions here: its session router and the user lookup. */
   authModule: AuthModule;
+  /** The agency dashboard: clients (websites module) and account API keys (api-keys module). */
+  agency: {
+    clients: Hono<{ Variables: AuthVars }>;
+    apiKeys: Hono<{ Variables: AuthVars }>;
+    embedTokens: Hono<{ Variables: AuthVars }>;
+  };
 }) {
   const user = new Hono<{ Variables: AuthVars }>();
 
   user.route("/auth", deps.authModule.userRoutes);
   user.route("/websites", deps.websites);
   user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords }));
+  user.route("/agency", deps.agency.clients);
+  user.route("/agency/api-keys", deps.agency.apiKeys);
+  user.route("/agency/embed-tokens", deps.agency.embedTokens);
 
   /**
    * Accepting an invitation is deliberately outside the websites router: the caller

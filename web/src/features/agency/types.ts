@@ -1,7 +1,5 @@
 /** Domain types for the agency feature. */
 
-
-
 export interface ClientUser {
   id: string;
   userId: string;
@@ -40,24 +38,40 @@ export interface CreateClientUserResponse {
   tempPassword?: string;
 }
 
+/** Switched off per client, on top of each site's own settings. */
 export interface AgencyClientFeatures {
   analytics: boolean;
   heatmaps: boolean;
   replays: boolean;
   funnels: boolean;
   automations: boolean;
+  errors: boolean;
 }
 
+/** `null` is uncapped. Usage caps count per calendar month. */
 export interface ClientLimits {
+  maxWebsites: number | null;
   maxMonthlyEvents: number | null;
   maxReplays: number | null;
   maxHeatmaps: number | null;
-  maxWebsites: number | null;
+}
+
+/** A site filed under a client, with the snippet that installs it. */
+export interface ClientWebsite {
+  id: string;
+  clientId: string | null;
+  name: string;
+  url: string;
+  trackingId: string;
+  isActive: boolean;
+  snippet: string;
+  createdAt: string;
 }
 
 export interface AgencyClient {
   id: string;
-  agencyId: string;
+  /** Your own id for this tenant — what the management API looks clients up by. */
+  externalId: string | null;
   name: string;
   company: string;
   email: string;
@@ -66,15 +80,10 @@ export interface AgencyClient {
   note: string;
   featuresEnabled: AgencyClientFeatures;
   limits: ClientLimits;
+  metadata: Record<string, unknown>;
+  websites: ClientWebsite[];
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ClientWebsite {
-  id: string;
-  clientId: string;
-  websiteId: string;
-  createdAt: string;
 }
 
 export interface PortalToken {
@@ -85,12 +94,15 @@ export interface PortalToken {
   createdAt: string;
 }
 
+export type AccountScope = 'websites:read' | 'websites:write';
+
+/** A management-API key. `key` is present only in the response that created it. */
 export interface AgencyAPIKey {
   id: string;
-  agencyId: string;
   name: string;
   keyPrefix: string;
-  key?: string; // Only returned on creation
+  scopes: AccountScope[];
+  key?: string;
   lastUsed: string | null;
   createdAt: string;
 }
@@ -105,7 +117,11 @@ export interface WhiteLabelSettings {
   hideSeentics: boolean;
 }
 
-export type CreateClientRequest = Omit<AgencyClient, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'limits'> & {
+export type CreateClientRequest = Pick<
+  AgencyClient,
+  'name' | 'company' | 'email' | 'websiteUrl' | 'status' | 'note' | 'featuresEnabled'
+> & {
+  externalId?: string | null;
   limits?: ClientLimits;
 };
 

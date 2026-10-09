@@ -3,6 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useMemo, useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
@@ -81,6 +82,7 @@ export default function AutomationsPage() {
   const websiteId = params?.websiteId as string;
 
   const [search, setSearch] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   const { data, isLoading } = useAutomations(websiteId);
   const automations: Automation[] = data?.automations ?? [];
   const bulkDelete = useBulkDeleteAutomations();
@@ -200,6 +202,7 @@ export default function AutomationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+      {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Automations"
@@ -252,8 +255,14 @@ export default function AutomationsPage() {
               size="sm"
               className="h-8 gap-1.5"
               disabled={bulkDelete.isPending}
-              onClick={() => {
-                if (!confirm(`Delete ${selectedRows.length} automation(s)?`)) return;
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Delete ${selectedRows.length} automation${selectedRows.length === 1 ? '' : 's'}?`,
+                  description: 'They stop running and their run history is removed.',
+                  confirmLabel: 'Delete',
+                  destructive: true,
+                });
+                if (!ok) return;
                 bulkDelete.mutate({ websiteId, automationIds: selectedRows.map(r => r.id) });
               }}
             >

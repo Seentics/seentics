@@ -199,6 +199,10 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   const dataRetentionEnterpriseEnabled = parseBool(process.env.DATA_RETENTION_ENTERPRISE_ENABLED, false);
   const enterpriseRetentionUrlRaw = process.env.ENTERPRISE_RETENTION_URL ?? "";
   const enterpriseGatewayUrl = (process.env.ENTERPRISE_GATEWAY_URL ?? "").replace(/\/$/, "");
+  // The dashboard's origin, which also serves the tracker script: used to hand back a
+  // ready-to-paste snippet and embed URLs from the management API.
+  const frontendUrl = (process.env.FRONTEND_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const trackerScriptUrl = process.env.TRACKER_SCRIPT_URL?.trim() || `${frontendUrl}/trackers/seentics.min.js`;
   const enterpriseRetentionUrl =
     enterpriseRetentionUrlRaw ||
     (enterpriseGatewayUrl ? `${enterpriseGatewayUrl}/api/v1/internal/data-retention` : "");
@@ -247,6 +251,8 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       geoCacheMax: Math.max(1000, maxmindGeoCacheMax),
     },
     corsAllowedOrigins,
+    frontendUrl,
+    trackerScriptUrl,
     logLevel,
     diagnosticLog,
     slowRequestThresholdMs,

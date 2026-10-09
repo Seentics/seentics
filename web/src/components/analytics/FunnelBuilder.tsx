@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,12 +80,12 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
 
   const handleSave = useCallback(() => {
     if (!name.trim()) {
-      alert('Please enter a funnel name');
+      toast.error('Give the funnel a name');
       return;
     }
 
     if (steps.length < 2) {
-      alert('A funnel must have at least 2 steps');
+      toast.error('A funnel needs at least 2 steps');
       return;
     }
 
@@ -96,7 +97,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
     );
 
     if (hasEmptySteps) {
-      alert('Please fill in all step details');
+      toast.error('Fill in every step before saving');
       return;
     }
 

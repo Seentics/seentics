@@ -9,6 +9,7 @@ import type {
   WebsitePublicSharing,
   WebsiteQuery,
 } from "./index";
+import type { ClientDirectory, OwnedWebsites } from "./client.interface";
 
 /**
  * Everything the websites module offers, in one interface.
@@ -65,6 +66,24 @@ export interface WebsitesModule extends ModuleLifecycle {
    * collectors.
    */
   trackerWebsites: TrackerWebsites;
+
+  /** Clients: an owner's own customers, each grouping and governing some of their sites. */
+  clients: ClientDirectory;
+
+  /** An owner's sites, owner-only, for callers acting for an account without a session. */
+  ownedWebsites: OwnedWebsites;
+
+  /** The agency dashboard's client screens, behind the session middleware. */
+  agencyRoutes: AuthedRouter;
+
+  /**
+   * The same client routes, plus owner-only websites, with **no auth of their own**.
+   *
+   * For the management API, which mounts them behind account-key authentication. Both
+   * read the caller from `userId`, which that middleware sets. Mounting either anywhere
+   * without such a middleware in front would answer every request with 401, not serve it.
+   */
+  managementRoutes: { clients: AuthedRouter; websites: AuthedRouter };
 
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useId, useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGoalStats, analyticsKeys } from '@/features/analytics/queries';
 import { isValidId } from '@/lib/utils';
@@ -66,6 +67,7 @@ export function WebsiteGoalsSection({
   const queryClient = useQueryClient();
   const chartGradId = useId().replace(/:/g, '');
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   const [editingGoalForModal, setEditingGoalForModal] = useState<Goal | null>(null);
   const [detailGoal, setDetailGoal] = useState<GoalRow | null>(null);
 
@@ -209,9 +211,14 @@ export function WebsiteGoalsSection({
                 title="Delete goal"
                 aria-label="Delete goal"
                 disabled={deleteGoalMutation.isPending}
-                onClick={() => {
-                  if (!confirm('Delete this goal? This cannot be undone.')) return;
-                  deleteGoalMutation.mutate(id);
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Delete this goal?',
+                    description: 'Its conversion counts stop being tracked. This cannot be undone.',
+                    confirmLabel: 'Delete goal',
+                    destructive: true,
+                  });
+                  if (ok) deleteGoalMutation.mutate(id);
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -233,6 +240,7 @@ export function WebsiteGoalsSection({
 
   return (
     <>
+      {confirmDialog}
       <Card className="border border-border bg-card overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-border">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

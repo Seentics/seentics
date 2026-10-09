@@ -9,6 +9,15 @@
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
 
+# Embeds are made to be iframed by customers' own products, on any origin. What guards
+# them is the short-lived token in the URL, not the frame policy. Never cached: a token
+# in a cached page would outlive its expiry.
+/embed/*
+  ! X-Frame-Options
+  ! Cache-Control
+  Cache-Control: private, no-store
+  Content-Security-Policy: frame-ancestors *
+
 # The analytics demo is embedded in the landing page's product showcase.
 /websites/demo*
   ! X-Frame-Options

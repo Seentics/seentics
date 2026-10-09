@@ -25,6 +25,7 @@ import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -51,6 +52,7 @@ export default function BillingSettingsPage() {
   const { subscription, loading, getUsagePercentage, refetch } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Everything plan-specific (name, price, feature list) comes straight off
@@ -81,7 +83,13 @@ export default function BillingSettingsPage() {
 
   const handleCancel = async () => {
     if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
-    if (!confirm('Cancel your subscription? Your plan will revert to Free at the end of the current billing period.')) return;
+    const ok = await confirm({
+      title: 'Cancel your subscription?',
+      description: 'Your plan reverts to Free at the end of the current billing period. You keep everything until then.',
+      confirmLabel: 'Cancel subscription',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       setCancelling(true);
       const res = await api.post('/user/billing/cancel');
@@ -133,6 +141,7 @@ export default function BillingSettingsPage() {
 
   return (
     <div className={cn(websiteWorkspaceShellClass, 'space-y-6 animate-in fade-in duration-500')}>
+      {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Billing & Subscription"

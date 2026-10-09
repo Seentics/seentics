@@ -42,7 +42,7 @@ function defaultSettings(): WebsiteSettings {
  * for rows created before settings existed, so it falls back to defaults rather
  * than handing callers a null they would each have to guard.
  */
-function toDomain(row: WebsiteRow): Website {
+export function toDomain(row: WebsiteRow): Website {
   return {
     id: row.id,
     ownerId: row.userId,
@@ -66,6 +66,7 @@ function toDomain(row: WebsiteRow): Website {
     maskTextPatterns: row.maskTextPatterns,
     verificationToken: row.verificationToken,
     publicShareId: row.publicShareId,
+    clientId: row.clientId ?? null,
     settings: { ...defaultSettings(), ...((row.settingsJson as Partial<WebsiteSettings>) ?? {}) },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -145,6 +146,7 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
           verificationToken: newVerificationToken(),
           replayEnabled: true,
           replaySamplingRate: 1,
+          clientId: input.clientId ?? null,
         })
         .returning();
 
@@ -238,6 +240,7 @@ function buildUpdatePatch(input: UpdateWebsiteInput): Partial<typeof websites.$i
   if (input.replaySamplingRate != null) patch.replaySamplingRate = input.replaySamplingRate;
   if (input.maskAllText != null) patch.maskAllText = input.maskAllText;
   if (input.maskTextPatterns !== undefined) patch.maskTextPatterns = input.maskTextPatterns;
+  if (input.clientId !== undefined) patch.clientId = input.clientId;
 
   if (input.heatmapIncludePatterns !== undefined) {
     patch.heatmapIncludePatterns = input.heatmapIncludePatterns;

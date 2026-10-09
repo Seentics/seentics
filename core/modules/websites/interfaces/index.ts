@@ -42,6 +42,19 @@ export type {
 } from "./website-privacy.interface";
 
 export type {
+  Client,
+  ClientDirectory,
+  ClientFeature,
+  ClientLimit,
+  ClientStatus,
+  ClientWithWebsites,
+  CreateClientInput,
+  OwnedWebsites,
+  UpdateClientInput,
+} from "./client.interface";
+export { CLIENT_FEATURES, CLIENT_LIMITS, CLIENT_STATUSES, ClientOperationError } from "./client.interface";
+
+export type {
   TrackerGoal,
   TrackerWebsites,
   WebsiteTrackerRow,

@@ -1,21 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  listClients,
-  createClient,
-  updateClient,
-  deleteClient,
-  AgencyClient,
-  AgencyClientFeatures,
-  CreateClientRequest,
-  UpdateClientRequest,
-} from '@/lib/agency-api';
-import { Card, CardContent } from '@/components/ui/card';
+import type { AgencyClient, AgencyClientFeatures } from '@/features/agency';
+import { isDemoRefusal, useCreateClient, useUpdateClient } from '@/features/agency/queries';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,23 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import Link from 'next/link';
-import {
-  Users,
-  Plus,
-  Trash2,
-  Pencil,
-  Loader2,
-  Building2,
-  Mail,
-  Globe,
-  Calendar,
-  FileText,
-  Eye,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { CLIENT_STATUS_STYLES, CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } from '@/features/agency/constants';
+import { Loader2 } from 'lucide-react';
+import { CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } from '@/features/agency/constants';
 
 /**
  * Create-and-edit dialog for an agency client.
@@ -52,16 +26,17 @@ import { CLIENT_STATUS_STYLES, CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } 
  * client and click edit. `initial` absent means create.
  */
 export interface ClientFormDialogProps {
+  websiteId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial?: AgencyClient | null;
-  onDone: () => void;
 }
 
-export function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDialogProps) {
+export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: ClientFormDialogProps) {
   const isEdit = !!initial;
 
   const [name, setName]             = useState(initial?.name ?? '');
+  const [externalId, setExternalId] = useState(initial?.externalId ?? '');
   const [company, setCompany]       = useState(initial?.company ?? '');
   const [email, setEmail]           = useState(initial?.email ?? '');
   const [websiteUrl, setWebsiteUrl] = useState(initial?.websiteUrl ?? '');
@@ -71,9 +46,15 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
     initial?.featuresEnabled ? { ...initial.featuresEnabled } : { ...DEFAULT_CLIENT_FEATURES },
   );
 
-  // Re-sync when `initial` changes (dialog re-opened with different client)
+  // Every time it opens: `useState` read `initial` only on first mount, so editing a second
+  // client showed the first one's values.
+  useEffect(() => {
+    if (open) resetToInitial(initial);
+  }, [open, initial]);
+
   const resetToInitial = (client?: AgencyClient | null) => {
     setName(client?.name ?? '');
+    setExternalId(client?.externalId ?? '');
     setCompany(client?.company ?? '');
     setEmail(client?.email ?? '');
     setWebsiteUrl(client?.websiteUrl ?? '');
@@ -82,24 +63,22 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
     setFeatures(client?.featuresEnabled ? { ...client.featuresEnabled } : { ...DEFAULT_CLIENT_FEATURES });
   };
 
-  const createMutation = useMutation({
-    mutationFn: (req: CreateClientRequest) => createClient(req),
-    onSuccess: () => { toast.success('Client created'); onDone(); onOpenChange(false); },
-    onError: (err: any) => toast.error(err.message || 'Failed to create client'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateClientRequest }) => updateClient(id, req),
-    onSuccess: () => { toast.success('Client updated'); onDone(); onOpenChange(false); },
-    onError: (err: any) => toast.error(err.message || 'Failed to update client'),
-  });
+  const createMutation = useCreateClient(websiteId);
+  const updateMutation = useUpdateClient(websiteId);
+  const onError = (err: any) => {
+    if (isDemoRefusal(err)) return;
+    toast.error(err.response?.data?.error === 'external_id_taken'
+      ? 'Another client already has that ID.'
+      : err.message || 'Failed to save client');
+  };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = () => {
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim()) return;
     const req = {
       name: name.trim(),
+      externalId: externalId.trim() || null,
       company: company.trim(),
       email: email.trim(),
       websiteUrl: websiteUrl.trim(),
@@ -108,9 +87,15 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
       featuresEnabled: features,
     };
     if (isEdit && initial) {
-      updateMutation.mutate({ id: initial.id, req });
+      updateMutation.mutate({ id: initial.id, req }, {
+        onSuccess: () => { toast.success('Client updated'); onOpenChange(false); },
+        onError,
+      });
     } else {
-      createMutation.mutate(req);
+      createMutation.mutate(req, {
+        onSuccess: () => { toast.success('Client created'); onOpenChange(false); },
+        onError,
+      });
     }
   };
 
@@ -118,7 +103,7 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
     setFeatures(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetToInitial(initial); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">
@@ -137,9 +122,15 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Email <span className="text-destructive">*</span></Label>
-            <Input type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className="h-9 text-sm" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Email</Label>
+              <Input type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className="h-9 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Your ID for this client</Label>
+              <Input placeholder="tenant_482" value={externalId} onChange={e => setExternalId(e.target.value)} className="h-9 text-sm font-mono" />
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -187,7 +178,7 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || !email.trim() || isPending}>
+          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || isPending}>
             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
             {isEdit ? 'Save Changes' : 'Add Client'}
           </Button>
@@ -195,13 +186,4 @@ export function ClientFormDialog({ open, onOpenChange, initial, onDone }: Client
       </DialogContent>
     </Dialog>
   );
-}
-
-// ─── Client Card ──────────────────────────────────────────────────────────────
-
-export interface ClientCardProps {
-  client: AgencyClient;
-  onEdit: (client: AgencyClient) => void;
-  onDelete: (client: AgencyClient) => void;
-  isDeleting: boolean;
 }

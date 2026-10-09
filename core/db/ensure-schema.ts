@@ -54,6 +54,8 @@ const REQUIRED_TABLES = [
   "analytics_events",
   "ingest_batches",
   "ingest_applied_batches",
+  "clients",
+  "account_api_keys",
 ] as const;
 
 /** Every table the Drizzle schema defines. */

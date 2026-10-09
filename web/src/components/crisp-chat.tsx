@@ -36,8 +36,11 @@ function identify(user: { email?: string | null; name?: string | null } | null |
   if (user.name) w.$crisp.push(['set', 'user:nickname', [user.name]]);
 }
 
-/** Shared dashboards are read by the site owner's audience, not our customers: no chat there. */
-const isPublicPage = (path: string | null) => Boolean(path && /^\/(public|share)\//.test(path));
+/**
+ * Shared and embedded dashboards are read by the site owner's audience, not our customers:
+ * no chat there — an embed would otherwise put our support bubble inside someone else's app.
+ */
+const isPublicPage = (path: string | null) => Boolean(path && /^\/(public|share|embed)\//.test(path));
 
 export default function CrispChat() {
   const user = useAuth((state) => state.user);

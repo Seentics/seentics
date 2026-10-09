@@ -3,6 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -43,6 +44,7 @@ export default function ReplaysPage() {
   const { toast } = useToast();
 
   const [search, setSearch] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   /** What the server is actually filtering on; trails `search` by the debounce. */
   const [committedSearch, setCommittedSearch] = useState('');
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
@@ -201,12 +203,18 @@ export default function ReplaysPage() {
       // The confirm lived inside the column's cell before it was extracted. It belongs
       // here: the column renders a button, the page decides what destroying a session
       // requires.
-      onDelete: (sessionId) => {
-        if (confirm('Delete this session?')) deleteMutation.mutate([sessionId]);
+      onDelete: async (sessionId) => {
+        const ok = await confirm({
+          title: 'Delete this recording?',
+          description: 'The session replay is removed permanently.',
+          confirmLabel: 'Delete recording',
+          destructive: true,
+        });
+        if (ok) deleteMutation.mutate([sessionId]);
       },
       isMutating: deleteMutation.isPending,
     }),
-    [websiteId, router, deleteMutation],
+    [websiteId, router, deleteMutation, confirm],
   );
 
 
@@ -216,6 +224,7 @@ export default function ReplaysPage() {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Session Replays"
@@ -275,10 +284,14 @@ export default function ReplaysPage() {
               size="sm"
               className="h-8 gap-1.5"
               disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (confirm(`Are you sure you want to delete ${selectedRows.length} session(s)?`)) {
-                  deleteMutation.mutate(selectedRows.map(r => r.session_id));
-                }
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Delete ${selectedRows.length} recording${selectedRows.length === 1 ? '' : 's'}?`,
+                  description: 'The selected session replays are removed permanently.',
+                  confirmLabel: 'Delete',
+                  destructive: true,
+                });
+                if (ok) deleteMutation.mutate(selectedRows.map(r => r.session_id));
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />

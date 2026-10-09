@@ -15,6 +15,10 @@ import { WebsiteQueryService } from "./services/website-query.service";
 import { WebsiteTrafficService } from "./services/website-traffic.service";
 import * as goals from "./services/website-goal.service";
 import { PostgresWebsitePrivacyService } from "./services/postgres-website-privacy.service";
+import { env } from "../../config";
+import { PostgresClientRepository } from "./repositories/postgres-client.repository";
+import { ClientService } from "./services/client.service";
+import { createAgencyRoutes, createClientRoutes, createOwnedWebsiteRoutes } from "./routes";
 
 /**
  * Build the websites module.
@@ -54,6 +58,11 @@ export function initWebsitesModule(deps: {
   const sharing = new WebsitePublicSharingService(repository, onChanged);
   const traffic = new WebsiteTrafficService(repository, deps.analyticsModule);
   const invitations = new WebsiteInvitationService(deps.authModule.users);
+  const clients = new ClientService(new PostgresClientRepository(), repository, mutations, () => onChanged(""));
+
+  // Read per request, so the snippet follows config without the module holding it.
+  const scriptUrl = () => env().trackerScriptUrl;
+  const clientRoutes = createClientRoutes({ clients, scriptUrl });
 
   return {
     query: cached,
@@ -65,6 +74,13 @@ export function initWebsitesModule(deps: {
 
     // Its own routes take the uncached service: this is the module doing the mutating,
     // and it must read its own writes.
+    clients,
+    ownedWebsites: clients,
+    agencyRoutes: createAgencyRoutes(clientRoutes),
+    managementRoutes: {
+      clients: clientRoutes,
+      websites: createOwnedWebsiteRoutes({ websites: clients, scriptUrl }),
+    },
     usage: new WebsiteUsageCounter(),
     retentionSites: new WebsiteRetentionSiteSource(),
     routes: createWebsiteRoutes({

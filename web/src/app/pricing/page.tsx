@@ -8,14 +8,11 @@ import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilde
 import type { PlanFamily } from '@/features/plans/types';
 import { useAuth } from '@/stores/useAuthStore';
 import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
-import { cn } from '@/lib/utils';
-import { Users, Building2 } from 'lucide-react';
 
 export default function PricingPage() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [mode, setMode] = useState<'individual' | 'agency'>('individual');
     // The Observability site links here with ?product=observe, so the page opens on Suite + that product — the
     // same two tabs its own pricing section shows. Read once on mount
     // rather than via useSearchParams, which would need a Suspense boundary
@@ -72,49 +69,9 @@ export default function PricingPage() {
                     </p>
                 </div>
 
-                {/* Tab switcher */}
-                <div className="flex items-center justify-center mb-12">
-                    <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
-                        <button
-                            onClick={() => setMode('individual')}
-                            className={cn(
-                                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
-                                mode === 'individual'
-                                    ? 'bg-background text-foreground shadow-sm border border-border/60'
-                                    : 'text-muted-foreground hover:text-foreground',
-                            )}
-                        >
-                            <Users className="h-4 w-4" />
-                            Individual
-                        </button>
-                        <button
-                            onClick={() => setMode('agency')}
-                            className={cn(
-                                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
-                                mode === 'agency'
-                                    ? 'bg-background text-foreground shadow-sm border border-border/60'
-                                    : 'text-muted-foreground hover:text-foreground',
-                            )}
-                        >
-                            <Building2 className="h-4 w-4" />
-                            Agency
-                        </button>
-                    </div>
-                </div>
-
-                {/* Agency description */}
-                {mode === 'agency' && (
-                    <div className="text-center mb-10 animate-in fade-in duration-300">
-                        <p className="text-muted-foreground text-sm max-w-xl mx-auto">
-                            Manage unlimited client workspaces, white-label the entire platform, and access all data via API.
-                            Events are pooled across all clients.
-                        </p>
-                    </div>
-                )}
-
                 {/* Plans */}
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} families={families} />
+                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} families={families} />
                 </div>
 
                 {/* Trust section */}

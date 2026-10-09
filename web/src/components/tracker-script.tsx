@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { normalizeTrackerApiHost } from '@/lib/config';
 
@@ -34,12 +35,15 @@ function resolveTrackerScriptSrc(): string {
 
 export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
+  // An embed runs inside a customer's product, in front of their users: tracking it would
+  // record their visitors in our analytics.
+  const embedded = usePathname()?.startsWith('/embed/') ?? false;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || embedded) return null;
 
   const siteId =
     process.env.NEXT_PUBLIC_SEENTICS_SITE_ID?.trim() ||

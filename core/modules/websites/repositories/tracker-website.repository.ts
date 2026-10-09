@@ -28,6 +28,11 @@ export function clearTrackerWebsiteCache(): void {
 /**
  * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.tracking_id`.
  * Uses an in-memory TTL cache when `configureTrackerWebsiteCache` ran with cache enabled.
+ *
+ * A site that belongs to a client gets the client's switches applied here, on top of its
+ * own: a client that is not `active`, or has `analytics` off, deactivates the site, and a
+ * feature off for the client is off for every one of its sites. This row is what both the
+ * tracker's config and ingest's drop rules read, so this is the one place it has to happen.
  */
 export async function resolveWebsiteForTracker(
   websiteParam: string,
@@ -47,24 +52,32 @@ export async function resolveWebsiteForTracker(
           websites.id::text AS id,
           websites.user_id::text AS user_id,
           websites.url,
-          websites.is_active,
-          websites.funnel_enabled,
-          websites.heatmap_enabled,
+          websites.is_active
+            AND COALESCE(client.status, 'active') = 'active'
+            AND COALESCE((client.features_enabled->>'analytics')::boolean, true) AS is_active,
+          websites.funnel_enabled
+            AND COALESCE((client.features_enabled->>'funnels')::boolean, true) AS funnel_enabled,
+          websites.heatmap_enabled
+            AND COALESCE((client.features_enabled->>'heatmaps')::boolean, true) AS heatmap_enabled,
           websites.heatmap_include_patterns,
           websites.heatmap_exclude_patterns,
           websites.heatmap_layout_enabled,
-          websites.replay_enabled,
+          websites.replay_enabled
+            AND COALESCE((client.features_enabled->>'replays')::boolean, true) AS replay_enabled,
           websites.replay_sampling_rate,
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.mask_all_text,
           websites.mask_text_patterns,
-          websites.automation_enabled,
-          websites.errors_enabled,
+          websites.automation_enabled
+            AND COALESCE((client.features_enabled->>'automations')::boolean, true) AS automation_enabled,
+          websites.errors_enabled
+            AND COALESCE((client.features_enabled->>'errors')::boolean, true) AS errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
         LEFT JOIN website_privacy_settings privacy ON privacy.site_id = websites.id::text
+        LEFT JOIN clients client ON client.id = websites.client_id
         WHERE websites.id = ${p}::uuid
         LIMIT 1
       `
@@ -73,24 +86,32 @@ export async function resolveWebsiteForTracker(
           websites.id::text AS id,
           websites.user_id::text AS user_id,
           websites.url,
-          websites.is_active,
-          websites.funnel_enabled,
-          websites.heatmap_enabled,
+          websites.is_active
+            AND COALESCE(client.status, 'active') = 'active'
+            AND COALESCE((client.features_enabled->>'analytics')::boolean, true) AS is_active,
+          websites.funnel_enabled
+            AND COALESCE((client.features_enabled->>'funnels')::boolean, true) AS funnel_enabled,
+          websites.heatmap_enabled
+            AND COALESCE((client.features_enabled->>'heatmaps')::boolean, true) AS heatmap_enabled,
           websites.heatmap_include_patterns,
           websites.heatmap_exclude_patterns,
           websites.heatmap_layout_enabled,
-          websites.replay_enabled,
+          websites.replay_enabled
+            AND COALESCE((client.features_enabled->>'replays')::boolean, true) AS replay_enabled,
           websites.replay_sampling_rate,
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.mask_all_text,
           websites.mask_text_patterns,
-          websites.automation_enabled,
-          websites.errors_enabled,
+          websites.automation_enabled
+            AND COALESCE((client.features_enabled->>'automations')::boolean, true) AS automation_enabled,
+          websites.errors_enabled
+            AND COALESCE((client.features_enabled->>'errors')::boolean, true) AS errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
         LEFT JOIN website_privacy_settings privacy ON privacy.site_id = websites.id::text
+        LEFT JOIN clients client ON client.id = websites.client_id
         WHERE websites.tracking_id = ${p}
         LIMIT 1
       `;

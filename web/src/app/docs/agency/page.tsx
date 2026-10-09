@@ -3,97 +3,101 @@ import { C, Callout, DocPage, DocSection, Endpoint, Li, P, Ul } from '@/componen
 
 export const metadata = {
   title: 'Agency · Seentics docs',
-  description: 'Manage client sites, give clients their own logins, and white-label the dashboard.',
+  description: 'Group sites under clients, control what each client gets, and provision them by API.',
 };
 
 /**
- * Condensed from a 672-line page plus four anchor sections on the old index, which
- * between them documented `Authorization: Bearer snt_age_...` — a header the server
- * does not accept and a key prefix that has never existed.
- *
- * Endpoints are shown under the `/user/agency/*` paths the dashboard itself calls
- * (see `lib/agency-api.ts`), relative to the `/api/v1` base.
+ * The management API is Core's `app/http/management-api/routes.ts`; the client routes it
+ * mounts are the websites module's, the same ones the dashboard's Agency screens call.
  */
 export default function AgencyPage() {
   return (
     <DocPage
       eyebrow="Platform"
       title="Agency"
-      lead="Run many client sites from one account, and let clients see their own data without seeing yours."
+      lead="Run many client sites from one account — or give every tenant of your own product its own tracking — and decide what each one gets."
     >
       <DocSection title="What it adds">
         <Ul>
           <Li>
             <strong className="font-medium text-foreground">Clients</strong> — group websites under a
-            client, so billing and reporting follow the relationship rather than the site list.
+            client: an agency&apos;s customer, or one tenant of a multi-tenant product.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">Client users</strong> — give a client a
-            login that sees only their own sites.
+            <strong className="font-medium text-foreground">Feature switches</strong> — turn
+            recordings, heatmaps, funnels, automations or error tracking off for one client. The
+            tracker stops collecting them on that client&apos;s sites.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">White label</strong> — your name and
-            colours on the dashboard the client logs into.
+            <strong className="font-medium text-foreground">Limits</strong> — cap a client&apos;s
+            websites, and its events, recordings and heatmap pages per month. Tenant one can get 10k
+            events and 100 recordings, tenant two 150 recordings.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">Agency API keys</strong> — provision the
-            above from your own systems instead of the dashboard.
+            <strong className="font-medium text-foreground">Management API</strong> — do all of the
+            above from your own backend with an account key.
           </Li>
         </Ul>
+        <P>
+          Agency features are included on every plan. Your plan&apos;s limits still apply across all
+          clients together; a client&apos;s limits divide that up.
+        </P>
       </DocSection>
 
-      <DocSection title="Two ways to work">
+      <DocSection title="Provision a tenant at signup">
         <P>
-          Everything is available in the dashboard under <C>Agency</C>, with no code. If you onboard
-          clients from your own admin or a signup flow, the same operations are on the API — one
-          request per client instead of a form.
+          Create an account key under <C>Agency → API keys</C>, keep it on your server, and call
+          this from your signup handler. It creates the client and its website and returns the
+          snippet to install on the tenant&apos;s pages.
         </P>
+        <Endpoint method="POST" path="/api/v1/manage/clients">
+          Body: <C>external_id</C> (your id for the tenant), <C>name</C>, and optionally{' '}
+          <C>website.url</C>, <C>features_enabled</C> and <C>limits</C>. Send the same{' '}
+          <C>external_id</C> again and you get the same client back with <C>created: false</C> —
+          retries never make a second tenant.
+        </Endpoint>
+        <Callout kind="tip" title="One site per subdomain">
+          Each website only accepts data from its own hostname, so <C>a.yourapp.com</C> and{' '}
+          <C>b.yourapp.com</C> stay separate when each tenant gets its own website.
+        </Callout>
       </DocSection>
 
       <DocSection title="Endpoints">
         <P>
-          Relative to <C>/api/v1</C>, authenticated with an <C>X-API-Key</C> header like the rest of
-          the API.
+          Under <C>/api/v1/manage</C>, authenticated with an account key in <C>X-API-Key</C>.{' '}
+          <C>GET</C> needs a read key; everything else a read &amp; write key.
         </P>
-        <Endpoint method="GET" path="/api/v1/user/agency/clients">
-          Your clients, and the websites under each.
+        <Endpoint method="GET" path="/api/v1/manage/clients">
+          Your clients with their websites; <C>?external_id=</C> looks one up by your id.
         </Endpoint>
-        <Endpoint method="GET" path="/api/v1/user/agency/client-users">
-          Client logins and which client each belongs to.
+        <Endpoint method="PATCH" path="/api/v1/manage/clients/:id">
+          Status, feature switches and limits. Each merges into what is set, so one key changes one
+          thing; a limit of <C>null</C> removes the cap. A suspended client&apos;s sites stop collecting.
         </Endpoint>
-        <Endpoint method="GET" path="/api/v1/user/agency/white-label">
-          The current white-label configuration.
+        <Endpoint method="DELETE" path="/api/v1/manage/clients/:id">
+          Removes the client and keeps its websites, ungrouped — or deletes them too with{' '}
+          <C>?delete_websites=true</C>.
         </Endpoint>
-        <Endpoint method="GET" path="/api/v1/user/agency/api-keys">
-          Agency-scoped keys.
+        <Endpoint method="POST" path="/api/v1/manage/websites">
+          A website on its own, or under a client with <C>client_id</C>.
         </Endpoint>
-        <Callout kind="warning" title="Not a Bearer token, and no snt_age_ prefix">
-          Earlier docs showed <C>Authorization: Bearer snt_age_...</C>. The server accepts{' '}
-          <C>X-API-Key</C>, and keys are <C>snt_</C> plus a site slice — there has never been an{' '}
-          <C>snt_age_</C> form. Creating and reading keys is covered in{' '}
-          <Link href="/docs/api-keys" className="text-primary hover:underline">API keys</Link>.
-        </Callout>
+        <Endpoint method="GET" path="/api/v1/manage/websites/:id/snippet">
+          The tracking snippet for a website.
+        </Endpoint>
+        <Endpoint method="POST" path="/api/v1/manage/websites/:id/api-keys">
+          A read-only key for one website, to show a tenant its own numbers through the{' '}
+          <Link href="/docs/api" className="text-primary hover:underline">data API</Link>.
+        </Endpoint>
         <P>
-          The write operations for each of these are in the catalogue described on the{' '}
-          <Link href="/docs/api" className="text-primary hover:underline">REST API</Link> page,
-          generated from the router so it cannot describe a route that no longer exists.
-        </P>
-      </DocSection>
-
-      <DocSection title="Client portals">
-        <P>
-          A client portal is a link that shows one client their own dashboard without an account.
-          Useful for a monthly report you do not want to export by hand. Portal links are
-          unguessable and are excluded from search engines.
+          Every endpoint, with its body and an example response, is under <C>Agency → Management API</C> in the
+          dashboard.
         </P>
       </DocSection>
 
-      <DocSection title="Getting access">
+      <DocSection title="In Seentics Cloud">
         <P>
-          Agency features are part of the Agency plan — see the{' '}
-          <Link href="/pricing" className="text-primary hover:underline">pricing page</Link>, or{' '}
-          <Link href="/contact" className="text-primary hover:underline">get in touch</Link> if you
-          are moving a portfolio across.
+          Cloud adds client logins, portal links that show one client their own dashboard, and
+          white-label — your name, colours and domain on what clients see.
         </P>
       </DocSection>
     </DocPage>

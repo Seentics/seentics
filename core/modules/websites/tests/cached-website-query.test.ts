@@ -30,6 +30,7 @@ function makeWebsite(overrides: Partial<Website> = {}): Website {
     maskTextPatterns: null,
     verificationToken: "tok",
     publicShareId: null,
+    clientId: null,
     settings: {
       allowedOrigins: [],
       trackingEnabled: true,

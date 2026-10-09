@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Plus, Trash2, Eye, Info, Loader2, MousePointer2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ interface GoalsSettingsComponentProps {
 
 export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   const queryClient = useQueryClient();
 
   const { data: goals = [], isLoading } = useQuery({
@@ -38,14 +40,19 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
     },
   });
 
-  const handleDelete = (goalId: string) => {
-    if (confirm('Are you sure you want to delete this goal?')) {
-      deleteMutation.mutate(goalId);
-    }
+  const handleDelete = async (goalId: string) => {
+    const ok = await confirm({
+      title: 'Delete this goal?',
+      description: 'Its conversion counts stop being tracked. Your analytics events are kept.',
+      confirmLabel: 'Delete goal',
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(goalId);
   };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {confirmDialog}
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

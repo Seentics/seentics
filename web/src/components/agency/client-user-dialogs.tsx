@@ -11,7 +11,7 @@ import {
   ClientUser,
   CreateClientUserRequest,
   CreateClientUserResponse,
-} from '@/lib/agency-api';
+} from '@/features/agency';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

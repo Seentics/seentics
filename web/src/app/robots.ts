@@ -10,7 +10,7 @@ export const dynamic = 'force-static';
  * sitemap.
  *
  * The disallow list is the app itself. Everything under `/websites` is a signed-in
- * dashboard, `/agency` is an operator surface, and the token-bearing
+ * dashboard (the agency pages included), and the token-bearing
  * routes (`/share`, `/client-portal`, `/accept-invite`, `/reset-password`) must never
  * be indexed — a crawled reset link is a leaked reset link.
  */
@@ -23,7 +23,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/websites/',
-          '/agency/',
           '/agency-solution/',
           '/client-portal/',
           '/share/',

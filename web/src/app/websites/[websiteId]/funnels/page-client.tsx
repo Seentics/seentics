@@ -3,6 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -48,6 +49,7 @@ export default function FunnelsPage() {
   const isDemoMode = isDemo(websiteId);
 
   const [dateRange, setDateRange] = useState<number>(DEFAULT_FUNNEL_DAYS);
+  const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingFunnel, setEditingFunnel] = useState<Funnel | null>(null);
@@ -110,10 +112,14 @@ export default function FunnelsPage() {
     }
   };
 
-  const handleDeleteFunnel = (id: string) => {
-    if (confirm('Delete this funnel?')) {
-      deleteFunnelMutation.mutate({ websiteId, funnelId: id });
-    }
+  const handleDeleteFunnel = async (id: string) => {
+    const ok = await confirm({
+      title: 'Delete this funnel?',
+      description: 'The funnel and its conversion history are removed. Your analytics data is not affected.',
+      confirmLabel: 'Delete funnel',
+      destructive: true,
+    });
+    if (ok) deleteFunnelMutation.mutate({ websiteId, funnelId: id });
   };
 
   const filtered = useMemo(() => {
@@ -234,6 +240,7 @@ export default function FunnelsPage() {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Funnels"
@@ -267,10 +274,14 @@ export default function FunnelsPage() {
                 size="sm"
                 className="h-8 gap-1.5"
                 disabled={bulkDeleteMutation.isPending}
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedRows.length} funnel(s)?`)) {
-                    bulkDeleteMutation.mutate({ websiteId, funnelIds: selectedRows.map(r => r.id) });
-                  }
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Delete ${selectedRows.length} funnel${selectedRows.length === 1 ? '' : 's'}?`,
+                    description: 'The funnels and their conversion history are removed. Your analytics data is not affected.',
+                    confirmLabel: 'Delete',
+                    destructive: true,
+                  });
+                  if (ok) bulkDeleteMutation.mutate({ websiteId, funnelIds: selectedRows.map(r => r.id) });
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />

@@ -24,7 +24,7 @@ export default function ApiKeysPage() {
       <DocSection title="Creating a key">
         <Ul>
           <Li>
-            Open <C>Developers → API keys</C> on the website you want to read.
+            Open <C>Agency → API keys</C> and pick the website you want to read under Website keys.
           </Li>
           <Li>Give the key a name that says where it will be used — you will thank yourself later.</Li>
           <Li>Tick the scopes it needs, and only those.</Li>
@@ -76,7 +76,7 @@ export default function ApiKeysPage() {
         <P>
           The scope vocabulary is published by the server, so the current list is always the one in
           the dashboard when you create a key. The API reference in{' '}
-          <C>Developers → API reference</C> shows the required scope beside every endpoint.
+          <C>Agency → Analytics API</C> shows the required scope beside every endpoint.
         </P>
         <Endpoint method="GET" path="/api/v1/websites/scopes">
           Every scope the server accepts, with a description. Requires a key.

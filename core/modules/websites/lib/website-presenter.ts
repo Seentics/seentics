@@ -35,6 +35,7 @@ export type WebsiteResponse = {
   mask_text_patterns: string | null;
   verification_token: string;
   public_share_id: string | null;
+  client_id: string | null;
   created_at: string;
   updated_at: string;
   settings: Record<string, unknown>;
@@ -78,6 +79,7 @@ export function presentWebsite(
     mask_text_patterns: website.maskTextPatterns,
     verification_token: website.verificationToken,
     public_share_id: website.publicShareId,
+    client_id: website.clientId,
     created_at: website.createdAt.toISOString(),
     updated_at: website.updatedAt.toISOString(),
     settings: website.settings as unknown as Record<string, unknown>,

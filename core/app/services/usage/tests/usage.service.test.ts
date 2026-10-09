@@ -29,6 +29,7 @@ function website(id: string): Website {
     maskTextPatterns: null,
     verificationToken: "v",
     publicShareId: null,
+    clientId: null,
     settings: {} as Website["settings"],
     createdAt: new Date(0),
     updatedAt: new Date(0),

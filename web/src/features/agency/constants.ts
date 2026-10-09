@@ -30,6 +30,7 @@ export const CLIENT_FEATURE_LABELS: Array<{ key: keyof AgencyClientFeatures; lab
   { key: 'replays',     label: 'Replays' },
   { key: 'funnels',     label: 'Funnels' },
   { key: 'automations', label: 'Automations' },
+  { key: 'errors',      label: 'Errors' },
 ];
 
 export const DEFAULT_CLIENT_FEATURES: AgencyClientFeatures = {
@@ -38,4 +39,5 @@ export const DEFAULT_CLIENT_FEATURES: AgencyClientFeatures = {
   replays: true,
   funnels: true,
   automations: true,
+  errors: true,
 };

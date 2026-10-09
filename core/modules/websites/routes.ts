@@ -31,6 +31,64 @@ import {
   updateWebsitePrivacy,
 } from "./controllers/website-privacy.controller";
 import { updateWebsiteSharing } from "./controllers/website-sharing.controller";
+import {
+  assignClientWebsite,
+  createClient,
+  createOwnedWebsite,
+  deleteClient,
+  deleteOwnedWebsite,
+  getClient,
+  getClientAnalytics,
+  getOwnedWebsite,
+  getOwnedWebsiteSnippet,
+  listClients,
+  listClientWebsites,
+  listOwnedWebsites,
+  unassignClientWebsite,
+  updateClient,
+  updateOwnedWebsite,
+  type ClientControllerDeps,
+  type OwnedWebsiteControllerDeps,
+} from "./controllers/client.controller";
+
+/**
+ * Clients, with no auth of their own — see `client.controller.ts`. The agency dashboard
+ * mounts this behind `createAgencyRoutes`; the management API behind account-key auth.
+ */
+export function createClientRoutes(deps: ClientControllerDeps) {
+  const routes = new Hono<{ Variables: AuthVars }>();
+  routes.get("/", listClients(deps));
+  routes.post("/", createClient(deps));
+  routes.get("/:clientId", getClient(deps));
+  routes.patch("/:clientId", updateClient(deps));
+  routes.delete("/:clientId", deleteClient(deps));
+  routes.get("/:clientId/websites", listClientWebsites(deps));
+  routes.post("/:clientId/websites", assignClientWebsite(deps));
+  routes.delete("/:clientId/websites/:websiteId", unassignClientWebsite(deps));
+  routes.get("/:clientId/analytics", getClientAnalytics(deps));
+  return routes;
+}
+
+/** An owner's websites for the management API — owner-only, no auth of its own. */
+export function createOwnedWebsiteRoutes(deps: OwnedWebsiteControllerDeps) {
+  const routes = new Hono<{ Variables: AuthVars }>();
+  routes.get("/", listOwnedWebsites(deps));
+  routes.post("/", createOwnedWebsite(deps));
+  routes.get("/:websiteId", getOwnedWebsite(deps));
+  routes.get("/:websiteId/snippet", getOwnedWebsiteSnippet(deps));
+  routes.patch("/:websiteId", updateOwnedWebsite(deps));
+  routes.delete("/:websiteId", deleteOwnedWebsite(deps));
+  return routes;
+}
+
+/** `/user/agency/clients`, for the signed-in dashboard. */
+export function createAgencyRoutes(clientRoutes: Hono<{ Variables: AuthVars }>) {
+  const routes = new Hono<{ Variables: AuthVars }>();
+  routes.use("/clients/*", authMiddleware);
+  routes.use("/clients", authMiddleware);
+  routes.route("/clients", clientRoutes);
+  return routes;
+}
 
 export function createWebsiteRoutes(deps: WebsiteControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();

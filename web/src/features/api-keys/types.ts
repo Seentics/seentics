@@ -36,6 +36,8 @@ export interface ApiEndpoint {
   summary: string;
   scope: string;
   params: ApiParam[];
+  /** A real response, trimmed (core: `api-examples.ts`). */
+  example: unknown;
 }
 
 export interface ApiCatalogue {

@@ -3,6 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useMemo, useState, useCallback } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -97,6 +98,7 @@ export default function HeatmapsPage() {
   const isDemoMode = isDemo(websiteId);
   const queryClient = useQueryClient();
   const { toast }   = useToast();
+  const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [days, setDays] = useState<number>(DEFAULT_HEATMAP_DAYS);
 
@@ -245,11 +247,15 @@ export default function HeatmapsPage() {
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             title="Delete data for this page"
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
-              if (confirm('Delete heatmap data for this page?')) {
-                deleteMutation.mutate([row.original.url]);
-              }
+              const ok = await confirm({
+                title: 'Delete heatmap data for this page?',
+                description: `Every click, move and scroll recorded on ${row.original.url} is removed.`,
+                confirmLabel: 'Delete data',
+                destructive: true,
+              });
+              if (ok) deleteMutation.mutate([row.original.url]);
             }}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -262,6 +268,7 @@ export default function HeatmapsPage() {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Heatmaps"
@@ -312,10 +319,14 @@ export default function HeatmapsPage() {
               size="sm"
               className="h-8 gap-1.5"
               disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (confirm(`Are you sure you want to delete heatmap data for ${selectedRows.length} page(s)?`)) {
-                  deleteMutation.mutate(selectedRows.map(r => r.url));
-                }
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Delete heatmap data for ${selectedRows.length} page${selectedRows.length === 1 ? '' : 's'}?`,
+                  description: 'Every click, move and scroll recorded on those pages is removed.',
+                  confirmLabel: 'Delete data',
+                  destructive: true,
+                });
+                if (ok) deleteMutation.mutate(selectedRows.map(r => r.url));
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />

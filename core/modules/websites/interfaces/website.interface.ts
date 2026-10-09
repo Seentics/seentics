@@ -44,6 +44,8 @@ export type Website = {
   verificationToken: string;
   /** Non-null when a public dashboard link is active. */
   publicShareId: string | null;
+  /** The owner's client this site is grouped under, if any. */
+  clientId: string | null;
   settings: WebsiteSettings;
   createdAt: Date;
   updatedAt: Date;
@@ -124,6 +126,11 @@ export type CreateWebsiteInput = {
   name: string;
   /** Accepts a bare host or full URL; normalized to a hostname on write. */
   url: string;
+  /**
+   * The client to file it under. Not checked here: the caller has already confirmed the
+   * client belongs to the same owner — `ClientService` is the only one that sets it.
+   */
+  clientId?: string | null;
 };
 
 /**
@@ -150,6 +157,8 @@ export type UpdateWebsiteInput = {
   replayExcludePatterns?: string | null;
   maskAllText?: boolean;
   maskTextPatterns?: string | null;
+  /** `null` takes the site out of its client. Ownership-checked by `ClientService`, like create. */
+  clientId?: string | null;
 };
 
 /**

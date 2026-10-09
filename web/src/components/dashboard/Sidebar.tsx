@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, ArrowUpRight,
+  Building2, Bug, Sparkles, Radio, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -54,12 +54,13 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
-    { label: 'Developers',  href: `/websites/${websiteId}/developers`,  icon: Code2 },
   ];
 }
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
+    // Account-wide, not this site's: clients, and the management and data APIs.
+    { label: 'Agency',   href: `/websites/${websiteId}/agency`,   icon: Building2 },
     { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
   ];
 }

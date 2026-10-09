@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import {
   Users,
   UserPlus,
@@ -39,6 +40,7 @@ interface TeamSettingsComponentProps {
 
 export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps) {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { canManageMembers, canChangeRoles, canInviteMembers, isViewer, isLoading: permLoading } = usePermissions(websiteId);
@@ -93,10 +95,14 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
     roleMutation.mutate({ userId: memberUserId, role: newRole });
   };
 
-  const handleRemoveMember = (memberUserId: string) => {
-    if (confirm('Are you sure you want to remove this member?')) {
-      deleteMutation.mutate(memberUserId);
-    }
+  const handleRemoveMember = async (memberUserId: string) => {
+    const ok = await confirm({
+      title: 'Remove this member?',
+      description: 'They lose access to this website immediately. You can invite them again later.',
+      confirmLabel: 'Remove member',
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(memberUserId);
   };
 
   if (permLoading) {
@@ -109,6 +115,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {confirmDialog}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">

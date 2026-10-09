@@ -313,6 +313,7 @@ export function fakeDbModule() {
     // mock-completeness.test.ts` guards inline stubs against exactly this, and cannot see
     // a helper-returned object like this one, so the list is checked below instead.
     users: table("users"),
+    clients: table("clients"),
     websites: table("websites"),
     ingestBatches: table("ingest_batches"),
     websiteMembers: table("website_members"),
@@ -323,6 +324,7 @@ export function fakeDbModule() {
     automationEvents: table("automation_events"),
     analyticsEvents: table("analytics_events"),
     apiKeys: table("api_keys"),
+    accountApiKeys: table("account_api_keys"),
     sessionReplays: table("session_replays"),
     heatmapPoints: table("heatmap_points"),
     aiQueries: table("ai_queries"),

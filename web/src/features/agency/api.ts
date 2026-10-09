@@ -1,5 +1,6 @@
 import api from '@/lib/api';
 import type {
+  AccountScope,
   AgencyAPIKey,
   AgencyClient,
   ClientLimits,
@@ -13,209 +14,216 @@ import type {
   WhiteLabelSettings,
 } from './types';
 
+// ─── Wire shapes ──────────────────────────────────────────────────────────────
+// What Core returns (modules/websites/lib/client-presenter.ts, api-keys/services/
+// account-api-key.service.ts). Mapped once here so components read camelCase.
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-/** Sent on create when the UI does not override limits (server applies agency defaults). */
-export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
-  maxMonthlyEvents: null,
-  maxReplays: null,
-  maxHeatmaps: null,
-  maxWebsites: null,
+type WireLimits = {
+  max_websites: number | null;
+  max_monthly_events: number | null;
+  max_replays: number | null;
+  max_heatmaps: number | null;
 };
 
+type WireClientWebsite = {
+  id: string;
+  client_id: string | null;
+  name: string;
+  url: string;
+  tracking_id: string;
+  is_active: boolean;
+  snippet: string;
+  created_at: string;
+};
 
+type WireClient = {
+  id: string;
+  external_id: string | null;
+  name: string;
+  company: string;
+  email: string;
+  website_url: string;
+  status: AgencyClient['status'];
+  note: string;
+  features_enabled: AgencyClient['featuresEnabled'];
+  limits: WireLimits;
+  metadata: Record<string, unknown>;
+  websites: WireClientWebsite[];
+  created_at: string;
+  updated_at: string;
+};
 
-
-
-
+type WireAPIKey = {
+  id: string;
+  name: string;
+  key_prefix: string;
+  scopes: AccountScope[];
+  key?: string;
+  last_used: string | null;
+  created_at: string;
+};
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
 
-function mapClient(raw: any): AgencyClient {
+function mapLimits(l: WireLimits): ClientLimits {
   return {
-    id: raw.id,
-    agencyId: raw.agency_id || raw.agencyId || '',
-    name: raw.name || '',
-    company: raw.company || '',
-    email: raw.email || '',
-    websiteUrl: raw.website_url || raw.websiteUrl || '',
-    status: raw.status || 'active',
-    note: raw.note || '',
-    featuresEnabled: {
-      analytics: raw.features_enabled?.analytics ?? raw.featuresEnabled?.analytics ?? true,
-      heatmaps: raw.features_enabled?.heatmaps ?? raw.featuresEnabled?.heatmaps ?? true,
-      replays: raw.features_enabled?.replays ?? raw.featuresEnabled?.replays ?? true,
-      funnels: raw.features_enabled?.funnels ?? raw.featuresEnabled?.funnels ?? true,
-      automations: raw.features_enabled?.automations ?? raw.featuresEnabled?.automations ?? true,
-    },
-    limits: {
-      maxMonthlyEvents: raw.limits?.maxMonthlyEvents ?? null,
-      maxReplays: raw.limits?.maxReplays ?? null,
-      maxHeatmaps: raw.limits?.maxHeatmaps ?? null,
-      maxWebsites: raw.limits?.maxWebsites ?? null,
-    },
-    createdAt: raw.created_at || raw.createdAt || '',
-    updatedAt: raw.updated_at || raw.updatedAt || '',
+    maxWebsites: l.max_websites,
+    maxMonthlyEvents: l.max_monthly_events,
+    maxReplays: l.max_replays,
+    maxHeatmaps: l.max_heatmaps,
   };
 }
 
-function mapAPIKey(raw: any): AgencyAPIKey {
+function limitsToWire(l: ClientLimits): WireLimits {
   return {
-    id: raw.id,
-    agencyId: raw.agency_id || raw.agencyId || '',
-    name: raw.name || '',
-    keyPrefix: raw.key_prefix || raw.keyPrefix || '',
-    key: raw.key || undefined,
-    lastUsed: raw.last_used || raw.lastUsed || null,
-    createdAt: raw.created_at || raw.createdAt || '',
+    max_websites: l.maxWebsites,
+    max_monthly_events: l.maxMonthlyEvents,
+    max_replays: l.maxReplays,
+    max_heatmaps: l.maxHeatmaps,
   };
 }
 
-function mapWhiteLabel(raw: any): WhiteLabelSettings {
+function mapClientWebsite(w: WireClientWebsite): ClientWebsite {
   return {
-    userId: raw.user_id || raw.userId || '',
-    brandName: raw.brand_name || raw.brandName || '',
-    logoUrl: raw.logo_url || raw.logoUrl || '',
-    primaryColor: raw.primary_color || raw.primaryColor || '#6366f1',
-    supportEmail: raw.support_email || raw.supportEmail || '',
-    customDomain: raw.custom_domain || raw.customDomain || '',
-    hideSeentics: raw.hide_seentics ?? raw.hideSeentics ?? false,
+    id: w.id,
+    clientId: w.client_id,
+    name: w.name,
+    url: w.url,
+    trackingId: w.tracking_id,
+    isActive: w.is_active,
+    snippet: w.snippet,
+    createdAt: w.created_at,
   };
 }
 
-function mapClientWebsite(raw: any): ClientWebsite {
+function mapClient(c: WireClient): AgencyClient {
   return {
-    id: raw.id,
-    clientId: raw.client_id || raw.clientId || '',
-    websiteId: raw.website_id || raw.websiteId || '',
-    createdAt: raw.created_at || raw.createdAt || '',
+    id: c.id,
+    externalId: c.external_id,
+    name: c.name,
+    company: c.company,
+    email: c.email,
+    websiteUrl: c.website_url,
+    status: c.status,
+    note: c.note,
+    featuresEnabled: c.features_enabled,
+    limits: mapLimits(c.limits),
+    metadata: c.metadata,
+    websites: c.websites.map(mapClientWebsite),
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
   };
 }
 
-function mapPortalToken(raw: any): PortalToken {
+function mapAPIKey(k: WireAPIKey): AgencyAPIKey {
   return {
-    id: raw.id,
-    clientId: raw.client_id || raw.clientId || '',
-    token: raw.token || undefined,
-    expiresAt: raw.expires_at || raw.expiresAt || '',
-    createdAt: raw.created_at || raw.createdAt || '',
+    id: k.id,
+    name: k.name,
+    keyPrefix: k.key_prefix,
+    scopes: k.scopes,
+    key: k.key,
+    lastUsed: k.last_used,
+    createdAt: k.created_at,
   };
 }
 
-// ─── Client API ───────────────────────────────────────────────────────────────
+/** Request body for create and update; absent fields stay absent. */
+function clientToWire(req: UpdateClientRequest): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (req.name !== undefined) body.name = req.name;
+  if (req.externalId !== undefined) body.external_id = req.externalId;
+  if (req.company !== undefined) body.company = req.company;
+  if (req.email !== undefined) body.email = req.email;
+  if (req.websiteUrl !== undefined) body.website_url = req.websiteUrl;
+  if (req.status !== undefined) body.status = req.status;
+  if (req.note !== undefined) body.note = req.note;
+  if (req.featuresEnabled !== undefined) body.features_enabled = req.featuresEnabled;
+  if (req.limits !== undefined) body.limits = limitsToWire(req.limits);
+  return body;
+}
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
 
 export async function listClients(): Promise<AgencyClient[]> {
-  const response = await api.get('/user/agency/clients');
-  const data = response.data?.clients || response.data?.data || response.data || [];
-  return Array.isArray(data) ? data.map(mapClient) : [];
+  const response = await api.get<{ data: WireClient[] }>('/user/agency/clients', { params: { limit: 100 } });
+  return response.data.data.map(mapClient);
 }
 
 export async function getClient(clientId: string): Promise<AgencyClient> {
-  const response = await api.get(`/user/agency/clients/${clientId}`);
-  const raw = response.data?.client || response.data?.data || response.data;
-  return mapClient(raw);
+  const response = await api.get<{ data: WireClient }>(`/user/agency/clients/${clientId}`);
+  return mapClient(response.data.data);
 }
 
 export async function createClient(req: CreateClientRequest): Promise<AgencyClient> {
-  const payload = {
-    name: req.name,
-    company: req.company,
-    email: req.email,
-    website_url: req.websiteUrl,
-    status: req.status,
-    note: req.note,
-    features_enabled: req.featuresEnabled,
-    limits: req.limits ?? DEFAULT_CLIENT_LIMITS,
-  };
-  const response = await api.post('/user/agency/clients', payload);
-  const raw = response.data?.client || response.data?.data || response.data;
-  return mapClient(raw);
+  const response = await api.post<{ data: WireClient }>('/user/agency/clients', clientToWire(req));
+  return mapClient(response.data.data);
 }
 
 export async function updateClient(id: string, req: UpdateClientRequest): Promise<AgencyClient> {
-  const payload: Record<string, unknown> = {};
-  if (req.name !== undefined) payload.name = req.name;
-  if (req.company !== undefined) payload.company = req.company;
-  if (req.email !== undefined) payload.email = req.email;
-  if (req.websiteUrl !== undefined) payload.website_url = req.websiteUrl;
-  if (req.status !== undefined) payload.status = req.status;
-  if (req.note !== undefined) payload.note = req.note;
-  if (req.featuresEnabled !== undefined) payload.featuresEnabled = req.featuresEnabled;
-  if (req.limits !== undefined) payload.limits = req.limits;
-  const response = await api.patch(`/user/agency/clients/${id}`, payload);
-  const raw = response.data?.client || response.data?.data || response.data;
-  return mapClient(raw);
+  const response = await api.patch<{ data: WireClient }>(`/user/agency/clients/${id}`, clientToWire(req));
+  return mapClient(response.data.data);
 }
 
-export async function deleteClient(id: string): Promise<void> {
-  await api.delete(`/user/agency/clients/${id}`);
-}
-
-// ─── Client Websites ──────────────────────────────────────────────────────────
-
-export async function listClientWebsites(clientId: string): Promise<ClientWebsite[]> {
-  const response = await api.get(`/user/agency/clients/${clientId}/websites`);
-  const data = response.data?.data || response.data || [];
-  return Array.isArray(data) ? data.map(mapClientWebsite) : [];
+/** `deleteWebsites` also deletes the client's sites and everything they collected. */
+export async function deleteClient(id: string, opts: { deleteWebsites?: boolean } = {}): Promise<void> {
+  await api.delete(`/user/agency/clients/${id}`, { params: opts.deleteWebsites ? { delete_websites: true } : {} });
 }
 
 export async function assignWebsite(clientId: string, websiteId: string): Promise<ClientWebsite> {
-  const response = await api.post(`/user/agency/clients/${clientId}/websites`, { websiteId });
-  const raw = response.data?.data || response.data;
-  return mapClientWebsite(raw);
+  const response = await api.post<{ data: WireClientWebsite }>(`/user/agency/clients/${clientId}/websites`, {
+    website_id: websiteId,
+  });
+  return mapClientWebsite(response.data.data);
 }
 
 export async function unassignWebsite(clientId: string, websiteId: string): Promise<void> {
   await api.delete(`/user/agency/clients/${clientId}/websites/${websiteId}`);
 }
 
-export async function getClientAnalytics(clientId: string): Promise<{ client: AgencyClient; websiteIds: string[] }> {
-  const response = await api.get(`/user/agency/clients/${clientId}/analytics`);
-  const data = response.data?.data || response.data;
-  return {
-    client: mapClient(data.client),
-    websiteIds: data.websiteIds || [],
-  };
-}
-
-// ─── Portal Tokens ────────────────────────────────────────────────────────────
-
-export async function generatePortalToken(clientId: string): Promise<PortalToken> {
-  const response = await api.post(`/user/agency/clients/${clientId}/portal-token`);
-  const raw = response.data?.data || response.data;
-  return mapPortalToken(raw);
-}
-
-// ─── Agency API Keys ──────────────────────────────────────────────────────────
+// ─── Account API keys ─────────────────────────────────────────────────────────
 
 export async function listAgencyAPIKeys(): Promise<AgencyAPIKey[]> {
-  const response = await api.get('/user/agency/api-keys');
-  const data = response.data?.keys || response.data?.data || response.data || [];
-  return Array.isArray(data) ? data.map(mapAPIKey) : [];
+  const response = await api.get<{ data: WireAPIKey[] }>('/user/agency/api-keys');
+  return response.data.data.map(mapAPIKey);
 }
 
-export async function createAgencyAPIKey(name: string): Promise<AgencyAPIKey> {
-  const response = await api.post('/user/agency/api-keys', { name });
-  const raw = response.data?.key || response.data?.data || response.data;
-  return mapAPIKey(raw);
+/** Omitting `scopes` grants both read and write. */
+export async function createAgencyAPIKey(name: string, scopes?: AccountScope[]): Promise<AgencyAPIKey> {
+  const response = await api.post<{ data: WireAPIKey }>('/user/agency/api-keys', { name, scopes });
+  return mapAPIKey(response.data.data);
 }
 
 export async function deleteAgencyAPIKey(id: string): Promise<void> {
   await api.delete(`/user/agency/api-keys/${id}`);
 }
 
-// ─── White Label ──────────────────────────────────────────────────────────────
+// ─── Embeds ───────────────────────────────────────────────────────────────────
+
+export type EmbedToken = { token: string; expiresAt: string; embedUrl: string };
+
+/** A short-lived link to an iframed dashboard of one website (admin or owner only). */
+export async function createEmbedToken(websiteId: string, expiresInSeconds: number): Promise<EmbedToken> {
+  const response = await api.post<{ data: { token: string; expires_at: string; embed_url: string } }>(
+    '/user/agency/embed-tokens',
+    { website_id: websiteId, expires_in_seconds: expiresInSeconds },
+  );
+  const d = response.data.data;
+  return { token: d.token, expiresAt: d.expires_at, embedUrl: d.embed_url };
+}
+
+// ─── Cloud only ───────────────────────────────────────────────────────────────
+// Portal links, white-label and client logins are proprietary and served by the
+// gateway, not Core; their screens show only when `isEnterprise`.
+
+export async function generatePortalToken(clientId: string): Promise<PortalToken> {
+  const response = await api.post(`/user/agency/clients/${clientId}/portal-token`);
+  const raw = response.data.data;
+  return { id: raw.id, clientId: raw.client_id, token: raw.token, expiresAt: raw.expires_at, createdAt: raw.created_at };
+}
 
 export async function getWhiteLabel(): Promise<WhiteLabelSettings> {
   const response = await api.get('/user/agency/white-label');
-  const raw = response.data?.settings || response.data?.data || response.data;
-  return mapWhiteLabel(raw);
+  return mapWhiteLabel(response.data.data);
 }
 
 export async function updateWhiteLabel(req: Partial<WhiteLabelSettings>): Promise<WhiteLabelSettings> {
@@ -227,52 +235,55 @@ export async function updateWhiteLabel(req: Partial<WhiteLabelSettings>): Promis
   if (req.customDomain !== undefined) payload.custom_domain = req.customDomain;
   if (req.hideSeentics !== undefined) payload.hide_seentics = req.hideSeentics;
   const response = await api.patch('/user/agency/white-label', payload);
-  const raw = response.data?.settings || response.data?.data || response.data;
-  return mapWhiteLabel(raw);
+  return mapWhiteLabel(response.data.data);
 }
 
-// ─── Client Users ─────────────────────────────────────────────────────────────
+function mapWhiteLabel(raw: any): WhiteLabelSettings {
+  return {
+    userId: raw.user_id,
+    brandName: raw.brand_name ?? '',
+    logoUrl: raw.logo_url ?? '',
+    primaryColor: raw.primary_color ?? '#6366f1',
+    supportEmail: raw.support_email ?? '',
+    customDomain: raw.custom_domain ?? '',
+    hideSeentics: raw.hide_seentics ?? false,
+  };
+}
 
 function mapClientUser(raw: any): ClientUser {
   return {
     id: raw.id,
-    userId: raw.user_id || raw.userId || '',
-    name: raw.name || '',
-    email: raw.email || '',
+    userId: raw.user_id,
+    name: raw.name ?? '',
+    email: raw.email ?? '',
     company: raw.company || undefined,
-    status: raw.status || 'active',
+    status: raw.status ?? 'active',
     featuresEnabled: {
-      analytics: raw.features_enabled?.analytics ?? raw.featuresEnabled?.analytics ?? true,
-      heatmaps: raw.features_enabled?.heatmaps ?? raw.featuresEnabled?.heatmaps ?? true,
-      replays: raw.features_enabled?.replays ?? raw.featuresEnabled?.replays ?? true,
-      funnels: raw.features_enabled?.funnels ?? raw.featuresEnabled?.funnels ?? true,
-      automations: raw.features_enabled?.automations ?? raw.featuresEnabled?.automations ?? true,
+      analytics: raw.features_enabled?.analytics ?? true,
+      heatmaps: raw.features_enabled?.heatmaps ?? true,
+      replays: raw.features_enabled?.replays ?? true,
+      funnels: raw.features_enabled?.funnels ?? true,
+      automations: raw.features_enabled?.automations ?? true,
     },
     limits: raw.limits || undefined,
-    createdAt: raw.created_at || raw.createdAt || '',
+    createdAt: raw.created_at ?? '',
   };
 }
 
 export async function listClientUsers(): Promise<ClientUser[]> {
   const response = await api.get('/user/agency/client-users');
-  const data = response.data?.data || response.data || [];
-  return Array.isArray(data) ? data.map(mapClientUser) : [];
+  return (response.data.data ?? []).map(mapClientUser);
 }
 
 export async function createClientUser(req: CreateClientUserRequest): Promise<CreateClientUserResponse> {
   const response = await api.post('/user/agency/client-users', req);
-  const raw = response.data?.data || response.data;
-  return {
-    client: mapClientUser(raw.client),
-    user: raw.user,
-    tempPassword: raw.tempPassword || raw.temp_password || undefined,
-  };
+  const raw = response.data.data;
+  return { client: mapClientUser(raw.client), user: raw.user, tempPassword: raw.temp_password };
 }
 
 export async function getClientUser(userId: string): Promise<ClientUser> {
   const response = await api.get(`/user/agency/client-users/${userId}`);
-  const raw = response.data?.data || response.data;
-  return mapClientUser(raw);
+  return mapClientUser(response.data.data);
 }
 
 export async function deleteClientUser(userId: string): Promise<void> {
@@ -281,6 +292,5 @@ export async function deleteClientUser(userId: string): Promise<void> {
 
 export async function resetClientUserPassword(userId: string): Promise<{ tempPassword: string }> {
   const response = await api.post(`/user/agency/client-users/${userId}/reset-password`);
-  const raw = response.data?.data || response.data;
-  return { tempPassword: raw.tempPassword || raw.temp_password || '' };
+  return { tempPassword: response.data.data.temp_password };
 }

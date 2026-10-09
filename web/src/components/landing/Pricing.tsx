@@ -55,7 +55,7 @@ export default function Pricing() {
         </div>
 
         <div>
-          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode="individual" families={['suite', 'core']} />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} families={['suite', 'core']} />
         </div>
       </div>
     </section>

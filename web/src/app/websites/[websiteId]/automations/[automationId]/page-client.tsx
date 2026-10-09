@@ -3,6 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useEffect, useState, useRef } from 'react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ export default function AutomationDetailPage() {
   const automationId  = params?.automationId as string;
 
   const [editMode, setEditMode] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   // In edit mode the header owns Save, so it tracks what the builder holds and whether
   // that is saveable. The builder stays uncontrolled; this is a report, not a source.
@@ -91,8 +93,14 @@ export default function AutomationDetailPage() {
   };
 
   const handleToggle = () => toggle({ websiteId, automationId: automation.id });
-  const handleDelete = () => {
-    if (!confirm('Delete this automation?')) return;
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: `Delete "${automation.name}"?`,
+      description: 'The automation stops running and its run history is removed.',
+      confirmLabel: 'Delete automation',
+      destructive: true,
+    });
+    if (!ok) return;
     remove({ websiteId, automationId: automation.id }, {
       onSuccess: () => router.push(`/websites/${websiteId}/automations`),
     });
@@ -100,6 +108,7 @@ export default function AutomationDetailPage() {
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      {confirmDialog}
       <div className="flex items-center gap-3 mb-6">
         <Button
           variant="ghost"

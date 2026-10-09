@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { demoWebsiteKeys, isDemo } from '@/lib/demo';
 import type {
   ApiCatalogue,
-  ApiEndpoint,
   ApiKey,
   ApiScopeInfo,
   CreatedApiKey,
@@ -31,6 +31,7 @@ export const apiKeyKeys = {
 };
 
 export async function fetchApiKeys(websiteId: string): Promise<ApiKey[]> {
+  if (isDemo(websiteId)) return demoWebsiteKeys();
   const res = await api.get(`/websites/${websiteId}/api-keys`);
   return (res.data?.data ?? []) as ApiKey[];
 }
@@ -65,37 +66,3 @@ export async function fetchApiCatalogue(): Promise<ApiCatalogue> {
 
 
 
-// ─── Reference helpers ────────────────────────────────────────────────────────
-
-/**
- * A copy-paste `curl` for one endpoint.
- *
- * The website id is substituted and the key is left as a placeholder rather than the
- * real secret — a reference someone screenshots should not carry a live credential.
- */
-export function curlFor(
-  endpoint: ApiEndpoint,
-  basePath: string,
-  origin: string,
-  websiteId: string,
-): string {
-  const path = endpoint.path.replace(':website_id', websiteId);
-  const query = endpoint.params
-    .filter(p => p.default !== undefined)
-    .map(p => `${p.name}=${p.default}`)
-    .join('&');
-
-  const url = `${origin}${basePath}${path}${query ? `?${query}` : ''}`;
-  return `curl -H "X-API-Key: $SEENTICS_API_KEY" \\\n  "${url}"`;
-}
-
-/** Endpoints grouped for the reference, preserving the catalogue's order. */
-export function groupEndpoints(endpoints: ApiEndpoint[]): Array<[string, ApiEndpoint[]]> {
-  const groups = new Map<string, ApiEndpoint[]>();
-  for (const e of endpoints) {
-    const list = groups.get(e.group);
-    if (list) list.push(e);
-    else groups.set(e.group, [e]);
-  }
-  return [...groups.entries()];
-}
