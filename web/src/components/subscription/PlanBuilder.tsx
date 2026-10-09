@@ -99,7 +99,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-[52rem]">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -112,8 +112,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
 
       {plans && (
         <>
-          {/* Pro (second) is wider: its lines are longer, and keeping each on one line reads better. */}
-          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">{plans.map(renderCard)}</div>
+          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2">{plans.map(renderCard)}</div>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Both plans include Analytics, Session Replay and Observability. Extra usage is off until you turn it on, and a spend cap keeps it in budget.
