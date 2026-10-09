@@ -13,7 +13,7 @@ const FAQS = [
   },
   {
     q: 'How much does it cost?',
-    a: 'Pay-As-You-Go is $15 a month with 500K events, 3K session recordings and 10 GB of observability included. Past that: $0.01 per 1K events, $1 per 1K recordings and $0.25 per GB. Set a monthly spend cap and you are never billed past it.',
+    a: 'Pro is $15 a month for up to 1M events, 3K session recordings and 30 GB of logs, traces and metrics. Need more? Turn on extra usage from Billing: $0.01 per 1K events, $2 per 1K recordings and $0.25 per GB, with a monthly spend cap you set.',
   },
   {
     q: 'Is there a free plan?',

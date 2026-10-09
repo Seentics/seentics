@@ -9,7 +9,7 @@ import { COMPARE_GROUPS, TIER_PITCH, cardSectionsFor } from '@/features/plans/pr
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  /** A real plan id from gateway's catalog (`free`, `payg`) — gateway validates it at checkout. */
+  /** A real plan id from gateway's catalog (`free`, `pro`) — gateway validates it at checkout. */
   plan: string;
   price: number;
 }
@@ -22,7 +22,7 @@ interface PlanBuilderProps {
 }
 
 /**
- * Free and Pay-As-You-Go, from gateway's GET /api/v1/plans: two cards with one short list each
+ * Free and Pro, from gateway's GET /api/v1/plans: two cards with one short list each
  * (pricing-spec.ts), and the full comparison behind "Compare all features".
  */
 export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderProps) {
@@ -37,7 +37,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   };
 
   const renderCard = (plan: Plan) => {
-    const featured = plan.tier === 'payg';
+    const featured = plan.tier === 'pro';
     const isCurrent = !!currentPlan && currentPlan === plan.id;
     return (
       <div
@@ -59,7 +59,6 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
         <div className="mt-5 flex items-baseline gap-1">
           <span className="text-4xl font-bold tracking-tight">${plan.priceMonthly}</span>
           <span className="text-sm text-muted-foreground">/month</span>
-          {featured && <span className="ml-1 text-sm text-muted-foreground">+ extra usage</span>}
         </div>
 
         <Button
@@ -73,7 +72,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
           ) : isCurrent ? (
             'Current plan'
           ) : (
-            <>{featured ? 'Get Pay-As-You-Go' : 'Start free'} <ArrowRight className="h-4 w-4" /></>
+            <>{featured ? 'Get Pro' : 'Start free'} <ArrowRight className="h-4 w-4" /></>
           )}
         </Button>
 
@@ -100,7 +99,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-4xl">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -113,10 +112,11 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
 
       {plans && (
         <>
-          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2">{plans.map(renderCard)}</div>
+          {/* Pro (second) is wider: its lines are longer, and keeping each on one line reads better. */}
+          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">{plans.map(renderCard)}</div>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            Both plans include Analytics, Session Replay and Observability. Set a monthly spend cap and you&apos;re never billed past it.
+            Both plans include Analytics, Session Replay and Observability. Extra usage is off until you turn it on, and a spend cap keeps it in budget.
           </p>
 
           <div className="mt-4 flex justify-center">
@@ -141,7 +141,7 @@ function CompareTable({ plans }: { plans: Plan[] }) {
           <tr className="border-b border-border">
             <th className="w-2/5 px-5 py-4 text-left font-medium text-muted-foreground" />
             {plans.map((plan) => (
-              <th key={plan.id} className={cn('px-4 py-4 text-center font-semibold', plan.tier === 'payg' && 'text-primary')}>
+              <th key={plan.id} className={cn('px-4 py-4 text-center font-semibold', plan.tier === 'pro' && 'text-primary')}>
                 {plan.name}
                 <span className="block text-xs font-normal text-muted-foreground">${plan.priceMonthly}/mo</span>
               </th>

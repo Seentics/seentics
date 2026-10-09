@@ -15,7 +15,7 @@ const FAQS = [
   {
     question: 'Is there a free plan?',
     answer:
-      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, and Pay-As-You-Go at $15 a month for higher volumes, billed by usage past what it includes.',
+      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, and Pro at $15 a month for up to 1M events, with optional extra usage beyond that.',
   },
   {
     question: 'How does Seentics protect visitor privacy?',

@@ -23,7 +23,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/websites/',
-          '/agency-solution/',
           '/client-portal/',
           '/share/',
           '/accept-invite/',

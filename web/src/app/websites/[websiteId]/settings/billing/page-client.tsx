@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  Activity, AlertTriangle, ArrowRight, BarChart3, Calendar, CreditCard, Filter, Globe, Loader2, Map,
+  Activity, AlertTriangle, ArrowRight, BarChart3, Calendar, CreditCard, Filter, Gauge, Globe, Loader2, Map,
   ShieldCheck, Sparkles, Video, Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
-import { useMeter, useSaveSpendCap } from '@/features/billing/queries';
+import { useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
 import type { MeterState } from '@/features/billing/types';
 import { RATES_LINE } from '@/features/plans/pricing-spec';
 import api from '@/lib/api';
@@ -49,23 +49,23 @@ export default function BillingSettingsPage() {
   }, [router, websiteId, demo]);
 
   const { subscription, loading } = useSubscription();
-  const isPayg = subscription?.planId === 'payg';
-  const meter = useMeter({ demo, enabled: isPayg });
-  const [confirm, confirmDialog] = useConfirm();
-  const [busy, setBusy] = useState<'checkout' | 'portal' | 'cancel' | null>(null);
+  const isPro = subscription?.planId === 'pro';
+  const meter = useMeter({ demo, enabled: isPro });
+  const extraUsageOn = !!meter.data;
+  const [busy, setBusy] = useState<'pro' | 'extra_usage' | 'portal' | null>(null);
 
   if (!isEnterprise && !demo) return null;
 
-  const demoOnly = () => {
-    toast.info('Billing is not available on the demo site.');
+  const notOnDemo = () => {
+    if (demo) toast.info('Billing is not available on the demo site.');
     return demo;
   };
 
-  const upgrade = async () => {
-    if (demo && demoOnly()) return;
+  const checkout = async (plan: 'pro' | 'extra_usage') => {
+    if (notOnDemo()) return;
     try {
-      setBusy('checkout');
-      await startCheckout('payg');
+      setBusy(plan);
+      await startCheckout(plan);
     } catch (e: any) {
       toast.error(e?.response?.data?.error || 'Could not start the checkout. Please try again.');
     } finally {
@@ -74,33 +74,22 @@ export default function BillingSettingsPage() {
   };
 
   /** The customer's own signed portal link: invoices, payment method, cancelling. */
-  const openPortal = async (kind: 'portal' | 'cancel') => {
-    if (demo && demoOnly()) return;
+  const openPortal = async () => {
+    if (notOnDemo()) return;
     // Opened before the request resolves so the browser does not block it.
     const tab = window.open('', '_blank');
     try {
-      setBusy(kind);
+      setBusy('portal');
       const res = await api.post('/user/billing/portal');
       const url = res.data?.data?.url;
       if (!url) throw new Error('no portal');
       if (tab) tab.location.href = url; else window.location.href = url;
-      if (kind === 'cancel') toast.info('Finish cancelling in the billing portal.');
     } catch {
       tab?.close();
       toast.error('Could not open the billing portal. Please try again.');
     } finally {
       setBusy(null);
     }
-  };
-
-  const cancel = async () => {
-    const ok = await confirm({
-      title: 'Cancel Pay-As-You-Go?',
-      description: 'You keep it until the end of this billing period, including usage billed for it. Then your account moves to Free and its limits.',
-      confirmLabel: 'Cancel subscription',
-      destructive: true,
-    });
-    if (ok) await openPortal('cancel');
   };
 
   if (loading) {
@@ -113,15 +102,14 @@ export default function BillingSettingsPage() {
 
   return (
     <div className={cn(websiteWorkspaceShellClass, 'space-y-6')}>
-      {confirmDialog}
-      <DashboardPageHeader websiteId={websiteId} title="Billing" description="Your plan, this month's usage and what it costs." />
+      <DashboardPageHeader websiteId={websiteId} title="Billing" description="Your plan, extra usage and what it costs." />
 
       {/* Plan */}
       <Card className="border border-border">
         <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold">{isPayg ? 'Pay-As-You-Go' : 'Free'}</h2>
+              <h2 className="text-xl font-semibold">{isPro ? 'Pro' : 'Free'}</h2>
               {subscription?.cancelAtPeriodEnd ? (
                 <Badge className="h-5 border border-amber-500/20 bg-amber-500/10 px-1.5 text-[11px] font-medium text-amber-600">Ending</Badge>
               ) : (
@@ -129,34 +117,27 @@ export default function BillingSettingsPage() {
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isPayg
+              {isPro
                 ? subscription?.cancelAtPeriodEnd
                   ? `Ends ${fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free.`
-                  : `$15 a month plus usage past what's included. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
-                : 'Hard monthly limits. Collection pauses at a limit until the month resets.'}
+                  : `$15 a month. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
+                : 'Monthly limits. Collection pauses at a limit until the month resets.'}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            {isPayg ? (
-              <>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openPortal('portal')} disabled={busy !== null}>
-                  {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-                  Invoices & payment
-                </Button>
-                {!subscription?.cancelAtPeriodEnd && (
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={cancel} disabled={busy !== null}>
-                    Cancel
-                  </Button>
-                )}
-              </>
+            {isPro ? (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={openPortal} disabled={busy !== null}>
+                {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                Invoices, payment & cancelling
+              </Button>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/pricing">Compare plans</Link>
                 </Button>
-                <Button size="sm" className="gap-1.5" onClick={upgrade} disabled={busy !== null}>
-                  {busy === 'checkout' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Upgrade to Pay-As-You-Go <ArrowRight className="h-3.5 w-3.5" />
+                <Button size="sm" className="gap-1.5" onClick={() => checkout('pro')} disabled={busy !== null}>
+                  {busy === 'pro' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </>
             )}
@@ -164,22 +145,55 @@ export default function BillingSettingsPage() {
         </CardContent>
       </Card>
 
-      {isPayg && meter.data && <ThisPeriod meter={meter.data} />}
-      {isPayg && meter.isLoading && (
+      {isPro && meter.isLoading && (
         <Card className="border border-border"><CardContent className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
       )}
-      {isPayg && meter.isError && (
-        <p className="text-sm text-muted-foreground">This period&apos;s usage could not be measured right now. Try again in a minute.</p>
+      {isPro && meter.isError && (
+        <p className="text-sm text-muted-foreground">Extra usage could not be measured right now. Try again in a minute.</p>
       )}
-      {isPayg && meter.data && <SpendCap meter={meter.data} demo={demo} />}
+      {isPro && meter.isSuccess && !meter.data && (
+        <ExtraUsageOff onTurnOn={() => checkout('extra_usage')} busy={busy === 'extra_usage'} disabled={busy !== null} />
+      )}
+      {isPro && meter.data && (
+        <>
+          <ExtraUsagePeriod meter={meter.data} demo={demo} />
+          <SpendCap meter={meter.data} demo={demo} />
+        </>
+      )}
 
-      <LimitsGrid usage={subscription?.usage} isPayg={isPayg} />
+      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn} title={isPro ? (extraUsageOn ? 'Other usage' : 'Usage this month') : 'Usage this month'} />
     </div>
   );
 }
 
-/** This period's bill: the base price plus each metered resource's overage, and its usage against what's included. */
-function ThisPeriod({ meter }: { meter: MeterState }) {
+/** Pro without Extra usage: what turning it on means, and the button that does. */
+function ExtraUsageOff({ onTurnOn, busy, disabled }: { onTurnOn: () => void; busy: boolean; disabled: boolean }) {
+  return (
+    <Card className="border border-border">
+      <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-3">
+          <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div>
+            <h3 className="text-sm font-semibold">Extra usage is off</h3>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Collection stops at Pro&apos;s included amounts until your next period. Turn on extra usage to keep collecting
+              past them, billed at the end of each month: {RATES_LINE}. You can set a spend cap once it&apos;s on.
+            </p>
+          </div>
+        </div>
+        <Button size="sm" className="shrink-0 gap-1.5" onClick={onTurnOn} disabled={disabled}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          Turn on extra usage
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** This Extra usage period: what it has cost so far, and each metered resource against what Pro includes. */
+function ExtraUsagePeriod({ meter, demo }: { meter: MeterState; demo: boolean }) {
+  const turnOff = useTurnOffExtraUsage();
+  const [confirm, confirmDialog] = useConfirm();
   const rows = [
     { icon: BarChart3, label: 'Events', used: meter.used.events, included: meter.included.events, show: fmt, cost: meter.overage.credits.events },
     { icon: Video, label: 'Session recordings', used: meter.used.replays, included: meter.included.replays, show: fmt, cost: meter.overage.credits.replays },
@@ -190,34 +204,53 @@ function ThisPeriod({ meter }: { meter: MeterState }) {
   ];
   const capped = meter.billableCents < meter.overage.credits.total;
 
+  const off = async () => {
+    if (demo) { toast.info('Billing is not available on the demo site.'); return; }
+    const ok = await confirm({
+      title: 'Turn off extra usage?',
+      description: 'Collection stops at Pro\'s included amounts right away. Extra usage already collected this period is still billed at the end of it.',
+      confirmLabel: 'Turn off',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await turnOff.mutateAsync();
+      toast.success('Extra usage is off.');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Could not turn extra usage off.');
+    }
+  };
+
   return (
     <Card className="border border-border">
+      {confirmDialog}
       <CardContent className="p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">This period so far</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">{money(meter.baseCents + meter.billableCents)}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Extra usage this period</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">{money(meter.billableCents)}</p>
           </div>
-          {meter.period && (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              {fmtDate(meter.period.start)} – {fmtDate(meter.period.end)}
-            </p>
-          )}
+          <div className="flex items-center gap-3">
+            {meter.period && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                {fmtDate(meter.period.start)} – {fmtDate(meter.period.end)}
+              </p>
+            )}
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={off} disabled={turnOff.isPending}>
+              {turnOff.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Turn off'}
+            </Button>
+          </div>
         </div>
 
         {meter.paused && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>Your spend cap is reached. Usage past what&apos;s included isn&apos;t being collected until the next period, or until you raise the cap.</span>
+            <span>Your spend cap is reached. Usage past Pro&apos;s included amounts isn&apos;t being collected until the next period, or until you raise the cap.</span>
           </div>
         )}
 
         <ul className="mt-5 divide-y divide-border border-t border-border">
-          <li className="flex items-center justify-between py-3 text-sm">
-            <span className="text-muted-foreground">Pay-As-You-Go plan</span>
-            <span className="tabular-nums">{money(meter.baseCents)}</span>
-          </li>
           {rows.map(({ icon: Icon, label, used, included, show, cost }) => {
             const share = included > 0 ? Math.min(100, (used / included) * 100) : 100;
             const over = used > included;
@@ -232,21 +265,22 @@ function ThisPeriod({ meter }: { meter: MeterState }) {
                 </div>
                 <Progress value={share} className={cn('mt-2 h-1.5', over && '[&>div]:bg-amber-500')} />
                 <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-                  {show(used)} of {show(included)} included{over ? ` · ${show(used - included)} over` : ''}
+                  {show(used)} of {show(included)} included{over ? ` · ${show(used - included)} extra` : ''}
                 </p>
               </li>
             );
           })}
         </ul>
         <p className="mt-2 text-xs text-muted-foreground">
-          Past what&apos;s included: {RATES_LINE}.{capped ? ' Billed up to your spend cap.' : ''} Billed when the period ends.
+          {RATES_LINE}.{capped ? ' Billed up to your spend cap.' : ''} Billed at the end of the period, separately from
+          Pro; under $1 in a period is not billed.
         </p>
       </CardContent>
     </Card>
   );
 }
 
-/** The whole monthly bill's ceiling. */
+/** The most extra usage may cost in a month. */
 function SpendCap({ meter, demo }: { meter: MeterState; demo: boolean }) {
   const save = useSaveSpendCap();
   const [dollars, setDollars] = useState(meter.spendCapCents != null ? String(meter.spendCapCents / 100) : '');
@@ -258,14 +292,15 @@ function SpendCap({ meter, demo }: { meter: MeterState; demo: boolean }) {
     if (demo) { toast.info('Billing is not available on the demo site.'); return; }
     try {
       await save.mutateAsync(cents);
-      toast.success(cents == null ? 'Spend cap removed.' : `Spend cap set to $${(cents / 100).toFixed(2)} a month.`);
+      toast.success(cents == null ? 'Spend cap removed.' : `Extra usage capped at $${(cents / 100).toFixed(2)} a month.`);
     } catch (e: any) {
       toast.error(e?.response?.data?.error || 'Could not save the spend cap.');
     }
   };
 
   const parsed = Number(dollars);
-  const valid = dollars.trim() !== '' && Number.isFinite(parsed) && parsed * 100 >= meter.baseCents;
+  // At least $1: under that nothing is billed anyway. To allow none, turn extra usage off.
+  const valid = dollars.trim() !== '' && Number.isFinite(parsed) && parsed >= 1;
 
   return (
     <Card className="border border-border">
@@ -273,11 +308,11 @@ function SpendCap({ meter, demo }: { meter: MeterState; demo: boolean }) {
         <div className="flex gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
           <div>
-            <h3 className="text-sm font-semibold">Monthly spend cap</h3>
+            <h3 className="text-sm font-semibold">Spend cap on extra usage</h3>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
               {meter.spendCapCents == null
-                ? 'No cap: usage past what’s included is always collected and billed.'
-                : `You're never billed more than ${money(meter.spendCapCents)} a month. At the cap, collection past what's included pauses.`}
+                ? 'No cap: usage past Pro’s included amounts is always collected and billed.'
+                : `Extra usage never costs more than ${money(meter.spendCapCents)} a month. At the cap, collection past the included amounts pauses.`}
             </p>
           </div>
         </div>
@@ -310,11 +345,13 @@ function SpendCap({ meter, demo }: { meter: MeterState; demo: boolean }) {
   );
 }
 
-/** Everything with a count: Free's hard limits, or what Pay-As-You-Go leaves unlimited. */
-function LimitsGrid({ usage, isPayg }: { usage?: SubscriptionUsage; isPayg: boolean }) {
+/**
+ * Everything with a count against a limit. With Extra usage on, events and recordings are shown
+ * with its period above instead.
+ */
+function LimitsGrid({ usage, hideMetered, title }: { usage?: SubscriptionUsage; hideMetered: boolean; title: string }) {
   const items: Array<{ name: string; icon: typeof BarChart3; status?: { current: number; limit: number } }> = [
-    // Pay-As-You-Go shows events and recordings with this period's bill above.
-    ...(isPayg ? [] : [
+    ...(hideMetered ? [] : [
       { name: 'Events this month', icon: BarChart3, status: usage?.monthlyEvents },
       { name: 'Session recordings', icon: Video, status: usage?.replays },
     ]),
@@ -327,7 +364,7 @@ function LimitsGrid({ usage, isPayg }: { usage?: SubscriptionUsage; isPayg: bool
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold">{isPayg ? 'Other usage' : 'Usage this month'}</h3>
+      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(({ name, icon: Icon, status }) => {
           const current = status?.current ?? 0;

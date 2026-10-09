@@ -1,7 +1,7 @@
 export type ProductEntitlement = {
   plan: string;
-  tier: 'free' | 'payg';
-  /** The granting plan's id: `free` or `payg`. */
+  tier: 'free' | 'pro';
+  /** The granting plan's id: `free` or `pro`. */
   planId?: string;
   limits: Record<string, number>;
 };

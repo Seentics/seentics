@@ -56,12 +56,14 @@ export default function BillingPage() {
             and everything collected so far is kept.
           </Li>
           <Li>
-            On Pay-As-You-Go, usage past what the plan includes keeps being collected and is billed at
-            the end of the period, at the rates on the pricing page.
+            On Pro, the same happens, unless you turn on extra usage in <C>Settings → Billing</C>. Then
+            usage past what Pro includes keeps being collected and is billed at the end of the month, at
+            the rates on the pricing page. Extra usage under $1 in a month is not billed.
           </Li>
           <Li>
-            A monthly spend cap, set in <C>Settings → Billing</C>, bounds that bill: at the cap, usage
-            past what is included pauses until the next period, and you are never charged more.
+            A monthly spend cap on extra usage, also in <C>Settings → Billing</C>, bounds that charge: at
+            the cap, usage past what is included pauses until the next period, and you are never charged
+            more. You can turn extra usage off at any time.
           </Li>
         </Ul>
         <P>
@@ -73,7 +75,7 @@ export default function BillingPage() {
       <DocSection title="Changing plan">
         <Ul>
           <Li>Upgrade from <C>Settings → Billing</C>; it takes effect immediately.</Li>
-          <Li>Cancelling Pay-As-You-Go moves you to Free at the end of the current period.</Li>
+          <Li>Cancelling Pro moves you to Free at the end of the current period, and turns extra usage off.</Li>
           <Li>
             Cancelling stops future charges. Your data stays until its retention period expires — see{' '}
             <Link href="/docs/privacy" className="text-primary hover:underline">Privacy &amp; security</Link>{' '}

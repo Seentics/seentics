@@ -1,8 +1,8 @@
 export type Plan = {
   id: string;
   name: string;
-  /** `free` (hard limits) or `payg` ($15 a month, usage past the included amounts billed). */
-  tier: 'free' | 'payg';
+  /** `free`, or `pro` ($15 a month; past its included amounts with Extra usage, an add-on). */
+  tier: 'free' | 'pro';
   description: string | null;
   priceMonthly: number;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
