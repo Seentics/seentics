@@ -9,15 +9,15 @@ import { useAuth } from '@/stores/useAuthStore';
 const FAQS = [
   {
     q: 'Do I need Observability?',
-    a: 'No. Analytics is the product, and it works on its own. Observability is an extra for SaaS teams that also want logs, metrics and traces from their backend. It has its own plans and a free one, and the Suite bundles both for less.',
+    a: 'No. Analytics is the product, and it works on its own. Observability is there for SaaS teams that also want logs, metrics and traces from their backend, and it comes with every plan at no extra price.',
   },
   {
     q: 'How much does it cost?',
-    a: 'Paid plans are monthly: Analytics starts at $9 a month and the Suite, which adds Observability, at $14. Cancel any time from the billing page.',
+    a: 'Pay-As-You-Go is $15 a month with 500K events, 3K session recordings and 10 GB of observability included. Past that: $0.01 per 1K events, $1 per 1K recordings and $0.25 per GB. Set a monthly spend cap and you are never billed past it.',
   },
   {
     q: 'Is there a free plan?',
-    a: 'Yes, one for each product. Analytics: unlimited websites, 20K events a month and 30 session recordings. Observability: 3 GB of storage and one project.',
+    a: 'Yes: unlimited websites, 20K events and 30 session recordings a month, and 1 GB of logs, traces and metrics. At a limit, collection pauses until the next month. No card needed.',
   },
   {
     q: 'Can I self-host Seentics?',

@@ -31,7 +31,7 @@ export default function Pricing() {
       setLoading(true);
       const result = await startCheckout(selection.plan);
       if (result.kind === 'changed') {
-        toast.success('Plan changed. The difference is prorated on your bill.');
+        toast.success('You are on Pay-As-You-Go.');
         router.push('/websites');
       }
     } catch {
@@ -47,15 +47,15 @@ export default function Pricing() {
         <div className="mx-auto mb-10 max-w-4xl text-center">
           <p className="landing-eyebrow">Pricing</p>
           <h2 className="landing-h2 mb-4">
-            Simple, <span className="">transparent pricing</span>
+            Start free. Pay only as you grow.
           </h2>
           <p className="landing-lead">
-            Start free with unlimited websites. Take the whole suite, or just analytics.
+            Analytics, replay and observability in one plan.
           </p>
         </div>
 
         <div>
-          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} families={['suite', 'core']} />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
         </div>
       </div>
     </section>

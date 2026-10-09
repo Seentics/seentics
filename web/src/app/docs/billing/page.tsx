@@ -50,17 +50,30 @@ export default function BillingPage() {
       </DocSection>
 
       <DocSection title="Reaching a limit">
+        <Ul>
+          <Li>
+            On Free, collection of that kind of data pauses until the next month. Nothing is billed,
+            and everything collected so far is kept.
+          </Li>
+          <Li>
+            On Pay-As-You-Go, usage past what the plan includes keeps being collected and is billed at
+            the end of the period, at the rates on the pricing page.
+          </Li>
+          <Li>
+            A monthly spend cap, set in <C>Settings → Billing</C>, bounds that bill: at the cap, usage
+            past what is included pauses until the next period, and you are never charged more.
+          </Li>
+        </Ul>
         <P>
-          Collection does not stop the moment you cross a threshold, and you are never billed for
-          overage without choosing to upgrade. <C>Settings → Billing</C> shows usage against each
-          limit as the month runs, so there is warning before it matters.
+          <C>Settings → Billing</C> shows usage against each limit as the month runs, and you are
+          emailed at 80% and 100%.
         </P>
       </DocSection>
 
       <DocSection title="Changing plan">
         <Ul>
           <Li>Upgrade from <C>Settings → Billing</C>; it takes effect immediately.</Li>
-          <Li>Downgrades apply at the end of the current period.</Li>
+          <Li>Cancelling Pay-As-You-Go moves you to Free at the end of the current period.</Li>
           <Li>
             Cancelling stops future charges. Your data stays until its retention period expires — see{' '}
             <Link href="/docs/privacy" className="text-primary hover:underline">Privacy &amp; security</Link>{' '}

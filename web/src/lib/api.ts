@@ -92,9 +92,13 @@ api.interceptors.response.use(
       requestUrl.includes('websiteId=demo') ||
       requestUrl.match(/\/demo[/?]/) !== null;
 
-    // Demo and secret-verify requests: never redirect on 401
+    // Demo and secret-verify requests: never redirect on 401. Nor does anything asked while the
+    // demo is on screen: its sidebar asks account endpoints too (entitlements, websites,
+    // preferences), and a visitor with an expired session left in the browser was logged out to
+    // /signin on clicking "Live demo".
     const isSecretVerify = requestUrl.includes('/verify-secrets');
-    if (error.response?.status === 401 && (isDemoRequest || isSecretVerify)) {
+    const onDemoPage = typeof window !== 'undefined' && /^\/websites\/demo(\/|$)/.test(window.location.pathname);
+    if (error.response?.status === 401 && (isDemoRequest || isSecretVerify || onDemoPage)) {
       return Promise.reject(error);
     }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { addableColumns } from "./ensure-schema";
+import { addableColumns, columnName } from "./ensure-schema";
 
 /**
  * Columns added to a table that already exists (`users`, shared with the gateway):
@@ -25,5 +25,11 @@ describe("addableColumns", () => {
 
   it("skips table constraints", () => {
     expect(addableColumns(createUsers).some((column) => column.includes("CONSTRAINT"))).toBe(false);
+  });
+
+  // A column the table already has is skipped by name, not left to IF NOT EXISTS, which a
+  // compressed TimescaleDB hypertable refuses for a non-constant default.
+  it("names each column, so the ones a table already has are skipped", () => {
+    expect(addableColumns(createUsers).map(columnName)).toEqual(["id", "email", "is_active", "github_id"]);
   });
 });

@@ -1,240 +1,185 @@
 /**
- * What each pricing card and the comparison table show, derived from a
- * plan's numeric limits (gateway/db/sql/019_four_product_pricing.sql) rather
- * than its marketing copy — so the page can't advertise a number the
- * product doesn't enforce, and every card formats its numbers the same way.
+ * What the pricing cards and the comparison table show, derived from the
+ * plans' numeric limits (gateway/db/sql/028_pay_as_you_go.sql) rather than their marketing copy,
+ * so the page can't advertise a number the product doesn't enforce.
  *
- * Kept in sync by hand with the copies in observability/web and uptime/web
- * (components/landing/pricing-spec.ts); the three apps share no code.
+ * Two plans: Free, hard-capped, and Pay-As-You-Go, $15 a month with usage past its included amounts
+ * billed at OVERAGE_RATES. Pay-As-You-Go stores each metered limit as -1 (unlimited) with its
+ * included amount beside it as `included_<key>`.
+ *
+ * Kept in sync by hand with observability/web/src/components/landing/pricing-spec.ts; the apps
+ * share no code.
  */
 
-export type PricingFamily = 'suite' | 'core' | 'observe';
-export type PricingTier = 'free' | 'starter' | 'pro' | 'business';
+export type PricingTier = 'free' | 'payg';
 
 /** The slice of a gateway plan this module reads. */
 export type PricedPlan = {
   tier: PricingTier;
+  priceMonthly: number;
   limits: Record<string, Record<string, number> | undefined>;
 };
 
-const TIERS: PricingTier[] = ['free', 'starter', 'pro', 'business'];
+/**
+ * Past the included amounts. Must match the gateway's billing (gateway/services/metering.ts RATES):
+ * $0.01 per 1,000 events, $1 per 1,000 recordings, $0.25 per GB.
+ */
+export const OVERAGE_RATES = {
+  events: { price: 0.01, per: 1_000, unit: 'events' },
+  replays: { price: 1, per: 1_000, unit: 'recordings' },
+  observeGb: { price: 0.25, per: 1, unit: 'GB' },
+} as const;
 
 export const TIER_PITCH: Record<PricingTier, string> = {
-  free: 'For trying it out',
-  starter: 'For small projects',
-  pro: 'For growing teams',
-  business: 'For high-traffic products',
-};
-
-const SUPPORT: Record<PricingTier, string> = {
-  free: 'Community support',
-  starter: 'Email support',
-  pro: 'Email support',
-  business: 'Priority support',
-};
-
-export function supportFor(tier: PricingTier): string {
-  return SUPPORT[tier];
-}
-
-export const FAMILY_TAB: Record<PricingFamily, { label: string; caption: string; lead: string; includes: string }> = {
-  suite: {
-    label: 'Suite',
-    caption: 'Analytics + Observability',
-    lead: 'Analytics, Session Replay and AI, plus Observability for your backend, in one plan, for less than buying them separately.',
-    includes: 'Every Suite plan includes unlimited websites, logs, metrics and traces.',
-  },
-  core: {
-    label: 'Analytics',
-    caption: 'Analytics, replay & AI',
-    lead: 'More analytics capacity, without paying for products you don’t use.',
-    includes: 'Every plan includes unlimited websites, session replay, heatmaps, funnels, automations and AI analysis.',
-  },
-  observe: {
-    label: 'Observability',
-    caption: 'Logs, metrics & traces',
-    lead: 'Logs, metrics and traces on their own, with more storage than the Suite includes.',
-    includes: 'Every plan includes logs, metrics, distributed traces and OpenTelemetry ingestion.',
-  },
+  free: 'Everything to get started, with monthly limits',
+  payg: 'Generous included usage, then flat rates',
 };
 
 // ---------------------------------------------------------------------------
 // Formatting
 
-function limit(plan: PricedPlan, product: string, key: string): number | undefined {
-  return plan.limits[product]?.[key];
-}
+const limit = (plan: PricedPlan, product: string, key: string) => plan.limits[product]?.[key];
 
 export function formatCount(value: number | undefined): string {
   if (value === undefined) return '—';
   if (value === -1) return 'Unlimited';
   if (value >= 1_000_000) return `${+(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${+(value / 1_000).toFixed(1)}K`;
-  return String(value);
+  return value.toLocaleString('en-US');
 }
 
 export function formatDays(days: number | undefined): string {
   if (days === undefined) return '—';
   if (days === -1) return 'Unlimited';
   if (days >= 365 && days % 365 === 0) return days === 365 ? '1 year' : `${days / 365} years`;
-  if (days >= 180 && days % 30 === 0) return `${days / 30} months`;
   return days === 1 ? '1 day' : `${days} days`;
 }
 
-export function formatInterval(seconds: number | undefined): string {
-  if (seconds === undefined) return '—';
-  if (seconds < 60) return `${seconds} sec`;
-  return seconds === 60 ? '1 min' : `${Math.round(seconds / 60)} min`;
-}
+export const formatMoney = (dollars: number) =>
+  dollars >= 1_000 ? `$${Math.round(dollars).toLocaleString('en-US')}` : `$${dollars.toFixed(2).replace(/\.00$/, '')}`;
 
 /**
- * About how much a plan lets you send in a month. The cap is on data kept
- * (OpenObserve's uncompressed `storage_size`), and at steady state what's
- * kept is one retention window's worth of sending — so a month's worth is
- * storage × 30 / retention. It's what other vendors quote (GB ingested per
- * month), which is why it's shown: "10 GB" beside a competitor's "50 GB
- * ingested" undersells a plan that takes ~43 GB a month.
+ * What a metered resource allows on this plan: Free's hard limit, or Pay-As-You-Go's included
+ * amount (its limit itself is unlimited).
  */
-export function monthlySendGb(plan: PricedPlan): number | undefined {
-  const storage = limit(plan, 'observe', 'storage_gb');
-  const retention = limit(plan, 'observe', 'retention_days');
-  if (storage === undefined || retention === undefined || storage === -1 || retention <= 0) return undefined;
-  return Math.round((storage * 30) / retention);
+export function allowance(plan: PricedPlan, product: string, key: string): number | undefined {
+  const value = limit(plan, product, key);
+  return value === -1 ? (limit(plan, product, `included_${key}`) ?? -1) : value;
 }
 
-const gb = (value: number | undefined) => (value === undefined ? '—' : value === -1 ? 'Unlimited' : `${value} GB`);
-
-const byTier = <T,>(values: [T, T, T, T]) => (plan: PricedPlan) => values[TIERS.indexOf(plan.tier)] ?? values[0];
+/** Whether usage past the allowance is billed (Pay-As-You-Go) rather than refused (Free). */
+export const isMetered = (plan: PricedPlan, product: string, key: string) =>
+  limit(plan, product, key) === -1 && limit(plan, product, `included_${key}`) !== undefined;
 
 // ---------------------------------------------------------------------------
-// Cards: the plan's allowances, one line each — value, then label — grouped
-// by product on Suite cards so a longer list still scans.
+// Cards: a short list, one line per allowance. The rest is in the comparison table.
 
-/** `value` empty: an included feature, shown as its label alone. */
+/** `value` empty: a plain line, shown as its label alone. */
 export type Highlight = { value: string; label: string };
-
-const feature = (label: string): Highlight => ({ value: '', label });
-export type CardSection = { title?: string; items: Highlight[] };
+export type CardSection = { title: string; items: Highlight[] };
 
 const plural = (value: number | undefined, one: string, many: string) => (value === 1 ? one : many);
 
-function coreItems(plan: PricedPlan, withWebsites: boolean): Highlight[] {
+/** "$0.01 / 1K events · $1 / 1K recordings · $0.25 / GB": the rates in one line, for the billing page. */
+export const RATES_LINE = Object.values(OVERAGE_RATES)
+  .map((r) => `${formatMoney(r.price)} / ${r.per === 1 ? r.unit : `${formatCount(r.per)} ${r.unit}`}`)
+  .join(' · ');
+
+/** A card's two sections: what the plan includes each month, then what usage past that does. */
+export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const core = (key: string) => limit(plan, 'core', key);
   const heatmaps = core('heatmaps');
   const funnels = core('funnels');
   const automations = core('automations');
-  const items: Highlight[] = [
-    { value: formatCount(core('monthly_events')), label: 'events / month' },
-    { value: formatCount(core('replays')), label: 'session recordings / month' },
-    { value: formatCount(core('ai_analyses')), label: 'AI analyses / month' },
-    heatmaps === -1
-      ? { value: 'Unlimited', label: 'heatmaps' }
-      : { value: formatCount(heatmaps), label: plural(heatmaps, 'heatmap page', 'heatmap pages') },
-    { value: formatCount(funnels), label: plural(funnels, 'funnel', 'funnels') },
-    // A differentiator, so it gets its own line on every card that shows
-    // Analytics — Suite included.
-    { value: formatCount(automations), label: plural(automations, 'automation', 'automations') },
-    { value: formatDays(core('retention_days')), label: 'data retention' },
-  ];
-  if (withWebsites) items.push({ value: formatCount(core('websites')), label: 'websites' });
-  return items;
-}
 
-/** Included on every Analytics plan — the two things the card adds to the
- *  allowances; the rest of the feature list is in the comparison table. */
-const CORE_FEATURES = [feature('Revenue & attribution'), feature('Cookieless, GDPR-ready')];
-
-/** Which Analytics lines a Suite card keeps. */
-const SUITE_CORE_LABELS = new Set(['events / month', 'session recordings / month', 'AI analyses / month', 'automation', 'automations', 'data retention']);
-
-export function cardSectionsFor(family: PricingFamily, plan: PricedPlan): CardSection[] {
-  const storage: Highlight = { value: gb(limit(plan, 'observe', 'storage_gb')), label: 'storage' };
-  const observeRetention: Highlight = { value: formatDays(limit(plan, 'observe', 'retention_days')), label: 'retention' };
-  const send = monthlySendGb(plan);
-  const observeSend: Highlight = { value: send === undefined ? '—' : `≈ ${send} GB`, label: 'sent / month' };
-
-  switch (family) {
-    case 'suite':
-      return [
-        // The headline allowance of each product; the rest is one click away
-        // in the comparison table.
-        { title: 'Analytics', items: coreItems(plan, false).filter((item) => SUITE_CORE_LABELS.has(item.label)) },
-        { title: 'Observability', items: [storage, observeRetention, observeSend] },
-      ];
-    case 'core':
-      return [{ items: [...coreItems(plan, false), ...CORE_FEATURES] }];
-    case 'observe': {
-      const projects = limit(plan, 'observe', 'max_projects');
-      const free = plan.tier === 'free';
-      return [
-        {
-          items: [
-            storage,
-            observeRetention,
-            observeSend,
-            { value: formatCount(projects), label: plural(projects, 'project', 'projects') },
-            { value: free ? 'Basic' : 'Unlimited', label: 'dashboards' },
-            { value: free ? 'Basic' : 'Full', label: 'alerting' },
-            feature('Error grouping'),
-            feature('OpenTelemetry ingestion'),
-          ],
+  const included: Highlight[] = [
+    { value: formatCount(allowance(plan, 'core', 'monthly_events')), label: 'events monthly' },
+    { value: formatCount(allowance(plan, 'core', 'replays')), label: 'session recordings monthly' },
+    { value: `${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics sent monthly' },
+    { value: formatDays(core('retention_days')), label: 'analytics retention' },
+    { value: formatCount(core('websites')), label: 'websites' },
+    heatmaps === -1 && funnels === -1 && automations === -1
+      ? { value: 'Unlimited', label: 'heatmaps, funnels & automations' }
+      : {
+          value: '',
+          label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
         },
+    { value: formatCount(core('ai_analyses')), label: 'AI analyses monthly' },
+    { value: '', label: 'Agency: client accounts, APIs & embeds' },
+    ...(plan.tier === 'payg' ? [{ value: '', label: 'White label with your own brand' }] : []),
+  ];
+
+  const extra: Highlight[] = plan.tier === 'payg'
+    ? [
+        { value: formatMoney(OVERAGE_RATES.events.price), label: `per ${formatCount(OVERAGE_RATES.events.per)} events` },
+        { value: formatMoney(OVERAGE_RATES.replays.price), label: `per ${formatCount(OVERAGE_RATES.replays.per)} session recordings` },
+        { value: formatMoney(OVERAGE_RATES.observeGb.price), label: 'per GB of logs, traces & metrics' },
+        { value: '', label: 'Optional monthly spend cap' },
+      ]
+    : [
+        { value: '', label: 'Collection pauses at a limit until next month' },
+        { value: '', label: 'No card needed' },
       ];
-    }
-  }
+
+  return [
+    { title: 'Included', items: included },
+    { title: plan.tier === 'payg' ? 'Extra usage' : 'At a limit', items: extra },
+  ];
 }
 
 // ---------------------------------------------------------------------------
-// Comparison table: every row of the pricing tables. `true` renders a check.
+// Comparison table. `true` renders a check.
 
 export type CompareRow = { label: string; value: (plan: PricedPlan) => string | boolean };
-export type CompareGroup = { title?: string; rows: CompareRow[] };
+export type CompareGroup = { title: string; rows: CompareRow[] };
 
-const coreRows = (retentionLabel: string): CompareRow[] => [
-  { label: 'Events / month', value: (p) => formatCount(limit(p, 'core', 'monthly_events')) },
-  { label: 'Session recordings / month', value: (p) => formatCount(limit(p, 'core', 'replays')) },
-  { label: 'AI analyses / month', value: (p) => formatCount(limit(p, 'core', 'ai_analyses')) },
-  { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === -1 ? 'Unlimited' : v === undefined ? '—' : `${v} pages`; } },
-  { label: 'Funnels', value: (p) => formatCount(limit(p, 'core', 'funnels')) },
-  { label: 'Automations', value: (p) => formatCount(limit(p, 'core', 'automations')) },
-  { label: retentionLabel, value: (p) => formatDays(limit(p, 'core', 'retention_days')) },
-  { label: 'Websites', value: (p) => formatCount(limit(p, 'core', 'websites')) },
+const meteredCell = (product: string, key: string, unit = '') => (p: PricedPlan) => {
+  const value = allowance(p, product, key);
+  const shown = unit ? `${value} ${unit}` : formatCount(value);
+  return isMetered(p, product, key) ? `${shown} included` : shown;
+};
+
+export const COMPARE_GROUPS: CompareGroup[] = [
+  {
+    title: 'Product analytics',
+    rows: [
+      { label: 'Events / month', value: meteredCell('core', 'monthly_events') },
+      { label: 'Past the limit', value: (p) => (isMetered(p, 'core', 'monthly_events') ? '$0.01 / 1K events' : 'Collection pauses') },
+      { label: 'Data retention', value: (p) => formatDays(limit(p, 'core', 'retention_days')) },
+      { label: 'Websites', value: (p) => formatCount(limit(p, 'core', 'websites')) },
+      { label: 'Revenue & attribution', value: () => true },
+      { label: 'Cookieless, GDPR-ready', value: () => true },
+    ],
+  },
+  {
+    title: 'Session replay',
+    rows: [
+      { label: 'Recordings / month', value: meteredCell('core', 'replays') },
+      { label: 'Past the limit', value: (p) => (isMetered(p, 'core', 'replays') ? '$1 / 1K recordings' : 'Recording pauses') },
+      { label: 'Replay retention', value: (p) => formatDays(limit(p, 'core', 'replay_retention_days')) },
+      { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === -1 ? 'Unlimited' : `${v} pages`; } },
+    ],
+  },
+  {
+    title: 'Observability',
+    rows: [
+      { label: 'Logs, traces & metrics / month', value: meteredCell('observe', 'storage_gb', 'GB') },
+      { label: 'Past the limit', value: (p) => (isMetered(p, 'observe', 'storage_gb') ? '$0.25 / GB' : 'Ingestion pauses') },
+      { label: 'Telemetry retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
+      { label: 'Error tracking & alerts', value: () => true },
+      { label: 'Uptime monitoring', value: () => true },
+    ],
+  },
+  {
+    title: 'Automation, AI & teams',
+    rows: [
+      { label: 'Funnels', value: (p) => formatCount(limit(p, 'core', 'funnels')) },
+      { label: 'Automations', value: (p) => formatCount(limit(p, 'core', 'automations')) },
+      { label: 'AI analyses / month', value: (p) => formatCount(limit(p, 'core', 'ai_analyses')) },
+      { label: 'Agency: client accounts, APIs & embeds', value: () => true },
+      { label: 'White label', value: (p) => p.tier === 'payg' },
+      { label: 'Monthly spend cap', value: (p) => p.tier === 'payg' },
+      { label: 'Support', value: (p) => (p.tier === 'payg' ? 'Email' : 'Community') },
+    ],
+  },
 ];
-
-const observeRows: CompareRow[] = [
-  { label: 'Storage', value: (p) => gb(limit(p, 'observe', 'storage_gb')) },
-  { label: 'Retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
-  { label: 'Data you can send / month', value: (p) => { const v = monthlySendGb(p); return v === undefined ? '—' : `≈ ${v} GB`; } },
-  { label: 'Logs, metrics & traces', value: () => true },
-];
-
-const supportRow: CompareRow = { label: 'Support', value: (p) => SUPPORT[p.tier].replace(' support', '') };
-
-export function compareGroupsFor(family: PricingFamily): CompareGroup[] {
-  switch (family) {
-    case 'suite':
-      return [
-        { title: 'Analytics', rows: coreRows('Analytics retention') },
-        { title: 'Observability', rows: observeRows },
-        { rows: [supportRow] },
-      ];
-    case 'core':
-      return [{ rows: [...coreRows('Data retention'), supportRow] }];
-    case 'observe':
-      return [
-        {
-          rows: [
-            ...observeRows.slice(0, 3),
-            { label: 'Logs', value: () => true },
-            { label: 'Metrics', value: () => true },
-            { label: 'Distributed traces', value: () => true },
-            { label: 'OpenTelemetry ingestion', value: () => true },
-            { label: 'Projects / services', value: (p) => formatCount(limit(p, 'observe', 'max_projects')) },
-            { label: 'Dashboards', value: byTier(['Basic', 'Unlimited', 'Unlimited', 'Unlimited']) },
-            { label: 'Alerting', value: byTier<string | boolean>(['Basic', true, true, true]) },
-            supportRow,
-          ],
-        },
-      ];
-  }
-}

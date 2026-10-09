@@ -3,342 +3,359 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  Activity, AlertTriangle, ArrowRight, BarChart3, Calendar, CreditCard, Filter, Globe, Loader2, Map,
+  ShieldCheck, Sparkles, Video, Workflow,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  CreditCard, Zap, Check, BarChart3, Filter, Workflow, Loader2,
-  Map, Video, Globe, ExternalLink, Calendar, AlertTriangle, ArrowUpRight,
-  Sparkles,
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
-import { toast } from 'sonner';
-import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
-import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
+import { useMeter, useSaveSpendCap } from '@/features/billing/queries';
+import type { MeterState } from '@/features/billing/types';
+import { RATES_LINE } from '@/features/plans/pricing-spec';
 import api from '@/lib/api';
 import { startCheckout } from '@/lib/checkout';
-import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+
+const GB = 1024 ** 3;
 
 const fmt = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   return n.toLocaleString();
 };
-
-const fmtDate = (iso?: string) => {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-};
+const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const fmtDate = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
 
 export default function BillingSettingsPage() {
-  const params = { websiteId: usePathSegment(1) ?? '' };
-  const websiteId = params?.websiteId as string;
+  const websiteId = usePathSegment(1) ?? '';
   const router = useRouter();
+  const demo = isDemo(websiteId);
 
   useEffect(() => {
-    if (!isEnterprise && !isDemo(websiteId)) router.replace(`/websites/${websiteId}/settings`);
-  }, [router, websiteId]);
+    if (!isEnterprise && !demo) router.replace(`/websites/${websiteId}/settings`);
+  }, [router, websiteId, demo]);
 
-  if (!isEnterprise && !isDemo(websiteId)) return null;
-
-  const { subscription, loading, getUsagePercentage, refetch } = useSubscription();
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const { subscription, loading } = useSubscription();
+  const isPayg = subscription?.planId === 'payg';
+  const meter = useMeter({ demo, enabled: isPayg });
   const [confirm, confirmDialog] = useConfirm();
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [busy, setBusy] = useState<'checkout' | 'portal' | 'cancel' | null>(null);
 
-  // Everything plan-specific (name, price, feature list) comes straight off
-  // the resolved subscription now — gateway's /user/billing/usage already
-  // returns the real plan row's data, so there's no need to duplicate it
-  // here keyed by plan id the way this page used to.
-  const currentPlanId = subscription?.planId || 'core-free';
-  const planPrice = subscription?.priceMonthly ?? 0;
-  const isFreePlan = planPrice === 0;
-  const displayName = subscription?.plan || 'Free';
-  const periodLabel = isFreePlan ? '' : '/month';
+  if (!isEnterprise && !demo) return null;
 
-  const handleManagePayments = async () => {
-    if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
-    // The customer's own signed portal link when they have a subscription.
-    // Opened before the request resolves so the browser does not block it.
-    const tab = window.open('', '_blank');
+  const demoOnly = () => {
+    toast.info('Billing is not available on the demo site.');
+    return demo;
+  };
+
+  const upgrade = async () => {
+    if (demo && demoOnly()) return;
     try {
-      const res = await api.post('/user/billing/portal');
-      const url = res.data?.data?.url;
-      if (!url) throw new Error('no portal');
-      if (tab) tab.location.href = url; else window.location.href = url;
-    } catch {
-      tab?.close();
-      toast.error('Could not open the billing portal. Please try again.');
+      setBusy('checkout');
+      await startCheckout('payg');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Could not start the checkout. Please try again.');
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleCancel = async () => {
-    if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
+  /** The customer's own signed portal link: invoices, payment method, cancelling. */
+  const openPortal = async (kind: 'portal' | 'cancel') => {
+    if (demo && demoOnly()) return;
+    // Opened before the request resolves so the browser does not block it.
+    const tab = window.open('', '_blank');
+    try {
+      setBusy(kind);
+      const res = await api.post(kind === 'cancel' ? '/user/billing/cancel' : '/user/billing/portal');
+      const url = res.data?.data?.url;
+      if (!url) throw new Error('no portal');
+      if (tab) tab.location.href = url; else window.location.href = url;
+      if (kind === 'cancel') toast.info('Finish cancelling in the billing portal.');
+    } catch {
+      tab?.close();
+      toast.error('Could not open the billing portal. Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const cancel = async () => {
     const ok = await confirm({
-      title: 'Cancel your subscription?',
-      description: 'Your plan reverts to Free at the end of the current billing period. You keep everything until then.',
+      title: 'Cancel Pay-As-You-Go?',
+      description: 'You keep it until the end of this billing period, including usage billed for it. Then your account moves to Free and its limits.',
       confirmLabel: 'Cancel subscription',
       destructive: true,
     });
-    if (!ok) return;
-    try {
-      setCancelling(true);
-      const res = await api.post('/user/billing/cancel');
-      if (res.data.success && res.data.data.url) {
-        window.open(res.data.data.url, '_blank');
-        toast.info('Complete the cancellation in the billing portal.');
-      }
-    } catch { toast.error('Failed to initiate cancellation. Please try again.'); }
-    finally { setCancelling(false); }
+    if (ok) await openPortal('cancel');
   };
-
-  const handleCheckout = async (selection: PlanSelection) => {
-    if (isDemo(websiteId)) { toast.info('Billing not available in demo mode.'); return; }
-    if (selection.price === 0) { router.push(`/websites/${websiteId}`); return; }
-    try {
-      setCheckoutLoading(true);
-      const result = await startCheckout(selection.plan);
-      if (result.kind === 'changed') {
-        // Switched in place on the existing subscription: no checkout.
-        toast.success('Plan changed. The difference is prorated on your bill.');
-        await refetch();
-      }
-    } catch (e: unknown) {
-      const data = e && typeof e === 'object' && 'response' in e
-        ? (e as { response?: { data?: { error?: string; message?: string } } }).response?.data
-        : undefined;
-      const msg = data?.error ?? data?.message;
-      toast.error(msg || 'Failed to create checkout. Please try again.');
-    } finally { setCheckoutLoading(false); }
-  };
-
-  const usageItems: { name: string; key: keyof SubscriptionUsage; icon: typeof BarChart3; current: number; limit: number }[] = [
-    { name: 'Monthly Events',      key: 'monthlyEvents', icon: BarChart3, current: subscription?.usage?.monthlyEvents?.current || 0, limit: subscription?.usage?.monthlyEvents?.limit || 10000 },
-    { name: 'Websites',            key: 'websites',      icon: Globe,     current: subscription?.usage?.websites?.current || 0,      limit: subscription?.usage?.websites?.limit || 0 },
-    { name: 'Funnels',             key: 'funnels',       icon: Filter,    current: subscription?.usage?.funnels?.current || 0,        limit: subscription?.usage?.funnels?.limit || 1 },
-    { name: 'Automations',         key: 'workflows',     icon: Workflow,  current: subscription?.usage?.workflows?.current || 0,      limit: subscription?.usage?.workflows?.limit || 1 },
-    { name: 'Heatmaps',            key: 'heatmaps',      icon: Map,       current: subscription?.usage?.heatmaps?.current || 0,       limit: subscription?.usage?.heatmaps?.limit || 3 },
-    { name: 'Session Recordings',  key: 'replays',       icon: Video,     current: subscription?.usage?.replays?.current || 0,        limit: subscription?.usage?.replays?.limit ?? 5 },
-    { name: 'AI Analyses',         key: 'aiAnalyses',    icon: Sparkles,  current: subscription?.usage?.aiAnalyses?.current || 0,      limit: subscription?.usage?.aiAnalyses?.limit ?? 5 },
-  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
       </div>
     );
   }
 
   return (
-    <div className={cn(websiteWorkspaceShellClass, 'space-y-6 animate-in fade-in duration-500')}>
+    <div className={cn(websiteWorkspaceShellClass, 'space-y-6')}>
       {confirmDialog}
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Billing & Subscription"
-        description="Manage your plan, usage limits, and billing details."
-      />
+      <DashboardPageHeader websiteId={websiteId} title="Billing" description="Your plan, this month's usage and what it costs." />
 
-      <Tabs defaultValue="overview">
-        <TabsList className="mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="plans">Change Plan</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-
-              <Card className="border border-border">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Plan</span>
-                        {subscription?.cancelAtPeriodEnd ? (
-                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">
-                            Ending
-                          </Badge>
-                        ) : (
-                          <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <h2 className="text-4xl font-bold tracking-tight">
-                          {isFreePlan ? 'Free' : `$${planPrice}`}
-                        </h2>
-                        {!isFreePlan && (
-                          <span className="text-sm text-muted-foreground">{periodLabel}</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        <span className="font-medium text-foreground">{displayName}</span>
-                      </p>
-                    </div>
-
-                    {!isFreePlan && subscription?.currentPeriodEnd && !subscription?.cancelAtPeriodEnd && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2 shrink-0">
-                        <Calendar className="h-3.5 w-3.5 shrink-0" />
-                        <span>Renews {fmtDate(subscription.currentPeriodEnd)}</span>
-                      </div>
-                    )}
-                    {subscription?.cancelAtPeriodEnd && (
-                      <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 shrink-0">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          Your plan ends {fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" className="gap-1.5 text-xs" onClick={() => setIsUpgradeModalOpen(true)}>
-                      <Zap className="h-3.5 w-3.5" />
-                      {isFreePlan ? 'Upgrade Plan' : 'Change Plan'}
-                    </Button>
-                    {!isFreePlan && (
-                      <Button variant="outline" size="sm" onClick={handleManagePayments} className="gap-1.5 text-xs">
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Manage Payments
-                      </Button>
-                    )}
-                    {!isFreePlan && !subscription?.cancelAtPeriodEnd && (
-                      <Button
-                        variant="ghost" size="sm"
-                        onClick={handleCancel} disabled={cancelling}
-                        className="text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        {cancelling ? 'Processing…' : 'Cancel Subscription'}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div>
-                <h3 className="text-sm font-semibold mb-3">Usage this month</h3>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {usageItems.filter(r => r.limit !== 0).map(resource => {
-                    const pct = getUsagePercentage(resource.key);
-                    const Icon = resource.icon;
-                    const isUnlimited = resource.limit === -1;
-                    const isNear = pct >= 80 && !isUnlimited;
-                    const isAt = pct >= 100 && !isUnlimited;
-
-                    return (
-                      <Card key={resource.name} className="border border-border">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center">
-                              <Icon className="h-4 w-4 text-primary" />
-                            </div>
-                            <span className="text-sm font-medium">{resource.name}</span>
-                            {isAt && <Badge className="ml-auto text-[10px] px-1.5 py-0 h-4 bg-red-500/10 text-red-600 border border-red-500/20">Limit reached</Badge>}
-                            {isNear && !isAt && <Badge className="ml-auto text-[10px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">Near limit</Badge>}
-                          </div>
-                          <div className="flex justify-between items-baseline mb-2">
-                            <span className="text-xl font-semibold">{fmt(resource.current)}</span>
-                            <span className="text-xs text-muted-foreground">
-                              of {isUnlimited ? 'Unlimited' : fmt(resource.limit)}
-                            </span>
-                          </div>
-                          <Progress
-                            value={isUnlimited ? 0 : Math.min(pct, 100)}
-                            className={cn('h-1.5',
-                              isAt ? '[&>div]:bg-red-500' :
-                              isNear ? '[&>div]:bg-amber-500' : ''
-                            )}
-                          />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {usageItems.some(r => getUsagePercentage(r.key) >= 80 && r.limit !== -1) && (
-                  <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <p className="text-xs text-amber-700 dark:text-amber-400 flex-1">
-                      You&apos;re approaching some plan limits.
-                    </p>
-                    <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => setIsUpgradeModalOpen(true)}>
-                      Upgrade <ArrowUpRight className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+      {/* Plan */}
+      <Card className="border border-border">
+        <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold">{isPayg ? 'Pay-As-You-Go' : 'Free'}</h2>
+              {subscription?.cancelAtPeriodEnd ? (
+                <Badge className="h-5 border border-amber-500/20 bg-amber-500/10 px-1.5 text-[11px] font-medium text-amber-600">Ending</Badge>
+              ) : (
+                <Badge className="h-5 border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[11px] font-medium text-emerald-600">Active</Badge>
+              )}
             </div>
-
-            <div className="space-y-5">
-              <Card className="border border-border">
-                <CardContent className="p-5">
-                  <h4 className="text-sm font-semibold mb-4">
-                    Included in <span className="capitalize">{subscription?.isCustomPlan ? 'Custom' : displayName}</span>
-                  </h4>
-                  <ul className="space-y-2.5">
-                    {(subscription?.features ?? []).map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                        <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <Check className="h-2.5 w-2.5 text-emerald-500" />
-                        </div>
-                        <span className="leading-relaxed">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border">
-                <CardContent className="p-5 space-y-4">
-                  <h4 className="text-sm font-semibold">Billing Support</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Questions about your invoice or need a custom plan?
-                  </p>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                    <p className="text-xs text-muted-foreground mb-0.5">Contact</p>
-                    <p className="text-sm font-medium text-primary">billing@seentics.com</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={handleManagePayments}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    View Invoices
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isPayg
+                ? subscription?.cancelAtPeriodEnd
+                  ? `Ends ${fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free.`
+                  : `$15 a month plus usage past what's included. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
+                : 'Hard monthly limits. Collection pauses at a limit until the month resets.'}
+            </p>
           </div>
-        </TabsContent>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {isPayg ? (
+              <>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openPortal('portal')} disabled={busy !== null}>
+                  {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                  Invoices & payment
+                </Button>
+                {!subscription?.cancelAtPeriodEnd && (
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={cancel} disabled={busy !== null}>
+                    Cancel
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/pricing">Compare plans</Link>
+                </Button>
+                <Button size="sm" className="gap-1.5" onClick={upgrade} disabled={busy !== null}>
+                  {busy === 'checkout' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Upgrade to Pay-As-You-Go <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="plans">
-          <div className="space-y-6">
-            <PlanBuilder
-              onSubscribe={handleCheckout}
-              loading={checkoutLoading}
-              currentPlan={currentPlanId}
+      {isPayg && meter.data && <ThisPeriod meter={meter.data} />}
+      {isPayg && meter.isLoading && (
+        <Card className="border border-border"><CardContent className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
+      )}
+      {isPayg && meter.isError && (
+        <p className="text-sm text-muted-foreground">This period&apos;s usage could not be measured right now. Try again in a minute.</p>
+      )}
+      {isPayg && meter.data && <SpendCap meter={meter.data} demo={demo} />}
+
+      <LimitsGrid usage={subscription?.usage} isPayg={isPayg} />
+    </div>
+  );
+}
+
+/** This period's bill: the base price plus each metered resource's overage, and its usage against what's included. */
+function ThisPeriod({ meter }: { meter: MeterState }) {
+  const rows = [
+    { icon: BarChart3, label: 'Events', used: meter.used.events, included: meter.included.events, show: fmt, cost: meter.overage.credits.events },
+    { icon: Video, label: 'Session recordings', used: meter.used.replays, included: meter.included.replays, show: fmt, cost: meter.overage.credits.replays },
+    {
+      icon: Activity, label: 'Logs, traces & metrics', used: meter.used.observeBytes / GB, included: meter.included.observeGb,
+      show: (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} GB`, cost: meter.overage.credits.observe,
+    },
+  ];
+  const capped = meter.billableCents < meter.overage.credits.total;
+
+  return (
+    <Card className="border border-border">
+      <CardContent className="p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">This period so far</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">{money(meter.baseCents + meter.billableCents)}</p>
+          </div>
+          {meter.period && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              {fmtDate(meter.period.start)} – {fmtDate(meter.period.end)}
+            </p>
+          )}
+        </div>
+
+        {meter.paused && (
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Your spend cap is reached. Usage past what&apos;s included isn&apos;t being collected until the next period, or until you raise the cap.</span>
+          </div>
+        )}
+
+        <ul className="mt-5 divide-y divide-border border-t border-border">
+          <li className="flex items-center justify-between py-3 text-sm">
+            <span className="text-muted-foreground">Pay-As-You-Go plan</span>
+            <span className="tabular-nums">{money(meter.baseCents)}</span>
+          </li>
+          {rows.map(({ icon: Icon, label, used, included, show, cost }) => {
+            const share = included > 0 ? Math.min(100, (used / included) * 100) : 100;
+            const over = used > included;
+            return (
+              <li key={label} className="py-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    {label}
+                  </span>
+                  <span className={cn('tabular-nums', cost === 0 && 'text-muted-foreground')}>{cost === 0 ? 'Included' : money(cost)}</span>
+                </div>
+                <Progress value={share} className={cn('mt-2 h-1.5', over && '[&>div]:bg-amber-500')} />
+                <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                  {show(used)} of {show(included)} included{over ? ` · ${show(used - included)} over` : ''}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Past what&apos;s included: {RATES_LINE}.{capped ? ' Billed up to your spend cap.' : ''} Billed when the period ends.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** The whole monthly bill's ceiling. */
+function SpendCap({ meter, demo }: { meter: MeterState; demo: boolean }) {
+  const save = useSaveSpendCap();
+  const [dollars, setDollars] = useState(meter.spendCapCents != null ? String(meter.spendCapCents / 100) : '');
+  useEffect(() => {
+    setDollars(meter.spendCapCents != null ? String(meter.spendCapCents / 100) : '');
+  }, [meter.spendCapCents]);
+
+  const submit = async (cents: number | null) => {
+    if (demo) { toast.info('Billing is not available on the demo site.'); return; }
+    try {
+      await save.mutateAsync(cents);
+      toast.success(cents == null ? 'Spend cap removed.' : `Spend cap set to $${(cents / 100).toFixed(2)} a month.`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Could not save the spend cap.');
+    }
+  };
+
+  const parsed = Number(dollars);
+  const valid = dollars.trim() !== '' && Number.isFinite(parsed) && parsed * 100 >= meter.baseCents;
+
+  return (
+    <Card className="border border-border">
+      <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-3">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+          <div>
+            <h3 className="text-sm font-semibold">Monthly spend cap</h3>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              {meter.spendCapCents == null
+                ? 'No cap: usage past what’s included is always collected and billed.'
+                : `You're never billed more than ${money(meter.spendCapCents)} a month. At the cap, collection past what's included pauses.`}
+            </p>
+          </div>
+        </div>
+        <form
+          className="flex shrink-0 items-center gap-2"
+          onSubmit={(e) => { e.preventDefault(); if (valid) void submit(Math.round(parsed * 100)); }}
+        >
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+            <Input
+              value={dollars}
+              onChange={(e) => setDollars(e.target.value)}
+              inputMode="decimal"
+              placeholder="No cap"
+              className="h-9 w-28 pl-6 tabular-nums"
+              aria-label="Spend cap in dollars"
             />
           </div>
-        </TabsContent>
-      </Tabs>
+          <Button type="submit" size="sm" disabled={!valid || save.isPending}>
+            {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+          </Button>
+          {meter.spendCapCents != null && (
+            <Button type="button" variant="ghost" size="sm" disabled={save.isPending} onClick={() => void submit(null)}>
+              Remove
+            </Button>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
-      <UpgradePlanModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        currentPlan={currentPlanId}
-        limitType="monthlyEvents"
-        currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
-        limit={subscription?.usage?.monthlyEvents?.limit || 0}
-      />
+/** Everything with a count: Free's hard limits, or what Pay-As-You-Go leaves unlimited. */
+function LimitsGrid({ usage, isPayg }: { usage?: SubscriptionUsage; isPayg: boolean }) {
+  const items: Array<{ name: string; icon: typeof BarChart3; status?: { current: number; limit: number } }> = [
+    // Pay-As-You-Go shows events and recordings with this period's bill above.
+    ...(isPayg ? [] : [
+      { name: 'Events this month', icon: BarChart3, status: usage?.monthlyEvents },
+      { name: 'Session recordings', icon: Video, status: usage?.replays },
+    ]),
+    { name: 'AI analyses', icon: Sparkles, status: usage?.aiAnalyses },
+    { name: 'Websites', icon: Globe, status: usage?.websites },
+    { name: 'Heatmap pages', icon: Map, status: usage?.heatmaps },
+    { name: 'Funnels', icon: Filter, status: usage?.funnels },
+    { name: 'Automations', icon: Workflow, status: usage?.workflows },
+  ];
+
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-semibold">{isPayg ? 'Other usage' : 'Usage this month'}</h3>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map(({ name, icon: Icon, status }) => {
+          const current = status?.current ?? 0;
+          const limit = status?.limit ?? 0;
+          const unlimited = limit === -1;
+          const pct = unlimited || limit <= 0 ? 0 : Math.min(100, (current / limit) * 100);
+          return (
+            <Card key={name} className="border border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  {name}
+                  {!unlimited && pct >= 100 && (
+                    <Badge className="ml-auto h-4 border border-red-500/20 bg-red-500/10 px-1.5 text-[10px] text-red-600">Limit reached</Badge>
+                  )}
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <span className="text-xl font-semibold tabular-nums">{fmt(current)}</span>
+                  <span className="text-xs text-muted-foreground">of {unlimited ? 'Unlimited' : fmt(limit)}</span>
+                </div>
+                {!unlimited && (
+                  <Progress value={pct} className={cn('mt-2 h-1.5', pct >= 100 ? '[&>div]:bg-red-500' : pct >= 80 && '[&>div]:bg-amber-500')} />
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

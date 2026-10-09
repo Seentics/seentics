@@ -30,7 +30,7 @@ export { demoFunnels, demoFunnelAnalytics, demoFunnelStats } from './funnels';
 export { demoReplays } from './replays';
 export { demoHeatmapPages, demoHeatmapPoints } from './heatmaps';
 export { demoWebsite, demoGoals, demoMembers, demoPrivacySettings } from './settings';
-export { demoBilling, demoSubscription } from './billing';
+export { demoMeter, demoSubscription } from './billing';
 export { demoPathAnalysis } from './paths';
 export { demoSupportTickets } from './support';
 export { demoRevenueDashboard } from './revenue';

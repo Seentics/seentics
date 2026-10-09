@@ -286,6 +286,15 @@ async function createAbsentTables(coreRoot: string, absent: string[]): Promise<v
   const client = postgres(url, { max: 1, connect_timeout: 10 });
   try {
     const absentSet = new Set(absent);
+    // Only columns a table really lacks are added. `ADD COLUMN IF NOT EXISTS` for one it
+    // has is not a no-op everywhere: TimescaleDB refuses it on a compressed hypertable
+    // (analytics_events, core db/sql/038) when the column's default is not a constant,
+    // before IF NOT EXISTS is considered, and core then failed to start.
+    const existing = new Set(
+      (await client<{ key: string }[]>`
+        SELECT table_name || '.' || column_name AS key FROM information_schema.columns WHERE table_schema = 'public'
+      `).map((r) => r.key),
+    );
     await client.begin(async (tx) => {
       for (const statement of statements) {
         const table = tableOf(statement);
@@ -296,6 +305,7 @@ async function createAbsentTables(coreRoot: string, absent: string[]): Promise<v
             .replace(/^CREATE (UNIQUE )?INDEX /, "CREATE $1INDEX IF NOT EXISTS "));
         } else if (statement.startsWith("CREATE TABLE ")) {
           for (const column of addableColumns(statement)) {
+            if (existing.has(`${table}.${columnName(column)}`)) continue;
             await tx.unsafe(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS ${column}`);
           }
         }
@@ -305,6 +315,9 @@ async function createAbsentTables(coreRoot: string, absent: string[]): Promise<v
     await client.end({ timeout: 3 });
   }
 }
+
+/** The name of an exported column definition: `"website_id" text NOT NULL` → `website_id`. */
+export const columnName = (definition: string): string => definition.match(/^"([^"]+)"/)?.[1] ?? '';
 
 /**
  * The column definitions of an exported CREATE TABLE, in a form that can be added to an
