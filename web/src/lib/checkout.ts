@@ -37,17 +37,10 @@ export function takeCheckoutIntent(): string | null {
   }
 }
 
-export type CheckoutStart = { kind: 'redirected' } | { kind: 'changed' };
-
-/**
- * Buy `plan`: send the customer to checkout, or, when they already pay for these products, switch
- * their subscription in place (nothing to pay at a checkout). Throws with the gateway's message.
- */
-export async function startCheckout(plan: string): Promise<CheckoutStart> {
+/** Buy `plan`: send the customer to Lemon Squeezy's checkout. Throws with the gateway's message. */
+export async function startCheckout(plan: string): Promise<void> {
   const res = await api.post('/user/billing/checkout', { plan });
-  if (res.data?.success && res.data.data?.changed) return { kind: 'changed' };
   const url: string | undefined = res.data?.data?.checkoutUrl;
   if (!url) throw new Error(res.data?.error ?? 'No checkout was returned');
   openCheckout(url);
-  return { kind: 'redirected' };
 }

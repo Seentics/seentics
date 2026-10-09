@@ -1,4 +1,4 @@
-/** gateway GET /user/billing/meter: a Pay-As-You-Go account's current period (gateway/services/metering.ts). */
+/** gateway GET /user/billing/meter: a Pay-As-You-Go account's current period (gateway/billing/metering.ts). */
 export type MeterState = {
   period: { start: string; end: string } | null;
   used: { events: number; replays: number; observeBytes: number };

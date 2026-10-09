@@ -5,7 +5,6 @@ export type Plan = {
   tier: 'free' | 'payg';
   description: string | null;
   priceMonthly: number;
-  isBundle: boolean;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];
   features: string[];

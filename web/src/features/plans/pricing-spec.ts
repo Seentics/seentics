@@ -21,7 +21,7 @@ export type PricedPlan = {
 };
 
 /**
- * Past the included amounts. Must match the gateway's billing (gateway/services/metering.ts RATES):
+ * Past the included amounts. Must match the gateway's billing (gateway/billing/metering.ts RATES):
  * $0.01 per 1,000 events, $1 per 1,000 recordings, $0.25 per GB.
  */
 export const OVERAGE_RATES = {

@@ -80,7 +80,7 @@ export default function BillingSettingsPage() {
     const tab = window.open('', '_blank');
     try {
       setBusy(kind);
-      const res = await api.post(kind === 'cancel' ? '/user/billing/cancel' : '/user/billing/portal');
+      const res = await api.post('/user/billing/portal');
       const url = res.data?.data?.url;
       if (!url) throw new Error('no portal');
       if (tab) tab.location.href = url; else window.location.href = url;

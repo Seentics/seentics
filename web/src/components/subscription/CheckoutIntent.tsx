@@ -21,17 +21,10 @@ export default function CheckoutIntent() {
     if (!plan) return;
     started.current = true;
     setBusy(true);
-    startCheckout(plan)
-      .then((result) => {
-        if (result.kind === 'changed') {
-          toast.success('Plan changed. The difference is prorated on your bill.');
-          setBusy(false);
-        }
-      })
-      .catch(() => {
-        toast.error('Could not open the checkout. Choose your plan again from Billing.');
-        setBusy(false);
-      });
+    startCheckout(plan).catch(() => {
+      toast.error('Could not open the checkout. Choose your plan again from Billing.');
+      setBusy(false);
+    });
   }, [user]);
 
   if (!busy) return null;

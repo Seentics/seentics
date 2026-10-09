@@ -29,11 +29,7 @@ export default function Pricing() {
     }
     try {
       setLoading(true);
-      const result = await startCheckout(selection.plan);
-      if (result.kind === 'changed') {
-        toast.success('You are on Pay-As-You-Go.');
-        router.push('/websites');
-      }
+      await startCheckout(selection.plan);
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
     } finally {

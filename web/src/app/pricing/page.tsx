@@ -34,11 +34,7 @@ export default function PricingPage() {
         }
         try {
             setLoading(true);
-            const result = await startCheckout(selection.plan);
-            if (result.kind === 'changed') {
-                toast.success('You are on Pay-As-You-Go.');
-                router.push('/websites');
-            }
+            await startCheckout(selection.plan);
         } catch (error: any) {
             toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to create checkout. Please try again.');
         } finally {

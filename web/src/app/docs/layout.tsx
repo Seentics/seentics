@@ -71,20 +71,21 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen flex-col bg-background">
       <LandingHeader alwaysBordered />
 
-      <div className="flex flex-1 pt-[72px] sm:pt-20">
-        {/* Desktop sidebar. A real border, not a faked one via box-shadow. */}
-        <aside className="fixed bottom-0 left-0 top-[72px] z-40 hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border px-3 py-8 sm:top-20 lg:flex">
+      <div className="landing-container flex flex-1 pt-[72px] sm:pt-20">
+        {/* Desktop sidebar. Sticky inside the same container as the header so its left
+            edge matches the header's; a real border, not a faked one via box-shadow. */}
+        <aside className="sticky top-[72px] hidden h-[calc(100dvh-72px)] w-64 shrink-0 flex-col self-start overflow-y-auto border-r border-border py-8 pr-3 sm:top-20 sm:h-[calc(100dvh-80px)] lg:flex">
           {nav()}
         </aside>
 
-        <main className="min-w-0 flex-1 lg:ml-64">
+        <main className="min-w-0 flex-1">
           {/* Mobile nav — the sidebar has no place to go below `lg`. */}
           <div className="border-b border-border lg:hidden">
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
               aria-expanded={mobileOpen}
-              className="flex w-full items-center justify-between px-6 py-3.5 text-sm font-medium text-foreground"
+              className="flex w-full items-center justify-between py-3.5 text-sm font-medium text-foreground"
             >
               <span className="flex items-center gap-2">
                 {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -99,7 +100,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             )}
           </div>
 
-          <div className="mx-auto max-w-3xl px-6 py-10 md:px-10 md:py-14">
+          <div className="mx-auto max-w-3xl px-0 py-10 lg:px-10 md:py-14">
             {children}
 
             {/* Previous / next. Fourteen separate pages need a way through them
