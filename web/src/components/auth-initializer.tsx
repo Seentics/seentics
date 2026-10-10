@@ -21,7 +21,10 @@ export default function AuthInitializer() {
     let cancelled = false;
 
     const finish = async () => {
-      if (!useAuth.getState().user) {
+      // An embed (`/embed/…`, inside someone else's page) has no use for a session and should not
+      // probe the visitor's: it reads through its own link.
+      const embedded = window.location.pathname.startsWith('/embed/');
+      if (!embedded && !useAuth.getState().user) {
         try {
           const res = await fetch(getApiUrl('/user/auth/me'), { credentials: 'include' });
           if (res.ok) {

@@ -26,6 +26,7 @@ export function initRecordingsModule(deps: {
     retention: new RecordingRetentionPurge(),
     usage: new RecordingUsageCounter(),
     rawReads: new RecordingRawReadService(),
+    reads: { listSessions: listReplaySessions, getSessionDetail: getReplaySessionDetail },
     routes: createRecordingRoutes({
       recordingList: { listSessions: listReplaySessions },
       recordingDetails: { getSessionDetail: getReplaySessionDetail },

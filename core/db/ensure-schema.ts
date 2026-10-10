@@ -56,6 +56,7 @@ const REQUIRED_TABLES = [
   "ingest_applied_batches",
   "clients",
   "account_api_keys",
+  "embed_links",
 ] as const;
 
 /** Every table the Drizzle schema defines. */

@@ -82,7 +82,7 @@ export function AnalyticsApiTab() {
     <EndpointReference
       docs={docs}
       baseUrl={`${origin}${catalogue.meta.base_path}`}
-      intro={<>Send a <strong>website key</strong> as <code className="font-mono text-xs">X-API-Key</code>.</>}
+      intro={<>Send an <strong>account key</strong> with the data scopes as <code className="font-mono text-xs">X-API-Key</code>.</>}
     />
   );
 }

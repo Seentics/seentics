@@ -63,6 +63,7 @@ export function initWebsitesModule(deps: {
   // Read per request, so the snippet follows config without the module holding it.
   const scriptUrl = () => env().trackerScriptUrl;
   const clientRoutes = createClientRoutes({ clients, scriptUrl });
+  const ownedWebsiteRoutes = createOwnedWebsiteRoutes({ websites: clients, scriptUrl });
 
   return {
     query: cached,
@@ -76,10 +77,10 @@ export function initWebsitesModule(deps: {
     // and it must read its own writes.
     clients,
     ownedWebsites: clients,
-    agencyRoutes: createAgencyRoutes(clientRoutes),
+    agencyRoutes: createAgencyRoutes(clientRoutes, ownedWebsiteRoutes),
     managementRoutes: {
       clients: clientRoutes,
-      websites: createOwnedWebsiteRoutes({ websites: clients, scriptUrl }),
+      websites: ownedWebsiteRoutes,
     },
     usage: new WebsiteUsageCounter(),
     retentionSites: new WebsiteRetentionSiteSource(),

@@ -11,24 +11,42 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CopyButton } from '@/components/agency/CopyButton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 
-const ACCESS: Array<{ id: 'write' | 'read'; label: string; description: string; scopes: AccountScope[] }> = [
+const DATA_SCOPES: AccountScope[] = ['analytics:read', 'replays:read', 'heatmaps:read'];
+
+const ACCESS: Array<{ id: 'full' | 'read' | 'manage'; label: string; description: string; scopes: AccountScope[] }> = [
   {
-    id: 'write',
-    label: 'Read & write',
-    description: 'Create, update and delete clients and websites — what a signup handler needs.',
-    scopes: ['websites:read', 'websites:write'],
+    id: 'full',
+    label: 'Full access',
+    description: 'Create and manage clients and websites, and read their analytics. What most backends need.',
+    scopes: ['websites:read', 'websites:write', ...DATA_SCOPES],
   },
   {
     id: 'read',
     label: 'Read only',
-    description: 'List clients and websites and fetch tracking snippets.',
-    scopes: ['websites:read'],
+    description: 'List clients and websites and read their analytics, recordings and heatmaps. Cannot change anything.',
+    scopes: ['websites:read', ...DATA_SCOPES],
+  },
+  {
+    id: 'manage',
+    label: 'Manage only',
+    description: 'Create, update and delete clients and websites. Cannot read analytics.',
+    scopes: ['websites:read', 'websites:write'],
   },
 ];
+
+/** How a key's scopes read in the table. */
+function accessLabel(scopes: AccountScope[]): { text: string; strong: boolean } {
+  const write = scopes.includes('websites:write');
+  const data = DATA_SCOPES.some(s => scopes.includes(s));
+  if (write && data) return { text: 'Full access', strong: true };
+  if (write) return { text: 'Manage only', strong: true };
+  return { text: data ? 'Read only' : 'Limited', strong: false };
+}
 
 export function CreateAccountKeyDialog({ websiteId, open, onOpenChange }: {
   websiteId: string;
@@ -36,7 +54,7 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange }: {
   onOpenChange: (v: boolean) => void;
 }) {
   const [name, setName] = useState('');
-  const [access, setAccess] = useState<'write' | 'read'>('write');
+  const [access, setAccess] = useState<'full' | 'read' | 'manage'>('full');
   const [secret, setSecret] = useState<string | null>(null);
   const create = useCreateAPIKey(websiteId);
 
@@ -48,17 +66,18 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange }: {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>New account key</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5">
-            <div className="space-y-1.5">
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader className="bg-card">
+            <SheetTitle>New API key</SheetTitle>
+            <SheetDescription>One key for your whole account. Keep it on your server.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+            <div className="space-y-1 rounded-lg border bg-card p-3.5 shadow-sm">
               <Label className="text-xs">Name</Label>
-              <Input placeholder="e.g. Signup handler" value={name} onChange={e => setName(e.target.value)} className="h-9 text-sm" autoFocus />
+              <Input placeholder="e.g. Signup handler" value={name} onChange={e => setName(e.target.value)} className="h-8 !bg-card text-xs" autoFocus />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 rounded-lg border bg-card p-3.5 shadow-sm">
               <Label className="text-xs">Access</Label>
               {ACCESS.map(a => (
                 <button
@@ -75,16 +94,16 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange }: {
                 </button>
               ))}
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button size="sm" onClick={submit} disabled={!name.trim() || create.isPending}>
-                {create.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-                Create key
-              </Button>
-            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+          <SheetFooter className="bg-card pr-20">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button size="sm" onClick={submit} disabled={!name.trim() || create.isPending}>
+              {create.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+              Create key
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!secret} onOpenChange={v => !v && setSecret(null)}>
         <DialogContent className="max-w-lg">
@@ -98,7 +117,7 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange }: {
             <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                Copy it now — it is never shown again. Keep it on your server; it can create and delete your sites.
+                Copy it now — it is never shown again. Keep it on your server: depending on its access it can change your sites and read their data.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -138,7 +157,7 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
         <div>
           <p className="text-sm font-semibold text-foreground">No account keys yet</p>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Create one to provision clients and websites from your own backend.
+            Create one to manage clients and websites, and read their analytics, from your own backend.
           </p>
         </div>
         <Button size="sm" className="gap-1.5" onClick={onCreate}>
@@ -165,7 +184,7 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
       </thead>
       <tbody className="divide-y divide-border/60">
         {keys.map(key => {
-          const write = key.scopes.includes('websites:write');
+          const access = accessLabel(key.scopes);
           return (
             <tr key={key.id} className="hover:bg-muted/35">
               <td className="px-5 py-3.5 font-medium text-foreground">{key.name}</td>
@@ -175,11 +194,11 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
               <td className="px-5 py-3.5">
                 <span className={cn(
                   'rounded-full px-2.5 py-1 text-xs font-semibold',
-                  write
+                  access.strong
                     ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
                     : 'bg-muted text-muted-foreground',
                 )}>
-                  {write ? 'Read & write' : 'Read only'}
+                  {access.text}
                 </span>
               </td>
               <td className="px-5 py-3.5 text-muted-foreground">

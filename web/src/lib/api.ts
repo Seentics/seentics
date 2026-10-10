@@ -52,8 +52,47 @@ export function setApiToken(token: string | null) {
   _currentToken = token;
 }
 
+/**
+ * An embedded dashboard (`/embed/…`) has no session: it holds an embed link's token and may
+ * only read. While one is set, the dashboard's analytics calls — `/analytics/<name>/<site>` —
+ * are sent to the embed API instead, with the token, and nothing else is: no login, no
+ * cookies, and a 401 never redirects to sign-in inside someone else's page.
+ */
+let embedToken: string | null = null;
+
+export function setEmbedToken(token: string | null) {
+  embedToken = token;
+}
+
+/**
+ * The dashboard's read calls, and where the embed API serves each:
+ *   /analytics/<name>/<site>        ->  /embed/<site>/analytics/<name>
+ *   /replays/<site>[/<rest>]        ->  /embed/<site>/replays[/<rest>]
+ *   /heatmaps/<site>/<rest>         ->  /embed/<site>/heatmaps/<rest>
+ */
+const EMBED_REWRITES: Array<[RegExp, (m: RegExpExecArray) => string]> = [
+  [/^\/analytics\/([^/?]+)\/([^/?]+)(\?.*)?$/, m => `/embed/${m[2]}/analytics/${m[1]}${m[3] ?? ''}`],
+  [/^\/replays\/([^/?]+)((?:\/[^?]*)?)(\?.*)?$/, m => `/embed/${m[1]}/replays${m[2] ?? ''}${m[3] ?? ''}`],
+  [/^\/heatmaps\/([^/?]+)\/([^?]*)(\?.*)?$/, m => `/embed/${m[1]}/heatmaps/${m[2]}${m[3] ?? ''}`],
+];
+
+export function toEmbedUrl(url: string): string {
+  for (const [re, build] of EMBED_REWRITES) {
+    const m = re.exec(url);
+    if (m) return build(m);
+  }
+  return url;
+}
+
 // Request interceptor — attach Authorization header from persisted tokens
 api.interceptors.request.use((config) => {
+  if (embedToken) {
+    config.url = toEmbedUrl(config.url ?? '');
+    config.withCredentials = false;
+    // The link's secret goes only to the embed API, never to any other endpoint.
+    if (config.url.startsWith('/embed/')) config.headers['X-Embed-Token'] = embedToken;
+    return config;
+  }
   const token = _currentToken ?? getPersistedAuth().access_token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -98,7 +137,7 @@ api.interceptors.response.use(
     // /signin on clicking "Live demo".
     const isSecretVerify = requestUrl.includes('/verify-secrets');
     const onDemoPage = typeof window !== 'undefined' && /^\/websites\/demo(\/|$)/.test(window.location.pathname);
-    if (error.response?.status === 401 && (isDemoRequest || isSecretVerify || onDemoPage)) {
+    if (error.response?.status === 401 && (embedToken || isDemoRequest || isSecretVerify || onDemoPage)) {
       return Promise.reject(error);
     }
 

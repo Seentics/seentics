@@ -20,7 +20,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // usePathSegment, not useParams — see src/lib/path-segment.ts. On the static shell
   // useParams is the build-time placeholder, so every settings tab linked to a
   // website that does not exist.
-  const websiteId = usePathSegment(1) ?? '';
+  const segment = usePathSegment(1);
+  const websiteId = segment ?? '';
   const { user, isLoading } = useAuth();
   const { subscription } = useSubscription();
   const showBilling = isEnterprise || isDemo(websiteId);
@@ -68,13 +69,18 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     [groups, websiteId],
   );
 
+  const demo = isDemo(websiteId);
+
   useEffect(() => {
-    if (!isLoading && !user) {
+    // The demo website is open to anyone: there is no account to sign in to.
+    // `segment` is null for the first render, before the URL is read: until then we cannot
+    // tell the demo site from a real one, so do not send anyone to sign in yet.
+    if (segment !== null && !demo && !isLoading && !user) {
       router.push('/signin');
     }
-  }, [user, isLoading, router]);
+  }, [segment, demo, user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading && !demo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -82,7 +88,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     );
   }
 
-  if (!user) {
+  if (!user && !demo) {
     return null;
   }
 

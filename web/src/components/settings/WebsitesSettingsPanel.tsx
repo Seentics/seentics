@@ -22,8 +22,6 @@ import {
   Plus,
   Copy,
   Check,
-  Lightbulb,
-  Info,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -53,9 +51,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
-import { isDemo, demoMutationGuard } from '@/lib/demo';
+import { isDemo, demoMutationGuard, demoWebsite } from '@/lib/demo';
 
 function trackingSnippetFor(id: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://analytics.seentics.com';
@@ -79,6 +78,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const onDemoSite = typeof window !== 'undefined' && isDemo(window.location.pathname.split('/')[2] ?? '');
   const [listLoading, setListLoading] = useState(true);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -102,7 +102,8 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   const refresh = useCallback(async () => {
     setListLoading(true);
     try {
-      const data = await getWebsites();
+      // Signed out on the demo website: show its sample site rather than an empty list.
+      const data = user ? await getWebsites() : [demoWebsite() as unknown as Website];
       if (data.length === 0 && redirectWhenEmpty) {
         router.replace('/websites');
         return;
@@ -121,9 +122,9 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   }, [toast, router, redirectWhenEmpty]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user && !onDemoSite) return;
     refresh();
-  }, [user, refresh]);
+  }, [user, onDemoSite, refresh]);
 
   useEffect(() => {
     if (!snippetSite) setSnippetCopied(false);
@@ -299,60 +300,79 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!snippetSite} onOpenChange={(o) => !o && setSnippetSite(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Tracking snippet</DialogTitle>
-            <DialogDescription>
-              Install this on <span className="font-medium text-foreground">{snippetSite?.name}</span>. Use the site&apos;s
-              ID <code className="text-xs font-mono bg-muted px-1 rounded-lg">{snippetSite?.id}</code> in the script tag.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-muted-foreground">Embed code</span>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={copySnippet}>
-                {snippetCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {snippetCopied ? 'Copied' : 'Copy'}
-              </Button>
+      <Sheet open={!!snippetSite} onOpenChange={(o) => !o && setSnippetSite(null)}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader className="bg-card">
+            <SheetTitle className="flex items-center gap-2">
+              <Code2 className="h-4 w-4 text-muted-foreground" />
+              Tracking code
+            </SheetTitle>
+            <SheetDescription>
+              Install on <span className="font-medium text-foreground">{snippetSite?.name}</span> to start collecting data.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+            <div className="space-y-2 rounded-lg border bg-card p-3.5 shadow-sm">
+              <p className="text-xs font-medium text-muted-foreground">Website ID</p>
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-md border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground select-all">
+                  {snippetSite?.id}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 bg-card"
+                  aria-label="Copy website ID"
+                  onClick={() => {
+                    if (!snippetSite) return;
+                    navigator.clipboard?.writeText(snippetSite.id).then(
+                      () => toast({ title: 'Copied', description: 'Website ID copied.' }),
+                      () => toast({ title: 'Copy failed', variant: 'destructive' }),
+                    );
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border bg-muted/30 p-4">
-              <pre className="text-xs font-mono leading-relaxed text-foreground sm:text-sm">
+
+            <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-sm">
+              <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-1.5">
+                <span className="text-[11px] text-zinc-500">HTML</span>
+                <button
+                  type="button"
+                  onClick={copySnippet}
+                  className="inline-flex items-center gap-1 text-[11px] text-zinc-400 transition-colors hover:text-zinc-100"
+                >
+                  {snippetCopied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  {snippetCopied ? 'Copied' : 'Copy code'}
+                </button>
+              </div>
+              <pre className="overflow-x-auto p-3.5 font-mono text-xs leading-relaxed text-zinc-200">
                 <code>{snippetText}</code>
               </pre>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
-                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <div>
-                  <p className="text-xs font-medium text-foreground">Installation</p>
-                  <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                    Paste into the <code className="rounded-lg bg-muted px-1">{`<head>`}</code> of your site. The script is
-                    deferred and lightweight.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <div>
-                  <p className="text-xs font-medium text-foreground">Verification</p>
-                  <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                    After deploy, open your site and check the{' '}
-                    {snippetSite ? (
-                      <Link href={`/websites/${snippetSite.id}`} className="text-primary hover:underline">
-                        Overview
-                      </Link>
-                    ) : (
-                      'Overview'
-                    )}{' '}
-                    for hits.
-                  </p>
-                </div>
-              </div>
-            </div>
+
+            <ol className="space-y-2.5 rounded-lg border bg-card p-3.5 text-[13px] text-muted-foreground shadow-sm">
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">1</span>
+                <span>Paste it into the <code className="rounded bg-muted px-1 font-mono text-xs text-foreground">{`<head>`}</code> of every page you want to track.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">2</span>
+                <span>
+                  Deploy, open your site, then check the{' '}
+                  {snippetSite ? (
+                    <Link href={`/websites/${snippetSite.id}`} className="font-medium text-primary hover:underline">Overview</Link>
+                  ) : 'Overview'}{' '}
+                  for your first visit.
+                </span>
+              </li>
+            </ol>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <div className="surface overflow-hidden">
         <Table>
@@ -362,7 +382,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
               <TableHead className="hidden sm:table-cell">URL</TableHead>
               <TableHead className="hidden md:table-cell">Added</TableHead>
               <TableHead className="hidden lg:table-cell">Status</TableHead>
-              <TableHead className="w-[56px] text-right"> </TableHead>
+              <TableHead className="w-[190px] text-right"> </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -404,6 +424,16 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 hover:text-primary"
+                    onClick={() => setSnippetSite(w)}
+                  >
+                    <Code2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Tracking code</span>
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -449,6 +479,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

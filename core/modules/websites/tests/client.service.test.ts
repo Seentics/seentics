@@ -161,14 +161,26 @@ describe("ownership", () => {
     expect(repo.clients.has(client.id)).toBe(true);
   });
 
-  it("will not file another owner's site under a client", async () => {
+  it("will not move another owner's site, nor file one under another owner's client", async () => {
     const { client } = await service.createClient(OWNER, { name: "A" });
     const foreign = site(OTHER);
     sites.set(foreign.id, foreign);
-    await expect(service.assignWebsite(OWNER, client.id, foreign.id)).rejects.toEqual(
-      new ClientOperationError("website_not_found"),
-    );
+    expect(await service.updateWebsite(OWNER, foreign.id, { clientId: client.id })).toBeNull();
     expect(foreign.clientId).toBeNull();
+    const mine = site(OWNER);
+    sites.set(mine.id, mine);
+    const { client: theirs } = await service.createClient(OTHER, { name: "B" });
+    await expect(service.updateWebsite(OWNER, mine.id, { clientId: theirs.id })).rejects.toEqual(
+      new ClientOperationError("not_found"),
+    );
+  });
+
+  it("moves a site into a client and back out with updateWebsite", async () => {
+    const { client } = await service.createClient(OWNER, { name: "A" });
+    const loose = site(OWNER);
+    sites.set(loose.id, loose);
+    expect((await service.updateWebsite(OWNER, loose.id, { clientId: client.id }))!.clientId).toBe(client.id);
+    expect((await service.updateWebsite(OWNER, loose.id, { clientId: null }))!.clientId).toBeNull();
   });
 
   it("will not create a site under another owner's client", async () => {
@@ -187,9 +199,6 @@ describe("max_websites", () => {
     );
     const loose = site(OWNER);
     sites.set(loose.id, loose);
-    await expect(service.assignWebsite(OWNER, client.id, loose.id)).rejects.toEqual(
-      new ClientOperationError("website_limit_reached"),
-    );
     await expect(service.updateWebsite(OWNER, loose.id, { clientId: client.id })).rejects.toEqual(
       new ClientOperationError("website_limit_reached"),
     );
@@ -197,8 +206,8 @@ describe("max_websites", () => {
 
   it("does not count a site already filed under the client against it", async () => {
     const { client } = await service.createClient(OWNER, { name: "A", limits: { max_websites: 1 } }, { name: "1", url: "one.example" });
-    const filed = await service.assignWebsite(OWNER, client.id, client.websites[0]!.id);
-    expect(filed.clientId).toBe(client.id);
+    const filed = await service.updateWebsite(OWNER, client.websites[0]!.id, { clientId: client.id });
+    expect(filed!.clientId).toBe(client.id);
   });
 });
 

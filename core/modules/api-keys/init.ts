@@ -1,21 +1,22 @@
 import type { WebsitesModule } from "../websites/interfaces";
 import type { ApiKeysModule } from "./interfaces";
 import { createAccountApiKeyRoutes } from "./account-routes";
-import { createEmbedTokenRoutes } from "./embed-routes";
-import { createApiKeyRoutes } from "./routes";
+import { createEmbedLinkRoutes } from "./embed-routes";
 import { verifyAccountApiKey } from "./services/account-api-key.service";
-import { createApiKey } from "./services/api-key.service";
-import { verifyWebsiteApiKey } from "./services/api-key-verification.service";
-import { embedTokens } from "./services/embed-token.service";
+import { createRawApiVerifier } from "./services/raw-api-verification.service";
+import { embedLinkService } from "./services/embed-link.service";
 
 export function initApiKeysModule(deps: { websitesModule: WebsitesModule }): ApiKeysModule {
+  const accountVerifier = { verify: verifyAccountApiKey };
   return {
-    routes: createApiKeyRoutes({ websites: deps.websitesModule.query }),
-    verifier: { verify: verifyWebsiteApiKey },
+    verifier: createRawApiVerifier({ accountKeys: accountVerifier, ownedWebsites: deps.websitesModule.ownedWebsites }),
     accountRoutes: createAccountApiKeyRoutes(),
-    accountVerifier: { verify: verifyAccountApiKey },
-    websiteKeys: { create: createApiKey },
-    embedTokens,
-    embedRoutes: createEmbedTokenRoutes({ websites: deps.websitesModule.accessChecks }),
+    accountVerifier,
+    embedLinks: embedLinkService,
+    embedRoutes: createEmbedLinkRoutes({
+      embedLinks: embedLinkService,
+      websites: deps.websitesModule.accessChecks,
+      clients: deps.websitesModule.clients,
+    }),
   };
 }

@@ -9,6 +9,8 @@ import type {
   CreateClientRequest,
   CreateClientUserRequest,
   CreateClientUserResponse,
+  EmbedLink,
+  EmbedSection,
   PortalToken,
   UpdateClientRequest,
   WhiteLabelSettings,
@@ -128,7 +130,7 @@ function mapAPIKey(k: WireAPIKey): AgencyAPIKey {
 }
 
 /** Request body for create and update; absent fields stay absent. */
-function clientToWire(req: UpdateClientRequest): Record<string, unknown> {
+function clientToWire(req: UpdateClientRequest & { website?: CreateClientRequest['website'] }): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   if (req.name !== undefined) body.name = req.name;
   if (req.externalId !== undefined) body.external_id = req.externalId;
@@ -139,6 +141,7 @@ function clientToWire(req: UpdateClientRequest): Record<string, unknown> {
   if (req.note !== undefined) body.note = req.note;
   if (req.featuresEnabled !== undefined) body.features_enabled = req.featuresEnabled;
   if (req.limits !== undefined) body.limits = limitsToWire(req.limits);
+  if (req.website !== undefined) body.website = req.website;
   return body;
 }
 
@@ -169,16 +172,14 @@ export async function deleteClient(id: string, opts: { deleteWebsites?: boolean 
   await api.delete(`/user/agency/clients/${id}`, { params: opts.deleteWebsites ? { delete_websites: true } : {} });
 }
 
-export async function assignWebsite(clientId: string, websiteId: string): Promise<ClientWebsite> {
-  const response = await api.post<{ data: WireClientWebsite }>(`/user/agency/clients/${clientId}/websites`, {
-    website_id: websiteId,
-  });
-  return mapClientWebsite(response.data.data);
+/** Files a website you already have under a client, or (`clientId: null`) takes it out of any. */
+async function setWebsiteClient(websiteId: string, clientId: string | null): Promise<void> {
+  await api.patch(`/user/agency/websites/${websiteId}`, { client_id: clientId });
 }
 
-export async function unassignWebsite(clientId: string, websiteId: string): Promise<void> {
-  await api.delete(`/user/agency/clients/${clientId}/websites/${websiteId}`);
-}
+export const assignWebsite = (clientId: string, websiteId: string) => setWebsiteClient(websiteId, clientId);
+
+export const unassignWebsite = (_clientId: string, websiteId: string) => setWebsiteClient(websiteId, null);
 
 // ─── Account API keys ─────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ export async function listAgencyAPIKeys(): Promise<AgencyAPIKey[]> {
   return response.data.data.map(mapAPIKey);
 }
 
-/** Omitting `scopes` grants both read and write. */
+/** Omitting `scopes` grants every scope. */
 export async function createAgencyAPIKey(name: string, scopes?: AccountScope[]): Promise<AgencyAPIKey> {
   const response = await api.post<{ data: WireAPIKey }>('/user/agency/api-keys', { name, scopes });
   return mapAPIKey(response.data.data);
@@ -199,16 +200,65 @@ export async function deleteAgencyAPIKey(id: string): Promise<void> {
 
 // ─── Embeds ───────────────────────────────────────────────────────────────────
 
-export type EmbedToken = { token: string; expiresAt: string; embedUrl: string };
+type WireEmbedLink = {
+  id: string;
+  scope: 'website' | 'client';
+  target_id: string;
+  target_name: string;
+  token: string;
+  embed_url: string;
+  sections?: EmbedSection[];
+  created_at: string;
+};
 
-/** A short-lived link to an iframed dashboard of one website (admin or owner only). */
-export async function createEmbedToken(websiteId: string, expiresInSeconds: number): Promise<EmbedToken> {
-  const response = await api.post<{ data: { token: string; expires_at: string; embed_url: string } }>(
-    '/user/agency/embed-tokens',
-    { website_id: websiteId, expires_in_seconds: expiresInSeconds },
-  );
-  const d = response.data.data;
-  return { token: d.token, expiresAt: d.expires_at, embedUrl: d.embed_url };
+/**
+ * The dashboard builds the link from the page it is on, keeping only the server's path and query.
+ * The server's host comes from its own FRONTEND_URL setting; a wrong one there should not send
+ * someone to a dead link when the embed page is served from right here.
+ */
+function embedPath(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return url;
+  }
+}
+
+function mapEmbedLink(l: WireEmbedLink): EmbedLink {
+  return {
+    id: l.id, scope: l.scope, targetId: l.target_id, targetName: l.target_name,
+    token: l.token, embedUrl: embedPath(l.embed_url), sections: l.sections ?? ['analytics'], createdAt: l.created_at,
+  };
+}
+
+export async function listEmbedLinks(): Promise<EmbedLink[]> {
+  const response = await api.get<{ data: WireEmbedLink[] }>('/user/agency/embed-links');
+  return response.data.data.map(mapEmbedLink);
+}
+
+/** Returns the target's existing link, or makes one — never a second. */
+export async function createEmbedLink(
+  target: { websiteId: string } | { clientId: string },
+  sections?: EmbedSection[],
+): Promise<EmbedLink> {
+  const body = {
+    ...('websiteId' in target ? { website_id: target.websiteId } : { client_id: target.clientId }),
+    ...(sections ? { sections } : {}),
+  };
+  const response = await api.post<{ data: WireEmbedLink }>('/user/agency/embed-links', body);
+  return mapEmbedLink(response.data.data);
+}
+
+/** Changes what a link shows. Takes effect at once, and the URL stays the same. */
+export async function updateEmbedLinkSections(id: string, sections: EmbedSection[]): Promise<EmbedLink> {
+  const response = await api.patch<{ data: WireEmbedLink }>(`/user/agency/embed-links/${id}`, { sections });
+  return mapEmbedLink(response.data.data);
+}
+
+/** Stops the link working at once. Making another for the same target gives a new URL. */
+export async function revokeEmbedLink(id: string): Promise<void> {
+  await api.delete(`/user/agency/embed-links/${id}`);
 }
 
 // ─── Cloud only ───────────────────────────────────────────────────────────────

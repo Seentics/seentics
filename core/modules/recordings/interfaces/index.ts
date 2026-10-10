@@ -21,3 +21,6 @@ export type {
 export type { RecordingsModule } from "./recordings.module";
 
 export type { RecordingRawReads } from "./recording.interface";
+
+/** Query contract of the list read, shared with the embed API. */
+export { replayListQuerySchema } from "../validators/recording.schema";

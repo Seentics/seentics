@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -425,6 +426,39 @@ export const accountApiKeys = pgTable(
   (t) => [
     index("ix_account_api_keys_user_id").on(t.userId),
     index("ix_account_api_keys_key_prefix").on(t.keyPrefix),
+  ],
+);
+
+/**
+ * Permanent, revocable embed links (048): one website's analytics, or all of a client's,
+ * in an iframe. The URL's token is signed from `id` and never stored; verifying it checks
+ * the signature and that this row is not revoked. A target has at most one live link.
+ */
+export const embedLinks = pgTable(
+  "embed_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id").notNull(),
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /** Sections the link exposes (049); read at verification time. */
+    sections: text("sections").array().notNull().default(sql`'{analytics}'::text[]`),
+  },
+  (t) => [
+    index("ix_embed_links_owner_id").on(t.ownerId),
+    uniqueIndex("ux_embed_links_website_live")
+      .on(t.websiteId)
+      .where(sql`${t.websiteId} IS NOT NULL AND ${t.revokedAt} IS NULL`),
+    uniqueIndex("ux_embed_links_client_live")
+      .on(t.clientId)
+      .where(sql`${t.clientId} IS NOT NULL AND ${t.revokedAt} IS NULL`),
+    check("ck_embed_links_one_target", sql`(${t.websiteId} IS NULL) <> (${t.clientId} IS NULL)`),
+    check(
+      "ck_embed_links_sections",
+      sql`cardinality(${t.sections}) > 0 AND ${t.sections} <@ ARRAY['analytics','recordings','heatmaps']::text[]`,
+    ),
   ],
 );
 

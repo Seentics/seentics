@@ -21,14 +21,16 @@ import { isEnterprise } from '@/lib/features';
  */
 const MIN_PASSWORD_LENGTH = isEnterprise ? 12 : 8;
 import { Card, CardContent } from '@/components/ui/card';
+import { isDemo, demoMutationGuard } from '@/lib/demo';
 
 export default function ProfileSettingsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const { user, setUser } = useAuth();
   const { toast } = useToast();
 
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const demo = isDemo(params.websiteId);
+  const [name, setName] = useState(user?.name || (demo ? 'Alex Morgan' : ''));
+  const [email, setEmail] = useState(user?.email || (demo ? 'alex@seentics.com' : ''));
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -41,11 +43,16 @@ export default function ProfileSettingsPage() {
     if (user) {
       setName(user.name || '');
       setEmail(user.email || '');
+    } else if (demo) {
+      // The site id is read after the first render, so this cannot be the initial state.
+      setName('Alex Morgan');
+      setEmail('alex@seentics.com');
     }
-  }, [user]);
+  }, [user, demo]);
 
   const handleSaveProfile = async () => {
     if (!name.trim()) return;
+    if (demoMutationGuard(params.websiteId)) return;
     setSavingProfile(true);
     try {
       await api.put('/user/users/profile', { name: name.trim() });
@@ -58,6 +65,7 @@ export default function ProfileSettingsPage() {
   };
 
   const handleChangePassword = async () => {
+    if (demoMutationGuard(params.websiteId)) return;
     if (!currentPassword || !newPassword) return;
     if (newPassword !== confirmPassword) {
       toast({ title: 'Mismatch', description: 'New passwords do not match.', variant: 'destructive' });

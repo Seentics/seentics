@@ -7,7 +7,6 @@ import { presentClient, presentClientWebsite } from "../lib/client-presenter";
 import { toUpdateWebsiteInput } from "../lib/patch-mapping";
 import { websiteCreateSchema, websitePatchSchema } from "../validators/website.schema";
 import {
-  assignWebsiteSchema,
   clientCreateSchema,
   clientUpdateSchema,
   pageQuerySchema,
@@ -125,23 +124,6 @@ export function listClientWebsites(deps: ClientControllerDeps) {
   });
 }
 
-export function assignClientWebsite(deps: ClientControllerDeps) {
-  return guarded(async (c, ownerId) => {
-    const parsed = await parseJson(c, assignWebsiteSchema);
-    if (!parsed.ok) return parsed.res;
-    const websiteId = (parsed.data.website_id ?? parsed.data.websiteId)!;
-    const site = await deps.clients.assignWebsite(ownerId, c.req.param("clientId")!, websiteId);
-    return c.json({ data: presentClientWebsite(site, deps.scriptUrl()) }, 201);
-  });
-}
-
-export function unassignClientWebsite(deps: ClientControllerDeps) {
-  return guarded(async (c, ownerId) => {
-    const ok = await deps.clients.unassignWebsite(ownerId, c.req.param("clientId")!, c.req.param("websiteId")!);
-    return ok ? c.body(null, 204) : notFound(c);
-  });
-}
-
 /** What the agency dashboard opens a client's analytics with. */
 export function getClientAnalytics(deps: ClientControllerDeps) {
   return guarded(async (c, ownerId) => {
@@ -198,15 +180,6 @@ export function getOwnedWebsite(deps: OwnedWebsiteControllerDeps) {
   return guarded(async (c, ownerId) => {
     const site = await deps.websites.getWebsite(ownerId, c.req.param("websiteId")!);
     return site ? c.json({ data: presentOwned(site, deps.scriptUrl()) }) : notFound(c);
-  });
-}
-
-export function getOwnedWebsiteSnippet(deps: OwnedWebsiteControllerDeps) {
-  return guarded(async (c, ownerId) => {
-    const site = await deps.websites.getWebsite(ownerId, c.req.param("websiteId")!);
-    if (!site) return notFound(c);
-    const { script_url, snippet } = presentClientWebsite(site, deps.scriptUrl());
-    return c.json({ data: { website_id: site.id, script_url, snippet } });
   });
 }
 

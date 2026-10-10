@@ -28,7 +28,7 @@ export function createUserBranchRoutes(deps: {
   agency: {
     clients: Hono<{ Variables: AuthVars }>;
     apiKeys: Hono<{ Variables: AuthVars }>;
-    embedTokens: Hono<{ Variables: AuthVars }>;
+    embedLinks: Hono<{ Variables: AuthVars }>;
   };
 }) {
   const user = new Hono<{ Variables: AuthVars }>();
@@ -38,7 +38,7 @@ export function createUserBranchRoutes(deps: {
   user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords }));
   user.route("/agency", deps.agency.clients);
   user.route("/agency/api-keys", deps.agency.apiKeys);
-  user.route("/agency/embed-tokens", deps.agency.embedTokens);
+  user.route("/agency/embed-links", deps.agency.embedLinks);
 
   /**
    * Accepting an invitation is deliberately outside the websites router: the caller

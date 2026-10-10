@@ -132,6 +132,13 @@ function EndpointDetail({ doc, baseUrl }: { doc: EndpointDoc; baseUrl: string })
         <CopyButton text={url} />
       </div>
 
+      {/* What the key must be allowed to do. A call without it answers 403 insufficient_scope. */}
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        Requires the
+        <code className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-foreground">{doc.access}</code>
+        scope
+      </p>
+
       {payload && <CodeBlock title={doc.body ? 'Payload' : 'Query parameters'} code={payload} />}
       <CodeBlock title="Response" code={response} />
     </article>
@@ -166,8 +173,8 @@ export function EndpointReference({ docs, baseUrl, intro }: {
   const current = docs.find(d => docId(d) === selected) ?? filtered[0] ?? docs[0];
 
   return (
-    <div className="surface overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+    <div className="surface flex flex-col overflow-hidden lg:h-[calc(100vh-11rem)] lg:min-h-[520px]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <div className="min-w-0 text-sm text-muted-foreground">{intro}</div>
         <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/40 py-1 pl-3 pr-1">
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Base URL</span>
@@ -176,8 +183,8 @@ export function EndpointReference({ docs, baseUrl, intro }: {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <nav className="border-b border-border p-3 lg:sticky lg:top-0 lg:max-h-[calc(100vh-8rem)] lg:self-start lg:overflow-y-auto lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 grid-cols-1 lg:flex-1 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <nav className="border-b border-border p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -213,7 +220,7 @@ export function EndpointReference({ docs, baseUrl, intro }: {
           ))}
         </nav>
 
-        <div className="min-w-0 p-6 lg:p-8">
+        <div className="min-w-0 p-6 lg:min-h-0 lg:overflow-y-auto lg:p-8">
           {current ? (
             <EndpointDetail doc={current} baseUrl={baseUrl} />
           ) : (

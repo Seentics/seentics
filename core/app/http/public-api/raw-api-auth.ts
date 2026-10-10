@@ -17,16 +17,16 @@ declare module "hono" {
  * Require a scope on an already-authenticated raw API request.
  *
  * A separate middleware from the one below because the scope depends on the route, and
- * a key that may read analytics has no business reading session replays. A key with no
- * scopes at all is treated as unrestricted: it predates scoping, and silently locking
- * such a key out of everything would be a breaking change dressed as a security fix.
+ * an account key that may read analytics has no business reading session replays. An empty
+ * scope list grants nothing: an account key with only `websites:*` scopes is a management
+ * credential and must not read data.
  */
 export function requireScope(scope: ApiScope): MiddlewareHandler {
   return async (c, next) => {
     const ctx = c.get("rawApi");
     if (!ctx) return c.json({ error: "unauthorized", code: "missing_api_key" }, 401);
 
-    if (ctx.scopes.length > 0 && !ctx.scopes.includes(scope)) {
+    if (!ctx.scopes.includes(scope)) {
       return c.json(
         {
           error: `This API key does not have the "${scope}" scope.`,
@@ -52,7 +52,7 @@ export function websiteIdFromPath(path: string): string | undefined {
 }
 
 /**
- * Requires `X-API-Key` (or `x-api-key`) matching `api_keys` for path `:website_id`.
+ * Requires an account API key (`X-API-Key`, or `X-Client-Api-Key` behind the gateway) whose owner owns path `:website_id`.
  * After verification, applies per-key token bucket when `RATE_LIMIT_RAW_PER_KEY_MAX` > 0 and rate limiting is enabled.
  */
 export function createRawApiAuthMiddleware(verifier: ApiKeyVerifier): MiddlewareHandler {

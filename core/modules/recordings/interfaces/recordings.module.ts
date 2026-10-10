@@ -3,7 +3,7 @@ import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { RetentionPurge } from "../../../platform/retention";
-import type { RecordingIngest, RecordingRawReads } from "./index";
+import type { RecordingIngest, RecordingQuery, RecordingRawReads } from "./index";
 
 /** Everything the recordings module offers. */
 export interface RecordingsModule extends ModuleLifecycle {
@@ -28,6 +28,9 @@ export interface RecordingsModule extends ModuleLifecycle {
 
   /** Reads for the raw API — unmerged projections, not the dashboard's. */
   rawReads: RecordingRawReads;
+
+  /** The dashboard's read services, for the embed API: reads only, no deletion. */
+  reads: Pick<RecordingQuery, "listSessions" | "getSessionDetail">;
 
   routes: AuthedRouter;
 }

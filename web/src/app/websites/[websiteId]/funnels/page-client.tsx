@@ -11,12 +11,12 @@ import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, 
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
 import { useFunnels, useFunnelsAnalytics, type Funnel, type FunnelAnalyticsResponse } from '@/features/funnels/queries';
-import { DataTable, selectionColumn } from '@/components/ui/data-table';
+import { DataTable, SortableHeader, selectionColumn } from '@/components/ui/data-table';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,16 +27,17 @@ function FunnelCellStats({ analytics, isLoading }: { analytics?: FunnelAnalytics
   if (!item || (!item.total_starts && !item.total_conversions)) {
     return <span className="text-muted-foreground">—</span>;
   }
+  const rate = Math.max(0, Math.min(100, item.conversion_rate || 0));
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold">{(item.conversion_rate || 0).toFixed(1)}%</span>
-        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Conv.</span>
+    <div className="flex items-center gap-2.5">
+      <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${rate}%` }} />
       </div>
-      <div className="text-[10px] text-muted-foreground">
-        {item.total_conversions?.toLocaleString()} of {item.total_starts?.toLocaleString()}
-      </div>
+      <span className="text-sm font-semibold tabular-nums">{rate.toFixed(1)}%</span>
+      <span className="text-[11px] text-muted-foreground tabular-nums">
+        {item.total_conversions?.toLocaleString()} / {item.total_starts?.toLocaleString()}
+      </span>
     </div>
   );
 }
@@ -135,20 +136,26 @@ export default function FunnelsPage() {
     selectionColumn<Funnel>(),
     {
       id: 'name',
-      header: 'Funnel Name',
+      header: ({ column }: { column: any }) => <SortableHeader column={column}>Funnel</SortableHeader>,
       accessorKey: 'name',
       cell: ({ row }: { row: any }) => (
-        <div
-          className="flex flex-col gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={() => router.push(`/websites/${websiteId}/funnels/${row.original.id}`)}
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{row.original.name}</span>
-            <Badge variant="outline" className="text-[9px] h-4.5 px-1.5 uppercase font-bold tracking-tighter bg-muted/20">
-              {row.original.steps?.length || 0} steps
-            </Badge>
+        <div className="min-w-0 max-w-[min(100%,32rem)]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <GitBranch size={14} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-[13px] font-semibold text-foreground">{row.original.name}</span>
+                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                  {row.original.steps?.length || 0} steps
+                </span>
+              </div>
+              {row.original.description ? (
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{row.original.description}</p>
+              ) : null}
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground truncate max-w-[200px]">{row.original.description || 'No description'}</p>
         </div>
       )
     },
@@ -160,7 +167,7 @@ export default function FunnelsPage() {
       cell: ({ getValue }: { getValue: any }) => {
         const active = getValue() as boolean;
         return (
-          <Badge variant={active ? 'default' : 'secondary'} className="text-[10px] h-5 px-2">
+          <Badge variant={active ? 'default' : 'secondary'} className="h-5 px-2 text-[10px]">
             {active ? 'Active' : 'Paused'}
           </Badge>
         );
@@ -188,21 +195,26 @@ export default function FunnelsPage() {
     {
       id: 'actions',
       header: '',
-      size: 50,
+      size: 150,
       cell: ({ row }: { row: any }) => (
-        <div className="flex justify-end pr-2">
+        <div className="flex items-center justify-end gap-1 pr-0.5" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 hover:text-primary"
+            onClick={(e) => { e.stopPropagation(); router.push(`/websites/${websiteId}/funnels/${row.original.id}`); }}
+          >
+            <Eye size={13} /> View
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                 <MoreVertical size={14} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={() => router.push(`/websites/${websiteId}/funnels/${row.original.id}`)}>
-                <Eye size={12} className="mr-2" /> View Details
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { setEditingFunnel(row.original); setIsBuilderOpen(true); }}>
-                <Edit size={12} className="mr-2" /> Edit Funnel
+                <Edit size={12} className="mr-2" /> Edit funnel
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDeleteFunnel(row.original.id)} className="text-destructive font-medium">
                 <Trash2 size={12} className="mr-2" /> Delete
@@ -260,6 +272,9 @@ export default function FunnelsPage() {
 
       <div className="mt-4">
         <DataTable
+          className="shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2 [&_th]:!py-2"
+          rowClassName={() => 'cursor-pointer hover:bg-muted/35'}
+          onRowClick={(f) => router.push(`/websites/${websiteId}/funnels/${f.id}`)}
           columns={columns as any}
           data={filtered}
           isLoading={funnelsLoading}
@@ -314,22 +329,27 @@ export default function FunnelsPage() {
 
       </div>
 
-      {/* Create/Edit Funnel Modal */}
-      <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-        <DialogContent className='bg-card p-0 w-full max-w-5xl' >
-          <div className="">
-            <FunnelBuilder
-              websiteId={websiteId}
-              existingFunnel={editingFunnel || undefined}
-              onSave={handleSaveFunnel}
-              onCancel={() => {
-                setIsBuilderOpen(false);
-                setEditingFunnel(null);
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Create/Edit Funnel Sheet */}
+      <Sheet
+        open={isBuilderOpen}
+        onOpenChange={(open) => {
+          setIsBuilderOpen(open);
+          if (!open) setEditingFunnel(null);
+        }}
+      >
+        <SheetContent>
+          <FunnelBuilder
+            key={editingFunnel?.id ?? 'new'}
+            websiteId={websiteId}
+            existingFunnel={editingFunnel || undefined}
+            onSave={handleSaveFunnel}
+            onCancel={() => {
+              setIsBuilderOpen(false);
+              setEditingFunnel(null);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

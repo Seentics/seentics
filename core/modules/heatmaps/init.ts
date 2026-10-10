@@ -52,6 +52,7 @@ export function initHeatmapsModule(deps: {
     retention: new HeatmapRetentionPurge(),
     usage: new HeatmapUsageCounter(),
     rawReads: new HeatmapRawReadService(),
+    reads: heatmapQueries,
     routes: createHeatmapRoutes({
       heatmapQueries,
       heatmapMutations,

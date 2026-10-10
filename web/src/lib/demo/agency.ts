@@ -5,8 +5,7 @@
  * client with recordings switched off, uncapped and capped clients, and one with
  * several sites.
  */
-import type { AgencyAPIKey, AgencyClient, AgencyClientFeatures, ClientLimits, ClientWebsite } from '@/features/agency/types';
-import type { ApiKey } from '@/features/api-keys/types';
+import type { AgencyAPIKey, AgencyClient, ClientUser, EmbedLink, WhiteLabelSettings, AgencyClientFeatures, ClientLimits, ClientWebsite } from '@/features/agency/types';
 import { createDemoRandom, demoDate } from './fixture-utils';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -121,69 +120,12 @@ export const demoAgencyClients = (): AgencyClient[] => [
  */
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
-/** The demo website's own read-only data-API keys. */
-export const demoWebsiteKeys = (): ApiKey[] => [
-  {
-    id: 'demo-site-key-1',
-    name: 'Looker Studio sync',
-    prefix: 'snt_demo00_7Hq2',
-    scopes: ['analytics:read'],
-    created_at: ago(60 * DAY),
-    last_used_at: ago(5 * 60 * 60 * 1000),
-  },
-  {
-    id: 'demo-site-key-2',
-    name: 'Support tool — replays',
-    prefix: 'snt_demo00_Lm8c',
-    scopes: ['replays:read', 'heatmaps:read'],
-    created_at: ago(12 * DAY),
-    last_used_at: null,
-  },
-];
-
-/**
- * What `/embed/demo` shows: the embed summary's exact shape (core `app/http/embed`), with
- * a gently varying 30-day series from the seeded demo generator.
- */
-export function demoEmbedSummary(days: number) {
-  const rand = createDemoRandom(`embed-${days}`);
-  // Relative to the real today: the embed fills its window up to today, so a series on the
-  // frozen demo clock would fall entirely outside it.
-  const daily = Array.from({ length: days }, (_, i) => {
-    const date = ago((days - 1 - i) * DAY).slice(0, 10);
-    const weekday = new Date(date).getUTCDay();
-    const base = (weekday === 0 || weekday === 6 ? 310 : 460) + i * 3;
-    const views = Math.round(base * (0.85 + rand() * 0.3));
-    return { date, views, unique: Math.round(views * (0.58 + rand() * 0.06)) };
-  });
-  const pageViews = daily.reduce((n, d) => n + d.views, 0);
-  const visitors = daily.reduce((n, d) => n + d.unique, 0);
-  const row = <K extends string>(key: K, rows: [string, number][]) =>
-    rows.map(([name, share]) => ({ [key]: name, views: Math.round(pageViews * share), unique: Math.round(visitors * share) })) as
-      Array<Record<K, string> & { views: number; unique: number }>;
-
-  return {
-    website: { name: 'Northwind Coffee', url: 'shop.northwind.coffee' },
-    days,
-    dashboard: {
-      total_visitors: visitors, unique_visitors: visitors, page_views: pageViews, sessions: Math.round(visitors * 1.18),
-      bounce_rate: 38.4, session_duration: 154, live_visitors: 7,
-      comparison: { visitor_change: 12.6, pageview_change: 9.1, bounce_change: -2.3, duration_change: 4.8 },
-    },
-    daily: { daily_stats: daily },
-    top_pages: { top_pages: row('page', [['/', 0.31], ['/menu', 0.19], ['/order', 0.14], ['/locations', 0.09], ['/about', 0.05]]) },
-    top_referrers: { top_referrers: row('referrer', [['google.com', 0.42], ['direct', 0.27], ['instagram.com', 0.12], ['yelp.com', 0.06]]) },
-    top_countries: { top_countries: row('country', [['US', 0.61], ['CA', 0.14], ['GB', 0.09], ['AU', 0.05]]) },
-    top_devices: { top_devices: row('device', [['Mobile', 0.64], ['Desktop', 0.31], ['Tablet', 0.05]]) },
-  };
-}
-
 export const demoAgencyKeys = (): AgencyAPIKey[] => [
   {
     id: 'demo-key-1',
     name: 'Client onboarding (production)',
     keyPrefix: 'snt_acct_Q7vX2m',
-    scopes: ['websites:read', 'websites:write'],
+    scopes: ['websites:read', 'websites:write', 'analytics:read', 'replays:read', 'heatmaps:read'],
     lastUsed: ago(2 * 60 * 60 * 1000),
     createdAt: ago(90 * DAY),
   },
@@ -191,8 +133,57 @@ export const demoAgencyKeys = (): AgencyAPIKey[] => [
     id: 'demo-key-2',
     name: 'Reporting dashboard',
     keyPrefix: 'snt_acct_b4KpR9',
-    scopes: ['websites:read'],
+    scopes: ['websites:read', 'analytics:read'],
     lastUsed: ago(3 * DAY),
     createdAt: ago(40 * DAY),
+  },
+];
+
+/** Client logins: people at the demo clients who can see only their own dashboard. */
+export const demoClientUsers = (): ClientUser[] => {
+  const user = (
+    n: number, name: string, email: string, company: string, status: ClientUser['status'],
+    daysAgo: number, off: Array<keyof ClientUser['featuresEnabled']> = [],
+  ): ClientUser => ({
+    id: `demo-client-user-${n}`,
+    userId: `demo-user-${n}`,
+    name, email, company, status,
+    featuresEnabled: {
+      analytics: true, heatmaps: true, replays: true, funnels: true, automations: true,
+      ...Object.fromEntries(off.map(k => [k, false])),
+    },
+    createdAt: demoDate(-daysAgo * DAY).toISOString(),
+  });
+  return [
+    user(1, 'Maya Chen', 'ops@northwind.coffee', 'Northwind Coffee', 'active', 96),
+    user(2, 'Priya Nair', 'hello@bloomandco.com', 'Bloom & Co', 'active', 61, ['replays']),
+    user(3, 'Tom Becker', 'digital@atlasfitness.io', 'Atlas Fitness', 'active', 34),
+    user(4, 'Sara Lindqvist', 'admin@harbordental.co', 'Harbor Dental', 'suspended', 22, ['funnels', 'automations']),
+  ];
+};
+
+/** The agency's own branding, as its clients see it. */
+export const demoWhiteLabel = (): WhiteLabelSettings => ({
+  userId: 'demo-user',
+  brandName: 'Meridian Digital',
+  logoUrl: '',
+  primaryColor: '#7c3aed',
+  supportEmail: 'support@meridian.agency',
+  customDomain: 'analytics.meridian.agency',
+  hideSeentics: true,
+});
+
+/**
+ * Embed links on the demo site. The token is the word "demo", which the embed page reads as
+ * "show sample data"; the URLs are paths, resolved against the page's own origin.
+ */
+export const demoEmbedLinks = (): EmbedLink[] => [
+  {
+    id: 'demo-embed-1', scope: 'website', targetId: 'demo', targetName: 'Seentics Production',
+    token: 'demo', embedUrl: '/embed/demo?token=demo', sections: ['analytics', 'recordings', 'heatmaps'], createdAt: demoDate(-21 * DAY).toISOString(),
+  },
+  {
+    id: 'demo-embed-2', scope: 'client', targetId: 'northwind', targetName: 'Northwind Coffee',
+    token: 'demo-analytics', embedUrl: '/embed/northwind?token=demo-analytics&client=1', sections: ['analytics'], createdAt: demoDate(-9 * DAY).toISOString(),
   },
 ];

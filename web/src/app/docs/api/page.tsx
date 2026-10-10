@@ -93,7 +93,7 @@ export default function ApiPage() {
             [<C>automations</C>, <C>/api/v1/automations</C>, 'Automation definitions and execution stats.'],
             [<C>replays</C>, <C>/api/v1/replays</C>, 'Session lists and recording payloads.'],
             [<C>heatmaps</C>, <C>/api/v1/heatmaps</C>, 'Click and scroll data per page.'],
-            [<C>websites</C>, <C>/api/v1/websites</C>, 'Your sites, and the API keys attached to them.'],
+            [<C>websites</C>, <C>/api/v1/websites</C>, 'Your sites.'],
             [<C>privacy</C>, <C>/api/v1/privacy</C>, 'Reserved — returns 501, not yet implemented.'],
           ]}
         />

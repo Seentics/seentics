@@ -9,6 +9,8 @@ import type {
   AnalyticsRealtime,
   AnalyticsRevenue,
 } from "../interfaces";
+import { EMBED_ANALYTICS_READS } from "../embed-reads";
+import { parseAnalyticsQuery } from "../lib/analytics-query";
 
 /**
  * Compatibility surface for the raw public API, which exposes every analytics read.
@@ -23,6 +25,14 @@ export class AnalyticsReadFacade implements AnalyticsReads {
     private readonly conversions: AnalyticsGoals & AnalyticsRevenue,
     private readonly exporter: AnalyticsExport,
   ) {}
+
+  canEmbedRead(name: string) { return !!EMBED_ANALYTICS_READS[name]; }
+
+  embedRead(name: string, id: string, query: (key: string) => string | undefined) {
+    const read = EMBED_ANALYTICS_READS[name];
+    if (!read) throw new Error(`"${name}" is not an embed read`);
+    return read(this, id, parseAnalyticsQuery(query));
+  }
 
   getDashboard(id: string, q: AnalyticsQueryParams) { return this.dashboard.getDashboard(id, q); }
   getTrafficSummary(id: string, q: AnalyticsQueryParams) { return this.dashboard.getTrafficSummary(id, q); }

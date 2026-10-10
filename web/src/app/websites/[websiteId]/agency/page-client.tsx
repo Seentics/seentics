@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AppWindow, BarChart3, BookOpen, FileCode2, KeyRound, Paintbrush, Plus, UserCheck, Users } from 'lucide-react';
+import { AppWindow, BarChart3, BookOpen, FileCode2, KeyRound, Paintbrush, Plus, Users } from 'lucide-react';
 import { usePathSegment } from '@/lib/path-segment';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,6 @@ import { ClientsTab } from '@/components/agency/tabs/ClientsTab';
 import { ApiKeysTab } from '@/components/agency/tabs/ApiKeysTab';
 import { AnalyticsApiTab, ManagementApiTab } from '@/components/agency/tabs/ApiDocsTabs';
 import { EmbedsTab } from '@/components/agency/tabs/EmbedsTab';
-import { ClientAccountsTab } from '@/components/agency/tabs/ClientAccountsTab';
 import { WhiteLabelTab } from '@/components/agency/tabs/WhiteLabelTab';
 import { ClientFormDialog } from '@/components/agency/ClientFormDialog';
 import { CreateAccountKeyDialog } from '@/components/agency/AccountKeysPanel';
@@ -30,7 +29,6 @@ const TAB_GROUPS = [
     title: 'Agency',
     tabs: [
       { id: 'clients', label: 'Clients', icon: Users },
-      ...(isEnterprise ? [{ id: 'accounts', label: 'Client accounts', icon: UserCheck }] : []),
       { id: 'embeds', label: 'Embeds', icon: AppWindow },
       ...(isEnterprise ? [{ id: 'white-label', label: 'White label', icon: Paintbrush }] : []),
     ],
@@ -46,7 +44,7 @@ const TAB_GROUPS = [
 ] as const;
 
 type TabId =
-  | 'clients' | 'accounts' | 'embeds' | 'white-label'
+  | 'clients' | 'embeds' | 'white-label'
   | 'api-keys' | 'management-api' | 'analytics-api';
 const isTab = (v: string | null): v is TabId =>
   TAB_GROUPS.some(g => (g.tabs as readonly { id: string }[]).some(t => t.id === v));
@@ -62,12 +60,11 @@ function writeUrl(tab: TabId) {
 }
 
 const DESCRIPTIONS: Record<TabId, string> = {
-  clients: 'Group websites under clients, choose what each one collects, and cap its monthly usage.',
-  'api-keys': 'Keys for the management API and the data API.',
+  clients: 'One record per client: their websites and tracking code, what each collects, usage caps, and an optional login.',
+  'api-keys': 'Account keys for the management and analytics APIs.',
   'management-api': 'Create and manage clients and websites from your own backend, with an account key.',
-  'analytics-api': "Read any website's analytics, recordings and heatmaps, with a website key.",
+  'analytics-api': "Read any website's analytics, recordings and heatmaps, with an account key.",
   embeds: "Put a read-only dashboard of a website inside your own product or a client's portal.",
-  accounts: 'Logins that let a client see only their own dashboard.',
   'white-label': 'Your brand on everything your clients see.',
 };
 
@@ -123,7 +120,7 @@ export default function AgencyPage() {
         line read as a toolbar, whichever way they were styled; two titled groups of
         three or four items read as the two things this page is.
       */}
-      <div className="grid gap-5 lg:grid-cols-[164px_minmax(0,1fr)] lg:gap-4">
+      <div className="grid gap-5 lg:grid-cols-[196px_minmax(0,1fr)] lg:gap-4">
         <nav
           className={cn(PAGE_MENU_PANEL, 'lg:sticky lg:top-5 lg:self-start')}
           aria-label="Agency and developer sections"
@@ -142,7 +139,7 @@ export default function AgencyPage() {
                         role="tab"
                         aria-selected={active}
                         onClick={() => go(id)}
-                        className={pageMenuItem(active)}
+                        className={cn(pageMenuItem(active), 'relative py-2', active && "before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-primary")}
                       >
                         <t.icon className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                         <span className="flex-1 truncate">{t.label}</span>
@@ -170,8 +167,7 @@ export default function AgencyPage() {
           {tab === 'management-api' && <ManagementApiTab />}
           {tab === 'analytics-api' && <AnalyticsApiTab />}
           {tab === 'embeds' && <EmbedsTab websiteId={websiteId} />}
-          {isEnterprise && tab === 'accounts' && <ClientAccountsTab />}
-          {isEnterprise && tab === 'white-label' && <WhiteLabelTab />}
+          {isEnterprise && tab === 'white-label' && <WhiteLabelTab websiteId={websiteId} />}
         </div>
       </div>
 

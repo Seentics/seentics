@@ -116,7 +116,7 @@ export function HeatmapPreviewBrowserChrome({
   };
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-zinc-800/90 bg-zinc-900 px-1.5">
+    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-card px-1.5 dark:border-zinc-800/90 dark:bg-zinc-900">
       <div className="flex shrink-0 gap-1 px-0.5" aria-hidden>
         <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
         <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
@@ -125,7 +125,7 @@ export function HeatmapPreviewBrowserChrome({
       <button
         type="button"
         disabled
-        className="shrink-0 rounded-lg p-1 text-zinc-600 opacity-60"
+        className="shrink-0 rounded-lg p-1 text-muted-foreground/50 opacity-60"
         aria-hidden
         tabIndex={-1}
       >
@@ -134,34 +134,56 @@ export function HeatmapPreviewBrowserChrome({
       <button
         type="button"
         disabled
-        className="shrink-0 rounded-lg p-1 text-zinc-600 opacity-60"
+        className="shrink-0 rounded-lg p-1 text-muted-foreground/50 opacity-60"
         aria-hidden
         tabIndex={-1}
       >
         <ChevronRight className="h-3.5 w-3.5" />
       </button>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-950/90 px-2 py-0.5">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-border bg-muted/60 px-2 py-0.5 dark:border-zinc-700/80 dark:bg-zinc-950/90">
         {secure ? (
           <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
         ) : (
-          <span className="w-3 shrink-0 text-center text-[9px] text-zinc-500" aria-hidden>
+          <span className="w-3 shrink-0 text-center text-[9px] text-muted-foreground" aria-hidden>
             ··
           </span>
         )}
-        <p className="min-w-0 truncate font-mono text-[11px] leading-snug text-zinc-400" title={barTitle}>
-          {statusLead ? <span className="text-zinc-500">{statusLead}</span> : null}
-          <span className="text-zinc-400">{displayUrl}</span>
+        <p className="min-w-0 truncate font-mono text-[11px] leading-snug text-muted-foreground" title={barTitle}>
+          {statusLead ? <span className="text-muted-foreground/70">{statusLead}</span> : null}
+          <span className="text-foreground/80">{displayUrl}</span>
         </p>
       </div>
       <button
         type="button"
         onClick={openExternal}
         disabled={!pageUrl.trim()}
-        className="shrink-0 rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-35"
+        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35"
         title="Open in new tab"
       >
         <ExternalLink className="h-3.5 w-3.5" />
       </button>
+    </div>
+  );
+}
+
+/**
+ * What the colours mean, pinned to the corner of the stage.
+ *
+ * A heatmap with no key leaves the reader guessing whether red is a lot or a little. The
+ * ramp is the one the layer paints (green at the edge of a hot spot, red at its centre),
+ * and the words change with the mode: clicks are counted, scroll is visitors who got there.
+ */
+export function HeatLegend({ heatType }: { heatType: HeatType }) {
+  const scroll = heatType === 'scroll';
+  return (
+    <div
+      className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center gap-2.5 rounded-full border border-border bg-card/95 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-md backdrop-blur"
+      role="img"
+      aria-label={scroll ? 'Colour key: fewer to more visitors reached' : 'Colour key: fewer to more clicks'}
+    >
+      <span>{scroll ? 'Fewer visitors' : 'Fewer clicks'}</span>
+      <span className="h-1.5 w-24 rounded-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-red-500" aria-hidden />
+      <span>{scroll ? 'More visitors' : 'More clicks'}</span>
     </div>
   );
 }
@@ -184,7 +206,7 @@ export function HeatmapPreviewBrowserChrome({
  */
 export function DemoHeatmapStage({ pageUrl, heatType }: { pageUrl: string; heatType: HeatType }) {
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
+    <div className="relative flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
       <HeatmapPreviewBrowserChrome
         pageUrl={pageUrl}
         underlay="screenshot"
@@ -196,6 +218,7 @@ export function DemoHeatmapStage({ pageUrl, heatType }: { pageUrl: string; heatT
           <DemoHeatmapPage heat={heatType === 'scroll' ? 'scroll' : 'click'} />
         </div>
       </div>
+      <HeatLegend heatType={heatType} />
     </div>
   );
 }
@@ -461,7 +484,7 @@ export function HeatmapViewer({
       inside it*, which a neutral grey achieves in light mode without dropping a
       black rectangle into a light UI.
     */
-    <div className="flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
+    <div className="relative flex h-full min-h-0 w-full flex-col bg-muted dark:bg-[#09090b]">
       <HeatmapPreviewBrowserChrome
         pageUrl={pageUrl}
         underlay={underlay}
@@ -592,6 +615,7 @@ export function HeatmapViewer({
           </div>
         </div>
       </div>
+      <HeatLegend heatType={heatType} />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { C, Callout, DocPage, DocSection, Endpoint, Li, P, Ul } from '@/components/docs/DocsKit';
 
 export const metadata = {
@@ -81,13 +80,29 @@ export default function AgencyPage() {
         <Endpoint method="POST" path="/api/v1/manage/websites">
           A website on its own, or under a client with <C>client_id</C>.
         </Endpoint>
-        <Endpoint method="GET" path="/api/v1/manage/websites/:id/snippet">
-          The tracking snippet for a website.
+        <Endpoint method="PATCH" path="/api/v1/manage/websites/:id">
+          Change a website, or move it between clients with <C>client_id</C> (<C>null</C> ungroups it).
         </Endpoint>
-        <Endpoint method="POST" path="/api/v1/manage/websites/:id/api-keys">
-          A read-only key for one website, to show a tenant its own numbers through the{' '}
-          <Link href="/docs/api" className="text-primary hover:underline">data API</Link>.
+        <Endpoint method="POST" path="/api/v1/manage/websites/:id/embed-link">
+          A permanent link to a read-only dashboard of one website, for an iframe in your own app. Calling it
+          again returns the same link; <C>DELETE</C> on the same path revokes it.
         </Endpoint>
+        <Endpoint method="POST" path="/api/v1/manage/clients/:id/embed-link">
+          The same for a whole client: the embed gets a switcher across all of that client&apos;s websites.
+        </Endpoint>
+        <Endpoint method="PATCH" path="/api/v1/manage/websites/:id/embed-link">
+          Change which sections the link shows (<C>{'{ "sections": [...] }'}</C>). The URL stays the same and
+          the change applies at once. <C>/clients/:id/embed-link</C> works the same way.
+        </Endpoint>
+        <P>
+          A link chooses its sections: <C>analytics</C> (on by default), <C>recordings</C> and{' '}
+          <C>heatmaps</C> (both off by default). Send <C>sections</C> in the <C>POST</C> body to pick them when
+          the link is made. Recordings show real visitor sessions, so enable them deliberately.
+        </P>
+        <Callout kind="tip" title="Treat an embed link like a secret">
+          It never expires, and anyone who holds the URL can see those analytics. Keep it behind your own
+          login, and revoke it if it leaks.
+        </Callout>
         <P>
           Every endpoint, with its body and an example response, is under <C>Agency → Management API</C> in the
           dashboard.

@@ -94,7 +94,8 @@ export interface PortalToken {
   createdAt: string;
 }
 
-export type AccountScope = 'websites:read' | 'websites:write';
+/** What an account key may do: manage clients and websites, and read their data. */
+export type AccountScope = 'websites:read' | 'websites:write' | 'analytics:read' | 'replays:read' | 'heatmaps:read';
 
 /** A management-API key. `key` is present only in the response that created it. */
 export interface AgencyAPIKey {
@@ -123,6 +124,28 @@ export type CreateClientRequest = Pick<
 > & {
   externalId?: string | null;
   limits?: ClientLimits;
+  /** Create the client's first website in the same call; the response carries its tracking snippet. */
+  website?: { name: string; url: string };
 };
 
-export type UpdateClientRequest = Partial<CreateClientRequest>;
+export type UpdateClientRequest = Partial<Omit<CreateClientRequest, 'website'>>;
+
+/**
+ * A permanent, revocable link to a read-only analytics dashboard, for one website or for a
+ * whole client (all its websites). Anyone holding the link can see that data, so it is a secret.
+ */
+/** What an embed link can show. Analytics is on by default; the others are opted into. */
+export type EmbedSection = 'analytics' | 'recordings' | 'heatmaps';
+
+export type EmbedLink = {
+  id: string;
+  scope: 'website' | 'client';
+  targetId: string;
+  targetName: string;
+  token: string;
+  /** Absolute from the server; fixtures may give a path, resolved against the page origin. */
+  embedUrl: string;
+  /** Which sections the link shows. Changing them changes access at once, with the same URL. */
+  sections: EmbedSection[];
+  createdAt: string;
+};

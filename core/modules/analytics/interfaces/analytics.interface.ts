@@ -175,7 +175,20 @@ export type AnalyticsReads = AnalyticsDashboard &
   AnalyticsBehaviour &
   AnalyticsGoals &
   AnalyticsRevenue &
-  AnalyticsExport;
+  AnalyticsExport &
+  AnalyticsEmbedReads;
+
+/**
+ * What an embed link may read, by the name the dashboard uses for the endpoint
+ * (`GET /analytics/<name>/:website_id`). The answer is the dashboard's, because it calls the
+ * same read. Two steps so that a name can be judged before anything is authorised or run.
+ */
+export interface AnalyticsEmbedReads {
+  /** Whether an embed may read the endpoint called `name`. Runs nothing. */
+  canEmbedRead(name: string): boolean;
+  /** Runs the read, with the query string the dashboard would send. Only for a name that passed `canEmbedRead`. */
+  embedRead(name: string, websiteId: string, query: (key: string) => string | undefined): Promise<unknown>;
+}
 
 /**
  * Recent pageview URLs for a site, newest first.

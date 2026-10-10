@@ -1,13 +1,13 @@
 /**
  * Account API keys: the management API's credentials.
  *
- * A website key (`api-key.service.ts`) reads one site's data. An account key acts for the
- * account that minted it — creating clients and websites from a signup handler, where no
- * dashboard session exists. Same storage rules: bcrypt hash plus a 16-character lookup
+ * An account key acts for the account that minted it — creating clients and websites from
+ * a signup handler, and reading its websites' data through the public data API, where no
+ * dashboard session exists. Storage rules: bcrypt hash plus a 16-character lookup
  * prefix, and the plaintext returned exactly once.
  *
  * A key is `snt_acct_<secret>`. The fixed prefix is how the gateway and Core tell it apart
- * from a website key (`snt_<site>_…`) without a lookup.
+ * from other credentials without a lookup.
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -82,7 +82,7 @@ export async function revokeAccountApiKey(userId: string, keyId: string): Promis
 }
 
 // ─── Verification ───────────────────────────────────────────────────────────
-// The same shape as website-key verification: answers kept briefly under a digest of the
+// Answers kept briefly under a digest of the
 // key, concurrent askers share one bcrypt check, and a revoke clears this instance at once.
 
 const VERIFIED_TTL_MS = 30_000;

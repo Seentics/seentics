@@ -2,17 +2,20 @@ export {
   ACCOUNT_SCOPES,
   ACCOUNT_SCOPE_DESCRIPTIONS,
   API_SCOPES,
-  SCOPE_DESCRIPTIONS,
 } from "./api-key.interface";
 export type {
   AccountKeyVerifier,
-  EmbedTokenIssuer,
-  IssuedEmbedToken,
+  EmbedClaim,
+  EmbedLinkRecord,
+  EmbedLinkView,
+  EmbedLinks,
+  EmbedTarget,
   AccountScope,
   VerifiedAccountKey,
-  WebsiteKeyIssuer,
   ApiKeyVerifier,
   ApiScope,
   VerifiedApiKeyContext,
 } from "./api-key.interface";
 export type { ApiKeysModule } from "./api-keys.module";
+export { DEFAULT_EMBED_SECTIONS, EMBED_SECTIONS, isEmbedSection, normalizeSections, sectionsSchema } from "./embed-sections";
+export type { EmbedSection } from "./embed-sections";

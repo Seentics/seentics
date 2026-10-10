@@ -4,7 +4,7 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { useRouter } from 'next/navigation';
+import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable } from '@/components/ui/data-table';
@@ -38,9 +38,17 @@ import {
 } from '@/features/replays/list-types';
 
 export default function ReplaysPage() {
-  const params = { websiteId: usePathSegment(1) ?? '' };
-  const router = useRouter();
-  const websiteId = params?.websiteId as string;
+  return <ReplaysView />;
+}
+
+/**
+ * The recordings list: the signed-in page, and the same page inside an embed. An embed is
+ * watch-only — no selecting, no deleting — and takes the website from its link, not the URL.
+ */
+export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websiteId?: string; embed?: boolean }) {
+  const segment = usePathSegment(1) ?? '';
+  const router = useAppNavigation();
+  const websiteId = websiteIdProp ?? segment;
   const isDemoMode = isDemo(websiteId);
 
   const queryClient = useQueryClient();
@@ -211,6 +219,7 @@ export default function ReplaysPage() {
     () => sessionColumns({
       websiteId,
       onPlay: (sessionId) => router.push(`/websites/${websiteId}/replays/${sessionId}`),
+      readOnly: embed,
       // The confirm lived inside the column's cell before it was extracted. It belongs
       // here: the column renders a button, the page decides what destroying a session
       // requires.
@@ -225,7 +234,7 @@ export default function ReplaysPage() {
       },
       isMutating: deleteMutation.isPending,
     }),
-    [websiteId, router, deleteMutation, confirm],
+    [websiteId, router, deleteMutation, confirm, embed],
   );
 
 
@@ -234,21 +243,27 @@ export default function ReplaysPage() {
 
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
+    <div className={embed ? 'w-full p-3' : 'w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5'}>
       {confirmDialog}
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Session Replays"
-        description="Watch real user sessions to understand exactly how people use your product."
-      >
-        <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
-        {!isDemoMode && (
-          <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        )}
-      </DashboardPageHeader>
+      {embed ? (
+        <div className="mb-3 flex items-center justify-end gap-2">
+          <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
+        </div>
+      ) : (
+        <DashboardPageHeader
+          websiteId={websiteId}
+          title="Session Replays"
+          description="Watch real user sessions to understand exactly how people use your product."
+        >
+          <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
+          {!isDemoMode && (
+            <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+          )}
+        </DashboardPageHeader>
+      )}
 
       <StatCards cards={[
         {
@@ -285,8 +300,8 @@ export default function ReplaysPage() {
         columns={columns}
         isLoading={isLoading || isFetching}
         rowClassName={() => 'hover:bg-muted/35'}
-        enableRowSelection={true}
-        selectionActions={(selectedRows) => (
+        enableRowSelection={!embed}
+        selectionActions={embed ? undefined : (selectedRows) => (
           <>
             <span className="text-sm font-medium text-muted-foreground mr-2">
               {selectedRows.length} selected

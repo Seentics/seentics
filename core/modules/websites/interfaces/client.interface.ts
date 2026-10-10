@@ -129,8 +129,6 @@ export interface ClientDirectory {
   /** `deleteWebsites` also deletes the client's sites and everything they collected. */
   deleteClient(ownerId: string, clientId: string, opts?: { deleteWebsites?: boolean }): Promise<boolean>;
 
-  assignWebsite(ownerId: string, clientId: string, websiteId: string): Promise<Website>;
-  unassignWebsite(ownerId: string, clientId: string, websiteId: string): Promise<boolean>;
 }
 
 /**

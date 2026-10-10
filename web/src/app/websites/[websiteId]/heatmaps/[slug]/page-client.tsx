@@ -3,7 +3,6 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +21,7 @@ import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPageSlug, normalizeHeatmapPagePath, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
 import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
 import { useSearchParams } from 'next/navigation';
+import { useAppNavigation } from '@/lib/embed-nav';
 import {
   clampLayoutPx,
   heatmapCaptureBox,
@@ -33,15 +33,32 @@ import { normalizeWebsiteOriginForPreview } from '@/lib/website-preview-url';
 import { getWebsiteByAnyId } from '@/lib/websites-api';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { RangeSelect } from '@/components/ui/range-select';
+import { getPageIcon } from '@/components/analytics/page-icon';
 
 import { HeatmapViewer, DemoHeatmapStage, type PreviewUnderlay } from '@/components/heatmaps/HeatmapViewer';
 import { isAbsoluteHttpUrl, heatmapPageHeading, scrollReachPoints, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
 
 export default function HeatmapDetailPage() {
-  const params = { websiteId: usePathSegment(1) ?? '', slug: usePathSegment(3) ?? '' };
-  const router     = useRouter();
-  const websiteId  = params?.websiteId as string;
-  const slug       = params?.slug as string;
+  return <HeatmapDetailView />;
+}
+
+/**
+ * One page's heatmap: the signed-in page, and the same page inside an embed. An embed names its
+ * own site and page, takes the site's address from its link, and cannot capture screenshots.
+ */
+export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, embed = false, siteUrl }: {
+  websiteId?: string;
+  slug?: string;
+  embed?: boolean;
+  siteUrl?: string;
+}) {
+  const siteSegment = usePathSegment(1);
+  const slugSegment = usePathSegment(3);
+  const router     = useAppNavigation();
+  const websiteId  = websiteIdProp ?? siteSegment ?? '';
+  const slug       = slugProp ?? slugSegment ?? '';
   const isDemoMode = isDemo(websiteId);
   const { toast }  = useToast();
 
@@ -57,6 +74,7 @@ export default function HeatmapDetailPage() {
   });
   const setDays = (next: number) => {
     setDaysState(next);
+    if (embed) return; // the address carries the embed link's secret: leave it alone
     const url = new URL(window.location.href);
     if (next === DEFAULT_HEATMAP_DAYS) url.searchParams.delete('days');
     else url.searchParams.set('days', String(next));
@@ -78,12 +96,14 @@ export default function HeatmapDetailPage() {
   const demoPages = isDemoMode ? demoHeatmapPages() : [];
   const demoPage  = demoPages.find(p => p.url === urlPath) ?? demoPages[0];
 
-  const { data: websiteMeta } = useQuery({
+  const { data: fetchedMeta } = useQuery({
     queryKey:  ['website-meta', websiteId],
     queryFn:   () => getWebsiteByAnyId(websiteId),
-    enabled:   !!websiteId && !isDemoMode,
+    enabled:   !!websiteId && !isDemoMode && !embed,
     staleTime: 300_000,
   });
+  // An embed has no account session to read the website with; its link supplies the address.
+  const websiteMeta = embed ? (siteUrl ? { url: siteUrl, heatmapLayoutEnabled: undefined } : undefined) : fetchedMeta;
 
   const sitePreviewBase = useMemo(() => {
     const u = websiteMeta?.url?.trim();
@@ -302,7 +322,8 @@ export default function HeatmapDetailPage() {
               <span className="shrink-0 tabular-nums">{points.length.toLocaleString()} pts</span>
             ) : null}
             {points.length > 0 ? <span className="shrink-0 text-border" aria-hidden>·</span> : null}
-            <code className="min-w-0 truncate font-mono text-[10px] sm:text-[11px]" title={heatmapPathLine}>
+            <span className="shrink-0">{getPageIcon(pathForHeading, 'h-4 w-4')}</span>
+            <code className="min-w-0 truncate font-mono text-xs text-foreground" title={heatmapPathLine}>
               {heatmapPathLine}
             </code>
           </div>
@@ -310,7 +331,7 @@ export default function HeatmapDetailPage() {
           <div className="flex shrink-0 items-center gap-1">
             <Popover open={previewPopoverOpen} onOpenChange={setPreviewPopoverOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8" title="Preview URL" aria-label="Preview URL">
+                <Button variant="ghost" size="icon" className={cn(GHOST_CONTROL, 'h-8 w-8')} title="Preview URL" aria-label="Preview URL">
                   <Link2 className="h-3.5 w-3.5" />
                 </Button>
               </PopoverTrigger>
@@ -319,7 +340,7 @@ export default function HeatmapDetailPage() {
               </PopoverContent>
             </Popover>
 
-            <div className="flex rounded-lg border border-border bg-background p-0.5">
+            <div className="flex rounded-lg border border-border bg-white p-0.5 shadow-sm dark:bg-muted">
               {([
                 ['click', MousePointer, 'Clicks', 'Where people click'],
                 ['scroll', TrendingDown, 'Scroll', 'How far they scroll'],
@@ -330,36 +351,23 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setHeatType(type)}
                   className={cn(
-                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                     heatType === type
-                      ? 'bg-muted text-foreground'
+                      ? 'bg-primary/10 text-primary dark:bg-background dark:text-foreground dark:shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <Icon className="h-3 w-3 opacity-80" />
+                  <Icon className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{label}</span>
                 </button>
               ))}
             </div>
 
-            <Select value={String(days)} onValueChange={v => setDays(Number(v))}>
-              <SelectTrigger
-                className="h-8 w-[92px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-28 sm:text-xs"
-                title="Date range"
-                aria-label="Date range"
-              >
-                <SelectValue placeholder="Range" />
-              </SelectTrigger>
-              <SelectContent>
-                {HEATMAP_RANGES.map(r => (
-                  <SelectItem key={r.days} value={String(r.days)} className="text-xs">{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <RangeSelect value={days} onChange={setDays} ranges={HEATMAP_RANGES} />
 
             <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
               <SelectTrigger
-                className="h-8 w-[108px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
+                className={cn(GHOST_CONTROL, 'h-8 w-auto gap-1.5 px-2.5 text-[13px]')}
                 title="Device"
               >
                 <SelectValue placeholder="Device" />
@@ -372,7 +380,7 @@ export default function HeatmapDetailPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex rounded-lg border border-border bg-background p-0.5">
+            <div className="flex rounded-lg border border-border bg-white p-0.5 shadow-sm dark:bg-muted">
               {previewModeOptions.map(([mode, Icon, label, hint]) => (
                 <button
                   key={mode}
@@ -380,13 +388,13 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setPreviewUnderlay(mode)}
                   className={cn(
-                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                     previewUnderlay === mode
-                      ? 'bg-muted text-foreground'
+                      ? 'bg-primary/10 text-primary dark:bg-background dark:text-foreground dark:shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <Icon className="h-3 w-3 opacity-80" />
+                  <Icon className="h-3.5 w-3.5" />
                   {mode === 'screenshot' ? (
                     <>
                       <span className="sm:hidden">Shot</span>
@@ -399,7 +407,7 @@ export default function HeatmapDetailPage() {
               ))}
             </div>
 
-            {!isDemoMode && (
+            {!isDemoMode && !embed && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="More">

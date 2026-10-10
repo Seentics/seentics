@@ -4,7 +4,7 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useMemo, useState, useCallback } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { useRouter } from 'next/navigation';
+import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Flame, Eye, MousePointer, Move, Search, Activity, Trash2,
-  ExternalLink, RefreshCw,
+  RefreshCw,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -29,11 +29,25 @@ import {
   type HeatmapPageSummary,
 } from '@/lib/heatmaps-api';
 import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RangeSelect } from '@/components/ui/range-select';
+import { getPageIcon } from '@/components/analytics/page-icon';
 
 import { cn } from '@/lib/utils';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
-import { useRangeDates } from '@/lib/range-dates';
+
+/** A count with a bar under it, drawn against the busiest row, so rows compare at a glance. */
+function ShareCell({ value, max, barClass }: { value: number; max: number; barClass: string }) {
+  return (
+    <div className="w-24">
+      <p className="text-sm font-semibold tabular-nums text-foreground">{value.toLocaleString()}</p>
+      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn('h-full rounded-full', barClass)}
+          style={{ width: `${Math.max(3, Math.round((value / max) * 100))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 /** Path-only label for table; tooltip keeps full stored path. */
 const HEATMAP_PATH_MAX = 56;
@@ -94,16 +108,20 @@ interface PageRow {
 }
 
 export default function HeatmapsPage() {
-  const params = { websiteId: usePathSegment(1) ?? '' };
-  const router     = useRouter();
-  const websiteId  = params?.websiteId as string;
+  return <HeatmapsView />;
+}
+
+/** The heatmap pages list: the signed-in page, and the same page inside a watch-only embed. */
+export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { websiteId?: string; embed?: boolean }) {
+  const segment = usePathSegment(1) ?? '';
+  const router     = useAppNavigation();
+  const websiteId  = websiteIdProp ?? segment;
   const isDemoMode = isDemo(websiteId);
   const queryClient = useQueryClient();
   const { toast }   = useToast();
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [days, setDays] = useState<number>(DEFAULT_HEATMAP_DAYS);
-  const rangeDates = useRangeDates(days);
 
   // The range follows into the page's heatmap, so its counts match the row clicked.
   const heatmapHref = useCallback(
@@ -172,9 +190,12 @@ export default function HeatmapsPage() {
     ? Math.round(pages.reduce((s, p) => s + p.avg_scroll, 0) / pages.length)
     : 0;
   const activePages = pages.filter(p => p.active).length;
+  // Each count's bar is drawn against the busiest page, so rows compare at a glance.
+  const maxViews  = Math.max(1, ...pages.map(p => p.views));
+  const maxClicks = Math.max(1, ...pages.map(p => p.clicks));
 
   const columns: ColumnDef<PageRow>[] = useMemo(() => [
-    selectionColumn<PageRow>(),
+    ...(embed ? [] : [selectionColumn<PageRow>()]),
     {
       id: 'url',
 
@@ -184,20 +205,20 @@ export default function HeatmapsPage() {
         const { display, title } = heatmapPathDisplay(row.original.url, websiteId);
         return (
           <div className="min-w-0 max-w-[min(100%,36rem)]">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* The page's own icon; dimmed when it is not receiving data. */}
               <span
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full shrink-0 mt-px',
-                  row.original.active ? 'bg-emerald-500/90' : 'bg-muted-foreground/35',
-                )}
+                className={cn('shrink-0', !row.original.active && 'opacity-40 grayscale')}
                 title={row.original.active ? 'Receiving data' : 'Inactive'}
-              />
-              <span className="font-mono text-xs text-foreground truncate" title={title}>
+              >
+                {getPageIcon(row.original.url, 'h-4 w-4')}
+              </span>
+              <span className="font-mono text-[13px] text-foreground truncate" title={title}>
                 {display}
               </span>
             </div>
             {row.original.last_seen ? (
-              <p className="text-[11px] text-muted-foreground tabular-nums pl-3.5 mt-0.5">
+              <p className="text-[11px] text-muted-foreground tabular-nums pl-[26px] mt-0.5">
                 {new Date(row.original.last_seen).toLocaleDateString(undefined, {
                   month: 'numeric',
                   day: 'numeric',
@@ -213,42 +234,60 @@ export default function HeatmapsPage() {
       id: 'views',
       header: ({ column }) => <SortableHeader column={column}>Views</SortableHeader>,
       accessorKey: 'views',
-      size: 100,
+      size: 120,
       cell: ({ getValue }) => (
-        <span className="text-sm tabular-nums text-foreground">{(getValue() as number).toLocaleString()}</span>
+        <ShareCell value={getValue() as number} max={maxViews} barClass="bg-primary/60" />
       ),
     },
     {
       id: 'clicks',
       header: ({ column }) => <SortableHeader column={column}>Clicks</SortableHeader>,
       accessorKey: 'clicks',
-      size: 100,
+      size: 120,
       cell: ({ getValue }) => (
-        <span className="text-sm tabular-nums text-foreground">{(getValue() as number).toLocaleString()}</span>
+        <ShareCell value={getValue() as number} max={maxClicks} barClass="bg-violet-500/60" />
       ),
+    },
+    {
+      id: 'scroll',
+      header: ({ column }) => <SortableHeader column={column}>Avg scroll</SortableHeader>,
+      accessorKey: 'avg_scroll',
+      size: 150,
+      cell: ({ getValue }) => {
+        const v = Math.max(0, Math.min(100, Math.round(getValue() as number)));
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${v}%` }} />
+            </div>
+            <span className="text-sm font-semibold tabular-nums text-foreground">{v}%</span>
+          </div>
+        );
+      },
     },
     {
       id: 'actions',
       header: '',
-      size: 80,
+      size: 130,
       cell: ({ row }) => (
-        <div className="flex justify-end items-center gap-0 pr-0.5">
+        <div className="flex justify-end items-center gap-1 pr-0.5">
           <Button
             variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-primary hover:bg-primary/10"
+            size="sm"
+            className="h-8 gap-1.5 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 hover:text-primary"
             title="Open heatmap"
             onClick={(e) => {
               e.stopPropagation();
               router.push(heatmapHref(row.original.url));
             }}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <Flame className="h-3.5 w-3.5" />
+            View
           </Button>
-          <Button
+          {!embed && <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             title="Delete data for this page"
             onClick={async (e) => {
               e.stopPropagation();
@@ -262,17 +301,17 @@ export default function HeatmapsPage() {
             }}
           >
             <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          </Button>}
         </div>
       ),
     },
-  ], [heatmapHref, router, deleteMutation, websiteId]);
+  ], [heatmapHref, router, deleteMutation, websiteId, maxViews, maxClicks, embed]);
 
 
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       {confirmDialog}
-      <DashboardPageHeader
+      {embed ? null : <DashboardPageHeader
         websiteId={websiteId}
         title="Heatmaps"
         description="See where users click, move, and how far they scroll on each page."
@@ -289,7 +328,7 @@ export default function HeatmapsPage() {
             Refresh
           </Button>
         )}
-      </DashboardPageHeader>
+      </DashboardPageHeader>}
 
       {isError && !isDemoMode && (
         <Alert variant="destructive" className="mb-4">
@@ -311,8 +350,8 @@ export default function HeatmapsPage() {
         data={filtered}
         columns={columns}
         isLoading={isLoading}
-        enableRowSelection={true}
-        selectionActions={(selectedRows) => (
+        enableRowSelection={!embed}
+        selectionActions={embed ? undefined : (selectedRows) => (
           <>
             <span className="text-sm font-medium text-muted-foreground mr-2">
               {selectedRows.length} selected
@@ -349,16 +388,7 @@ export default function HeatmapsPage() {
 
         toolbarRight={
           <div className="flex items-center gap-2">
-            <Select value={String(days)} onValueChange={v => setDays(Number(v))}>
-              <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')} aria-label="Date range">
-                <SelectValue placeholder="Range">{rangeDates}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {HEATMAP_RANGES.map(r => (
-                  <SelectItem key={r.days} value={String(r.days)} className="text-xs">{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <RangeSelect value={days} onChange={setDays} ranges={HEATMAP_RANGES} />
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input

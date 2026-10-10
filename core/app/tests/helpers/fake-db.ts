@@ -325,6 +325,7 @@ export function fakeDbModule() {
     analyticsEvents: table("analytics_events"),
     apiKeys: table("api_keys"),
     accountApiKeys: table("account_api_keys"),
+    embedLinks: table("embed_links"),
     sessionReplays: table("session_replays"),
     heatmapPoints: table("heatmap_points"),
     aiQueries: table("ai_queries"),

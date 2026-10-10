@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -14,7 +15,9 @@ import {
   Globe,
   Gauge,
   MoreVertical,
+  KeyRound,
   Pencil,
+  UserPlus,
   Search,
   Trash2,
   Users,
@@ -25,7 +28,6 @@ import type { AgencyClient } from '@/features/agency/types';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { ColumnDef, DataTable, SortableHeader } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -37,6 +39,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { isEnterprise } from '@/lib/features';
+import { deleteClientUser, listClientUsers, type ClientUser } from '@/features/agency';
+import { demoClientUsers, demoMutationGuard, isDemo } from '@/lib/demo';
+import { CreateClientUserDialog, DeleteConfirmDialog, ResetPasswordDialog } from '@/components/agency/client-user-dialogs';
 import { FEATURE_NAMES, compactNumber, initials, limitPhrases } from '@/components/agency/format';
 
 type Filter = 'all' | AgencyClient['status'];
@@ -118,6 +124,28 @@ export function ClientsTab({
   const update = useUpdateClient(websiteId);
   const remove = useDeleteClient(websiteId);
 
+  // A client's login is the login with its email. Cloud only; the demo site shows samples.
+  const demo = isDemo(websiteId);
+  const showLogins = isEnterprise || demo;
+  const queryClient = useQueryClient();
+  const { data: logins = [] } = useQuery({
+    queryKey: ['agency-client-users', demo],
+    queryFn: () => (demo ? Promise.resolve(demoClientUsers()) : listClientUsers()),
+    enabled: showLogins,
+  });
+  const loginFor = (c: AgencyClient): ClientUser | undefined =>
+    c.email ? logins.find(u => u.email.toLowerCase() === c.email.toLowerCase()) : undefined;
+  const refreshLogins = () => queryClient.invalidateQueries({ queryKey: ['agency-client-users'] });
+  const [newLoginFor, setNewLoginFor] = useState<AgencyClient | null>(null);
+  const [resetTarget, setResetTarget] = useState<ClientUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientUser | null>(null);
+  const deleteLogin = (userId: string) => {
+    if (demoMutationGuard(websiteId)) return;
+    deleteClientUser(userId)
+      .then(() => { toast.success('Login removed'); setDeleteTarget(null); refreshLogins(); })
+      .catch((e: Error) => toast.error(e.message || 'Could not remove the login'));
+  };
+
   const onError = (e: unknown) => { if (!isDemoRefusal(e)) toast.error((e as Error).message || 'Something went wrong'); };
   const setStatus = (c: AgencyClient, status: AgencyClient['status']) =>
     update.mutate({ id: c.id, req: { status } }, {
@@ -144,14 +172,14 @@ export function ClientsTab({
       id: 'name',
       header: ({ column }) => <SortableHeader column={column}>Client</SortableHeader>,
       accessorKey: 'name',
-      size: 180,
+      size: 190,
       cell: ({ row }) => {
         const c = row.original;
         return (
           <div className="flex min-w-0 items-center gap-3">
             <ClientAvatar client={c} />
             {/* A hard max: the table lays out automatically, so `truncate` needs a bound. */}
-            <div className="min-w-0 max-w-[112px]">
+            <div className="min-w-0 max-w-[130px]">
               <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
               {/* Your own ID first: it is what the management API looks clients up by. */}
               <p className={cn('mt-0.5 truncate text-xs text-muted-foreground', c.externalId && 'font-mono')}>
@@ -166,14 +194,14 @@ export function ClientsTab({
       id: 'websites',
       header: ({ column }) => <SortableHeader column={column}>Websites</SortableHeader>,
       accessorFn: c => c.websites.length,
-      size: 240,
+      size: 170,
       cell: ({ row }) => {
         const ws = row.original.websites;
         if (ws.length === 0) return <span className="text-sm text-muted-foreground">None yet</span>;
         return (
           <div className="flex min-w-0 items-center gap-2">
             <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="max-w-[116px] truncate text-sm text-foreground" title={ws[0]!.url}>{ws[0]!.url}</span>
+            <span className="max-w-[120px] truncate text-sm text-foreground" title={ws[0]!.url}>{ws[0]!.url}</span>
             {ws.length > 1 && (
               <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                 +{ws.length - 1}
@@ -186,7 +214,7 @@ export function ClientsTab({
     {
       id: 'features',
       header: 'Features',
-      size: 168,
+      size: 136,
       enableSorting: false,
       // Six fixed slots, one per feature: lit when on, dimmed and struck through when off.
       // Always one line, and the same position means the same feature on every row.
@@ -218,37 +246,44 @@ export function ClientsTab({
       id: 'events',
       header: ({ column }) => <SortableHeader column={column}>Event cap</SortableHeader>,
       accessorFn: c => c.limits.maxMonthlyEvents ?? Number.MAX_SAFE_INTEGER,
-      size: 104,
+      size: 80,
       cell: ({ row }) => <CapCell value={row.original.limits.maxMonthlyEvents} />,
     },
     {
       id: 'replays',
-      header: ({ column }) => <SortableHeader column={column}>Recording cap</SortableHeader>,
+      header: ({ column }) => <SortableHeader column={column}>Rec. cap</SortableHeader>,
       accessorFn: c => c.limits.maxReplays ?? Number.MAX_SAFE_INTEGER,
-      size: 124,
+      size: 84,
       cell: ({ row }) => <CapCell value={row.original.limits.maxReplays} />,
     },
+    ...(showLogins ? [{
+      id: 'login',
+      header: 'Login',
+      enableSorting: false,
+      size: 50,
+      cell: ({ row }: { row: { original: AgencyClient } }) => {
+        const u = loginFor(row.original);
+        return u ? (
+          <span className="inline-flex" title={`Login: ${u.email}`}>
+            <KeyRound className="h-4 w-4 text-emerald-600" aria-hidden />
+            <span className="sr-only">Has login</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground/60">—</span>
+        );
+      },
+    } as ColumnDef<AgencyClient>] : []),
     {
       id: 'status',
       header: 'Status',
       accessorKey: 'status',
-      size: 140,
+      size: 100,
       cell: ({ row }) => {
         const c = row.original;
         return (
-          <div className="flex items-center gap-2.5" onClick={e => e.stopPropagation()}>
-            <Switch
-              // Smaller than a settings-form switch, but not the 28px sliver it was.
-              className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-              checked={c.status === 'active'}
-              disabled={c.status === 'archived' || update.isPending}
-              onCheckedChange={on => setStatus(c, on ? 'active' : 'suspended')}
-              aria-label={c.status === 'active' ? 'Suspend client' : 'Activate client'}
-            />
-            <span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold capitalize', STATUS_PILL[c.status])}>
-              {c.status}
-            </span>
-          </div>
+          <span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold capitalize', STATUS_PILL[c.status])}>
+            {c.status}
+          </span>
         );
       },
     },
@@ -274,6 +309,11 @@ export function ClientsTab({
                 <DropdownMenuItem onClick={() => onEdit(c)}>
                   <Pencil className="mr-2 h-3.5 w-3.5" /> Edit details
                 </DropdownMenuItem>
+                {c.status !== 'archived' && (
+                  <DropdownMenuItem onClick={() => setStatus(c, c.status === 'active' ? 'suspended' : 'active')}>
+                    <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> {c.status === 'active' ? 'Suspend' : 'Activate'}
+                  </DropdownMenuItem>
+                )}
                 {c.status !== 'archived' ? (
                   <DropdownMenuItem onClick={() => setStatus(c, 'archived')}>
                     <Archive className="mr-2 h-3.5 w-3.5" /> Archive
@@ -283,6 +323,26 @@ export function ClientsTab({
                     <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Restore
                   </DropdownMenuItem>
                 )}
+                {showLogins && (() => {
+                  const u = loginFor(c);
+                  if (u) {
+                    return (
+                      <>
+                        <DropdownMenuItem onClick={() => setResetTarget(u)}>
+                          <KeyRound className="mr-2 h-3.5 w-3.5" /> Reset login password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDeleteTarget(u)}>
+                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove login
+                        </DropdownMenuItem>
+                      </>
+                    );
+                  }
+                  return c.email ? (
+                    <DropdownMenuItem onClick={() => { if (!demoMutationGuard(websiteId)) setNewLoginFor(c); }}>
+                      <UserPlus className="mr-2 h-3.5 w-3.5" /> Create login
+                    </DropdownMenuItem>
+                  ) : null;
+                })()}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -310,6 +370,15 @@ export function ClientsTab({
   return (
     <>
       {confirmDialog}
+      <CreateClientUserDialog
+        websiteId={websiteId}
+        open={!!newLoginFor}
+        onOpenChange={o => !o && setNewLoginFor(null)}
+        initial={newLoginFor ? { name: newLoginFor.name, email: newLoginFor.email, company: newLoginFor.company } : null}
+        onDone={refreshLogins}
+      />
+      <ResetPasswordDialog user={resetTarget} onClose={() => setResetTarget(null)} />
+      <DeleteConfirmDialog user={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteLogin} isDeleting={false} />
       <StatCards
         isLoading={isLoading}
         cards={[
@@ -321,7 +390,7 @@ export function ClientsTab({
       />
 
       <DataTable
-        className="rounded-lg shadow-sm "
+        className="overflow-hidden rounded-lg shadow-sm [&_td]:!py-2.5 [&_td]:!px-3 [&_th]:!px-3"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
@@ -340,7 +409,7 @@ export function ClientsTab({
         toolbarRight={
           <div className="flex items-center gap-2">
             <Select value={filter} onValueChange={v => setFilter(v as Filter)}>
-              <SelectTrigger className="h-8 w-36 text-xs">
+              <SelectTrigger className="h-8 w-36 !bg-card text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -355,7 +424,7 @@ export function ClientsTab({
                 placeholder="Search client, ID or domain…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="h-8 w-60 pl-8 text-xs"
+                className="h-8 w-60 !bg-card pl-8 text-xs"
               />
             </div>
           </div>

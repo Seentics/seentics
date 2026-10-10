@@ -5,11 +5,8 @@ import { useState, useMemo } from 'react';
 
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 import { Banknote } from 'lucide-react';
 import {
@@ -36,12 +33,12 @@ export interface RevenueOrdersChartProps {
  */
 export function RevenueOrdersChart({ chartData, currency, className }: RevenueOrdersChartProps) {
   return (
-    <Card className={cn('mb-6 rounded-lg border border-border', className)}>
-      <CardHeader className=" border-b border-border">
+    <Card className={cn('mb-4 rounded-lg border border-border shadow-sm', className)}>
+      <CardHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-sm font-semibold">Revenue & orders (daily)</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Gross purchase value. Refunds shown in summary when tracked.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Gross purchase value per day</p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">

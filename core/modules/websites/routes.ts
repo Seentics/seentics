@@ -32,7 +32,6 @@ import {
 } from "./controllers/website-privacy.controller";
 import { updateWebsiteSharing } from "./controllers/website-sharing.controller";
 import {
-  assignClientWebsite,
   createClient,
   createOwnedWebsite,
   deleteClient,
@@ -40,11 +39,9 @@ import {
   getClient,
   getClientAnalytics,
   getOwnedWebsite,
-  getOwnedWebsiteSnippet,
   listClients,
   listClientWebsites,
   listOwnedWebsites,
-  unassignClientWebsite,
   updateClient,
   updateOwnedWebsite,
   type ClientControllerDeps,
@@ -63,8 +60,6 @@ export function createClientRoutes(deps: ClientControllerDeps) {
   routes.patch("/:clientId", updateClient(deps));
   routes.delete("/:clientId", deleteClient(deps));
   routes.get("/:clientId/websites", listClientWebsites(deps));
-  routes.post("/:clientId/websites", assignClientWebsite(deps));
-  routes.delete("/:clientId/websites/:websiteId", unassignClientWebsite(deps));
   routes.get("/:clientId/analytics", getClientAnalytics(deps));
   return routes;
 }
@@ -75,18 +70,23 @@ export function createOwnedWebsiteRoutes(deps: OwnedWebsiteControllerDeps) {
   routes.get("/", listOwnedWebsites(deps));
   routes.post("/", createOwnedWebsite(deps));
   routes.get("/:websiteId", getOwnedWebsite(deps));
-  routes.get("/:websiteId/snippet", getOwnedWebsiteSnippet(deps));
   routes.patch("/:websiteId", updateOwnedWebsite(deps));
   routes.delete("/:websiteId", deleteOwnedWebsite(deps));
   return routes;
 }
 
-/** `/user/agency/clients`, for the signed-in dashboard. */
-export function createAgencyRoutes(clientRoutes: Hono<{ Variables: AuthVars }>) {
+/** `/user/agency/clients` and `/user/agency/websites`, for the signed-in dashboard. */
+export function createAgencyRoutes(
+  clientRoutes: Hono<{ Variables: AuthVars }>,
+  ownedWebsiteRoutes: Hono<{ Variables: AuthVars }>,
+) {
   const routes = new Hono<{ Variables: AuthVars }>();
   routes.use("/clients/*", authMiddleware);
   routes.use("/clients", authMiddleware);
+  routes.use("/websites/*", authMiddleware);
+  routes.use("/websites", authMiddleware);
   routes.route("/clients", clientRoutes);
+  routes.route("/websites", ownedWebsiteRoutes);
   return routes;
 }
 

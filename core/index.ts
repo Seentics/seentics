@@ -82,7 +82,7 @@ app.route(
     agency: {
       clients: application.modules.websites.agencyRoutes,
       apiKeys: application.modules.apiKeys.accountRoutes,
-      embedTokens: application.modules.apiKeys.embedRoutes,
+      embedLinks: application.modules.apiKeys.embedRoutes,
     },
   }),
 );
@@ -106,19 +106,22 @@ app.route(
   "/api/v1/manage",
   createManagementRoutes({
     accountKeys: application.modules.apiKeys.accountVerifier,
-    websiteKeys: application.modules.apiKeys.websiteKeys,
-    embedTokens: application.modules.apiKeys.embedTokens,
+    embedLinks: application.modules.apiKeys.embedLinks,
+    clients: application.modules.websites.clients,
     ownedWebsites: application.modules.websites.ownedWebsites,
     routers: application.modules.websites.managementRoutes,
   }),
 );
-// Iframed dashboards, read with a short-lived embed token. See app/http/embed/routes.ts.
+// Iframed dashboards, read with a permanent, revocable embed link's token. See app/http/embed/routes.ts.
 app.route(
   "/api/v1/embed",
   createEmbedRoutes({
-    embedTokens: application.modules.apiKeys.embedTokens,
+    embedLinks: application.modules.apiKeys.embedLinks,
+    clients: application.modules.websites.clients,
     analytics: application.modules.analytics.reads,
     websites: application.modules.websites.query,
+    recordings: application.modules.recordings.reads,
+    heatmaps: application.modules.heatmaps.reads,
   }),
 );
 app.route("/api/v1/privacy", privacyRoutes);
@@ -126,9 +129,6 @@ app.route("/api/v1/internal", application.routes.internal);
 
 app.route("/api/v1/funnels", application.routes.funnels.publicRoutes);
 app.route("/api/v1/websites", application.routes.websites);
-// Mounted alongside the websites router: API-key management is its own module and
-// authorizes access through the websites module's public query interface.
-app.route("/api/v1/websites", application.modules.apiKeys.routes);
 app.route("/api/v1/websites", application.routes.funnels.authRoutes);
 app.route("/api/v1/automations", application.routes.automations);
 

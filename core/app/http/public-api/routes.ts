@@ -1,12 +1,12 @@
 /**
- * Machine-facing data API (analytics, replays, heatmaps). Auth: `X-API-Key` per website (`api_keys` table).
+ * Machine-facing data API (analytics, replays, heatmaps). Auth: the account API key (`X-API-Key`) of the website's owner.
  * Base path: `GET /api/v1/raw/...` (mounted from `index.ts`).
  *
  * Analytics read models mirror the session dashboard (`modules/analytics/routes.ts`) — both go through
  * `AnalyticsQueryService`, so the two surfaces cannot drift apart.
  * Shared query params where applicable: `days`, `timezone`, `limit`.
  *
- * Auth: `r.use("*", rawApiAuthMiddleware)` — `X-API-Key` or `x-api-key` must match `api_keys` for `:website_id`.
+ * Auth: `r.use("*", rawApiAuthMiddleware)` — `X-API-Key` must be an account key whose owner owns `:website_id`.
  * Rate limits: global middleware applies per-IP tier `raw` (`RATE_LIMIT_RAW_MAX`); after a valid key, per-key bucket
  * (`RATE_LIMIT_RAW_PER_KEY_MAX`) — see `middleware/rate-limit.ts` and `middleware/raw-api-auth.ts`.
  */
@@ -56,7 +56,7 @@ r.get("/v1/catalogue", (c) =>
   }),
 );
 
-/** Every other path on this router requires a valid website API key (defense in depth vs per-route middleware). */
+/** Every other path on this router requires a valid account API key (defense in depth vs per-route middleware). */
 r.use("*", rawApiAuthMiddleware);
 
 /** Path param `:website_id` is always set for these routes. */

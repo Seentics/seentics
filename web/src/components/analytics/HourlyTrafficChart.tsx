@@ -36,7 +36,7 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
   isLoading 
 }) => {
   if (isLoading) {
-    return <Skeleton className="h-64 w-full" />;
+    return <Skeleton className="h-full w-full" />;
   }
 
   const chartData = (data?.hourly_stats || []).map((item: any) => ({
@@ -46,7 +46,7 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
         <CartesianGrid 
           strokeDasharray="3 3" 

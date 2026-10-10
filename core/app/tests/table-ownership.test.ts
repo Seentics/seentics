@@ -50,6 +50,7 @@ const TABLE_OWNER: Record<string, string> = {
   users: "auth",
   api_keys: "api-keys",
   account_api_keys: "api-keys",
+  embed_links: "api-keys",
   clients: "websites",
 };
 
@@ -71,6 +72,7 @@ const DRIZZLE_IDENT: Record<string, string> = {
   users: "users",
   apiKeys: "api_keys",
   accountApiKeys: "account_api_keys",
+  embedLinks: "embed_links",
   clients: "clients",
 };
 

@@ -126,27 +126,6 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
     return deleted;
   }
 
-  async assignWebsite(ownerId: string, clientId: string, websiteId: string): Promise<Website> {
-    const client = await this.ownedClient(ownerId, clientId);
-    if (!client) throw new ClientOperationError("not_found");
-    const site = await this.getWebsite(ownerId, websiteId);
-    if (!site) throw new ClientOperationError("website_not_found");
-    if (site.clientId === clientId) return site;
-    await this.assertRoomFor(client);
-    const updated = await this.siteWrites.update(websiteId, { clientId });
-    this.onChanged();
-    return updated!;
-  }
-
-  async unassignWebsite(ownerId: string, clientId: string, websiteId: string): Promise<boolean> {
-    if (!(await this.ownedClient(ownerId, clientId))) return false;
-    const site = await this.getWebsite(ownerId, websiteId);
-    if (!site || site.clientId !== clientId) return false;
-    await this.siteWrites.update(websiteId, { clientId: null });
-    this.onChanged();
-    return true;
-  }
-
   // ─── Websites ─────────────────────────────────────────────────────────────
 
   async listWebsites(ownerId: string, filter: { clientId?: string } & Page): Promise<PageOf<Website>> {

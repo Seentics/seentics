@@ -49,12 +49,6 @@ export const clientCreateSchema = z.object({
 
 export const clientUpdateSchema = z.object({ ...clientFields, name: clientFields.name.optional() });
 
-export const assignWebsiteSchema = z.object({
-  // The dashboard sends camelCase here; the management API snake_case.
-  websiteId: z.string().uuid().optional(),
-  website_id: z.string().uuid().optional(),
-}).refine((b) => b.websiteId || b.website_id, "website_id is required");
-
 export const pageQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),

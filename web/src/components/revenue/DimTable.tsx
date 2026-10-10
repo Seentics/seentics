@@ -55,17 +55,17 @@ export function DimTable({ rows, currency, emptyMessage, icon }: {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-left">
-            <th className="py-2.5 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
+          <tr className="border-b border-border bg-muted/30 text-left">
+            <th className="py-2 pl-3 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
             <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Revenue</th>
             <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Orders</th>
-            <th className="py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[140px]">Share</th>
+            <th className="py-2 pr-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[140px]">Share</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.name} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-              <td className="py-2.5 pr-4 font-medium text-foreground max-w-[220px]" title={r.name}>
+              <td className="py-2.5 pl-3 pr-4 font-medium text-foreground max-w-[220px]" title={r.name}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   {icon && <RowIcon kind={icon} name={r.name} />}
                   <span className="truncate">{r.name}</span>
@@ -73,7 +73,7 @@ export function DimTable({ rows, currency, emptyMessage, icon }: {
               </td>
               <td className="py-2.5 pr-4 text-right tabular-nums font-semibold text-foreground">{formatMoney(r.revenue, currency)}</td>
               <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">{r.orders.toLocaleString()}</td>
-              <td className="py-2.5">
+              <td className="py-2.5 pr-3">
                 <div className="flex items-center justify-end gap-2">
                   <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{r.share_pct.toFixed(1)}%</span>
                   <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">

@@ -34,3 +34,6 @@ export { ScreenshotTargetNotAllowedError } from "./heatmap.interface";
 export type { HeatmapsModule } from "./heatmaps.module";
 
 export type { HeatmapRawReads } from "./heatmap.interface";
+
+/** Query contracts of the heatmap reads, shared with the embed API. */
+export { heatmapDataQuerySchema, heatmapPagesQuerySchema, heatmapSnapshotQuerySchema } from "../validators/heatmap.schema";

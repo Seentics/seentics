@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -18,6 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
+import { demoMutationGuard } from '@/lib/demo';
 import Link from 'next/link';
 import {
   UserPlus,
@@ -78,12 +81,16 @@ export function TempPasswordDisplay({ password }: { password: string }) {
 // ─── Create Client User Dialog ────────────────────────────────────────────────
 
 export interface CreateClientUserDialogProps {
+  /** The website the page was reached under; the demo website refuses the write. */
+  websiteId?: string;
+  /** Prefill from a client, when the login is for one that already exists. */
+  initial?: { name: string; email: string; company?: string } | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onDone: () => void;
 }
 
-export function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateClientUserDialogProps) {
+export function CreateClientUserDialog({ websiteId, initial, open, onOpenChange, onDone }: CreateClientUserDialogProps) {
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [company, setCompany]   = useState('');
@@ -100,6 +107,14 @@ export function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateCli
     onError: (err: any) => toast.error(err.message || 'Failed to create client account'),
   });
 
+  useEffect(() => {
+    if (open && initial) {
+      setName(initial.name);
+      setEmail(initial.email);
+      setCompany(initial.company ?? '');
+    }
+  }, [open, initial]);
+
   const resetForm = () => {
     setName(''); setEmail(''); setCompany(''); setPassword('');
     setFeatures({ ...DEFAULT_FEATURES });
@@ -113,6 +128,7 @@ export function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateCli
 
   const handleSubmit = () => {
     if (!name.trim() || !email.trim()) return;
+    if (websiteId && demoMutationGuard(websiteId)) return;
     const req: CreateClientUserRequest = {
       name: name.trim(),
       email: email.trim(),
@@ -129,102 +145,108 @@ export function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateCli
   // ── Success state ──────────────────────────────────────────────────────────
   if (result) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
-          <DialogHeader className="px-6 py-5 border-b border-border">
-            <DialogTitle className="text-base font-semibold">Account Created</DialogTitle>
-          </DialogHeader>
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
-                <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+      <Sheet open={open} onOpenChange={handleClose}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader className="bg-card">
+            <SheetTitle>Account created</SheetTitle>
+            <SheetDescription>Send these details to your client.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+            <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                  <Check className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{result.user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{result.user.email}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Account created successfully!</p>
-                <p className="text-xs text-muted-foreground">{result.user.email}</p>
-              </div>
+              {result.tempPassword && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">Temporary password</p>
+                  <TempPasswordDisplay password={result.tempPassword} />
+                </div>
+              )}
             </div>
-
-            {result.tempPassword && (
-              <div className="space-y-2 pt-1">
-                <p className="text-xs font-medium text-muted-foreground">Temporary password</p>
-                <TempPasswordDisplay password={result.tempPassword} />
-              </div>
-            )}
           </div>
-          <div className="flex justify-end px-6 py-4 border-t border-border">
-            <Button size="sm" onClick={() => handleClose(false)}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <SheetFooter className="bg-card pr-20">
+            <Button size="sm" onClick={() => handleClose(false)}>Done</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     );
   }
 
   // ── Create form ────────────────────────────────────────────────────────────
+  const field = 'h-8 !bg-card text-xs';
+  const box = 'space-y-3 rounded-lg border bg-card p-3.5 shadow-sm';
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
-        <DialogHeader className="px-6 py-5 border-b border-border">
-          <DialogTitle className="text-base font-semibold">Create Client Account</DialogTitle>
-        </DialogHeader>
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Full Name <span className="text-destructive">*</span></Label>
-              <Input placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} className="h-9 text-sm" />
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="sm:max-w-lg">
+        <SheetHeader className="bg-card">
+          <SheetTitle>Create client account</SheetTitle>
+          <SheetDescription>A login that lets a client see only their own dashboard.</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+          <div className={box}>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Full name <span className="text-destructive">*</span></Label>
+                <Input placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} className={field} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Company</Label>
+                <Input placeholder="Acme Corp" value={company} onChange={e => setCompany(e.target.value)} className={field} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Company</Label>
-              <Input placeholder="Acme Corp" value={company} onChange={e => setCompany(e.target.value)} className="h-9 text-sm" />
+            <div className="space-y-1">
+              <Label className="text-xs">Email <span className="text-destructive">*</span></Label>
+              <Input type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className={field} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Password</Label>
+              <Input
+                type="password"
+                placeholder="Leave empty to generate one"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className={field}
+              />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Email <span className="text-destructive">*</span></Label>
-            <Input type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className="h-9 text-sm" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Password</Label>
-            <Input
-              type="password"
-              placeholder="Auto-generate if empty"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="h-9 text-sm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Features</Label>
-            <div className="grid grid-cols-2 gap-2">
+          <div className={box}>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Access</h4>
+              <p className="text-[11px] text-muted-foreground">What this person can open.</p>
+            </div>
+            <ul className="divide-y divide-border rounded-md border bg-muted/20">
               {FEATURE_LABELS.map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-                  <input
-                    type="checkbox"
+                <li key={key} className="flex items-center justify-between px-3 py-2">
+                  <span className="text-[13px] text-foreground">{label}</span>
+                  <Switch
+                    className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                     checked={features[key]}
-                    onChange={() => toggleFeature(key)}
-                    className="rounded-lg border-border accent-primary h-4 w-4"
+                    onCheckedChange={() => toggleFeature(key)}
+                    aria-label={label}
                   />
-                  {label}
-                </label>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
+
+        <SheetFooter className="bg-card pr-20">
           <Button variant="outline" size="sm" onClick={() => handleClose(false)}>Cancel</Button>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!name.trim() || !email.trim() || mutation.isPending}
-          >
-            {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-            Create Account
+          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || !email.trim() || mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Create account
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

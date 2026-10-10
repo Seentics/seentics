@@ -2,15 +2,13 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, GripVertical, Save, X, Target, MousePointer, Activity } from 'lucide-react';
+import { SheetHeader, SheetFooter, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Plus, Trash2, GripVertical, Save, X, Target } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { FunnelStep, Funnel } from '@/features/funnels/queries';
 
@@ -20,6 +18,12 @@ interface FunnelBuilderProps {
   onSave: (funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
 }
+
+const autoName = (step: FunnelStep) => {
+  if (step.type === 'event') return step.condition.event?.trim() || 'Event';
+  const path = (step.type === 'page' ? step.condition.page : step.condition.custom)?.trim() || '';
+  return path === '/' ? 'Home page' : path || 'Step';
+};
 
 export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: FunnelBuilderProps) {
   const [name, setName] = useState(existingFunnel?.name || '');
@@ -32,7 +36,8 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
     existingFunnel?.steps || [
       {
         id: 'step-1',
-        name: 'Landing Page',
+        // Named from its path when saved ("Home page" for "/"), so changing the path renames it too.
+        name: '',
         type: 'page',
         condition: { page: '/' },
         order: 1,
@@ -90,7 +95,6 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
     }
 
     const hasEmptySteps = steps.some(step => 
-      !step.name.trim() || 
       (step.type === 'page' && (!step.condition.page || step.condition.page.trim() === '')) ||
       (step.type === 'event' && (!step.condition.event || step.condition.event.trim() === '')) ||
       (step.type === 'custom' && (!step.condition.custom || step.condition.custom.trim() === ''))
@@ -104,20 +108,11 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
     onSave({
       name: name.trim(),
       description: description.trim(),
-      steps,
+      steps: steps.map((step, i) => ({ ...step, order: i + 1, name: step.name.trim() || autoName(step) })),
       is_active: existingFunnel?.is_active ?? true,
       conversion_window_hours: windowHours === 'none' ? null : Number(windowHours),
     });
   }, [name, description, steps, windowHours, onSave, existingFunnel?.is_active]);
-
-  const getStepIcon = (type: string) => {
-    switch (type) {
-      case 'page': return <MousePointer className="w-4 h-4" />;
-      case 'event': return <Activity className="w-4 h-4" />;
-      case 'custom': return <Target className="w-4 h-4" />;
-      default: return <MousePointer className="w-4 h-4" />;
-    }
-  };
 
   const getStepColor = (index: number) => {
     const colors = ['bg-indigo-500', 'bg-indigo-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500'];
@@ -125,59 +120,65 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
   };
 
   return (
-    <Card className="w-full max-w-5xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="w-5 h-5" />
-          {existingFunnel ? 'Edit Funnel' : 'Create New Funnel'}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <>
+      <SheetHeader className="bg-card">
+        <SheetTitle className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-primary" />
+          {existingFunnel ? 'Edit funnel' : 'New funnel'}
+        </SheetTitle>
+        <SheetDescription>
+          Define the steps a visitor takes and see where they drop off.
+        </SheetDescription>
+      </SheetHeader>
+      <div className="flex-1 overflow-y-auto bg-muted/40 px-4 py-4 space-y-3">
         {/* Basic Information */}
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="funnel-name">Funnel Name</Label>
-            <Input
-              id="funnel-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., E-commerce Conversion, Lead Generation"
-              className="mt-1"
-            />
+        <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_9rem]">
+            <div>
+              <Label htmlFor="funnel-name" className="text-xs">Name</Label>
+              <Input
+                id="funnel-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Checkout conversion"
+                className="mt-1 h-8 !bg-card text-xs"
+              />
+            </div>
+            <div>
+              <Label htmlFor="funnel-window" className="text-xs">Step window</Label>
+              <Select value={windowHours} onValueChange={setWindowHours}>
+                <SelectTrigger id="funnel-window" className="mt-1 h-8 !bg-card text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No limit</SelectItem>
+                  <SelectItem value="1">1 hour</SelectItem>
+                  <SelectItem value="24">1 day</SelectItem>
+                  <SelectItem value="72">3 days</SelectItem>
+                  <SelectItem value="168">7 days</SelectItem>
+                  <SelectItem value="720">30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div>
-            <Label htmlFor="funnel-description">Description (Optional)</Label>
+            <Label htmlFor="funnel-description" className="text-xs">Description (optional)</Label>
             <Textarea
               id="funnel-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what this funnel tracks..."
-              className="mt-1"
+              placeholder="What this funnel tracks"
+              rows={2}
+              className="mt-1 min-h-0 resize-none !bg-card text-xs"
             />
           </div>
-          <div>
-            <Label htmlFor="funnel-window">Each step must follow within</Label>
-            <Select value={windowHours} onValueChange={setWindowHours}>
-              <SelectTrigger id="funnel-window" className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No limit</SelectItem>
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="24">1 day</SelectItem>
-                <SelectItem value="72">3 days</SelectItem>
-                <SelectItem value="168">7 days</SelectItem>
-                <SelectItem value="720">30 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              A visitor counts at the next step only if they reach it within this time of the step before.
-            </p>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            A visitor counts at the next step only if they reach it within the step window of the step before.
+          </p>
         </div>
 
         {/* Funnel Steps */}
-        <div className="space-y-4">
+        <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Funnel Steps</h3>
+            <h3 className="text-sm font-semibold">Steps</h3>
             <Button onClick={addStep} size="sm" variant="outline">
               <Plus className="w-4 h-4 mr-2" />
               Add Step
@@ -190,7 +191,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                 <div
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="space-y-3"
+                  className="space-y-2"
                 >
                   {steps.map((step, index) => (
                     <Draggable key={step.id} draggableId={step.id} index={index}>
@@ -198,133 +199,93 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`p-4 border rounded-lg bg-card ${
-                            snapshot.isDragging ? 'shadow-lg' : ''
+                          className={`flex items-start gap-2 rounded-md border bg-muted/30 p-2 ${
+                            snapshot.isDragging ? 'shadow-lg bg-card' : ''
                           }`}
                         >
-                          <div className="flex items-center gap-4">
-                            {/* Drag Handle */}
-                            <div
-                              {...provided.dragHandleProps}
-                              className="text-muted-foreground hover:text-foreground cursor-grab"
-                            >
-                              <GripVertical className="w-4 h-4" />
-                            </div>
-
-                            {/* Step Number */}
-                            <div className={`w-8 h-8 rounded-full ${getStepColor(index)} text-white text-sm font-medium flex items-center justify-center`}>
-                              {index + 1}
-                            </div>
-
-                            {/* Step Configuration */}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-                              {/* Step Name */}
-                              <div>
-                                <Label className="text-xs">Step Name</Label>
-                                <Input
-                                  value={step.name}
-                                  onChange={(e) => updateStep(step.id, { name: e.target.value })}
-                                  placeholder="e.g., Landing Page"
-                                  className="h-8"
-                                />
-                              </div>
-
-                              {/* Step Type */}
-                              <div>
-                                <Label className="text-xs">Type</Label>
-                                <Select
-                                  value={step.type}
-                                  onValueChange={(value: 'page' | 'event' | 'custom') =>
-                                    updateStep(step.id, { type: value, condition: {} })
-                                  }
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="page">Page Visit</SelectItem>
-                                    <SelectItem value="event">Event</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {/* Match Type (page steps only) */}
-                              <div>
-                                <Label className="text-xs">Match</Label>
-                                <Select
-                                  value={step.matchType || 'exact'}
-                                  onValueChange={(value: 'exact' | 'contains' | 'starts_with' | 'regex') =>
-                                    updateStep(step.id, { matchType: value })
-                                  }
-                                  disabled={step.type !== 'page'}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="exact">Exact</SelectItem>
-                                    <SelectItem value="contains">Contains</SelectItem>
-                                    <SelectItem value="starts_with">Starts with</SelectItem>
-                                    <SelectItem value="regex">Regex</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {/* Condition */}
-                              <div>
-                                <Label className="text-xs">
-                                  {step.type === 'page' ? 'Page URL' :
-                                   step.type === 'event' ? 'Event Name' : 'Custom Condition'}
-                                </Label>
-                                <Input
-                                  value={
-                                    step.type === 'page' ? step.condition.page || '' :
-                                    step.type === 'event' ? step.condition.event || '' :
-                                    step.condition.custom || ''
-                                  }
-                                  onChange={(e) => {
-                                    const newCondition = { ...step.condition };
-                                    if (step.type === 'page') newCondition.page = e.target.value;
-                                    else if (step.type === 'event') newCondition.event = e.target.value;
-                                    else newCondition.custom = e.target.value;
-                                    updateStep(step.id, { condition: newCondition });
-                                  }}
-                                  placeholder={
-                                    step.type === 'page' ? '/product/*' :
-                                    step.type === 'event' ? 'add_to_cart' :
-                                    'custom_condition'
-                                  }
-                                  className="h-8"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Step Icon & Remove */}
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {getStepIcon(step.type)}
-                                <span className="ml-1">{step.type}</span>
-                              </Badge>
-                              {steps.length > 1 && (
-                                <Button
-                                  onClick={() => removeStep(step.id)}
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-red-500 hover:text-red-700 h-8 w-8 p-0"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
+                          <div
+                            {...provided.dragHandleProps}
+                            className="mt-1.5 text-muted-foreground hover:text-foreground cursor-grab"
+                          >
+                            <GripVertical className="w-3.5 h-3.5" />
+                          </div>
+                          <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${getStepColor(index)} text-[11px] font-medium text-white`}>
+                            {index + 1}
                           </div>
 
-                          {/* Step Connection Arrow */}
-                          {index < steps.length - 1 && (
-                            <div className="flex justify-center mt-2">
-                              <div className="w-px h-4 bg-border"></div>
-                              <div className="absolute w-2 h-2 bg-border rounded-full -mt-1"></div>
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="flex gap-2">
+                              {step.type !== 'custom' && (
+                                <div className="flex h-8 shrink-0 rounded-md border bg-card p-0.5 text-xs">
+                                  {(['page', 'event'] as const).map((t) => (
+                                    <button
+                                      key={t}
+                                      type="button"
+                                      onClick={() => step.type !== t && updateStep(step.id, { type: t, condition: {} })}
+                                      className={`rounded px-2.5 font-medium transition-colors ${
+                                        step.type === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                                      }`}
+                                    >
+                                      {t === 'page' ? 'Page' : 'Event'}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <Input
+                                value={
+                                  step.type === 'page' ? step.condition.page || '' :
+                                  step.type === 'event' ? step.condition.event || '' :
+                                  step.condition.custom || ''
+                                }
+                                onChange={(e) => {
+                                  const newCondition = { ...step.condition };
+                                  if (step.type === 'page') newCondition.page = e.target.value;
+                                  else if (step.type === 'event') newCondition.event = e.target.value;
+                                  else newCondition.custom = e.target.value;
+                                  updateStep(step.id, { condition: newCondition });
+                                }}
+                                placeholder={
+                                  step.type === 'page' ? '/pricing' :
+                                  step.type === 'event' ? 'signup_completed' :
+                                  'Custom condition'
+                                }
+                                aria-label="Page path or event name"
+                                className="h-8 min-w-0 flex-1 !bg-card text-xs"
+                              />
                             </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              {step.type === 'page' ? (
+                                <>
+                                  Visitor views a page that{' '}
+                                  <select
+                                    value={step.matchType || 'exact'}
+                                    onChange={(e) => updateStep(step.id, { matchType: e.target.value as FunnelStep['matchType'] })}
+                                    className="cursor-pointer rounded bg-transparent font-medium text-foreground underline decoration-dotted underline-offset-2 outline-none"
+                                  >
+                                    <option value="exact">is exactly this path</option>
+                                    <option value="starts_with">starts with this path</option>
+                                    <option value="contains">contains this text</option>
+                                    <option value="regex">matches this regex</option>
+                                  </select>
+                                </>
+                              ) : step.type === 'event' ? (
+                                'Visitor triggers this custom event'
+                              ) : (
+                                'Custom condition'
+                              )}
+                            </p>
+                          </div>
+
+                          {steps.length > 1 && (
+                            <Button
+                              onClick={() => removeStep(step.id)}
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                              aria-label="Remove step"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                           )}
                         </div>
                       )}
@@ -337,18 +298,17 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
           </DragDropContext>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button onClick={onCancel} variant="outline">
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            <Save className="w-4 h-4 mr-2" />
-            {existingFunnel ? 'Update Funnel' : 'Create Funnel'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <SheetFooter className="bg-card pr-20">
+        <Button onClick={onCancel} variant="outline" size="sm">
+          <X className="w-4 h-4 mr-1.5" />
+          Cancel
+        </Button>
+        <Button onClick={handleSave} size="sm">
+          <Save className="w-4 h-4 mr-1.5" />
+          {existingFunnel ? 'Update funnel' : 'Create funnel'}
+        </Button>
+      </SheetFooter>
+    </>
   );
 }

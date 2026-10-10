@@ -9,6 +9,7 @@ import type {
   HeatmapScreenshotMaintenance,
   HeatmapSnapshotDemand,
   HeatmapRawReads,
+  HeatmapQuery,
 } from "./index";
 
 /** Everything the heatmaps module offers. */
@@ -48,6 +49,9 @@ export interface HeatmapsModule extends ModuleLifecycle {
 
   /** Reads for the raw API — unmerged projections, not the dashboard's. */
   rawReads: HeatmapRawReads;
+
+  /** The dashboard's read services, for the embed API: reads only, no writes or captures. */
+  reads: Pick<HeatmapQuery, "listPages" | "getPoints" | "getLayoutSnapshot">;
 
   routes: AuthedRouter;
 }

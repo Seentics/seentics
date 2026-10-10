@@ -41,3 +41,21 @@ export const DEFAULT_CLIENT_FEATURES: AgencyClientFeatures = {
   automations: true,
   errors: true,
 };
+
+/** The sections an embed link can show, in display order, with what each one exposes. */
+export const EMBED_SECTIONS: Array<{
+  id: import('./types').EmbedSection;
+  label: string;
+  description: string;
+  /** Shown under the switch when it is on: what the person with the link will be able to see. */
+  caution?: string;
+}> = [
+  { id: 'analytics', label: 'Analytics', description: 'Traffic, pages, sources, countries and devices.' },
+  {
+    id: 'recordings', label: 'Session recordings', description: 'Replays of real visitor sessions.',
+    caution: 'Recordings show what real visitors did. Turn this on only for people who may see that.',
+  },
+  { id: 'heatmaps', label: 'Heatmaps', description: 'Where visitors click, move and scroll on each page.' },
+];
+
+export const DEFAULT_EMBED_SECTIONS: Array<import('./types').EmbedSection> = ['analytics'];

@@ -241,10 +241,11 @@ describe("requireScope", () => {
     expect((await guarded(["heatmaps:read", "analytics:read"]).request("/thing")).status).toBe(200);
   });
 
-  it("treats a key with no scopes as unrestricted", async () => {
-    // Keys minted before scoping carry none. Locking them out of everything would be a
-    // breaking change dressed up as a security fix.
-    expect((await guarded([]).request("/thing")).status).toBe(200);
+  it("refuses a key with no data scopes — empty is never unrestricted", async () => {
+    // An account key with only websites:* scopes is a management credential.
+    const res = await guarded([]).request("/thing");
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("insufficient_scope");
   });
 
   it("answers 401 when no key context was established at all", async () => {

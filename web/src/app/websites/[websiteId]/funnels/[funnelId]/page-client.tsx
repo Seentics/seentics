@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
@@ -128,33 +129,21 @@ export default function FunnelDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
-      {/* Header */}
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 mb-3 h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => router.push(`/websites/${websiteId}/funnels`)}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to funnels
-        </Button>
-
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{funnel.name}</h1>
-              <Badge variant={funnel.is_active ? 'default' : 'secondary'} className="shrink-0 text-[10px]">
-                {funnel.is_active ? 'Active' : 'Paused'}
-              </Badge>
-            </div>
-            {funnel.description ? (
-              <p className="mt-1 text-sm text-muted-foreground">{funnel.description}</p>
-            ) : null}
-          </div>
-          <FunnelRangeSelect value={days} onChange={setDays} />
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => router.push(`/websites/${websiteId}/funnels`)}
+        className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        All funnels
+      </button>
+      <DashboardPageHeader
+        websiteId={websiteId}
+        title={funnel.name}
+        description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
+      >
+        <FunnelRangeSelect value={days} onChange={setDays} />
+      </DashboardPageHeader>
 
       {(analyticsData?.warnings?.length ?? 0) > 0 && (
         <ul role="status" className="mb-4 space-y-1 text-sm text-amber-700 dark:text-amber-400">
@@ -226,145 +215,76 @@ export default function FunnelDetailPage() {
         thing a decreasing-bar chart is actually good at. Two views, each doing the
         job it is suited to, instead of one doing both badly.
       */}
-      <Card className="overflow-hidden border border-border bg-card">
-        <CardHeader className="border-b border-border px-5 py-4">
+      <Card className="overflow-hidden border border-border bg-card shadow-sm">
+        <CardHeader className="border-b border-border px-5 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold">Steps</CardTitle>
-            <p className="text-xs text-muted-foreground">Bar width is the share of all entries</p>
+            <CardTitle className="text-sm font-semibold">Funnel steps</CardTitle>
+            <p className="text-[11px] text-muted-foreground">Bar width is the share of all entries</p>
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent className="p-5">
           {rows.length === 0 ? (
-            <p className="px-5 py-14 text-center text-sm text-muted-foreground">
-              This funnel has no steps yet.
-            </p>
+            <p className="py-10 text-center text-sm text-muted-foreground">This funnel has no steps yet.</p>
           ) : (
-            <ol>
+            <ol className="mx-auto max-w-3xl">
               {rows.map((row, i) => {
                 const isLast = i === rows.length - 1;
                 const next = rows[i + 1];
-                // A floor so a step that almost nobody reached is still a visible bar
-                // rather than a sliver indistinguishable from zero.
-                const width = Math.max(row.entryRate, 1.5);
-                // The share of *this* step that carried on, which is what the band
-                // below splits. Distinct from `row.stepRate`, which looks backwards.
+                const width = Math.max(row.entryRate, 2);
                 const continued = next && row.count > 0 ? (next.count / row.count) * 100 : 0;
                 const isWorst = worst?.step.id === row.id;
 
                 return (
-                  <li key={row.id} className={cn(!isLast && 'border-b border-border')}>
-                    <div className="flex items-start gap-4 px-5 py-4">
-                      {/* The step number. There was a connector line here too, but
-                          `flex-1` inside an `items-start` parent gave it no height, so
-                          it rendered nothing — and the row dividers already carry the
-                          sequence. */}
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xs font-bold text-primary">
+                  <li key={row.id}>
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
                         {i + 1}
                       </span>
-
                       <div className="min-w-0 flex-1">
-                        {/* Name, what it matches, and the figures */}
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">{row.name}</span>
-                            <Badge
-                              variant="outline"
-                              className="h-[18px] shrink-0 bg-background px-1.5 text-[10px] font-bold uppercase tracking-tight opacity-70"
-                            >
-                              {row.type}
-                            </Badge>
+                        <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="truncate text-[13px] font-semibold text-foreground">{row.name}</span>
                             {row.condition && (
-                              // Replaces the JSON dump: the one thing anyone wanted
-                              // out of it was the path or event name.
-                              <code className="min-w-0 truncate rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-                                {row.condition}
-                              </code>
+                              <code className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{row.condition}</code>
                             )}
                           </div>
-
-                          <div className="flex shrink-0 items-baseline gap-2">
-                            <span className="text-base font-bold tabular-nums text-foreground">
-                              {row.count.toLocaleString()}
-                            </span>
-                            <span className="text-xs tabular-nums text-muted-foreground">
-                              {row.entryRate.toFixed(1)}% of entries
+                          <div className="flex shrink-0 items-baseline gap-1.5">
+                            <span className="text-sm font-bold tabular-nums text-foreground">{row.count.toLocaleString()}</span>
+                            <span className="w-12 text-right text-[11px] tabular-nums text-muted-foreground">
+                              {row.entryRate.toFixed(1)}%
                             </span>
                           </div>
                         </div>
-
-                        {/* Bar */}
-                        <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
-                          {/* One soft tone for every step, with the last a shade
-                              stronger. Full-strength primary on nine bars plus an
-                              emerald endpoint was the loudest thing on the page and
-                              made the numbers beside it harder to read. */}
+                        <div className="h-7 overflow-hidden rounded-md bg-muted/60">
                           <div
                             className={cn(
-                              'h-full rounded-full transition-[width] duration-500',
-                              isLast ? 'bg-primary/80' : 'bg-primary/45',
+                              'h-full rounded-md transition-[width] duration-500',
+                              isLast ? 'bg-primary/80' : 'bg-primary/50',
                             )}
                             style={{ width: `${width}%` }}
                           />
                         </div>
-
                       </div>
                     </div>
 
-                    {/*
-                      The transition. Indented to line up under the step it leaves, so
-                      it reads as belonging between the two rather than to either one.
-                    */}
                     {next && (
-                      /*
-                        One line, two numbers.
-                        The first version of this band said five things: how many
-                        reached this step, the percentage that continued, the
-                        percentage that left, how many went on, and how many did not.
-                        Only two of those are new — the step counts are already on the
-                        rows above and below, and each percentage is the other's
-                        complement. So it restated two facts five ways, which is what
-                        made it hard to read.
-                      */
-                      <div
-                        className={cn(
-                          'flex items-center gap-3 border-t border-border py-2 pl-16 pr-5',
-                          isWorst ? 'bg-amber-500/[0.06]' : 'bg-muted/25',
-                        )}
-                      >
-                        <TrendingDown
+                      <div className="flex items-center gap-3 py-2">
+                        <span className="flex w-6 shrink-0 justify-center">
+                          <span className="h-5 w-px bg-border" />
+                        </span>
+                        <span
                           className={cn(
-                            'h-3.5 w-3.5 shrink-0',
-                            isWorst ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/50',
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] tabular-nums',
+                            isWorst
+                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                              : 'border-border bg-muted/40 text-muted-foreground',
                           )}
-                          aria-hidden
-                        />
-
-                        {/* The split, as a picture rather than a sentence. */}
-                        <div className="flex h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-muted-foreground/15">
-                          <div
-                            className={cn(
-                              'transition-[width] duration-500',
-                              isWorst ? 'bg-amber-500/70' : 'bg-primary/55',
-                            )}
-                            style={{ width: `${continued}%` }}
-                          />
-                        </div>
-
-                        <p className="min-w-0 text-xs text-muted-foreground">
-                          <span className="font-semibold tabular-nums text-foreground">
-                            {continued.toFixed(1)}%
-                          </span>{' '}
-                          continued
-                          {row.dropOff > 0 && (
-                            <>
-                              {' · '}
-                              <span className="tabular-nums">
-                                {row.dropOff.toLocaleString()} dropped off
-                              </span>
-                            </>
-                          )}
-                        </p>
+                        >
+                          <TrendingDown className="h-3 w-3" aria-hidden />
+                          <span className="font-semibold">{continued.toFixed(1)}%</span> continued
+                          {row.dropOff > 0 && <> · {row.dropOff.toLocaleString()} dropped</>}
+                        </span>
                       </div>
                     )}
                   </li>

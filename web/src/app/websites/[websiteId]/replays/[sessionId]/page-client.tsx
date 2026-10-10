@@ -5,7 +5,7 @@ import { usePathSegment } from '@/lib/path-segment';
 import 'rrweb/dist/style.css';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,11 +48,17 @@ import {
 } from '@/features/replays/chunk-loading';
 
 export default function ReplayDetailPage() {
-  const params = { websiteId: usePathSegment(1) ?? '', sessionId: usePathSegment(3) ?? '' };
-  const router = useRouter();
+  return <ReplayDetailView />;
+}
+
+/** One recording: the signed-in page, and the same page inside an embed (which names its own site and session). */
+export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionIdProp }: { websiteId?: string; sessionId?: string }) {
+  const router = useAppNavigation();
   const { toast } = useToast();
-  const websiteId = params?.websiteId as string;
-  const sessionId = params?.sessionId as string;
+  const siteSegment = usePathSegment(1);
+  const sessionSegment = usePathSegment(3);
+  const websiteId = websiteIdProp ?? siteSegment ?? '';
+  const sessionId = sessionIdProp ?? sessionSegment ?? '';
   const isDemoMode = isDemo(websiteId);
 
   const playerApiRef = useRef<SessionReplaySurfaceAPI | null>(null);

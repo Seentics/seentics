@@ -2,8 +2,9 @@
 
 
 import { formatNumber } from '@/features/analytics/format';
-import { BarChart3, CreditCard, DollarSign, FileText, Globe, Home, Info, LogIn, Package, Phone, Settings, Shield, ShoppingCart, Users, Workflow, Zap } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import React from 'react';
+import { getPageIcon, getPathFromUrl } from './page-icon';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useControllableState } from '@/hooks/useControllableState';
 
@@ -17,40 +18,6 @@ export interface TopPagesChartProps {
   activeTab?: 'top' | 'entry' | 'exit';
   onActiveTabChange?: (tab: 'top' | 'entry' | 'exit') => void;
 }
-
-const getPageIcon = (page: string) => {
-  if (!page) return <Globe className="w-4 h-4 text-gray-500" />;
-  const path = getPathFromUrl(page).toLowerCase();
-
-  if (path === '/') return <Home className="w-4 h-4 text-indigo-500" />;
-
-  // App-specific paths
-  if (path.includes('/heatmaps')) return <Zap className="w-4 h-4 text-orange-500" />;
-  if (path.includes('/replays')) return <Workflow className="w-4 h-4 text-purple-500" />;
-  if (path.includes('/funnels')) return <Workflow className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/automations')) return <Zap className="w-4 h-4 text-yellow-500" />;
-  if (path.includes('/revenue')) return <DollarSign className="w-4 h-4 text-green-600" />;
-  if (path.includes('/dashboard')) return <BarChart3 className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/admin')) return <Shield className="w-4 h-4 text-red-500" />;
-  if (path.includes('/websites')) return <Globe className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/billing') || path.includes('/subscriptions')) return <CreditCard className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/team')) return <Users className="w-4 h-4 text-blue-500" />;
-  if (path.includes('/users')) return <Users className="w-4 h-4 text-blue-500" />;
-  if (path.includes('/storage')) return <Package className="w-4 h-4 text-gray-500" />;
-
-  // Generic patterns
-  if (path.includes('/blog') || path.includes('/post')) return <FileText className="w-4 h-4 text-green-500" />;
-  if (path.includes('/about')) return <Info className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/contact')) return <Phone className="w-4 h-4 text-orange-500" />;
-  if (path.includes('/pricing')) return <DollarSign className="w-4 h-4 text-yellow-500" />;
-  if (path.includes('/products') || path.includes('/product/')) return <Package className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/analytics')) return <BarChart3 className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/auth') || path.includes('/login')) return <LogIn className="w-4 h-4 text-gray-500" />;
-  if (path.includes('/settings')) return <Settings className="w-4 h-4 text-gray-600" />;
-  if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-indigo-600" />;
-
-  return <Globe className="w-4 h-4 text-indigo-500" />;
-};
 
 const uuidSegRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -74,16 +41,6 @@ const getPageName = (page: string) => {
     ).join(' ');
   }
   return path;
-};
-
-const getPathFromUrl = (url: string) => {
-  if (!url) return '/';
-  try {
-    const urlObj = new URL(url);
-    return urlObj.pathname;
-  } catch {
-    return url.split('?')[0];
-  }
 };
 
 const truncatePath = (path: string, maxLength: number = 30) => {

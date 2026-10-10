@@ -11,6 +11,8 @@ export interface SessionColumnsOptions {
   websiteId: string;
   onPlay: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
+  /** Watch-only (an embed): no selection column and no delete button. */
+  readOnly?: boolean;
   /** Disables the row actions while a delete is in flight. */
   isMutating?: boolean;
 }
@@ -24,11 +26,11 @@ export interface SessionColumnsOptions {
  * shared report or a demo route with different (or absent) actions.
  */
 export function sessionColumns({
-  websiteId, onPlay, onDelete, isMutating,
+  websiteId, onPlay, onDelete, isMutating, readOnly = false,
 }: SessionColumnsOptions): ColumnDef<SessionRow>[] {
   return [
 
-    selectionColumn<SessionRow>(),
+    ...(readOnly ? [] : [selectionColumn<SessionRow>()]),
     {
       id: 'country',
       accessorKey: 'country',
@@ -143,18 +145,20 @@ export function sessionColumns({
             <Play className="h-3 w-3 fill-current" />
             Watch
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Delete session"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(row.original.session_id);
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              title="Delete session"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(row.original.session_id);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       ),
     }

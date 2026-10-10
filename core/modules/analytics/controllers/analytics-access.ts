@@ -4,15 +4,12 @@ import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import type { AnalyticsQueryParams } from "../interfaces";
 import type { AnalyticsControllerDeps } from "./analytics-controller.types";
 
+import { parseAnalyticsQuery } from "../lib/analytics-query";
+
 export type AnalyticsContext = Context<{ Variables: AuthVars }>;
 
 export function analyticsQuery(c: AnalyticsContext): AnalyticsQueryParams {
-  return {
-    days: c.req.query("days"),
-    timezone: c.req.query("timezone"),
-    limit: c.req.query("limit"),
-    ...(c.req.query("live") === "0" ? { live: "0" } : {}),
-  };
+  return parseAnalyticsQuery((name) => c.req.query(name));
 }
 
 export async function requireAnalyticsAccess(
