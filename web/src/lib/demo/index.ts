@@ -24,7 +24,7 @@ export function demoMutationGuard(websiteId: string): boolean {
 }
 
 // Re-export all demo data generators
-export { demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation } from './analytics';
+export { demoAnalyticsData, demoCustomEvents, demoGeolocation } from './analytics';
 export { demoAutomations } from './automations';
 export { demoFunnels, demoFunnelAnalytics, demoFunnelStats } from './funnels';
 export { demoReplays } from './replays';

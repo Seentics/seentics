@@ -38,21 +38,3 @@ export function displayRealtimePath(raw: string, websiteId: string, maxLen = 56)
   if (p.length > maxLen) return `${p.slice(0, maxLen - 1)}…`;
   return p;
 }
-
-export function activityReferrerLabel(raw: string, websiteId?: string): string {
-  if (!raw) return '';
-  try {
-    const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      let path = `${url.pathname}${url.search || ''}` || '/';
-      if (websiteId) {
-        path = stripWebsiteDashboardPrefix(path, websiteId);
-        path = shortenSessionSlugInPath(path);
-      }
-      return path.length > 52 ? `${path.slice(0, 51)}…` : path;
-    }
-    return url.hostname.replace(/^www\./, '');
-  } catch {
-    return raw.length > 24 ? `${raw.slice(0, 21)}…` : raw;
-  }
-}

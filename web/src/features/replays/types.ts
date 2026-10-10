@@ -26,6 +26,8 @@ export interface ReplayListParams {
   device?: 'desktop' | 'mobile' | 'tablet';
   hasErrors?:      boolean;
   hasRageClicks?:  boolean;
+  /** Only sessions that started within this many days. */
+  days?: number;
 }
 
 /** Headline figures over every session matching the filters, computed server-side. */

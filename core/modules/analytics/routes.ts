@@ -15,12 +15,7 @@ import {
 import * as dimensions from "./controllers/analytics-dimensions.controller";
 import { importAnalytics } from "./controllers/analytics-import.controller";
 import * as journey from "./controllers/analytics-journey.controller";
-import {
-  getLiveVisitors,
-  getRealtime,
-  getRealtimeGeo,
-  getRecentActivity,
-} from "./controllers/analytics-realtime.controller";
+import { getLiveVisitors } from "./controllers/analytics-realtime.controller";
 
 export function createAnalyticsRoutes(deps: AnalyticsControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
@@ -69,10 +64,7 @@ export function createAnalyticsRoutes(deps: AnalyticsControllerDeps) {
   routes.get("/goals-stats/:website_id", getGoalsStats(deps));
   routes.get("/revenue/:website_id", getRevenue(deps));
   routes.get("/export/:website_id", exportAnalytics(deps));
-  routes.get("/realtime/:website_id", getRealtime(deps));
   routes.get("/live-visitors/:website_id", getLiveVisitors(deps));
-  routes.get("/recent-activity/:website_id", getRecentActivity(deps));
-  routes.get("/realtime-geo/:website_id", getRealtimeGeo(deps));
   routes.post("/import", importAnalytics());
   return routes;
 }

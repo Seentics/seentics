@@ -1,6 +1,9 @@
 'use client';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { useRangeDates } from '@/lib/range-dates';
+import { cn } from '@/lib/utils';
 
 /**
  * The ranges a funnel report offers. A funnel follows each visitor through raw events,
@@ -21,10 +24,11 @@ export function funnelRangeLabel(days: number): string {
 }
 
 export function FunnelRangeSelect({ value, onChange }: { value: number; onChange: (days: number) => void }) {
+  const dates = useRangeDates(value);
   return (
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="w-[140px] h-8 text-xs">
-        <SelectValue />
+      <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
+        <SelectValue>{dates}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {FUNNEL_RANGES.map((r) => (

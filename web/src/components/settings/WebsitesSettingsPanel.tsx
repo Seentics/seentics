@@ -337,13 +337,13 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                 <div>
                   <p className="text-xs font-medium text-foreground">Verification</p>
                   <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                    After deploy, open your site and check{' '}
+                    After deploy, open your site and check the{' '}
                     {snippetSite ? (
-                      <Link href={`/websites/${snippetSite.id}/realtime`} className="text-primary hover:underline">
-                        Realtime
+                      <Link href={`/websites/${snippetSite.id}`} className="text-primary hover:underline">
+                        Overview
                       </Link>
                     ) : (
-                      'Realtime'
+                      'Overview'
                     )}{' '}
                     for hits.
                   </p>

@@ -34,7 +34,7 @@ export function sessionColumns({
       accessorKey: 'country',
       header: ({ column }) => <SortableHeader column={column}>Location</SortableHeader>,
       size: 140,
-      cell: ({ row }) => <SessionCountryVisual country={row.original.country} compact />,
+      cell: ({ row }) => <SessionCountryVisual country={row.original.country} />,
     },
     {
       id: 'client',
@@ -54,11 +54,8 @@ export function sessionColumns({
       cell: ({ getValue }) => {
         const { display, title } = entryPathDisplay(getValue() as string, websiteId);
         return (
-          <span
-            className="inline-flex max-w-full min-w-0 items-center rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
-            title={title}
-          >
-            <span className="truncate">{display}</span>
+          <span className="block max-w-[16rem] truncate font-mono text-[13px] text-foreground" title={title}>
+            {display}
           </span>
         );
       },
@@ -98,16 +95,16 @@ export function sessionColumns({
         /* Two 6px dots stacked in the Location column used to carry this, which
            needed a tooltip to mean anything. Labelled chips say it outright. */
         return (
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             {s.has_errors && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300">
-                <AlertTriangle className="h-3 w-3 shrink-0" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 Errors
               </span>
             )}
             {s.has_rage_clicks && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                <MousePointerClick className="h-3 w-3 shrink-0" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
                 Rage
               </span>
             )}
@@ -135,20 +132,21 @@ export function sessionColumns({
         <div className="flex justify-end items-center gap-1 pr-1">
           <Button
             variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-foreground hover:bg-muted"
+            size="sm"
+            className="h-8 gap-1.5 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 hover:text-primary"
             title="Watch replay"
             onClick={(e) => {
               e.stopPropagation();
               onPlay(row.original.session_id);
             }}
           >
-            <Play className="h-3.5 w-3.5 fill-current" />
+            <Play className="h-3 w-3 fill-current" />
+            Watch
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Delete session"
             onClick={(e) => {
               e.stopPropagation();

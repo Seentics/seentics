@@ -239,7 +239,7 @@ export default function FunnelsPage() {
   }, [isDemoMode, funnels, funnelIds.length, avgConversionStr]);
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}

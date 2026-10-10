@@ -127,8 +127,8 @@ function SummaryCard({
   }
 
   return (
-    <div className="group p-5 hover:bg-accent/5 transition-colors">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="group px-4 py-3 hover:bg-accent/5 transition-colors">
+      <div className="flex items-center gap-2 mb-2">
         <div className="w-6 h-6 rounded-lg bg-accent/40 flex items-center justify-center shrink-0">
           {title === 'Live Visitors' ? (
             <span className="relative flex h-2 w-2">

@@ -216,6 +216,10 @@ function sessionListWhere(websiteId: string, filters: SessionListFilters) {
   }
   if (filters.hasErrors) parts.push(pgSql`has_errors = TRUE`);
   if (filters.hasRageClicks) parts.push(pgSql`has_rage_clicks = TRUE`);
+  if (filters.days) {
+    const since = new Date(Date.now() - filters.days * 86_400_000).toISOString();
+    parts.push(pgSql`timestamp >= ${since}`);
+  }
 
   const search = filters.search?.trim();
   if (search) {

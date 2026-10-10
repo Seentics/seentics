@@ -82,7 +82,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     </div>
                 </CardHeader>
                 <CardContent className="p-5">
-                    <div className="animate-pulse h-[600px] bg-accent/5 rounded-lg" />
+                    <div className="animate-pulse h-[400px] bg-accent/5 rounded-lg" />
                 </CardContent>
             </Card>
         );
@@ -90,13 +90,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     return (
         <Card className={cn("surface overflow-hidden", className)}>
-            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 pb-3 border-b border-border">
-                <div className="space-y-1">
-                    <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
-                        Geographic Intelligence
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">Visitor distribution across global regions</p>
-                </div>
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 space-y-0 p-4 border-b border-border">
+                <CardTitle className="text-sm font-semibold tracking-tight">
+                    Locations
+                </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents')}>
                         <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5 flex-wrap">
@@ -108,7 +105,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     </Tabs>
                 </div>
             </CardHeader>
-            <CardContent className="p-5 pt-4">
+            <CardContent className="p-4 pt-3">
                 <div className="min-h-[400px]">
                     {!hasGeoBreakdown && !isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-lg border border-dashed border-border">
@@ -122,7 +119,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     ) : (
                         <>
                     {selectedTab === 'map2d' && (
-                        <div className="h-[460px] rounded-lg overflow-hidden ">
+                        <div className="h-[400px] rounded-lg overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
@@ -133,7 +130,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     )}
 
                     {selectedTab === 'map3d' && (
-                        <div className="h-[460px] rounded-lg overflow-hidden ">
+                        <div className="h-[400px] rounded-lg overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
@@ -146,8 +143,8 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {selectedTab === 'countries' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className={cn("flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
-                                    <div className="flex items-center gap-4 min-w-0">
+                                <div key={country.name} className={cn("flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
                                             <Image
@@ -172,9 +169,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold text-sm leading-tight text-foreground">{(country.count || 0).toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground">Visitors</p>
-                                    </div>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(country.count || 0).toLocaleString()}</p>                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -192,8 +187,8 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                 </div>
                             )}
                             {displayData?.cities?.slice(0, 14).map((city, index) => (
-                                <div key={city.name} className="flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1">
-                                    <div className="flex items-center gap-4 min-w-0">
+                                <div key={city.name} className="flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         {city.code ? (
                                             <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
@@ -224,9 +219,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold text-sm leading-tight text-foreground">{(city.count || 0).toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground">Visitors</p>
-                                    </div>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(city.count || 0).toLocaleString()}</p>                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -235,8 +228,8 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {selectedTab === 'continents' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.continents?.map((continent, index) => (
-                                <div key={continent.name} className="flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1">
-                                    <div className="flex items-center gap-4 min-w-0">
+                                <div key={continent.name} className="flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="p-2 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
                                             <div className="text-lg">{getContinentEmoji(continent.name)}</div>
@@ -247,9 +240,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold text-sm leading-tight text-foreground">{(continent.count || 0).toLocaleString()}</p>
-                                        <p className="text-xs text-muted-foreground">Visitors</p>
-                                    </div>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(continent.count || 0).toLocaleString()}</p>                                    </div>
                                 </div>
                             ))}
                         </div>

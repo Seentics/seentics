@@ -117,12 +117,23 @@ export default function AutomationsPage() {
       size: 260,
       cell: ({ row }) => {
         const a = row.original;
+        const TriggerIcon = TRIGGERS[a.triggerType]?.icon ?? Zap;
         return (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{a.name}</p>
-            {a.description ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.description}</p>
-            ) : null}
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                a.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+              )}
+            >
+              <TriggerIcon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 max-w-[280px]">
+              <p className="truncate text-[15px] font-semibold leading-tight text-foreground">{a.name}</p>
+              {a.description ? (
+                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{a.description}</p>
+              ) : null}
+            </div>
           </div>
         );
       },
@@ -130,7 +141,7 @@ export default function AutomationsPage() {
     {
       id: 'flow',
       header: 'What it does',
-      size: 340,
+      size: 280,
       enableSorting: false,
       cell: ({ row }) => <FlowCell automation={row.original} />,
     },
@@ -138,11 +149,11 @@ export default function AutomationsPage() {
       id: 'runs',
       header: ({ column }) => <SortableHeader column={column}>Runs</SortableHeader>,
       accessorFn: row => row.stats?.totalExecutions ?? 0,
-      size: 100,
+      size: 80,
       cell: ({ getValue }) => {
         const runs = getValue() as number;
         return runs > 0 ? (
-          <span className="text-sm font-semibold tabular-nums text-foreground">{runs.toLocaleString()}</span>
+          <span className="text-[15px] font-semibold tabular-nums text-foreground">{runs.toLocaleString()}</span>
         ) : (
           <span className="text-sm text-muted-foreground">—</span>
         );
@@ -152,15 +163,15 @@ export default function AutomationsPage() {
       id: 'success',
       header: ({ column }) => <SortableHeader column={column}>Success</SortableHeader>,
       accessorFn: row => row.stats?.successRate ?? 0,
-      size: 128,
+      size: 130,
       cell: ({ row }) => {
         const stats = row.original.stats;
         if (!stats || stats.totalExecutions === 0) {
           return <span className="text-sm text-muted-foreground">—</span>;
         }
         return (
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
               <div
                 className={cn(
                   'h-full rounded-full',
@@ -169,7 +180,7 @@ export default function AutomationsPage() {
                 style={{ width: `${Math.min(stats.successRate, 100)}%` }}
               />
             </div>
-            <span className={cn('text-xs font-semibold tabular-nums', rateTone(stats.successRate))}>
+            <span className={cn('text-sm font-semibold tabular-nums', rateTone(stats.successRate))}>
               {stats.successRate.toFixed(0)}%
             </span>
           </div>
@@ -180,7 +191,7 @@ export default function AutomationsPage() {
       id: 'status',
       header: 'Status',
       accessorFn: row => (row.isActive ? 1 : 0),
-      size: 130,
+      size: 160,
       cell: ({ row }) => <StatusCell automation={row.original} websiteId={websiteId} />,
     },
     {
@@ -201,7 +212,7 @@ export default function AutomationsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
       {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
@@ -239,7 +250,7 @@ export default function AutomationsPage() {
       />
 
       <DataTable
-        className="rounded-lg shadow-sm [&_td]:!py-3.5 [&_th]:!py-3.5"
+        className="rounded-lg shadow-sm [&_td]:!py-3.5 [&_th]:!py-2.5"
         data={filtered}
         columns={columns}
         isLoading={isLoading}

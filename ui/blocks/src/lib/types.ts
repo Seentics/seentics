@@ -76,12 +76,6 @@ export interface EventsData {
   events:     CustomEvent[];
 }
 
-export interface RealtimeData {
-  live_visitors:   number;
-  top_pages?:      Array<{ page: string; count: number }>;
-  top_countries?:  Array<{ country: string; count: number }>;
-}
-
 // ─── Funnels ──────────────────────────────────────────────────────────────────
 
 export interface FunnelStep {

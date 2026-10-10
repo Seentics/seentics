@@ -5,10 +5,10 @@
  * share one definition of each endpoint.
  */
 import api from '@/lib/api';
-import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation } from '@/lib/demo';
+import { isDemo, demoAnalyticsData, demoCustomEvents, demoGeolocation } from '@/lib/demo';
 import { getUserTimezone } from './format';
 
-import type { AnalyticsFilters, GeolocationData, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse, RealtimeData, RealtimeGeoResponse } from './types';
+import type { AnalyticsFilters, GeolocationData, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse } from './types';
 
 /** Server dashboard payload; shared by useDashboardData and other callers (e.g. revenue fallback). */
 export const getDashboardData = async (
@@ -132,14 +132,6 @@ export const getTopResolutions = async (websiteId: string, days: number = 7, lim
   return response.data;
 };
 
-export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> => {
-  if (isDemo(websiteId)) {
-    return demoRealtimeData() as RealtimeData;
-  }
-  const response = await api.get(`/analytics/realtime/${websiteId}?timezone=${getUserTimezone()}`);
-  return response.data;
-};
-
 // Live Visitors
 export const getLiveVisitors = async (websiteId: string): Promise<number> => {
   if (isDemo(websiteId)) {
@@ -219,30 +211,6 @@ export const getVisitorInsights = async (websiteId: string, days: number = 7): P
     return demoAnalyticsData().visitorInsights as any;
   }
   const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
-  return response.data;
-};
-
-export const getRealtimeGeoData = async (websiteId: string, withinMinutes = 30): Promise<RealtimeGeoResponse> => {
-  if (isDemo(websiteId)) {
-    return {
-      website_id: websiteId,
-      date_range: '30m',
-      visitors: [
-        { name: 'United States', code: 'US', count: 142, percentage: 28.4 },
-        { name: 'United Kingdom', code: 'GB', count: 87,  percentage: 17.4 },
-        { name: 'Germany',        code: 'DE', count: 65,  percentage: 13.0 },
-        { name: 'India',          code: 'IN', count: 58,  percentage: 11.6 },
-        { name: 'France',         code: 'FR', count: 43,  percentage: 8.6  },
-        { name: 'Canada',         code: 'CA', count: 38,  percentage: 7.6  },
-        { name: 'Australia',      code: 'AU', count: 32,  percentage: 6.4  },
-        { name: 'Japan',          code: 'JP', count: 19,  percentage: 3.8  },
-        { name: 'Brazil',         code: 'BR', count: 15,  percentage: 3.0  },
-        { name: 'Netherlands',    code: 'NL', count: 1,   percentage: 0.2  },
-      ],
-    };
-  }
-  const params = new URLSearchParams({ within_minutes: String(withinMinutes) });
-  const response = await api.get(`/analytics/realtime-geo/${websiteId}?${params.toString()}`);
   return response.data;
 };
 

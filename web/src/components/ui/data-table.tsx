@@ -132,6 +132,7 @@ export function selectionColumn<TData>(): ColumnDef<TData, unknown> {
         }
         onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
         aria-label="Select all"
+        className="border-muted-foreground/40"
       />
     ),
     cell: ({ row }) => (
@@ -140,6 +141,7 @@ export function selectionColumn<TData>(): ColumnDef<TData, unknown> {
           checked={row.getIsSelected()}
           onCheckedChange={(v) => row.toggleSelected(!!v)}
           aria-label="Select row"
+          className="border-muted-foreground/40"
         />
       </div>
     ),
@@ -350,7 +352,7 @@ export function DataTable<TData>({
     <div className={cn('surface overflow-hidden', className)}>
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       {(toolbarLeft || toolbarRight || selectionActions) && (
-        <div className="px-5 py-4 border-b border-border bg-muted/5">
+        <div className="px-4 py-3 border-b border-border bg-muted/5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Left slot — replaced by selection actions when rows are selected */}
             <div className="flex items-center gap-4 min-w-0">
@@ -439,7 +441,7 @@ export function DataTable<TData>({
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
                     key={cell.id}
-                    className="py-3 align-middle"
+                    className="py-2 align-middle"
                     style={{
                       ...(cell.column.id === '__select__'
                         ? { paddingLeft: '2rem', paddingRight: '0.5rem' }

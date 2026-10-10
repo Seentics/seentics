@@ -270,12 +270,12 @@ export function WebsiteKeysCard({ websiteId, sitePicker }: { websiteId: string; 
               <tr key={k.id} className="hover:bg-muted/35">
                 <td className="px-5 py-3.5 font-medium text-foreground">{k.name}</td>
                 <td className="px-5 py-3.5">
-                  <code className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{k.prefix}…</code>
+                  <code className="font-mono text-[13px] text-muted-foreground">{k.prefix}…</code>
                 </td>
                 <td className="px-5 py-3.5">
                   <div className="flex flex-wrap gap-1">
                     {k.scopes.map(s => (
-                      <span key={s} className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{s}</span>
+                      <span key={s} className="rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground/70">{s}</span>
                     ))}
                   </div>
                 </td>

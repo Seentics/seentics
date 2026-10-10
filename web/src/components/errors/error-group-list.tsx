@@ -2,7 +2,7 @@ import type React from 'react';
 import { Bug } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { ErrorGroupRow } from './error-group-row';
+import { ERROR_EVENTS_COL, ERROR_SEEN_COL, ErrorGroupRow } from './error-group-row';
 import type { ErrorGroup } from '@/features/errors/types';
 
 export interface ErrorGroupListProps {
@@ -27,11 +27,13 @@ export interface ErrorGroupListProps {
 export function ErrorGroupList({
   groups, onOpen, isLoading, status = 'unresolved', now, toolbarLeft, toolbarRight, className,
 }: ErrorGroupListProps) {
+  const maxEvents = Math.max(0, ...groups.map((g) => g.event_count));
+
   // The same surface, toolbar and column header as DataTable on the other pages.
   return (
     <div className={cn('surface overflow-hidden', className)}>
       {(toolbarLeft || toolbarRight) && (
-        <div className="border-b border-border bg-muted/5 px-5 py-4">
+        <div className="border-b border-border bg-muted/5 px-4 py-3">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex min-w-0 items-center gap-4">{toolbarLeft}</div>
             {toolbarRight && <div className="flex shrink-0 flex-wrap items-center gap-2">{toolbarRight}</div>}
@@ -39,9 +41,10 @@ export function ErrorGroupList({
         </div>
       )}
 
-      <div className="flex items-center gap-3 border-b border-border bg-muted/20 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-border bg-muted/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="flex-1 pl-7">Error</span>
-        <span className="text-right">Events · last seen</span>
+        <span className={cn('shrink-0 text-right', ERROR_EVENTS_COL)}>Events</span>
+        <span className={cn('shrink-0 text-right', ERROR_SEEN_COL)}>Last seen</span>
       </div>
 
       {isLoading ? (
@@ -72,6 +75,7 @@ export function ErrorGroupList({
             <ErrorGroupRow
               key={g.fingerprint}
               group={g}
+              share={maxEvents > 0 ? g.event_count / maxEvents : 0}
               now={now}
               onOpen={onOpen ? () => onOpen(g.fingerprint) : undefined}
             />

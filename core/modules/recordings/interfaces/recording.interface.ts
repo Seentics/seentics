@@ -19,6 +19,8 @@ export type SessionListFilters = {
   device?: string;
   hasErrors?: boolean;
   hasRageClicks?: boolean;
+  /** Only sessions that started within this many days. */
+  days?: number;
 };
 
 /** Totals over all sessions matching the filters, not just the current page. */

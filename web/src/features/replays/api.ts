@@ -198,6 +198,7 @@ export async function listSessions(
   if (params.device)         query.device = params.device;
   if (params.hasErrors)      query.has_errors = '1';
   if (params.hasRageClicks)  query.has_rage_clicks = '1';
+  if (params.days)           query.days = params.days;
 
   const res = await api.get(`/replays/${encodeURIComponent(websiteId)}`, { params: query });
   const body = res.data as Partial<ReplayListPage>;

@@ -53,8 +53,8 @@ export default function QuickStartPage() {
 
       <DocSection title="3. Confirm it is working">
         <P>
-          Load a page on your site, then open <C>Realtime</C> in the dashboard. Your own visit should
-          appear within a few seconds. If it does not:
+          Load a page on your site, then open the <C>Overview</C> in the dashboard. The Live Visitors
+          count should include your own visit within a few seconds. If it does not:
         </P>
         <Ul>
           <Li>Check the browser console for a message beginning <C>[Seentics]</C>.</Li>

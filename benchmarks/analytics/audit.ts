@@ -27,7 +27,7 @@ const ENDPOINTS = [
   "dashboard", "traffic-summary", "daily-stats", "hourly-stats", "top-pages", "top-referrers", "top-sources",
   "top-browsers", "top-devices", "top-os", "top-countries", "top-cities", "top-languages", "top-resolutions",
   "geolocation-breakdown", "page-utm-breakdown", "dimensions-bulk", "activity-trends", "path-analysis",
-  "visitor-insights", "custom-events", "goals-stats", "revenue", "realtime", "live-visitors", "recent-activity", "realtime-geo",
+  "visitor-insights", "custom-events", "goals-stats", "revenue", "live-visitors",
 ];
 
 /** One endpoint, timed; the warm call repeats the previous cold URL exactly. */

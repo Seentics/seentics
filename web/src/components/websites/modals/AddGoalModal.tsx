@@ -130,7 +130,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="gap-3 sm:max-w-[420px]">
         {createdGoal && !isEdit ? (
           <div className="space-y-4">
             <DialogHeader>
@@ -208,40 +208,41 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
               {isEdit ? 'Update how this goal is tracked.' : 'Define a goal to track specific actions or page visits.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Goal Name</Label>
+          <div className="grid gap-3 py-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="name" className="text-xs">Goal Name</Label>
               <Input
                 id="name"
                 placeholder="e.g., Signup Success"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="h-9 text-sm"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="type">Goal Type</Label>
+            <div className="grid gap-1.5">
+              <Label htmlFor="type" className="text-xs">Goal Type</Label>
               <Select value={type} onValueChange={(v: any) => {
                 setType(v);
                 if (!isEdit) setIdentifier('');
               }}>
-                <SelectTrigger id="type" className="h-11 font-bold">
+                <SelectTrigger id="type" className="h-9 text-sm">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="event" className="font-bold">Custom Event</SelectItem>
-                  <SelectItem value="pageview" className="font-bold">Page Visit</SelectItem>
+                  <SelectItem value="event">Custom Event</SelectItem>
+                  <SelectItem value="pageview">Page Visit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="identifier">
+                <Label htmlFor="identifier" className="text-xs">
                   {type === 'event' ? 'Event Name (ID)' : 'Target Page Path'}
                 </Label>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowHelper(!showHelper)}
-                  className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                  className="text-xs font-medium text-primary hover:underline"
                 >
                   Need help?
                 </button>
@@ -251,22 +252,22 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                 placeholder={type === 'event' ? 'e.g., signup_click' : 'e.g., /thank-you'}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                className="h-11 font-bold"
+                className="h-9 text-sm"
               />
               {type === 'event' && (
-                <div className="mt-2 grid gap-2">
-                  <Label htmlFor="selector" className="text-xs text-muted-foreground uppercase tracking-wider font-bold">
-                    Target Selector (ID or Class) - Optional
+                <div className="mt-1 grid gap-1.5">
+                  <Label htmlFor="selector" className="text-xs">
+                    Target Selector <span className="font-normal text-muted-foreground">(ID or class, optional)</span>
                   </Label>
                   <Input
                     id="selector"
                     placeholder="e.g., #form-id or .btn-cta"
                     value={selector}
                     onChange={(e) => setSelector(e.target.value)}
-                    className="h-10 text-sm"
+                    className="h-9 text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">
-                    If provided, the tracker will automatically listen for clicks on this element.
+                  <p className="text-[11px] text-muted-foreground">
+                    The tracker will listen for clicks on this element automatically.
                   </p>
                 </div>
               )}

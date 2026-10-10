@@ -1,9 +1,9 @@
 import { Check, EyeOff, RotateCcw } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { errorTypeOf, relativeTime } from '@/features/errors/format';
+import { relativeTime } from '@/features/errors/format';
 import type { ErrorGroup, ErrorSample, ErrorStatus } from '@/features/errors/types';
+import { MessageLine } from './error-group-row';
 import { ErrorSampleCard } from './error-sample-card';
 
 export interface ErrorGroupDetailProps {
@@ -30,29 +30,55 @@ export function ErrorGroupDetail({
 }: ErrorGroupDetailProps) {
   return (
     <div className={className}>
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="font-mono text-[10px]">
-            {errorTypeOf(group.message)}
-          </Badge>
-          <Badge variant="secondary" className="text-[10px] capitalize">{group.status}</Badge>
-          <span className="text-xs text-muted-foreground">
-            {group.event_count.toLocaleString()} occurrences · first seen{' '}
-            {relativeTime(group.first_seen, now)} · last {relativeTime(group.last_seen, now)}
+      <div className="surface p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            {/* Wrapped here, unlike the list row: this is the copy someone reads and pastes. */}
+            <p className="break-words text-base font-medium">
+              <MessageLine message={group.message} />
+            </p>
+            {group.source_file && (
+              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                {group.source_file}
+                {group.line_no != null ? `:${group.line_no}` : ''}
+              </p>
+            )}
+          </div>
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize',
+              group.status === 'unresolved' && 'bg-red-500/10 text-red-700 dark:text-red-300',
+              group.status === 'resolved' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+              group.status === 'ignored' && 'bg-muted text-muted-foreground',
+            )}
+          >
+            {group.status}
           </span>
         </div>
 
-        {/* Wrapped here, unlike the list row: this is the copy someone reads and pastes. */}
-        <p className="mt-2 break-words font-medium text-foreground">{group.message}</p>
-        {group.source_file && (
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-            {group.source_file}
-            {group.line_no != null ? `:${group.line_no}` : ''}
-          </p>
-        )}
+        <dl className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Occurrences</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+              {group.event_count.toLocaleString()}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">First seen</dt>
+            <dd className="mt-0.5 text-lg font-semibold text-foreground">
+              {relativeTime(group.first_seen, now)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Last seen</dt>
+            <dd className="mt-0.5 text-lg font-semibold text-foreground">
+              {relativeTime(group.last_seen, now)}
+            </dd>
+          </div>
+        </dl>
 
         {onSetStatus && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
             <Button
               size="sm" variant="outline" className="h-8 gap-1.5"
               disabled={isUpdating || group.status === 'resolved'}
@@ -87,11 +113,12 @@ export function ErrorGroupDetail({
           than the counts above.
         </p>
       ) : (
-        <div className="mt-2 space-y-2">
+        <div className="surface mt-2 divide-y divide-border overflow-hidden">
           {samples.map((s) => (
             <ErrorSampleCard
               key={s.id}
               sample={s}
+              message={group.message}
               now={now}
               onWatchReplay={onWatchReplay}
             />

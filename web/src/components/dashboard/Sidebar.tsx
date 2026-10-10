@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Activity, GitBranch,
+  LayoutDashboard, GitBranch,
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Building2, Bug, Sparkles, Radio, ArrowUpRight,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,7 +46,6 @@ function buildMainNav(websiteId: string): NavItem[] {
   return [
     { label: 'Overview',    href: `/websites/${websiteId}`,             icon: LayoutDashboard },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
-    { label: 'Realtime',    href: `/websites/${websiteId}/realtime`,    icon: Activity },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
     // Directly after Recording because that is what it leads into: an error row's whole
     // value is the replay of the visitor who hit it.
@@ -60,7 +59,7 @@ function buildMainNav(websiteId: string): NavItem[] {
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
     // Account-wide, not this site's: clients, and the management and data APIs.
-    { label: 'Agency',   href: `/websites/${websiteId}/agency`,   icon: Building2 },
+    { label: 'Developers', href: `/websites/${websiteId}/agency`, icon: Code2 },
     { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
   ];
 }
@@ -168,7 +167,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       // collapsed sidebar, page and cards into one flat surface.
       'bg-sidebar border-r border-sidebar-border dark:border-none',
       'transition-[width] duration-200 ease-in-out',
-      collapsed ? 'w-[64px]' : 'w-[248px]',
+      collapsed ? 'w-[64px]' : 'w-[216px]',
     )}>
 
       {/* Header: expanded = logo + title + collapse; collapsed = single logo control to expand */}

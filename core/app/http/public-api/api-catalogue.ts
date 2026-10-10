@@ -94,17 +94,7 @@ const ENDPOINTS: EndpointSpec[] = [
 
   // ─── Realtime ──────────────────────────────────────────────────────────────
   {
-    ...analyticsEndpoint('realtime', 'The last 30 minutes: active visitors, top pages, and a per-minute timeline.', []),
-    group: 'Realtime',
-  },
-  {
     ...analyticsEndpoint('live-visitors', 'Visitors active in the last 30 seconds, and in the last 30 minutes.', []),
-    group: 'Realtime',
-  },
-  {
-    ...analyticsEndpoint('recent-activity', 'The most recent pageviews with visitor context.', [
-      { name: 'limit', description: 'Rows to return, 1–100.', default: '50' },
-    ]),
     group: 'Realtime',
   },
 

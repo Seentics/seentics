@@ -21,7 +21,6 @@ import { API_BASE_PATH, API_CATALOGUE } from "./api-catalogue";
 import {
   rawEventsQuerySchema,
   rawHeatmapPointsQuerySchema,
-  rawRecentActivityQuerySchema,
   rawSessionsQuerySchema,
 } from "./raw-data.schema";
 
@@ -110,7 +109,6 @@ const RAW_ANALYTICS_WITH_QS: [string, QsHandler][] = [
 
 /** Fixed-window endpoints that genuinely take no options. */
 const RAW_ANALYTICS_SITE_ONLY: [string, SiteHandler][] = [
-  ["/v1/websites/:website_id/analytics/realtime", analytics.getRealtime.bind(analytics)],
   ["/v1/websites/:website_id/analytics/live-visitors", analytics.getLiveVisitors.bind(analytics)],
 ];
 
@@ -153,13 +151,6 @@ for (const [path, fn] of RAW_ANALYTICS_DEFAULT_WINDOW) {
 
 r.get("/v1/websites/:website_id/analytics/dashboard", requireScope("analytics:read"), async (c) => {
   const data = await analytics.getDashboard(websiteId(c), rawAnalyticsQs(c));
-  return jsonWithMeta(c, data);
-});
-
-r.get("/v1/websites/:website_id/analytics/recent-activity", requireScope("analytics:read"), async (c) => {
-  const q = parseQuery(c, rawRecentActivityQuerySchema);
-  if (!q.ok) return q.res;
-  const data = await analytics.getRecentActivity(websiteId(c), q.data.limit);
   return jsonWithMeta(c, data);
 });
 

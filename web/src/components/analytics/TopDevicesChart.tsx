@@ -40,7 +40,7 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
 
   if (isLoading) {
     return (
-      <div className="space-y-4 h-[400px]">
+      <div className="space-y-4 h-[420px]">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
@@ -76,9 +76,10 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
       const valB = b.visitors || b.views || b.value || b.count || 0;
       return valB - valA;
     }).slice(0, 30);
+    const maxVal = Math.max(...sortedItems.map((i) => i.visitors || i.views || i.value || i.count || 0), 1);
 
     return (
-      <div className="space-y-0 mt-4">
+      <div className="mt-2">
         {sortedItems.map((item, index) => {
           const val = item.visitors || item.views || item.value || item.count || 0;
           const label = item.device || item.os || item.browser || item.name || 'Unknown';
@@ -92,11 +93,15 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
           };
 
           return (
-            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={handleClick}>
-              <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+            <div key={index} className={cn("relative flex items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent/10 transition-colors group", onFilter && "cursor-pointer")} onClick={handleClick}>
+              <div
+                className="absolute inset-y-0.5 left-0 rounded-md bg-primary/10"
+                style={{ width: `${Math.max(2, (val / maxVal) * 100)}%` }}
+              />
+              <div className="relative flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center overflow-hidden">
                   {label === 'Unknown' ? (
-                    <HelpCircle className="h-5 w-5 text-muted-foreground/50" />
+                    <HelpCircle className="h-4 w-4 text-muted-foreground/50" />
                   ) : (
                     <>
                       <Image
@@ -105,7 +110,7 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
                         aria-hidden="true"
                         width={20}
                         height={20}
-                        className="object-contain"
+                        className="h-4 w-4 object-contain"
                         onError={(e) => {
                           const target = e.target as HTMLElement;
                           target.style.display = 'none';
@@ -116,23 +121,11 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
                     </>
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Browser'}
-                  </div>
-                </div>
+                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">{label}</span>
               </div>
 
-              <div className="shrink-0 text-right">
-                <div className="text-right">
-                  <div className="font-bold text-base leading-tight tracking-tight">
-                    {formatNumber(val)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Visitors
-                  </div>
-                </div>
+              <div className="relative shrink-0 text-right text-[13px] font-semibold tabular-nums">
+                {formatNumber(val)}
               </div>
             </div>
           );
@@ -142,13 +135,10 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
   };
 
   return (
-    <div className="h-[400px] flex flex-col">
+    <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'os' | 'devices' | 'browsers')} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border shrink-0">
-           <div>
-              <h3 className="text-base font-semibold tracking-tight">System Insights</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Devices, OS & tech specs</p>
-           </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
+           <h3 className="text-sm font-semibold tracking-tight">System Insights</h3>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted p-0.5 rounded-lg shrink-0">
              <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
              <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
@@ -157,17 +147,17 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
         </div>
         
         <TabsContent value="devices" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={data?.top_devices || []} type="device" />
           </div>
         </TabsContent>
         <TabsContent value="os" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={osData?.top_os || []} type="os" />
           </div>
         </TabsContent>
         <TabsContent value="browsers" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={browserData} type="browser" />
           </div>
         </TabsContent>

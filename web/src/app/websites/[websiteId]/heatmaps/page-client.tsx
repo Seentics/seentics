@@ -32,6 +32,8 @@ import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { cn } from '@/lib/utils';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { useRangeDates } from '@/lib/range-dates';
 
 /** Path-only label for table; tooltip keeps full stored path. */
 const HEATMAP_PATH_MAX = 56;
@@ -101,6 +103,7 @@ export default function HeatmapsPage() {
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [days, setDays] = useState<number>(DEFAULT_HEATMAP_DAYS);
+  const rangeDates = useRangeDates(days);
 
   // The range follows into the page's heatmap, so its counts match the row clicked.
   const heatmapHref = useCallback(
@@ -267,7 +270,7 @@ export default function HeatmapsPage() {
 
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
@@ -304,7 +307,7 @@ export default function HeatmapsPage() {
       ]} />
 
       <DataTable
-        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2.5 [&_th]:!py-3"
+        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2 [&_th]:!py-2"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
@@ -347,8 +350,8 @@ export default function HeatmapsPage() {
         toolbarRight={
           <div className="flex items-center gap-2">
             <Select value={String(days)} onValueChange={v => setDays(Number(v))}>
-              <SelectTrigger className="h-8 w-28 text-xs" aria-label="Date range">
-                <SelectValue placeholder="Range" />
+              <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')} aria-label="Date range">
+                <SelectValue placeholder="Range">{rangeDates}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {HEATMAP_RANGES.map(r => (

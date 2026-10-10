@@ -170,14 +170,14 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
             <tr key={key.id} className="hover:bg-muted/35">
               <td className="px-5 py-3.5 font-medium text-foreground">{key.name}</td>
               <td className="px-5 py-3.5">
-                <code className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{key.keyPrefix}…</code>
+                <code className="font-mono text-[13px] text-muted-foreground">{key.keyPrefix}…</code>
               </td>
               <td className="px-5 py-3.5">
                 <span className={cn(
-                  'rounded-md border px-1.5 py-0.5 text-[11px] font-medium',
+                  'rounded-full px-2.5 py-1 text-xs font-semibold',
                   write
-                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400'
-                    : 'border-border bg-muted text-muted-foreground',
+                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                    : 'bg-muted text-muted-foreground',
                 )}>
                   {write ? 'Read & write' : 'Read only'}
                 </span>

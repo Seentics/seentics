@@ -93,7 +93,7 @@ export default function FunnelDetailPage() {
 
   if (funnelsLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 md:p-5 lg:px-6 lg:py-5">
         <Skeleton className="h-8 w-48 rounded-lg" />
         <StatCards cards={[]} isLoading />
         <Skeleton className="h-96 rounded-lg" />
@@ -127,7 +127,7 @@ export default function FunnelDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
       {/* Header */}
       <div className="mb-6">
         <Button

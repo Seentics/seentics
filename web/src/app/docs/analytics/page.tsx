@@ -3,7 +3,7 @@ import { C, Callout, CodeBlock, DocPage, DocSection, Li, P, RefTable, Ul } from 
 
 export const metadata = {
   title: 'Analytics · Seentics docs',
-  description: 'Traffic, sources, devices, geography and realtime — what Seentics measures and how.',
+  description: 'Traffic, sources, devices, and geography — what Seentics measures and how.',
 };
 
 export default function AnalyticsPage() {
@@ -54,14 +54,6 @@ export default function AnalyticsPage() {
           Country is resolved at ingest and the IP is not stored with the event. There is no
           city-level or IP-level reporting, by design.
         </Callout>
-      </DocSection>
-
-      <DocSection title="Realtime">
-        <P>
-          <C>Realtime</C> shows the last ~30 minutes: a live visitor count, top pages and countries,
-          and a running activity log of recent pageviews with visitor context. Useful for confirming
-          a deploy or watching a launch.
-        </P>
       </DocSection>
 
       <DocSection title="Custom events">

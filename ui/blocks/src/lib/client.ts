@@ -41,9 +41,6 @@ export function createClient({ apiKey, baseUrl }: SeenticsClientOptions) {
     getEvents:     (websiteId: string, days?: number) =>
       get<import('./types').EventsData>('/api/v1/raw/analytics/events', { website_id: websiteId, days }),
 
-    getRealtime:   (websiteId: string) =>
-      get<import('./types').RealtimeData>('/api/v1/raw/analytics/realtime', { website_id: websiteId }),
-
     // Funnels
     getFunnels:    (websiteId: string) =>
       get<{ funnels: import('./types').Funnel[] }>('/api/v1/raw/funnels', { website_id: websiteId }),

@@ -65,7 +65,7 @@ export default function GoalDetailPage() {
   const trendData = demoTrend(goal.completions || 0);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1200px] mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Button
           variant="ghost"

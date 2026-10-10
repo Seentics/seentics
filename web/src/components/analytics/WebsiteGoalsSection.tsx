@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useId, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGoalStats, analyticsKeys } from '@/features/analytics/queries';
@@ -20,15 +20,6 @@ import {
 } from '@/components/ui/dialog';
 import { Target, PlusCircle, CheckCircle2, TrendingUp, Globe, Pencil, Trash2 } from 'lucide-react';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
 
 const GOAL_TYPE_LABEL: Record<string, string> = {
   pageview: 'Page Visit',
@@ -46,14 +37,6 @@ type GoalRow = {
   unique_visitors?: number;
 };
 
-function demoTrend(completions: number, points: number) {
-  const n = Math.max(7, Math.min(points, 30));
-  return Array.from({ length: n }, (_, i) => ({
-    day: `D${i + 1}`,
-    completions: Math.max(0, Math.round((completions / n) * (0.65 + 0.35 * Math.sin(i / 2)))),
-  }));
-}
-
 export function WebsiteGoalsSection({
   websiteId,
   days,
@@ -65,7 +48,6 @@ export function WebsiteGoalsSection({
   enabled?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const chartGradId = useId().replace(/:/g, '');
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
   const [editingGoalForModal, setEditingGoalForModal] = useState<Goal | null>(null);
@@ -115,10 +97,10 @@ export function WebsiteGoalsSection({
         header: ({ column }) => <SortableHeader column={column}>Goal</SortableHeader>,
         accessorKey: 'name',
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{String(row.original.name ?? '')}</p>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 truncate text-sm font-medium text-foreground">{String(row.original.name ?? '')}</span>
             {row.original.target ? (
-              <p className="text-xs text-muted-foreground font-mono truncate">{String(row.original.target)}</p>
+              <span className="min-w-0 max-w-[220px] truncate font-mono text-xs text-muted-foreground">{String(row.original.target)}</span>
             ) : null}
           </div>
         ),
@@ -193,7 +175,7 @@ export function WebsiteGoalsSection({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 title="Edit goal"
                 aria-label="Edit goal"
                 onClick={() => {
@@ -207,7 +189,7 @@ export function WebsiteGoalsSection({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
                 title="Delete goal"
                 aria-label="Delete goal"
                 disabled={deleteGoalMutation.isPending}
@@ -231,23 +213,15 @@ export function WebsiteGoalsSection({
     [goalDefinitions, websiteId, deleteGoalMutation.isPending],
   );
 
-  const trendData = useMemo(() => {
-    if (!detailGoal) return [];
-    return demoTrend(detailGoal.completions || 0, days);
-  }, [detailGoal?.id, detailGoal?.completions, days]);
-
   if (!websiteId) return null;
 
   return (
     <>
       {confirmDialog}
       <Card className="border border-border bg-card overflow-hidden">
-        <CardHeader className="p-5 pb-3 border-b border-border">
+        <CardHeader className="p-4 border-b border-border">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold tracking-tight">Goals</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Track conversions and measure how often visitors complete key actions.</p>
-            </div>
+            <h3 className="text-sm font-semibold tracking-tight">Goals</h3>
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs w-fit"
@@ -340,49 +314,10 @@ export function WebsiteGoalsSection({
                   </div>
                 </div>
 
-                <Card className="border border-border shadow-none">
-                  <CardHeader className="px-4 py-3 border-b border-border">
-                    <p className="text-xs font-semibold text-foreground">Activity trend</p>
-                    <p className="text-[11px] text-muted-foreground">Illustrative daily split for the selected period</p>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-2">
-                    <ResponsiveContainer width="100%" height={160}>
-                      <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                        <defs>
-                          <linearGradient id={chartGradId} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                        <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                        <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                        <Tooltip
-                          contentStyle={{
-                            background: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="completions"
-                          stroke="hsl(var(--primary))"
-                          fill={`url(#${chartGradId})`}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Conversion rate</p>
                   <div className="flex items-center gap-3">
-                    <Progress value={Math.min(detailGoal.conversion_rate ?? 0, 100)} className="flex-1 h-2.5" />
+                    <Progress value={Math.min(detailGoal.conversion_rate ?? 0, 100)} className="flex-1 h-2" />
                     <span className="text-base font-bold text-primary tabular-nums">
                       {(detailGoal.conversion_rate ?? 0).toFixed(1)}%
                     </span>

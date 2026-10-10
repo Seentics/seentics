@@ -168,19 +168,6 @@ export const API_EXAMPLES: Record<string, unknown> = {
       ],
     },
   },
-  [`${P}/analytics/realtime`]: {
-    meta,
-    data: {
-      website_id: SITE_ID, active_visitors: 3, live_visitors: 1, pageviews: 9, sessions: 3,
-      top_pages: [{ page: '/', visitors: 3, count: 3 }, { page: '/menu', visitors: 3, count: 3 }],
-      top_countries: [{ name: 'DE', visitors: 1, country: 'DE', count: 1 }, { name: 'GB', visitors: 1, country: 'GB', count: 1 }],
-      top_referrers: [{ name: 'www.google.com', visitors: 1 }],
-      top_devices: [{ name: 'Desktop', visitors: 2 }, { name: 'Mobile', visitors: 1 }],
-      top_browsers: [{ name: 'Safari', visitors: 2 }, { name: 'Chrome', visitors: 1 }],
-      timeline: [{ minute: '07:21', views: 0, visitors: 0 }, { minute: '07:22', views: 0, visitors: 0 }],
-      pages: [{ page: '/', visitors: 3 }, { page: '/menu', visitors: 3 }],
-    },
-  },
   [`${P}/analytics/live-visitors`]: {
     meta,
     data: {
@@ -189,22 +176,6 @@ export const API_EXAMPLES: Record<string, unknown> = {
         visitor_id: 'v0', session_id: 's0', page: 'https://acme.yourapp.com/', country: 'US',
         browser: 'Safari 17.0', device: 'Desktop', last_seen: '2026-10-09T07:50:21.235Z',
       }],
-    },
-  },
-  [`${P}/analytics/recent-activity`]: {
-    meta,
-    data: {
-      website_id: SITE_ID, date_range: '30d',
-      activity: [
-        {
-          type: 'add_to_cart', page: 'https://acme.yourapp.com/order', visitor_id: 'v0', session_id: 's0', country: 'US',
-          browser: 'Safari 17.0', device: 'Desktop', os: 'macOS 14.0', referrer: null, occurred_at: '2026-10-09T07:50:21.235Z',
-        },
-        {
-          type: 'pageview', page: 'https://acme.yourapp.com/', visitor_id: 'v0', session_id: 's0', country: 'US',
-          browser: 'Safari 17.0', device: 'Desktop', os: 'macOS 14.0', referrer: null, occurred_at: '2026-10-09T07:50:21.235Z',
-        },
-      ],
     },
   },
   [`${P}/analytics/export`]: {

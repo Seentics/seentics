@@ -15,7 +15,7 @@ export default function ClientPage() {
   const [editing, setEditing] = useState<AgencyClient | null>(null);
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
       {websiteId && clientId && (
         <ClientDetail
           websiteId={websiteId}

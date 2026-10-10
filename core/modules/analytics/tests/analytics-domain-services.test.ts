@@ -49,15 +49,12 @@ describe("analytics domain services", () => {
     expect(calls[0]).toEqual({ operation: "pages", args: ["site-1", { limit: "10" }] });
   });
 
-  it("realtime options pass through unchanged", async () => {
+  it("realtime reads stay in the realtime service", async () => {
     const service = new RealtimeAnalyticsService({
-      getRealtimeGeoAnalytics: query("realtime-geo") as never,
+      getLiveVisitorsStats: query("live-visitors") as never,
     });
-    await service.getRealtimeGeo("site-1", { withinMinutes: 15 });
-    expect(calls[0]).toEqual({
-      operation: "realtime-geo",
-      args: ["site-1", { withinMinutes: 15 }],
-    });
+    await service.getLiveVisitors("site-1");
+    expect(calls[0]).toEqual({ operation: "live-visitors", args: ["site-1"] });
   });
 
   it("journey analysis is separate from realtime", async () => {

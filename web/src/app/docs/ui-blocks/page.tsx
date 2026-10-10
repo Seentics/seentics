@@ -70,7 +70,6 @@ npm install /path/to/seentics/ui/blocks`}
             [<C>TopPages</C>, 'Most-viewed pages.'],
             [<C>TopSources</C>, 'Referrers and campaigns.'],
             [<C>FunnelChart</C>, 'A funnel and its step drop-off.'],
-            [<C>RealtimeCounter</C>, 'Live visitor count.'],
             [<C>HeatmapViewer</C>, 'A click or scroll map for a page.'],
             [<C>SessionReplayPlayer</C>, 'The replay player.'],
           ]}
@@ -85,7 +84,6 @@ npm install /path/to/seentics/ui/blocks`}
   SeenticsProvider,
   AnalyticsSummary,
   TrafficChart,
-  RealtimeCounter,
 } from '@seentics/ui';
 
 export function Dashboard() {
@@ -95,7 +93,6 @@ export function Dashboard() {
       apiKey={process.env.SEENTICS_API_KEY!}
       apiHost="https://app.seentics.com"
     >
-      <RealtimeCounter />
       <AnalyticsSummary />
       <TrafficChart granularity="daily" />
     </SeenticsProvider>

@@ -553,29 +553,3 @@
 :root[data-density="spacious"] .gap-4 { gap: 1.25rem; }
 :root[data-density="spacious"] .space-y-6 > * + * { margin-top: 2rem; }
 
-/* ── Dashboard type scale (.dash-type on <main>, websites/[websiteId]/layout.tsx) ──
-   Small text one pixel up on every dashboard page except the analytics overview,
-   which keeps its denser sizes. Headings and text-base and up are unchanged. The
-   scoped selectors outrank a plain responsive utility, so the responsive variants
-   in use are restated at their breakpoints — or `text-xs sm:text-sm` would stop
-   growing at sm. */
-.dash-type .text-\[9px\]  { font-size: 10px; }
-.dash-type .text-\[10px\] { font-size: 11px; }
-.dash-type .text-\[11px\] { font-size: 12px; }
-.dash-type .text-\[12px\] { font-size: 13px; }
-.dash-type .text-\[13px\] { font-size: 14px; }
-.dash-type .text-xs { font-size: 0.8125rem; line-height: 1.125rem; }
-.dash-type .text-sm { font-size: 0.9375rem; line-height: 1.375rem; }
-
-@media (min-width: 640px) {
-  .dash-type .sm\:text-\[11px\] { font-size: 12px; }
-  .dash-type .sm\:text-xs   { font-size: 0.8125rem; line-height: 1.125rem; }
-  .dash-type .sm\:text-sm   { font-size: 0.9375rem; line-height: 1.375rem; }
-  .dash-type .sm\:text-base { font-size: 1rem; line-height: 1.5rem; }
-}
-@media (min-width: 768px) {
-  .dash-type .md\:text-base { font-size: 1rem; line-height: 1.5rem; }
-}
-@media (min-width: 1024px) {
-  .dash-type .lg\:text-sm { font-size: 0.9375rem; line-height: 1.375rem; }
-}

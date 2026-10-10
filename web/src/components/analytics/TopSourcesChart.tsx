@@ -104,7 +104,7 @@ export function TopSourcesChart({
 
   if (isLoading) {
     return (
-      <div className="space-y-4 h-[500px]">
+      <div className="space-y-4 h-[420px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
@@ -171,15 +171,19 @@ export function TopSourcesChart({
     }
 
     return (
-      <div className="space-y-0 mt-4">
+      <div className="mt-2">
         {items.map((item, index) => {
           const directIcon = item.label === 'Direct' ? CategoryIcons['Direct'] : null;
           const sourceImg = !directIcon ? getSourceImage(item.label) : null;
 
           return (
-            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
-              <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+            <div key={index} className={cn("relative flex items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent/10 transition-colors group", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
+              <div
+                className="absolute inset-y-0.5 left-0 rounded-md bg-primary/10"
+                style={{ width: `${Math.max(2, item.percentage)}%` }}
+              />
+              <div className="relative flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center overflow-hidden">
                   {directIcon ? (
                     <directIcon.icon className="h-5 w-5" style={{ color: directIcon.color }} />
                   ) : sourceImg ? (
@@ -189,7 +193,7 @@ export function TopSourcesChart({
                         alt={item.label}
                         width={20}
                         height={20}
-                        className="object-contain"
+                        className="h-4 w-4 object-contain"
                         onError={(e) => {
                           const target = e.target as HTMLElement;
                           target.style.display = 'none';
@@ -204,7 +208,7 @@ export function TopSourcesChart({
                       alt={item.label}
                       width={20}
                       height={20}
-                      className="object-contain"
+                      className="h-4 w-4 object-contain"
                       unoptimized
                       onError={(e) => {
                         const target = e.target as HTMLElement;
@@ -215,21 +219,11 @@ export function TopSourcesChart({
                   )}
                   {!directIcon && !sourceImg && <Globe className="h-4 w-4 text-primary hidden" />}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">Source</div>
-                </div>
+                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={item.label}>{item.label}</span>
               </div>
 
-              <div className="shrink-0 text-right">
-                <div className="text-right">
-                  <div className="font-bold text-base leading-tight">
-                    {formatNumber(item.visitors)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Visitors
-                  </div>
-                </div>
+              <div className="relative shrink-0 text-right text-[13px] font-semibold tabular-nums">
+                {formatNumber(item.visitors)}
               </div>
             </div>
           );
@@ -239,13 +233,10 @@ export function TopSourcesChart({
   };
 
   return (
-    <div className="h-[500px] flex flex-col">
+    <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'overview' | 'search' | 'social')} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border shrink-0">
-           <div>
-              <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
-           </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
+           <h3 className="text-sm font-semibold tracking-tight">Traffic Sources</h3>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg">
              <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
              <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
@@ -254,17 +245,17 @@ export function TopSourcesChart({
         </div>
 
         <TabsContent value="overview" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="overview" />
           </div>
         </TabsContent>
         <TabsContent value="search" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="search" />
           </div>
         </TabsContent>
         <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="social" />
           </div>
         </TabsContent>

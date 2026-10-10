@@ -1,7 +1,7 @@
 import {
-  Activity,
   Banknote,
   Bot,
+  Bug,
   Code2,
   Flame,
   GitBranch,
@@ -27,8 +27,8 @@ import { cn } from '@/lib/utils';
 const NAV = [
   { label: 'Overview', icon: LayoutDashboard },
   { label: 'Automations', icon: Bot },
-  { label: 'Realtime', icon: Activity },
   { label: 'Recording', icon: Video },
+  { label: 'Errors', icon: Bug },
   { label: 'Heatmaps', icon: Flame },
   { label: 'Funnels', icon: GitBranch },
   { label: 'Revenue', icon: Banknote },
@@ -45,7 +45,7 @@ export type MockNavLabel = (typeof NAV)[number]['label'];
 
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
   return (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border dark:border-none">
+    <aside className="flex h-full w-[216px] shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border dark:border-none">
       {/* Header — logo, wordmark, collapse control */}
       <div className="flex h-[60px] shrink-0 items-center gap-2 px-4">
         <div className="flex w-full items-center justify-between">

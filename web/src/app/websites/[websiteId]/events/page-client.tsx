@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronDown, Activity, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { useRangeDates } from '@/lib/range-dates';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 
 function EventRow({ event }: { event: any }) {
@@ -65,6 +67,7 @@ export default function EventsPage() {
   const websiteId = params?.websiteId as string;
 
   const [dateRange, setDateRange] = useState(7);
+  const rangeDates = useRangeDates(dateRange);
 
   const { data, isLoading } = useCustomEvents(websiteId, dateRange);
   const events: any[] = data?.top_events ?? [];
@@ -80,15 +83,15 @@ export default function EventsPage() {
   const totalEvents = filteredEvents.reduce((s, e) => s + (e.count || 0), 0);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1200px] mx-auto">
       <DashboardPageHeader
         websiteId={websiteId}
         title="Custom Events"
         description="All custom events tracked via seentics.track(). Click a row to see property breakdowns."
       >
         <Select value={String(dateRange)} onValueChange={v => setDateRange(Number(v))}>
-          <SelectTrigger className="w-[120px] h-8 text-xs">
-            <SelectValue />
+          <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
+            <SelectValue>{rangeDates}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {[7, 14, 30, 90].map(d => (

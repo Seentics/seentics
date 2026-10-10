@@ -10,6 +10,9 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { useRangeDates } from '@/lib/range-dates';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +36,7 @@ export default function RevenuePage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
   const [days, setDays] = useState(30);
+  const rangeDates = useRangeDates(days);
   const { data, isLoading } = useRevenueDashboard(websiteId, days);
   const [openTx, setOpenTx] = useState<RevenueTransaction | null>(null);
   const [showDocs, setShowDocs] = useState(false);
@@ -91,7 +95,7 @@ export default function RevenuePage() {
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
         <div className="mb-4 flex justify-between items-start">
           <div className="space-y-2">
             <Skeleton className="h-8 w-28 rounded-lg" />
@@ -109,7 +113,7 @@ export default function RevenuePage() {
   if (!summary) return null;
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
 
       {/* ── Header ── */}
       <DashboardPageHeader
@@ -129,8 +133,8 @@ export default function RevenuePage() {
           </Button>
 
           <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-[130px] h-9 bg-card">
-              <SelectValue />
+            <SelectTrigger className={cn(GHOST_CONTROL, 'h-9 w-auto gap-2 px-3')}>
+              <SelectValue>{rangeDates}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {[7, 14, 30, 90].map((d) => (

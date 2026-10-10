@@ -41,12 +41,7 @@ export class AnalyticsReadFacade implements AnalyticsReads {
   getGeolocation(id: string, q: AnalyticsQueryParams) { return this.dimensions.getGeolocation(id, q); }
   getPageUtmBreakdown(id: string, q: AnalyticsQueryParams) { return this.dimensions.getPageUtmBreakdown(id, q); }
   getDimensionsBulk(id: string, q: AnalyticsQueryParams) { return this.dimensions.getDimensionsBulk(id, q); }
-  getRealtime(id: string) { return this.realtime.getRealtime(id); }
-  getRealtimeGeo(id: string, opts?: { withinMinutes?: number }) { return this.realtime.getRealtimeGeo(id, opts); }
   getLiveVisitors(id: string) { return this.realtime.getLiveVisitors(id); }
-  getRecentActivity(id: string, limit: number, opts?: { withinMinutes?: number }) {
-    return this.realtime.getRecentActivity(id, limit, opts);
-  }
   getActivityTrends(id: string, q: AnalyticsQueryParams) { return this.journeys.getActivityTrends(id, q); }
   getPathAnalysis(id: string, q: AnalyticsQueryParams) { return this.journeys.getPathAnalysis(id, q); }
   getVisitorInsights(id: string, q: AnalyticsQueryParams) { return this.journeys.getVisitorInsights(id, q); }

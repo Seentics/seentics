@@ -49,12 +49,9 @@ export function TrafficOverview({
   });
 
   return (
-    <Card className={cn("col-span-full surface overflow-hidden pb-4", className)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 p-5 pb-3 shrink-0 border-b border-border">
-        <div>
-          <h2 className="text-base font-semibold tracking-tight">Traffic Overview</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Visitor volume over time</p>
-        </div>
+    <Card className={cn("col-span-full surface overflow-hidden pb-2", className)}>
+      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3 shrink-0 border-b border-border">
+        <h2 className="text-sm font-semibold tracking-tight">Traffic Overview</h2>
 
         <div className="flex items-center gap-2 shrink-0">
           {onComparisonToggle && (
@@ -86,7 +83,7 @@ export function TrafficOverview({
 
       <CardContent className="p-0 pt-2">
         {activeView === 'chart' && (
-          <div className="h-[480px]">
+          <div className="h-[380px]">
             <TrafficChart
               data={dailyStats}
               isLoading={isLoading}
@@ -97,7 +94,7 @@ export function TrafficOverview({
           </div>
         )}
         {activeView === 'hourly' && (
-          <div className="h-[480px]">
+          <div className="h-[380px]">
             <HourlyTrafficChart data={hourlyStats} isLoading={isLoading} />
           </div>
         )}

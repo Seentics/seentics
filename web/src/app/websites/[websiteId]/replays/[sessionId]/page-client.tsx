@@ -142,12 +142,6 @@ export default function ReplayDetailPage() {
     });
   }, [toast]);
 
-  const copyId = useCallback(() => {
-    void navigator.clipboard.writeText(sessionId).then(() => {
-      toast({ title: 'Session ID copied' });
-    });
-  }, [sessionId, toast]);
-
   const listHref = `/websites/${websiteId}/replays`;
   const hasRecording = events.length > 0;
   /** Session queue payloads without a parseable rrweb DOM stream (e.g. only client errors, or empty bundle). */
@@ -191,16 +185,31 @@ export default function ReplayDetailPage() {
     <div className="flex min-h-0 w-full flex-1 flex-col basis-0">
       <ReplayDetailHeader
         sessionId={sessionId}
+        context={
+          session
+            ? {
+                country: session.country,
+                browser: session.browser,
+                os: session.os,
+                device: session.device,
+                durationSeconds: session.durationSeconds,
+              }
+            : undefined
+        }
         hasErrors={session?.hasErrors}
         hasRageClicks={session?.hasRageClicks}
         isDemo={isDemoMode}
         onBack={() => router.push(listHref)}
-        onCopyId={copyId}
         onCopyShareLink={copyShareLink}
       />
 
       <ReplayPlaybackProvider bridge={replayBridge}>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden">
+        {/*
+          Below `xl` the player stacks over the session panel. From `xl` they sit side by
+          side — player on the left, a fixed-width panel on the right — so the summary,
+          errors and console are in view while a recording plays instead of a screen below it.
+        */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden xl:flex-row xl:overflow-hidden">
           {/* Player must stay first in the column; avoid flex-1 on this row when a recording exists — it can reorder/stack oddly with overflow + min-height. */}
           <div
             className={cn(
@@ -208,7 +217,7 @@ export default function ReplayDetailPage() {
               // Demo counts as having a recording for layout: it renders a player, so
               // it wants the player's padding rather than the empty state's centring.
               hasRecording || isDemoMode
-                ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4'
+                ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4 xl:min-h-0 xl:flex-1 xl:shrink xl:overflow-y-auto xl:pb-4'
                 : 'min-h-0 flex-1 basis-0 px-3 pb-3 pt-2 sm:px-4',
             )}
           >
@@ -379,6 +388,7 @@ export default function ReplayDetailPage() {
               a player floating on an empty page. */}
           {hasRecording || isDemoMode ? (
             <ReplaySessionSidebar
+              className="xl:w-[400px] xl:border-l xl:border-t-0"
               replayBridge={replayBridge}
               session={session ?? null}
               websiteId={websiteId}

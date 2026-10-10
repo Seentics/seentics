@@ -72,10 +72,7 @@ const WINDOWED_ROUTES = [
 
 /** Reads whose window is fixed or minute-based, so they do not take the shared query bag. */
 const NON_WINDOWED_ROUTES = [
-  { path: "realtime", method: "getRealtime" },
   { path: "live-visitors", method: "getLiveVisitors" },
-  { path: "recent-activity", method: "getRecentActivity" },
-  { path: "realtime-geo", method: "getRealtimeGeo" },
 ] as const;
 
 const ALL_GUARDED_ROUTES = [...WINDOWED_ROUTES, ...NON_WINDOWED_ROUTES];
@@ -335,113 +332,10 @@ describe("analytics routes", () => {
 
   // ─── Realtime: fixed windows, no query bag ────────────────────────────────
 
-  describe("GET /realtime/:website_id", () => {
-    it("takes no options — the 30-minute window is fixed", async () => {
-      await request(`/realtime/${WEBSITE}?days=30&limit=5&within_minutes=10`, OWNER);
-      expect(analytics.onlyCall()).toEqual({ method: "getRealtime", args: [WEBSITE] });
-    });
-  });
-
   describe("GET /live-visitors/:website_id", () => {
     it("takes no options — both its windows are fixed", async () => {
       await request(`/live-visitors/${WEBSITE}?days=30`, OWNER);
       expect(analytics.onlyCall()).toEqual({ method: "getLiveVisitors", args: [WEBSITE] });
-    });
-  });
-
-  describe("GET /recent-activity/:website_id", () => {
-    it("defaults the limit to 50 and leaves the window unset", async () => {
-      await request(`/recent-activity/${WEBSITE}`, OWNER);
-      expect(analytics.onlyCall().args).toEqual([WEBSITE, 50, { withinMinutes: undefined }]);
-    });
-
-    it("coerces limit and within_minutes to numbers", async () => {
-      await request(`/recent-activity/${WEBSITE}?limit=10&within_minutes=30`, OWNER);
-      expect(analytics.onlyCall().args).toEqual([WEBSITE, 10, { withinMinutes: 30 }]);
-    });
-
-    it("accepts both ends of the limit range", async () => {
-      await request(`/recent-activity/${WEBSITE}?limit=1`, OWNER);
-      expect(analytics.onlyCall().args[1]).toBe(1);
-
-      analytics.calls.length = 0;
-      await request(`/recent-activity/${WEBSITE}?limit=100`, OWNER);
-      expect(analytics.onlyCall().args[1]).toBe(100);
-    });
-
-    it("rejects a limit past the maximum with a field-level validation error", async () => {
-      const res = await request(`/recent-activity/${WEBSITE}?limit=101`, OWNER);
-      expect(res.status).toBe(400);
-      const body = (await res.json()) as {
-        error: string;
-        issues?: { path: string[]; message: string }[];
-      };
-      expect(body.error).toBe("validation_error");
-      expect(body.issues?.[0]?.path).toEqual(["limit"]);
-      expect(analytics.calls).toHaveLength(0);
-    });
-
-    it("rejects a limit of zero, a negative limit, and a non-numeric limit", async () => {
-      for (const limit of ["0", "-1", "abc"]) {
-        analytics.calls.length = 0;
-        const res = await request(`/recent-activity/${WEBSITE}?limit=${limit}`, OWNER);
-        expect(res.status).toBe(400);
-        expect(analytics.calls).toHaveLength(0);
-      }
-    });
-
-    it("treats a blank limit as unspecified rather than invalid", async () => {
-      // `?limit=` is what a URLSearchParams built from a partly-filled form emits.
-      const res = await request(`/recent-activity/${WEBSITE}?limit=`, OWNER);
-      expect(res.status).toBe(200);
-      expect(analytics.onlyCall().args[1]).toBe(50);
-    });
-
-    it("accepts both ends of the within_minutes range and rejects outside it", async () => {
-      await request(`/recent-activity/${WEBSITE}?within_minutes=1`, OWNER);
-      expect(analytics.onlyCall().args[2]).toEqual({ withinMinutes: 1 });
-
-      analytics.calls.length = 0;
-      await request(`/recent-activity/${WEBSITE}?within_minutes=1440`, OWNER);
-      expect(analytics.onlyCall().args[2]).toEqual({ withinMinutes: 1440 });
-
-      for (const v of ["0", "1441", "-5"]) {
-        const res = await request(`/recent-activity/${WEBSITE}?within_minutes=${v}`, OWNER);
-        expect(res.status).toBe(400);
-      }
-    });
-
-    it("checks access before validating — a stranger cannot probe the schema", async () => {
-      // Order matters: a 400 for a caller who is not allowed to read the site at all
-      // would confirm the site exists and reveal the parameter contract.
-      const res = await request(`/recent-activity/${WEBSITE}?limit=99999`, STRANGER);
-      expect(res.status).toBe(403);
-    });
-  });
-
-  describe("GET /realtime-geo/:website_id", () => {
-    it("passes no options at all when within_minutes is unset", async () => {
-      // Not `{ withinMinutes: undefined }`: the repository defaults on `opts?.withinMinutes`,
-      // and an explicit undefined inside an object is indistinguishable there — but the
-      // route's own contract is to omit the argument, which this pins down.
-      await request(`/realtime-geo/${WEBSITE}`, OWNER);
-      expect(analytics.onlyCall().args).toEqual([WEBSITE, undefined]);
-    });
-
-    it("passes the window when set", async () => {
-      await request(`/realtime-geo/${WEBSITE}?within_minutes=60`, OWNER);
-      expect(analytics.onlyCall().args).toEqual([WEBSITE, { withinMinutes: 60 }]);
-    });
-
-    it("rejects an out-of-range window", async () => {
-      const res = await request(`/realtime-geo/${WEBSITE}?within_minutes=5000`, OWNER);
-      expect(res.status).toBe(400);
-      expect(analytics.calls).toHaveLength(0);
-    });
-
-    it("ignores a limit parameter — the endpoint returns the whole breakdown", async () => {
-      await request(`/realtime-geo/${WEBSITE}?limit=3`, OWNER);
-      expect(analytics.onlyCall().args).toEqual([WEBSITE, undefined]);
     });
   });
 

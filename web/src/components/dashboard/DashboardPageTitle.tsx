@@ -22,17 +22,17 @@ export function DashboardPageTitle({
 }: DashboardPageTitleProps) {
   return (
     <div className={cn('mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-center', className)}>
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <h1
           className={cn(
-            'text-2xl font-bold tracking-tight text-foreground transition-all sm:text-3xl',
+            'text-lg font-semibold tracking-tight text-foreground sm:text-xl',
             uppercase ? 'uppercase' : 'capitalize',
           )}
         >
           {title}
         </h1>
         {description && (
-          <p className="max-w-3xl text-sm font-medium text-muted-foreground sm:text-base">
+          <p className="max-w-3xl text-[13px] text-muted-foreground">
             {description}
           </p>
         )}

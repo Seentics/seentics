@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { zBoundedInt, zNonEmptyString } from "../../../platform/validation";
 
-export const rawRecentActivityQuerySchema = z.object({
-  limit: zBoundedInt({ min: 1, max: 500, defaultValue: 50 }),
-});
-
 export const rawEventsQuerySchema = z.object({
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),

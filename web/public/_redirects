@@ -80,8 +80,6 @@
 /websites/:websiteId/paths                        /websites/w-leaf/paths                            200
 /websites/:websiteId/privacy.txt                  /websites/w-leaf/privacy.txt                      200
 /websites/:websiteId/privacy                      /websites/w-leaf/privacy                          200
-/websites/:websiteId/realtime.txt                 /websites/w-leaf/realtime.txt                     200
-/websites/:websiteId/realtime                     /websites/w-leaf/realtime                         200
 /websites/:websiteId/ui-blocks.txt                /websites/w-leaf/ui-blocks.txt                    200
 /websites/:websiteId/ui-blocks                    /websites/w-leaf/ui-blocks                        200
 

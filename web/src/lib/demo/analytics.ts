@@ -252,71 +252,10 @@ export const demoAnalyticsData = () => {
     ],
   },
 
-  recentActivity: {
-    activities: [
-      { page: '/', country: 'United States', browser: 'Chrome', device: 'Desktop', os: 'macOS', referrer: 'https://google.com/', timestamp: demoDate(-30000).toISOString() },
-      { page: '/pricing', country: 'Germany', browser: 'Firefox', device: 'Desktop', os: 'Windows 10', referrer: '', timestamp: demoDate(-60000).toISOString() },
-      { page: '/signup', country: 'United Kingdom', browser: 'Safari', device: 'Mobile', os: 'iOS', referrer: 'https://twitter.com/', timestamp: demoDate(-120000).toISOString() },
-      { page: '/docs', country: 'Canada', browser: 'Chrome', device: 'Desktop', os: 'Linux', referrer: '', timestamp: demoDate(-180000).toISOString() },
-      { page: '/features', country: 'France', browser: 'Edge', device: 'Tablet', os: 'Android', referrer: 'https://news.ycombinator.com/', timestamp: demoDate(-240000).toISOString() },
-    ],
-  },
-
   // Aliases used by the overview page
   get geolocationData() { return demoGeolocation(); },
   get customEvents() { return demoCustomEvents(); },
   });
-};
-
-export const demoRealtimeData = () => {
-  const random = createDemoRandom('realtime');
-  const timeline = [];
-  const now = demoDate();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 60000);
-    timeline.push({
-      minute: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-      visitors: Math.floor(random() * 8) + 1,
-      views: Math.floor(random() * 15) + 2,
-    });
-  }
-  return {
-    active_visitors: Math.floor(random() * 30) + 15,
-    pageviews: Math.floor(random() * 100) + 40,
-    sessions: Math.floor(random() * 40) + 15,
-    top_pages: [
-      { page: '/', visitors: 12 },
-      { page: '/pricing', visitors: 8 },
-      { page: '/docs', visitors: 5 },
-      { page: '/blog/getting-started', visitors: 3 },
-      { page: '/features', visitors: 2 },
-    ],
-    top_referrers: [
-      { name: 'google.com', visitors: 15 },
-      { name: '(direct)', visitors: 10 },
-      { name: 'twitter.com', visitors: 4 },
-      { name: 'github.com', visitors: 3 },
-    ],
-    top_countries: [
-      { name: 'United States', visitors: 12 },
-      { name: 'Germany', visitors: 6 },
-      { name: 'United Kingdom', visitors: 4 },
-      { name: 'Canada', visitors: 3 },
-      { name: 'France', visitors: 2 },
-    ],
-    top_devices: [
-      { name: 'Desktop', visitors: 20 },
-      { name: 'Mobile', visitors: 8 },
-      { name: 'Tablet', visitors: 2 },
-    ],
-    top_browsers: [
-      { name: 'Chrome', visitors: 18 },
-      { name: 'Firefox', visitors: 6 },
-      { name: 'Safari', visitors: 4 },
-      { name: 'Edge', visitors: 2 },
-    ],
-    timeline,
-  };
 };
 
 export const demoCustomEvents = () => {

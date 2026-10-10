@@ -59,9 +59,9 @@ function fmtOffsetClock(ms: number): string {
 
 function SummaryField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-[9.5rem_1fr] sm:gap-x-4 sm:gap-y-0">
+    <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-[7rem_1fr] sm:gap-x-3 sm:gap-y-0">
       <dt className="text-xs text-muted-foreground sm:pt-0.5">{label}</dt>
-      <dd className="min-w-0 text-xs font-medium text-foreground sm:text-sm">{children}</dd>
+      <dd className="min-w-0 text-[13px] font-medium text-foreground">{children}</dd>
     </div>
   );
 }
@@ -85,18 +85,15 @@ function SessionSummaryCard({
 
   return (
     <Card className="flex min-h-0 flex-col shadow-sm rounded-lg">
-      <CardHeader className="space-y-0.5 pb-4">
+      <CardHeader className="space-y-0.5 pb-3">
         <CardTitle className="text-sm font-semibold text-foreground">Session summary</CardTitle>
-        <CardDescription className="text-xs leading-relaxed">
-          Who this was, where they started, and how long the recording runs.
-        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-0">
+      <CardContent className="space-y-3 pt-0">
         {!session ? (
           <p className="text-xs text-muted-foreground">No session metadata loaded.</p>
         ) : (
           <>
-            <dl className="space-y-3">
+            <dl className="space-y-2.5">
               <SummaryField label="Browser">{stripClientVersionLabel(session.browser || '') || '—'}</SummaryField>
               <SummaryField label="Device / OS">
                 {session.device}
@@ -462,10 +459,13 @@ export function ReplaySessionSidebar({
   replayBridge = null,
   session = null,
   websiteId = '',
+  className,
 }: {
   replayBridge?: SessionReplayBridge | null;
   session?: ReplaySession | null;
   websiteId?: string;
+  /** Sizing from the page: full width when stacked under the player, a fixed column beside it. */
+  className?: string;
 }) {
   const [activeTab, setActiveTab] = useState<SidebarTab>('summary');
 
@@ -502,17 +502,17 @@ export function ReplaySessionSidebar({
   ];
 
   return (
-    <section className="shrink-0 border-t border-border bg-background/60">
+    <section className={cn('flex min-h-0 shrink-0 flex-col border-t border-border bg-background/60', className)}>
       {/* Tab bar */}
-      <div className="border-b border-border bg-background/80 px-3 sm:px-5">
-        <div className="mx-auto w-full flex items-center gap-0 overflow-x-auto" style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}>
+      <div className="shrink-0 border-b border-border bg-background/80 px-3 sm:px-4">
+        <div className="flex w-full items-center gap-0 overflow-x-auto">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-medium transition-colors whitespace-nowrap',
+                  'flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-[13px] font-medium transition-colors whitespace-nowrap',
                   activeTab === tab.id
                     ? 'border-primary text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
@@ -529,9 +529,9 @@ export function ReplaySessionSidebar({
         </div>
       </div>
 
-      {/* Tab panels */}
-      <div className="px-3 py-5 sm:px-5">
-        <div className="mx-auto w-full" style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}>
+      {/* Tab panels — scroll inside the panel so the player never moves */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+        <div className="w-full">
         {activeTab === 'summary' && (
           <SessionSummaryCard
             session={session}

@@ -19,7 +19,6 @@ export { TopPages }               from './analytics/TopPages';
 export { TopSources }             from './analytics/TopSources';
 export { GoalConversions }        from './analytics/GoalConversions';
 export { FunnelChart }            from './analytics/FunnelChart';
-export { RealtimeCounter }        from './analytics/RealtimeCounter';
 
 // Behavior
 export { HeatmapViewer }          from './behavior/HeatmapViewer';

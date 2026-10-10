@@ -96,10 +96,10 @@ function CapCell({ value }: { value: number | null }) {
   );
 }
 
-const STATUS_TEXT: Record<AgencyClient['status'], string> = {
-  active: 'text-emerald-600 dark:text-emerald-400',
-  suspended: 'text-amber-600 dark:text-amber-400',
-  archived: 'text-muted-foreground',
+const STATUS_PILL: Record<AgencyClient['status'], string> = {
+  active: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  suspended: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  archived: 'bg-muted text-muted-foreground',
 };
 
 export function ClientsTab({
@@ -151,7 +151,7 @@ export function ClientsTab({
           <div className="flex min-w-0 items-center gap-3">
             <ClientAvatar client={c} />
             {/* A hard max: the table lays out automatically, so `truncate` needs a bound. */}
-            <div className="min-w-0 max-w-[150px]">
+            <div className="min-w-0 max-w-[112px]">
               <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
               {/* Your own ID first: it is what the management API looks clients up by. */}
               <p className={cn('mt-0.5 truncate text-xs text-muted-foreground', c.externalId && 'font-mono')}>
@@ -173,7 +173,7 @@ export function ClientsTab({
         return (
           <div className="flex min-w-0 items-center gap-2">
             <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="max-w-[200px] truncate text-sm text-foreground">{ws[0]!.url}</span>
+            <span className="max-w-[116px] truncate text-sm text-foreground" title={ws[0]!.url}>{ws[0]!.url}</span>
             {ws.length > 1 && (
               <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                 +{ws.length - 1}
@@ -193,7 +193,7 @@ export function ClientsTab({
       cell: ({ row }) => {
         const enabled = row.original.featuresEnabled;
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center">
             {FEATURE_ICONS.map(({ key, icon: Icon }) => {
               const on = enabled[key];
               return (
@@ -201,12 +201,12 @@ export function ClientsTab({
                   key={key}
                   title={`${FEATURE_NAMES[key]} ${on ? 'on' : 'off'}`}
                   className={cn(
-                    'relative flex h-6 w-6 items-center justify-center rounded-md',
-                    on ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground/40',
+                    'relative flex h-6 w-[22px] items-center justify-center',
+                    on ? 'text-primary' : 'text-muted-foreground/35',
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {!on && <span className="absolute h-px w-4 rotate-45 bg-amber-500" />}
+                  <Icon className="h-4 w-4" />
+                  {!on && <span className="absolute h-px w-4 rotate-45 bg-muted-foreground/50" />}
                 </span>
               );
             })}
@@ -236,16 +236,18 @@ export function ClientsTab({
       cell: ({ row }) => {
         const c = row.original;
         return (
-          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2.5" onClick={e => e.stopPropagation()}>
             <Switch
-              // Compact for a table row: the default switch is sized for a settings form.
-              className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+              // Smaller than a settings-form switch, but not the 28px sliver it was.
+              className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
               checked={c.status === 'active'}
               disabled={c.status === 'archived' || update.isPending}
               onCheckedChange={on => setStatus(c, on ? 'active' : 'suspended')}
               aria-label={c.status === 'active' ? 'Suspend client' : 'Activate client'}
             />
-            <span className={cn('whitespace-nowrap text-xs font-medium capitalize', STATUS_TEXT[c.status])}>{c.status}</span>
+            <span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold capitalize', STATUS_PILL[c.status])}>
+              {c.status}
+            </span>
           </div>
         );
       },
@@ -319,7 +321,7 @@ export function ClientsTab({
       />
 
       <DataTable
-        className="rounded-lg shadow-sm [&_td]:!py-3.5 [&_th]:!py-3.5"
+        className="rounded-lg shadow-sm "
         data={filtered}
         columns={columns}
         isLoading={isLoading}

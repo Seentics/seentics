@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { RangeSelect } from '@/components/ui/range-select';
+import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Activity, Bug, ChevronLeft, Clock, Search, Sparkles } from 'lucide-react';
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -31,10 +34,10 @@ import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
  */
 
 const RANGES = [
-  { value: '1',  label: 'Last 24 hours' },
-  { value: '7',  label: 'Last 7 days' },
-  { value: '30', label: 'Last 30 days' },
-];
+  { days: 1,  label: 'Last 24 hours' },
+  { days: 7,  label: 'Last 7 days' },
+  { days: 30, label: 'Last 30 days' },
+] as const;
 
 const STATUSES = [
   { value: 'unresolved', label: 'Unresolved' },
@@ -76,7 +79,7 @@ export default function ErrorsPage() {
 
   if (openFingerprint) {
     return (
-      <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+      <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
         <Button
           variant="ghost" size="sm"
           onClick={() => setOpenFingerprint(null)}
@@ -104,28 +107,21 @@ export default function ErrorsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       <DashboardPageHeader
         title="Errors"
         description="Uncaught JavaScript errors from real visitors, grouped by fault."
         websiteId={websiteId}
       >
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => (
               <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {RANGES.map((r) => (
-              <SelectItem key={r.value} value={r.value} className="text-xs">{r.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <RangeSelect value={days} onChange={setDays} ranges={RANGES} />
       </DashboardPageHeader>
 
       <StatCards

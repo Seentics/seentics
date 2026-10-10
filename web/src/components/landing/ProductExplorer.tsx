@@ -33,7 +33,7 @@ const TABS = [
     core: true,
     title: 'Know what is working, in real time',
     description: 'Cookie-free traffic analytics: sources, pages, devices, countries and campaigns on one screen.',
-    points: ['Live visitors and realtime events', 'Sources, UTM campaigns and referrers', 'Goals, revenue and attribution'],
+    points: ['Live visitors on your site', 'Sources, UTM campaigns and referrers', 'Goals, revenue and attribution'],
     href: '/docs/analytics',
     url: 'app.seentics.com/websites/acme-store',
     Mock: DashboardMock,

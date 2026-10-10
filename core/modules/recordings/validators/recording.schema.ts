@@ -15,6 +15,8 @@ export const replayListQuerySchema = z.object({
   device: z.enum(["desktop", "mobile", "tablet"]).optional(),
   has_errors: zFlag,
   has_rage_clicks: zFlag,
+  /** Only sessions that started within this many days; absent means every retained session. */
+  days: zBoundedInt({ min: 1, max: 366 }).optional(),
 });
 
 export const replayBatchDeleteSchema = z.object({

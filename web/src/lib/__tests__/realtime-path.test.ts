@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activityReferrerLabel,
   pathFromRaw,
   shortenSessionSlugInPath,
   stripWebsiteDashboardPrefix,
@@ -164,74 +163,5 @@ describe('displayRealtimePath', () => {
     for (const raw of ['pricing', 'https://x.com/y', '', '//x.com/z']) {
       expect(displayRealtimePath(raw, WEBSITE).startsWith('/')).toBe(true);
     }
-  });
-});
-
-describe('activityReferrerLabel', () => {
-  it('reduces an external referrer to its hostname', () => {
-    expect(activityReferrerLabel('https://www.google.com/search?q=x')).toBe('google.com');
-  });
-
-  it('strips only a leading www', () => {
-    expect(activityReferrerLabel('https://www.example.com')).toBe('example.com');
-    expect(activityReferrerLabel('https://wwwx.example.com')).toBe('wwwx.example.com');
-  });
-
-  it('keeps other subdomains — news.ycombinator.com is not ycombinator.com', () => {
-    expect(activityReferrerLabel('https://news.ycombinator.com/item?id=1')).toBe(
-      'news.ycombinator.com',
-    );
-  });
-
-  it('accepts a bare hostname with no scheme', () => {
-    expect(activityReferrerLabel('google.com/search')).toBe('google.com');
-  });
-
-  it('returns an empty label for an empty referrer, not a placeholder', () => {
-    expect(activityReferrerLabel('')).toBe('');
-  });
-
-  it('shows the path for a localhost referrer, since the hostname says nothing', () => {
-    expect(activityReferrerLabel('http://localhost:3000/pricing')).toBe('/pricing');
-    expect(activityReferrerLabel('http://127.0.0.1:3000/pricing')).toBe('/pricing');
-  });
-
-  it('applies the dashboard-prefix strip to a localhost path when given a site id', () => {
-    expect(
-      activityReferrerLabel(`http://localhost:3000/websites/${WEBSITE}/realtime`, WEBSITE),
-    ).toBe('/realtime');
-  });
-
-  it('shortens a session id inside a localhost path', () => {
-    expect(
-      activityReferrerLabel(
-        `http://localhost:3000/websites/${WEBSITE}/replays/s-abcdefghijklmnop`,
-        WEBSITE,
-      ),
-    ).toBe('/replays/s-…klmnop');
-  });
-
-  it('truncates a very long localhost path', () => {
-    const out = activityReferrerLabel(`http://localhost:3000/${'a'.repeat(100)}`);
-    expect(out).toHaveLength(52);
-    expect(out.endsWith('…')).toBe(true);
-  });
-
-  it('truncates an unparseable referrer rather than throwing', () => {
-    // 21 characters plus the ellipsis — the budget is a `> 24` test but a 22-character
-    // result, which is worth stating explicitly since the two numbers differ.
-    const out = activityReferrerLabel('::::not a url at all, really quite long ::::');
-    expect(out).toHaveLength(22);
-    expect(out.endsWith('…')).toBe(true);
-    expect(out).toBe('::::not a url at all,…');
-  });
-
-  it('leaves a referrer exactly at the 24-character threshold intact', () => {
-    const exact = 'a'.repeat(24);
-    expect(activityReferrerLabel(exact)).toBe(exact);
-  });
-
-  it('returns a short unparseable referrer as-is', () => {
-    expect(activityReferrerLabel('¯\\_(ツ)_/¯')).toBe('¯\\_(ツ)_/¯');
   });
 });

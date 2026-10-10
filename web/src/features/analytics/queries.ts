@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { isDemo, demoAnalyticsData } from '@/lib/demo';
 import { isValidId } from '@/lib/utils';
 import api from '@/lib/api';
-import { dashboardRefreshMs, getUserTimezone, normalizeRecentActivityApiPayload } from './format';
+import { dashboardRefreshMs, getUserTimezone } from './format';
 import {
   getCustomEventsStats,
   getDailyStats,
@@ -12,8 +12,6 @@ import {
   getGeolocationBreakdown,
   getHourlyStats,
   getLiveVisitors,
-  getRealtimeData,
-  getRealtimeGeoData,
   getTopBrowsers,
   getTopCities,
   getTopCountries,
@@ -25,7 +23,7 @@ import {
   getTopResolutions,
   getVisitorInsights,
 } from './api';
-import type { AnalyticsFilters, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse, RealtimeData, RealtimeGeoResponse, UseRecentActivityOptions } from './types';
+import type { AnalyticsFilters, GetDailyStatsResponse, GetHourlyStatsResponse, GetTopBrowsersResponse, GetTopCountriesResponse, GetTopDevicesResponse, GetTopOSResponse, GetTopPagesResponse, GetTopReferrersResponse, GetVisitorInsightsResponse } from './types';
 
 // Query Keys
 export const analyticsKeys = {
@@ -73,16 +71,6 @@ export const usePublicDashboardData = (publicId: string, days: number = 7) => {
       return response.data;
     },
     enabled: !!publicId,
-  });
-};
-
-export const useRealtimeData = (websiteId: string) => {
-  return useQuery<RealtimeData>({
-    queryKey: ['realtime', websiteId],
-    queryFn: () => getRealtimeData(websiteId),
-    enabled: isValidId(websiteId),
-    refetchInterval: 15_000,
-    staleTime: 12_000,
   });
 };
 
@@ -238,40 +226,6 @@ export const useGoalStats = (websiteId: string, days: number = 30, enabled = tru
       return response.data;
     },
     enabled: enabled && isValidId(websiteId),
-  });
-};
-
-export const useRecentActivity = (websiteId: string, options?: UseRecentActivityOptions) => {
-  const limit = options?.limit ?? 20;
-  const withinMinutes = options?.withinMinutes;
-  const refetchInterval = options?.refetchIntervalMs ?? 30000;
-  const staleTime = options?.staleTimeMs ?? Math.min(15000, refetchInterval - 1);
-  return useQuery({
-    queryKey: ['recent-activity', websiteId, limit, withinMinutes ?? 'all'],
-    queryFn: async () => {
-      if (isDemo(websiteId)) {
-        return demoAnalyticsData().recentActivity;
-      }
-      const params = new URLSearchParams({ limit: String(limit) });
-      if (typeof withinMinutes === 'number' && withinMinutes > 0) {
-        params.set('within_minutes', String(withinMinutes));
-      }
-      const response = await api.get(`/analytics/recent-activity/${websiteId}?${params.toString()}`);
-      return normalizeRecentActivityApiPayload(response.data, withinMinutes);
-    },
-    enabled: isValidId(websiteId),
-    refetchInterval,
-    staleTime,
-  });
-};
-
-export const useRealtimeGeoData = (websiteId: string, withinMinutes = 30) => {
-  return useQuery<RealtimeGeoResponse>({
-    queryKey: ['realtime-geo', websiteId, withinMinutes],
-    queryFn: () => getRealtimeGeoData(websiteId, withinMinutes),
-    enabled: isValidId(websiteId),
-    refetchInterval: 12_000,
-    staleTime: 8000,
   });
 };
 

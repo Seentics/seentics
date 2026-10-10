@@ -66,7 +66,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
         title: 'Analytics',
         href: '/docs/analytics',
         icon: BarChart3,
-        summary: 'Traffic, sources, devices, geography and realtime.',
+        summary: 'Traffic, sources, devices and geography.',
       },
       {
         title: 'Session replays',

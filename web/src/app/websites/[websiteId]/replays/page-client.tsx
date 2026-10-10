@@ -16,6 +16,10 @@ import { Video, Clock, AlertTriangle, Search, Users, RefreshCw, Trash2, MousePoi
 
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
+import { demoDate } from '@/lib/demo/fixture-utils';
+import { DEFAULT_REPLAY_DAYS, ReplayRangeSelect } from '@/components/replays/ReplayRangeSelect';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { cn } from '@/lib/utils';
 import {
   listSessions,
   deleteSessions,
@@ -23,7 +27,6 @@ import {
   type ReplaySession,
 } from '@/lib/replays-api';
 import { useToast } from '@/hooks/use-toast';
-import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 
 
 import { SignalFilter } from '@/components/replays/SignalFilter';
@@ -50,6 +53,8 @@ export default function ReplaysPage() {
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [rageOnly, setRageOnly] = useState(false);
+  /** Rolling window in days; 0 is every retained session. */
+  const [rangeDays, setRangeDays] = useState<number>(DEFAULT_REPLAY_DAYS);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
 
@@ -63,7 +68,8 @@ export default function ReplaysPage() {
     device: deviceFilter === 'all' ? undefined : deviceFilter,
     hasErrors: errorsOnly || undefined,
     hasRageClicks: rageOnly || undefined,
-  }), [committedSearch, deviceFilter, errorsOnly, rageOnly]);
+    days: rangeDays || undefined,
+  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays]);
 
   /** Narrowing the set changes what page 1 means, so never keep the old offset. */
   useEffect(() => {
@@ -125,7 +131,12 @@ export default function ReplaysPage() {
   // Normalise to common row shape. These are the rows of the CURRENT page only.
   const rows: SessionRow[] = useMemo(() => {
     if (isDemoMode) {
-      return demoReplays().sessions.map(s => ({
+      // The fixtures are anchored to a fixed reference date, so the window is measured
+      // from that anchor rather than from the real clock — otherwise any range would be empty.
+      const since = rangeDays ? demoDate().getTime() - rangeDays * 86_400_000 : -Infinity;
+      return demoReplays().sessions
+        .filter(s => new Date(s.start_time).getTime() >= since)
+        .map(s => ({
         id: s.id,
         session_id: s.session_id,
         country: s.country,
@@ -155,7 +166,7 @@ export default function ReplaysPage() {
       start_time: s.startedAt,
     }));
 
-  }, [isDemoMode, apiData]);
+  }, [isDemoMode, apiData, rangeDays]);
 
   /**
    * Headline figures for the whole filtered set, computed by the database.
@@ -223,13 +234,14 @@ export default function ReplaysPage() {
 
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       {confirmDialog}
       <DashboardPageHeader
         websiteId={websiteId}
         title="Session Replays"
         description="Watch real user sessions to understand exactly how people use your product."
       >
+        <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
         {!isDemoMode && (
           <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
@@ -268,7 +280,7 @@ export default function ReplaysPage() {
       ]} />
 
       <DataTable
-        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-3.5 [&_th]:!py-3.5"
+        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-2 [&_th]:!py-2"
         data={rows}
         columns={columns}
         isLoading={isLoading || isFetching}
@@ -347,7 +359,7 @@ export default function ReplaysPage() {
               value={deviceFilter}
               onValueChange={(v) => setDeviceFilter(v as DeviceFilter)}
             >
-              <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

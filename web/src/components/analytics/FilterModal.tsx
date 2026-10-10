@@ -38,6 +38,7 @@ import {
 } from 'react-icons/si';
 import { FaEdge, FaWindows } from 'react-icons/fa6';
 import { cn } from '@/lib/utils';
+import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { format } from 'date-fns';
 import { COUNTRIES } from '@/utils/countries';
 
@@ -388,8 +389,8 @@ export function FilterModal({
     <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="outline"
-          className="h-8 px-3 font-medium gap-1.5 relative border dark:border-none bg-card hover:bg-card text-muted-foreground hover:text-foreground"
+          variant="ghost"
+          className={cn(GHOST_CONTROL, 'h-8 px-3 font-medium gap-1.5 relative')}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Filters</span>

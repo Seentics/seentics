@@ -76,34 +76,15 @@ export interface AnalyticsDimensions {
 }
 
 /**
- * Live and near-live views.
+ * The live-visitor read.
  *
- * These read the most recent minutes of data, so they are the surfaces most
- * affected by ingest batching latency — a visitor appears here one flush after
- * their first event, not instantly.
- *
- * Unlike the windowed endpoints these take explicit, already-validated options
- * rather than a raw query bag: their windows are in minutes rather than days, and
- * the route validates `within_minutes` and `limit` with a schema before calling.
+ * It reads the most recent minutes of data, so it is the surface most affected by
+ * ingest batching latency — a visitor appears here one flush after their first
+ * event, not instantly.
  */
 export interface AnalyticsRealtime {
-  /** Fixed 30-minute window; takes no options. */
-  getRealtime(websiteRef: string): Promise<unknown>;
-
   /** Fixed windows — 30s live, 30min active. Takes no options. */
   getLiveVisitors(websiteRef: string): Promise<unknown>;
-
-  getRealtimeGeo(
-    websiteRef: string,
-    opts?: { withinMinutes?: number },
-  ): Promise<unknown>;
-
-  getRecentActivity(
-    websiteRef: string,
-    limit: number,
-    opts?: { withinMinutes?: number },
-  ): Promise<unknown>;
-
 }
 
 /** Journey and per-visitor analysis. */

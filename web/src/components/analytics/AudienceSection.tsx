@@ -31,7 +31,7 @@ export interface AudienceSectionProps {
  * The audience half of the overview: pages, sources, geography, devices and UTM.
  *
  * The grid and the card chrome were a hundred lines inline in the page, with
- * `<Card><CardContent className="p-5">` repeated around every chart. They belong
+ * `<Card><CardContent className="p-4">` repeated around every chart. They belong
  * together — this is one section with one layout — and pulling it out is what lets the
  * same arrangement appear on a shared report or a demo route.
  *
@@ -43,10 +43,10 @@ export function AudienceSection({
   pages, sources, geolocation, devices, utm, footer, className,
 }: AudienceSectionProps) {
   return (
-    <div className={cn('space-y-4', className)}>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className={cn('space-y-3', className)}>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="border border-border bg-card">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <ChartErrorBoundary label="Top Pages">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopPagesChart
@@ -60,7 +60,7 @@ export function AudienceSection({
         </Card>
 
         <Card className="border border-border bg-card">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <ChartErrorBoundary label="Top Sources">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopSourcesChart data={sources.data as any} isLoading={sources.isLoading ?? false} />
@@ -74,9 +74,9 @@ export function AudienceSection({
         <GeolocationOverview data={geolocation.data as any} isLoading={geolocation.isLoading ?? false} />
       </ChartErrorBoundary>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="border border-border bg-card">
-          <CardContent className="p-5">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Card className="min-h-[420px] border border-border bg-card">
+          <CardContent className="p-4">
             <ChartErrorBoundary label="Top Devices">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopDevicesChart
@@ -94,6 +94,7 @@ export function AudienceSection({
           tab={utm.tab}
           onTabChange={utm.onTabChange}
           isLoading={utm.isLoading}
+          className="min-h-[420px]"
         />
       </div>
 

@@ -34,7 +34,7 @@ export default function AutomationTemplatesPage() {
   };
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       <div className="flex items-center gap-3 mb-2">
         <Button
           variant="ghost"

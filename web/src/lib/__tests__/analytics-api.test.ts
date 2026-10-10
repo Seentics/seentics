@@ -23,8 +23,8 @@ vi.mock('sonner', () => ({
   toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() },
 }));
 
-import { getDailyStats, getDashboardData, getDimensionsBulk, getHourlyStats, getLiveVisitors, getRealtimeData, getRealtimeGeoData, getTopPages } from '@/features/analytics/api';
-import { formatDuration, formatNumber, formatPercentage, getUserTimezone, normalizeRecentActivityApiPayload } from '@/features/analytics/format';
+import { getDailyStats, getDashboardData, getDimensionsBulk, getHourlyStats, getLiveVisitors, getTopPages } from '@/features/analytics/api';
+import { formatDuration, formatNumber, formatPercentage, getUserTimezone } from '@/features/analytics/format';
 import { analyticsKeys } from '@/features/analytics/queries';
 
 const SITE = 'ab12cd34';
@@ -158,102 +158,6 @@ describe('formatPercentage', () => {
   });
 });
 
-// ─── Recent-activity normalisation ───────────────────────────────────────────
-
-describe('normalizeRecentActivityApiPayload', () => {
-  const row = {
-    type: 'pageview',
-    page: '/pricing',
-    country: 'US',
-    device: 'desktop',
-    browser: 'Chrome',
-    os: 'macOS',
-    referrer: 'https://google.com',
-    occurred_at: '2026-03-01T10:00:00.000Z',
-  };
-
-  it('reads rows from the `activity` key the API sends today', () => {
-    const out = normalizeRecentActivityApiPayload({ activity: [row] });
-    expect(out.activities).toHaveLength(1);
-    expect(out.activities[0]).toEqual({
-      page: '/pricing',
-      country: 'US',
-      device: 'desktop',
-      browser: 'Chrome',
-      os: 'macOS',
-      referrer: 'https://google.com',
-      timestamp: '2026-03-01T10:00:00.000Z',
-    });
-  });
-
-  it('also reads rows from the legacy `activities` key', () => {
-    expect(normalizeRecentActivityApiPayload({ activities: [row] }).activities).toHaveLength(1);
-  });
-
-  it('prefers `activity` when a payload carries both', () => {
-    const out = normalizeRecentActivityApiPayload({
-      activity: [row],
-      activities: [{ ...row, page: '/legacy' }],
-    });
-    expect(out.activities[0]!.page).toBe('/pricing');
-  });
-
-  it('falls back to `timestamp` when there is no occurred_at', () => {
-    const out = normalizeRecentActivityApiPayload({
-      activity: [{ ...row, occurred_at: undefined, timestamp: '2026-03-01T09:00:00.000Z' }],
-    });
-    expect(out.activities[0]!.timestamp).toBe('2026-03-01T09:00:00.000Z');
-  });
-
-  it('renders every absent field as an empty string, never undefined', () => {
-    // The feed passes these straight into helpers that call `.trim()` and `.startsWith()`.
-    const out = normalizeRecentActivityApiPayload({ activity: [{ type: 'pageview' }] });
-    expect(out.activities[0]).toEqual({
-      page: '',
-      country: '',
-      device: '',
-      browser: '',
-      os: '',
-      referrer: '',
-      timestamp: '',
-    });
-  });
-
-  it('keeps every event type when no rolling window was requested', () => {
-    const out = normalizeRecentActivityApiPayload({
-      activity: [row, { ...row, type: 'purchase' }],
-    });
-    expect(out.activities).toHaveLength(2);
-  });
-
-  it('keeps only pageviews when a rolling window was requested', () => {
-    // The realtime panel is a pageview feed; a purchase row has no page to render.
-    const out = normalizeRecentActivityApiPayload(
-      { activity: [row, { ...row, type: 'purchase' }, { ...row, type: 'custom' }] },
-      30,
-    );
-    expect(out.activities).toHaveLength(1);
-    expect(out.activities[0]!.page).toBe('/pricing');
-  });
-
-  it('does not filter for a zero or negative window', () => {
-    expect(
-      normalizeRecentActivityApiPayload({ activity: [{ ...row, type: 'purchase' }] }, 0).activities,
-    ).toHaveLength(1);
-  });
-
-  it('returns an empty list rather than throwing for a malformed payload', () => {
-    for (const raw of [{}, { activity: null }, { activity: 'nope' }, []]) {
-      expect(normalizeRecentActivityApiPayload(raw).activities).toEqual([]);
-    }
-  });
-
-  it('coerces non-string field values instead of leaking them through', () => {
-    const out = normalizeRecentActivityApiPayload({ activity: [{ ...row, page: 123 }] });
-    expect(out.activities[0]!.page).toBe('123');
-  });
-});
-
 // ─── Request construction ────────────────────────────────────────────────────
 
 describe('request building', () => {
@@ -289,25 +193,6 @@ describe('request building', () => {
     expect(requestedParams().get('days')).toBe('30');
   });
 
-  it('sends the rolling window on the realtime geo read', async () => {
-    get.mockResolvedValue({ data: { visitors: [] } });
-    await getRealtimeGeoData(SITE, 60);
-    expect(requestedUrl()).toContain(`/analytics/realtime-geo/${SITE}`);
-    expect(requestedParams().get('within_minutes')).toBe('60');
-  });
-
-  it('defaults the realtime geo window to thirty minutes', async () => {
-    get.mockResolvedValue({ data: { visitors: [] } });
-    await getRealtimeGeoData(SITE);
-    expect(requestedParams().get('within_minutes')).toBe('30');
-  });
-
-  it('sends no window on the realtime read — the server fixes it', async () => {
-    get.mockResolvedValue({ data: {} });
-    await getRealtimeData(SITE);
-    expect(requestedUrl()).toContain(`/analytics/realtime/${SITE}`);
-    expect(requestedParams().has('days')).toBe(false);
-  });
 
   it('reads the live-visitor count and falls back to zero', async () => {
     get.mockResolvedValue({ data: { live_visitors: 12 } });
@@ -382,8 +267,7 @@ describe('demo mode', () => {
     expect(out).toBeDefined();
   });
 
-  it('serves realtime, top pages and bulk dimensions from fixtures too', async () => {
-    await getRealtimeData('demo');
+  it('serves top pages and bulk dimensions from fixtures too', async () => {
     await getTopPages('demo');
     await getDimensionsBulk('demo');
     expect(get).not.toHaveBeenCalled();

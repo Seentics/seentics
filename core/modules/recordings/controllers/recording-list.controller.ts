@@ -18,6 +18,7 @@ export function listRecordings(deps: RecordingControllerDeps) {
       device: data.device,
       hasErrors: data.has_errors,
       hasRageClicks: data.has_rage_clicks,
+      days: data.days,
     });
     return c.json(result);
   };

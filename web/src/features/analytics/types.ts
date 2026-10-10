@@ -196,48 +196,6 @@ export interface GetDailyStatsResponse {
   daily_stats: DailyStat[];
 }
 
-// Realtime Data
-export interface RealtimeMinute {
-  minute: string;
-  visitors: number;
-  views: number;
-}
-
-export interface RealtimeData {
-  active_visitors: number;
-  pageviews: number;
-  sessions: number;
-  top_pages: Array<{ page: string; visitors: number }>;
-  top_referrers: Array<{ name: string; visitors: number }>;
-  top_countries: Array<{ name: string; visitors: number }>;
-  top_devices: Array<{ name: string; visitors: number }>;
-  top_browsers: Array<{ name: string; visitors: number }>;
-  timeline: RealtimeMinute[];
-}
-
-export type UseRecentActivityOptions = {
-  /** Max rows returned (default 20). */
-  limit?: number;
-  /** When set, restricts rows to this rolling window (server `within_minutes`). */
-  withinMinutes?: number;
-  refetchIntervalMs?: number;
-  staleTimeMs?: number;
-};
-
-// Realtime Geo Data
-export interface RealtimeGeoVisitor {
-  name: string;
-  code?: string;
-  count: number;
-  percentage: number;
-}
-
-export interface RealtimeGeoResponse {
-  website_id: string;
-  date_range: string;
-  visitors: RealtimeGeoVisitor[];
-}
-
 export interface GeolocationData {
   countries: Array<{
     name: string;

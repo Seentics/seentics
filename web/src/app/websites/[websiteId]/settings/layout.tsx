@@ -12,6 +12,7 @@ import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isEnterprise } from '@/lib/features';
 import { isDemo } from '@/lib/demo';
 import { useSubscription } from '@/hooks/useSubscription';
+import { PAGE_MENU_LABEL, pageMenuItem } from '@/components/ui/page-menu';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           Back to Analytics
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
           {showBilling && (
             // Always in view, on every settings page: the plan, and the way to change it or see invoices.
             <Link
@@ -114,11 +115,20 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
         <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:gap-8">
           {/* Sections: a list down the side on a wide screen, a row to scroll on a narrow one. */}
-          <nav aria-label="Settings sections" className="lg:sticky lg:top-6 lg:w-40 lg:shrink-0 lg:self-start">
-            <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-4 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
-              {visibleGroups.map((group) => (
-                <div key={group.label} className="flex gap-1 lg:flex-col lg:gap-0.5">
-                  <p className="hidden px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground lg:block">{group.label}</p>
+          <nav
+            aria-label="Settings sections"
+            // The panel look is only for the side-by-side layout; on a narrow screen the
+            // sections are a plain row to scroll. Written out because Tailwind cannot see
+            // class names assembled at runtime.
+            className="lg:sticky lg:top-6 lg:w-44 lg:shrink-0 lg:self-start lg:rounded-lg lg:border lg:border-border lg:bg-card lg:p-1.5"
+          >
+            <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+              {visibleGroups.map((group, gi) => (
+                <div
+                  key={group.label}
+                  className={cn('flex gap-1 lg:flex-col lg:gap-px', gi > 0 && 'lg:mt-1 lg:border-t lg:border-border lg:pt-1')}
+                >
+                  <p className={cn(PAGE_MENU_LABEL, 'hidden lg:block')}>{group.label}</p>
                   {group.items.map((item) => {
                     const active = pathname === item.href;
                     const Icon = item.icon;
@@ -128,13 +138,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                         href={item.href}
                         aria-current={active ? 'page' : undefined}
                         title={item.hint}
-                        className={cn(
-                          'flex shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
-                          active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                        )}
+                        className={pageMenuItem(active)}
                       >
-                        <Icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
-                        <span className="whitespace-nowrap font-medium">{item.label}</span>
+                        <Icon className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                        <span className="whitespace-nowrap">{item.label}</span>
                       </Link>
                     );
                   })}

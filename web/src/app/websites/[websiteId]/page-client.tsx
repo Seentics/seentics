@@ -27,6 +27,7 @@ import {
   selectTopDevices, selectTopOS, selectCustomEvents,
 } from '@/features/analytics/selectors';
 import { FilterModal } from '@/components/analytics/FilterModal';
+import { DateRangeButton } from '@/components/analytics/DateRangeButton';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
@@ -311,6 +312,15 @@ export default function WebsiteDashboardPage() {
 
           <AiModeButton websiteId={websiteId} />
 
+          {/* Date range — shows the real dates; the Filters dialog edits the same state */}
+          <DateRangeButton
+            dateRange={dateRange}
+            isCustomRange={isCustomRange}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onDateRangeChange={handleDateRangeChange}
+            onCustomDateChange={handleCustomDateChange}
+          />
 
           {/* Filters */}
           <FilterModal
@@ -325,8 +335,8 @@ export default function WebsiteDashboardPage() {
             currentFilters={advancedFilters}
           />
 
-{/* Theme — same box as row controls; compact icon matches Filter button height */}
-          <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-card transition-colors hover:bg-card border dark:border-none">
+{/* Theme — same ghost look as the other row controls */}
+          <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-transparent transition-colors hover:bg-muted/60">
             <ThemeToggle />
           </div>
         </div>
@@ -434,7 +444,7 @@ export default function WebsiteDashboardPage() {
 
   return (
     <div className="min-h-0 w-full bg-background">
-      <div className="mx-auto w-full max-w-[1200px] p-4 md:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-[1200px] p-4 md:p-5 lg:px-6 lg:py-5">
         {dashboardContent}
       </div>
 

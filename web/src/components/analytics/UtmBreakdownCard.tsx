@@ -19,7 +19,6 @@ export interface UtmBreakdownCardProps {
   onTabChange: (tab: UtmTab) => void;
   isLoading?: boolean;
   title?: string;
-  description?: string;
   className?: string;
 }
 
@@ -39,17 +38,13 @@ export function UtmBreakdownCard({
   onTabChange,
   isLoading,
   title = 'UTM breakdown',
-  description = 'Sources, mediums & campaigns',
   className,
 }: UtmBreakdownCardProps) {
   return (
     <Card className={cn('overflow-hidden border border-border bg-card', className)}>
-      <CardHeader className="border-b border-border p-5 pb-3">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 shrink-0">
-            <h3 className="whitespace-nowrap text-base font-semibold tracking-tight">{title}</h3>
-            <p className="mt-0.5 whitespace-nowrap text-xs text-muted-foreground">{description}</p>
-          </div>
+      <CardHeader className="border-b border-border p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h3 className="min-w-0 shrink-0 whitespace-nowrap text-sm font-semibold tracking-tight">{title}</h3>
           <Tabs
             value={tab}
             onValueChange={(v) => onTabChange(v as UtmTab)}
@@ -69,7 +64,7 @@ export function UtmBreakdownCard({
           </Tabs>
         </div>
       </CardHeader>
-      <CardContent className="p-5 pt-4">
+      <CardContent className="p-4 pt-2">
         <ChartErrorBoundary label="UTM breakdown">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <UTMPerformanceChart data={data as any} isLoading={isLoading} controlledTab={tab} />

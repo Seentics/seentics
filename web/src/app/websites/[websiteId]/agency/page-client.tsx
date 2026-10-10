@@ -11,6 +11,7 @@ import type { AgencyClient } from '@/features/agency/types';
 import { useAgencyAPIKeys, useAgencyClients } from '@/features/agency/queries';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Button } from '@/components/ui/button';
+import { PAGE_MENU_LABEL, PAGE_MENU_PANEL, pageMenuItem } from '@/components/ui/page-menu';
 import { ClientsTab } from '@/components/agency/tabs/ClientsTab';
 import { ApiKeysTab } from '@/components/agency/tabs/ApiKeysTab';
 import { AnalyticsApiTab, ManagementApiTab } from '@/components/agency/tabs/ApiDocsTabs';
@@ -24,22 +25,31 @@ import { CreateAccountKeyDialog } from '@/components/agency/AccountKeysPanel';
  * Clients and both APIs are open source and on every plan. Client logins and white-label
  * are Cloud features, served by the gateway, so their tabs show only there.
  */
-const TABS = [
-  { id: 'clients', label: 'Clients', icon: Users },
-  { id: 'api-keys', label: 'API keys', icon: KeyRound },
-  { id: 'management-api', label: 'Management API', icon: FileCode2 },
-  { id: 'analytics-api', label: 'Analytics API', icon: BarChart3 },
-  { id: 'embeds', label: 'Embeds', icon: AppWindow },
-  ...(isEnterprise
-    ? [
-        { id: 'accounts', label: 'Client accounts', icon: UserCheck },
-        { id: 'white-label', label: 'White label', icon: Paintbrush },
-      ]
-    : []),
+const TAB_GROUPS = [
+  {
+    title: 'Agency',
+    tabs: [
+      { id: 'clients', label: 'Clients', icon: Users },
+      ...(isEnterprise ? [{ id: 'accounts', label: 'Client accounts', icon: UserCheck }] : []),
+      { id: 'embeds', label: 'Embeds', icon: AppWindow },
+      ...(isEnterprise ? [{ id: 'white-label', label: 'White label', icon: Paintbrush }] : []),
+    ],
+  },
+  {
+    title: 'Developers',
+    tabs: [
+      { id: 'api-keys', label: 'API keys', icon: KeyRound },
+      { id: 'management-api', label: 'Management API', icon: FileCode2 },
+      { id: 'analytics-api', label: 'Analytics API', icon: BarChart3 },
+    ],
+  },
 ] as const;
 
-type TabId = (typeof TABS)[number]['id'];
-const isTab = (v: string | null): v is TabId => TABS.some(t => t.id === v);
+type TabId =
+  | 'clients' | 'accounts' | 'embeds' | 'white-label'
+  | 'api-keys' | 'management-api' | 'analytics-api';
+const isTab = (v: string | null): v is TabId =>
+  TAB_GROUPS.some(g => (g.tabs as readonly { id: string }[]).some(t => t.id === v));
 
 /**
  * The tab lives in the query string, so a reload or a shared link lands on it. Read from
@@ -86,8 +96,8 @@ export default function AgencyPage() {
   const editClient = (client: AgencyClient | null) => setClientForm({ open: true, client });
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-6 lg:p-8">
-      <DashboardPageHeader websiteId={websiteId} title="Agency" description={DESCRIPTIONS[tab]}>
+    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
+      <DashboardPageHeader websiteId={websiteId} title="Agency & Developers" description={DESCRIPTIONS[tab]}>
         <Button variant="outline" size="sm" className="gap-1.5" asChild>
           <Link href="/docs/agency">
             <BookOpen className="h-3.5 w-3.5" />
@@ -108,54 +118,62 @@ export default function AgencyPage() {
         )}
       </DashboardPageHeader>
 
-      <nav
-        className="mb-5 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-lg border border-border bg-white p-0.5 shadow-sm dark:bg-muted"
-        role="tablist"
-      >
-        {TABS.map(t => {
-          const active = tab === t.id;
-          const count = counts[t.id];
-          return (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={active}
-              onClick={() => go(t.id)}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                active
-                  ? 'bg-primary/10 text-primary dark:bg-background dark:text-foreground dark:shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <t.icon className={cn('h-3.5 w-3.5', active ? 'text-primary' : '')} />
-              {t.label}
-              {count !== undefined && (
-                <span className={cn(
-                  'rounded px-1 text-[10px] font-semibold tabular-nums',
-                  active ? 'bg-primary/15 text-primary' : 'bg-background/60 text-muted-foreground',
-                )}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      {/*
+        A menu beside the content rather than a row of tabs above it. Seven tabs in one
+        line read as a toolbar, whichever way they were styled; two titled groups of
+        three or four items read as the two things this page is.
+      */}
+      <div className="grid gap-5 lg:grid-cols-[164px_minmax(0,1fr)] lg:gap-4">
+        <nav
+          className={cn(PAGE_MENU_PANEL, 'lg:sticky lg:top-5 lg:self-start')}
+          aria-label="Agency and developer sections"
+        >
+          {TAB_GROUPS.map((group, gi) => (
+            <div key={group.title} className={cn(gi > 0 && 'mt-1 border-t border-border pt-1')}>
+              <p className={PAGE_MENU_LABEL}>{group.title}</p>
+              <ul className="flex flex-col gap-px" role="tablist" aria-orientation="vertical">
+                {group.tabs.map(t => {
+                  const id = t.id as TabId;
+                  const active = tab === id;
+                  const count = counts[id];
+                  return (
+                    <li key={t.id}>
+                      <button
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => go(id)}
+                        className={pageMenuItem(active)}
+                      >
+                        <t.icon className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                        <span className="flex-1 truncate">{t.label}</span>
+                        {count !== undefined && (
+                          <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">{count}</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
 
-      {tab === 'clients' && (
-        <ClientsTab
-          websiteId={websiteId}
-          onOpen={id => router.push(`/websites/${websiteId}/agency/clients/${id}`)}
-          onEdit={editClient}
-        />
-      )}
-      {tab === 'api-keys' && <ApiKeysTab websiteId={websiteId} onCreateAccountKey={() => setNewKey(true)} />}
-      {tab === 'management-api' && <ManagementApiTab />}
-      {tab === 'analytics-api' && <AnalyticsApiTab />}
-      {tab === 'embeds' && <EmbedsTab websiteId={websiteId} />}
-      {isEnterprise && tab === 'accounts' && <ClientAccountsTab />}
-      {isEnterprise && tab === 'white-label' && <WhiteLabelTab />}
+        <div className="min-w-0">
+          {tab === 'clients' && (
+            <ClientsTab
+              websiteId={websiteId}
+              onOpen={id => router.push(`/websites/${websiteId}/agency/clients/${id}`)}
+              onEdit={editClient}
+            />
+          )}
+          {tab === 'api-keys' && <ApiKeysTab websiteId={websiteId} onCreateAccountKey={() => setNewKey(true)} />}
+          {tab === 'management-api' && <ManagementApiTab />}
+          {tab === 'analytics-api' && <AnalyticsApiTab />}
+          {tab === 'embeds' && <EmbedsTab websiteId={websiteId} />}
+          {isEnterprise && tab === 'accounts' && <ClientAccountsTab />}
+          {isEnterprise && tab === 'white-label' && <WhiteLabelTab />}
+        </div>
+      </div>
 
       <ClientFormDialog
         websiteId={websiteId}

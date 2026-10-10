@@ -132,7 +132,7 @@ export default function DocsPage() {
   const [tab, setTab] = useState<Tab>('Node.js');
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[900px] mx-auto">
+    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[900px] mx-auto">
       <DashboardPageHeader
         websiteId={websiteId}
         title="Documentation"
@@ -206,7 +206,6 @@ export default function DocsPage() {
               { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: 'Custom event counts and property breakdowns' },
               { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: 'Goal list with conversion rates' },
               { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
-              { method: 'GET',  path: '/api/v1/websites/:id/realtime',          desc: 'Live active visitor count and current pages' },
             ].map((r, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
                 <Badge

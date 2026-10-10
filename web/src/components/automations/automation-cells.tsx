@@ -72,10 +72,18 @@ export function rateTone(rate: number): string {
   return 'text-rose-600 dark:text-rose-400';
 }
 
-export function Chip({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+/** A borderless pill: the trigger is tinted with the brand colour, actions are neutral. */
+export function Chip({ icon: Icon, label, tone = 'action' }: { icon: React.ElementType; label: string; tone?: 'trigger' | 'action' }) {
   return (
-    <span className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground">
-      <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
+    <span
+      className={cn(
+        'inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium',
+        tone === 'trigger'
+          ? 'bg-primary/10 text-primary'
+          : 'bg-muted text-foreground/80',
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -89,8 +97,8 @@ export function FlowCell({ automation }: { automation: Automation }) {
 
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <Chip icon={trigger.icon} label={trigger.label} />
-      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+      <Chip icon={trigger.icon} label={trigger.label} tone="trigger" />
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
       {shown.length === 0 ? (
         <span className="text-[11px] italic text-muted-foreground">no action</span>
       ) : (
@@ -116,7 +124,7 @@ export function StatusCell({ automation, websiteId }: { automation: Automation; 
   const { mutate: toggle, isPending } = useToggleAutomation();
 
   return (
-    <div className="flex items-center gap-2.5" onClick={e => e.stopPropagation()}>
+    <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
       <Switch
         checked={automation.isActive}
         disabled={isPending}
@@ -125,10 +133,13 @@ export function StatusCell({ automation, websiteId }: { automation: Automation; 
       />
       <span
         className={cn(
-          'text-xs font-medium',
-          automation.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+          'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold',
+          automation.isActive
+            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+            : 'bg-muted text-muted-foreground',
         )}
       >
+        <span className={cn('h-2 w-2 rounded-full', automation.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/50')} />
         {automation.isActive ? 'Active' : 'Paused'}
       </span>
     </div>

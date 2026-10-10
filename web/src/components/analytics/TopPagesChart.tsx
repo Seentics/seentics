@@ -27,7 +27,6 @@ const getPageIcon = (page: string) => {
   // App-specific paths
   if (path.includes('/heatmaps')) return <Zap className="w-4 h-4 text-orange-500" />;
   if (path.includes('/replays')) return <Workflow className="w-4 h-4 text-purple-500" />;
-  if (path.includes('/realtime')) return <BarChart3 className="w-4 h-4 text-green-500" />;
   if (path.includes('/funnels')) return <Workflow className="w-4 h-4 text-indigo-500" />;
   if (path.includes('/automations')) return <Zap className="w-4 h-4 text-yellow-500" />;
   if (path.includes('/revenue')) return <DollarSign className="w-4 h-4 text-green-600" />;
@@ -109,7 +108,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4 h-[500px]">
+      <div className="space-y-4 h-[420px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
              <div className="flex items-center space-x-4 flex-1">
@@ -140,7 +139,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
     const maxVal = Math.max(...sortedItems.map(item => item.views || item.sessions || 1));
 
     return (
-      <div className="space-y-2 mt-4">
+      <div className="mt-2">
         {sortedItems.map((item, index) => {
           const val = item.views || item.sessions || 0;
           const name = getPageName(item.page);
@@ -148,30 +147,24 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
 
           return (
-            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
-              <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 p-2 bg-accent/10 rounded-lg group-hover:bg-primary/10 transition-colors">
-                  {getPageIcon(item.page)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={name}>
-                    {name}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground font-medium truncate opacity-50" title={path}>
-                    {truncatePath(path)}
-                  </div>
-                </div>
+            <div key={index} className={cn("relative flex items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent/10 transition-colors group", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
+              <div
+                className="absolute inset-y-0.5 left-0 rounded-md bg-primary/10"
+                style={{ width: `${Math.max(2, (val / maxVal) * 100)}%` }}
+              />
+              <div className="relative flex min-w-0 flex-1 items-center gap-2">
+                <span className="shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">{getPageIcon(item.page)}</span>
+                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={path}>
+                  {name}
+                </span>
+                <span className="hidden truncate text-[11px] text-muted-foreground/60 sm:inline" title={path}>
+                  {truncatePath(path)}
+                </span>
               </div>
 
-              <div className="shrink-0 text-right">
-                <div className="text-right">
-                  <div className="font-bold text-base leading-tight tracking-tight">
-                    {formatNumber(val)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {secondaryMetric || (type === 'top' ? 'Views' : 'Sessions')}
-                  </div>
-                </div>
+              <div className="relative shrink-0 text-right text-[13px] tabular-nums">
+                <span className="font-semibold">{formatNumber(val)}</span>
+                {secondaryMetric && <span className="ml-2 text-[11px] text-muted-foreground">{secondaryMetric}</span>}
               </div>
             </div>
           );
@@ -181,13 +174,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   };
 
   return (
-    <div className="h-[500px] flex flex-col">
+    <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'top' | 'entry' | 'exit')} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border shrink-0">
-           <div>
-              <h3 className="text-base font-semibold tracking-tight">Top Pages</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Most visited & landing destinations</p>
-           </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
+           <h3 className="text-sm font-semibold tracking-tight">Top Pages</h3>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg shrink-0">
              <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
              <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
@@ -196,17 +186,17 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
         </div>
         
         <TabsContent value="top" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={data?.top_pages || []} type="top" />
           </div>
         </TabsContent>
         <TabsContent value="entry" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={entryPages} type="entry" />
           </div>
         </TabsContent>
         <TabsContent value="exit" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+          <div className="max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={exitPages} type="exit" />
           </div>
         </TabsContent>

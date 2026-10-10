@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Globe, Sparkles, SlidersHorizontal, Sun } from 'lucide-react';
+import { CalendarDays, Globe, Sparkles, SlidersHorizontal, Sun } from 'lucide-react';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { TopPagesChart } from '@/components/analytics/TopPagesChart';
@@ -101,21 +101,25 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
 
             <div className="flex-1" />
 
-            <div className="flex h-8 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-medium text-indigo-600 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400">
+            {/* The real header's controls: an AI button, then borderless ghost controls. */}
+            <div className="flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary">
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>Ask Seentics AI</span>
-              <kbd className="rounded-lg border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] dark:border-indigo-500/30 dark:bg-indigo-500/10">
-                ⌘K
-              </kbd>
+              <span>AI Mode</span>
             </div>
 
-            <div className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground dark:border-none">
+            {/* Dates match the chart's x-axis below (Mar 2 – Mar 31). */}
+            <div className="flex h-8 items-center gap-1.5 px-2.5 text-[13px] font-medium text-foreground">
+              <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+              <span>2 Mar – 31 Mar</span>
+            </div>
+
+            <div className="flex h-8 items-center gap-1.5 px-2.5 text-[13px] font-medium text-foreground">
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>Last 7 days</span>
+              <span>Filters</span>
             </div>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card dark:border-none">
-              <Sun className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground">
+              <Sun className="h-4 w-4" />
             </div>
           </div>
 

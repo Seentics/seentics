@@ -63,7 +63,7 @@ export function StatCards({
   // and radius. This used to hardcode `border-none`, which is why the stat tiles on
   // automations, funnels, replays and heatmaps had no edge while the overview's
   // SummaryCards did.
-  const tileBase = 'surface p-4 sm:p-5';
+  const tileBase = 'surface px-4 py-3.5';
 
   if (isLoading) {
     return (
@@ -86,18 +86,18 @@ export function StatCards({
         const tone = TONES[card.toneWhen === false ? 'default' : (card.tone ?? 'default')];
         return (
           <div key={i} className={cn(tileBase, cardClassName)}>
-            <div className="flex items-center gap-2 mb-2.5">
+            <div className="flex items-center gap-2 mb-2">
               {Icon && (
-                <div className="w-8 h-8 rounded-lg bg-muted/70 border border-border flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-muted/70 border border-border flex items-center justify-center shrink-0">
                   <Icon className={cn('h-3.5 w-3.5', tone.icon)} />
                 </div>
               )}
               {typeof card.label === 'string' ? (
-                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground leading-tight">
                   {card.label}
                 </span>
               ) : (
-                <div className="text-[11px] font-medium text-muted-foreground leading-tight min-w-0">
+                <div className="text-xs font-medium text-muted-foreground leading-tight min-w-0">
                   {card.label}
                 </div>
               )}

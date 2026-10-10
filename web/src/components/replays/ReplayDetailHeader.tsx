@@ -1,16 +1,25 @@
-import { ArrowLeft, Copy, Link2, AlertTriangle, MousePointerClick, Video } from 'lucide-react';
+import { ArrowLeft, Link2, AlertTriangle, MousePointerClick, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
+import { formatDuration } from '@/features/replays/format';
 import { cn } from '@/lib/utils';
 
 export interface ReplayDetailHeaderProps {
   sessionId: string;
+  /** Who the visitor was. Absent while the session is still loading. */
+  context?: {
+    country: string;
+    browser: string;
+    os: string;
+    device: string;
+    durationSeconds: number;
+  };
   /** Signal badges. Absent while the session is still loading. */
   hasErrors?: boolean;
   hasRageClicks?: boolean;
   isDemo?: boolean;
   onBack: () => void;
-  onCopyId: () => void;
   onCopyShareLink: () => void;
   className?: string;
 }
@@ -23,7 +32,7 @@ export interface ReplayDetailHeaderProps {
  * navigation to offer.
  */
 export function ReplayDetailHeader({
-  sessionId, hasErrors, hasRageClicks, isDemo, onBack, onCopyId, onCopyShareLink, className,
+  sessionId, context, hasErrors, hasRageClicks, isDemo, onBack, onCopyShareLink, className,
 }: ReplayDetailHeaderProps) {
   return (
       <div className="w-full shrink-0 border-b border-border backdrop-blur-md">
@@ -43,23 +52,28 @@ export function ReplayDetailHeader({
 
             <Video className="h-3.5 w-3.5 text-primary shrink-0 hidden sm:block" />
 
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span
-                className="min-w-0 text-xs font-semibold font-mono text-foreground truncate sm:text-sm"
-                title={sessionId}
-              >
-                {sessionId}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 text-muted-foreground"
-                title="Copy session ID"
-                onClick={onCopyId}
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            <span
+              className="min-w-0 truncate font-mono text-xs text-muted-foreground"
+              title={sessionId}
+            >
+              {sessionId}
+            </span>
+
+            {/* The visitor, so the page says who this is before anything is played. */}
+            {context && (
+              <>
+                <div className="hidden h-4 w-px bg-border/50 lg:block shrink-0" />
+                <div className="hidden min-w-0 items-center gap-3 lg:flex">
+                  <SessionCountryVisual country={context.country} />
+                  <SessionClientRowStack browser={context.browser} os={context.os} device={context.device} />
+                  {context.durationSeconds > 0 && (
+                    <span className="whitespace-nowrap text-[13px] tabular-nums text-muted-foreground">
+                      {formatDuration(context.durationSeconds)}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="min-w-2 flex-1 basis-2 sm:basis-auto" />
 
@@ -76,23 +90,23 @@ export function ReplayDetailHeader({
             )}
 
             {hasErrors && (
-              <Badge
-                variant="outline"
+              <span
                 title="Set when a JavaScript error or unhandled promise rejection fired in the visitor’s browser while recording was on. Does not include console warnings or failed network requests."
-                className="text-[10px] shrink-0 border-red-500/50 text-red-800 dark:text-red-300 bg-red-500/10"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300"
               >
-                Client errors
-              </Badge>
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Errors
+              </span>
             )}
 
             {hasRageClicks && (
-              <Badge
-                variant="outline"
+              <span
                 title="Set when we detect 3 or more clicks within about 1 second inside roughly 50×50 px in the recording—the same rule as the amber dots on the session timeline."
-                className="text-[10px] shrink-0 border-amber-500/50 text-amber-800 dark:text-amber-300 bg-amber-500/10"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300"
               >
+                <MousePointerClick className="h-3.5 w-3.5" />
                 Rage clicks
-              </Badge>
+              </span>
             )}
 
             {isDemo && (

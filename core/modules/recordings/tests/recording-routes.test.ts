@@ -246,6 +246,21 @@ describe("recording routes", () => {
     it("rejects an unknown device class", async () => {
       expect((await get(`/${WEBSITE}?device=fridge`, "u_owner")).status).toBe(400);
     });
+
+    it("passes a day window through to the service", async () => {
+      await get(`/${WEBSITE}?days=1`, "u_owner");
+      expect(listCalls[0]!.filters).toMatchObject({ days: 1 });
+    });
+
+    it("leaves the window unset when days is absent", async () => {
+      await get(`/${WEBSITE}`, "u_owner");
+      expect(listCalls[0]!.filters?.days).toBeUndefined();
+    });
+
+    it("rejects a window of zero days or more than a year", async () => {
+      expect((await get(`/${WEBSITE}?days=0`, "u_owner")).status).toBe(400);
+      expect((await get(`/${WEBSITE}?days=367`, "u_owner")).status).toBe(400);
+    });
   });
 
   describe("detail", () => {

@@ -31,7 +31,7 @@ export default function RevenueTransactionPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-6 lg:p-8 max-w-[800px] mx-auto space-y-4">
+      <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[800px] mx-auto space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 rounded-lg" />
         <Skeleton className="h-48 rounded-lg" />
@@ -41,7 +41,7 @@ export default function RevenueTransactionPage() {
 
   if (!tx) {
     return (
-      <div className="p-4 md:p-6 lg:p-8 max-w-[800px] mx-auto text-center">
+      <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[800px] mx-auto text-center">
         <p className="text-sm text-muted-foreground">This transaction is not in the last 90 days of data, or the id is invalid.</p>
         <div className="mt-4 flex justify-center gap-2">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
@@ -62,7 +62,7 @@ export default function RevenueTransactionPage() {
       : [];
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[800px] mx-auto">
+    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[800px] mx-auto">
       <div className="flex items-center gap-2 mb-6">
         <Button
           variant="ghost"

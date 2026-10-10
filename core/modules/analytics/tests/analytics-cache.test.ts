@@ -144,10 +144,8 @@ describe("analyticsCacheMiddleware", () => {
     it("caches every other analytics read", async () => {
       for (const path of [
         "dashboard",
-        "realtime",
         "top-pages",
         "revenue",
-        "recent-activity",
         "public/dashboard",
       ]) {
         app = makeApp();
