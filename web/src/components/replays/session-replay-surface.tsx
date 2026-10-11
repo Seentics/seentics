@@ -97,6 +97,34 @@ const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2, 4, 8] as const;
 
 const SEEK_STEP_MS = 10_000;
 
+/**
+ * Tallest the recording may be: the window, less the page header, the transport bar
+ * and the padding around them. It was 68dvh, which left a fifth of the screen empty
+ * under the player on a desktop.
+ */
+const PLAYER_MAX_HEIGHT = 'calc(100dvh - 10.5rem)';
+
+/**
+ * Width / height of the viewport the recording was made in, from its first Meta event.
+ *
+ * The player box takes this shape instead of a fixed 16:9, so the recording fills it
+ * at its true proportions: a phone session is a tall box rather than a strip down the
+ * middle of a wide black one, and a 16:10 laptop gets its full height. Clamped so an
+ * odd viewport (a sliver of a window) can't produce an unusable box; the replayer's
+ * contain-fit handles anything outside the clamp, and later resizes.
+ */
+function recordingAspect(events: RRWebEvent[]): number {
+  for (const ev of events) {
+    if (ev.type !== RRWEB_META) continue;
+    const { width, height } = ev.data as { width?: unknown; height?: unknown };
+    const w = Number(width);
+    const h = Number(height);
+    if (w > 0 && h > 0) return Math.min(2.4, Math.max(0.45, w / h));
+    break;
+  }
+  return 16 / 9;
+}
+
 /** rrweb EventType.Meta */
 const RRWEB_META = 4;
 /** rrweb EventType.FullSnapshot — new DOM state (often a navigation or major paint). */
@@ -339,12 +367,33 @@ function formatReplayLogPathDetail(raw: string, websiteId?: string): string {
   return displayRealtimePath(raw, websiteId ?? '', 72);
 }
 
-function hrefAfterFullSnapshot(events: RRWebEvent[], snapIdx: number): string | undefined {
+function metaHref(ev: RRWebEvent): string | undefined {
+  const d = ev.data as { href?: unknown };
+  return typeof d.href === 'string' && d.href.trim() ? d.href.trim() : undefined;
+}
+
+/**
+ * The URL a full snapshot is of.
+ *
+ * rrweb emits Meta (with the href) and then the FullSnapshot, on every page load and
+ * every checkout. This used to read the Meta *after* the snapshot, which is the next
+ * page's: every row in the timeline was labelled with the following URL at the
+ * previous page's time, and the last page never appeared. The Meta before it wins;
+ * the one after is the fallback for streams that arrive in the other order.
+ */
+export function hrefForFullSnapshot(events: RRWebEvent[], snapIdx: number): string | undefined {
+  for (let j = snapIdx - 1; j >= 0; j--) {
+    if (events[j].type === RRWEB_FULL) break;
+    if (events[j].type === RRWEB_META) {
+      const href = metaHref(events[j]);
+      if (href) return href;
+    }
+  }
   for (let j = snapIdx + 1; j < events.length; j++) {
     if (events[j].type === RRWEB_FULL) return undefined;
     if (events[j].type === RRWEB_META) {
-      const d = events[j].data as { href?: unknown };
-      if (typeof d.href === 'string' && d.href.trim()) return d.href.trim();
+      const href = metaHref(events[j]);
+      if (href) return href;
     }
   }
   return undefined;
@@ -382,11 +431,15 @@ export function buildReplayLogEntries(
     : null;
 
   let pageSeq = 0;
+  let firstSnapshot = true;
   for (let i = 0; i < events.length; i++) {
     if (events[i].type !== RRWEB_FULL) continue;
     const off = events[i].timestamp - t0;
-    const href = hrefAfterFullSnapshot(events, i);
-    if (off <= 0) {
+    const href = hrefForFullSnapshot(events, i);
+    // The first snapshot is the page the recording started on, whatever its offset:
+    // serialising a large DOM puts it some milliseconds after the Meta at t0.
+    if (firstSnapshot || off <= 0) {
+      firstSnapshot = false;
       if (href?.trim()) {
         const h = href.trim();
         out[0] = {
@@ -1278,6 +1331,7 @@ export function SessionReplaySurface({
   );
 
   const timelineMarkers = useMemo(() => buildReplayTimelineMarkers(events), [events]);
+  const aspect = useMemo(() => recordingAspect(events), [events]);
 
   const logEntries = useMemo(
     () =>
@@ -1557,13 +1611,13 @@ export function SessionReplaySurface({
     >
       <div
         className="mx-auto w-full flex min-h-0 min-w-0 flex-col overflow-hidden mb-4 rounded-lg border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]"
-        style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}
+        style={{ maxWidth: `calc(${PLAYER_MAX_HEIGHT} * ${aspect})` }}
       >
         <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div
             ref={measureInnerRef}
             className="relative min-h-0 min-w-0 w-full overflow-hidden bg-black"
-            style={{ aspectRatio: '16/9', maxHeight: '68dvh' }}
+            style={{ aspectRatio: String(aspect), maxHeight: PLAYER_MAX_HEIGHT }}
           >
             <div
               ref={shellRef}

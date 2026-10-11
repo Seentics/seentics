@@ -22,13 +22,13 @@ import {
   fetchGzipJsonArray,
   eventsFromChunkList,
   chunkLoadHint,
-  type ReplaySession,
   type RRWebEvent,
   type SessionCustomEvent,
 } from '@/lib/replays-api';
 import { useReplayChunks } from '@/features/replays/use-replay-chunks';
 import { ReplayDetailHeader } from '@/components/replays/ReplayDetailHeader';
 import { DemoReplayPlayer } from '@/components/replays/DemoReplayStage';
+import { DEMO_REPLAY_URL, demoReplaySessionMeta } from '@/lib/demo/replay-recording';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -75,6 +75,19 @@ export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionI
     refetchInterval: (q) => (q.state.data?.recording_pending ? 3500 : false),
   });
 
+  // Demo mode: one real rrweb recording shipped as a static file (see
+  // scripts/demo-replay/record.mjs), parsed exactly as a chunk from storage is.
+  const { data: demoRecording, isLoading: demoLoading, isError: demoError } = useQuery({
+    queryKey: ['replay-demo-recording'],
+    queryFn: async () => {
+      const res = await fetch(DEMO_REPLAY_URL);
+      if (!res.ok) throw new Error(`Demo recording fetch failed: ${res.status}`);
+      return eventsFromChunkList([{ sequence: 0, data: (await res.json()) as unknown[] }]);
+    },
+    enabled: isDemoMode,
+    staleTime: Infinity,
+  });
+
   // Phase 2: progressive chunk loading — see `features/replays/use-replay-chunks`.
   const {
     initialEvents,
@@ -96,36 +109,22 @@ export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionI
     sessionApiResp?.replay_url ||
     (sessionApiResp?.warm_chunks?.length ?? 0) > 0
   );
-  const isLoading =
-    // Never in demo mode. The metadata query is disabled there, so `sessionApiResp`
-    // stays undefined and `isError` stays false forever — which made the second
-    // clause permanently true and left the demo player spinning on
-    // "Loading recording…" instead of showing the demo session.
-    !isDemoMode &&
-    (metaLoading ||
+  const isLoading = isDemoMode
+    // Demo mode only waits for its own file. The metadata query is disabled there, so
+    // `sessionApiResp` stays undefined and `isError` stays false forever — the clauses
+    // below would leave the demo spinning on "Loading recording…".
+    ? demoLoading
+    : (metaLoading ||
       (!sessionApiResp && !isError) ||
       // API responded with chunk data but initial S3 batch not yet fetched/processed
       (chunkDataAvailable && !initialBatchDone && !chunksError && !sessionApiResp?.recording_pending));
 
   const session = isDemoMode
-    ? ({
-        country: 'Canada',
-        browser: 'Chrome',
-        device: 'Desktop',
-        os: 'macOS',
-        entryPage: '/',
-        startedAt: new Date().toISOString(),
-        durationSeconds: 120,
-        pagesViewed: 3,
-        hasRageClicks: false,
-        hasErrors: false,
-        sessionId,
-        websiteId,
-      } as ReplaySession)
+    ? demoReplaySessionMeta(sessionId, websiteId, demoRecording?.events ?? EMPTY_EVENTS)
     : sessionApiResp?.meta ?? undefined;
 
-  const events            = isDemoMode ? EMPTY_EVENTS : initialEvents;
-  const sessionSignals    = isDemoMode ? EMPTY_CUSTOM_EVENTS : customEvents;
+  const events            = isDemoMode ? demoRecording?.events ?? EMPTY_EVENTS : initialEvents;
+  const sessionSignals    = isDemoMode ? demoRecording?.customEvents ?? EMPTY_CUSTOM_EVENTS : customEvents;
   const recordingPending  = !isDemoMode && (sessionApiResp?.recording_pending === true);
   /** Chunks that never arrived. Playback still works; it just has holes in it. */
   const missingChunks     = chunkProgress?.failed ?? 0;
@@ -288,15 +287,11 @@ export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionI
                   </Button>
                 </div>
               </div>
-            ) : isDemoMode ? (
+            ) : isDemoMode && (demoError || !hasRecording) ? (
               /*
-               * The demo session, playing.
-               *
-               * Demo mode has no rrweb bytes in object storage, so this used to be an
-               * empty state apologising for the missing recording — which meant the
-               * one visitor most likely to be evaluating replays was the one who never
-               * saw what they look like. Shared with the landing page's preview, so
-               * both stay the same screen.
+               * Demo mode plays a real recording through the real player below. Only if
+               * that file cannot be loaded does it fall back to this still of a session,
+               * which beats an error on the screen a visitor is evaluating replays on.
                */
               <DemoReplayPlayer />
             ) : !hasRecording ? (
