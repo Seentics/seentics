@@ -110,7 +110,11 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                     <span>
                       {item.value && <span className="font-semibold text-foreground">{item.value} </span>}
-                      <span className="text-muted-foreground">{item.label}</span>
+                      {item.href ? (
+                        <a href={item.href} className="font-medium text-primary hover:underline">{item.label}</a>
+                      ) : (
+                        <span className="text-muted-foreground">{item.label}</span>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -125,7 +129,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const saving = plans ? maxYearlySaving(plans) : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[60rem]">
+    <div className="mx-auto w-full max-w-[70rem]">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -161,11 +165,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
 
           <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2 lg:grid-cols-3">{plans.map(renderCard)}</div>
 
-          <p className="mx-auto mt-8 max-w-3xl text-center text-sm text-muted-foreground">
-            Every plan stops at its limits. On Pro, extra usage is off until you turn it on, and a spend cap keeps it in budget. Prices are in US dollars.
-          </p>
-
-          <div className="mt-4 flex justify-center">
+          <div className="mt-8 flex justify-center">
             <Button variant="ghost" onClick={() => setComparing((open) => !open)} aria-expanded={comparing} className="gap-1.5">
               {comparing ? 'Hide feature comparison' : 'Compare all features'}
               <ChevronDown className={cn('h-4 w-4 transition-transform', comparing && 'rotate-180')} />

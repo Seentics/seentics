@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
+import StackSavings from '@/components/landing/StackSavings';
 import { useAuth } from '@/stores/useAuthStore';
 import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 
@@ -57,6 +58,8 @@ export default function PricingPage() {
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
                 </div>
+
+                <StackSavings />
             </div>
         </div>
     );

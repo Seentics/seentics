@@ -13,7 +13,7 @@ const FAQS = [
   },
   {
     q: 'How much does it cost?',
-    a: 'Analytics is $9 a month ($7 a month billed yearly) for simple web analytics with up to 500K events. Pro is $19 a month ($14 a month billed yearly) and adds session replay, heatmaps, funnels, automations and lead capture, with up to 1M events, 3K session recordings and 30 GB of logs, traces and metrics. Need more on Pro? Turn on extra usage from Billing: $0.01 per 1K events, $2 per 1K recordings and $0.25 per GB, with a monthly spend cap you set.',
+    a: 'Analytics is $9 a month ($7 a month billed yearly) for simple web analytics with up to 500K events. Pro is $19 a month ($14 a month billed yearly) and adds session replay, heatmaps, funnels, automations and lead capture, with up to 1M events, 5K session recordings and 30 GB of logs, traces and metrics. Need more on Pro? Turn on extra usage from Billing: $0.01 per 1K events, $2 per 1K recordings and $0.25 per GB, with a monthly spend cap you set.',
   },
   {
     q: 'Is there a free plan?',

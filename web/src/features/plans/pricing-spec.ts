@@ -87,8 +87,8 @@ export const isMetered = (plan: PricedPlan, product: string, key: string) =>
 // ---------------------------------------------------------------------------
 // Cards: a short list, one line per allowance. The rest is in the comparison table.
 
-/** `value` empty: a plain line, shown as its label alone. */
-export type Highlight = { value: string; label: string };
+/** `value` empty: a plain line, shown as its label alone. `href`: the line is a link. */
+export type Highlight = { value: string; label: string; href?: string };
 export type CardSection = { title: string; items: Highlight[] };
 
 const plural = (value: number | undefined, one: string, many: string) => (value === 1 ? one : many);
@@ -98,7 +98,10 @@ export const RATES_LINE = Object.values(OVERAGE_RATES)
   .map((r) => `${formatMoney(r.price)} / ${r.per === 1 ? r.unit : `${formatCount(r.per)} ${r.unit}`}`)
   .join(' · ');
 
-/** A card's two sections: what the plan includes each month, then what usage past that does. */
+/**
+ * A card's two sections: what the plan includes each month, then what happens past it. Each line is
+ * short enough to sit on one line in a card, so the lists scan; the section title carries "every month".
+ */
 export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const core = (key: string) => limit(plan, 'core', key);
   const replays = allowance(plan, 'core', 'replays');
@@ -110,51 +113,38 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const everything = heatmaps === -1 && funnels === -1 && automations === -1;
 
   const included: Highlight[] = [
-    // "Up to": every plan stops at these by default, so the bill is predictable (Pro goes past them
-    // only with Extra usage turned on).
-    { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events monthly' },
-    ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings monthly' }] : []),
+    // "Up to": every plan stops at these by default, so the bill is predictable.
+    { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
+    ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
     // Analytics does not cover Observability: it falls back to Free's, which the Analytics card does not advertise.
-    ...(plan.tier !== 'analytics' ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'of logs, traces & metrics monthly' }] : []),
+    ...(plan.tier !== 'analytics' ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' }] : []),
     { value: formatDays(core('retention_days')), label: 'analytics retention' },
     { value: formatCount(core('websites')), label: 'websites' },
     everything
-      ? { value: 'Unlimited', label: 'heatmaps, funnels & automations' }
+      ? { value: 'Unlimited', label: 'heatmaps, funnels, automations' }
       : plan.tier === 'analytics'
-        ? { value: '', label: `Goals and ${formatCount(funnels)} basic ${plural(funnels, 'funnel', 'funnels')}` }
+        ? { value: '', label: funnels === -1 ? 'Goals and unlimited funnels' : `Goals and ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}` }
         : {
             value: '',
             label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
           },
     ...(has(leads) ? [{ value: formatCount(leads), label: 'leads from popup forms' }] : []),
-    { value: formatCount(core('ai_analyses')), label: 'AI analyses monthly' },
-    // On every plan, so an agency can try it on Free. (White label will be Pro's; it is not
-    // advertised until it is built.)
-    { value: '', label: 'Agency: client accounts, APIs & embeds' },
+    { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
+    // Analytics: API access only. The other plans have the whole agency kit (clients, APIs, embeds).
+    plan.tier === 'analytics'
+      ? { value: '', label: 'API access' }
+      : { value: '', label: 'Agency: clients, APIs & embeds' },
   ];
 
-  const extra: Highlight[] = plan.tier === 'pro'
-    ? [
-        { value: formatMoney(OVERAGE_RATES.events.price), label: `per ${formatCount(OVERAGE_RATES.events.per)} events` },
-        { value: formatMoney(OVERAGE_RATES.replays.price), label: `per ${formatCount(OVERAGE_RATES.replays.per)} session recordings` },
-        { value: formatMoney(OVERAGE_RATES.observeGb.price), label: 'per GB of logs, traces & metrics' },
-        { value: '', label: 'Turn on extra usage from Billing in your dashboard' },
-        { value: '', label: 'Optional monthly spend cap' },
-      ]
+  // Extra usage still exists on Pro (Billing, and the docs), but is not spelled out on the card: a
+  // bigger need is a conversation.
+  const past: CardSection = plan.tier === 'pro'
+    ? { title: 'Need more?', items: [{ value: '', label: 'Contact us for a custom plan', href: '/contact' }] }
     : plan.tier === 'analytics'
-      ? [
-          { value: '', label: 'Collection pauses at the limit until next month' },
-          { value: '', label: 'Upgrade to Pro for replay, heatmaps, automations and lead capture' },
-        ]
-      : [
-          { value: '', label: 'Collection pauses at a limit until next month' },
-          { value: '', label: 'No card needed' },
-        ];
+      ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Need replay or heatmaps? Go Pro' }] }
+      : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
 
-  return [
-    { title: 'Included', items: included },
-    { title: plan.tier === 'pro' ? 'Extra usage (optional)' : 'At a limit', items: extra },
-  ];
+  return [{ title: 'Included every month', items: included }, past];
 }
 
 // ---------------------------------------------------------------------------

@@ -6,9 +6,9 @@ let plans: Plan[] = [
   { id: 'free', name: 'Free', tier: 'free', description: null, priceMonthly: 0, priceYearly: null, products: ['core', 'observe'], features: [],
     limits: { core: { monthly_events: 20_000, replays: 300, heatmaps: 3, funnels: 1, automations: 3, websites: -1, ai_analyses: 30, leads: 100, retention_days: 30 }, observe: { storage_gb: 3 } } },
   { id: 'analytics', name: 'Analytics', tier: 'analytics', description: null, priceMonthly: 9, priceYearly: 84, products: ['core'], features: [],
-    limits: { core: { monthly_events: 500_000, replays: 0, heatmaps: 0, funnels: 3, automations: 0, websites: -1, ai_analyses: 50, leads: 0, retention_days: 730 } } },
+    limits: { core: { monthly_events: 500_000, replays: 0, heatmaps: 0, funnels: -1, automations: 0, websites: -1, ai_analyses: 50, leads: 0, retention_days: 1095 } } },
   { id: 'pro', name: 'Pro', tier: 'pro', description: null, priceMonthly: 19, priceYearly: 168, products: ['core', 'observe'], features: [],
-    limits: { core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 3_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095 }, observe: { storage_gb: -1, included_storage_gb: 30 } } },
+    limits: { core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 5_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095 }, observe: { storage_gb: -1, included_storage_gb: 30 } } },
 ];
 
 const original = plans;
@@ -76,7 +76,8 @@ describe('PlanBuilder', () => {
 
   it('shows no recordings or lead capture on the Analytics card', () => {
     render(<PlanBuilder />);
-    expect(screen.getByText('Upgrade to Pro for replay, heatmaps, automations and lead capture')).toBeTruthy();
-    expect(screen.getByText('Goals and 3 basic funnels')).toBeTruthy();
+    expect(screen.getByText('Need replay or heatmaps? Go Pro')).toBeTruthy();
+    expect(screen.getByText('Goals and unlimited funnels')).toBeTruthy();
+    expect(screen.getByText('API access')).toBeTruthy();
   });
 });

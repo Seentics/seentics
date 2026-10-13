@@ -35,7 +35,7 @@ export const demoSubscription = () => ({
 export const demoMeter = (): MeterState => ({
   period: { start: day(-20), end: day(10) },
   used: { events: 1_242_300, replays: 2_140, observeBytes: 6.4 * GB },
-  included: { events: 1_000_000, replays: 3_000, observeGb: 30 },
+  included: { events: 1_000_000, replays: 5_000, observeGb: 30 },
   overage: {
     events: 242_300,
     replays: 0,

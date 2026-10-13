@@ -14,13 +14,13 @@ const FREE: PricedPlan = {
 const ANALYTICS: PricedPlan = {
   tier: 'analytics', priceMonthly: 9, priceYearly: 84,
   limits: {
-    core: { monthly_events: 500_000, replays: 0, heatmaps: 0, funnels: 3, automations: 0, websites: -1, ai_analyses: 50, leads: 0, retention_days: 730, replay_retention_days: 30 },
+    core: { monthly_events: 500_000, replays: 0, heatmaps: 0, funnels: -1, automations: 0, websites: -1, ai_analyses: 50, leads: 0, retention_days: 1095, replay_retention_days: 30 },
   },
 };
 const PRO: PricedPlan = {
   tier: 'pro', priceMonthly: 19, priceYearly: 168,
   limits: {
-    core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 3_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095, replay_retention_days: 30 },
+    core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 5_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095, replay_retention_days: 30 },
     observe: { storage_gb: -1, included_storage_gb: 30, retention_days: 7 },
   },
 };
@@ -49,32 +49,35 @@ describe('yearly pricing', () => {
 describe('pricing cards', () => {
   it('Free: 300 recordings, 3 GB of telemetry, 100 leads', () => {
     const lines = labels(FREE);
-    expect(lines).toContain('Up to 20K events monthly');
-    expect(lines).toContain('Up to 300 session recordings monthly');
-    expect(lines).toContain('Up to 3 GB of logs, traces & metrics monthly');
+    expect(lines).toContain('Up to 20K events');
+    expect(lines).toContain('Up to 300 session recordings');
+    expect(lines).toContain('Up to 3 GB logs, traces & metrics');
     expect(lines).toContain('100 leads from popup forms');
     expect(lines).toContain('3 heatmaps, 1 funnel, 3 automations');
   });
 
   it('Analytics: 500K events and analytics, with nothing it does not have: no recordings, telemetry, heatmaps or leads', () => {
     const lines = labels(ANALYTICS);
-    expect(lines).toContain('Up to 500K events monthly');
-    expect(lines).toContain('2 years analytics retention');
-    expect(lines).toContain('Goals and 3 basic funnels');
+    expect(lines).toContain('Up to 500K events');
+    expect(lines).toContain('3 years analytics retention');
+    expect(lines).toContain('Goals and unlimited funnels');
+    expect(lines).toContain('API access');
     expect(lines.join('\n')).not.toMatch(/recording|logs, traces|heatmap|automation|leads/i);
-    expect(cardSectionsFor(ANALYTICS)[1]!.items.map((i) => i.label).join('\n')).toContain('Upgrade to Pro for replay');
+    expect(cardSectionsFor(ANALYTICS)[1]!.items.map((i) => i.label).join('\n')).toContain('Need replay or heatmaps? Go Pro');
   });
 
   it('Pro: the included amounts, and the extra usage rates', () => {
     const [included, extra] = cardSectionsFor(PRO);
     const lines = included!.items.map((i) => `${i.value} ${i.label}`.trim());
-    expect(lines).toContain('Up to 1M events monthly');
-    expect(lines).toContain('Up to 3K session recordings monthly');
-    expect(lines).toContain('Up to 30 GB of logs, traces & metrics monthly');
-    expect(lines).toContain('Unlimited heatmaps, funnels & automations');
+    expect(lines).toContain('Up to 1M events');
+    expect(lines).toContain('Up to 5K session recordings');
+    expect(lines).toContain('Up to 30 GB logs, traces & metrics');
+    expect(lines).toContain('Unlimited heatmaps, funnels, automations');
     expect(lines).toContain('25K leads from popup forms');
-    expect(extra!.title).toBe('Extra usage (optional)');
-    expect(extra!.items.map((i) => `${i.value} ${i.label}`.trim())).toEqual(expect.arrayContaining(['$0.01 per 1K events', '$2 per 1K session recordings', '$0.25 per GB of logs, traces & metrics']));
+    // Extra usage is not spelled out on the card: a bigger need is a conversation.
+    expect(extra!.title).toBe('Need more?');
+    expect(extra!.items).toEqual([{ value: '', label: 'Contact us for a custom plan', href: '/contact' }]);
+    expect(JSON.stringify(cardSectionsFor(PRO))).not.toMatch(/per 1K|per GB|spend cap/);
   });
 });
 
@@ -84,7 +87,7 @@ describe('comparison table', () => {
   it('shows a dash (false) where a plan has none of it, and a number where it does', () => {
     expect(cell('Recordings / month', ANALYTICS)).toBe(false);
     expect(cell('Recordings / month', FREE)).toBe('Up to 300');
-    expect(cell('Recordings / month', PRO)).toBe('Up to 3K');
+    expect(cell('Recordings / month', PRO)).toBe('Up to 5K');
     expect(cell('Heatmaps', ANALYTICS)).toBe(false);
     expect(cell('Automations', ANALYTICS)).toBe(false);
     expect(cell('Popups & lead capture', ANALYTICS)).toBe(false);
@@ -96,7 +99,7 @@ describe('comparison table', () => {
   it('states events and retention for every plan', () => {
     expect(cell('Events / month', ANALYTICS)).toBe('Up to 500K');
     expect(cell('Events / month', PRO)).toBe('Up to 1M');
-    expect(cell('Data retention', ANALYTICS)).toBe('2 years');
+    expect(cell('Data retention', ANALYTICS)).toBe('3 years');
     expect(cell('Data retention', PRO)).toBe('3 years');
   });
 

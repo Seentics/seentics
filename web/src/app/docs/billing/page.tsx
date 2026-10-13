@@ -61,8 +61,8 @@ export default function BillingPage() {
           </Li>
           <Li>
             On Pro, the same happens, unless you turn on extra usage in <C>Settings → Billing</C>. Then
-            usage past what Pro includes keeps being collected and is billed at the end of the month, at
-            the rates on the pricing page. Extra usage under $1 in a month is not billed.
+            usage past what Pro includes keeps being collected and is billed at the end of the month:
+            $0.01 per 1K events, $2 per 1K session recordings and $0.25 per GB of logs, traces and metrics. Extra usage under $1 in a month is not billed.
           </Li>
           <Li>
             A monthly spend cap on extra usage, also in <C>Settings → Billing</C>, bounds that charge: at
