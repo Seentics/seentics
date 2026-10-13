@@ -217,12 +217,12 @@ function UseCasesNavItem() {
       key={u.slug}
       href={`/use-cases/${u.slug}`}
       onClick={() => setOpen(false)}
-      className="flex items-start gap-2.5 rounded-lg p-2 transition-colors hover:bg-muted/60"
+      className="flex items-start gap-3.5 rounded-xl px-3 py-3 transition-colors hover:bg-muted/60"
     >
-      <UseCaseIcon useCase={u} size="sm" className="mt-0.5" />
+      <UseCaseIcon useCase={u} size="sm" />
       <span className="min-w-0">
-        <span className="block text-[13.5px] font-semibold leading-tight text-foreground">{u.name}</span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">{u.summary}</span>
+        <span className="block text-[14px] font-semibold leading-snug text-foreground">{u.name}</span>
+        <span className="mt-1 block text-[12.5px] leading-relaxed text-muted-foreground">{u.summary}</span>
       </span>
     </Link>
   );
@@ -251,19 +251,19 @@ function UseCasesNavItem() {
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: -6, x: '-50%' }}
             transition={{ duration: 0.12 }}
-            className="absolute left-1/2 top-full z-50 mt-3 w-[min(1000px,calc(100vw-3rem))] rounded-xl border border-border bg-card p-3 shadow-lg"
+            className="absolute left-1/2 top-full z-50 mt-3 w-[min(1120px,calc(100vw-3rem))] rounded-2xl border border-border bg-card p-5 shadow-xl"
           >
-            <div className="grid gap-x-3 md:grid-cols-3">
-              {GROUPS.map((g, i) => (
-                <div key={g.key} className={i > 0 ? 'md:border-l md:border-border/60 md:pl-3' : ''}>
-                  <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+            <div className="grid gap-x-8 md:grid-cols-3">
+              {GROUPS.map((g) => (
+                <div key={g.key}>
+                  <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                     {g.title}
                   </p>
-                  <div className="flex flex-col gap-0.5">{useCasesIn(g.key).map(entry)}</div>
+                  <div className="flex flex-col gap-1">{useCasesIn(g.key).map(entry)}</div>
                 </div>
               ))}
             </div>
-            <div className="mt-2 border-t border-border/60 px-2 pt-2.5">
+            <div className="mt-4 border-t border-border/50 px-3 pt-4">
               <Link
                 href="/use-cases"
                 onClick={() => setOpen(false)}

@@ -22,6 +22,8 @@ export interface IntegrationCardProps {
   canEdit: boolean;
   busy?: boolean;
   testing?: boolean;
+  /** For the demo, whose sample data is dated against a fixed clock. */
+  now?: number;
   onConnect: () => void;
   onTest: () => void;
   onToggle: (enabled: boolean) => void;
@@ -32,7 +34,7 @@ export interface IntegrationCardProps {
  * One provider and, if connected, its state: whether it is on, when it last worked, and the
  * last error if it stopped. A key is only ever shown as its last characters.
  */
-export function IntegrationCard({ provider, canEdit, busy, testing, onConnect, onTest, onToggle, onDisconnect }: IntegrationCardProps) {
+export function IntegrationCard({ provider, canEdit, busy, testing, now, onConnect, onTest, onToggle, onDisconnect }: IntegrationCardProps) {
   const c = provider.connection;
   const status = describeConnection(c);
   const Icon = ICONS[provider.id] ?? Zap;
@@ -53,7 +55,7 @@ export function IntegrationCard({ provider, canEdit, busy, testing, onConnect, o
       {c && (
         <dl className="space-y-1 text-xs text-muted-foreground">
           {c.credentials_hint && <div className="flex justify-between"><dt>Credential</dt><dd className="font-mono">…{c.credentials_hint}</dd></div>}
-          <div className="flex justify-between"><dt>Last success</dt><dd>{c.last_success_at ? relativeTime(c.last_success_at) : 'Never'}</dd></div>
+          <div className="flex justify-between"><dt>Last success</dt><dd>{c.last_success_at ? relativeTime(c.last_success_at, now) : 'Never'}</dd></div>
         </dl>
       )}
 

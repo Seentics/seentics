@@ -20,6 +20,8 @@ import { useDeleteContact, useSetContactStatus } from '@/features/leads/mutation
 import { useContact, useContacts, useLeadStats } from '@/features/leads/queries';
 import { CONTACT_STATUSES, type ContactStatus } from '@/features/leads/types';
 import { cn } from '@/lib/utils';
+import { isDemo } from '@/lib/demo';
+import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
 
 /**
  * Route composition only: the filters, the open contact, and the export. Data access is
@@ -31,6 +33,8 @@ const PAGE_SIZE = 25;
 export default function LeadsPage() {
   const websiteId = usePathSegment(1) ?? '';
   const [confirm, confirmDialog] = useConfirm();
+  // Sample data is dated against a fixed clock; relative times read against it too.
+  const now = isDemo(websiteId) ? DEMO_REFERENCE_DATE.getTime() : undefined;
 
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ContactStatus | 'all'>('all');
@@ -85,6 +89,7 @@ export default function LeadsPage() {
             contact={detail.data.contact}
             submissions={detail.data.submissions}
             isUpdating={setStatusMutation.isPending}
+            now={now}
             onSetStatus={(next) => setStatusMutation.mutate({ contactId: openId, status: next })}
             onDelete={() => void remove(openId, detail.data!.contact.email)}
           />
@@ -132,6 +137,7 @@ export default function LeadsPage() {
         offset={offset}
         limit={PAGE_SIZE}
         isLoading={isLoading}
+        now={now}
         filtered={!!filters.search || !!filters.status}
         onOpen={setOpenId}
         onPage={setOffset}

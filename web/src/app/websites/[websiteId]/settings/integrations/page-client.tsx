@@ -14,6 +14,7 @@ import { useIntegrationDeliveries, useIntegrations } from '@/features/integratio
 import type { Provider } from '@/features/integrations/types';
 import { describeTest } from '@/lib/integration-form';
 import { isDemo } from '@/lib/demo';
+import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
 import { usePathSegment } from '@/lib/path-segment';
 
 /**
@@ -26,6 +27,8 @@ import { usePathSegment } from '@/lib/path-segment';
 export default function IntegrationsPage() {
   const websiteId = usePathSegment(1) ?? '';
   const demo = isDemo(websiteId);
+  // Sample data is dated against a fixed clock; relative times read against it too.
+  const now = demo ? DEMO_REFERENCE_DATE.getTime() : undefined;
   const [confirm, confirmDialog] = useConfirm();
 
   const { data: providers = [], isLoading, error } = useIntegrations(websiteId);
@@ -92,6 +95,7 @@ export default function IntegrationsPage() {
                 canEdit={!demo}
                 busy={update.isPending || disconnect.isPending}
                 testing={testing === p.id}
+                now={now}
                 onConnect={() => setEditing(p)}
                 onTest={() => void runTest(p)}
                 onToggle={(enabled) => update.mutate({ provider: p.id, input: { enabled } }, { onError: (e) => setNotice({ ok: false, message: e.message }) })}
@@ -100,7 +104,7 @@ export default function IntegrationsPage() {
             ))}
       </div>
 
-      <DeliveryLog deliveries={deliveries.data ?? []} isLoading={deliveries.isLoading} />
+      <DeliveryLog deliveries={deliveries.data ?? []} isLoading={deliveries.isLoading} now={now} />
 
       {editing && (
         // Keyed so a provider's dialog always opens with fresh, empty secret fields.

@@ -11,7 +11,8 @@ const TONE: Record<Delivery['status'], string> = {
 };
 
 /** What was sent to each destination lately, and how it went. Loading and empty states live here. */
-export function DeliveryLog({ deliveries, isLoading }: { deliveries: Delivery[]; isLoading?: boolean }) {
+/** `now` is for the demo, whose sample data is dated against a fixed clock. */
+export function DeliveryLog({ deliveries, isLoading, now }: { deliveries: Delivery[]; isLoading?: boolean; now?: number }) {
   return (
     <div className="surface overflow-hidden">
       <div className="border-b border-border bg-muted/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -32,7 +33,7 @@ export function DeliveryLog({ deliveries, isLoading }: { deliveries: Delivery[];
               {d.error ?? (d.http_status ? `HTTP ${d.http_status}` : '')}
               {d.attempt_count > 1 ? ` · ${d.attempt_count} attempts` : ''}
             </span>
-            <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(d.created_at)}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(d.created_at, now)}</span>
           </div>
         ))
       )}

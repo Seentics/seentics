@@ -1,7 +1,12 @@
 /**
  * Demo data for automations
  */
+import { TEMPLATES } from '@/features/automations/templates';
 import { demoDate } from './fixture-utils';
+
+/** A template's definition, so a demo popup opens in the builder exactly as the template does. */
+const templateDefinition = (id: string): Record<string, unknown> =>
+  TEMPLATES.find((t) => t.id === id)!.definition as unknown as Record<string, unknown>;
 
 export const demoAutomations = () => ({
   automations: [
@@ -69,8 +74,42 @@ export const demoAutomations = () => ({
       ],
       stats: { totalExecutions: 843, successCount: 841, failureCount: 2, successRate: 99.7, last30Days: 0 },
     },
+    {
+      id: 'demo-auto-5',
+      websiteId: 'demo',
+      userId: 'demo-user',
+      name: 'Spin to Win Wheel',
+      description: 'Visitors enter their email to spin a prize wheel',
+      triggerType: 'time_on_page',
+      triggerConfig: { type: 'time_on_page', seconds: 15 },
+      isActive: true,
+      definition: templateDefinition('spin-to-win'),
+      createdAt: demoDate(-10 * 86400000).toISOString(),
+      updatedAt: demoDate().toISOString(),
+      actions: [
+        { actionType: 'modal' as const, actionConfig: { title: 'Spin to win a prize!', layout: 'spin_wheel' } },
+      ],
+      stats: { totalExecutions: 1904, successCount: 1904, failureCount: 0, successRate: 100, last30Days: 1120 },
+    },
+    {
+      id: 'demo-auto-6',
+      websiteId: 'demo',
+      userId: 'demo-user',
+      name: 'Exit-Intent Newsletter Signup',
+      description: 'Collect an email from visitors about to leave',
+      triggerType: 'exit_intent',
+      triggerConfig: { type: 'exit_intent' },
+      isActive: true,
+      definition: templateDefinition('exit-intent-newsletter'),
+      createdAt: demoDate(-8 * 86400000).toISOString(),
+      updatedAt: demoDate().toISOString(),
+      actions: [
+        { actionType: 'modal' as const, actionConfig: { title: 'Before you go…' } },
+      ],
+      stats: { totalExecutions: 3270, successCount: 3270, failureCount: 0, successRate: 100, last30Days: 1890 },
+    },
   ],
-  total: 4,
+  total: 6,
   limit: 10,
   offset: 0,
 });

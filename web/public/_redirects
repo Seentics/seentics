@@ -76,6 +76,8 @@
 /websites/:websiteId/errors                       /websites/w-leaf/errors                           200
 /websites/:websiteId/events.txt                   /websites/w-leaf/events.txt                       200
 /websites/:websiteId/events                       /websites/w-leaf/events                           200
+/websites/:websiteId/leads.txt                   /websites/w-leaf/leads.txt                        200
+/websites/:websiteId/leads                       /websites/w-leaf/leads                            200
 /websites/:websiteId/paths.txt                    /websites/w-leaf/paths.txt                        200
 /websites/:websiteId/paths                        /websites/w-leaf/paths                            200
 /websites/:websiteId/privacy.txt                  /websites/w-leaf/privacy.txt                      200

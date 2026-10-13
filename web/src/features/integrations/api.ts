@@ -1,12 +1,13 @@
 /**
  * Endpoint functions for the integrations feature. No React, no hooks — just transport.
  *
- * The demo site has no integrations to show, so it answers with the provider list unconnected
- * and refuses to connect: a demo visitor must never be able to type a real API key into a
- * public page.
+ * The demo site answers from `lib/demo/integrations` — two providers shown as connected, with
+ * a sample delivery log — and refuses every change: a demo visitor's credentials are never
+ * sent anywhere.
  */
 import api from '@/lib/api';
 import { demoMutationGuard, isDemo } from '@/lib/demo';
+import { demoDeliveries, demoProviders } from '@/lib/demo/integrations';
 import type { ConnectInput, Connection, Delivery, Provider, TestOutcome, UpdateInput } from './types';
 
 /** The API's own words for what went wrong, so the dialog can show them. */
@@ -23,13 +24,13 @@ function toError(err: unknown): IntegrationApiError {
 
 export const integrationsApi = {
   async list(websiteId: string): Promise<Provider[]> {
-    if (isDemo(websiteId)) return [];
+    if (isDemo(websiteId)) return demoProviders();
     const res = await api.get(`/integrations/${websiteId}`);
     return res.data?.data?.providers ?? [];
   },
 
   async deliveries(websiteId: string, limit = 25): Promise<Delivery[]> {
-    if (isDemo(websiteId)) return [];
+    if (isDemo(websiteId)) return demoDeliveries(limit);
     const res = await api.get(`/integrations/${websiteId}/deliveries`, { params: { limit } });
     return res.data?.data?.deliveries ?? [];
   },

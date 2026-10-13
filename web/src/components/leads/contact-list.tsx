@@ -14,6 +14,8 @@ export interface ContactListProps {
   isLoading?: boolean;
   /** True when a search or status filter is narrowing the list; shapes the empty copy. */
   filtered?: boolean;
+  /** For the demo, whose sample data is dated against a fixed clock. */
+  now?: number;
   onOpen: (contactId: string) => void;
   onPage: (offset: number) => void;
   toolbarLeft?: React.ReactNode;
@@ -34,7 +36,7 @@ export const STATUS_TONE: Record<Contact['status'], string> = {
  * empty copy differs for "nothing yet" (point at how leads arrive) and "nothing matches".
  */
 export function ContactList({
-  contacts, total, offset, limit, isLoading, filtered, onOpen, onPage, toolbarLeft, toolbarRight, className,
+  contacts, total, offset, limit, isLoading, filtered, now, onOpen, onPage, toolbarLeft, toolbarRight, className,
 }: ContactListProps) {
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + limit, total);
@@ -92,7 +94,7 @@ export function ContactList({
               <Badge variant="outline" className={cn('border-0 capitalize', STATUS_TONE[c.status])}>{c.status}</Badge>
             </span>
             <span className="hidden w-20 shrink-0 text-right text-sm tabular-nums md:block">{c.submission_count}</span>
-            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">{relativeTime(c.last_submitted_at)}</span>
+            <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">{relativeTime(c.last_submitted_at, now)}</span>
           </button>
         ))
       )}

@@ -9,6 +9,8 @@ import { CONTACT_STATUSES, type ContactDetail as ContactDetailData, type Contact
 
 export interface ContactDetailProps extends ContactDetailData {
   isUpdating?: boolean;
+  /** For the demo, whose sample data is dated against a fixed clock. */
+  now?: number;
   onSetStatus: (status: ContactStatus) => void;
   onDelete: () => void;
   className?: string;
@@ -29,7 +31,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
  * Submissions carry the attribution — which popup, which A/B variant, which page — that
  * is the reason leads are captured in the same product as the analytics.
  */
-export function ContactDetail({ contact, submissions, isUpdating, onSetStatus, onDelete, className }: ContactDetailProps) {
+export function ContactDetail({ contact, submissions, isUpdating, now, onSetStatus, onDelete, className }: ContactDetailProps) {
   return (
     <div className={cn('space-y-4', className)}>
       <div className="surface p-4">
@@ -56,8 +58,8 @@ export function ContactDetail({ contact, submissions, isUpdating, onSetStatus, o
           <Row label="Phone">{contact.phone || '—'}</Row>
           <Row label="Marketing consent">{contact.consent ? 'Given' : 'Not given'}</Row>
           <Row label="Submissions">{contact.submission_count}</Row>
-          <Row label="First submitted">{relativeTime(contact.first_submitted_at)}</Row>
-          <Row label="Last submitted">{relativeTime(contact.last_submitted_at)}</Row>
+          <Row label="First submitted">{relativeTime(contact.first_submitted_at, now)}</Row>
+          <Row label="Last submitted">{relativeTime(contact.last_submitted_at, now)}</Row>
         </dl>
       </div>
 
@@ -72,7 +74,7 @@ export function ContactDetail({ contact, submissions, isUpdating, onSetStatus, o
                 {s.automation_name ?? 'Unknown popup'}
                 {s.variant && <span className="ml-2 text-xs font-normal text-muted-foreground">variant {s.variant}</span>}
               </span>
-              <span className="text-xs text-muted-foreground">{relativeTime(s.created_at)}</span>
+              <span className="text-xs text-muted-foreground">{relativeTime(s.created_at, now)}</span>
             </div>
             {s.page_url && <p className="mt-1 truncate text-xs text-muted-foreground">{s.page_url}</p>}
             {Object.keys(s.fields).length > 0 && (
