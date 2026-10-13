@@ -110,16 +110,20 @@ export class RecordingRetentionPurge implements RetentionPurge {
       sessionsPurged += cleared.length;
 
       /*
-       * One statement for the page, not one per session. The pairs are matched with
-       * `IN (VALUES …)` because a session id is only unique within its website, so the
-       * two columns have to be compared together — and `(website_id, session_id)` is the
-       * leading pair of the primary key, so the join finds each group by index.
+       * One statement for the page, not one per session. The pairs travel as two parallel
+       * arrays and are matched through `unnest` because a session id is only unique within
+       * its website, so the two columns have to be compared together — and
+       * `(website_id, session_id)` is the leading pair of the primary key, so the join
+       * finds each group by index.
+       *
+       * Not `IN ${sql(pairs)}`: postgres.js renders that without the VALUES keyword, which
+       * Postgres rejects as a syntax error, so every sweep that had anything to delete failed.
        */
       const deleted = await sql`
         DELETE FROM session_replays
-        WHERE (website_id, session_id) IN ${sql(
-          cleared.map((r) => [r.website_id, r.session_id] as const),
-        )}
+        WHERE (website_id, session_id) IN (
+          SELECT * FROM unnest(${cleared.map((r) => r.website_id)}::text[], ${cleared.map((r) => r.session_id)}::text[])
+        )
       `;
       rowsDeleted += affectedRows(deleted);
 

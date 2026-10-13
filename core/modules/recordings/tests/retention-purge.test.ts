@@ -22,33 +22,20 @@ let deleteStatements = 0;
 mock.module("../../../db", () => {
   const select = (limit: number) => table.slice(0, limit);
 
-  /** What `sql(pairs)` produces: a fragment the DELETE branch reads back. */
-  type PairFragment = { __pairs: readonly (readonly [string, string])[] };
-  const isPairs = (v: unknown): v is PairFragment =>
-    !!v && typeof v === "object" && "__pairs" in v;
-
-  /**
-   * Two shapes now: the batch SELECT, and one DELETE per page.
-   *
-   * The DELETE takes every cleared `(website_id, session_id)` pair in a single
-   * statement — it used to be one statement per session inside a transaction — so the
-   * fake has to understand `sql(pairs)` being interpolated as a value list.
-   */
   const tagged = (strings: TemplateStringsArray | unknown, ...values: unknown[]) => {
-    // Called as a function rather than a template tag: `sql(pairs)` building a fragment.
-    if (Array.isArray(strings) && !("raw" in (strings as object))) {
-      return { __pairs: strings as readonly (readonly [string, string])[] };
-    }
-
     const text = (strings as TemplateStringsArray).join("?");
-    if (text.includes("SELECT")) {
+    if (!text.includes("DELETE") && text.includes("SELECT")) {
       const limit = values[values.length - 1] as number;
       return Promise.resolve(select(limit));
     }
     if (text.includes("DELETE")) {
       deleteStatements += 1;
-      const fragment = values.find(isPairs);
-      const pairs = fragment ? fragment.__pairs : [];
+      // The pairs must travel as two parallel arrays through `unnest`. The earlier
+      // `IN ${sql(pairs)}` form is a syntax error in real Postgres, which this fake could
+      // not notice — it shipped, and every sweep with something to delete failed.
+      if (!text.includes("unnest(")) throw new Error(`DELETE must match pairs via unnest: ${text}`);
+      const [websites, sessions] = values as [string[], string[]];
+      const pairs = websites.map((w, i) => [w, sessions[i]] as const);
       const before = table.length;
       table = table.filter(
         (r) => !pairs.some(([w, sid]) => r.website_id === w && r.session_id === sid),
