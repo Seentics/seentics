@@ -37,7 +37,11 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const { data: plans, isLoading, isError } = usePlans();
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
-  const [interval, setInterval] = React.useState<BillingInterval>('year');
+  const [chosen, setChosen] = React.useState<BillingInterval>('year');
+  // The toggle only means something once the catalogue has a yearly price. Against an older gateway that
+  // has none, every plan is monthly and nothing is offered that cannot be bought.
+  const hasYearly = !!plans?.some((p) => p.priceYearly != null);
+  const interval: BillingInterval = hasYearly ? chosen : 'month';
 
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
@@ -134,6 +138,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
 
       {plans && (
         <>
+          {hasYearly && (
           <div className="mb-8 flex justify-center">
             <div role="group" aria-label="Billing interval" className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
               {(['month', 'year'] as const).map((value) => (
@@ -141,7 +146,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
                   key={value}
                   type="button"
                   aria-pressed={interval === value}
-                  onClick={() => setInterval(value)}
+                  onClick={() => setChosen(value)}
                   className={cn(
                     'rounded-full px-5 py-1.5 transition-colors',
                     interval === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
@@ -152,6 +157,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
               ))}
             </div>
           </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2 lg:grid-cols-3">{plans.map(renderCard)}</div>
 

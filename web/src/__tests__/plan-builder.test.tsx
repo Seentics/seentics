@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Plan } from '@/features/plans/types';
 
-const plans: Plan[] = [
+let plans: Plan[] = [
   { id: 'free', name: 'Free', tier: 'free', description: null, priceMonthly: 0, priceYearly: null, products: ['core', 'observe'], features: [],
     limits: { core: { monthly_events: 20_000, replays: 300, heatmaps: 3, funnels: 1, automations: 3, websites: -1, ai_analyses: 30, leads: 100, retention_days: 30 }, observe: { storage_gb: 3 } } },
   { id: 'analytics', name: 'Analytics', tier: 'analytics', description: null, priceMonthly: 9, priceYearly: 84, products: ['core'], features: [],
@@ -11,11 +11,26 @@ const plans: Plan[] = [
     limits: { core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 3_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095 }, observe: { storage_gb: -1, included_storage_gb: 30 } } },
 ];
 
+const original = plans;
 vi.mock('@/features/plans/queries', () => ({ usePlans: () => ({ data: plans, isLoading: false, isError: false }) }));
 
 const { PlanBuilder } = await import('@/components/subscription/PlanBuilder');
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); plans = original; });
+
+describe('PlanBuilder against a catalogue with no yearly prices (an older gateway)', () => {
+  it('shows no Monthly/Yearly toggle, and sells monthly', () => {
+    plans = original.filter((p) => p.id !== 'analytics').map((p) => ({ ...p, priceYearly: null }));
+    const onSubscribe = vi.fn();
+    render(<PlanBuilder onSubscribe={onSubscribe} />);
+    expect(screen.queryByRole('button', { name: 'Monthly' })).toBeNull();
+    expect(screen.queryByText(/save up to/)).toBeNull();
+    expect(screen.getByText('$19')).toBeTruthy();
+    expect(screen.getByText('Billed monthly')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Get Pro/ }));
+    expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 19, interval: 'month' });
+  });
+});
 
 describe('PlanBuilder', () => {
   it('shows three plans, yearly first: $0, $7 and $14 a month, with the yearly totals', () => {
