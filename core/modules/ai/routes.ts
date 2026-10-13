@@ -9,6 +9,7 @@ import {
 import type { AiControllerDeps } from "./controllers/ai-controller.types";
 import { getAiHistory } from "./controllers/ai-history.controller";
 import { queryAi } from "./controllers/ai-query.controller";
+import { getInsight, refreshInsight } from "./insights/controller";
 
 export function createAiRoutes(deps: AiControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
@@ -25,5 +26,9 @@ export function createAiRoutes(deps: AiControllerDeps) {
   // The single-shot SQL path, still the right tool for a question no typed read covers.
   routes.post("/query/:website_id", queryAi(deps));
   routes.get("/history/:website_id", getAiHistory(deps));
+
+  // The daily insight lines at the top of the dashboard: stored, so reading one is free.
+  routes.get("/insights/:website_id", getInsight(deps));
+  routes.post("/insights/:website_id/refresh", refreshInsight(deps));
   return routes;
 }

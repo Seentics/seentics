@@ -8,8 +8,9 @@ import type {
 import { affectedRows } from "../../../platform/retention";
 
 /**
- * Ages out AI Mode history: each question, the SQL it ran and the answer, which can
- * quote the site's analytics. Kept for the analytics window, like the data it read.
+ * Ages out AI Mode history (each question, the SQL it ran and the answer, which can quote the
+ * site's analytics) and the daily dashboard insights. Kept for the analytics window, like the data
+ * they read.
  */
 export class AiRetentionPurge implements RetentionPurge {
   readonly name = "ai";
@@ -24,6 +25,12 @@ export class AiRetentionPurge implements RetentionPurge {
       WHERE website_id = ${target.websiteId}::uuid
         AND created_at < ${cutoffs.analytics}
     `;
-    return { aiQueryRows: affectedRows(deleted) };
+    // Insights are counts and a few sentences, kept for the same window as the data they describe.
+    const insights = await sql`
+      DELETE FROM ai_insights
+      WHERE website_id = ${target.websiteId}::uuid
+        AND created_at < ${cutoffs.analytics}
+    `;
+    return { aiQueryRows: affectedRows(deleted), aiInsightRows: affectedRows(insights) };
   }
 }

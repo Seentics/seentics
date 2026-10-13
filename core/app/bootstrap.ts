@@ -131,6 +131,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     websitesModule,
     analyticsReads: analyticsModule.reads,
     errorQueries: errorsModule.queries,
+    analyticsInsights: analyticsModule.insightReads,
+    sites: websitesModule.retentionSites,
     automationDrafts: automationsModule.draftValidator,
     // The entire write surface an approved AI proposal can reach.
     writers: {
@@ -271,6 +273,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
           heatmapScreenshots: heatmapsModule.maintenance,
           retention,
           analyticsRollups: analyticsModule.rollups,
+          aiInsights: aiModule.insights,
         });
       }
 

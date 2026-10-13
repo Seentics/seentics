@@ -5,6 +5,7 @@ import type { RetentionPurge } from "../../../platform/retention";
 import type {
   AnalyticsIngestWriter,
   AnalyticsFunnelEvents,
+  AnalyticsInsightReads,
   AnalyticsPageviewUrls,
   AnalyticsRawEvents,
   AnalyticsPublicDashboard,
@@ -50,6 +51,9 @@ export interface AnalyticsModule {
 
   /** Recent pageview URLs, for heatmaps' screenshot-target fallback. */
   pageviewUrls: AnalyticsPageviewUrls;
+
+  /** The aggregates behind the AI module's daily dashboard insight. */
+  insightReads: AnalyticsInsightReads;
 
   /** The raw event feed behind `/api/v1/raw`. */
   rawEvents: AnalyticsRawEvents;

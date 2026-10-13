@@ -293,3 +293,28 @@ export type FunnelProgressStep =
 
 /** Most steps a funnel may have. */
 export const MAX_FUNNEL_STEPS = 20;
+
+/**
+ * The counts behind the daily dashboard insight (`ai/insights`): this window and the one before
+ * it, per segment. Raw sums, not rates, so the consumer works out the ratios it needs; paths are
+ * as stored, and the consumer masks them before they go anywhere.
+ */
+export type InsightSnapshotData = {
+  days: number;
+  traffic: {
+    visitors: { cur: number; prev: number };
+    pageviews: { cur: number; prev: number };
+    sessions: { cur: number; prev: number };
+    bounces: { cur: number; prev: number };
+    durationSec: { cur: number; prev: number };
+  };
+  devices: Array<{ name: string; sessions: { cur: number; prev: number }; bounces: { cur: number; prev: number }; conversions: { cur: number; prev: number } }>;
+  channels: Array<{ name: string; visitors: { cur: number; prev: number }; sessions: { cur: number; prev: number }; pageviews: { cur: number; prev: number }; bounces: { cur: number; prev: number } }>;
+  pages: Array<{ path: string; views: { cur: number; prev: number } }>;
+  conversion: { event: string; count: { cur: number; prev: number } } | null;
+};
+
+/** A port because `analytics_events` is analytics-owned and the AI module needs aggregates over it. */
+export interface AnalyticsInsightReads {
+  getInsightSnapshot(websiteId: string, days: number): Promise<InsightSnapshotData>;
+}

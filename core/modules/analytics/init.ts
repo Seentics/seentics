@@ -19,6 +19,7 @@ import { AnalyticsTrafficSummaryService } from "./services/website-traffic-summa
 import { AnalyticsUsageCounter } from "./services/usage-count.service";
 import { buildStaleRollups } from "./rollups/builder";
 import { detectRollups } from "./rollups/reads";
+import { getInsightSnapshotData } from "./repositories/insight-snapshot.repository";
 
 /**
  * Build the analytics module.
@@ -68,6 +69,7 @@ export function initAnalyticsModule(deps: {
     publicDashboard,
     ingest,
     pageviewUrls: new AnalyticsPageviewUrlService(),
+    insightReads: { getInsightSnapshot: (websiteId, days) => getInsightSnapshotData(websiteId, days) },
     rawEvents: eventFeed,
     funnelEvents: eventFeed,
     retention: new AnalyticsRetentionPurge(),

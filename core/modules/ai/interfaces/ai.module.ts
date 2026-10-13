@@ -1,6 +1,7 @@
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { RetentionPurge } from "../../../platform/retention";
 import type { UsageCounter } from "../../../platform/usage";
+import type { RunStats } from "../insights/service";
 
 /**
  * Everything the AI module offers: its routes, and nothing else.
@@ -17,4 +18,7 @@ export interface AiModule {
   retention: RetentionPurge;
 
   routes: AuthedRouter;
+
+  /** The scheduled job that writes each site's daily insight. Absent work is skipped, never failed. */
+  insights: { runDaily(): Promise<RunStats> };
 }

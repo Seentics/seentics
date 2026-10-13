@@ -7,6 +7,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   real,
@@ -491,6 +492,29 @@ export const sessionReplays = pgTable(
     primaryKey({ columns: [t.websiteId, t.sessionId, t.sequence] }),
     index("ix_session_replays_site_seq_ts").on(t.websiteId, t.sequence, t.timestamp),
   ],
+);
+
+/**
+ * The daily dashboard insight for one website and UTC day — see db/sql/052_ai_insights.sql.
+ * Owned by the AI module (`modules/ai/insights`).
+ */
+export const aiInsights = pgTable(
+  "ai_insights",
+  {
+    websiteId: uuid("website_id").notNull(),
+    insightDate: date("insight_date", { mode: "string" }).notNull(),
+    status: varchar("status", { length: 20 }).notNull(),
+    source: varchar("source", { length: 8 }).notNull().default("rules"),
+    lines: jsonb("lines").notNull().$type<unknown[]>().default([]),
+    signals: jsonb("signals").notNull().$type<unknown[]>().default([]),
+    reason: text("reason"),
+    model: varchar("model", { length: 100 }),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.websiteId, t.insightDate] })],
 );
 
 /** Aggregated heatmap cells per page / device / position. */

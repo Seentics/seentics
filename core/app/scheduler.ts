@@ -26,6 +26,8 @@ export function startScheduler(
     heatmapScreenshots?: HeatmapScreenshotMaintenance;
     retention?: RetentionRunner;
     analyticsRollups?: AnalyticsRollups;
+    /** Writes each site's daily dashboard insight. */
+    aiInsights?: { runDaily(): Promise<unknown> };
   },
 ): void {
   if (jobs.length > 0) {
@@ -90,6 +92,28 @@ export function startScheduler(
   );
   jobs.push(timescaleJob);
   log.info({ msg: "scheduler_job_registered", job: "timescale-job-check", schedule: "hourly" });
+
+  // Daily dashboard insights — 05:00 UTC, after the day's rollups have settled. A site with too little
+  // traffic costs one cheap query and no model call; a site that already has today's is skipped.
+  const aiInsights = deps?.aiInsights;
+  if (aiInsights && process.env.AI_INSIGHTS_ENABLED !== "false") {
+    const insightsCron = process.env.AI_INSIGHTS_CRON ?? "0 5 * * *";
+    const insightsJob = new Cron(
+      insightsCron,
+      { timezone: "UTC", name: "ai-insights", catch: true, protect: true },
+      async () => {
+        log.info({ msg: "scheduler_job_start", job: "ai-insights" });
+        try {
+          const stats = await traceJob("ai-insights", () => aiInsights.runDaily());
+          log.info({ msg: "scheduler_job_done", job: "ai-insights", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "ai-insights", err: String(e) });
+        }
+      },
+    );
+    jobs.push(insightsJob);
+    log.info({ msg: "scheduler_job_registered", job: "ai-insights", schedule: insightsCron });
+  }
 
   // Heatmap screenshot refresh — every 3 days at 03:00 UTC
   const heatmapScreenshots = deps?.heatmapScreenshots;

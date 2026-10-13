@@ -22,6 +22,7 @@ export type {
   AnalyticsGoals,
   AnalyticsIngestEvent,
   AnalyticsIngestWriter,
+  AnalyticsInsightReads,
   AnalyticsPageviewUrls,
   AnalyticsPublicDashboard,
   AnalyticsQueryParams,
@@ -30,4 +31,5 @@ export type {
   AnalyticsRealtime,
   AnalyticsRevenue,
   AnalyticsWindow,
+  InsightSnapshotData,
 } from "./analytics.interface";
