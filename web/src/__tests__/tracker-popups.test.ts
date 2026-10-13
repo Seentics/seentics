@@ -194,13 +194,22 @@ describe('teaser, coupon and bar', () => {
 
   it('renders a sticky bar with an inline email form and a countdown', async () => {
     const submit = vi.fn().mockResolvedValue({ prize: null });
-    createPopupRenderer({ submit }).renderBanner({ ...base, type: 'show_banner', message: 'Flash sale', position: 'bottom', form: formCfg, countdown: { mode: 'evergreen', duration_minutes: 10, expired_text: 'Over', hide_on_expire: false } });
-    const bar = document.querySelector('.snc-banner') as HTMLElement;
-    expect(bar.classList.contains('bottom')).toBe(true);
-    expect(bar.querySelector('.snc-countdown-clock')?.textContent).toBe('00:10:00');
-    await submitEmail(bar);
-    expect(submit).toHaveBeenCalled();
-    expect(bar.querySelector('[role=status]')?.textContent).toBe('Thanks!');
+    // The clock is pinned: an evergreen timer counts from the wall clock, so on a loaded
+    // machine a real second can pass between rendering and asserting and read 00:09:59.
+    // Only Date is faked, so the awaited submit below still runs on real timers.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'));
+    try {
+      createPopupRenderer({ submit }).renderBanner({ ...base, type: 'show_banner', message: 'Flash sale', position: 'bottom', form: formCfg, countdown: { mode: 'evergreen', duration_minutes: 10, expired_text: 'Over', hide_on_expire: false } });
+      const bar = document.querySelector('.snc-banner') as HTMLElement;
+      expect(bar.classList.contains('bottom')).toBe(true);
+      expect(bar.querySelector('.snc-countdown-clock')?.textContent).toBe('00:10:00');
+      await submitEmail(bar);
+      expect(submit).toHaveBeenCalled();
+      expect(bar.querySelector('[role=status]')?.textContent).toBe('Thanks!');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('starts an evergreen timer once per visitor and survives a reload', () => {
