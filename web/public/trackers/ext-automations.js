@@ -8,6 +8,7 @@
  */
 import { runContinuation } from './automation-runtime.js';
 import { registerExtension } from './ext-register.js';
+import { FORM_CSS, buildForm, successNode } from './popup-form.js';
 
 /** Longest delay a chain's delay steps may put before an action. */
 const MAX_ACTION_DELAY_MS = 300_000;
@@ -104,7 +105,8 @@ registerExtension((core) => {
       '.snc-highlight-pulse{outline:3px solid #f59e0b!important;outline-offset:2px;animation:snc-pulse 1.5s infinite}' +
       '@keyframes snc-pulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#ef4444}}' +
       '.snc-tooltip{position:absolute;background:#1a1a1a;color:#fff;padding:8px 12px;border-radius:6px;font-size:13px;z-index:2147483647;pointer-events:none;max-width:240px;line-height:1.4}' +
-      ".snc-tooltip::before{content:'';position:absolute;border:6px solid transparent}";
+      ".snc-tooltip::before{content:'';position:absolute;border:6px solid transparent}" +
+      FORM_CSS;
     document.head.appendChild(s);
   };
 
@@ -149,6 +151,55 @@ registerExtension((core) => {
     }
   };
 
+  /**
+   * Post a popup form's answers to the leads endpoint.
+   *
+   * Returns whether the lead was stored, so the form knows to thank the visitor or let
+   * them retry. The popup's `automation_id` and `variant` ride along: that is what lets
+   * the inbox say which popup, and which A/B variant, a lead came from.
+   */
+  const submitLead = async (action, payload) => {
+    try {
+      const res = await fetch(core.apiHost + '/api/v1/tracker/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          website_id:    core.websiteId,
+          anonymous_id:  core.visitorId,
+          session_id:    core.getSessionId(),
+          automation_id: action.automation_id,
+          variant:       action.variant,
+          page_url:      location.href,
+          referrer:      document.referrer,
+          ...payload,
+        }),
+      });
+      if (!res.ok) return false;
+      // A goal or funnel step can be built on this like any other event.
+      core.pushAnalytics('custom', { name: 'lead_captured', automation_id: action.automation_id, variant: action.variant });
+      return true;
+    } catch { return false; }
+  };
+
+  /** Swap the form for its thank-you message, then close the popup or follow the redirect. */
+  const mountLeadForm = (overlay, action, colors) => {
+    const slot = overlay.querySelector('[data-snc-form-slot]');
+    if (!slot) return;
+    const cfg = action.form || {};
+    const form = buildForm(action, {
+      colors,
+      submit: (payload) => submitLead(action, payload),
+      onSuccess: () => {
+        slot.replaceChildren(successNode(cfg.success_message));
+        const next = typeof cfg.success_redirect_url === 'string' ? cfg.success_redirect_url.trim() : '';
+        if (/^(https?:\/\/|\/)/i.test(next)) setTimeout(() => { location.href = next; }, 1500);
+        else setTimeout(() => overlay.remove(), 4000);
+      },
+    });
+    slot.replaceChildren(form);
+    if (form.__firstInput) form.__firstInput.focus({ preventScroll: true });
+  };
+
   const renderModal = (action) => {
     ensureAutoStyles();
     const overlay = document.createElement('div');
@@ -162,7 +213,8 @@ registerExtension((core) => {
       : `${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
       ${action.title   ? `<h2>${escapeHtml(action.title)}</h2>` : ''}
       ${action.body    ? `<p>${escapeHtml(action.body)}</p>`    : ''}
-      ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}`;
+      ${action.form ? '<div data-snc-form-slot></div>'
+        : action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}`;
     overlay.innerHTML = `
     <div class="snc-modal" data-snc="modal" style="background:${bgColor};color:${textColor}">
       <button class="snc-modal-close" aria-label="Close">&times;</button>
@@ -171,6 +223,7 @@ registerExtension((core) => {
     overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
+    if (action.form && !hasCustomHtml(action)) mountLeadForm(overlay, action, { button: btnColor, buttonText: btnText });
     applyCustomCode(overlay, action);
   };
 

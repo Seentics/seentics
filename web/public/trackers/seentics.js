@@ -691,6 +691,7 @@ const safely = (fn) => { try { return fn(); } catch { return undefined; } };
  */
 const extensionApi = {
   websiteId,
+  apiHost,
   COLLECT,
   queues,
   rnd,

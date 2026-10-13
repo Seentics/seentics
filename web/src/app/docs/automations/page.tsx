@@ -87,6 +87,38 @@ export default function AutomationsPage() {
         </Callout>
       </DocSection>
 
+      <DocSection title="Collecting emails with a form">
+        <P>
+          Turn on <C>Collect emails with a form</C> in a modal action and the button is replaced by a
+          form: an email field, up to seven more (text or phone), a thank-you message, and an
+          optional consent checkbox. Submissions land in the <C>Leads</C> inbox, where you can search,
+          mark a contact as contacted or archived, export a CSV, or delete a contact and everything
+          they sent.
+        </P>
+        <Ul>
+          <Li>
+            Each submission records the popup, the A/B variant and the page it came from, so you can
+            see which message produced a lead.
+          </Li>
+          <Li>
+            A repeat submission from the same email updates the one contact instead of adding a
+            second row.
+          </Li>
+          <Li>
+            A successful submit records a <C>lead_captured</C> custom event, so you can build a goal
+            or a funnel step on it.
+          </Li>
+          <Li>
+            Bots are filtered with a hidden honeypot field and a per-visitor rate limit; nothing is
+            stored for a submission that trips either.
+          </Li>
+        </Ul>
+        <Callout>
+          Leads are personal data you collect from your visitors. Ask for consent where your
+          jurisdiction requires it, using the consent checkbox, and delete contacts on request.
+        </Callout>
+      </DocSection>
+
       <DocSection title="Keeping it from becoming annoying">
         <Ul>
           <Li>

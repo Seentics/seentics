@@ -12,6 +12,7 @@ import { z } from "zod";
 import { zNonEmptyString } from "../../../platform/validation";
 import { validateWebhookUrl } from "../../../platform/http/origin";
 import { OPERATORS } from "../lib/automation-condition-evaluator";
+import { leadFormSchema } from "./lead-form.schema";
 import {
   MAX_DELAY_SECONDS,
   MAX_EDGES,
@@ -122,6 +123,8 @@ const clientActionSchema = z
     custom_html: customCode,
     custom_css: customCode,
     custom_js: customCode,
+    // A lead-capture form inside a `show_modal`. Other client actions ignore it.
+    form: leadFormSchema.optional(),
   })
   .passthrough();
 

@@ -18,9 +18,9 @@ Analytics platform for real-time tracking and behavior analysis. Core features a
 - **Knowledge Base Builder** - Help customers help themselves with integrated documentation
 
 ### 📝 Customer Engagement
-- **Dynamic Forms** - Create and embed forms to collect customer feedback and lead data
+- **Dynamic Forms** - ✅ Email capture forms inside popups (custom fields, consent, thank-you message); standalone embeddable forms are still planned
 - **Survey Engine** - Trigger NPS and satisfaction surveys based on user behavior
-- **Lead Capture Tools** - Optimized pop-ups and forms for conversion
+- **Lead Capture Tools** - ✅ Leads inbox with search, status, CSV export and per-popup/variant attribution. Still planned: spin-the-wheel, countdown, multi-step and sticky-bar templates, coupon codes, and email/CRM integrations (Mailchimp, Klaviyo, HubSpot, Zapier)
 
 ### 🎨 Frontend & UI
 - **Dashboard Polish** - Premium layout refinements and advanced data visualization

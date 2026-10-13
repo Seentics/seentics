@@ -19,6 +19,8 @@ import { useFunnels } from '@/features/funnels/queries';
 import { getGoals } from '@/features/websites/api';
 import { useQuery } from '@tanstack/react-query';
 import { AutomationCanvas } from './canvas/AutomationCanvas';
+import { LeadFormFields } from './LeadFormFields';
+import type { LeadForm } from '@/lib/lead-form';
 import { MAX_DELAY_SECONDS, MAX_SWITCH_CASES, edgeFor, indexGraph, layoutGraph, newNodeId, outletsFor, removeNode, validateGraph, type AutomationGraph, type ConditionGroup, type ConditionRule, type GraphNode, type NodeId, type SwitchCase } from '@/lib/automation-graph';
 
 // ─── Exported Types ──────────────────────────────────────────────────────────
@@ -631,6 +633,7 @@ function ActionFields({
         <FieldGroup label="Image URL (optional)">
           <Input value={String(action.image_url ?? '')} onChange={e => set('image_url', e.target.value)} placeholder="https://…" className={inp} />
         </FieldGroup>
+        <LeadFormFields form={action.form as LeadForm | undefined} onChange={form => set('form', form)} />
         <div className="grid grid-cols-3 gap-2">
           <FieldGroup label="BG Color"><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
           <FieldGroup label="Text Color"><Input value={String(action.text_color ?? '')} onChange={e => set('text_color', e.target.value)} placeholder="#000" className={inp} /></FieldGroup>

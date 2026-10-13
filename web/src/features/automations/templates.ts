@@ -18,6 +18,63 @@ export interface Template {
 
 export const TEMPLATES: Template[] = [
   {
+    id: 'exit-intent-newsletter',
+    name: 'Exit-Intent Newsletter Signup',
+    description: 'Collect an email from visitors about to leave. Leads appear in the Leads inbox.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'exit_intent' }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        title: 'Before you go…',
+        body: 'Get our best tips by email. No spam, unsubscribe any time.',
+        form: {
+          fields: [{ name: 'name', type: 'text', label: 'First name', placeholder: '', required: false }],
+          submit_text: 'Subscribe',
+          success_message: "Thanks! You're on the list.",
+          consent_text: 'I agree to receive emails.',
+          consent_required: true,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerSession: 1, cooldownDays: 7 },
+    },
+  },
+  {
+    id: 'scroll-lead-magnet',
+    name: 'Scroll-Depth Lead Magnet',
+    description: 'Offer a download to readers who reach 75% of a page, in exchange for their email.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'scroll_depth', depth: 75 }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        title: 'Enjoying this?',
+        body: 'Get the free guide in your inbox.',
+        form: {
+          fields: [],
+          submit_text: 'Send me the guide',
+          success_message: 'Check your inbox!',
+          consent_required: true,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerUser: 1 },
+    },
+  },
+  {
     id: 'exit-intent-discount',
     name: 'Exit-Intent Discount Modal',
     description: 'Show a last-chance offer when a visitor is about to leave.',
