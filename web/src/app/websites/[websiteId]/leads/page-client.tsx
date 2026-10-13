@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Download, Search, UserPlus, Users } from 'lucide-react';
+import { ChevronLeft, Download, UserPlus, Users, Send, Trophy } from 'lucide-react';
 import { usePathSegment } from '@/lib/path-segment';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -100,6 +100,8 @@ export default function LeadsPage() {
   }
 
   const list = data?.contacts ?? [];
+  // Every form submission, repeat visitors included; contacts are the people behind them.
+  const submissions = (stats.data?.by_automation ?? []).reduce((n, a) => n + a.count, 0);
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
       <DashboardPageHeader
@@ -117,11 +119,8 @@ export default function LeadsPage() {
         cards={[
           { label: 'Contacts', value: stats.data?.total ?? 0, icon: Users, tone: 'accent' },
           { label: 'New in 7 days', value: stats.data?.last_7_days ?? 0, icon: UserPlus, tone: 'success' },
-          {
-            label: 'Top popup',
-            value: stats.data?.by_automation[0]?.name ?? '—',
-            icon: Search,
-          },
+          { label: 'Submissions', value: submissions, icon: Send, tone: 'info' },
+          { label: 'Top popup', value: stats.data?.by_automation[0]?.name ?? '—', icon: Trophy, tone: 'warning', toneWhen: submissions > 0 },
         ]}
       />
 
