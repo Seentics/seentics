@@ -61,20 +61,20 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
       <div
         key={plan.id}
         className={cn(
-          'relative flex flex-col rounded-2xl border bg-card p-7',
+          'relative flex flex-col rounded-2xl border bg-card p-6',
           featured ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary' : 'border-border',
         )}
       >
         {featured && (
-          <span className="absolute -top-3 left-7 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+          <span className="absolute -top-3 left-6 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
             Most popular
           </span>
         )}
 
         <h3 className="text-lg font-semibold">{plan.name}</h3>
-        <p className="mt-1 min-h-[2.5rem] text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
 
-        <div className="mt-5 flex items-baseline gap-1.5">
+        <div className="mt-4 flex items-baseline gap-1.5">
           <span className="text-4xl font-bold tracking-tight">{formatMoney(monthlyPrice(plan, interval))}</span>
           <span className="text-sm text-muted-foreground">/month</span>
           {yearly && saving > 0 && (
@@ -125,7 +125,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const saving = plans ? maxYearlySaving(plans) : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[72rem]">
+    <div className="mx-auto w-full max-w-[60rem]">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

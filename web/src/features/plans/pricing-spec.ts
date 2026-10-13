@@ -46,9 +46,9 @@ export const OVERAGE_RATES = {
 } as const;
 
 export const TIER_PITCH: Record<PricingTier, string> = {
-  free: 'Everything to get started, with monthly limits',
-  analytics: 'Simple, privacy-friendly web analytics',
-  pro: 'The full toolkit, with optional extra usage',
+  free: 'Everything to get started',
+  analytics: 'Simple, privacy-friendly analytics',
+  pro: 'The full toolkit, with extra usage',
 };
 
 // ---------------------------------------------------------------------------
