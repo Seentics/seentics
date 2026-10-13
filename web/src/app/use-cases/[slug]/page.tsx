@@ -4,6 +4,7 @@ import { ArrowRight, Check, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FEATURES, USE_CASES, USE_CASE_BY_SLUG } from '@/lib/use-cases';
 import { SITE_URL } from '@/lib/site';
+import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 
 export const dynamicParams = false;
 
@@ -64,7 +65,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
 
       <header className="mt-6 max-w-3xl">
         <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground">
-          <u.icon className="h-3.5 w-3.5 text-primary" />
+          <UseCaseIcon useCase={u} size="xs" className="-ml-2" />
           Use case
         </span>
         <h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{u.headline}</h1>
@@ -203,7 +204,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
           {more.map((r) => (
             <Link key={r.slug} href={`/use-cases/${r.slug}`} className="rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40">
               <span className="flex items-center gap-2 text-[14.5px] font-semibold text-foreground">
-                <r.icon className="h-4 w-4 text-primary" />
+                <UseCaseIcon useCase={r} size="xs" />
                 {r.name}
               </span>
               <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">{r.summary}</span>

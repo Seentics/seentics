@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { GROUPS, useCasesIn, type UseCase } from '@/lib/use-cases';
+import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 
 export const metadata = {
   title: 'Use cases · Seentics',
@@ -15,9 +16,7 @@ function Card({ u }: { u: UseCase }) {
       href={`/use-cases/${u.slug}`}
       className="group flex items-start gap-3.5 rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <u.icon className="h-5 w-5" />
-      </span>
+      <UseCaseIcon useCase={u} size="md" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
           {u.name}

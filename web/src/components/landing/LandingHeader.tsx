@@ -13,6 +13,7 @@ import { config } from '@/lib/config';
 import { IntegrationIcon } from '@/components/integrations/IntegrationIcon';
 import { INTEGRATIONS } from '@/lib/integrations';
 import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
+import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 
 /**
  * Each sibling product is shown with its own mark and its own brand colour —
@@ -218,9 +219,7 @@ function UseCasesNavItem() {
       onClick={() => setOpen(false)}
       className="flex items-start gap-2.5 rounded-lg p-2 transition-colors hover:bg-muted/60"
     >
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-        <u.icon className="h-4 w-4" />
-      </span>
+      <UseCaseIcon useCase={u} size="sm" className="mt-0.5" />
       <span className="min-w-0">
         <span className="block text-[13.5px] font-semibold leading-tight text-foreground">{u.name}</span>
         <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">{u.summary}</span>
@@ -534,7 +533,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2.5 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
                   >
-                    <u.icon className="h-4 w-4 text-primary" />
+                    <UseCaseIcon useCase={u} size="xs" />
                     {u.name}
                   </Link>
                 ))}
