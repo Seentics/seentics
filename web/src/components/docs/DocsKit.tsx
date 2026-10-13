@@ -92,6 +92,19 @@ export function Li({ children }: { children: ReactNode }) {
   );
 }
 
+/** Numbered steps; put `Oli` inside. */
+export function Ol({ children }: { children: ReactNode }) {
+  return (
+    <ol className="max-w-[68ch] list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-muted-foreground marker:text-muted-foreground/60">
+      {children}
+    </ol>
+  );
+}
+
+export function Oli({ children }: { children: ReactNode }) {
+  return <li className="pl-1">{children}</li>;
+}
+
 /** Inline code. */
 export function C({ children }: { children: ReactNode }) {
   return (

@@ -28,7 +28,7 @@ export default function TrackerPage() {
           code={`<script
   defer
   data-website-id="YOUR_WEBSITE_ID"
-  src="https://app.seentics.com/trackers/seentics.min.js"
+  src="https://seentics.com/trackers/seentics.min.js"
 ></script>`}
         />
         <P>

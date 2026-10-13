@@ -11,7 +11,7 @@ import type { DocField, EndpointDoc } from '@/components/developers/EndpointRefe
 
 const CLIENT_ID = '5bbeaa88-b089-4923-ad54-8fdcbbcdba94';
 const SITE_ID = '2f60eb30-722c-4fbf-8afa-99fe0e67f6d9';
-const SCRIPT = 'https://app.seentics.com/trackers/seentics.min.js';
+const SCRIPT = 'https://seentics.com/trackers/seentics.min.js';
 const SNIPPET = `<script defer data-website-id="${SITE_ID}" src="${SCRIPT}"></script>`;
 
 const clientWebsite = {

@@ -37,6 +37,7 @@ const PAGES: Entry[] = [
   ...DOC_ENTRIES,
   { path: '/blog',          priority: 0.7, changeFrequency: 'weekly' },
   { path: '/contact',       priority: 0.5, changeFrequency: 'yearly' },
+  { path: '/integrations', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/terms',         priority: 0.3, changeFrequency: 'yearly' },
   { path: '/privacy',       priority: 0.3, changeFrequency: 'yearly' },
   { path: '/dpa',           priority: 0.3, changeFrequency: 'yearly' },

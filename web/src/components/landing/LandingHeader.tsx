@@ -4,12 +4,14 @@ import { useRef, useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Github, Gauge, ChevronDown } from 'lucide-react';
+import { Menu, X, Github, Gauge, ChevronDown, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
 import { config } from '@/lib/config';
+import { IntegrationIcon } from '@/components/integrations/IntegrationIcon';
+import { INTEGRATIONS } from '@/lib/integrations';
 
 /**
  * Each sibling product is shown with its own mark and its own brand colour —
@@ -187,6 +189,94 @@ function ProductsNavItem() {
   );
 }
 
+/**
+ * Same hover behaviour as the products menu, for the platform guides. The panel is
+ * positioned against the header, not the trigger: the trigger sits in a right-hand
+ * cluster, and a panel this wide anchored to it would run off one edge or the other.
+ */
+function IntegrationsNavItem() {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
+  useEffect(() => () => cancelClose(), []);
+
+  const featured = INTEGRATIONS.filter((i) => i.featured);
+
+  return (
+    <div
+      onMouseEnter={() => { cancelClose(); setOpen(true); }}
+      onMouseLeave={scheduleClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+      >
+        Integrations
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            /* `x: '-50%'` rather than a Tailwind translate: Framer writes its own inline
+               transform for `y`, which would replace the class and leave the panel
+               hanging off the right edge. */
+            initial={{ opacity: 0, y: -6, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -6, x: '-50%' }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-1/2 top-full z-50 mt-3 w-[min(760px,calc(100vw-3rem))] rounded-xl border border-border bg-card p-3 shadow-lg"
+          >
+            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+              Works with
+            </p>
+            <div className="grid grid-cols-2 gap-x-1 gap-y-0.5">
+              {featured.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-start gap-3 rounded-lg p-2.5 transition-colors hover:bg-muted/60"
+                >
+                  <IntegrationIcon integration={item} size={20} />
+                  <span className="min-w-0">
+                    <span className="block text-[14.5px] font-semibold text-foreground">{item.name}</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
+                      {item.description}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-2 border-t border-border/60 px-3 pt-2.5">
+              <Link
+                href="/integrations"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-primary hover:underline"
+              >
+                See all integrations <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function LandingHeader({ alwaysBordered = false }: { alwaysBordered?: boolean }) {
   const { isAuthenticated: authed } = useAuth();
   /*
@@ -245,6 +335,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
         <div className="hidden lg:flex items-center gap-7">
           <nav className="flex items-center gap-6">
             <ProductsNavItem />
+            <IntegrationsNavItem />
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -341,6 +432,27 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                     {item.name}
                   </Link>
                 ))}
+              </div>
+              <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
+                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Integrations</p>
+                {INTEGRATIONS.filter((i) => i.featured).map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2.5 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  >
+                    <IntegrationIcon integration={item} size={16} tile={false} />
+                    {item.name}
+                  </Link>
+                ))}
+                <Link
+                  href="/integrations"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-1.5 py-2 text-sm font-semibold text-primary"
+                >
+                  See all integrations <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
               <nav className="flex flex-col gap-1">
                 {navLinks.map((link) => (

@@ -10,6 +10,14 @@ import {
   KeyRound,
   LayoutDashboard,
   Rocket,
+  ShoppingBag,
+  ShoppingCart,
+  Globe,
+  Layers,
+  Tags,
+  Store,
+  LayoutTemplate,
+  Route,
   Server,
   Terminal,
   ShieldCheck,
@@ -130,6 +138,23 @@ export const DOCS_NAV: DocsNavGroup[] = [
     ],
   },
   {
+    title: 'Frameworks',
+    items: [
+      {
+        title: 'Frameworks',
+        href: '/docs/frameworks',
+        icon: Layers,
+        summary: 'Next.js, React, Vue, Nuxt, Astro, SvelteKit and plain script setups.',
+      },
+      {
+        title: 'Your own domain',
+        href: '/docs/proxy',
+        icon: Route,
+        summary: 'Serve the tracker from your domain, and what it does to location.',
+      },
+    ],
+  },
+  {
     title: 'Integration',
     items: [
       {
@@ -149,6 +174,42 @@ export const DOCS_NAV: DocsNavGroup[] = [
         href: '/docs/api-keys',
         icon: KeyRound,
         summary: 'Create keys, pick scopes, keep them safe.',
+      },
+      {
+        title: 'WordPress',
+        href: '/docs/wordpress',
+        icon: Globe,
+        summary: 'Install the plugin and paste your website ID.',
+      },
+      {
+        title: 'WooCommerce',
+        href: '/docs/woocommerce',
+        icon: ShoppingCart,
+        summary: 'Purchases, product views and checkout steps from your store.',
+      },
+      {
+        title: 'Shopify',
+        href: '/docs/shopify',
+        icon: ShoppingBag,
+        summary: 'A theme snippet and a custom pixel for checkout.',
+      },
+      {
+        title: 'Website builders',
+        href: '/docs/website-builders',
+        icon: LayoutTemplate,
+        summary: 'Webflow, Wix, Squarespace, Framer and Ghost.',
+      },
+      {
+        title: 'Google Tag Manager',
+        href: '/docs/google-tag-manager',
+        icon: Tags,
+        summary: 'Load the tracker and send purchases from the dataLayer.',
+      },
+      {
+        title: 'BigCommerce, PrestaShop, Magento',
+        href: '/docs/ecommerce-platforms',
+        icon: Store,
+        summary: 'Script placement and purchase snippets for three store platforms.',
       },
       {
         title: 'UI blocks',

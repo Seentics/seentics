@@ -8,7 +8,7 @@ import { useAuth } from '@/stores/useAuthStore';
 const SNIPPET = `<script
   defer
   data-website-id="YOUR_WEBSITE_ID"
-  src="https://app.seentics.com/trackers/seentics.min.js"
+  src="https://seentics.com/trackers/seentics.min.js"
 ></script>`;
 
 const STEPS = [

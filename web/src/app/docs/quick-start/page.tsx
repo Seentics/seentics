@@ -41,7 +41,7 @@ export default function QuickStartPage() {
 <script
   defer
   data-website-id="YOUR_WEBSITE_ID"
-  src="https://app.seentics.com/trackers/seentics.min.js"
+  src="https://seentics.com/trackers/seentics.min.js"
 ></script>`}
         />
         <Callout kind="warning" title="The attribute is data-website-id">
@@ -89,6 +89,17 @@ export default function QuickStartPage() {
             <strong className="font-medium text-foreground">Funnels and automations</strong> — define
             them in the dashboard; the tracker already evaluates them.
           </Li>
+        </Ul>
+      </DocSection>
+
+      <DocSection title="Using a framework or platform?">
+        <P>You can skip the script tag and use a package or a platform guide instead:</P>
+        <Ul>
+          <Li><Link href="/docs/frameworks" className="text-primary hover:underline">Frameworks</Link> — Next.js, React, Vue, Nuxt, Astro, SvelteKit, Remix, Gatsby, Angular.</Li>
+          <Li><Link href="/docs/wordpress" className="text-primary hover:underline">WordPress</Link>, <Link href="/docs/woocommerce" className="text-primary hover:underline">WooCommerce</Link> and <Link href="/docs/shopify" className="text-primary hover:underline">Shopify</Link>.</Li>
+          <Li><Link href="/docs/website-builders" className="text-primary hover:underline">Webflow, Wix, Squarespace, Framer and Ghost</Link>.</Li>
+          <Li><Link href="/docs/google-tag-manager" className="text-primary hover:underline">Google Tag Manager</Link> and <Link href="/docs/ecommerce-platforms" className="text-primary hover:underline">BigCommerce, PrestaShop and Magento</Link>.</Li>
+          <Li><Link href="/docs/proxy" className="text-primary hover:underline">Serving the tracker from your own domain</Link>.</Li>
         </Ul>
       </DocSection>
 
