@@ -15,6 +15,8 @@ import { initApiKeysModule } from "../modules/api-keys/init";
 import { initAnalyticsModule } from "../modules/analytics/init";
 import { initAuthModule } from "../modules/auth/init";
 import { initAutomationsModule } from "../modules/automations/init";
+import { initLeadsModule } from "../modules/leads/init";
+import type { LeadsModule } from "../modules/leads/interfaces";
 import { initFunnelsModule } from "../modules/funnels/init";
 import { initHeatmapsModule } from "../modules/heatmaps/init";
 import { initIngestModule } from "../modules/ingest/init";
@@ -52,6 +54,7 @@ export type Application = {
     heatmaps: HeatmapsModule;
     errors: ErrorsModule;
     automations: AutomationsModule;
+    leads: LeadsModule;
     ai: AiModule;
     ingest: IngestModule;
   };
@@ -64,6 +67,8 @@ export type Application = {
     heatmaps: HeatmapsModule["routes"];
     errors: ErrorsModule["routes"];
     automations: AutomationsModule["routes"];
+    leads: LeadsModule["routes"];
+    leadsTracker: LeadsModule["trackerRoutes"];
     ai: AiModule["routes"];
     internal: ReturnType<typeof createInternalRoutes>;
   };
@@ -116,6 +121,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
   const automationsModule = initAutomationsModule({ websitesModule });
   const errorsModule = initErrorsModule({ websitesModule });
+  const leadsModule = initLeadsModule({ websitesModule, automations: automationsModule.directory });
   const aiModule = initAiModule({
     websitesModule,
     analyticsReads: analyticsModule.reads,
@@ -171,6 +177,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     websitesModule.usage,
     funnelsModule.usage,
     automationsModule.usage,
+    leadsModule.usage,
     heatmapsModule.usage,
     recordingsModule.usage,
     analyticsModule.usage,
@@ -187,6 +194,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     heatmaps: heatmapsModule,
     errors: errorsModule,
     automations: automationsModule,
+    leads: leadsModule,
     ai: aiModule,
     ingest: ingestModule,
   };
@@ -218,6 +226,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       heatmaps: heatmapsModule.routes,
       errors: errorsModule.routes,
       automations: automationsModule.routes,
+      leads: leadsModule.routes,
+      leadsTracker: leadsModule.trackerRoutes,
       ai: aiModule.routes,
       // Reuses ingest's buffer: the internal collectors carry the same data over a
       // server-to-server API, so they get the same batching and exactly-once handling.

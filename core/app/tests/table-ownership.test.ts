@@ -52,6 +52,8 @@ const TABLE_OWNER: Record<string, string> = {
   account_api_keys: "api-keys",
   embed_links: "api-keys",
   clients: "websites",
+  contacts: "leads",
+  lead_submissions: "leads",
 };
 
 /** Drizzle identifier → table name, for the builder form. */

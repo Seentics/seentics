@@ -35,6 +35,8 @@ export type {
 
 export type { AutomationRepository } from "./automation-repository.interface";
 
+export type { AutomationDirectory } from "./automation-directory.interface";
+
 export type { AutomationTrackerSettings } from "./automation-settings.interface";
 
 export type { AutomationTriggerQueued, AutomationTriggerWriter } from "./automation-ingest.interface";

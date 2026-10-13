@@ -131,11 +131,13 @@ app.route("/api/v1/funnels", application.routes.funnels.publicRoutes);
 app.route("/api/v1/websites", application.routes.websites);
 app.route("/api/v1/websites", application.routes.funnels.authRoutes);
 app.route("/api/v1/automations", application.routes.automations);
+app.route("/api/v1/leads", application.routes.leads);
 
 app.route("/api/v1/replays", application.routes.recordings);
 app.route("/api/v1/heatmaps", application.routes.heatmaps);
 app.route("/api/v1/errors", application.routes.errors);
 app.route("/api/v1/tracker", application.routes.tracker);
+app.route("/api/v1/tracker/leads", application.routes.leadsTracker);
 
 const port = cfg.port;
 

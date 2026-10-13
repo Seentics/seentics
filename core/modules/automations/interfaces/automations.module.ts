@@ -3,6 +3,7 @@ import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
 import type { RetentionPurge } from "../../../platform/retention";
 import type {
+  AutomationDirectory,
   AutomationEvaluation,
   AutomationTrackerSettings,
   AutomationTriggerWriter,
@@ -19,6 +20,9 @@ export interface AutomationsModule {
 
   /** Creates an automation from an already-validated draft. See `AutomationDraftWriter`. */
   draftWriter: AutomationDraftWriter;
+
+  /** Name lookup for peers that attribute their own rows to an automation. */
+  directory: AutomationDirectory;
 
   /** Active automations for the tracker's `/init`. One indexed read per session. */
   trackerSettings: AutomationTrackerSettings;

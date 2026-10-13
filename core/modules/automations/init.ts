@@ -3,6 +3,7 @@ import type { WebsitesModule } from "../websites/interfaces";
 import { AutomationDraftValidatorService } from "./lib/draft-validator";
 import { AutomationDraftWriterService } from "./lib/draft-writer";
 import type { AutomationsModule } from "./interfaces";
+import { AutomationDirectoryService } from "./services/automation-directory.service";
 import { AutomationUsageCounter } from "./services/usage-count.service";
 import { PostgresAutomationRepository } from "./repositories/postgres-automation.repository";
 import { createAutomationRoutes } from "./routes";
@@ -34,6 +35,7 @@ export function initAutomationsModule(deps: {
       profiles: profilesLane(visitorProfiles),
     },
 
+    directory: new AutomationDirectoryService(),
     trackerSettings,
     // Built here so it publishes onto the real bus. An evaluation service holding its
     // own bus would fire `automation.action_executed` at nobody.

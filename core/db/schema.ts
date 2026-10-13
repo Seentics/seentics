@@ -809,3 +809,62 @@ export const errorEvents = pgTable(
     index("ix_error_events_group_occurred").on(t.websiteId, t.fingerprint, t.occurredAt),
   ],
 );
+
+/**
+ * One email address on one website — the row the leads inbox lists.
+ *
+ * De-duplicated on `(websiteId, email)`: a returning visitor raises `submissionCount`
+ * rather than adding a row. Mirrors `sql/050_leads.sql`; keep them in step.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    /** Stored lower-cased and trimmed — it is the de-duplication key. */
+    email: varchar("email", { length: 254 }).notNull(),
+    name: varchar("name", { length: 200 }).notNull().default(""),
+    phone: varchar("phone", { length: 50 }).notNull().default(""),
+    /** new | contacted | archived */
+    status: varchar("status", { length: 16 }).notNull().default("new"),
+    consent: boolean("consent").notNull().default(false),
+    submissionCount: integer("submission_count").notNull().default(1),
+    anonymousId: text("anonymous_id"),
+    firstSubmittedAt: timestamp("first_submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSubmittedAt: timestamp("last_submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("contacts_website_email_uq").on(t.websiteId, t.email),
+    index("ix_contacts_website_last_submitted").on(t.websiteId, t.lastSubmittedAt),
+    index("ix_contacts_website_status").on(t.websiteId, t.status),
+  ],
+);
+
+/** Each form submission, kept so a contact can be attributed to a popup, variant and page. */
+export const leadSubmissions = pgTable(
+  "lead_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    automationId: uuid("automation_id"),
+    variant: varchar("variant", { length: 64 }),
+    fields: jsonb("fields").notNull().default({}),
+    pageUrl: text("page_url").notNull().default(""),
+    referrer: text("referrer").notNull().default(""),
+    sessionId: text("session_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_lead_submissions_contact_created").on(t.contactId, t.createdAt),
+    index("ix_lead_submissions_website_automation").on(t.websiteId, t.automationId),
+  ],
+);
