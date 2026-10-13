@@ -17,11 +17,11 @@ export default function CheckoutIntent() {
 
   useEffect(() => {
     if (!user || started.current) return;
-    const plan = takeCheckoutIntent();
-    if (!plan) return;
+    const intent = takeCheckoutIntent();
+    if (!intent) return;
     started.current = true;
     setBusy(true);
-    startCheckout(plan).catch(() => {
+    startCheckout(intent.plan, intent.interval).catch(() => {
       toast.error('Could not open the checkout. Choose your plan again from Billing.');
       setBusy(false);
     });

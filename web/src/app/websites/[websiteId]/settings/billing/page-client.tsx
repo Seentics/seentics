@@ -50,9 +50,12 @@ export default function BillingSettingsPage() {
 
   const { subscription, loading } = useSubscription();
   const isPro = subscription?.planId === 'pro';
+  const isAnalytics = subscription?.planId === 'analytics';
+  const isPaid = isPro || isAnalytics;
+  const yearly = subscription?.billingInterval === 'year';
   const meter = useMeter({ demo, enabled: isPro });
   const extraUsageOn = !!meter.data;
-  const [busy, setBusy] = useState<'pro' | 'extra_usage' | 'portal' | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   if (!isEnterprise && !demo) return null;
 
@@ -61,11 +64,11 @@ export default function BillingSettingsPage() {
     return demo;
   };
 
-  const checkout = async (plan: 'pro' | 'extra_usage') => {
+  const checkout = async (plan: 'analytics' | 'pro' | 'extra_usage', interval: 'month' | 'year' = 'month') => {
     if (notOnDemo()) return;
     try {
-      setBusy(plan);
-      await startCheckout(plan);
+      setBusy(`${plan}:${interval}`);
+      await startCheckout(plan, interval);
     } catch (e: any) {
       toast.error(e?.response?.data?.error || 'Could not start the checkout. Please try again.');
     } finally {
@@ -109,7 +112,10 @@ export default function BillingSettingsPage() {
         <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold">{isPro ? 'Pro' : 'Free'}</h2>
+              <h2 className="text-xl font-semibold">{isPro ? 'Pro' : isAnalytics ? 'Analytics' : 'Free'}</h2>
+              {isPaid && yearly && (
+                <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium">Yearly</Badge>
+              )}
               {subscription?.cancelAtPeriodEnd ? (
                 <Badge className="h-5 border border-amber-500/20 bg-amber-500/10 px-1.5 text-[11px] font-medium text-amber-600">Ending</Badge>
               ) : (
@@ -117,26 +123,46 @@ export default function BillingSettingsPage() {
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isPro
+              {isPaid
                 ? subscription?.cancelAtPeriodEnd
                   ? `Ends ${fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free.`
-                  : `$15 a month. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
+                  : `${yearly ? `$${subscription?.priceYearly ?? ''} a year` : `$${subscription?.priceMonthly ?? ''} a month`}. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
                 : 'Monthly limits. Collection pauses at a limit until the month resets.'}
             </p>
+            {isAnalytics && (
+              <p className="mt-1 text-sm text-muted-foreground">Session replay, heatmaps, automations and lead capture are part of Pro.</p>
+            )}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            {isPro ? (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={openPortal} disabled={busy !== null}>
-                {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-                Invoices, payment & cancelling
-              </Button>
+            {isPaid ? (
+              <>
+                {isAnalytics && (
+                  <Button size="sm" className="gap-1.5" onClick={() => checkout('pro', yearly ? 'year' : 'month')} disabled={busy !== null}>
+                    {busy?.startsWith('pro:') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {!yearly && !subscription?.cancelAtPeriodEnd && (
+                  <Button variant="outline" size="sm" onClick={() => checkout(isPro ? 'pro' : 'analytics', 'year')} disabled={busy !== null}>
+                    Switch to yearly and save
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={openPortal} disabled={busy !== null}>
+                  {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                  Invoices, payment & cancelling
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/pricing">Compare plans</Link>
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => checkout('analytics')} disabled={busy !== null}>
+                  {busy === 'analytics:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Get Analytics
+                </Button>
                 <Button size="sm" className="gap-1.5" onClick={() => checkout('pro')} disabled={busy !== null}>
-                  {busy === 'pro' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {busy === 'pro:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </>
@@ -152,7 +178,7 @@ export default function BillingSettingsPage() {
         <p className="text-sm text-muted-foreground">Extra usage could not be measured right now. Try again in a minute.</p>
       )}
       {isPro && meter.isSuccess && !meter.data && (
-        <ExtraUsageOff onTurnOn={() => checkout('extra_usage')} busy={busy === 'extra_usage'} disabled={busy !== null} />
+        <ExtraUsageOff onTurnOn={() => checkout('extra_usage')} busy={busy === 'extra_usage:month'} disabled={busy !== null} />
       )}
       {isPro && meter.data && (
         <>
@@ -161,7 +187,7 @@ export default function BillingSettingsPage() {
         </>
       )}
 
-      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn} title={isPro ? (extraUsageOn ? 'Other usage' : 'Usage this month') : 'Usage this month'} />
+      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn} title={isPro && extraUsageOn ? 'Other usage' : 'Usage this month'} />
     </div>
   );
 }

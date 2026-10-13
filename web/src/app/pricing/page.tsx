@@ -28,13 +28,13 @@ export default function PricingPage() {
         }
         if (!isAuthenticated) {
             // Sign up first; the dashboard then takes them straight to this plan's checkout.
-            rememberCheckoutIntent(selection.plan);
+            rememberCheckoutIntent(selection.plan, selection.interval);
             router.push('/signup');
             return;
         }
         try {
             setLoading(true);
-            await startCheckout(selection.plan);
+            await startCheckout(selection.plan, selection.interval);
         } catch (error: any) {
             toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to create checkout. Please try again.');
         } finally {
@@ -50,7 +50,7 @@ export default function PricingPage() {
                         Start free. Pay only as you grow.
                     </h1>
                     <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                        Analytics, replay and observability in one plan.
+                        Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
                     </p>
                 </div>
 

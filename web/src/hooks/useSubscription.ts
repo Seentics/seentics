@@ -24,7 +24,7 @@ export interface SubscriptionUsage {
 export interface SubscriptionData {
   id: string;
   plan: string;
-  /** Real catalog id, `free` or `pro` — use this for comparisons, `plan` is just the display name. */
+  /** Real catalog id, `free`, `analytics` or `pro` — use this for comparisons, `plan` is just the display name. */
   planId?: string;
   status: string;
   usage: SubscriptionUsage;
@@ -32,6 +32,10 @@ export interface SubscriptionData {
   isActive: boolean;
   isCustomPlan?: boolean;
   priceMonthly?: number;
+  /** The price of a year, when the plan is sold yearly. */
+  priceYearly?: number | null;
+  /** How the subscription behind the plan is billed. */
+  billingInterval?: 'month' | 'year';
   currentPeriodEnd?: string;
   cancelAtPeriodEnd?: boolean;
 }

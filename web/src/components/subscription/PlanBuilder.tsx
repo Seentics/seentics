@@ -4,14 +4,16 @@ import React from 'react';
 import { ArrowRight, Check, ChevronDown, Loader2, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
-import type { Plan } from '@/features/plans/types';
-import { COMPARE_GROUPS, TIER_PITCH, cardSectionsFor } from '@/features/plans/pricing-spec';
+import type { BillingInterval, Plan } from '@/features/plans/types';
+import { COMPARE_GROUPS, TIER_PITCH, cardSectionsFor, formatMoney, maxYearlySaving, monthlyPrice, yearlySavingPercent } from '@/features/plans/pricing-spec';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  /** A real plan id from gateway's catalog (`free`, `pro`) — gateway validates it at checkout. */
+  /** A real plan id from gateway's catalog (`free`, `analytics`, `pro`) — gateway validates it at checkout. */
   plan: string;
+  /** What the customer will pay each month on this interval ($0 for Free). */
   price: number;
+  interval: BillingInterval;
 }
 
 interface PlanBuilderProps {
@@ -19,26 +21,38 @@ interface PlanBuilderProps {
   loading?: boolean;
   /** The signed-in account's plan id; a visitor has none. */
   currentPlan?: string;
+  /** How the signed-in account is billed; the matching card reads "Current plan". */
+  currentInterval?: BillingInterval;
 }
 
+const CTA: Record<Plan['tier'], string> = { free: 'Start free', analytics: 'Get Analytics', pro: 'Get Pro' };
+
 /**
- * Free and Pro, from gateway's GET /api/v1/plans: two cards with one short list each
- * (pricing-spec.ts), and the full comparison behind "Compare all features".
+ * Free, Analytics and Pro, from gateway's GET /api/v1/plans: three cards with one short list each
+ * (pricing-spec.ts), a Monthly / Yearly toggle, and the full comparison behind "Compare all features".
+ * Yearly is the default: it is the plan's price for the year, shown as a monthly figure with the
+ * yearly total beside it.
  */
-export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderProps) {
+export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval }: PlanBuilderProps) {
   const { data: plans, isLoading, isError } = usePlans();
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
+  const [interval, setInterval] = React.useState<BillingInterval>('year');
 
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
-    onSubscribe({ plan: plan.id, price: plan.priceMonthly });
+    onSubscribe({ plan: plan.id, price: monthlyPrice(plan, interval), interval });
   };
 
   const renderCard = (plan: Plan) => {
     const featured = plan.tier === 'pro';
-    const isCurrent = !!currentPlan && currentPlan === plan.id;
+    const paid = plan.priceMonthly > 0;
+    // A card is the current plan when it is the plan, and for the paid ones the interval too: the
+    // other interval is a switch the customer can make.
+    const isCurrent = !!currentPlan && currentPlan === plan.id && (!paid || !currentInterval || currentInterval === interval);
+    const yearly = paid && interval === 'year' && plan.priceYearly != null;
+    const saving = yearlySavingPercent(plan);
     return (
       <div
         key={plan.id}
@@ -54,12 +68,18 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
         )}
 
         <h3 className="text-lg font-semibold">{plan.name}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
+        <p className="mt-1 min-h-[2.5rem] text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
 
-        <div className="mt-5 flex items-baseline gap-1">
-          <span className="text-4xl font-bold tracking-tight">${plan.priceMonthly}</span>
+        <div className="mt-5 flex items-baseline gap-1.5">
+          <span className="text-4xl font-bold tracking-tight">{formatMoney(monthlyPrice(plan, interval))}</span>
           <span className="text-sm text-muted-foreground">/month</span>
+          {yearly && saving > 0 && (
+            <span className="ml-1 text-sm text-muted-foreground line-through decoration-muted-foreground/60">${plan.priceMonthly}</span>
+          )}
         </div>
+        <p className="mt-1 h-5 text-[13px] text-muted-foreground">
+          {!paid ? 'Free forever' : yearly ? `Billed ${formatMoney(plan.priceYearly!)} yearly · save ${saving}%` : 'Billed monthly'}
+        </p>
 
         <Button
           onClick={() => handleSubscribe(plan)}
@@ -72,7 +92,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
           ) : isCurrent ? (
             'Current plan'
           ) : (
-            <>{featured ? 'Get Pro' : 'Start free'} <ArrowRight className="h-4 w-4" /></>
+            <>{CTA[plan.tier]} <ArrowRight className="h-4 w-4" /></>
           )}
         </Button>
 
@@ -98,8 +118,10 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
     );
   };
 
+  const saving = plans ? maxYearlySaving(plans) : 0;
+
   return (
-    <div className="mx-auto w-full max-w-[52rem]">
+    <div className="mx-auto w-full max-w-[72rem]">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -112,10 +134,29 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
 
       {plans && (
         <>
-          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2">{plans.map(renderCard)}</div>
+          <div className="mb-8 flex justify-center">
+            <div role="group" aria-label="Billing interval" className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
+              {(['month', 'year'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={interval === value}
+                  onClick={() => setInterval(value)}
+                  className={cn(
+                    'rounded-full px-5 py-1.5 transition-colors',
+                    interval === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {value === 'month' ? 'Monthly' : `Yearly${saving > 0 ? ` (save up to ${saving}%)` : ''}`}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Both plans include Analytics, Session Replay and Observability. Extra usage is off until you turn it on, and a spend cap keeps it in budget.
+          <div className="grid grid-cols-1 gap-6 pt-3 md:grid-cols-2 lg:grid-cols-3">{plans.map(renderCard)}</div>
+
+          <p className="mx-auto mt-8 max-w-3xl text-center text-sm text-muted-foreground">
+            Every plan stops at its limits. On Pro, extra usage is off until you turn it on, and a spend cap keeps it in budget. Prices are in US dollars.
           </p>
 
           <div className="mt-4 flex justify-center">
@@ -125,24 +166,24 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
             </Button>
           </div>
 
-          {comparing && <CompareTable plans={plans} />}
+          {comparing && <CompareTable plans={plans} interval={interval} />}
         </>
       )}
     </div>
   );
 }
 
-function CompareTable({ plans }: { plans: Plan[] }) {
+function CompareTable({ plans, interval }: { plans: Plan[]; interval: BillingInterval }) {
   return (
     <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card">
-      <table className="w-full min-w-[520px] text-sm">
+      <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-border">
             <th className="w-2/5 px-5 py-4 text-left font-medium text-muted-foreground" />
             {plans.map((plan) => (
               <th key={plan.id} className={cn('px-4 py-4 text-center font-semibold', plan.tier === 'pro' && 'text-primary')}>
                 {plan.name}
-                <span className="block text-xs font-normal text-muted-foreground">${plan.priceMonthly}/mo</span>
+                <span className="block text-xs font-normal text-muted-foreground">{plan.priceMonthly > 0 ? `${formatMoney(monthlyPrice(plan, interval))}/mo` : 'Free'}</span>
               </th>
             ))}
           </tr>

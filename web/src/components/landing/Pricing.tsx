@@ -23,13 +23,13 @@ export default function Pricing() {
     }
     if (!isAuthenticated) {
       // Sign up first; the dashboard then takes them straight to this plan's checkout.
-      rememberCheckoutIntent(selection.plan);
+      rememberCheckoutIntent(selection.plan, selection.interval);
       router.push('/signup');
       return;
     }
     try {
       setLoading(true);
-      await startCheckout(selection.plan);
+      await startCheckout(selection.plan, selection.interval);
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
     } finally {
@@ -46,7 +46,7 @@ export default function Pricing() {
             Start free. Pay only as you grow.
           </h2>
           <p className="landing-lead">
-            Analytics, replay and observability in one plan.
+            Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
           </p>
         </div>
 

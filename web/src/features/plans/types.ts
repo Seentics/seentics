@@ -1,10 +1,12 @@
 export type Plan = {
   id: string;
   name: string;
-  /** `free`, or `pro` ($15 a month; past its included amounts with Extra usage, an add-on). */
-  tier: 'free' | 'pro';
+  /** `free`, `analytics` ($9 a month) or `pro` ($19 a month; past its included amounts with Extra usage, an add-on). */
+  tier: 'free' | 'analytics' | 'pro';
   description: string | null;
   priceMonthly: number;
+  /** The price of a year, billed at once ($84, $168); null when the plan is not sold yearly. */
+  priceYearly: number | null;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];
   features: string[];
@@ -14,3 +16,6 @@ export type Plan = {
    */
   limits: Record<string, Record<string, number>>;
 };
+
+/** How a plan is billed. */
+export type BillingInterval = 'month' | 'year';

@@ -1,24 +1,39 @@
 /**
  * What the pricing cards and the comparison table show, derived from the
- * plans' numeric limits (gateway/db/sql/030_pro_and_extra_usage.sql) rather than their marketing
+ * plans' numeric limits (gateway/db/sql/030, 035) rather than their marketing
  * copy, so the page can't advertise a number the product doesn't enforce.
  *
- * Two plans: Free and Pro ($15 a month), both stopping at their limits. Pro can go past its included
- * amounts with Extra usage, turned on from Billing and billed at OVERAGE_RATES. Pro stores each such
- * limit as -1 with its included amount beside it as `included_<key>`.
+ * Three plans: Free, Analytics ($9 a month, $84 a year) and Pro ($19 a month, $168 a year), each
+ * stopping at its limits. Pro can go past its included amounts with Extra usage, turned on from
+ * Billing and billed at OVERAGE_RATES. Pro stores each such limit as -1 with its included amount
+ * beside it as `included_<key>`; Analytics and Free store a plain cap.
  *
  * Kept in sync by hand with observability/web/src/components/landing/pricing-spec.ts; the apps
  * share no code.
  */
 
-export type PricingTier = 'free' | 'pro';
+export type PricingTier = 'free' | 'analytics' | 'pro';
 
 /** The slice of a gateway plan this module reads. */
 export type PricedPlan = {
   tier: PricingTier;
   priceMonthly: number;
+  priceYearly?: number | null;
   limits: Record<string, Record<string, number> | undefined>;
 };
+
+export type BillingInterval = 'month' | 'year';
+
+/** What a plan costs per month on an interval: yearly is the year's price spread over twelve months. */
+export const monthlyPrice = (plan: PricedPlan, interval: BillingInterval): number =>
+  interval === 'year' && plan.priceYearly ? plan.priceYearly / 12 : plan.priceMonthly;
+
+/** The share saved by paying for the year, as a whole percentage; 0 when there is no yearly price. */
+export const yearlySavingPercent = (plan: PricedPlan): number =>
+  plan.priceYearly && plan.priceMonthly > 0 ? Math.round((1 - plan.priceYearly / (plan.priceMonthly * 12)) * 100) : 0;
+
+/** The biggest saving across the plans, for the toggle: "Yearly (save up to 26%)". */
+export const maxYearlySaving = (plans: PricedPlan[]): number => Math.max(0, ...plans.map(yearlySavingPercent));
 
 /**
  * Past the included amounts. Must match the gateway's billing (gateway/billing/metering.ts RATES):
@@ -32,7 +47,8 @@ export const OVERAGE_RATES = {
 
 export const TIER_PITCH: Record<PricingTier, string> = {
   free: 'Everything to get started, with monthly limits',
-  pro: 'Generous included usage, with optional extra usage',
+  analytics: 'Simple, privacy-friendly web analytics',
+  pro: 'The full toolkit, with optional extra usage',
 };
 
 // ---------------------------------------------------------------------------
@@ -85,24 +101,32 @@ export const RATES_LINE = Object.values(OVERAGE_RATES)
 /** A card's two sections: what the plan includes each month, then what usage past that does. */
 export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const core = (key: string) => limit(plan, 'core', key);
+  const replays = allowance(plan, 'core', 'replays');
   const heatmaps = core('heatmaps');
   const funnels = core('funnels');
   const automations = core('automations');
+  const leads = core('leads');
+  const has = (value: number | undefined) => value !== undefined && value !== 0;
+  const everything = heatmaps === -1 && funnels === -1 && automations === -1;
 
   const included: Highlight[] = [
-    // "Up to": both plans stop at these by default, so the bill is predictable (Pro goes past them
+    // "Up to": every plan stops at these by default, so the bill is predictable (Pro goes past them
     // only with Extra usage turned on).
     { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events monthly' },
-    { value: `Up to ${formatCount(allowance(plan, 'core', 'replays'))}`, label: 'session recordings monthly' },
-    { value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'of logs, traces & metrics monthly' },
+    ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings monthly' }] : []),
+    // Analytics does not cover Observability: it falls back to Free's, which the Analytics card does not advertise.
+    ...(plan.tier !== 'analytics' ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'of logs, traces & metrics monthly' }] : []),
     { value: formatDays(core('retention_days')), label: 'analytics retention' },
     { value: formatCount(core('websites')), label: 'websites' },
-    heatmaps === -1 && funnels === -1 && automations === -1
+    everything
       ? { value: 'Unlimited', label: 'heatmaps, funnels & automations' }
-      : {
-          value: '',
-          label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
-        },
+      : plan.tier === 'analytics'
+        ? { value: '', label: `Goals and ${formatCount(funnels)} basic ${plural(funnels, 'funnel', 'funnels')}` }
+        : {
+            value: '',
+            label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
+          },
+    ...(has(leads) ? [{ value: formatCount(leads), label: 'leads from popup forms' }] : []),
     { value: formatCount(core('ai_analyses')), label: 'AI analyses monthly' },
     // On every plan, so an agency can try it on Free. (White label will be Pro's; it is not
     // advertised until it is built.)
@@ -117,10 +141,15 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
         { value: '', label: 'Turn on extra usage from Billing in your dashboard' },
         { value: '', label: 'Optional monthly spend cap' },
       ]
-    : [
-        { value: '', label: 'Collection pauses at a limit until next month' },
-        { value: '', label: 'No card needed' },
-      ];
+    : plan.tier === 'analytics'
+      ? [
+          { value: '', label: 'Collection pauses at the limit until next month' },
+          { value: '', label: 'Upgrade to Pro for replay, heatmaps, automations and lead capture' },
+        ]
+      : [
+          { value: '', label: 'Collection pauses at a limit until next month' },
+          { value: '', label: 'No card needed' },
+        ];
 
   return [
     { title: 'Included', items: included },
@@ -134,9 +163,17 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
 export type CompareRow = { label: string; value: (plan: PricedPlan) => string | boolean };
 export type CompareGroup = { title: string; rows: CompareRow[] };
 
-const meteredCell = (product: string, key: string, unit = '') => (p: PricedPlan) => {
+/** "Up to 300", or a dash for a plan that has none of it (a limit of 0). */
+const meteredCell = (product: string, key: string, unit = '') => (p: PricedPlan): string | boolean => {
   const value = allowance(p, product, key);
+  if (value === 0) return false;
   return `Up to ${unit ? `${value} ${unit}` : formatCount(value)}`;
+};
+
+/** A count, or a dash for a plan that has none of it. */
+const countCell = (product: string, key: string) => (p: PricedPlan): string | boolean => {
+  const value = limit(p, product, key);
+  return value === 0 ? false : formatCount(value);
 };
 
 export const COMPARE_GROUPS: CompareGroup[] = [
@@ -155,27 +192,28 @@ export const COMPARE_GROUPS: CompareGroup[] = [
     title: 'Session replay',
     rows: [
       { label: 'Recordings / month', value: meteredCell('core', 'replays') },
-      { label: 'Past the limit', value: (p) => (isMetered(p, 'core', 'replays') ? 'Pauses, or extra usage at $2 / 1K' : 'Recording pauses') },
-      { label: 'Replay retention', value: (p) => formatDays(limit(p, 'core', 'replay_retention_days')) },
-      { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === -1 ? 'Unlimited' : `${v} pages`; } },
+      { label: 'Past the limit', value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : isMetered(p, 'core', 'replays') ? 'Pauses, or extra usage at $2 / 1K' : 'Recording pauses') },
+      { label: 'Replay retention', value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : formatDays(limit(p, 'core', 'replay_retention_days'))) },
+      { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === 0 ? false : v === -1 ? 'Unlimited' : `${v} pages`; } },
     ],
   },
   {
     title: 'Observability',
     rows: [
-      { label: 'Logs, traces & metrics / month', value: meteredCell('observe', 'storage_gb', 'GB') },
-      { label: 'Past the limit', value: (p) => (isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
-      { label: 'Telemetry retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
-      { label: 'Error tracking & alerts', value: () => true },
-      { label: 'Uptime monitoring', value: () => true },
+      { label: 'Logs, traces & metrics / month', value: (p) => (p.tier === 'analytics' ? false : meteredCell('observe', 'storage_gb', 'GB')(p)) },
+      { label: 'Past the limit', value: (p) => (p.tier === 'analytics' ? false : isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
+      { label: 'Telemetry retention', value: (p) => (p.tier === 'analytics' ? false : formatDays(limit(p, 'observe', 'retention_days'))) },
+      { label: 'Error tracking & alerts', value: (p) => p.tier !== 'analytics' },
+      { label: 'Uptime monitoring', value: (p) => p.tier !== 'analytics' },
     ],
   },
   {
     title: 'Automation, AI & teams',
     rows: [
-      { label: 'Funnels', value: (p) => formatCount(limit(p, 'core', 'funnels')) },
-      { label: 'Automations', value: (p) => formatCount(limit(p, 'core', 'automations')) },
-      { label: 'AI analyses / month', value: (p) => formatCount(limit(p, 'core', 'ai_analyses')) },
+      { label: 'Funnels', value: countCell('core', 'funnels') },
+      { label: 'Automations', value: countCell('core', 'automations') },
+      { label: 'Popups & lead capture', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `${formatCount(v)} leads`; } },
+      { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
       { label: 'Agency: client accounts, APIs & embeds', value: () => true },
       { label: 'Monthly spend cap on extra usage', value: (p) => p.tier === 'pro' },
       { label: 'Extra usage under $1 a month', value: (p) => (p.tier === 'pro' ? 'Not billed' : '—') },

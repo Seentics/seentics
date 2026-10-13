@@ -14,7 +14,9 @@ export const demoSubscription = () => ({
   plan: 'Pro',
   planId: 'pro',
   status: 'active',
-  priceMonthly: 15,
+  priceMonthly: 19,
+  priceYearly: 168,
+  billingInterval: 'month' as const,
   currentPeriodEnd: new Date(Date.now() + 10 * DAY).toISOString(),
   cancelAtPeriodEnd: false,
   usage: {
