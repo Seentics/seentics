@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePathSegment } from '@/lib/path-segment';
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
+import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers, Plug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isEnterprise } from '@/lib/features';
@@ -36,6 +36,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           { href: `/websites/${websiteId}/settings/websites`, label: 'Websites', hint: 'Add a site, copy its tracking code', icon: LayoutGrid },
           { href: `/websites/${websiteId}/settings/features`, label: 'Tracking', hint: 'Heatmaps, recordings, funnels', icon: Layers },
           { href: `/websites/${websiteId}/settings/privacy`, label: 'Privacy', hint: 'What visitor data you collect', icon: Shield },
+          { href: `/websites/${websiteId}/settings/integrations`, label: 'Integrations', hint: 'Send leads to Zapier, Mailchimp, Klaviyo, HubSpot', icon: Plug },
         ],
       },
       {

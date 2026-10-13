@@ -27,6 +27,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=seentics-dev-secret
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:4000,http://127.0.0.1:4000}
       - TRUST_PROXY=${TRUST_PROXY:-true}
+      - INTEGRATIONS_ENCRYPTION_KEY=${INTEGRATIONS_ENCRYPTION_KEY:-}
       - MAXMIND_DB_PATH=${MAXMIND_DB_PATH:-/app/db/maxmind/GeoLite2-City.mmdb}
       - MAXMIND_GEO_CACHE_MAX=${MAXMIND_GEO_CACHE_MAX:-50000}
       # Optional ISO2 when ingest only sees private IPs (localhost/Docker). Example: BD. Leave unset for no fallback.

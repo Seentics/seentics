@@ -76,6 +76,9 @@ services:
       AWS_ACCESS_KEY_ID: ${OBJEX_ACCESS_KEY:?Set OBJEX_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${OBJEX_SECRET_KEY:?Set OBJEX_SECRET_KEY}
       DATA_RETENTION_ENABLED: "true"
+      # Encrypts integration credentials (Mailchimp, Klaviyo, HubSpot, Zapier). Generate: openssl rand -base64 32
+      INTEGRATIONS_ENCRYPTION_KEY: ${INTEGRATIONS_ENCRYPTION_KEY:-}
+      INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS: ${INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS:-}
     expose: ["8001"]
     depends_on:
       postgres:

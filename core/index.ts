@@ -132,6 +132,7 @@ app.route("/api/v1/websites", application.routes.websites);
 app.route("/api/v1/websites", application.routes.funnels.authRoutes);
 app.route("/api/v1/automations", application.routes.automations);
 app.route("/api/v1/leads", application.routes.leads);
+app.route("/api/v1/integrations", application.routes.integrations);
 
 app.route("/api/v1/replays", application.routes.recordings);
 app.route("/api/v1/heatmaps", application.routes.heatmaps);

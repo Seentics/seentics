@@ -868,3 +868,58 @@ export const leadSubmissions = pgTable(
     index("ix_lead_submissions_website_automation").on(t.websiteId, t.automationId),
   ],
 );
+
+/**
+ * One outbound integration on one website. Mirrors `sql/051_integrations.sql`.
+ *
+ * `credentials` is ciphertext, never plaintext — see `modules/integrations/lib/vault.ts`.
+ */
+export const integrationConnections = pgTable(
+  "integration_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 32 }).notNull(),
+    credentials: text("credentials").notNull(),
+    credentialsHint: varchar("credentials_hint", { length: 8 }).notNull().default(""),
+    config: jsonb("config").notNull().default({}),
+    enabled: boolean("enabled").notNull().default(true),
+    /** active | error */
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    lastError: text("last_error"),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("integration_connections_website_provider_uq").on(t.websiteId, t.provider)],
+);
+
+/** A bounded log of what was sent to each connection and how it went. */
+export const integrationDeliveries = pgTable(
+  "integration_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id"),
+    /** success | failed | skipped */
+    status: varchar("status", { length: 16 }).notNull(),
+    attemptCount: integer("attempt_count").notNull().default(1),
+    httpStatus: integer("http_status"),
+    error: text("error"),
+    durationMs: integer("duration_ms").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_integration_deliveries_connection_created").on(t.connectionId, t.createdAt),
+    index("ix_integration_deliveries_website_created").on(t.websiteId, t.createdAt),
+  ],
+);

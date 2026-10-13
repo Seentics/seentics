@@ -228,6 +228,27 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
   /** Requests that exceed this duration emit an additional slow_request warn log. 0 disables. */
   const slowRequestThresholdMs = parseIntEnv(process.env.SLOW_REQUEST_THRESHOLD_MS, 500);
 
+  /**
+   * Key that encrypts integration credentials (Mailchimp, Klaviyo, HubSpot, Zapier URL).
+   *
+   * Not required to boot — a deployment that never connects an integration needs no key —
+   * but connecting one without it is refused in production (see `integrations/lib/vault`).
+   * When set it must be 32 bytes as base64 or 64 hex characters, so a typo fails at start
+   * rather than at the first encryption. `_PREVIOUS` is a comma-separated list of retired
+   * keys that can still decrypt, which is how a key is rotated without a re-save.
+   */
+  const integrationsKey = (process.env.INTEGRATIONS_ENCRYPTION_KEY ?? "").trim();
+  const integrationsPreviousKeys = (process.env.INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS ?? "")
+    .split(",").map((k) => k.trim()).filter(Boolean);
+  for (const [name, value] of [
+    ["INTEGRATIONS_ENCRYPTION_KEY", integrationsKey],
+    ...integrationsPreviousKeys.map((k) => ["INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS", k] as const),
+  ] as const) {
+    if (value && !/^([0-9a-f]{64}|[A-Za-z0-9+/]{43}=?)$/.test(value)) {
+      throw new Error(`${name} must be 32 bytes, as base64 or 64 hex characters (generate one with: openssl rand -base64 32)`);
+    }
+  }
+
   const maxmindDbPath = (process.env.MAXMIND_DB_PATH ?? "").trim();
   const maxmindGeoCacheMax = parseIntEnv(process.env.MAXMIND_GEO_CACHE_MAX, 50_000);
 
@@ -250,6 +271,7 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
       dbPath: maxmindDbPath,
       geoCacheMax: Math.max(1000, maxmindGeoCacheMax),
     },
+    integrations: { encryptionKey: integrationsKey, previousKeys: integrationsPreviousKeys },
     corsAllowedOrigins,
     frontendUrl,
     trackerScriptUrl,

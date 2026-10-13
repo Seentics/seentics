@@ -5,6 +5,7 @@ const keys = [
   "DATABASE_URL", "ENVIRONMENT", "NODE_ENV", "JWT_SECRET", "GLOBAL_API_KEY",
   "CORS_ALLOWED_ORIGINS", "S3_ENDPOINT", "S3_PUBLIC_ENDPOINT",
   "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "CORE_ROLE",
+  "INTEGRATIONS_ENCRYPTION_KEY", "INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS",
 ] as const;
 const saved = new Map<string, string | undefined>();
 
@@ -64,5 +65,16 @@ describe("production configuration", () => {
   it("requires browser-reachable TLS object storage for replay and heatmap artifacts", () => {
     process.env.S3_PUBLIC_ENDPOINT = "http://storage.example.test";
     expect(() => env()).toThrow("S3_PUBLIC_ENDPOINT must be an https URL");
+  });
+
+  it("does not need an integrations key to boot, but rejects a malformed one", () => {
+    delete process.env.INTEGRATIONS_ENCRYPTION_KEY;
+    expect(env().integrations.encryptionKey).toBe("");
+    process.env.INTEGRATIONS_ENCRYPTION_KEY = "too-short";
+    expect(() => env()).toThrow("INTEGRATIONS_ENCRYPTION_KEY must be 32 bytes");
+    process.env.INTEGRATIONS_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
+    expect(env().integrations.encryptionKey).toHaveLength(44);
+    process.env.INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS = `${"ab".repeat(32)}, nope`;
+    expect(() => env()).toThrow("INTEGRATIONS_ENCRYPTION_KEY_PREVIOUS must be 32 bytes");
   });
 });

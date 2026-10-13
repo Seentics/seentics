@@ -54,6 +54,8 @@ const TABLE_OWNER: Record<string, string> = {
   clients: "websites",
   contacts: "leads",
   lead_submissions: "leads",
+  integration_connections: "integrations",
+  integration_deliveries: "integrations",
 };
 
 /** Drizzle identifier → table name, for the builder form. */
