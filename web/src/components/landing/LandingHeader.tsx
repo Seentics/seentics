@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { config } from '@/lib/config';
 import { IntegrationIcon } from '@/components/integrations/IntegrationIcon';
 import { INTEGRATIONS } from '@/lib/integrations';
+import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
 
 /**
  * Each sibling product is shown with its own mark and its own brand colour —
@@ -190,6 +191,96 @@ function ProductsNavItem() {
 }
 
 /**
+ * "Use cases": outcomes grouped in three columns. Each entry opens its own page, which is
+ * what search engines index. Hover
+ * behaviour and panel positioning are the same as the Integrations menu.
+ */
+function UseCasesNavItem() {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
+  useEffect(() => () => cancelClose(), []);
+
+  const entry = (u: (typeof USE_CASES)[number]) => (
+    <Link
+      key={u.slug}
+      href={`/use-cases/${u.slug}`}
+      onClick={() => setOpen(false)}
+      className="flex items-start gap-2.5 rounded-lg p-2 transition-colors hover:bg-muted/60"
+    >
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <u.icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-semibold leading-tight text-foreground">{u.name}</span>
+        <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">{u.summary}</span>
+      </span>
+    </Link>
+  );
+
+  return (
+    <div
+      onMouseEnter={() => { cancelClose(); setOpen(true); }}
+      onMouseLeave={scheduleClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+      >
+        Use cases
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            /* `x: '-50%'` rather than a Tailwind translate: see IntegrationsNavItem. */
+            initial={{ opacity: 0, y: -6, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -6, x: '-50%' }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-1/2 top-full z-50 mt-3 w-[min(1000px,calc(100vw-3rem))] rounded-xl border border-border bg-card p-3 shadow-lg"
+          >
+            <div className="grid gap-x-3 md:grid-cols-3">
+              {GROUPS.map((g, i) => (
+                <div key={g.key} className={i > 0 ? 'md:border-l md:border-border/60 md:pl-3' : ''}>
+                  <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+                    {g.title}
+                  </p>
+                  <div className="flex flex-col gap-0.5">{useCasesIn(g.key).map(entry)}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 border-t border-border/60 px-2 pt-2.5">
+              <Link
+                href="/use-cases"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-primary hover:underline"
+              >
+                See all use cases <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
  * Same hover behaviour as the products menu, for the platform guides. The panel is
  * positioned against the header, not the trigger: the trigger sits in a right-hand
  * cluster, and a panel this wide anchored to it would run off one edge or the other.
@@ -335,6 +426,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
         <div className="hidden lg:flex items-center gap-7">
           <nav className="flex items-center gap-6">
             <ProductsNavItem />
+            <UseCasesNavItem />
             <IntegrationsNavItem />
             {navLinks.map((link) => (
               <Link
@@ -430,6 +522,20 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                       <item.icon className="h-3.5 w-3.5" />
                     </span>
                     {item.name}
+                  </Link>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
+                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Use cases</p>
+                {USE_CASES.map((u) => (
+                  <Link
+                    key={u.slug}
+                    href={`/use-cases/${u.slug}`}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2.5 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  >
+                    <u.icon className="h-4 w-4 text-primary" />
+                    {u.name}
                   </Link>
                 ))}
               </div>

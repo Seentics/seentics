@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { DOCS_PAGES } from '@/components/docs/nav';
 import { SITE_URL } from '@/lib/site';
+import { USE_CASES } from '@/lib/use-cases';
 
 // Required under output: 'export' — this route has no dynamic input, so
 // it's just making that explicit rather than a behavior change.
@@ -30,6 +31,9 @@ const DOC_ENTRIES: Entry[] = DOCS_PAGES.filter((p) => p.href !== '/docs').map((p
   changeFrequency: 'monthly',
 }));
 
+/** One page per use case, indexable on its own. */
+const USE_CASE_ENTRIES: Entry[] = USE_CASES.map((u) => ({ path: `/use-cases/${u.slug}`, priority: 0.7, changeFrequency: 'monthly' }));
+
 const PAGES: Entry[] = [
   { path: '/',              priority: 1.0, changeFrequency: 'weekly' },
   { path: '/pricing',       priority: 0.9, changeFrequency: 'weekly' },
@@ -38,6 +42,8 @@ const PAGES: Entry[] = [
   { path: '/blog',          priority: 0.7, changeFrequency: 'weekly' },
   { path: '/contact',       priority: 0.5, changeFrequency: 'yearly' },
   { path: '/integrations', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/use-cases', priority: 0.8, changeFrequency: 'monthly' },
+  ...USE_CASE_ENTRIES,
   { path: '/terms',         priority: 0.3, changeFrequency: 'yearly' },
   { path: '/privacy',       priority: 0.3, changeFrequency: 'yearly' },
   { path: '/dpa',           priority: 0.3, changeFrequency: 'yearly' },
