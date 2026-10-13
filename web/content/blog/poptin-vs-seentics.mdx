@@ -23,7 +23,7 @@ Poptin details come from public sources such as [Capterra](https://www.capterra.
 
 - **Poptin wins** at building campaigns fast: templates, form fields, a leads list and email integrations.
 - **Seentics wins** at targeting from real behavior, measuring what happened next (funnels, goals, replays, revenue), privacy and self-hosting.
-- **Seentics does not fully replace Poptin yet.** It captures emails and keeps them in a Leads inbox, but has no visual drag-and-drop builder, large template library, gamified formats or native email integrations.
+- **Seentics does not fully replace Poptin yet.** It captures emails and keeps them in a Leads inbox, syncs them to Mailchimp, Klaviyo, HubSpot and Zapier, but has no drag-and-drop canvas, a much smaller template library and a narrower integration catalogue.
 - **You can use both:** a form tool for email capture and Seentics for analytics and behavior-triggered messages.
 
 ## At a glance
@@ -31,12 +31,13 @@ Poptin details come from public sources such as [Capterra](https://www.capterra.
 | | Poptin | Seentics |
 | --- | --- | --- |
 | Core product | Popup, form and lead capture builder | Web analytics with behavioral automations |
-| Visual popup / form builder and templates | Yes | Field-based form editor inside popups and two lead templates; no drag-and-drop builder or large template library yet |
+| Visual popup / form builder and templates | Yes | Form-style editors with a live preview and a handful of starter templates; no drag-and-drop canvas or large template library |
+| Popup types and mechanics | Many, including gamified formats | Simple, spin-to-win (prize drawn server-side), multi-step quiz, countdown (per-visitor or fixed), teaser tab, sticky bar, coupon codes |
 | Triggers | Exit intent, scroll, time and more | Exit intent, time on page, scroll depth, element click, visit history |
 | Targeting | Visitor rules | Country, region, city, browser, OS, device, referrer, visit count, new vs returning, `identify()` traits |
 | Actions | Popups, forms, bars | Modals, banners, webhooks, redirects, custom JavaScript |
 | Leads inbox | Yes | Yes: search, status, CSV export, delete, per-popup and per-variant attribution |
-| Email platform integrations | Yes | Not yet: CSV export or a webhook to your own endpoint |
+| Email platform integrations | Yes, a wide catalogue | Four: Zapier / webhook, Mailchimp, Klaviyo, HubSpot. Anything else via Zapier, a webhook or CSV export |
 | Funnels, heatmaps, session replay | Not the focus | Included |
 | Revenue and UTM attribution | No | Yes |
 | Self-hosting | No | Yes (AGPL v3) |
@@ -53,7 +54,7 @@ The practical difference: Poptin charges for the popup tool, so a site that also
 
 - **Building campaigns fast.** A visual editor, templates and form fields mean a marketer can ship a popup in minutes without developer help.
 - **Collecting and routing leads.** A leads list and email-platform integrations are built in.
-- **Popup-specific features** such as A/B testing and countdown or gamified formats.
+- **Popup polish.** A drag-and-drop editor, a much larger template library and more formats and animation options than Seentics's handful of popup types. Poptin also reports A/B test results; Seentics can split traffic between variants but does not yet report which one won.
 - **Proven reception.** Capterra shows a 4.8 rating from about 345 reviews, with ease of use and customer service rated highly. Complaints are mild: a learning curve, some confusing menus (A/B testing in particular), and a wish for more integrations and better mobile exit intent.
 
 ## Where Seentics is better
@@ -84,7 +85,7 @@ Both work. The first is faster to build. The second is easier to evaluate.
 | Mainly want email capture with templates and a leads list | Poptin |
 | Want targeted prompts tied to funnels, replays and revenue | Seentics |
 | Need to self-host or avoid cookies | Seentics |
-| Need native Mailchimp, Klaviyo or HubSpot sync today | Poptin (or another dedicated tool) |
+| Need a connector other than Zapier, Mailchimp, Klaviyo or HubSpot | Poptin (or another dedicated tool), or Zapier from Seentics |
 | Want the best of both | Poptin for capture, Seentics for analytics, with the signup tracked as a goal |
 
 ## Switching from Poptin
@@ -101,11 +102,11 @@ More options are in [Poptin alternatives](/blog/poptin-alternatives).
 
 ### Is Seentics a Poptin alternative?
 
-For behavior-triggered popups with email capture, a Leads inbox and measurement, yes. For a template-driven visual builder with native email integrations, not yet.
+For behavior-triggered popups with email capture, a Leads inbox and measurement, yes. For a drag-and-drop builder with a very large template library and a wide integration catalogue, not yet.
 
 ### Can Seentics collect email addresses?
 
-Yes. A modal can carry an email form with optional extra fields and a consent checkbox. Submissions go to a built-in Leads inbox that you can search, export as CSV or delete from. There is no native Mailchimp, Klaviyo or HubSpot sync yet; export a CSV or use a webhook.
+Yes. A modal can carry an email form with optional extra fields and a consent checkbox. Submissions go to a built-in Leads inbox that you can search, export as CSV or delete from. Leads can also be sent automatically to Mailchimp, Klaviyo, HubSpot or Zapier (or any HTTPS webhook) from Settings > Integrations. Mailchimp and Klaviyo subscriptions are only made for visitors who ticked the consent box.
 
 ### Does Seentics need a cookie banner?
 

@@ -20,7 +20,12 @@ import { getGoals } from '@/features/websites/api';
 import { useQuery } from '@tanstack/react-query';
 import { AutomationCanvas } from './canvas/AutomationCanvas';
 import { LeadFormFields } from './LeadFormFields';
+import { CountdownFields } from './popup/CountdownFields';
+import { CouponFields } from './popup/CouponFields';
+import { PopupPreview } from './popup/PopupPreview';
+import { PopupTypeFields } from './popup/PopupTypeFields';
 import type { LeadForm } from '@/lib/lead-form';
+import type { CountdownConfig, CouponConfig, PopupAction } from '@/lib/popup-config';
 import { MAX_DELAY_SECONDS, MAX_SWITCH_CASES, edgeFor, indexGraph, layoutGraph, newNodeId, outletsFor, removeNode, validateGraph, type AutomationGraph, type ConditionGroup, type ConditionRule, type GraphNode, type NodeId, type SwitchCase } from '@/lib/automation-graph';
 
 // ─── Exported Types ──────────────────────────────────────────────────────────
@@ -600,6 +605,7 @@ function ActionConfigForm({
     <div className="space-y-3">
       <ActionFields action={action} onChange={onChange} />
       <CustomCodeFields action={action} set={set} />
+      {(action.type === 'show_modal' || action.type === 'show_banner') && <PopupPreview action={action as PopupAction} />}
     </div>
   );
 }
@@ -633,6 +639,7 @@ function ActionFields({
         <FieldGroup label="Image URL (optional)">
           <Input value={String(action.image_url ?? '')} onChange={e => set('image_url', e.target.value)} placeholder="https://…" className={inp} />
         </FieldGroup>
+        <PopupTypeFields action={action as PopupAction} onChange={a => onChange(a)} />
         <LeadFormFields form={action.form as LeadForm | undefined} onChange={form => set('form', form)} />
         <div className="grid grid-cols-3 gap-2">
           <FieldGroup label="BG Color"><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
@@ -697,6 +704,10 @@ function ActionFields({
           <FieldGroup label="Button Text"><Input value={String(action.button_text ?? '')} onChange={e => set('button_text', e.target.value)} placeholder="Learn more" className={inp} /></FieldGroup>
           <FieldGroup label="Button URL"><Input value={String(action.button_url ?? '')} onChange={e => set('button_url', e.target.value)} placeholder="/features" className={inp} /></FieldGroup>
         </div>
+        {/* A sticky bar: an inline email form, a countdown and a coupon, all optional. */}
+        <LeadFormFields form={action.form as LeadForm | undefined} onChange={form => set('form', form)} />
+        <CountdownFields optional value={action.countdown as CountdownConfig | undefined} onChange={c => set('countdown', c)} />
+        <CouponFields hasForm={!!action.form} value={action.coupon as CouponConfig | undefined} onChange={c => set('coupon', c)} />
       </div>
     );
   }

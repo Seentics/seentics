@@ -65,11 +65,25 @@ export type LeadStats = {
   by_automation: { automation_id: string | null; name: string | null; count: number }[];
 };
 
-/** What a successful capture reports, for listeners. */
+/**
+ * A reward chosen by the server for a submission: a wheel slice or a coupon.
+ *
+ * `coupon_code` is null for a no-prize slice. This is the only place a code reaches the
+ * browser — the page's copy of the popup has them redacted.
+ */
+export type Prize = {
+  id: string;
+  label: string;
+  coupon_code: string | null;
+};
+
+/** What a successful capture reports, for listeners and for the visitor's response. */
 export type CapturedLead = {
   contactId: string;
   isNewContact: boolean;
   submission: LeadSubmission;
+  /** Set when the popup pays a reward. A returning email gets the prize it had before. */
+  prize: Prize | null;
 };
 
 /**

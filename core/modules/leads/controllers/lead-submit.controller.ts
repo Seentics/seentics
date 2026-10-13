@@ -61,7 +61,7 @@ export function submitLead(deps: LeadSubmitDeps) {
     }
 
     try {
-      await deps.capture.capture({
+      const { prize } = await deps.capture.capture({
         websiteId: website.id,
         email: normalizeEmail(body.email),
         name: cleanText(body.name, 200),
@@ -75,7 +75,9 @@ export function submitLead(deps: LeadSubmitDeps) {
         pageUrl: cleanText(body.page_url, 2048),
         referrer: cleanText(body.referrer, 2048),
       });
-      return c.json({ status: "ok" });
+      // The prize is the one thing the visitor is told: a wheel animates to it and a coupon
+      // shows its code. Nothing else about the stored contact is ever returned.
+      return c.json({ status: "ok", ...(prize ? { prize } : {}) });
     } catch (err) {
       log.error({ msg: "lead_capture_failed", websiteId: website.id, err });
       return c.json({ error: "could not save submission" }, 500);

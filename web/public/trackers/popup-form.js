@@ -11,6 +11,8 @@
  * over the network, and the cost of never trusting them is nothing.
  */
 
+import { el } from './popup-util.js';
+
 const MAX_FIELDS = 8;
 const FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/i;
 const INPUT_TYPES = { email: 'email', text: 'text', tel: 'tel' };
@@ -53,18 +55,13 @@ export const splitValues = (values) => {
   return { email, name: name ?? '', phone: phone ?? '', fields };
 };
 
-const el = (tag, props = {}, children = []) => {
-  const node = document.createElement(tag);
-  Object.assign(node, props);
-  for (const child of children) node.append(child);
-  return node;
-};
-
 /**
  * Build the form for a popup action.
  *
  * @param {object} action  the action, carrying `form`, `automation_id` and `variant`
- * @param {object} ctx     `{ submit(payload) → Promise<boolean>, onSuccess(), colors }`
+ * @param {object} ctx     `{ submit(payload) → Promise<false | true | object>, onSuccess(result), colors }`.
+ *                         A falsy result is a failure the visitor may retry; anything else is
+ *                         success, and an object (the server's `{ prize }`) is handed to `onSuccess`.
  * @returns {HTMLFormElement}
  */
 export const buildForm = (action, ctx) => {
@@ -120,8 +117,8 @@ export const buildForm = (action, ctx) => {
     if (consent && consent.required && !consent.checked) { error.textContent = 'Please accept to continue.'; consent.focus(); return; }
 
     button.disabled = true;
-    const ok = await ctx.submit({ ...splitValues(values), consent: !!(consent && consent.checked), hp: hp.value });
-    if (ok) { ctx.onSuccess(); return; }
+    const result = await ctx.submit({ ...splitValues(values), consent: !!(consent && consent.checked), hp: hp.value });
+    if (result) { ctx.onSuccess(result === true ? {} : result); return; }
     button.disabled = false;
     error.textContent = 'Something went wrong. Please try again.';
   });

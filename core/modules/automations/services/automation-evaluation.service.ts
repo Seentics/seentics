@@ -34,6 +34,7 @@ import {
 } from './automation-frequency-cap.service';
 import { executeWebhook, type WebhookAction } from './automation-webhook-execution.service';
 import { renderTemplateDeep } from '../lib/automation-template-renderer';
+import { redactRewards } from '../lib/popup-rewards';
 import type { AutomationGraph } from '../lib/automation-graph';
 import { walkGraph, type Continuation } from './automation-graph-execution.service';
 
@@ -131,8 +132,8 @@ export function triggerConfigMatches(t: Record<string, unknown>, incoming: Recor
 function renderContinuation(c: Continuation, context: Record<string, unknown>): Continuation {
   return {
     ...c,
-    met: c.met.map((a) => renderTemplateDeep(a, context) as typeof a),
-    timeout: c.timeout.map((a) => renderTemplateDeep(a, context) as typeof a),
+    met: c.met.map((a) => redactRewards(renderTemplateDeep(a, context) as typeof a)),
+    timeout: c.timeout.map((a) => redactRewards(renderTemplateDeep(a, context) as typeof a)),
     ...(c.metContinuation ? { metContinuation: renderContinuation(c.metContinuation, context) } : {}),
     ...(c.timeoutContinuation
       ? { timeoutContinuation: renderContinuation(c.timeoutContinuation, context) }
@@ -408,7 +409,8 @@ export class AutomationEvaluationService
       for (const planned of walked.actions) {
         const { delayMs, ...action } = planned;
         const actionKey = `${action.type}_${actionIndex++}`;
-        const rendered = renderTemplateDeep(action, fullContext) as Record<string, unknown>;
+        // Redacted after rendering: the prize code must reach the page only with a chosen prize.
+        const rendered = redactRewards(renderTemplateDeep(action, fullContext) as Record<string, unknown>);
 
         clientActions.push({
           ...rendered,

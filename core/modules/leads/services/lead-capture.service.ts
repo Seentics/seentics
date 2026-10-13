@@ -1,6 +1,7 @@
 import { log } from "../../../platform/observability/logger";
 import type { AutomationDirectory } from "../../automations/interfaces";
-import type { CapturedLead, LeadCapture, LeadCapturedListener, LeadSubmission } from "../interfaces";
+import type { CapturedLead, LeadCapture, LeadCapturedListener, LeadSubmission, Prize } from "../interfaces";
+import { couponPrize, pickWheelPrize, withoutPrizeFields } from "../lib/prize";
 import { insertSubmission } from "../repositories/lead.repository";
 
 /**
@@ -17,8 +18,8 @@ export class LeadCaptureService implements LeadCapture {
   constructor(private readonly automations: AutomationDirectory) {}
 
   async capture(input: LeadSubmission): Promise<CapturedLead> {
-    const submission = await this.withVerifiedAttribution(input);
-    const stored = await insertSubmission(submission);
+    const submission = await this.withVerifiedAttribution({ ...input, fields: withoutPrizeFields(input.fields) });
+    const stored = await insertSubmission(submission, await this.prizeChooser(submission));
     const captured: CapturedLead = { ...stored, submission };
     this.notify(captured);
     return captured;
@@ -27,6 +28,27 @@ export class LeadCaptureService implements LeadCapture {
   onCaptured(listener: LeadCapturedListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /**
+   * How this submission's prize is decided, or `undefined` when its popup pays none.
+   *
+   * The popup's rewards are read from the stored definition, never from the request: the
+   * browser is only ever told which prize it got. An existing prize always wins, so
+   * submitting the same email again cannot re-roll a wheel.
+   */
+  private async prizeChooser(s: LeadSubmission): Promise<((existing: Prize | null) => Prize | null) | undefined> {
+    if (!s.automationId) return undefined;
+    const rewards = await this.automations.rewards(s.websiteId, s.automationId);
+    if (rewards?.wheel) {
+      const segments = rewards.wheel;
+      return (existing) => existing ?? pickWheelPrize(segments);
+    }
+    if (rewards?.coupon) {
+      const prize = couponPrize(rewards.coupon);
+      return (existing) => existing ?? prize;
+    }
+    return undefined;
   }
 
   /**

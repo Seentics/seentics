@@ -119,6 +119,45 @@ export default function AutomationsPage() {
         </Callout>
       </DocSection>
 
+      <DocSection title="Popup types, prizes and coupons">
+        <P>
+          A modal's <C>Popup type</C> chooses its layout, and a bar can carry the same mechanics. The
+          builder shows a live preview that runs the same code as your site, so what you see is what
+          visitors get. Nothing you submit in the preview is sent or stored.
+        </P>
+        <RefTable
+          columns={['Type', 'What it does']}
+          rows={[
+            [<C>Spin to win</C>, 'A prize wheel unlocked by an email. Each slice has a label, a relative weight and an optional coupon code; a slice with no code is a “try again”.'],
+            [<C>Multi-step</C>, 'One to five one-tap questions, then the email. Answers are stored on the lead under each question’s name.'],
+            [<C>Countdown</C>, 'A timer: per visitor (starts the first time they see it) or counting to a fixed date. It can close the popup or show a message when it ends.'],
+            [<C>Teaser tab</C>, 'Shows a small tab on the page edge that opens the popup when clicked, instead of covering the page.'],
+            [<C>Sticky bar</C>, 'A banner pinned to the top or bottom with an inline email form, and optionally a countdown or coupon.'],
+            [<C>Coupon</C>, 'A code shown in the popup. Behind an email form it is revealed only after the email is submitted.'],
+          ]}
+        />
+        <Ul>
+          <Li>
+            The wheel’s prize is chosen on the server, by weight, when the email is submitted — never
+            in the visitor’s browser. Coupon codes are removed from the copy of the popup sent to the
+            page and arrive only with the prize, so they cannot be read ahead of time.
+          </Li>
+          <Li>
+            Each email wins once per popup: submitting the same address again returns the prize it
+            already won rather than spinning again. It does not stop a visitor using several
+            addresses, so treat a prize as a marketing incentive, not a secured entitlement.
+          </Li>
+          <Li>
+            Teaser tabs, countdowns and coupons combine with any popup type. A wheel and a multi-step
+            popup both need the email form, which the builder switches on for you.
+          </Li>
+          <Li>
+            Animations stop for visitors who prefer reduced motion, popups can be closed with Escape,
+            and the dialog keeps keyboard focus inside while it is open.
+          </Li>
+        </Ul>
+      </DocSection>
+
       <DocSection title="Keeping it from becoming annoying">
         <Ul>
           <Li>

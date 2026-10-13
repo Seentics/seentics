@@ -1,4 +1,5 @@
 import { sql } from "../../../db";
+import { prizeFromFields, prizeToFields } from "../lib/prize";
 import type {
   Contact,
   ContactListQuery,
@@ -6,6 +7,7 @@ import type {
   ContactSubmission,
   LeadStats,
   LeadSubmission,
+  Prize,
 } from "../interfaces";
 
 const CONTACT_COLUMNS = sql`
@@ -32,7 +34,14 @@ function likePattern(term: string): string {
  */
 export async function insertSubmission(
   s: LeadSubmission,
-): Promise<{ contactId: string; isNewContact: boolean }> {
+  /**
+   * Decides this submission's prize given the one this contact already won from the same
+   * popup (or `null`). Runs inside the transaction, after the contact row is locked, so two
+   * simultaneous submissions from one email cannot both draw: the second waits for the
+   * first to commit, then sees its prize and is handed the same one.
+   */
+  choosePrize?: (existing: Prize | null) => Prize | null,
+): Promise<{ contactId: string; isNewContact: boolean; prize: Prize | null }> {
   return sql.begin(async (tx) => {
     const [contact] = await tx<{ id: string; inserted: boolean }[]>`
       INSERT INTO contacts (website_id, email, name, phone, consent, anonymous_id)
@@ -48,6 +57,20 @@ export async function insertSubmission(
       RETURNING id, (xmax = 0) AS inserted
     `;
 
+    let prize: Prize | null = null;
+    if (choosePrize && s.automationId) {
+      const [previous] = await tx<{ fields: unknown }[]>`
+        SELECT fields FROM lead_submissions
+        WHERE contact_id = ${contact!.id}::uuid
+          AND automation_id = ${s.automationId}::uuid
+          AND fields->>'prize_id' IS NOT NULL
+        ORDER BY created_at ASC
+        LIMIT 1
+      `;
+      prize = choosePrize(previous ? prizeFromFields(previous.fields) : null);
+    }
+    const fields = prize ? { ...s.fields, ...prizeToFields(prize) } : s.fields;
+
     await tx`
       INSERT INTO lead_submissions
         (website_id, contact_id, automation_id, variant, fields, page_url, referrer, session_id)
@@ -56,13 +79,13 @@ export async function insertSubmission(
         ${contact!.id}::uuid,
         ${s.automationId}::uuid,
         ${s.variant},
-        ${JSON.stringify(s.fields)}::jsonb,
+        ${JSON.stringify(fields)}::jsonb,
         ${s.pageUrl},
         ${s.referrer},
         ${s.sessionId}
       )
     `;
-    return { contactId: contact!.id, isNewContact: contact!.inserted };
+    return { contactId: contact!.id, isNewContact: contact!.inserted, prize };
   });
 }
 

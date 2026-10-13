@@ -14,6 +14,14 @@ import { validateWebhookUrl } from "../../../platform/http/origin";
 import { OPERATORS } from "../lib/automation-condition-evaluator";
 import { leadFormSchema } from "./lead-form.schema";
 import {
+  POPUP_LAYOUTS,
+  countdownSchema,
+  couponSchema,
+  stepsSchema,
+  teaserSchema,
+  wheelSchema,
+} from "./popup-layout.schema";
+import {
   MAX_DELAY_SECONDS,
   MAX_EDGES,
   MAX_NODES,
@@ -125,8 +133,39 @@ const clientActionSchema = z
     custom_js: customCode,
     // A lead-capture form inside a `show_modal`. Other client actions ignore it.
     form: leadFormSchema.optional(),
+    // Popup types and mechanics. See `popup-layout.schema.ts`.
+    layout: z.enum(POPUP_LAYOUTS).optional(),
+    wheel: wheelSchema.optional(),
+    steps: stepsSchema.optional(),
+    countdown: countdownSchema.optional(),
+    teaser: teaserSchema.optional(),
+    coupon: couponSchema.optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((a, ctx) => {
+    const issue = (path: string, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    const isModal = a.type === "show_modal";
+    const isPopup = isModal || a.type === "show_banner";
+
+    // These only exist on a surface that can render them.
+    if (!isModal && a.layout && a.layout !== "modal") issue("layout", "Layouts apply to modals only");
+    if (!isModal && a.steps) issue("steps", "Steps apply to modals only");
+    if (!isModal && a.teaser) issue("teaser", "A teaser applies to modals only");
+    if (!isPopup && a.countdown) issue("countdown", "A countdown applies to modals and banners");
+    if (!isPopup && a.coupon) issue("coupon", "A coupon applies to modals and banners");
+
+    // A layout must carry what it needs. A wheel without an email form cannot pay out a
+    // prize (the prize is chosen when the lead is stored), and steps end in the email step.
+    if (a.layout === "spin_wheel") {
+      if (!a.wheel) issue("wheel", "A spin wheel needs its slices");
+      if (!a.form) issue("form", "A spin wheel needs the email form: the prize is chosen when it is submitted");
+    }
+    if (a.layout === "multi_step") {
+      if (!a.steps) issue("steps", "A multi-step popup needs its questions");
+      if (!a.form) issue("form", "A multi-step popup ends in the email form");
+    }
+    if (a.layout === "countdown" && !a.countdown) issue("countdown", "A countdown popup needs a countdown");
+  });
 
 const actionSchema = z.union([webhookActionSchema, clientActionSchema]);
 

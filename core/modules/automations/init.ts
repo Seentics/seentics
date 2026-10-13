@@ -35,7 +35,7 @@ export function initAutomationsModule(deps: {
       profiles: profilesLane(visitorProfiles),
     },
 
-    directory: new AutomationDirectoryService(),
+    directory: new AutomationDirectoryService(repository),
     trackerSettings,
     // Built here so it publishes onto the real bus. An evaluation service holding its
     // own bus would fire `automation.action_executed` at nobody.

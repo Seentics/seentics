@@ -10,7 +10,7 @@ Analytics platform for real-time tracking and behavior analysis. Core features a
 ### 📧 Email & Communication
 - **Automated Email Support** - Send behavioral-triggered emails to customers
 - **Email Campaign Management** - Track and manage internal customer emails
-- **Email Service Integrations** - Connect with popular providers like Mailchimp and ConvertKit
+- **Email Service Integrations** - ✅ Leads sync to Zapier (any HTTPS webhook), Mailchimp, Klaviyo and HubSpot, with credentials encrypted at rest. Still planned: ConvertKit and other providers (the provider interface makes each one a single file)
 
 ### 🎟️ Support & Success
 - **Integrated Support Desk** - Manage customer queries and support tickets directly in Seentics
@@ -20,7 +20,7 @@ Analytics platform for real-time tracking and behavior analysis. Core features a
 ### 📝 Customer Engagement
 - **Dynamic Forms** - ✅ Email capture forms inside popups (custom fields, consent, thank-you message); standalone embeddable forms are still planned
 - **Survey Engine** - Trigger NPS and satisfaction surveys based on user behavior
-- **Lead Capture Tools** - ✅ Leads inbox with search, status, CSV export and per-popup/variant attribution. Still planned: spin-the-wheel, countdown, multi-step and sticky-bar templates, coupon codes, and email/CRM integrations (Mailchimp, Klaviyo, HubSpot, Zapier)
+- **Lead Capture Tools** - ✅ Leads inbox with search, status, CSV export and per-popup/variant attribution. Popup types are done: spin-to-win (server-side prize), multi-step, countdown, teaser tab, sticky bar and coupon codes, with a live preview in the builder. Still planned: a drag-and-drop canvas, a larger template library and per-variant A/B results. Email and CRM sync is done; see Email Service Integrations.
 
 ### 🎨 Frontend & UI
 - **Dashboard Polish** - Premium layout refinements and advanced data visualization

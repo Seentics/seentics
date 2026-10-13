@@ -18,6 +18,210 @@ export interface Template {
 
 export const TEMPLATES: Template[] = [
   {
+    id: 'spin-to-win',
+    name: 'Spin to Win Wheel',
+    description: 'Visitors enter their email to spin a prize wheel. The prize is drawn on the server, so it cannot be gamed.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'time_on_page', seconds: 15 }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        layout: 'spin_wheel',
+        title: 'Spin to win a prize!',
+        body: 'Enter your email for one spin. Everyone wins something.',
+        wheel: {
+          spin_text: 'Spin to win',
+          segments: [
+            { label: '10% off', weight: 4, coupon_code: 'SPIN10' },
+            { label: 'Free shipping', weight: 3, coupon_code: 'SHIPFREE' },
+            { label: '20% off', weight: 1, coupon_code: 'SPIN20' },
+            { label: 'Try again', weight: 4, coupon_code: '' },
+          ],
+        },
+        form: {
+          fields: [],
+          submit_text: 'Spin to win',
+          success_message: 'Thanks! Check your inbox.',
+          consent_text: 'I agree to receive emails.',
+          consent_required: true,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerUser: 1 },
+    },
+  },
+  {
+    id: 'countdown-sale-bar',
+    name: 'Countdown Sale Bar',
+    description: 'A bar with a per-visitor countdown that drives urgency toward a sale page.',
+    category: 'Conversion',
+    categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300',
+    definition: {
+      triggers: [{ type: 'page_view' }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_banner',
+        message: 'Flash sale: 25% off everything.',
+        position: 'top',
+        button_text: 'Shop the sale',
+        button_url: '/sale',
+        background_color: '#b91c1c',
+        text_color: '#ffffff',
+        countdown: {
+          mode: 'evergreen',
+          duration_minutes: 60,
+          label: 'Ends in',
+          expired_text: 'The sale has ended.',
+          hide_on_expire: false,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerSession: 1 },
+    },
+  },
+  {
+    id: 'multi-step-quiz',
+    name: 'Multi-Step Quiz Signup',
+    description: 'Ask two easy questions first, then the email. Answers are stored with the lead.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'scroll_depth', depth: 50 }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        layout: 'multi_step',
+        title: 'Find the right plan',
+        steps: [
+          { name: 'goal', title: 'What do you want to do?', body: '', options: [
+            { label: 'Understand my traffic', value: 'traffic' },
+            { label: 'Improve conversions', value: 'conversions' },
+            { label: 'Fix errors faster', value: 'errors' },
+          ] },
+          { name: 'team_size', title: 'How big is your team?', body: '', options: [
+            { label: 'Just me', value: 'solo' },
+            { label: '2–10 people', value: 'small' },
+            { label: 'More than 10', value: 'large' },
+          ] },
+        ],
+        form: {
+          fields: [],
+          submit_text: 'Show my recommendation',
+          success_message: 'Thanks! We will email your recommendation.',
+          consent_text: 'I agree to receive emails.',
+          consent_required: true,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerUser: 1 },
+    },
+  },
+  {
+    id: 'sticky-email-bar',
+    name: 'Sticky Announcement Bar with Email',
+    description: 'A bar pinned to the bottom of the page that collects an email without covering content.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'time_on_page', seconds: 10 }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_banner',
+        message: 'Get our best tips by email.',
+        position: 'bottom',
+        background_color: '#111827',
+        text_color: '#ffffff',
+        form: {
+          fields: [],
+          submit_text: 'Subscribe',
+          success_message: 'Thanks, you are subscribed.',
+          consent_required: true,
+        },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerUser: 1 },
+    },
+  },
+  {
+    id: 'teaser-tab-offer',
+    name: 'Teaser Tab Offer',
+    description: 'A small tab on the page edge that opens an offer with an email form when clicked.',
+    category: 'Lead capture',
+    categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
+    definition: {
+      triggers: [{ type: 'time_on_page', seconds: 5 }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        title: 'Take 10% off your first order',
+        body: 'Join our list and we will send you a code.',
+        teaser: { label: 'Get 10% off', position: 'right', reopen: true },
+        form: {
+          fields: [],
+          submit_text: 'Send my code',
+          success_message: 'Your code is on its way.',
+          consent_text: 'I agree to receive emails.',
+          consent_required: true,
+        },
+        coupon: { code: 'WELCOME10', description: 'Your 10% off code' },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerUser: 1 },
+    },
+  },
+  {
+    id: 'coupon-reveal',
+    name: 'Coupon Reveal',
+    description: 'Show a coupon code only after the visitor leaves their email, as the visitor is about to leave.',
+    category: 'Conversion',
+    categoryColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300',
+    definition: {
+      triggers: [{ type: 'exit_intent' }],
+      graph: {
+        entry: 'n0',
+        nodes: [
+          { id: 'n0', kind: 'action', action: {
+        type: 'show_modal',
+        title: 'Leave with a gift',
+        body: 'Enter your email to reveal your discount code.',
+        form: {
+          fields: [],
+          submit_text: 'Reveal my code',
+          success_message: 'Here is your code:',
+          consent_text: 'I agree to receive emails.',
+          consent_required: true,
+        },
+        coupon: { code: 'GIFT15', description: '15% off your order' },
+      } },
+        ],
+        edges: [],
+      },
+      frequency: { maxPerSession: 1, cooldownDays: 7 },
+    },
+  },
+  {
     id: 'exit-intent-newsletter',
     name: 'Exit-Intent Newsletter Signup',
     description: 'Collect an email from visitors about to leave. Leads appear in the Leads inbox.',

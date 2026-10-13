@@ -8,7 +8,9 @@
  */
 import { runContinuation } from './automation-runtime.js';
 import { registerExtension } from './ext-register.js';
-import { FORM_CSS, buildForm, successNode } from './popup-form.js';
+import { createPopupRenderer } from './popup-render.js';
+import { ensureStyles } from './popup-styles.js';
+import { applyCustomCode, hasCustomHtml } from './popup-util.js';
 
 /** Longest delay a chain's delay steps may put before an action. */
 const MAX_ACTION_DELAY_MS = 300_000;
@@ -22,9 +24,9 @@ registerExtension((core) => {
   const performClientAction = (action) => {
     try {
       switch (action.type) {
-        case 'show_modal':    renderModal(action);   break;
+        case 'show_modal':    popups.renderModal(action);   break;
         case 'show_toast':    renderToast(action);   break;
-        case 'show_banner':   renderBanner(action);  break;
+        case 'show_banner':   popups.renderBanner(action);  break;
         case 'highlight_element': renderHighlight(action); break;
         case 'show_tooltip':  renderTooltip(action); break;
         case 'personalize_content': renderPersonalize(action); break;
@@ -75,160 +77,41 @@ registerExtension((core) => {
     }
   };
 
-  /** Inject minimal shared styles once. */
-  let stylesAdded = false;
-  const ensureAutoStyles = () => {
-    if (stylesAdded) return;
-    stylesAdded = true;
-    const s = document.createElement('style');
-    s.textContent =
-      '.snc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center}' +
-      '.snc-modal{background:#fff;color:#111827;border-radius:8px;padding:24px;max-width:480px;width:90%;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit}' +
-      // The host page's own `h2 {…}` and `p {…}` rules must not recolour what we show: a site
-      // that greys its headings made the modal's title and text hard to read. Colour, font and
-      // opacity are taken from the modal itself, which is where the author set them.
-      '.snc-modal,.snc-modal *{box-sizing:border-box}' +
-      '.snc-modal h2,.snc-modal p,.snc-modal a.snc-modal-btn{font-family:inherit!important;opacity:1!important;text-transform:none!important;letter-spacing:normal!important}' +
-      '.snc-modal h2,.snc-modal p{color:inherit!important}' +
-      '.snc-modal h2{margin:0 0 12px!important;font-size:20px!important;font-weight:700!important;line-height:1.3!important}' +
-      '.snc-modal p{margin:0 0 16px!important;font-size:15px!important;line-height:1.5!important}' +
-      '.snc-modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;line-height:1;color:inherit;opacity:.7}' +
-      '.snc-modal-btn{display:inline-block;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer;border:none;font-size:14px}' +
-      '.snc-toast{position:fixed;z-index:2147483647;padding:12px 20px;border-radius:8px;background:#1a1a1a;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;pointer-events:auto;transition:opacity .3s}' +
-      '.snc-toast.top-left{top:20px;left:20px}' +
-      '.snc-toast.top-right{top:20px;right:20px}' +
-      '.snc-toast.bottom-left{bottom:20px;left:20px}' +
-      '.snc-toast.bottom-right{bottom:20px;right:20px}' +
-      '.snc-banner{position:fixed;left:0;right:0;z-index:2147483646;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)}' +
-      '.snc-banner.top{top:0}.snc-banner.bottom{bottom:0}' +
-      '.snc-banner-close{background:none;border:none;font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:.7}' +
-      '.snc-highlight-pulse{outline:3px solid #f59e0b!important;outline-offset:2px;animation:snc-pulse 1.5s infinite}' +
-      '@keyframes snc-pulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#ef4444}}' +
-      '.snc-tooltip{position:absolute;background:#1a1a1a;color:#fff;padding:8px 12px;border-radius:6px;font-size:13px;z-index:2147483647;pointer-events:none;max-width:240px;line-height:1.4}' +
-      ".snc-tooltip::before{content:'';position:absolute;border:6px solid transparent}" +
-      FORM_CSS;
-    document.head.appendChild(s);
-  };
-
-  /** Escape a string for safe interpolation into innerHTML (text or attribute position). */
-  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-
-  /** Allow only http(s)/relative URLs in injected href/src — blocks javascript: etc. */
-  const safeActionUrl = (u) => {
-    const s = String(u ?? '').trim();
-    return /^(https?:\/\/|\/)/i.test(s) ? escapeHtml(s) : '#';
-  };
-
-  /** Allow only plausible CSS color tokens in injected inline styles. */
-  const safeColor = (c, fallback) => {
-    const s = String(c ?? '').trim();
-    return /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(s) && s ? s : fallback;
-  };
-
   /**
-   * The author's own markup, style and script for an action.
-   *
-   * `custom_html` replaces the action's built-in content, `custom_css` is added as a style
-   * element inside the action's root (so it is removed with it), and `custom_js` runs once the
-   * root is on the page, with `root` and `action` in scope. They are the site owner's own
-   * code on the site owner's own page: a script that throws is caught and must never break
-   * the page, and a site whose CSP forbids evaluating code simply skips the script.
+   * Modals and bars live in `popup-render.js`, shared with the dashboard's live preview.
+   * This extension supplies the one thing that differs: how a submitted form reaches the
+   * server, and the `lead_captured` event that follows it.
    */
-  const hasCustomHtml = (action) => typeof action.custom_html === 'string' && action.custom_html.trim() !== '';
-
-  const applyCustomCode = (root, action) => {
-    if (typeof action.custom_css === 'string' && action.custom_css.trim() !== '') {
-      const style = document.createElement('style');
-      style.setAttribute('data-snc-custom', '');
-      style.textContent = action.custom_css;
-      root.appendChild(style);
-    }
-    if (typeof action.custom_js === 'string' && action.custom_js.trim() !== '') {
-      try { new Function('root', 'action', action.custom_js)(root, action); }
-      catch (err) { try { console.warn('[seentics] custom_js failed:', err); } catch { /* no console */ } }
-    }
-  };
-
-  /**
-   * Post a popup form's answers to the leads endpoint.
-   *
-   * Returns whether the lead was stored, so the form knows to thank the visitor or let
-   * them retry. The popup's `automation_id` and `variant` ride along: that is what lets
-   * the inbox say which popup, and which A/B variant, a lead came from.
-   */
-  const submitLead = async (action, payload) => {
-    try {
-      const res = await fetch(core.apiHost + '/api/v1/tracker/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          website_id:    core.websiteId,
-          anonymous_id:  core.visitorId,
-          session_id:    core.getSessionId(),
-          automation_id: action.automation_id,
-          variant:       action.variant,
-          page_url:      location.href,
-          referrer:      document.referrer,
-          ...payload,
-        }),
-      });
-      if (!res.ok) return false;
-      // A goal or funnel step can be built on this like any other event.
-      core.pushAnalytics('custom', { name: 'lead_captured', automation_id: action.automation_id, variant: action.variant });
-      return true;
-    } catch { return false; }
-  };
-
-  /** Swap the form for its thank-you message, then close the popup or follow the redirect. */
-  const mountLeadForm = (overlay, action, colors) => {
-    const slot = overlay.querySelector('[data-snc-form-slot]');
-    if (!slot) return;
-    const cfg = action.form || {};
-    const form = buildForm(action, {
-      colors,
-      submit: (payload) => submitLead(action, payload),
-      onSuccess: () => {
-        slot.replaceChildren(successNode(cfg.success_message));
-        const next = typeof cfg.success_redirect_url === 'string' ? cfg.success_redirect_url.trim() : '';
-        if (/^(https?:\/\/|\/)/i.test(next)) setTimeout(() => { location.href = next; }, 1500);
-        else setTimeout(() => overlay.remove(), 4000);
-      },
-    });
-    slot.replaceChildren(form);
-    if (form.__firstInput) form.__firstInput.focus({ preventScroll: true });
-  };
-
-  const renderModal = (action) => {
-    ensureAutoStyles();
-    const overlay = document.createElement('div');
-    overlay.className = 'snc-overlay';
-    const bgColor   = safeColor(action.background_color, '#ffffff');
-    const textColor = safeColor(action.text_color,       '#000000');
-    const btnColor  = safeColor(action.button_color,     '#2563eb');
-    const btnText   = safeColor(action.button_text_color, '#ffffff');
-    const content = hasCustomHtml(action)
-      ? `<div class="snc-custom">${action.custom_html}</div>`
-      : `${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
-      ${action.title   ? `<h2>${escapeHtml(action.title)}</h2>` : ''}
-      ${action.body    ? `<p>${escapeHtml(action.body)}</p>`    : ''}
-      ${action.form ? '<div data-snc-form-slot></div>'
-        : action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}`;
-    overlay.innerHTML = `
-    <div class="snc-modal" data-snc="modal" style="background:${bgColor};color:${textColor}">
-      <button class="snc-modal-close" aria-label="Close">&times;</button>
-      ${content}
-    </div>`;
-    overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    document.body.appendChild(overlay);
-    if (action.form && !hasCustomHtml(action)) mountLeadForm(overlay, action, { button: btnColor, buttonText: btnText });
-    applyCustomCode(overlay, action);
-  };
+  const popups = createPopupRenderer({
+    root: document.body,
+    submit: async (action, payload) => {
+      try {
+        const res = await fetch(core.apiHost + '/api/v1/tracker/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            website_id:    core.websiteId,
+            anonymous_id:  core.visitorId,
+            session_id:    core.getSessionId(),
+            automation_id: action.automation_id,
+            variant:       action.variant,
+            page_url:      location.href,
+            referrer:      document.referrer,
+            ...payload,
+          }),
+        });
+        if (!res.ok) return false;
+        // A goal or funnel step can be built on this like any other event.
+        core.pushAnalytics('custom', { name: 'lead_captured', automation_id: action.automation_id, variant: action.variant });
+        // The server's answer carries the prize, if the popup pays one. Nothing else.
+        const body = await res.json().catch(() => ({}));
+        return { prize: body && body.prize ? body.prize : null };
+      } catch { return false; }
+    },
+  });
 
   const renderToast = (action) => {
-    ensureAutoStyles();
+    ensureStyles();
     const pos   = action.position ?? 'bottom-right';
     const toast = document.createElement('div');
     toast.className = `snc-toast ${pos}`;
@@ -243,29 +126,8 @@ registerExtension((core) => {
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, dur);
   };
 
-  const renderBanner = (action) => {
-    ensureAutoStyles();
-    const pos    = action.position ?? 'top';
-    const banner = document.createElement('div');
-    banner.className = `snc-banner ${pos}`;
-    banner.style.background = action.background_color ?? '#1e40af';
-    banner.style.color       = action.text_color       ?? '#ffffff';
-    banner.setAttribute('data-snc', 'banner');
-    banner.innerHTML = hasCustomHtml(action)
-      ? `<div class="snc-custom" style="flex:1">${action.custom_html}</div><button class="snc-banner-close" aria-label="Close">&times;</button>`
-      : `
-    <span>${escapeHtml(action.message ?? '')}</span>
-    ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${escapeHtml(action.button_text)}</a>` : ''}
-    <button class="snc-banner-close" aria-label="Close">&times;</button>
-  `;
-    banner.querySelector('.snc-banner-close').onclick = () => banner.remove();
-    document.body.appendChild(banner);
-    applyCustomCode(banner, action);
-    if (action.duration_ms) setTimeout(() => banner.remove(), action.duration_ms);
-  };
-
   const renderHighlight = (action) => {
-    ensureAutoStyles();
+    ensureStyles();
     const el = action.selector ? document.querySelector(action.selector) : null;
     if (!el) return;
     el.classList.add('snc-highlight-pulse');
@@ -274,7 +136,7 @@ registerExtension((core) => {
   };
 
   const renderTooltip = (action) => {
-    ensureAutoStyles();
+    ensureStyles();
     const anchor = action.selector ? document.querySelector(action.selector) : null;
     if (!anchor) return;
     const tip = document.createElement('div');

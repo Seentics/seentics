@@ -17,6 +17,7 @@ const AUTOMATION = "11111111-1111-4111-8111-111111111111";
 let website: any;
 const captured: any[] = [];
 let failCapture = false;
+let prizeToReturn: { id: string; label: string; coupon_code: string | null } | null = null;
 
 function app() {
   const routes = new Hono();
@@ -28,7 +29,7 @@ function app() {
         capture: async (s) => {
           if (failCapture) throw new Error("db down");
           captured.push(s);
-          return { contactId: "c1", isNewContact: true, submission: s };
+          return { contactId: "c1", isNewContact: true, submission: s, prize: prizeToReturn };
         },
         onCaptured: () => () => {},
       },
@@ -49,6 +50,7 @@ const valid = { website_id: SITE, email: " Jane@Example.com " };
 beforeEach(() => {
   captured.length = 0;
   failCapture = false;
+  prizeToReturn = null;
   website = { id: SITE, url: "example.com", is_active: true, automation_enabled: true };
 });
 
@@ -106,6 +108,16 @@ describe("POST /tracker/leads", () => {
     website = { ...website, automation_enabled: false };
     expect((await post(valid)).status).toBe(200);
     expect(captured).toHaveLength(0);
+  });
+
+  it("returns the prize chosen by the server, and nothing else about the contact", async () => {
+    prizeToReturn = { id: "2", label: "10% off", coupon_code: "SAVE10" };
+    const res = await post(valid);
+    expect(await res.json()).toEqual({ status: "ok", prize: prizeToReturn });
+  });
+
+  it("returns a bare ok when the popup pays no prize", async () => {
+    expect(await (await post(valid)).json()).toEqual({ status: "ok" });
   });
 
   it("reports a storage failure as 500", async () => {
