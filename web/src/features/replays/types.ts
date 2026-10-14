@@ -51,7 +51,7 @@ export interface ReplayListParams {
   signal?: FrustrationSignalType;
   /** `recent` (default) or `frustration` (worst first). */
   sort?: 'recent' | 'frustration';
-  /** One session group — see `features/replays/groups`. */
+  /** One session group (core SESSION_GROUPS): smooth, errors, rage, dead_clicks, forms, u_turns, thrash, gave_up. */
   group?: SessionGroup;
 }
 
