@@ -36,7 +36,7 @@ const OPEN_PREVIEW = 3;
  */
 export function RecommendationsPanel({ websiteId, className }: RecommendationsPanelProps) {
   const list = useRecommendations(websiteId);
-  const status = useAiStatus();
+  const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
   const act = useRecommendationAction(websiteId);
   const [showAll, setShowAll] = useState(false);

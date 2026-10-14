@@ -11,7 +11,7 @@ export function useHeatmapInsights(websiteId: string, pagePath: string, days: nu
   return useQuery({
     queryKey: heatmapInsightKeys.page(websiteId, pagePath, days, device),
     queryFn: () => heatmapInsightsApi.get(websiteId, pagePath, days, device),
-    enabled: enabled && !!websiteId && websiteId !== 'demo' && !!pagePath,
+    enabled: enabled && !!websiteId && !!pagePath,
     // The wording is stored server-side for a day; the numbers move slowly.
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

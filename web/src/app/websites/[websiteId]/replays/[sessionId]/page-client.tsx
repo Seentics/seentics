@@ -402,7 +402,7 @@ export function ReplayDetailView({
               replayBridge={replayBridge}
               session={session ?? null}
               websiteId={websiteId}
-              analysisSessionId={!isDemoMode && !embed ? sessionId : undefined}
+              analysisSessionId={!embed ? sessionId : undefined}
             />
           ) : null}
         </div>

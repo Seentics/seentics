@@ -182,7 +182,8 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   // Check if we're in demo mode
   const isDemoMode = websiteId === 'demo' || sample;
   // AI entry points need a real, signed-in website: not an embed, not the demo.
-  const showAi = !embed && !isDemoMode;
+  // The demo shows the AI too, from fixtures (lib/demo/ai); only embeds leave it out.
+  const showAi = !embed;
   const ask = (about: { question: string; context: string }) => (
     showAi ? <AskAiButton websiteId={websiteId} question={about.question} context={about.context} /> : undefined
   );

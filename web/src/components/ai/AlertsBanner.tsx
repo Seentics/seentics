@@ -27,7 +27,7 @@ export interface AlertsBannerProps {
 export function AlertsBanner({ websiteId, className }: AlertsBannerProps) {
   const alerts = useAlerts(websiteId);
   // Alerts come from the hourly check whether or not a model is configured; asking why needs one.
-  const canAsk = useAiStatus().data?.configured === true;
+  const canAsk = useAiStatus(true, websiteId).data?.configured === true;
   // "3 min ago" depends on the clock: computed after mount so the server markup matches.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {

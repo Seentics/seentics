@@ -39,6 +39,7 @@ import {
   type DeviceFilter, type SessionRow, type SessionSort,
 } from '@/features/replays/list-types';
 import { FRUSTRATED_MIN_SCORE } from '@/features/replays/analysis';
+import { demoSessionFrustration } from '@/lib/demo/ai';
 
 export default function ReplaysPage() {
   return <ReplaysView />;
@@ -152,7 +153,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
       const since = rangeDays ? demoDate().getTime() - rangeDays * 86_400_000 : -Infinity;
       return demoReplays().sessions
         .filter(s => new Date(s.start_time).getTime() >= since)
-        .map(s => ({
+        .map((s, i) => ({
         id: s.id,
         session_id: s.session_id,
         country: s.country,
@@ -165,9 +166,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         has_errors: s.has_errors,
         has_rage_clicks: s.has_rage_clicks,
         start_time: s.start_time,
-        // The demo fixtures carry no analysis.
-        frustration_score: null,
-        signal_counts: null,
+        // A spread of scores, so the demo's frustration filter and sort have something to show.
+        frustration_score: demoSessionFrustration(i).frustrationScore,
+        signal_counts: demoSessionFrustration(i).signalCounts,
       }));
     }
     return (apiData?.sessions ?? []).map((s: ReplaySession) => ({
@@ -269,9 +270,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
           title="Session Replays"
           description="Watch real user sessions to understand exactly how people use your product."
         >
-          {!isDemoMode && (
-            <AskAiButton websiteId={websiteId} size="md" {...askAbout.replays(rangeDays)} />
-          )}
+          <AskAiButton websiteId={websiteId} size="md" {...askAbout.replays(rangeDays)} />
           <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
           {!isDemoMode && (
             <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>

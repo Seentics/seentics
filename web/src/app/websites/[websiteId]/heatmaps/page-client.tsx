@@ -318,9 +318,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         title="Heatmaps"
         description="See where users click, move, and how far they scroll on each page."
       >
-        {!isDemoMode && (
-          <AskAiButton websiteId={websiteId} size="md" {...askAbout.heatmaps(days)} />
-        )}
+        <AskAiButton websiteId={websiteId} size="md" {...askAbout.heatmaps(days)} />
         {!isDemoMode && (
           <Button
             variant="default"

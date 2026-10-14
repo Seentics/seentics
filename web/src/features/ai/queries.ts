@@ -2,7 +2,8 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { aiApi } from './api';
 
-const isValidId = (id: string) => !!id && id !== 'demo';
+// 'demo' is valid: the API layer answers it from fixtures (lib/demo/ai) without a request.
+const isValidId = (id: string) => !!id;
 
 export const aiKeys = {
   all: ['ai'] as const,
@@ -41,10 +42,12 @@ export function useConversationList(websiteId: string) {
  * Whether AI is configured on this deployment. Account-wide, not per website, and it
  * changes only when an operator sets a key — so it is asked once and kept.
  */
-export function useAiStatus(enabled = true) {
+export function useAiStatus(enabled = true, websiteId?: string) {
+  const demo = websiteId === 'demo';
   return useQuery({
-    queryKey: aiKeys.status(),
-    queryFn: () => aiApi.status(),
+    // The demo shows every AI feature: it is answered from fixtures, whatever this deployment has.
+    queryKey: demo ? [...aiKeys.status(), 'demo'] : aiKeys.status(),
+    queryFn: () => (demo ? Promise.resolve({ configured: true }) : aiApi.status()),
     enabled,
     staleTime: 10 * 60 * 1000,
     retry: false,

@@ -7,6 +7,8 @@ import type { AxiosResponse } from 'axios';
 import api from '@/lib/api';
 import { rangeLabel } from '@/features/ai/ask-link';
 import { normalizeHeatmapPagePath } from './api';
+import { isDemo } from '@/lib/demo';
+import { demoDelay, demoHeatmapInsights } from '@/lib/demo/ai';
 
 export type InsightDevice = 'all' | 'desktop' | 'tablet' | 'mobile';
 
@@ -107,12 +109,17 @@ const params = (pagePath: string, days: number, device: InsightDevice) => ({
 
 export const heatmapInsightsApi = {
   async get(websiteId: string, pagePath: string, days: number, device: InsightDevice): Promise<HeatmapInsights> {
+    if (isDemo(websiteId)) return demoHeatmapInsights(pagePath, days, device);
     const res = await api.get(`/heatmaps/${websiteId}/insights`, { params: params(pagePath, days, device) });
     return (res.data as { data: HeatmapInsights }).data;
   },
 
   /** 403 is an answer (a viewer cannot refresh), so it is let through rather than thrown. */
   async refresh(websiteId: string, pagePath: string, days: number, device: InsightDevice): Promise<RefreshInsightsOutcome> {
+    if (isDemo(websiteId)) {
+      await demoDelay(900);
+      return { kind: 'refreshed', data: demoHeatmapInsights(pagePath, days, device) };
+    }
     const res = await api.post(`/heatmaps/${websiteId}/insights/refresh`, {}, {
       params: params(pagePath, days, device),
       validateStatus: (s) => (s >= 200 && s < 300) || s === 403,

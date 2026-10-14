@@ -260,9 +260,7 @@ export default function FunnelsPage() {
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
       >
-        {!isDemoMode && (
-          <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnels(dateRange)} />
-        )}
+        <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnels(dateRange)} />
         <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
         <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}

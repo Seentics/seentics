@@ -88,7 +88,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
   const [previewPopoverOpen, setPreviewPopoverOpen] = useState(false);
   // Insights read the signed-in API, so an embed (no session) and the demo go without.
   const [insightsOpen, setInsightsOpen] = useState(true);
-  const insightsAvailable = !isDemoMode && !embed;
+  const insightsAvailable = !embed;
 
   const urlPath = useMemo(() => {
     const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';

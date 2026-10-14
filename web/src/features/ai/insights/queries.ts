@@ -11,7 +11,7 @@ export function useDailyInsight(websiteId: string, enabled = true) {
   return useQuery({
     queryKey: insightKeys.today(websiteId),
     queryFn: () => insightsApi.today(websiteId),
-    enabled: enabled && !!websiteId && websiteId !== 'demo',
+    enabled: enabled && !!websiteId,
     // Generated once a day; a refresh writes the cache directly.
     staleTime: 15 * 60 * 1000,
     retry: 1,

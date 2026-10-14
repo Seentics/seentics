@@ -32,7 +32,7 @@ export interface HeatmapInsightsPanelProps {
  */
 export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClose, className }: HeatmapInsightsPanelProps) {
   const insights = useHeatmapInsights(websiteId, pagePath, days, device);
-  const status = useAiStatus();
+  const status = useAiStatus(true, websiteId);
   const aiConfigured = insights.data?.ai_configured ?? status.data?.configured ?? false;
   const { isViewer } = usePermissions(websiteId);
   const refresh = useRefreshHeatmapInsights(websiteId, pagePath, days, device);

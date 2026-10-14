@@ -145,9 +145,7 @@ export default function FunnelDetailPage() {
         title={funnel.name}
         description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
       >
-        {!isDemo(websiteId) && (
-          <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name)} />
-        )}
+        <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name)} />
         <FunnelRangeSelect value={days} onChange={setDays} />
       </DashboardPageHeader>
 

@@ -7,6 +7,8 @@
  */
 import api from '@/lib/api';
 import type { FrustrationSignalType, SignalCounts } from './types';
+import { isDemo } from '@/lib/demo';
+import { demoSessionAnalysis } from '@/lib/demo/ai';
 
 export type FrustrationSignal = {
   type: FrustrationSignalType;
@@ -51,6 +53,7 @@ export async function getSessionAnalysis(
   sessionId: string,
   summarize: boolean,
 ): Promise<SessionAnalysis> {
+  if (isDemo(websiteId)) return demoSessionAnalysis(sessionId);
   const res = await api.get(
     `/replays/${encodeURIComponent(websiteId)}/${encodeURIComponent(sessionId.trim())}/analysis`,
     { params: { summarize: summarize ? '1' : '0' } },

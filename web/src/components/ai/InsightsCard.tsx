@@ -33,7 +33,7 @@ export interface InsightsCardProps {
  */
 export function InsightsCard({ websiteId, className }: InsightsCardProps) {
   const insight = useDailyInsight(websiteId);
-  const status = useAiStatus();
+  const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
   const refresh = useRefreshInsight(websiteId);
 

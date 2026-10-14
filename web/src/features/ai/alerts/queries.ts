@@ -9,7 +9,8 @@ export const alertKeys = {
   settings: (websiteId: string) => [...aiKeys.all, 'alert-settings', websiteId] as const,
 };
 
-const real = (websiteId: string) => !!websiteId && websiteId !== 'demo';
+// 'demo' included: alertsApi answers it from fixtures.
+const real = (websiteId: string) => !!websiteId;
 
 export function useAlerts(websiteId: string, enabled = true) {
   return useQuery({

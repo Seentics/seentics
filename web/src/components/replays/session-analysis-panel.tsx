@@ -40,7 +40,7 @@ export function SessionAnalysisPanel({
   sessionId: string;
   replayBridge: SessionReplayBridge | null;
 }) {
-  const aiStatus = useAiStatus();
+  const aiStatus = useAiStatus(true, websiteId);
   const aiConfigured = aiStatus.data?.configured === true;
   // Wait for the status so a configured deployment does not make two requests.
   const statusSettled = !aiStatus.isLoading;

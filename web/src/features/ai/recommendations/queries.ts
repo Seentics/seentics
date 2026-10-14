@@ -12,7 +12,7 @@ export function useRecommendations(websiteId: string, enabled = true) {
   return useQuery({
     queryKey: recommendationKeys.list(websiteId),
     queryFn: () => recommendationsApi.list(websiteId, [...VISIBLE_STATUSES]),
-    enabled: enabled && !!websiteId && websiteId !== 'demo',
+    enabled: enabled && !!websiteId,
     // Collected and measured once a day; the actions below update the cache.
     staleTime: 10 * 60 * 1000,
     retry: 1,

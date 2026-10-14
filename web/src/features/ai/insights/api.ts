@@ -1,10 +1,13 @@
 /** Endpoint functions for the daily insight. No React, no hooks. */
 import type { AxiosResponse } from 'axios';
 import api from '@/lib/api';
+import { isDemo } from '@/lib/demo';
+import { demoDailyInsight, demoDelay } from '@/lib/demo/ai';
 import type { DailyInsight, RefreshOutcome } from './types';
 
 export const insightsApi = {
   async today(websiteId: string): Promise<DailyInsight | null> {
+    if (isDemo(websiteId)) return demoDailyInsight();
     const res = await api.get(`/ai/insights/${websiteId}`);
     return (res.data?.data ?? null) as DailyInsight | null;
   },
@@ -18,6 +21,10 @@ export const insightsApi = {
    * A 503 (the model failed) is still thrown.
    */
   async refresh(websiteId: string): Promise<RefreshOutcome> {
+    if (isDemo(websiteId)) {
+      await demoDelay(900);
+      return { kind: 'refreshed', data: demoDailyInsight() };
+    }
     const res = await api.post(`/ai/insights/${websiteId}/refresh`, {}, {
       validateStatus: (s) => (s >= 200 && s < 300) || s === 429 || s === 403,
     });
