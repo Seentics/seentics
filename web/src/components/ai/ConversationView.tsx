@@ -16,6 +16,8 @@ export interface ConversationViewProps {
   onDismissProposal?: (messageId: string) => void;
   /** Messages whose proposal is being created. */
   confirmingIds?: ReadonlySet<string>;
+  /** The viewer's role on the site, so a draft they cannot confirm says why. */
+  viewerRole?: string;
   /** A stored thread is still loading; shown instead of the empty state and starters. */
   isLoading?: boolean;
   className?: string;
@@ -32,7 +34,7 @@ export interface ConversationViewProps {
 export function ConversationView({
   messages, starters = [], onStarter, emptyTitle = 'Ask about this website',
   emptyBody, showUsage, onConfirmProposal, onDismissProposal, confirmingIds,
-  isLoading, className,
+  viewerRole, isLoading, className,
 }: ConversationViewProps) {
   if (messages.length === 0 && isLoading) {
     return (
@@ -78,6 +80,7 @@ export function ConversationView({
           key={m.id}
           message={m}
           showUsage={showUsage}
+          viewerRole={viewerRole}
           isConfirming={confirmingIds?.has(m.id) ?? false}
           onConfirmProposal={
             m.proposal && onConfirmProposal ? () => onConfirmProposal(m.id) : undefined

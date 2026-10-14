@@ -12,6 +12,8 @@ export interface ChatMessageViewProps {
   onConfirmProposal?: () => void;
   onDismissProposal?: () => void;
   isConfirming?: boolean;
+  /** The viewer's role on the site, for the proposal card's confirm button. */
+  viewerRole?: string;
   className?: string;
 }
 
@@ -24,7 +26,7 @@ export interface ChatMessageViewProps {
  * somewhere it chose.
  */
 export function ChatMessageView({
-  message, showUsage, onConfirmProposal, onDismissProposal, isConfirming, className,
+  message, showUsage, onConfirmProposal, onDismissProposal, isConfirming, viewerRole, className,
 }: ChatMessageViewProps) {
   const isUser = message.role === 'user';
 
@@ -75,6 +77,8 @@ export function ChatMessageView({
             applied={message.proposalApplied}
             isConfirming={isConfirming}
             error={message.proposalError}
+            stale={message.proposalStale}
+            role={viewerRole}
             onConfirm={onConfirmProposal}
             onDismiss={onDismissProposal}
           />

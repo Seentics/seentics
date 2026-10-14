@@ -29,7 +29,7 @@ export function initAutomationsModule(deps: {
 
   return {
     draftValidator: new AutomationDraftValidatorService(),
-    draftWriter: new AutomationDraftWriterService(repository),
+    draftWriter: new AutomationDraftWriterService(automationCrud),
     lanes: {
       automations: automationsLane(triggers),
       profiles: profilesLane(visitorProfiles),

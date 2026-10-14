@@ -132,7 +132,7 @@ export class RecommendationService {
 
   /**
    * A draft was confirmed in the assistant. With a recommendation behind it (and that
-   * recommendation open on this site), mark it applied and link what was created. Without one, or
+   * recommendation open on this site), mark it applied and link what was created or changed. Without one, or
    * when the id does not check out, record the change as its own applied row so it is measured too.
    */
   async recordApplied(e: AppliedProposal): Promise<Recommendation | null> {
@@ -144,6 +144,10 @@ export class RecommendationService {
         resource: e.created, queryId: e.queryId, at,
       });
     }
+    // A change to something that already existed is linked to the recommendation it was made for,
+    // but not recorded as a measured change of its own: switching an alert or renaming a goal is
+    // not something to report a before-and-after on.
+    if (!row && (e.operation ?? "create") !== "create") return null;
     if (!row) {
       const { target, metric } = assistantTarget(e);
       row = await this.deps.repo.insertApplied({

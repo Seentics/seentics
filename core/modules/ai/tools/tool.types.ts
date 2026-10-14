@@ -49,23 +49,68 @@ export interface AiTool<TArgs = unknown> {
   handler: (args: TArgs, ctx: ToolContext) => Promise<ToolResult>;
 }
 
+/** What accepting a draft does. `archive` is always a soft archive or deactivation, never a delete. */
+export type ProposalOperation = "create" | "update" | "set_status" | "archive";
+
+/**
+ * The existing thing a non-create draft changes, and its version when the draft was made.
+ *
+ * `version` is the target's `updated_at` (or, where that moves on its own — an error group's
+ * last-seen time, an anomaly's hourly touch — the field the change is about, such as its status).
+ * Confirming compares it with the target's version now and refuses a draft made against an
+ * older state: what the person approved was a change to the thing as it was shown.
+ */
+export type ProposalTarget = { id: string; version: string };
+
+/** One value in a before/after diff: a scalar shown as text, or a compact list (steps, actions). */
+export type ProposalDiffValue = string | string[] | null;
+
+/** One changed field, compact, for the confirmation card. */
+export type ProposalChange = {
+  field: string;
+  /** Human label, e.g. "Steps". */
+  label: string;
+  before: ProposalDiffValue;
+  after: ProposalDiffValue;
+};
+
+/**
+ * Something the approver should notice before confirming.
+ *
+ * - `live`: visitors see it as soon as it is confirmed
+ * - `stops`: something that runs or counts today stops
+ * - `data`: changes what this site collects (recordings, heatmaps, masking)
+ * - `external`: reaches outside the product (webhook, redirect)
+ * - `alerts`: changes who is told about problems, and when
+ */
+export type ProposalRisk = { kind: "live" | "stops" | "data" | "external" | "alerts"; message: string };
+
+/** The least role that may confirm a draft. Owners always may. */
+export type ConfirmRole = "member" | "admin";
+
 /**
  * A draft a `propose` tool produced, ready for a person to accept or discard.
  *
- * `payload` has already been validated against the same schema the real create endpoint
- * uses, so approving it cannot fail validation later — the confirmation step is a
- * decision, not a second chance to catch a malformed draft.
+ * `payload` has already been validated against the same schema the real endpoint uses
+ * (create, or the partial patch of update), so approving it cannot fail validation later —
+ * the confirmation step is a decision, not a second chance to catch a malformed draft. The
+ * writer validates it again anyway, because the stored row outlives the code that wrote it.
  *
- * `summary` is what the UI shows. It is built from the validated payload rather than
- * from anything the model wrote in prose, so the description a person reads cannot
- * disagree with what would actually be created.
+ * `summary` and `diff` are what the UI shows. They are built from the validated payload and the
+ * target as it was read, rather than from anything the model wrote in prose, so the description a
+ * person reads cannot disagree with what would actually change.
  */
 export type ActionProposal = {
-  /** `automation` | `funnel` | `goal` — what accepting this would create. */
+  /** `automation` | `funnel` | `goal` | `error` | `recommendation` | `alert_settings` | `alert_snooze` | `site_settings`. */
   resource: string;
-  /** `create` today; `update` when those land. */
-  operation: "create";
+  operation: ProposalOperation;
+  /** Required for every operation but `create`. */
+  target?: ProposalTarget;
   payload: unknown;
+  /** For display. The applier works the role out again from resource and operation; it never trusts this. */
+  requiredRole: ConfirmRole;
+  /** Fields that change, before and after. Absent on a create. */
+  diff?: ProposalChange[];
   summary: {
     title: string;
     lines: string[];
@@ -76,5 +121,7 @@ export type ActionProposal = {
      * without reading could matter beyond their own dashboard.
      */
     hasExternalEffect: boolean;
+    /** Callouts the card shows above the confirm button. */
+    risks?: ProposalRisk[];
   };
 };

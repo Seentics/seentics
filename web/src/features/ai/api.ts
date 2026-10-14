@@ -17,7 +17,7 @@ export const aiApi = {
   },
 
   /**
-   * Create what an approved draft describes.
+   * Apply what an approved draft describes: create it, or change the thing it names.
    *
    * Only the ids are sent. The payload is read from the stored row on the server —
    * a round-trip through the browser is a chance to change what was approved.

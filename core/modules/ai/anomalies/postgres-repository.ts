@@ -6,6 +6,7 @@ import {
   SENSITIVITIES,
   SEVERITIES,
   type AlertSettings,
+  type AlertSnooze,
   type AnomalyMetric,
   type AnomalyType,
   type Detection,
@@ -216,6 +217,38 @@ export class PostgresAnomalyRepository implements AnomalyRepository {
       WHERE website_id = ${websiteId}::uuid AND status = 'open'
       RETURNING 1
     `;
+    return rows.length;
+  }
+
+  async get(websiteId: string, id: string): Promise<StoredAnomaly | null> {
+    const rows = await sql<Row[]>`
+      SELECT * FROM ai_anomalies WHERE id = ${id}::uuid AND website_id = ${websiteId}::uuid
+    `;
+    return rows[0] ? toStored(rows[0]) : null;
+  }
+
+  async listSnoozes(websiteId: string, now: Date): Promise<AlertSnooze[]> {
+    const rows = await sql<{ type: string; subject: string; until: Date }[]>`
+      SELECT type, subject, until FROM ai_anomaly_snoozes
+      WHERE website_id = ${websiteId}::uuid AND until > ${now.toISOString()}::timestamptz
+      ORDER BY until DESC
+    `;
+    return rows.map((r) => ({ type: r.type, subject: r.subject, until: iso(r.until)! }));
+  }
+
+  async saveSnooze(websiteId: string, snooze: AlertSnooze, userId: string): Promise<AlertSnooze> {
+    const [row] = await sql<{ type: string; subject: string; until: Date }[]>`
+      INSERT INTO ai_anomaly_snoozes (website_id, type, subject, until, created_by, created_at)
+      VALUES (${websiteId}::uuid, ${snooze.type}, ${snooze.subject}, ${snooze.until}::timestamptz, ${userId}::uuid, NOW())
+      ON CONFLICT (website_id, type, subject) DO UPDATE
+        SET until = EXCLUDED.until, created_by = EXCLUDED.created_by, created_at = NOW()
+      RETURNING type, subject, until
+    `;
+    return { type: row!.type, subject: row!.subject, until: iso(row!.until)! };
+  }
+
+  async purgeExpiredSnoozes(now: Date): Promise<number> {
+    const rows = await sql`DELETE FROM ai_anomaly_snoozes WHERE until <= ${now.toISOString()}::timestamptz RETURNING 1`;
     return rows.length;
   }
 }

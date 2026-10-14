@@ -157,15 +157,10 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     impact: { reads: analyticsModule.impactReads, automationStats: automationsModule.stats },
     automationDrafts: automationsModule.draftValidator,
     funnelDrafts: funnelsModule.drafts,
-    // The entire write surface an approved AI proposal can reach.
-    writers: {
-      createAutomation: ({ websiteId, userId, payload }) =>
-        automationsModule.draftWriter.createFromProposal({ websiteId, userId, payload }),
-      createFunnel: ({ websiteId, userId, payload }) =>
-        funnelsModule.drafts.createFromProposal({ websiteId, userId, payload }),
-      createGoal: ({ websiteId, payload }) =>
-        websitesModule.goalDrafts.createFromProposal({ websiteId, payload }),
-    },
+    // With the funnel drafts and the websites module's goal and site-settings drafts: the entire
+    // write surface an approved AI proposal can reach (see modules/ai/services/agent/proposal-writers.ts).
+    automationProposals: automationsModule.draftWriter,
+    errorMutations: errorsModule.mutations,
   });
 
   // The lane registry is the composition: each module contributes the ingest for the data

@@ -8,6 +8,7 @@ import { useAssistantChat } from '@/features/ai/use-assistant-chat';
 import { formatCostUsd } from '@/features/ai/format';
 import { ChatComposer } from './ChatComposer';
 import { ConversationView } from './ConversationView';
+import { usePermissions } from '@/hooks/use-permissions';
 
 /** Offered on an empty conversation. Each is a question the tools can actually answer. */
 const STARTERS = [
@@ -59,6 +60,8 @@ export function AssistantChat({
   initialPrompt, promptContext, recommendationId, className,
 }: AssistantChatProps) {
   const chat = useAssistantChat(websiteId, conversationId, initialPrompt, recommendationId);
+  // Drafts that need an admin say so to a member before they click, rather than after.
+  const { role } = usePermissions(websiteId);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Scrolling belongs to whoever owns the scroll container, which is this frame — a
@@ -117,10 +120,11 @@ export function AssistantChat({
             messages={chat.messages}
             starters={STARTERS}
             onStarter={(p) => void chat.send(p)}
-            emptyBody="Traffic, funnels, recordings, heatmaps, errors and automations. I can also draft an automation, funnel or goal for you to approve."
+            emptyBody="Traffic, funnels, recordings, heatmaps, errors and automations. I can also draft new automations, funnels and goals, or changes to existing ones and to your settings, for you to confirm."
             showUsage={showUsage}
             isLoading={chat.isRestoring}
             confirmingIds={chat.confirmingIds}
+            viewerRole={role}
             onConfirmProposal={(id) => void chat.confirmProposal(id)}
             onDismissProposal={chat.dismissProposal}
           />

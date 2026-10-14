@@ -1,8 +1,8 @@
 import type { AnalyticsAnomalyReads, AnalyticsImpactReads, AnalyticsInsightReads, AnalyticsReads } from "../analytics/interfaces";
 import type { AutomationInsights } from "../automations/interfaces";
 import type { RetentionSiteSource } from "../../platform/retention";
-import type { AutomationDraftValidator } from "../automations/interfaces/automations.module";
-import type { ErrorAnomalyReads, ErrorQueries } from "../errors/interfaces";
+import type { AutomationDraftValidator, AutomationDraftWriter } from "../automations/interfaces/automations.module";
+import type { ErrorAnomalyReads, ErrorMutations, ErrorQueries } from "../errors/interfaces";
 import type { FunnelDraftPort, FunnelPerformance } from "../funnels/interfaces";
 import type { HeatmapPageAnalysisReads } from "../heatmaps/interfaces";
 import type { SessionAnalysisReads } from "../recordings/interfaces";
@@ -13,14 +13,19 @@ import { AiUsageCounter } from "./services/usage-count.service";
 import { AiRetentionPurge } from "./services/retention-purge.service";
 import { createAiRoutes } from "./routes";
 import { AgentService } from "./services/agent/agent.service";
-import { ProposalApplier, type ProposalWriters } from "./services/agent/proposal-applier";
+import { ProposalApplier } from "./services/agent/proposal-applier";
+import { proposalWriters } from "./services/agent/proposal-writers";
 import { ToolRegistry } from "./tools/registry";
 import { readTools, type ReadPorts } from "./tools/read-tools";
 import { sqlBackedReads } from "./tools/sql-backed-reads";
 import { funnelReads } from "./tools/funnel-reads";
 import { proposeAutomationTool } from "./tools/propose-automation.tool";
 import { proposeFunnelTool } from "./tools/propose-funnel.tool";
-import { proposeGoalTool } from "./tools/propose-goal.tool";
+import { goalEditTools, proposeGoalTool } from "./tools/propose-goal.tool";
+import { automationEditTools } from "./tools/propose-automation-edit.tool";
+import { funnelEditTools } from "./tools/propose-funnel-edit.tool";
+import { alertTools, errorTriageTool, recommendationTriageTool } from "./tools/propose-triage.tool";
+import { siteSettingsTools } from "./tools/propose-site-settings.tool";
 import { recommendationTools } from "./tools/recommendation-reads";
 import { composeRecommendations } from "./recommendations/compose";
 import { heatmapInsightsTool } from "./tools/heatmap-reads";
@@ -57,8 +62,14 @@ export function initAiModule(deps: {
   errorQueries: ErrorQueries;
   /** Validates a draft against the same schema the create endpoint uses. */
   automationDrafts: AutomationDraftValidator;
-  /** The entire write surface an approved proposal can reach. */
-  writers: ProposalWriters;
+  /**
+   * Reads, creates and changes automations someone approved. With the funnel, goal, site-settings
+   * and error ports below, the whole write surface an approved proposal can reach — assembled in
+   * `proposalWriters`.
+   */
+  automationProposals: AutomationDraftWriter;
+  /** Error-group status changes someone approved. */
+  errorMutations: ErrorMutations;
   /** The aggregates behind the daily dashboard insight. */
   analyticsInsights: AnalyticsInsightReads;
   /** Every website, for the daily insight job. */
@@ -81,7 +92,7 @@ export function initAiModule(deps: {
    * automation's execution totals (automations). Without them recommendations are not wired.
    */
   impact?: { reads: AnalyticsImpactReads; automationStats: Pick<AutomationInsights, "stats"> | null };
-  /** Validates funnel drafts for `propose_funnel`; the tool is absent without it. */
+  /** Validates, creates and changes funnels for the funnel drafts; those tools are absent without it. */
   funnelDrafts?: FunnelDraftPort;
 }): AiModule {
   // One repository for both: the usage counter reads the same table.
@@ -119,7 +130,12 @@ export function initAiModule(deps: {
     topSources:     (id, days) => deps.analyticsReads.getSources(id, q(days)),
     dimensions:     (id, days) => deps.analyticsReads.getDimensionsBulk(id, q(days)),
     revenue:        (id, days) => deps.analyticsReads.getRevenueDashboard(id, q(days)),
-    errorGroups:    (id, days) => deps.errorQueries.listGroups(id, { days }),
+    // `fingerprint` is dropped on the way to the model (it reads as a device fingerprint there); an
+    // error group's is a hash of its message and source, and the model needs it to draft a status change.
+    errorGroups:    async (id, days) => {
+      const r = await deps.errorQueries.listGroups(id, { days });
+      return { groups: r.groups.map((g) => ({ ...g, error_fingerprint: g.fingerprint })) };
+    },
     funnels:           funnels.funnels,
     funnelPerformance: funnels.funnelPerformance,
     automations:       fixed.automations,
@@ -132,8 +148,20 @@ export function initAiModule(deps: {
     heatmapInsightsTool(deps.heatmapAnalysis),
     ...sessionTools(deps.sessionAnalysis),
     proposeAutomationTool(deps.automationDrafts, deps.automationDrafts.vocabulary()),
-    ...(deps.funnelDrafts ? [proposeFunnelTool(deps.funnelDrafts)] : []),
-    ...(deps.websitesModule.goalDrafts ? [proposeGoalTool(deps.websitesModule.goalDrafts)] : []),
+    ...automationEditTools({ automations: deps.automationProposals, validator: deps.automationDrafts }),
+    ...(deps.funnelDrafts ? [proposeFunnelTool(deps.funnelDrafts), ...funnelEditTools(deps.funnelDrafts)] : []),
+    proposeGoalTool(deps.websitesModule.goalDrafts),
+    ...goalEditTools(deps.websitesModule.goalDrafts),
+    ...siteSettingsTools(deps.websitesModule.siteSettingsDrafts),
+    errorTriageTool(deps.errorQueries),
+    // Read lazily: the anomaly and recommendation services are composed below.
+    ...(deps.anomalyReads ? alertTools({
+      list: (id, status) => anomalies!.list(id, status),
+      get: (id, anomalyId) => anomalies!.get(id, anomalyId),
+      settings: (id) => anomalies!.settings(id),
+      snoozes: (id) => anomalies!.snoozes(id),
+    }) : []),
+    ...(deps.impact ? [recommendationTriageTool({ get: (id, recId) => recommendations!.reads.get(id, recId) })] : []),
     // Read lazily: the service is composed below, once the insight model it words with exists.
     ...(deps.impact ? recommendationTools({
       list: (id, statuses) => recommendations!.reads.list(id, statuses),
@@ -261,7 +289,15 @@ export function initAiModule(deps: {
   // A confirmed draft marks its recommendation applied (or records itself), so its impact is measured.
   const applier = new ProposalApplier(
     repo,
-    deps.writers,
+    proposalWriters({
+      automations: deps.automationProposals,
+      funnels: deps.funnelDrafts,
+      goals: deps.websitesModule.goalDrafts,
+      siteSettings: deps.websitesModule.siteSettingsDrafts,
+      errors: { queries: deps.errorQueries, mutations: deps.errorMutations },
+      alerts: anomalies,
+      recommendations: recommendations?.service ?? null,
+    }),
     recommendations ? async (applied) => { await recommendations.service.recordApplied(applied); } : undefined,
   );
 

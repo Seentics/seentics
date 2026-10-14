@@ -20,8 +20,12 @@ import type { AnomalyExplainer, ExplainContext } from "./explain";
 import { buildAlertNotice, presentAlert, type AlertView, type AnomalyAlertNotice } from "./present";
 import type { AnomalyRepository } from "./repository";
 import {
+  MAX_SNOOZE_HOURS,
+  SNOOZE_ANY,
   severityRank,
+  snoozedUntil,
   type AlertSettings,
+  type AlertSnooze,
   type AnomalyType,
   type Detection,
   type Severity,
@@ -107,8 +111,40 @@ export class AnomalyService {
 
   async list(websiteId: string, status: "open" | "all"): Promise<AlertView[]> {
     const since = new Date(this.now().getTime() - LIST_DAYS * 24 * HOUR_MS);
-    const rows = await this.deps.repo.list(websiteId, { status, since, limit: LIST_LIMIT });
-    return rows.map(presentAlert);
+    const now = this.now();
+    const [rows, snoozes] = await Promise.all([
+      this.deps.repo.list(websiteId, { status, since, limit: LIST_LIMIT }),
+      this.deps.repo.listSnoozes(websiteId, now),
+    ]);
+    return rows.map((r) => presentAlert(r, snoozedUntil(snoozes, r, now)));
+  }
+
+  /** One anomaly of this site, for a snooze draft. `null` for an id on another site. */
+  async get(websiteId: string, id: string): Promise<AlertView | null> {
+    const now = this.now();
+    const [row, snoozes] = await Promise.all([this.deps.repo.get(websiteId, id), this.deps.repo.listSnoozes(websiteId, now)]);
+    return row ? presentAlert(row, snoozedUntil(snoozes, row, now)) : null;
+  }
+
+  /** The anomaly's dedupe key — what a snooze of it is keyed by. `null` for an id on another site. */
+  async snoozeScopeOf(websiteId: string, id: string): Promise<{ type: string; subject: string } | null> {
+    const row = await this.deps.repo.get(websiteId, id);
+    return row ? { type: row.type, subject: row.subject } : null;
+  }
+
+  /** Snoozes still running. */
+  snoozes(websiteId: string): Promise<AlertSnooze[]> {
+    return this.deps.repo.listSnoozes(websiteId, this.now());
+  }
+
+  /**
+   * Quiet an anomaly scope for `hours` from now: detected and stored as usual, but not mailed and
+   * left out of the banner. `type` / `subject` may be `*`. Replaces a snooze of the same scope.
+   */
+  async snooze(websiteId: string, scope: { type: string; subject: string }, hours: number, userId: string): Promise<AlertSnooze> {
+    if (!(hours > 0 && hours <= MAX_SNOOZE_HOURS)) throw new Error(`A snooze lasts between 1 and ${MAX_SNOOZE_HOURS} hours.`);
+    const until = new Date(this.now().getTime() + Math.round(hours * HOUR_MS)).toISOString();
+    return this.deps.repo.saveSnooze(websiteId, { type: scope.type || SNOOZE_ANY, subject: scope.subject, until }, userId);
   }
 
   async settings(websiteId: string): Promise<AlertSettings> {
@@ -252,6 +288,7 @@ export class AnomalyService {
     try {
       if (!send) return skip("no_gateway");
       if (severityRank(a.severity) < severityRank(emailFloor(settings))) return skip("below_severity");
+      if (snoozedUntil(await repo.listSnoozes(a.websiteId, now), a, now)) return skip("snoozed");
       if (await repo.recentlyRecovered(a.websiteId, a.type, a.subject, new Date(now.getTime() - FLAP_MS))) return skip("flapping");
       if ((await repo.countNotifiedSince(a.websiteId, new Date(now.getTime() - 24 * HOUR_MS))) >= MAX_EMAILS_PER_SITE_PER_DAY) return skip("rate_limited");
       const site = await this.deps.describeSite(a.websiteId);
@@ -297,6 +334,9 @@ export class AnomalyService {
 
     await repo.expireStale(new Date(now.getTime() - STALE_MS), now).catch((err: unknown) => {
       log.warn({ msg: "ai_anomaly_expire_failed", err: String(err) });
+    });
+    await repo.purgeExpiredSnoozes(now).catch((err: unknown) => {
+      log.warn({ msg: "ai_anomaly_snooze_purge_failed", err: String(err) });
     });
 
     const settings = await repo.getSettings(websiteIds);

@@ -148,7 +148,7 @@ export function useAssistantChat(
 
       setConfirming(true);
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, proposalError: undefined } : m)));
+        prev.map((m) => (m.id === messageId ? { ...m, proposalError: undefined, proposalStale: undefined } : m)));
       try {
         await confirm.mutateAsync({ queryId: messageId, conversationId });
         if (gen !== generation.current) return;
@@ -158,7 +158,11 @@ export function useAssistantChat(
         if (gen !== generation.current) return;
         setMessages((prev) =>
           prev.map((m) => (m.id === messageId
-            ? { ...m, proposalError: errorMessage(err, 'Could not create it.') }
+            ? {
+                ...m,
+                proposalError: errorMessage(err, 'Could not apply it.'),
+                proposalStale: errorCode(err) === 'stale' || undefined,
+              }
             : m)));
       } finally {
         setConfirming(false);
@@ -202,4 +206,9 @@ function errorMessage(err: unknown, fallback: string): string {
   return (
     (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
   );
+}
+
+/** The server's refusal code (`stale`, `gone`, `forbidden`), when it sent one. */
+function errorCode(err: unknown): string | undefined {
+  return (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
 }

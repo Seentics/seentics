@@ -234,6 +234,13 @@ export class PostgresAiRepository implements AiRepository {
     return rows.length > 0;
   }
 
+  async releaseProposalClaim(userId: string, queryId: string): Promise<void> {
+    await db
+      .update(aiQueries)
+      .set({ proposalAppliedAt: null })
+      .where(and(eq(aiQueries.id, queryId), eq(aiQueries.userId, userId)));
+  }
+
   async conversations(userId: string, websiteId: WebsiteId, limit: number) {
     /*
      * One row per thread. `min(created_at)` picks the opening question as the title —

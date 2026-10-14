@@ -59,7 +59,9 @@ export const BANNER_MAX = 3;
  */
 export function bannerAlerts(alerts: readonly AlertView[], now = Date.now(), max = BANNER_MAX): { shown: AlertView[]; hidden: number } {
   const relevant = alerts.filter((a) =>
-    a.status === 'open' || (a.status === 'resolved' && now - ts(a.resolvedAt) <= RESOLVED_SHOWN_MS && ts(a.resolvedAt) > 0));
+    // Snoozed from the assistant: still listed on the alerts page, not in the banner.
+    !(ts(a.snoozedUntil) > now) &&
+    (a.status === 'open' || (a.status === 'resolved' && now - ts(a.resolvedAt) <= RESOLVED_SHOWN_MS && ts(a.resolvedAt) > 0)));
   const sorted = sortAlerts(relevant);
   return { shown: sorted.slice(0, max), hidden: Math.max(0, sorted.length - max) };
 }

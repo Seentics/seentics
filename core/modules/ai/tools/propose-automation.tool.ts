@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AutomationDraftValidator } from "../../automations/interfaces/automations.module";
-import type { AiTool, ActionProposal, ToolResult } from "./tool.types";
+import type { AiTool, ActionProposal, ProposalRisk, ToolResult } from "./tool.types";
+import { proposal as withRole } from "./proposal-policy";
 
 /**
  * The vocabularies, passed in rather than imported.
@@ -61,6 +62,10 @@ function buildArgsSchema(vocab: AutomationVocabulary) {
     .max(86_400)
     .optional()
     .describe("Wait this long after the trigger before acting"),
+  activate: z
+    .boolean()
+    .optional()
+    .describe("Only when the user explicitly asks for it to go live straight away. Default: created inactive"),
   });
 }
 
@@ -71,6 +76,7 @@ type ProposeAutomationArgs = {
   action: string;
   actionConfig?: Record<string, unknown>;
   delaySeconds?: number;
+  activate?: boolean;
 };
 
 /**
@@ -118,7 +124,9 @@ function summarise(args: ProposeAutomationArgs): string[] {
       lines.push(`${key}: ${v.slice(0, 200)}`);
     }
   }
-  lines.push("Created inactive — it will not run until you enable it.");
+  lines.push(args.activate
+    ? "Will go live immediately: visitors start seeing it as soon as you confirm."
+    : "Created inactive — it will not run until you enable it.");
   return lines;
 }
 
@@ -151,23 +159,30 @@ export function proposeAutomationTool(
         return { ok: false, error: `That automation is not valid: ${checked.error}` };
       }
 
-      const proposal: ActionProposal = {
+      const external = EXTERNAL_EFFECT_ACTIONS.has(args.action);
+      const risks: ProposalRisk[] = [];
+      if (args.activate) risks.push({ kind: "live", message: "Will go live immediately — visitors see it as soon as you confirm." });
+      if (external) risks.push({ kind: "external", message: "Reaches outside Seentics: it sends data to, or redirects visitors to, the address above." });
+      const proposal: ActionProposal = withRole({
         resource: "automation",
         operation: "create",
         payload: {
           name: args.name,
           description: args.description ?? "",
-          // Never active on creation, whoever approves it. An automation runs against
-          // live visitors, and "approved the draft" is not "meant it to start now".
           status: "draft",
           definition: checked.definition,
+          // Inactive unless the person asked for it live: an automation runs against live
+          // visitors, and "approved the draft" is not "meant it to start now" unless they said so.
+          // The card says which, in its own callout.
+          activate: args.activate === true,
         },
         summary: {
           title: args.name,
           lines: summarise(args),
-          hasExternalEffect: EXTERNAL_EFFECT_ACTIONS.has(args.action),
+          hasExternalEffect: external,
+          risks,
         },
-      };
+      });
 
       return { ok: true, data: { proposal } };
     },

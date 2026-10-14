@@ -83,15 +83,26 @@ export interface AutomationDraftValidator {
   ): { ok: true; definition: unknown } | { ok: false; error: string };
 }
 
+/** An automation as the assistant reads it before drafting a change to it. */
+export type AutomationSnapshot = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  definition: Record<string, unknown>;
+  /** `updated_at`, ISO: the version a drafted change is checked against when it is confirmed. */
+  version: string;
+};
+
 /**
- * Creates an automation someone approved.
+ * Creates and changes automations someone approved in the assistant.
  *
  * Narrow on purpose: this is the whole write surface another module can reach, and the
  * AI module is the only caller. A general "create automation" port would let any future
- * consumer write here without the approval step this one exists to serve.
+ * consumer write here without the approval step this one exists to serve. There is no
+ * delete: the assistant can switch an automation off, never remove it.
  *
- * Always inactive. Whatever the payload says, an automation created this way does not
- * start running against live visitors until a person enables it.
+ * Created inactive unless the stored draft says `activate: true` — set only when the person
+ * asked for it to go live, and shown on the card they confirmed as "will go live immediately".
  */
 export interface AutomationDraftWriter {
   createFromProposal(input: {
@@ -99,4 +110,16 @@ export interface AutomationDraftWriter {
     userId: string;
     payload: unknown;
   }): Promise<{ id: string }>;
+
+  /** `null` when no automation with that id belongs to this website. */
+  get(websiteId: string, automationId: string): Promise<AutomationSnapshot | null>;
+
+  /**
+   * Applies `{ name?, definition? }`, re-validated with the update endpoint's own schema, through
+   * the same update the endpoint runs. Throws when the automation is gone or the patch is invalid.
+   */
+  updateFromProposal(input: { websiteId: string; automationId: string; payload: unknown }): Promise<{ id: string }>;
+
+  /** Switches it on or off, through the same update. Throws when it is gone. */
+  setActiveFromProposal(input: { websiteId: string; automationId: string; active: boolean }): Promise<{ id: string }>;
 }

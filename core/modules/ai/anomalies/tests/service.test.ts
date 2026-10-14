@@ -231,6 +231,31 @@ describe("AnomalyService: email policy", () => {
     expect(sent).toEqual([]);
   });
 
+  it("records but does not mail a snoozed anomaly, and the dashboard says until when", async () => {
+    const { repo, sent, service } = setup({ traffic: spikeTraffic });
+    const saved = await service.snooze(SITE, { type: "traffic_spike", subject: "*" }, 24, OWNER);
+    expect(saved.until).toBe(new Date(NOW.getTime() + 24 * HOUR).toISOString());
+    await service.runHourly([SITE]);
+    const row = repo.rows.find((r) => r.type === "traffic_spike")!;
+    expect(row.notifyStatus).toBe("snoozed");
+    expect(sent).toEqual([]);
+    const [view] = await service.list(SITE, "open");
+    expect(view!.snoozedUntil).toBe(saved.until);
+    // Another type is not covered.
+    expect(await service.snoozeScopeOf(SITE, row.id)).toEqual({ type: "traffic_spike", subject: row.subject });
+    expect(await service.snoozeScopeOf("22222222-2222-4222-8222-222222222222", row.id)).toBeNull();
+  });
+
+  it("refuses a snooze longer than a week, and purges ended ones", async () => {
+    const { repo, clock, service } = setup();
+    await expect(service.snooze(SITE, { type: "*", subject: "*" }, 500, OWNER)).rejects.toThrow("between 1 and");
+    await service.snooze(SITE, { type: "*", subject: "*" }, 1, OWNER);
+    clock.now = new Date(NOW.getTime() + 2 * HOUR);
+    expect(await service.snoozes(SITE)).toEqual([]);
+    await service.runHourly([SITE]);
+    expect(repo.snoozes.get(SITE)).toEqual([]);
+  });
+
   it("without a gateway, alerts still show on the dashboard", async () => {
     const { repo, service } = setup({ traffic: spikeTraffic, send: null });
     await service.runHourly([SITE]);

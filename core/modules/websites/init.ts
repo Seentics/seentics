@@ -15,6 +15,7 @@ import { WebsiteQueryService } from "./services/website-query.service";
 import { WebsiteTrafficService } from "./services/website-traffic.service";
 import * as goals from "./services/website-goal.service";
 import { GoalDraftService } from "./lib/goal-drafts";
+import { SiteSettingsDraftService } from "./lib/site-settings-drafts";
 import { PostgresWebsitePrivacyService } from "./services/postgres-website-privacy.service";
 import { env } from "../../config";
 import { PostgresClientRepository } from "./repositories/postgres-client.repository";
@@ -87,6 +88,8 @@ export function initWebsitesModule(deps: {
     retentionSites: new WebsiteRetentionSiteSource(),
     insightSites: { listInsightCandidateSites, getDigestSite },
     goalDrafts: new GoalDraftService(),
+    // Uncached reads: a draft's version must be the row as it is, not as it was five minutes ago.
+    siteSettingsDrafts: new SiteSettingsDraftService(query, mutations),
     routes: createWebsiteRoutes({
       websites: query,
       traffic,

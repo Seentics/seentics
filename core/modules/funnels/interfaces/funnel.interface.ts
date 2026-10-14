@@ -176,16 +176,45 @@ export type FunnelDraft = {
   conversion_window_hours?: number | null;
 };
 
+/** A funnel as the assistant reads it before drafting a change to it. */
+export type FunnelSnapshot = {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  steps: Record<string, unknown>[];
+  conversion_window_hours: number | null;
+  /** `updated_at`, ISO: the version a drafted change is checked against when it is confirmed. */
+  version: string;
+};
+
+/** The fields a drafted funnel change may set. Absent means "leave alone"; a null window clears it. */
+export type FunnelDraftPatch = {
+  name?: string;
+  description?: string;
+  steps?: Record<string, unknown>[];
+  conversion_window_hours?: number | null;
+};
+
 /**
- * Validates and creates funnels someone approved in the assistant.
+ * Validates, creates and changes funnels someone approved in the assistant.
  *
  * The AI module's whole write surface into funnels: `validate` runs the same checks `create` does,
- * so a draft shown for approval would save; `createFromProposal` creates it, re-validated. No
- * update or delete: an approved draft only ever adds a funnel.
+ * so a draft shown for approval would save; the writes go through the definition service's own
+ * `create` and `update`, which validate again. No delete: a change can switch a funnel off, never
+ * remove it.
  */
 export interface FunnelDraftPort {
   validate(draft: FunnelDraft): Promise<{ ok: true; draft: FunnelDraft } | { ok: false; error: string }>;
   createFromProposal(input: { websiteId: string; userId: string; payload: unknown }): Promise<{ id: string }>;
+
+  /** `null` when no funnel with that id belongs to this website. */
+  get(websiteId: string, funnelId: string): Promise<FunnelSnapshot | null>;
+  /** A patch checked as the whole funnel it would produce, with `validate`'s rules. */
+  validatePatch(current: FunnelSnapshot, patch: FunnelDraftPatch): Promise<{ ok: true; patch: FunnelDraftPatch } | { ok: false; error: string }>;
+  /** Re-validated against the funnel as it is now, then `update`. Throws when gone or invalid. */
+  updateFromProposal(input: { websiteId: string; funnelId: string; payload: unknown }): Promise<{ id: string }>;
+  setActiveFromProposal(input: { websiteId: string; funnelId: string; active: boolean }): Promise<{ id: string }>;
 }
 
 /**

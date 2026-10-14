@@ -51,6 +51,12 @@ describe('bannerAlerts', () => {
     expect(hidden).toBe(1);
   });
 
+  it('leaves out alerts snoozed from the assistant, until the snooze ends', () => {
+    const later = new Date(NOW + 60 * 60_000).toISOString();
+    const list = [alert({ id: 'snoozed', snoozedUntil: later }), alert({ id: 'ended', snoozedUntil: ago(5) }), alert({ id: 'plain' })];
+    expect(bannerAlerts(list, NOW).shown.map((a) => a.id).sort()).toEqual(['ended', 'plain']);
+  });
+
   it('is empty when everything is long resolved', () => {
     expect(bannerAlerts([alert({ status: 'resolved', resolvedAt: ago(3000) })], NOW).shown).toEqual([]);
     expect(bannerAlerts([alert({ status: 'resolved', resolvedAt: null })], NOW).shown).toEqual([]);

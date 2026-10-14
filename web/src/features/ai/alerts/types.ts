@@ -28,6 +28,8 @@ export interface AlertView {
   path: string;
   /** The question "Ask AI why" types into the composer. */
   askPrompt: string;
+  /** Set while a snooze covers it: not emailed, and left out of the banner. Absent from older servers. */
+  snoozedUntil?: string | null;
 }
 
 export interface AlertSettings {

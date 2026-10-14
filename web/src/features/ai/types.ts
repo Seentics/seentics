@@ -39,16 +39,46 @@ export type DisplayBlock =
 
 export type ValueFormat = 'number' | 'percent' | 'duration' | 'currency';
 
-/** A draft awaiting approval. Nothing has been created. */
+/** What accepting a draft does. `archive` is a soft archive or deactivation — never a delete. */
+export type ProposalOperation = 'create' | 'update' | 'set_status' | 'archive';
+
+/** One value in a before/after diff: one line, or a compact list (steps, actions). */
+export type ProposalDiffValue = string | string[] | null;
+
+/** One changed field, as the server built it from the validated draft. */
+export interface ProposalChange {
+  field: string;
+  label: string;
+  before: ProposalDiffValue;
+  after: ProposalDiffValue;
+}
+
+/**
+ * A callout the card shows before the confirm button: goes live, stops something, changes what
+ * the site collects, reaches outside Seentics, or changes who is alerted. Server-worded.
+ */
+export interface ProposalRisk {
+  kind: 'live' | 'stops' | 'data' | 'external' | 'alerts';
+  message: string;
+}
+
+/** A draft awaiting approval. Nothing has been created or changed. */
 export interface ActionProposal {
   resource: string;
-  operation: 'create';
+  /** Absent on drafts stored before operations existed: those are all creates. */
+  operation?: ProposalOperation;
+  /** What a non-create draft changes, and its version when drafted. */
+  target?: { id: string; version: string };
   payload: unknown;
+  /** The least role that may confirm. Absent on older drafts, which all needed a member. */
+  requiredRole?: 'member' | 'admin';
+  diff?: ProposalChange[];
   summary: {
     title: string;
     lines: string[];
     /** Webhook or redirect — the two that reach outside the product. Warned on. */
     hasExternalEffect: boolean;
+    risks?: ProposalRisk[];
   };
 }
 
@@ -84,8 +114,10 @@ export interface ChatMessage {
   proposal?: ActionProposal | null;
   /** Set once a proposal on this message has been created. */
   proposalApplied?: boolean;
-  /** Why creating the proposal failed. Shown on the proposal card, cleared on retry. */
+  /** Why applying the proposal failed. Shown on the proposal card, cleared on retry. */
   proposalError?: string;
+  /** The server refused it as out of date; the card then asks for a fresh draft. */
+  proposalStale?: boolean;
   toolsUsed?: string[];
   /** Per-message cost, shown to operators. */
   usage?: { tokens: { input: number; output: number }; costUsd: number; ms: number };

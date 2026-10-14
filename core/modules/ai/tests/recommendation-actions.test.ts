@@ -23,6 +23,7 @@ function repoWith(proposal: Record<string, unknown>, recommendationId: string | 
   return {
     async pendingProposal() { return applied ? null : { websiteId: SITE, proposal, recommendationId }; },
     async markProposalApplied() { if (applied) return false; applied = true; return true; },
+    async releaseProposalClaim() { applied = false; },
   } as unknown as AiRepository;
 }
 
@@ -31,11 +32,11 @@ describe("ProposalApplier and recommendations", () => {
     const seen: AppliedProposal[] = [];
     const applier = new ProposalApplier(
       repoWith({ resource: "funnel", operation: "create", payload: { name: "Checkout" }, summary: { title: "Checkout" } }, REC),
-      { createAutomation: async () => ({ id: "a" }), createFunnel: async () => ({ id: "funnel-1" }) },
+      { automation: { create: async () => ({ id: "a" }) }, funnel: { create: async () => ({ id: "funnel-1" }) } },
       async (e) => { seen.push(e); },
     );
-    const r = await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1" });
-    expect(r).toEqual({ ok: true, created: { resource: "funnel", id: "funnel-1" } });
+    const r = await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1", role: "member" });
+    expect(r).toEqual({ ok: true, created: { resource: "funnel", id: "funnel-1" }, operation: "create" });
     expect(seen).toHaveLength(1);
     expect(seen[0]).toMatchObject({ recommendationId: REC, queryId: "q1", created: { resource: "funnel", id: "funnel-1" } });
   });
@@ -43,23 +44,23 @@ describe("ProposalApplier and recommendations", () => {
   it("still reports success when recording the recommendation fails", async () => {
     const applier = new ProposalApplier(
       repoWith({ resource: "goal", operation: "create", payload: {} }),
-      { createAutomation: async () => ({ id: "a" }), createGoal: async () => ({ id: "goal-1" }) },
+      { automation: { create: async () => ({ id: "a" }) }, goal: { create: async () => ({ id: "goal-1" }) } },
       async () => { throw new Error("db down"); },
     );
-    expect(await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1" })).toEqual({ ok: true, created: { resource: "goal", id: "goal-1" } });
+    expect(await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1", role: "member" })).toEqual({ ok: true, created: { resource: "goal", id: "goal-1" }, operation: "create" });
   });
 
   it("refuses a funnel draft where no funnel writer is wired, without burning it", async () => {
     const repo = repoWith({ resource: "funnel", operation: "create", payload: {} });
-    const applier = new ProposalApplier(repo, { createAutomation: async () => ({ id: "a" }) });
-    expect((await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1" })).ok).toBe(false);
+    const applier = new ProposalApplier(repo, { automation: { create: async () => ({ id: "a" }) } });
+    expect((await applier.apply({ userId: USER, websiteId: SITE, queryId: "q1", role: "member" })).ok).toBe(false);
     // Still pending: the claim is only taken for a draft that will be written.
     expect(await repo.pendingProposal(USER, "q1")).not.toBeNull();
   });
 });
 
 describe("propose_funnel", () => {
-  const drafts = new FunnelDraftService({ create: async () => { throw new Error("must not write"); } }, async (p) => !p.includes("(?<"));
+  const drafts = new FunnelDraftService({ create: async () => { throw new Error("must not write"); }, update: async () => null, get: async () => null }, async (p) => !p.includes("(?<"));
   const registry = new ToolRegistry([proposeFunnelTool(drafts)]);
 
   it("drafts a funnel in the stored step shape and writes nothing", async () => {
@@ -97,7 +98,7 @@ describe("propose_funnel", () => {
 
   it("re-validates the stored payload when the draft is created", async () => {
     const created: unknown[] = [];
-    const writer = new FunnelDraftService({ create: async (w, u, input) => { created.push(input); return { id: "f1" } as any; } }, async () => true);
+    const writer = new FunnelDraftService({ create: async (_w, _u, input) => { created.push(input); return { id: "f1" } as any; }, update: async () => null, get: async () => null }, async () => true);
     await expect(writer.createFromProposal({ websiteId: SITE, userId: USER, payload: { name: "x", steps: [] } })).rejects.toThrow("at least 2 steps");
     const ok = await writer.createFromProposal({
       websiteId: SITE, userId: USER,

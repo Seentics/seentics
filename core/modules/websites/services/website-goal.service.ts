@@ -24,6 +24,16 @@ export async function listWebsiteGoals(websiteId: string) {
   };
 }
 
+/** One goal of this website, or `null` — a goal id from another website is not found. */
+export async function findWebsiteGoal(websiteId: string, goalId: string) {
+  const [g] = await db
+    .select()
+    .from(goals)
+    .where(and(eq(goals.id, goalId), eq(goals.websiteId, websiteId)))
+    .limit(1);
+  return g ?? null;
+}
+
 export async function createWebsiteGoal(websiteId: string, body: CreateGoalBody) {
   const [g] = await db
     .insert(goals)

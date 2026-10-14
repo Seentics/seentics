@@ -10,7 +10,7 @@ import type {
   WebsiteQuery,
 } from "./index";
 import type { ClientDirectory, OwnedWebsites } from "./client.interface";
-import type { GoalDraftPort } from "./website-administration.interface";
+import type { GoalDraftPort, SiteSettingsDraftPort } from "./website-administration.interface";
 
 /**
  * Everything the websites module offers, in one interface.
@@ -91,6 +91,9 @@ export interface WebsitesModule extends ModuleLifecycle {
 
   /** Validates and creates goals approved in the AI assistant. See `GoalDraftPort`. */
   goalDrafts: GoalDraftPort;
+
+  /** Validates and applies tracking-settings changes approved in the AI assistant. See `SiteSettingsDraftPort`. */
+  siteSettingsDrafts: SiteSettingsDraftPort;
 
   /** The site list the retention sweep iterates over. */
   retentionSites: RetentionSiteSource;

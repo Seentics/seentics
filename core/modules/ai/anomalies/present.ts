@@ -31,6 +31,8 @@ export type AlertView = {
   resolvedAt: string | null;
   path: string;
   askPrompt: string;
+  /** Set while a snooze covers it: no email, and the dashboard banner leaves it out. */
+  snoozedUntil: string | null;
 };
 
 export type AnomalyAlertNotice = {
@@ -96,7 +98,7 @@ export function askPromptFor(a: StoredAnomaly): string {
   }
 }
 
-export function presentAlert(a: StoredAnomaly): AlertView {
+export function presentAlert(a: StoredAnomaly, snoozedUntil: string | null = null): AlertView {
   return {
     id: a.id,
     type: a.type,
@@ -117,6 +119,7 @@ export function presentAlert(a: StoredAnomaly): AlertView {
     resolvedAt: a.resolvedAt,
     path: SAFE_PATH.test(a.path) ? a.path : "",
     askPrompt: askPromptFor(a),
+    snoozedUntil,
   };
 }
 

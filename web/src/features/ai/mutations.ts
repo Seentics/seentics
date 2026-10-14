@@ -33,10 +33,16 @@ export function useConfirmProposal(websiteId: string) {
     mutationFn: (vars: { queryId: string; conversationId: string }) =>
       aiApi.confirm(websiteId, vars.queryId),
     onSuccess: (_created, vars) => {
-      // The created resource now exists; anything listing it is stale.
+      // The created or changed resource is new; anything listing it is stale.
       void qc.invalidateQueries({ queryKey: ['automations', websiteId] });
+      void qc.invalidateQueries({ queryKey: ['automation', websiteId] });
+      void qc.invalidateQueries({ queryKey: ['website', websiteId] });
+      void qc.invalidateQueries({ queryKey: ['errors'] });
+      void qc.invalidateQueries({ queryKey: [...aiKeys.all, 'alerts', websiteId] });
+      void qc.invalidateQueries({ queryKey: [...aiKeys.all, 'alert-settings', websiteId] });
       void qc.invalidateQueries({ queryKey: ['goals', websiteId] });
       void qc.invalidateQueries({ queryKey: ['analytics', 'funnels', websiteId] });
+      void qc.invalidateQueries({ queryKey: ['analytics', 'funnel', websiteId] });
       // A confirmed draft marks its recommendation applied, or records a new one being measured.
       void qc.invalidateQueries({ queryKey: [...aiKeys.all, 'recommendations', websiteId] });
       // Stored turns carry `proposalAppliedAt`. Marked stale rather than refetched, for

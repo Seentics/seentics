@@ -5,6 +5,7 @@ import { AIDailyLimitError } from "../interfaces/ai.interface";
 import type { AiAgent, AiProposalApplier } from "../interfaces/ai-agent.interface";
 import type { AiControllerDeps } from "./ai-controller.types";
 import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
+import { can, type Permission } from "../../../platform/permissions";
 
 const MAX_PROMPT_CHARS = 2_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,16 +15,16 @@ async function requireAccess(
   deps: AiControllerDeps,
   websiteRef: string,
   minimum: WebsiteRole = "viewer",
-): Promise<{ userId: string } | Response> {
+): Promise<{ userId: string; role: WebsiteRole } | Response> {
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "forbidden" }, 403);
   const role = await deps.websites.getRole(websiteRef, userId);
   if (!role) return c.json({ error: "forbidden" }, 403 as ContentfulStatusCode);
   if (!roleAtLeast(role, minimum)) {
     // Read by the proposal card, so it says why rather than just "forbidden".
-    return c.json({ error: "Viewers cannot create this. Ask a member, admin or the owner to confirm it." }, 403 as ContentfulStatusCode);
+    return c.json({ error: "Viewers cannot confirm drafts. Ask a member, admin or the owner to confirm it." }, 403 as ContentfulStatusCode);
   }
-  return { userId };
+  return { userId, role };
 }
 
 export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
@@ -83,13 +84,18 @@ export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
  * The payload comes from the stored row, never from this request. A client could
  * otherwise send back a different automation than the one that was shown and approved,
  * which would make the confirmation screen decorative.
+ *
+ * Who may confirm depends on what the draft changes (settings need an admin, the rest a
+ * member), so the role is handed to the applier, which owns that table. Statuses: 403 for a
+ * role or team permission, 409 for a stale draft, 404 for one whose target is gone.
  */
 export function confirmProposal(
   deps: AiControllerDeps & { applier: AiProposalApplier },
 ) {
   return async (c: Context<{ Variables: AuthVars }>) => {
     const websiteRef = c.req.param("website_id") ?? "";
-    // Creating is a write: a viewer may ask the assistant to draft something, but not create it.
+    // A viewer may ask the assistant to draft something, but never confirm it; the applier
+    // raises the bar further for settings.
     const access = await requireAccess(c, deps, websiteRef, "member");
     if (access instanceof Response) return access;
 
@@ -99,9 +105,14 @@ export function confirmProposal(
         userId: access.userId,
         websiteId: websiteRef,
         queryId,
+        role: access.role,
+        can: (permission) => can(c, permission as Permission),
       });
-      if (!result.ok) return c.json({ error: result.error }, 400);
-      return c.json({ ok: true, created: result.created });
+      if (!result.ok) {
+        const status = result.code === "forbidden" ? 403 : result.code === "stale" ? 409 : result.code === "gone" ? 404 : 400;
+        return c.json({ error: result.error, ...(result.code ? { code: result.code } : {}) }, status);
+      }
+      return c.json({ ok: true, created: result.created, operation: result.operation });
     } catch (err) {
       return c.json(
         { error: err instanceof Error ? err.message : "Could not apply the proposal" },

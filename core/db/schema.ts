@@ -709,6 +709,26 @@ export const aiAnomalySettings = pgTable("ai_anomaly_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Anomaly alert snoozes — see db/sql/060_ai_anomaly_snoozes.sql. `type` and `subject` may be '*'
+ * (every type, every subject). Owned by the AI module.
+ */
+export const aiAnomalySnoozes = pgTable(
+  "ai_anomaly_snoozes",
+  {
+    websiteId: uuid("website_id").notNull(),
+    type: varchar("type", { length: 32 }).notNull(),
+    subject: text("subject").notNull(),
+    until: timestamp("until", { withTimezone: true }).notNull(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.websiteId, t.type, t.subject] }),
+    index("ix_ai_anomaly_snoozes_until").on(t.until),
+  ],
+);
+
 /** Aggregated heatmap cells per page / device / position. */
 export const heatmapPoints = pgTable(
   "heatmap_points",

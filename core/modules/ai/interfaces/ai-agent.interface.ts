@@ -1,4 +1,5 @@
 import type { ConversationSummary, ConversationTurn } from "./ai-repository.interface";
+import type { WebsiteRole } from "../../websites/interfaces";
 
 /**
  * The conversational assistant, as the controllers see it.
@@ -36,10 +37,23 @@ export interface AiAgent {
   conversations(userId: string, websiteId: string): Promise<ConversationSummary[]>;
 }
 
-/** Creates the resource an approved draft describes. See `ProposalApplier`. */
+/**
+ * Why a confirm was refused, for the HTTP status: `forbidden` (role or team permission), `stale`
+ * (the target changed since the draft), `gone` (the draft, or its target, is no longer there).
+ * Anything else is a plain refusal.
+ */
+export type ApplyFailureCode = "forbidden" | "stale" | "gone";
+
+/** Applies what an approved draft describes. See `ProposalApplier`. */
 export interface AiProposalApplier {
-  apply(input: { userId: string; websiteId: string; queryId: string }): Promise<
-    | { ok: true; created: { resource: string; id: string } }
-    | { ok: false; error: string }
+  apply(input: {
+    userId: string;
+    websiteId: string;
+    queryId: string;
+    role: WebsiteRole;
+    can?: (permission: string) => boolean;
+  }): Promise<
+    | { ok: true; created: { resource: string; id: string }; operation: string }
+    | { ok: false; error: string; code?: ApplyFailureCode }
   >;
 }

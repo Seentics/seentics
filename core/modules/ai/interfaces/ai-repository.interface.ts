@@ -129,6 +129,9 @@ export interface AiRepository {
   /** Stamp a proposal as applied. Returns false when another request got there first. */
   markProposalApplied(userId: string, queryId: string): Promise<boolean>;
 
+  /** Undo a claim whose write failed, so the draft can be confirmed again. */
+  releaseProposalClaim(userId: string, queryId: string): Promise<void>;
+
   /**
    * This user's conversations on one website, newest first.
    *

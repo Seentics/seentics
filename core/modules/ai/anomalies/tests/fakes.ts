@@ -1,12 +1,13 @@
 import type { AnalyticsAnomalyReads } from "../../../analytics/interfaces";
 import type { ErrorAnomalyReads, ErrorSurgeCandidate } from "../../../errors/interfaces";
 import type { AnomalyRepository, ExplanationRecord } from "../repository";
-import { DEFAULT_ALERT_SETTINGS, SEVERITIES, type AlertSettings, type Detection, type Resolution, type StoredAnomaly } from "../types";
+import { DEFAULT_ALERT_SETTINGS, SEVERITIES, type AlertSettings, type AlertSnooze, type Detection, type Resolution, type StoredAnomaly } from "../types";
 
 /** `AnomalyRepository` in memory, with the open-index dedupe the real one gets from Postgres. */
 export class MemoryAnomalyRepository implements AnomalyRepository {
   rows: StoredAnomaly[] = [];
   settings = new Map<string, AlertSettings>();
+  snoozes = new Map<string, AlertSnooze[]>();
   private seq = 0;
 
   async getSettings(ids: readonly string[]) {
@@ -39,28 +40,28 @@ export class MemoryAnomalyRepository implements AnomalyRepository {
     this.rows.push(row);
     return { ...row };
   }
-  private get(id: string) {
+  private row(id: string) {
     return this.rows.find((r) => r.id === id)!;
   }
   async touch(id: string, d: Detection, now: Date) {
-    const r = this.get(id);
+    const r = this.row(id);
     if (r.status !== "open") return;
     Object.assign(r, { observed: d.observed, expected: d.expected, title: d.title, summary: d.summary, lastSeenAt: now.toISOString() });
     if (SEVERITIES.indexOf(d.severity) > SEVERITIES.indexOf(r.severity)) r.severity = d.severity;
   }
   async resolve(id: string, resolution: Resolution, now: Date) {
-    const r = this.get(id);
+    const r = this.row(id);
     if (r.status !== "open") return;
     Object.assign(r, { status: "resolved", resolution, resolvedAt: now.toISOString() });
   }
   async setExplanation(id: string, e: ExplanationRecord) {
-    Object.assign(this.get(id), { explanation: e.text, explanationSource: e.source });
+    Object.assign(this.row(id), { explanation: e.text, explanationSource: e.source });
   }
   async markNotified(id: string, status: string, at: Date | null) {
-    Object.assign(this.get(id), { notifyStatus: status, notifiedAt: at?.toISOString() ?? null });
+    Object.assign(this.row(id), { notifyStatus: status, notifiedAt: at?.toISOString() ?? null });
   }
   async markResolvedNotified(id: string, at: Date) {
-    this.get(id).resolvedNotifiedAt = at.toISOString();
+    this.row(id).resolvedNotifiedAt = at.toISOString();
   }
   async countNotifiedSince(id: string, since: Date) {
     return this.rows.filter((r) => r.websiteId === id && r.notifiedAt && Date.parse(r.notifiedAt) >= since.getTime()).length;
@@ -77,7 +78,28 @@ export class MemoryAnomalyRepository implements AnomalyRepository {
     let n = 0;
     for (const r of this.rows) if (r.websiteId === id && r.status === "open") { Object.assign(r, { status: "resolved", resolution, resolvedAt: now.toISOString() }); n++; }
     return n;
+  }  async get(websiteId: string, id: string) {
+    const r = this.rows.find((x) => x.id === id && x.websiteId === websiteId);
+    return r ? { ...r } : null;
   }
+  async listSnoozes(websiteId: string, now: Date) {
+    return (this.snoozes.get(websiteId) ?? []).filter((s) => Date.parse(s.until) > now.getTime());
+  }
+  async saveSnooze(websiteId: string, snooze: AlertSnooze) {
+    const rest = (this.snoozes.get(websiteId) ?? []).filter((s) => s.type !== snooze.type || s.subject !== snooze.subject);
+    this.snoozes.set(websiteId, [...rest, snooze]);
+    return snooze;
+  }
+  async purgeExpiredSnoozes(now: Date) {
+    let n = 0;
+    for (const [id, list] of this.snoozes) {
+      const keep = list.filter((s) => Date.parse(s.until) > now.getTime());
+      n += list.length - keep.length;
+      this.snoozes.set(id, keep);
+    }
+    return n;
+  }
+
 }
 
 type Counts = { pageviews: number; visitors: number };

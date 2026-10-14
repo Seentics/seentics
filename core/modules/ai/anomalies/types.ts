@@ -99,3 +99,28 @@ export type StoredAnomaly = {
 
 export type AlertSettings = { enabled: boolean; sensitivity: Sensitivity };
 export const DEFAULT_ALERT_SETTINGS: AlertSettings = { enabled: true, sensitivity: "normal" };
+
+/** Matches every type, or every subject of a type, in a snooze. */
+export const SNOOZE_ANY = "*";
+
+/** "Do not tell me about this until `until`." `type` / `subject` may be `SNOOZE_ANY`. */
+export type AlertSnooze = { type: string; subject: string; until: string };
+
+/** Longest a snooze may last: a week. Longer than that is turning alerts off, which is a setting. */
+export const MAX_SNOOZE_HOURS = 168;
+
+/** Whether a snooze covers this anomaly at `now`. */
+export function snoozeCovers(s: AlertSnooze, a: { type: string; subject: string }, now: Date): boolean {
+  return Date.parse(s.until) > now.getTime()
+    && (s.type === SNOOZE_ANY || s.type === a.type)
+    && (s.subject === SNOOZE_ANY || s.subject === a.subject);
+}
+
+/** When the latest snooze covering this anomaly ends, or `null`. */
+export function snoozedUntil(snoozes: readonly AlertSnooze[], a: { type: string; subject: string }, now: Date): string | null {
+  let until: string | null = null;
+  for (const s of snoozes) {
+    if (snoozeCovers(s, a, now) && (!until || Date.parse(s.until) > Date.parse(until))) until = s.until;
+  }
+  return until;
+}

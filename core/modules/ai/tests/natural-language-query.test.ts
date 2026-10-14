@@ -64,6 +64,7 @@ class FakeRepo implements AiRepository {
   async conversations() { return []; }
   async pendingProposal() { return null; }
   async markProposalApplied() { return true; }
+  async releaseProposalClaim() {}
   async costReport() { return []; }
 
   async createPending(rec: { model: string }): Promise<string | null> {

@@ -212,12 +212,31 @@ describe('RecommendationService', () => {
     const rec = repo.rows[0]!;
     const row = await svc.recordApplied({
       websiteId: SITE, userId: 'u1', queryId: 'q1', recommendationId: rec.id,
-      proposal: { resource: 'automation', payload: {} }, created: { resource: 'automation', id: 'a1' },
+      operation: 'create', proposal: { resource: 'automation', payload: {} }, created: { resource: 'automation', id: 'a1' },
     });
     expect(row?.id).toBe(rec.id);
     expect(repo.rows).toHaveLength(1);
     expect(repo.rows[0]).toMatchObject({ appliedVia: 'proposal', resource: { resource: 'automation', id: 'a1' }, queryId: 'q1' });
     expect(repo.rows[0]!.appliedAt).toBe(now.toISOString());
+  });
+
+  it('links a confirmed change to its recommendation, but records no row of its own for one', async () => {
+    const now = new Date('2026-10-02T06:00:00Z');
+    const { svc, repo } = service({ now, insight: insightOn('2026-10-02', 31) });
+    await svc.collect(SITE);
+    const rec = repo.rows[0]!;
+    // Not tied to a recommendation: a change to something that existed is not measured on its own.
+    expect(await svc.recordApplied({
+      websiteId: SITE, userId: 'u1', queryId: 'q7', recommendationId: null, operation: 'set_status',
+      proposal: { resource: 'automation', payload: { active: true } }, created: { resource: 'automation', id: 'a1' },
+    })).toBeNull();
+    expect(repo.rows).toHaveLength(1);
+    const row = await svc.recordApplied({
+      websiteId: SITE, userId: 'u1', queryId: 'q8', recommendationId: rec.id, operation: 'update',
+      proposal: { resource: 'funnel', payload: {} }, created: { resource: 'funnel', id: 'f1' },
+    });
+    expect(row?.id).toBe(rec.id);
+    expect(repo.rows[0]).toMatchObject({ appliedVia: 'proposal', resource: { resource: 'funnel', id: 'f1' } });
   });
 
   it('records its own row when the recommendation is not open on this site', async () => {
@@ -227,7 +246,7 @@ describe('RecommendationService', () => {
     const foreign = repo.rows[0]!;
     await svc.recordApplied({
       websiteId: SITE, userId: 'u1', queryId: 'q2', recommendationId: foreign.id,
-      proposal: { resource: 'funnel', payload: {}, summary: { title: 'Checkout' } }, created: { resource: 'funnel', id: 'f1' },
+      operation: 'create', proposal: { resource: 'funnel', payload: {}, summary: { title: 'Checkout' } }, created: { resource: 'funnel', id: 'f1' },
     });
     // The other site's row is untouched; this site has an assistant row measuring the new funnel.
     expect(foreign.status).toBe('open');
@@ -291,7 +310,7 @@ describe('RecommendationService', () => {
     const { svc, repo, setNow } = service({ now: applied, ports });
     await svc.recordApplied({
       websiteId: SITE, userId: 'u1', queryId: 'q9', recommendationId: null,
-      proposal: { resource: 'automation', payload: {}, summary: { title: 'Exit offer' } }, created: { resource: 'automation', id: 'a9' },
+      operation: 'create', proposal: { resource: 'automation', payload: {}, summary: { title: 'Exit offer' } }, created: { resource: 'automation', id: 'a9' },
     });
     await new Promise((r) => setTimeout(r, 0));
     setNow(new Date(applied.getTime() + 8 * DAY));

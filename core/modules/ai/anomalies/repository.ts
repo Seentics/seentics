@@ -1,4 +1,4 @@
-import type { AlertSettings, Detection, Resolution, StoredAnomaly } from "./types";
+import type { AlertSettings, AlertSnooze, Detection, Resolution, StoredAnomaly } from "./types";
 
 /** What the explanation cost, when a model wrote it. */
 export type ExplanationRecord = {
@@ -39,4 +39,13 @@ export interface AnomalyRepository {
   expireStale(before: Date, now: Date): Promise<number>;
   /** Closes every open anomaly of one site, e.g. when its alerts are turned off. */
   resolveAllOpen(websiteId: string, resolution: Resolution, now: Date): Promise<number>;
+
+  /** One anomaly of this site; `null` for an id on another site. */
+  get(websiteId: string, id: string): Promise<StoredAnomaly | null>;
+  /** The site's snoozes still running at `now`. */
+  listSnoozes(websiteId: string, now: Date): Promise<AlertSnooze[]>;
+  /** Creates or replaces the snooze for this scope. */
+  saveSnooze(websiteId: string, snooze: AlertSnooze, userId: string): Promise<AlertSnooze>;
+  /** Deletes snoozes that ended before `now`. */
+  purgeExpiredSnoozes(now: Date): Promise<number>;
 }

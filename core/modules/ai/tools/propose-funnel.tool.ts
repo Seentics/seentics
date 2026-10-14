@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FunnelDraftPort } from "../../funnels/interfaces";
 import type { AiTool, ActionProposal, ToolResult } from "./tool.types";
+import { proposal as withRole } from "./proposal-policy";
 
 /**
  * `propose_funnel`: draft a funnel for a person to approve. Writes nothing.
@@ -74,12 +75,12 @@ export function proposeFunnelTool(drafts: FunnelDraftPort): AiTool<ProposeFunnel
       });
       if (!checked.ok) return { ok: false, error: `That funnel is not valid: ${checked.error}` };
 
-      const proposal: ActionProposal = {
+      const proposal: ActionProposal = withRole({
         resource: "funnel",
         operation: "create",
         payload: checked.draft,
         summary: { title: checked.draft.name, lines: summarise(args, steps), hasExternalEffect: false },
-      };
+      });
       return { ok: true, data: { proposal } };
     },
   };
