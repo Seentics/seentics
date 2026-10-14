@@ -272,6 +272,17 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
         websiteAccess: websitesModule.accessChecks,
         websiteMutations: websitesModule.mutations,
         usage,
+        // The disposable e2e stack only: run a scheduled job on demand (internal/routes.ts).
+        ...((process.env.ENVIRONMENT ?? "").trim().toLowerCase() === "e2e" ? {
+          e2eJobs: {
+            "anomaly-check": () => aiModule.anomalies.runHourly(),
+            "weekly-digest": () => aiModule.digest.runWeekly(),
+            "recommendations": () => aiModule.recommendations.runDaily(),
+            "insights": () => aiModule.insights.runDaily(),
+            "recording-analysis": () => recordingsModule.analysisJobs.analyzePending(),
+            "stylesheet-archive": () => recordingsModule.stylesheets.runOnce(),
+          },
+        } : {}),
       }),
     },
 

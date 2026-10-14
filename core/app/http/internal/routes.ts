@@ -64,6 +64,12 @@ export function createInternalRoutes(deps: {
   usage: UserUsageService;
   /** Turning a website's tracking off and on, for the admin dashboard. */
   websiteMutations: Pick<WebsiteMutations, "update">;
+  /**
+   * End-to-end tests only: scheduled jobs a test runs when it needs them instead of waiting for
+   * their schedule (an hourly anomaly check, a weekly digest). Passed by bootstrap only with
+   * `ENVIRONMENT=e2e`; absent otherwise, and then the route does not exist.
+   */
+  e2eJobs?: Record<string, () => Promise<unknown>>;
 }) {
   const { queue, retention } = deps;
   const internalRoutes = new Hono();
@@ -119,6 +125,19 @@ internalRoutes.get("/website-owner", async (c) => {
  * has no access. The caller should treat both the same, so ids cannot be enumerated.
  */
 internalRoutes.get("/website-access", websiteAccessHandler(deps.websiteAccess));
+
+if (deps.e2eJobs) {
+  const jobs = deps.e2eJobs;
+  internalRoutes.post("/e2e/jobs/:name", async (c) => {
+    const run = jobs[c.req.param("name")];
+    if (!run) return c.json({ error: "unknown job", jobs: Object.keys(jobs) }, 404);
+    try {
+      return c.json({ data: { ok: true, stats: (await run()) ?? null } });
+    } catch (e) {
+      return c.json({ error: String(e) }, 500);
+    }
+  });
+}
 
 internalRoutes.post("/retention-cleanup", async (c) => {
   try {

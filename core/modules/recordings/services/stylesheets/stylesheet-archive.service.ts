@@ -11,6 +11,7 @@ import type {
 } from "../../interfaces";
 import type { BackfillSession, StylesheetStore } from "../../repositories/stylesheet.repository";
 import { absolutizeCssUrls, looksLikeCss } from "./css-rewrite";
+import { e2eLocalStylesheetFetcher } from "./e2e-local-fetch";
 import {
   absoluteStylesheetUrl,
   MAX_STYLESHEETS_PER_SCAN,
@@ -120,16 +121,18 @@ export class StylesheetArchiveService implements StylesheetArchive {
     },
   ) {
     const c = deps.config;
+    const fetchOptions = {
+      maxBytes: c.maxBytes,
+      timeoutMs: c.timeoutMs,
+      maxRedirects: c.maxRedirects,
+      userAgent: c.userAgent,
+      accept: "text/css,*/*;q=0.1",
+    };
     this.fetcher =
       deps.fetcher ??
-      ((url) =>
-        safeFetch(url, {
-          maxBytes: c.maxBytes,
-          timeoutMs: c.timeoutMs,
-          maxRedirects: c.maxRedirects,
-          userAgent: c.userAgent,
-          accept: "text/css,*/*;q=0.1",
-        }));
+      // `null` everywhere but the disposable e2e stack; see e2e-local-fetch.ts.
+      e2eLocalStylesheetFetcher(fetchOptions) ??
+      ((url) => safeFetch(url, fetchOptions));
     this.now = deps.now ?? Date.now;
     this.secret = deps.secret ?? scopedTokenSecret;
   }
