@@ -46,7 +46,6 @@ function buildMainNav(websiteId: string): NavItem[] {
   return [
     // `?dashboard=1`: picking Overview means the dashboard, even where AI mode is the default.
     { label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard },
-    { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
     // Directly after Recording because that is what it leads into: an error row's whole
@@ -55,6 +54,7 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
+    { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
   ];
 }
 
