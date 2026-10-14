@@ -22,6 +22,14 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ListGroups } from '@/components/ui/list-groups';
+import { FUNNEL_GROUP_META, funnelLine, inFunnelGroup, previousFrom, type FunnelGroupId, type FunnelPrevious } from '@/features/funnels/insights';
+
+/** The demo's period before, so its trends read like a real site's. */
+const DEMO_PREVIOUS: Record<string, FunnelPrevious> = {
+  'demo-funnel-1': { starts: 81_200, conversions: 5_360 },
+  'demo-funnel-2': { starts: 31_900, conversions: 3_250 },
+};
 
 function FunnelCellStats({ analytics, isLoading }: { analytics?: FunnelAnalyticsResponse; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-4 w-24" />;
@@ -78,6 +86,15 @@ export default function FunnelsPage() {
   // 0.0% on every site whatever the funnels converted at. A funnel nobody has entered
   // has no rate yet and is left out rather than counted as 0%.
   const funnelReports = useFunnelsAnalytics(funnelIds, dateRange, websiteId);
+  // Twice the period: what is left after this period's counts is the period before, for the trend.
+  const doubledReports = useFunnelsAnalytics(funnelIds, Math.min(366, dateRange * 2), websiteId);
+  const previousOf = (id: string): FunnelPrevious | null =>
+    isDemoMode
+      ? DEMO_PREVIOUS[id] ?? null
+      : previousFrom(funnelReports.data?.[id]?.analytics?.[0], doubledReports.data?.[id]?.analytics?.[0]);
+  const reportOf = (id: string) => funnelReports.data?.[id]?.analytics?.[0];
+  /** A group the table is narrowed to, from "Show all" below it. */
+  const [groupFilter, setGroupFilter] = useState<FunnelGroupId | null>(null);
   const avgConversionStr = useMemo(() => {
     if (isDemoMode || funnelIds.length === 0) return '';
     const rates = Object.values(funnelReports.data ?? {})
@@ -141,7 +158,7 @@ export default function FunnelsPage() {
       header: ({ column }: { column: any }) => <SortableHeader column={column}>Funnel</SortableHeader>,
       accessorKey: 'name',
       cell: ({ row }: { row: any }) => (
-        <div className="min-w-0 max-w-[min(100%,32rem)]">
+        <div className="min-w-0 max-w-[min(100%,40rem)]">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
               <GitBranch size={14} />
@@ -153,9 +170,9 @@ export default function FunnelsPage() {
                   {row.original.steps?.length || 0} steps
                 </span>
               </div>
-              {row.original.description ? (
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{row.original.description}</p>
-              ) : null}
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={row.original.description || undefined}>
+                {funnelLine(row.original, reportOf(row.original.id), previousOf(row.original.id), false)}
+              </p>
             </div>
           </div>
         </div>
@@ -226,7 +243,7 @@ export default function FunnelsPage() {
         </div>
       )
     }
-  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading]);
+  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading, doubledReports.data, isDemoMode]);
 
 
   // Summary Metrics
@@ -279,7 +296,7 @@ export default function FunnelsPage() {
           rowClassName={() => 'cursor-pointer hover:bg-muted/35'}
           onRowClick={(f) => router.push(`/websites/${websiteId}/funnels/${f.id}`)}
           columns={columns as any}
-          data={filtered}
+          data={groupFilter ? filtered.filter((f) => inFunnelGroup(f, reportOf(f.id), previousOf(f.id), groupFilter)) : filtered}
           isLoading={funnelsLoading}
           enableRowSelection={true}
           selectionActions={(selectedRows) => (
@@ -331,6 +348,23 @@ export default function FunnelsPage() {
         />
 
       </div>
+
+      <ListGroups
+        className="mt-6"
+        title="Funnels by trend"
+        description="How each funnel is doing in this period. Open a group to see its funnels."
+        groups={FUNNEL_GROUP_META.map((meta) => ({
+          ...meta,
+          items: funnels
+            .filter((f) => inFunnelGroup(f, reportOf(f.id), previousOf(f.id), meta.id))
+            .map((f) => ({
+              key: f.id,
+              text: `${f.name} — ${funnelLine(f, reportOf(f.id), previousOf(f.id))}`,
+              onClick: () => router.push(`/websites/${websiteId}/funnels/${f.id}`),
+            })),
+        }))}
+        onShowAll={(id) => { setGroupFilter(id as FunnelGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+      />
 
       {/* Create/Edit Funnel Sheet */}
       <Sheet
