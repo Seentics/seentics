@@ -179,6 +179,23 @@ export function eventsFromChunkList(
   return { events, customEvents };
 }
 
+/** The list endpoint's query string for `params`: only what is set, in the server's names. */
+export function replayListQuery(params: ReplayListParams = {}): Record<string, string | number> {
+  const query: Record<string, string | number> = {
+    limit:  params.limit  ?? 20,
+    offset: params.offset ?? 0,
+  };
+  if (params.search?.trim()) query.search = params.search.trim();
+  if (params.device)         query.device = params.device;
+  if (params.hasErrors)      query.has_errors = '1';
+  if (params.hasRageClicks)  query.has_rage_clicks = '1';
+  if (params.days)           query.days = params.days;
+  if (params.minFrustration) query.min_frustration = Math.min(100, Math.max(1, Math.round(params.minFrustration)));
+  if (params.signal)         query.signal = params.signal;
+  if (params.sort === 'frustration') query.sort = 'frustration';
+  return query;
+}
+
 /**
  * One page of recorded sessions.
  *
@@ -190,15 +207,7 @@ export async function listSessions(
   websiteId: string,
   params: ReplayListParams = {},
 ): Promise<ReplayListPage> {
-  const query: Record<string, string | number> = {
-    limit:  params.limit  ?? 20,
-    offset: params.offset ?? 0,
-  };
-  if (params.search?.trim()) query.search = params.search.trim();
-  if (params.device)         query.device = params.device;
-  if (params.hasErrors)      query.has_errors = '1';
-  if (params.hasRageClicks)  query.has_rage_clicks = '1';
-  if (params.days)           query.days = params.days;
+  const query = replayListQuery(params);
 
   const res = await api.get(`/replays/${encodeURIComponent(websiteId)}`, { params: query });
   const body = res.data as Partial<ReplayListPage>;

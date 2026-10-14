@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type {
-  ChatMessage, ChatTurn, LlmCompletion, ToolCallingLlmClient,
+  ChatMessage, ChatTurn, LlmCompletion, StopReason, ToolCallingLlmClient,
 } from "../../interfaces/llm-client.interface";
 import type { AiProviderConfig } from "./provider-config";
 
@@ -21,6 +21,33 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
 
   constructor(private readonly cfg: AiProviderConfig) {}
 
+  /**
+   * Output limit and sampling for one request.
+   *
+   * OpenAI itself takes `max_completion_tokens` — its newer models refuse `max_tokens` — while
+   * the compatible endpoints (Ollama, vLLM, Groq…) still expect `max_tokens`.
+   *
+   * On OpenAI, everything from gpt-5 on (and the o-series) reasons before answering: it refuses
+   * any `temperature` but the default and spends part of the limit thinking. Only the older
+   * gpt-4/gpt-3.5 models are sent a temperature, so a new model name works without a code change.
+   * Those reasoning models get an explicit `reasoning_effort` instead: `none` where they call tools
+   * (Chat Completions refuses function tools at any other effort) and for one-word classification,
+   * `low` for the short JSON write-ups — enough to follow the format, without paying for depth.
+   */
+  private params(
+    maxTokens: number,
+    temperature: number,
+    effort: "none" | "low",
+  ): Record<string, number | string> {
+    const openai = this.cfg.provider === "openai";
+    const sampled = !openai || /^gpt-(3\.5|4)/.test(this.cfg.model);
+    const limit = sampled ? maxTokens : Math.max(maxTokens, 2000);
+    return {
+      ...(openai ? { max_completion_tokens: limit } : { max_tokens: limit }),
+      ...(sampled ? { temperature } : { reasoning_effort: effort }),
+    };
+  }
+
   private sdk(): OpenAI {
     if (!this.client) {
       this.client = new OpenAI({
@@ -39,15 +66,21 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
     const completion = await this.sdk().chat.completions.create({
       model: this.cfg.model,
       messages: [
-        { role: "system", content: systemPrompt },
+        // JSON mode is refused unless the prompt itself asks for JSON; said once here rather than
+        // relying on every caller's prompt to happen to use the word.
+        { role: "system", content: `${systemPrompt}\n\nRespond with a single JSON object.` },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
       // Low but not zero: the task is near-deterministic translation and the worked
       // examples in the domain prompts should dominate.
-      temperature: 0.1,
-      max_tokens: this.cfg.maxOutputTokens,
-    });
+      ...this.params(this.cfg.maxOutputTokens, 0.1, "low"),
+    } as never) as OpenAI.Chat.Completions.ChatCompletion;
+
+    // A cut-off JSON object is worse than no answer: the caller would parse a fragment.
+    if (completion.choices[0]?.finish_reason === "length") {
+      throw new Error(`Model reply hit the output limit (${this.cfg.maxOutputTokens} tokens)`);
+    }
 
     return {
       content: completion.choices[0]?.message?.content ?? "",
@@ -63,9 +96,8 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 10,
-      temperature: 0,
-    });
+      ...this.params(10, 0, "none"),
+    } as never) as OpenAI.Chat.Completions.ChatCompletion;
     return response.choices[0]?.message?.content?.trim().toLowerCase() ?? "";
   }
 
@@ -94,9 +126,8 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
           }))
         : undefined,
       tool_choice: input.tools.length ? "auto" : undefined,
-      temperature: 0.1,
-      max_tokens: this.cfg.maxOutputTokens,
-    });
+      ...this.params(this.cfg.maxOutputTokens, 0.1, "none"),
+    } as never) as OpenAI.Chat.Completions.ChatCompletion;
 
     const choice = completion.choices[0]?.message;
     return {
@@ -107,7 +138,25 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
           : []),
       inputTokens: completion.usage?.prompt_tokens ?? 0,
       outputTokens: completion.usage?.completion_tokens ?? 0,
+      stopReason: stopReasonOf(completion.choices[0]?.finish_reason),
     };
+  }
+}
+
+/** OpenAI's `finish_reason`, in the agent loop's terms. */
+function stopReasonOf(reason: string | null | undefined): StopReason {
+  switch (reason) {
+    case "stop":
+      return "end";
+    case "tool_calls":
+    case "function_call":
+      return "tool_use";
+    case "length":
+      return "max_tokens";
+    case "content_filter":
+      return "refusal";
+    default:
+      return "other";
   }
 }
 

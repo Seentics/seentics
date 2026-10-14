@@ -22,5 +22,24 @@ export type { RecordingsModule } from "./recordings.module";
 
 export type { RecordingRawReads } from "./recording.interface";
 
+export type {
+  AnalyzeRunStats,
+  FrustratedSessionRow,
+  FrustrationSignal,
+  FrustrationSignalType,
+  SessionAnalysisJobs,
+  SessionAnalysisReads,
+  SessionAnalysisView,
+  SessionSummarizer,
+  SessionSummary,
+  SessionSummaryInput,
+  SessionSummaryResult,
+  SessionSummaryStatus,
+  SessionTimeline,
+  SignalCounts,
+  SummaryRunStats,
+} from "./session-analysis.interface";
+export { FRUSTRATION_SIGNAL_TYPES, isFrustrationSignalType } from "./session-analysis.interface";
+
 /** Query contract of the list read, shared with the embed API. */
 export { replayListQuerySchema } from "../validators/recording.schema";

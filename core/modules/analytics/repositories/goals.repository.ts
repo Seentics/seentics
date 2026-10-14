@@ -184,3 +184,56 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
     }),
   };
 }
+
+/**
+ * Completions of each of a site's goals on each of the given UTC days (`YYYY-MM-DD`), counts in
+ * the order the days were given — the AI module's daily conversion-drop check. The rollups when
+ * they exist (a few rows per goal and day, matched as in `goalRowsFromRollups`); otherwise raw
+ * events, one day-window at a time, which only a Postgres without the rollups pays for.
+ */
+export async function getGoalDailyCompletions(
+  websiteId: string,
+  days: readonly string[],
+): Promise<Array<{ goalId: string; name: string; counts: number[] }>> {
+  if (!days.length) return [];
+  type Row = { goal_id: string; name: string; i: number; n: number };
+  const rows = rollupsEnabled()
+    ? await pgSql<Row[]>`
+        SELECT g.id::text AS goal_id, g.name, d.i::int AS i, coalesce(sum(r.pageviews), 0)::int AS n
+        FROM goals g
+        CROSS JOIN unnest(${[...days]}::date[]) WITH ORDINALITY AS d(day, i)
+        LEFT JOIN analytics_rollup_daily r
+          ON r.website_id = ${websiteId} AND r.day = d.day AND r.dimension IN ('page', 'event', 'custom_name')
+         AND (
+           (g."type" = 'pageview' AND r.dimension = 'page'
+             AND coalesce(nullif(rtrim(r.value, '/'), ''), '/') = coalesce(nullif(rtrim(g.identifier, '/'), ''), '/'))
+           OR (g."type" IN ('event', 'click') AND r.dimension IN ('event', 'custom_name') AND r.value = g.identifier)
+         )
+        WHERE g.website_id = ${websiteId}::uuid
+        GROUP BY g.id, g.name, d.i
+      `
+    : await pgSql<Row[]>`
+        SELECT g.id::text AS goal_id, g.name, d.i::int AS i, count(ae.occurred_at)::int AS n
+        FROM goals g
+        CROSS JOIN unnest(${[...days]}::date[]) WITH ORDINALITY AS d(day, i)
+        LEFT JOIN analytics_events ae
+          ON ae.website_id = ${websiteId}
+         AND ae.occurred_at >= d.day::timestamp AT TIME ZONE 'UTC'
+         AND ae.occurred_at < (d.day + 1)::timestamp AT TIME ZONE 'UTC'
+         AND (
+           (g."type" = 'pageview' AND ae.event_type = 'pageview'
+             AND coalesce(nullif(rtrim(${pgSql.unsafe(pagePathSql("ae.page"))}, '/'), ''), '/') = coalesce(nullif(rtrim(g.identifier, '/'), ''), '/'))
+           OR (g."type" IN ('event', 'click')
+             AND (ae.event_type = g.identifier OR (ae.event_type = 'custom' AND coalesce(ae.properties->>'name', '') = g.identifier)))
+         )
+        WHERE g.website_id = ${websiteId}::uuid
+        GROUP BY g.id, g.name, d.i
+      `;
+  const goals = new Map<string, { goalId: string; name: string; counts: number[] }>();
+  for (const r of rows) {
+    const g = goals.get(r.goal_id) ?? { goalId: r.goal_id, name: r.name, counts: days.map(() => 0) };
+    g.counts[r.i - 1] = r.n;
+    goals.set(r.goal_id, g);
+  }
+  return [...goals.values()];
+}

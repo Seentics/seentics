@@ -20,19 +20,28 @@ import type { InsightLine, Signal } from './types';
  * to a model that wandered.
  */
 
-const modelOutput = z.object({
-  lines: z
-    .array(
-      z.object({
-        signal: z.string().min(1).max(120),
-        kind: z.enum(['finding', 'action']).default('finding'),
-        text: z.string().min(12).max(300),
-      }),
-    )
-    .max(6),
+/** The envelope: anything with a `lines` array. Each line is then checked on its own. */
+const modelOutput = z.object({ lines: z.array(z.unknown()) });
+
+/** One line. An unknown `kind` is read as a finding; a long text is cut, not refused. */
+const modelLine = z.object({
+  signal: z.string().trim().min(1).max(120),
+  kind: z.unknown().optional().transform((k): 'finding' | 'action' => (k === 'action' ? 'action' : 'finding')),
+  text: z.string().trim().min(12).transform((t) => clip(t, MAX_TEXT)),
 });
 
 export const MAX_LINES = 3;
+/** Lines read from a response at most: a model that returns more is not read past this. */
+export const MAX_RAW_LINES = 6;
+export const MAX_TEXT = 300;
+
+/** `text` cut to `max` characters, at a word boundary when there is one near, with an ellipsis. */
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.-]+$/, '')}…`;
+}
 
 export type ParsedLines = { lines: InsightLine[]; dropped: Array<{ signal: string; why: string }> };
 
@@ -57,7 +66,15 @@ export function parseModelOutput(raw: string, signals: Signal[], briefNumbers: S
   const dropped: ParsedLines['dropped'] = [];
   const used = new Set<string>();
 
-  for (const line of parsed.lines) {
+  // One malformed line costs that line, not the whole (paid-for) response.
+  for (const raw of parsed.lines.slice(0, MAX_RAW_LINES)) {
+    const checked = modelLine.safeParse(raw);
+    if (!checked.success) {
+      const sig = raw && typeof raw === 'object' && typeof (raw as { signal?: unknown }).signal === 'string' ? String((raw as { signal: string }).signal).slice(0, 120) : '';
+      dropped.push({ signal: sig, why: 'malformed line' });
+      continue;
+    }
+    const line = checked.data;
     const signal = byId.get(line.signal);
     const drop = (why: string) => dropped.push({ signal: line.signal, why });
     if (!signal) { drop('unknown signal'); continue; }
@@ -69,7 +86,7 @@ export function parseModelOutput(raw: string, signals: Signal[], briefNumbers: S
     const wantsAction = line.kind === 'action' && !!signal.action;
     lines.push({
       kind: wantsAction ? 'action' : 'finding',
-      text: line.text.trim(),
+      text: line.text,
       evidence: signal.evidence,
       action: wantsAction ? signal.action : undefined,
     });

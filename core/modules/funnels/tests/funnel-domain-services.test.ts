@@ -247,6 +247,7 @@ describe("funnel domain services", () => {
       bulkRemove: definitions.bulkRemove.bind(definitions),
       report: performance.report.bind(performance),
       reports: performance.reports.bind(performance),
+      reportBetween: performance.reportBetween.bind(performance),
       activeForTracker: tracker.activeForTracker.bind(tracker),
     };
   });

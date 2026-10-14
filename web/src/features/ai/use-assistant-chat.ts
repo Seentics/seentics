@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAskAi, useConfirmProposal } from './mutations';
 import { useConversation } from './queries';
 import type { ChatMessage } from './types';
@@ -12,17 +12,43 @@ import type { ChatMessage } from './types';
  * `ConversationView` renders a live thread, a stored transcript or fixtures, and this
  * hook is the only thing that knows an API exists.
  */
-export function useAssistantChat(websiteId: string, initialConversationId?: string) {
+export function useAssistantChat(
+  websiteId: string, initialConversationId?: string, initialDraft?: string,
+  initialRecommendationId?: string | null,
+) {
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId ?? null,
   );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [draft, setDraft] = useState('');
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // A prefill from "Ask AI about this" — typed in, never sent on its own.
+  const [draft, setDraft] = useState(initialDraft ?? '');
+  // Opened from a recommendation's "Do it": every turn of this chat carries its id, since the
+  // draft it leads to may come a turn or two after the first question. Cleared by "New".
+  const [recommendationId, setRecommendationId] = useState<string | null>(initialRecommendationId ?? null);
+  const [confirmingIds, setConfirmingIds] = useState<ReadonlySet<string>>(() => new Set());
 
   const ask = useAskAi(websiteId);
   const confirm = useConfirmProposal(websiteId);
   const stored = useConversation(websiteId, conversationId);
+
+  /*
+   * Bumped by `reset`. A reply that lands after "New" belongs to a thread that is no
+   * longer on screen, so anything started under an older generation is dropped rather
+   * than written into the fresh one.
+   */
+  const generation = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  /** Synchronous twin of `confirmingIds`, so a double click cannot send twice. */
+  const confirmingRef = useRef(new Set<string>());
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  /*
+   * A stored thread is being fetched and nothing is on screen yet. The view shows a
+   * loading state instead of starters, and sending waits — a message typed now would
+   * fill the list and the restore below would never run.
+   */
+  const isRestoring = !!conversationId && messages.length === 0 && stored.isLoading;
 
   /*
    * Restore a thread that was opened rather than started, and only while the local list
@@ -37,6 +63,9 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
         {
           id: t.id, role: 'assistant', content: t.answer ?? '',
           proposal: t.proposal, proposalApplied: !!t.proposalAppliedAt,
+          error: t.status === 'error' && !t.answer
+            ? 'This answer could not be generated.'
+            : undefined,
         },
       ]),
     );
@@ -45,8 +74,12 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
   const send = useCallback(
     async (prompt: string) => {
       const text = prompt.trim();
-      if (!text || ask.isPending) return;
+      if (!text || ask.isPending || isRestoring) return;
       setDraft('');
+
+      const gen = generation.current;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       const pendingId = `pending-${Date.now()}`;
       setMessages((prev) => [
@@ -59,8 +92,14 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
         const res = await ask.mutateAsync({
           prompt: text,
           conversationId: conversationId ?? undefined,
+          signal: controller.signal,
+          recommendationId: recommendationId ?? undefined,
         });
-        setConversationId(res.conversationId);
+        if (gen !== generation.current) return;
+        // An off-topic refusal is not stored and comes back with a throwaway id and no
+        // query id. Adopting it would point the chat (and sidebar) at a thread that does
+        // not exist.
+        if (res.queryId != null || conversationId) setConversationId(res.conversationId);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === pendingId
@@ -81,33 +120,51 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
           ),
         );
       } catch (err) {
+        if (gen !== generation.current) return;
         setMessages((prev) =>
           prev.map((m) => (m.id === pendingId
             ? { ...m, pending: false, error: errorMessage(err, 'Something went wrong. Try again.') }
             : m)),
         );
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [ask, conversationId],
+    [ask, conversationId, isRestoring, recommendationId],
   );
 
   const confirmProposal = useCallback(
     async (messageId: string) => {
-      setConfirmingId(messageId);
+      const target = messages.find((m) => m.id === messageId);
+      if (confirmingRef.current.has(messageId) || target?.proposalApplied) return;
+      if (!conversationId) return;
+
+      const gen = generation.current;
+      const setConfirming = (on: boolean) => {
+        if (on) confirmingRef.current.add(messageId);
+        else confirmingRef.current.delete(messageId);
+        setConfirmingIds(new Set(confirmingRef.current));
+      };
+
+      setConfirming(true);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, proposalError: undefined } : m)));
       try {
-        await confirm.mutateAsync({ queryId: messageId });
+        await confirm.mutateAsync({ queryId: messageId, conversationId });
+        if (gen !== generation.current) return;
         setMessages((prev) =>
           prev.map((m) => (m.id === messageId ? { ...m, proposalApplied: true } : m)));
       } catch (err) {
+        if (gen !== generation.current) return;
         setMessages((prev) =>
           prev.map((m) => (m.id === messageId
-            ? { ...m, error: errorMessage(err, 'Could not create it.') }
+            ? { ...m, proposalError: errorMessage(err, 'Could not create it.') }
             : m)));
       } finally {
-        setConfirmingId(null);
+        setConfirming(false);
       }
     },
-    [confirm],
+    [confirm, conversationId, messages],
   );
 
   const dismissProposal = useCallback((messageId: string) => {
@@ -115,11 +172,17 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
       prev.map((m) => (m.id === messageId ? { ...m, proposal: null } : m)));
   }, []);
 
+  const { reset: resetAsk } = ask;
   const reset = useCallback(() => {
+    generation.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    resetAsk();
     setMessages([]);
     setConversationId(null);
     setDraft('');
-  }, []);
+    setRecommendationId(null);
+  }, [resetAsk]);
 
   /** What this conversation has cost so far. Operator-facing. */
   const sessionCostUsd = useMemo(
@@ -130,7 +193,7 @@ export function useAssistantChat(websiteId: string, initialConversationId?: stri
   return {
     conversationId, messages, draft, setDraft,
     send, confirmProposal, dismissProposal, reset,
-    isSending: ask.isPending, confirmingId, sessionCostUsd,
+    isSending: ask.isPending, isRestoring, confirmingIds, sessionCostUsd,
   };
 }
 

@@ -18,6 +18,11 @@ let jobs: Cron[] = [];
  * Jobs:
  *  - data-retention  : daily at 04:15 UTC — purges analytics, sessions, heatmap data per retention config
  *  - analytics-rollups : every 30 s — rebuilds stale website-days of the dashboard rollups
+ *  - ai-weekly-digest : Mondays at 07:00 UTC — hands each site's weekly digest to the gateway to mail
+ *  - ai-anomaly-check : hourly at :15 — each active site against its seasonal baseline; alerts opened and resolved
+ *  - recording-analysis : every 10 min — frustration signals for recordings that have gone idle
+ *  - ai-session-summaries : daily at 05:30 UTC — summaries for each site's most frustrated sessions
+ *  - ai-recommendations : daily at 06:00 UTC — collects suggestions, expires stale ones, measures applied ones
  *  - screenshot-refresh : every 3 days at 03:00 UTC — re-captures stale heatmap page screenshots
  */
 export function startScheduler(
@@ -28,6 +33,14 @@ export function startScheduler(
     analyticsRollups?: AnalyticsRollups;
     /** Writes each site's daily dashboard insight. */
     aiInsights?: { runDaily(): Promise<unknown> };
+    /** Hands each site's weekly digest to the gateway. `enabled` is false without one. */
+    aiDigest?: { enabled: boolean; runWeekly(): Promise<unknown> };
+    /** The hourly anomaly check. `enabled` is false when its reads were not wired. */
+    aiAnomalies?: { enabled: boolean; runHourly(): Promise<unknown> };
+    /** Collects recommendations and takes due impact readings. `enabled` is false when not wired. */
+    aiRecommendations?: { enabled: boolean; runDaily(): Promise<unknown> };
+    /** Analyses ended recordings for frustration signals, and pre-writes summaries for the worst. */
+    recordingAnalysis?: { analyzePending(): Promise<unknown>; summarizeTop(): Promise<unknown>; summariesEnabled(): boolean };
   },
 ): void {
   if (jobs.length > 0) {
@@ -115,7 +128,128 @@ export function startScheduler(
     log.info({ msg: "scheduler_job_registered", job: "ai-insights", schedule: insightsCron });
   }
 
-  // Heatmap screenshot refresh — every 3 days at 03:00 UTC
+  // Weekly digest — Mondays 07:00 UTC, two hours after the daily insights, so each site's lines are
+  // already written. Core only builds the notice; the gateway mails it, so without one there is no job.
+  const aiDigest = deps?.aiDigest;
+  if (process.env.AI_DIGEST_ENABLED === "false") {
+    log.info({ msg: "scheduler_job_disabled", job: "ai-weekly-digest", reason: "AI_DIGEST_ENABLED=false" });
+  } else if (!aiDigest?.enabled) {
+    log.info({ msg: "scheduler_job_disabled", job: "ai-weekly-digest", reason: "no gateway notify url" });
+  } else {
+    const digestCron = process.env.AI_DIGEST_CRON ?? "0 7 * * 1";
+    const digestJob = new Cron(
+      digestCron,
+      { timezone: "UTC", name: "ai-weekly-digest", catch: true, protect: true },
+      async () => {
+        log.info({ msg: "scheduler_job_start", job: "ai-weekly-digest" });
+        try {
+          const stats = await traceJob("ai-weekly-digest", () => aiDigest.runWeekly());
+          log.info({ msg: "scheduler_job_done", job: "ai-weekly-digest", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "ai-weekly-digest", err: String(e) });
+        }
+      },
+    );
+    jobs.push(digestJob);
+    log.info({ msg: "scheduler_job_registered", job: "ai-weekly-digest", schedule: digestCron });
+  }
+
+  // Anomaly check — hourly at :15, a quarter hour after the hour it judges closed, so late events
+  // have landed. Detection needs no model and alerts show on the dashboard without a gateway (they
+  // are only mailed with one), so it runs whenever it is wired. `protect`: a slow run is skipped
+  // over, never stacked.
+  const aiAnomalies = deps?.aiAnomalies;
+  if (process.env.AI_ANOMALY_ENABLED === "false") {
+    log.info({ msg: "scheduler_job_disabled", job: "ai-anomaly-check", reason: "AI_ANOMALY_ENABLED=false" });
+  } else if (aiAnomalies?.enabled) {
+    const anomalyCron = process.env.AI_ANOMALY_CRON ?? "15 * * * *";
+    const anomalyJob = new Cron(
+      anomalyCron,
+      { timezone: "UTC", name: "ai-anomaly-check", catch: true, protect: true },
+      async () => {
+        try {
+          const stats = await traceJob("ai-anomaly-check", () => aiAnomalies.runHourly());
+          log.info({ msg: "scheduler_job_done", job: "ai-anomaly-check", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "ai-anomaly-check", err: String(e) });
+        }
+      },
+    );
+    jobs.push(anomalyJob);
+    log.info({ msg: "scheduler_job_registered", job: "ai-anomaly-check", schedule: anomalyCron });
+  }
+
+  // Recommendations — 06:00 UTC, after the daily insights (05:00) and session summaries (05:30) it
+  // collects from. Rule-based, so it runs without a model; a reading's sentence uses one if configured.
+  const aiRecommendations = deps?.aiRecommendations;
+  if (process.env.AI_RECOMMENDATIONS_ENABLED === "false") {
+    log.info({ msg: "scheduler_job_disabled", job: "ai-recommendations", reason: "AI_RECOMMENDATIONS_ENABLED=false" });
+  } else if (aiRecommendations?.enabled) {
+    const recommendationsCron = process.env.AI_RECOMMENDATIONS_CRON ?? "0 6 * * *";
+    const recommendationsJob = new Cron(
+      recommendationsCron,
+      { timezone: "UTC", name: "ai-recommendations", catch: true, protect: true },
+      async () => {
+        log.info({ msg: "scheduler_job_start", job: "ai-recommendations" });
+        try {
+          const stats = await traceJob("ai-recommendations", () => aiRecommendations.runDaily());
+          log.info({ msg: "scheduler_job_done", job: "ai-recommendations", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "ai-recommendations", err: String(e) });
+        }
+      },
+    );
+    jobs.push(recommendationsJob);
+    log.info({ msg: "scheduler_job_registered", job: "ai-recommendations", schedule: recommendationsCron });
+  }
+
+  // Recording analysis — every 10 min: frustration signals for sessions that have gone idle, a
+  // bounded batch per tick (RECORDING_ANALYSIS_BATCH). Each recording is read once and the result
+  // stored. Session summaries — 05:30 UTC: pre-written for each site's most frustrated sessions of
+  // the last day; skipped without a model, and capped per site and per run (AI_SESSION_SUMMARY_*).
+  const recordingAnalysis = deps?.recordingAnalysis;
+  if (recordingAnalysis && process.env.RECORDING_ANALYSIS_ENABLED !== "false") {
+    const analysisCron = process.env.RECORDING_ANALYSIS_CRON ?? "*/10 * * * *";
+    const analysisJob = new Cron(
+      analysisCron,
+      { timezone: "UTC", name: "recording-analysis", catch: true, protect: true },
+      async () => {
+        try {
+          const stats = await traceJob("recording-analysis", () => recordingAnalysis.analyzePending());
+          log.info({ msg: "scheduler_job_done", job: "recording-analysis", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "recording-analysis", err: String(e) });
+        }
+      },
+    );
+    jobs.push(analysisJob);
+    log.info({ msg: "scheduler_job_registered", job: "recording-analysis", schedule: analysisCron });
+
+    if (process.env.AI_SESSION_SUMMARY_ENABLED === "false") {
+      log.info({ msg: "scheduler_job_disabled", job: "ai-session-summaries", reason: "AI_SESSION_SUMMARY_ENABLED=false" });
+    } else if (!recordingAnalysis.summariesEnabled()) {
+      log.info({ msg: "scheduler_job_disabled", job: "ai-session-summaries", reason: "AI not configured" });
+    } else {
+      const summaryCron = process.env.AI_SESSION_SUMMARY_CRON ?? "30 5 * * *";
+      const summaryJob = new Cron(
+        summaryCron,
+        { timezone: "UTC", name: "ai-session-summaries", catch: true, protect: true },
+        async () => {
+          log.info({ msg: "scheduler_job_start", job: "ai-session-summaries" });
+          try {
+            const stats = await traceJob("ai-session-summaries", () => recordingAnalysis.summarizeTop());
+            log.info({ msg: "scheduler_job_done", job: "ai-session-summaries", stats });
+          } catch (e) {
+            log.error({ msg: "scheduler_job_failed", job: "ai-session-summaries", err: String(e) });
+          }
+        },
+      );
+      jobs.push(summaryJob);
+      log.info({ msg: "scheduler_job_registered", job: "ai-session-summaries", schedule: summaryCron });
+    }
+  }
+
+  // Heatmap screenshot refresh — every 3 days at 03:00 UTC. Last: it returns early when unwired.
   const heatmapScreenshots = deps?.heatmapScreenshots;
   if (!heatmapScreenshots) {
     // Registering a job with nothing to call would be worse than skipping it: the

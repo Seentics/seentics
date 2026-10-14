@@ -19,6 +19,9 @@ export function listRecordings(deps: RecordingControllerDeps) {
       hasErrors: data.has_errors,
       hasRageClicks: data.has_rage_clicks,
       days: data.days,
+      minFrustration: data.min_frustration,
+      signal: data.signal,
+      sort: data.sort,
     });
     return c.json(result);
   };

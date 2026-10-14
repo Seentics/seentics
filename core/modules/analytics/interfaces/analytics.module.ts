@@ -5,7 +5,9 @@ import type { RetentionPurge } from "../../../platform/retention";
 import type {
   AnalyticsIngestWriter,
   AnalyticsFunnelEvents,
+  AnalyticsAnomalyReads,
   AnalyticsInsightReads,
+  AnalyticsImpactReads,
   AnalyticsPageviewUrls,
   AnalyticsRawEvents,
   AnalyticsPublicDashboard,
@@ -54,6 +56,12 @@ export interface AnalyticsModule {
 
   /** The aggregates behind the AI module's daily dashboard insight. */
   insightReads: AnalyticsInsightReads;
+
+  /** Fixed-window session counts behind the AI module's recommendation impact reports. */
+  impactReads: AnalyticsImpactReads;
+
+  /** The counts behind the AI module's hourly anomaly check. */
+  anomalyReads: AnalyticsAnomalyReads;
 
   /** The raw event feed behind `/api/v1/raw`. */
   rawEvents: AnalyticsRawEvents;

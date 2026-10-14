@@ -26,6 +26,8 @@ export interface AiAgent {
     websiteId: string;
     prompt: string;
     conversationId?: string;
+    /** The recommendation the chat was started from; stored on the turn for the confirm step. */
+    recommendationId?: string;
   }): Promise<AgentAnswer>;
 
   conversation(userId: string, conversationId: string): Promise<ConversationTurn[]>;

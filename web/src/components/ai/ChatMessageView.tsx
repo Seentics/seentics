@@ -74,6 +74,7 @@ export function ChatMessageView({
             proposal={message.proposal}
             applied={message.proposalApplied}
             isConfirming={isConfirming}
+            error={message.proposalError}
             onConfirm={onConfirmProposal}
             onDismiss={onDismissProposal}
           />

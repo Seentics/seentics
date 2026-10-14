@@ -20,6 +20,9 @@ import { AnalyticsUsageCounter } from "./services/usage-count.service";
 import { buildStaleRollups } from "./rollups/builder";
 import { detectRollups } from "./rollups/reads";
 import { getInsightSnapshotData } from "./repositories/insight-snapshot.repository";
+import { getImpactCounts } from "./repositories/impact-reads.repository";
+import { trafficInWindows, windowBreakdown } from "./repositories/anomaly-reads.repository";
+import { getGoalDailyCompletions } from "./repositories/goals.repository";
 
 /**
  * Build the analytics module.
@@ -69,7 +72,13 @@ export function initAnalyticsModule(deps: {
     publicDashboard,
     ingest,
     pageviewUrls: new AnalyticsPageviewUrlService(),
-    insightReads: { getInsightSnapshot: (websiteId, days) => getInsightSnapshotData(websiteId, days) },
+    insightReads: { getInsightSnapshot: (websiteId, days, end) => getInsightSnapshotData(websiteId, days, end) },
+    impactReads: { getImpactCounts: (websiteId, query) => getImpactCounts(websiteId, query) },
+    anomalyReads: {
+      trafficInWindows: (websiteId, windows) => trafficInWindows(websiteId, windows),
+      goalCompletionsByDay: (websiteId, days) => getGoalDailyCompletions(websiteId, days),
+      windowBreakdown: (websiteId, current, reference) => windowBreakdown(websiteId, current, reference),
+    },
     rawEvents: eventFeed,
     funnelEvents: eventFeed,
     retention: new AnalyticsRetentionPurge(),

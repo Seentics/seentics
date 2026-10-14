@@ -89,11 +89,34 @@ export async function runAgent(input: {
   let truncated = false;
   let turns = 0;
 
+  // Prose the model wrote during this run only. `messages` also holds replayed history,
+  // whose answers must not be glued onto this one.
+  const ownText: string[] = [];
+
   while (turns < MAX_TURNS) {
     turns++;
     const turn = await llm.chat({ system, messages, tools });
     inputTokens += turn.inputTokens;
     outputTokens += turn.outputTokens;
+
+    if (turn.stopReason === "refusal") {
+      return {
+        answer: turn.text.trim() || "I can't help with that one.",
+        blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
+      };
+    }
+
+    if (turn.stopReason === "max_tokens") {
+      // The reply was cut off. A tool call in it may carry half its arguments, so nothing
+      // in this turn is run; the partial prose is kept but marked as partial.
+      const partial = turn.text.trim();
+      return {
+        answer: partial
+          ? `${partial}…\n\n(This answer was cut short. Try a narrower question.)`
+          : "That answer ran too long to finish. Try a narrower question.",
+        blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated: true,
+      };
+    }
 
     if (turn.toolCalls.length === 0) {
       return {
@@ -105,7 +128,15 @@ export async function runAgent(input: {
     const calls = turn.toolCalls.slice(0, Math.max(0, MAX_TOOL_CALLS - executed.length));
     if (calls.length < turn.toolCalls.length) truncated = true;
 
-    messages.push({ role: "assistant", content: turn.text, toolCalls: calls });
+    if (turn.text.trim()) ownText.push(turn.text.trim());
+    // The provider's raw turn (thinking included) is replayed unchanged, so every call in
+    // it is answered below — run, or refused for being over the limit.
+    messages.push({
+      role: "assistant",
+      content: turn.text,
+      toolCalls: turn.toolCalls,
+      ...(turn.raw ? { raw: turn.raw } : {}),
+    });
 
     for (const call of calls) {
       const result = await registry.run(call.name, call.args, ctx);
@@ -120,15 +151,13 @@ export async function runAgent(input: {
 
       messages.push(toolMessage(call, result));
     }
+    for (const call of turn.toolCalls.slice(calls.length)) {
+      messages.push(toolMessage(call, { ok: false, error: "Not run: the tool-call limit for this question was reached." }));
+    }
 
     if (proposal) {
       // A draft is the end of the turn. The user's next move is to accept or decline.
-      const closing = messages
-        .filter((m) => m.role === "assistant")
-        .map((m) => m.content)
-        .filter(Boolean)
-        .join(" ")
-        .trim();
+      const closing = ownText.join(" ").trim();
       return {
         answer: closing || "I've drafted this for you to review.",
         blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
@@ -167,7 +196,7 @@ function toolMessage(
       ? `${body.slice(0, MAX_TOOL_RESULT_CHARS)}\n[truncated — report these as partial results]`
       : body;
 
-  return { role: "tool", toolCallId: call.id, name: call.name, content };
+  return { role: "tool", toolCallId: call.id, name: call.name, content, isError: !result.ok };
 }
 
 /** A `propose_*` tool returns `{ proposal }`; everything else returns plain data. */

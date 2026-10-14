@@ -19,6 +19,8 @@ export interface UtmBreakdownCardProps {
   onTabChange: (tab: UtmTab) => void;
   isLoading?: boolean;
   title?: string;
+  /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+  headerAction?: React.ReactNode;
   className?: string;
 }
 
@@ -38,13 +40,17 @@ export function UtmBreakdownCard({
   onTabChange,
   isLoading,
   title = 'UTM breakdown',
+  headerAction,
   className,
 }: UtmBreakdownCardProps) {
   return (
     <Card className={cn('overflow-hidden border border-border bg-card', className)}>
       <CardHeader className="border-b border-border p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h3 className="min-w-0 shrink-0 whitespace-nowrap text-sm font-semibold tracking-tight">{title}</h3>
+          <div className="flex shrink-0 items-center gap-1">
+            <h3 className="min-w-0 shrink-0 whitespace-nowrap text-sm font-semibold tracking-tight">{title}</h3>
+            {headerAction}
+          </div>
           <Tabs
             value={tab}
             onValueChange={(v) => onTabChange(v as UtmTab)}

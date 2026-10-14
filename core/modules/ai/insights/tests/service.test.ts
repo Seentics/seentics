@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { LlmClient } from '../../interfaces/llm-client.interface';
 import type { InsightRepository } from '../repository';
-import { INSIGHT_DAYS, InsightService, MIN_REFRESH_MS, type InsightDeps } from '../service';
+import { INSIGHT_DAYS, InsightService, MIN_REFRESH_MS, MODEL_BREAKER_THRESHOLD, MODEL_RETRY_MS, MODEL_UNREACHABLE_REASON, type InsightDeps } from '../service';
 import type { InsightSnapshot, StoredInsight } from '../types';
 import { steadySnapshot, troubledSnapshot } from './fixtures';
 
@@ -96,6 +96,15 @@ describe('InsightService.generate', () => {
     expect(model.calls).toHaveLength(0);
   });
 
+  it('does not call a collapse in traffic "not enough data": it reports the drop', async () => {
+    const collapsed = steadySnapshot({ traffic: { ...steadySnapshot().traffic, visitors: { cur: 12, prev: 5000 } } });
+    const { service } = make({ llm: null, model: null, snapshot: collapsed });
+    const { insight } = await service.generate(SITE);
+    expect(insight.status).toBe('ready');
+    expect(insight.lines[0]!.text).toContain('Traffic dropped sharply');
+    expect(insight.lines[0]!.text).toContain('tracking may be broken');
+  });
+
   it('says nothing changed, without calling the model, for a steady site', async () => {
     const model = llm(good);
     const { service } = make({ llm: model, snapshot: steadySnapshot() });
@@ -127,6 +136,31 @@ describe('InsightService.generate', () => {
     expect(b.lines.length).toBeGreaterThan(0);
     // The invented "77%" is nowhere in what was stored.
     expect(JSON.stringify(b.lines)).not.toContain('77%');
+  });
+
+  it('retries an insight the model could not word: on the next run, and on a refresh after a short wait', async () => {
+    let up = false;
+    const flaky: LlmClient = {
+      async complete() { if (!up) throw new Error('503'); return { content: good, inputTokens: 1800, outputTokens: 120 }; },
+      async classify() { return ''; },
+    };
+    const { service, advance } = make({ llm: flaky });
+    const first = await service.generate(SITE);
+    expect(first.insight).toMatchObject({ source: 'rules', status: 'ready', reason: MODEL_UNREACHABLE_REASON });
+
+    // A refresh straight away waits the short retry floor, not six hours.
+    advance(60 * 1000);
+    const early = await service.generate(SITE, { force: true });
+    expect(early.generated).toBe(false);
+    expect(early.retryAfterMs).toBe(MODEL_RETRY_MS - 60 * 1000);
+
+    // The next run tries the model again rather than keeping the template lines for the day.
+    up = true;
+    const again = await service.generate(SITE);
+    expect(again.generated).toBe(true);
+    expect(again.insight.source).toBe('ai');
+    // And once worded, it is done for the day.
+    expect((await service.generate(SITE)).generated).toBe(false);
   });
 
   it('falls back when the model returns something that is not JSON', async () => {
@@ -168,6 +202,37 @@ describe('InsightService.runDaily', () => {
     expect(stats.costUsd).toBeGreaterThan(0);
     // A second run the same day skips everyone it finished.
     expect(await service.runDaily(['a', 'c'])).toMatchObject({ generated: 0, skipped: 2 });
+  });
+
+  it('stops calling the model for the rest of the run after repeated failures, and leaves those sites retryable', async () => {
+    const repo = new MemoryRepo();
+    let calls = 0;
+    const down: LlmClient = { async complete() { calls += 1; throw new Error('503'); }, async classify() { return ''; } };
+    const ids = Array.from({ length: 12 }, (_, i) => `s${i}`);
+    const service = new InsightService({
+      snapshot: async (id) => ({ ...troubledSnapshot(), websiteId: id }),
+      repo, llm: down, model: MODEL, now: () => new Date('2026-10-13T05:00:00Z'),
+    });
+    const stats = await service.runDaily(ids, 1);
+    expect(calls).toBe(MODEL_BREAKER_THRESHOLD);
+    expect(stats).toMatchObject({ generated: 12, failed: 0 });
+    for (const id of ids) expect((await repo.get(id, '2026-10-13'))?.reason).toBe(MODEL_UNREACHABLE_REASON);
+  });
+
+  it('resets the breaker count when the model answers', async () => {
+    const repo = new MemoryRepo();
+    let n = 0;
+    // Fails four times, answers once, and so on: never five in a row.
+    const patchy: LlmClient = {
+      async complete() { n += 1; if (n % 5 !== 0) throw new Error('503'); return { content: good, inputTokens: 1, outputTokens: 1 }; },
+      async classify() { return ''; },
+    };
+    const service = new InsightService({
+      snapshot: async (id) => ({ ...troubledSnapshot(), websiteId: id }),
+      repo, llm: patchy, model: MODEL, now: () => new Date('2026-10-13T05:00:00Z'),
+    });
+    await service.runDaily(Array.from({ length: 15 }, (_, i) => `s${i}`), 1);
+    expect(n).toBe(15);
   });
 
   it('uses the same window the snapshot reads', () => {

@@ -316,5 +316,46 @@ export type InsightSnapshotData = {
 
 /** A port because `analytics_events` is analytics-owned and the AI module needs aggregates over it. */
 export interface AnalyticsInsightReads {
-  getInsightSnapshot(websiteId: string, days: number): Promise<InsightSnapshotData>;
+  /** `end` closes the window (default now): the weekly digest reads whole UTC days with it. */
+  getInsightSnapshot(websiteId: string, days: number, end?: Date): Promise<InsightSnapshotData>;
+}
+
+/** One fixed window for `AnalyticsImpactReads`, optionally narrowed to an entry page, channel or device. */
+export type ImpactCountsQuery = {
+  from: Date;
+  to: Date;
+  /** Sessions that entered on this path; `:param` segments match any one segment. */
+  page?: string | null;
+  channel?: string | null;
+  device?: string | null;
+  /** The conversion event to count. `undefined`: the window's most frequent recognised one. `null`: none. */
+  event?: string | null;
+};
+
+export type ImpactCounts = { sessions: number; bounces: number; conversions: number; event: string | null };
+
+/** Session counts over a fixed window, for the AI module's before-and-after impact reports. */
+export interface AnalyticsImpactReads {
+  getImpactCounts(websiteId: string, query: ImpactCountsQuery): Promise<ImpactCounts>;
+}
+
+/**
+ * The counts behind the AI module's hourly anomaly check. A port for the same reason as
+ * `AnalyticsInsightReads`; every read is a few index range scans (see anomaly-reads.repository.ts).
+ * Windows are hour-aligned and half-open, `[start, end)`.
+ */
+export interface AnalyticsAnomalyReads {
+  /** Pageviews and distinct visitors in each window, in the order given. */
+  trafficInWindows(websiteId: string, windows: ReadonlyArray<{ start: Date; end: Date }>): Promise<Array<{ pageviews: number; visitors: number }>>;
+  /** Each goal's completions on each UTC day (`YYYY-MM-DD`), counts in the order given. */
+  goalCompletionsByDay(websiteId: string, days: readonly string[]): Promise<Array<{ goalId: string; name: string; counts: number[] }>>;
+  /**
+   * The pages and sources whose pageviews moved most between `current` and `reference`, for an
+   * anomaly's explanation. Unmasked, as stored: the consumer masks them.
+   */
+  windowBreakdown(
+    websiteId: string,
+    current: { start: Date; end: Date },
+    reference: { start: Date; end: Date },
+  ): Promise<{ pages: Array<{ name: string; cur: number; ref: number }>; sources: Array<{ name: string; cur: number; ref: number }> }>;
 }

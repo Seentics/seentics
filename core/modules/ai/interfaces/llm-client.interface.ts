@@ -45,9 +45,29 @@ export type ToolCallRequest = {
 };
 
 export type ChatMessage =
-  | { role: "user" | "assistant"; content: string; toolCalls?: ToolCallRequest[] }
+  | {
+      role: "user" | "assistant";
+      content: string;
+      toolCalls?: ToolCallRequest[];
+      /**
+       * The provider's own content blocks for an assistant turn, replayed verbatim.
+       *
+       * Anthropic requires thinking blocks to be sent back unchanged alongside the tool
+       * results they led to; rebuilding the turn from `content` and `toolCalls` drops them.
+       * Opaque to everything but the client that produced it.
+       */
+      raw?: unknown;
+    }
   /** A tool's output, fed back so the model can use it. */
-  | { role: "tool"; toolCallId: string; name: string; content: string };
+  | { role: "tool"; toolCallId: string; name: string; content: string; isError?: boolean };
+
+/**
+ * Why the model stopped, normalised across providers.
+ *
+ * `max_tokens` means the reply — and any tool call in it — may be cut off, and `refusal`
+ * means the model declined; both must be handled rather than read as a finished answer.
+ */
+export type StopReason = "end" | "tool_use" | "max_tokens" | "refusal" | "other";
 
 export type ChatTurn = {
   /** Prose for the user. Empty when the model only asked for tools. */
@@ -55,6 +75,10 @@ export type ChatTurn = {
   toolCalls: ToolCallRequest[];
   inputTokens: number;
   outputTokens: number;
+  /** Absent from providers that do not report it; treated as a normal finish. */
+  stopReason?: StopReason;
+  /** See `ChatMessage.raw`. Echoed onto the assistant message by the loop. */
+  raw?: unknown;
 };
 
 /**

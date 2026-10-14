@@ -8,6 +8,8 @@
 export type {
   CreateFunnelInput,
   Funnel,
+  FunnelDraft,
+  FunnelDraftPort,
   FunnelMutations,
   FunnelPerformance,
   FunnelQuery,

@@ -67,6 +67,14 @@ export interface AiRepository {
     model: string;
     /** Threads this attempt to a conversation. Absent for the one-off SQL path. */
     conversationId?: string;
+    /** The recommendation the chat was started from ("Do it"), so confirming its draft can mark it applied. */
+    recommendationId?: string | null;
+    /**
+     * The rolling 24-hour cap, enforced atomically with the insert. Checked and recorded
+     * under a per-user lock, so concurrent requests cannot all pass a count taken before
+     * any of them was written. Throws `AIDailyLimitError` when it is reached.
+     */
+    dailyCap?: number;
   }): Promise<string | null>;
 
   markSuccess(id: string, record: AiSuccessRecord): Promise<void>;
@@ -116,7 +124,7 @@ export interface AiRepository {
   pendingProposal(
     userId: string,
     queryId: string,
-  ): Promise<{ websiteId: string; proposal: Record<string, unknown> } | null>;
+  ): Promise<{ websiteId: string; proposal: Record<string, unknown>; recommendationId?: string | null } | null>;
 
   /** Stamp a proposal as applied. Returns false when another request got there first. */
   markProposalApplied(userId: string, queryId: string): Promise<boolean>;

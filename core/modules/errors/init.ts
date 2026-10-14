@@ -3,6 +3,7 @@ import { createErrorRoutes } from "./routes";
 import { errorIngestService } from "./services/error-ingest.service";
 import { ErrorMutationService, ErrorQueryService } from "./services/error-query.service";
 import { ErrorsRetentionPurge } from "./services/retention-purge.service";
+import { errorSurgeCandidates } from "./repositories/error-reads.repository";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { ErrorsModule } from "./interfaces";
 
@@ -22,6 +23,7 @@ export function initErrorsModule(deps: { websitesModule: WebsitesModule }): Erro
     ingest: () => errorIngestService(),
     queries,
     mutations,
+    anomalyReads: { surgeCandidates: errorSurgeCandidates },
     routes: createErrorRoutes({
       queries,
       mutations,

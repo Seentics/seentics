@@ -44,7 +44,8 @@ interface NavItem {
 
 function buildMainNav(websiteId: string): NavItem[] {
   return [
-    { label: 'Overview',    href: `/websites/${websiteId}`,             icon: LayoutDashboard },
+    // `?dashboard=1`: picking Overview means the dashboard, even where AI mode is the default.
+    { label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
     // Directly after Recording because that is what it leads into: an error row's whole
@@ -64,7 +65,8 @@ function buildSecondaryNav(websiteId: string): NavItem[] {
   ];
 }
 
-function isNavActive(href: string, pathname: string): boolean {
+function isNavActive(hrefWithQuery: string, pathname: string): boolean {
+  const href = hrefWithQuery.split('?')[0];
   if (/^\/websites\/[^/]+$/.test(href)) {
     return pathname === href;
   }

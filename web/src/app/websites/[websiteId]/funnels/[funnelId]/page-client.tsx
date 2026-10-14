@@ -18,6 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { AskAiButton } from '@/components/ai/AskAiButton';
+import { askAbout } from '@/features/ai/ask-link';
+import { isDemo } from '@/lib/demo';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
@@ -142,6 +145,9 @@ export default function FunnelDetailPage() {
         title={funnel.name}
         description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
       >
+        {!isDemo(websiteId) && (
+          <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name)} />
+        )}
         <FunnelRangeSelect value={days} onChange={setDays} />
       </DashboardPageHeader>
 

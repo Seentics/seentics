@@ -10,6 +10,7 @@ import type {
   HeatmapSnapshotDemand,
   HeatmapRawReads,
   HeatmapQuery,
+  HeatmapPageAnalysisReads,
 } from "./index";
 
 /** Everything the heatmaps module offers. */
@@ -52,6 +53,13 @@ export interface HeatmapsModule extends ModuleLifecycle {
 
   /** The dashboard's read services, for the embed API: reads only, no writes or captures. */
   reads: Pick<HeatmapQuery, "listPages" | "getPoints" | "getLayoutSnapshot">;
+
+  /**
+   * One page's clicks and scroll depths, analysed: scroll reach, the fold, click
+   * concentration, dead-click candidates, call-to-action reach and device gaps. For the
+   * assistant; the dashboard reads it through this module's own `/insights` route.
+   */
+  pageAnalysis: HeatmapPageAnalysisReads;
 
   routes: AuthedRouter;
 }

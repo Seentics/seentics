@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { AskAiButton } from '@/components/ai/AskAiButton';
+import { askAbout } from '@/features/ai/ask-link';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
@@ -258,6 +260,9 @@ export default function FunnelsPage() {
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
       >
+        {!isDemoMode && (
+          <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnels(dateRange)} />
+        )}
         <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
         <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}

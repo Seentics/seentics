@@ -1,7 +1,7 @@
 import { heatmapsLane } from "./ingest-lane";
 import type { AnalyticsModule } from "../analytics/interfaces";
 import type { WebsitesModule } from "../websites/interfaces";
-import type { HeatmapsModule } from "./interfaces";
+import type { HeatmapInsightNarrator, HeatmapsModule } from "./interfaces";
 import { HeatmapUsageCounter } from "./services/usage-count.service";
 import { createHeatmapRoutes } from "./routes";
 import { HeatmapRawReadService } from "./services/heatmap-raw-read.service";
@@ -16,6 +16,7 @@ import { HeatmapScreenshotService } from "./services/playwright-screenshot-captu
 import { HeatmapSettingsService } from "./services/heatmap-capture-settings.service";
 import { HeatmapSnapshotDemandService } from "./services/heatmap-snapshot-demand.service";
 import { shutdownScreenshotBrowser } from "./lib/playwright-screenshots";
+import { HeatmapPageAnalysisService } from "./services/heatmap-page-analysis.service";
 
 /**
  * Build the heatmaps module.
@@ -31,6 +32,12 @@ export function initHeatmapsModule(deps: {
   websitesModule: WebsitesModule;
   /** For the screenshot-target fallback: recent pageview URLs live in analytics. */
   analyticsModule: AnalyticsModule;
+  /**
+   * Words page insights in plain English. A getter because the module holding the model is
+   * composed after this one; read per request, never during construction. Omitted or
+   * returning `null`, findings are worded from the rules that found them.
+   */
+  insightNarrator?: () => HeatmapInsightNarrator | null;
 }): HeatmapsModule {
 
   const settings = new HeatmapSettingsService(deps.websitesModule.query);
@@ -41,6 +48,7 @@ export function initHeatmapsModule(deps: {
   );
   const heatmapQueries = new HeatmapQueryService(settings, autoCapture);
   const heatmapMutations = new HeatmapMutationService();
+  const pageAnalysis = new HeatmapPageAnalysisService();
 
   return {
     lane: heatmapsLane(() => heatmapIngestService()),
@@ -53,11 +61,16 @@ export function initHeatmapsModule(deps: {
     usage: new HeatmapUsageCounter(),
     rawReads: new HeatmapRawReadService(),
     reads: heatmapQueries,
+    pageAnalysis,
     routes: createHeatmapRoutes({
       heatmapQueries,
       heatmapMutations,
       screenshots,
       websites: deps.websitesModule.accessChecks,
+      insights: {
+        analysis: pageAnalysis,
+        narrator: () => deps.insightNarrator?.() ?? null,
+      },
     }),
 
     start(cfg) {

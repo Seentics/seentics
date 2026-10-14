@@ -4,6 +4,8 @@ import { SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data
 import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 import { formatDuration, timeAgo, entryPathDisplay } from '@/features/replays/format';
 import type { SessionRow } from '@/features/replays/list-types';
+import { SIGNAL_META, TONE_CLASS, frustrationTone, signalChips } from '@/features/replays/analysis';
+import { cn } from '@/lib/utils';
 
 import { AlertTriangle, Clock, MousePointerClick, Play, Trash2 } from 'lucide-react';
 
@@ -85,12 +87,51 @@ export function sessionColumns({
       },
     },
     {
+      id: 'frustration',
+      header: 'Frustration',
+      accessorFn: row => row.frustration_score ?? -1,
+      size: 92,
+      cell: ({ row }) => {
+        const score = row.original.frustration_score;
+        if (score == null) {
+          return <span className="text-xs text-muted-foreground" title="Analysed once the session ends">—</span>;
+        }
+        return (
+          <span
+            className={cn('inline-flex min-w-[2.25rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', TONE_CLASS[frustrationTone(score)])}
+            title="Frustration score, 0-100"
+          >
+            {score}
+          </span>
+        );
+      },
+    },
+    {
       id: 'signals',
       header: 'Signals',
       accessorFn: row => (row.has_errors ? 2 : 0) + (row.has_rage_clicks ? 1 : 0),
-      size: 132,
+      size: 180,
       cell: ({ row }) => {
         const s = row.original;
+        const chips = signalChips(s.signal_counts);
+        // Analysed: the detected signals say more than the two ingest flags, and include them.
+        if (chips.length) {
+          return (
+            <div className="flex flex-wrap items-center gap-1">
+              {chips.slice(0, 3).map(c => (
+                <span
+                  key={c.type}
+                  title={SIGNAL_META[c.type].description}
+                  className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', SIGNAL_META[c.type].chip)}
+                >
+                  {c.label}
+                  {c.count > 1 && <span className="tabular-nums opacity-80">{c.count}</span>}
+                </span>
+              ))}
+              {chips.length > 3 && <span className="text-[11px] text-muted-foreground">+{chips.length - 3}</span>}
+            </div>
+          );
+        }
         if (!s.has_errors && !s.has_rage_clicks) {
           return <span className="text-xs text-muted-foreground">—</span>;
         }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Context, Next } from "hono";
 import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfaces";
-import type { RecordingDetail, RecordingSummary, SessionListFilters } from "../interfaces";
+import type { RecordingDetail, RecordingSummary, SessionAnalysisView, SessionListFilters } from "../interfaces";
 
 /**
  * The recordings HTTP surface.
@@ -63,11 +63,16 @@ const summary: RecordingSummary = {
   hasErrors: false,
   durationSeconds: 12,
   pagesViewed: 2,
+  frustrationScore: null,
+  signalCounts: null,
 };
 
 let listCalls: { limit: number; offset: number; filters?: SessionListFilters }[] = [];
 let deleteCalls: string[][] = [];
 let deleteThrows = false;
+let analysisCalls: { ref: string; sessionId: string; summarize?: boolean }[] = [];
+let analysisView: Partial<SessionAnalysisView> & { status: SessionAnalysisView["status"] } = { status: "ready" };
+let analysisThrows = false;
 
 const recordings = {
   async listSessions(_ref: string, limit: number, offset: number, filters?: SessionListFilters) {
@@ -90,6 +95,11 @@ const recordings = {
     if (deleteThrows) throw new Error("storage down");
     deleteCalls.push(ids);
   },
+  async getAnalysis(ref: string, sessionId: string, opts?: { summarize?: boolean }): Promise<SessionAnalysisView> {
+    analysisCalls.push({ ref, sessionId, summarize: opts?.summarize });
+    if (analysisThrows) throw new Error("db down: secret detail");
+    return { sessionId, score: 0, counts: {}, signals: [], summaryStatus: "ready", ...analysisView } as SessionAnalysisView;
+  },
 };
 
 function app() {
@@ -97,6 +107,7 @@ function app() {
     recordingList: recordings,
     recordingDetails: recordings,
     recordingDeletion: recordings,
+    recordingAnalysis: recordings,
     websites: new FakeWebsites(),
   });
 }
@@ -121,6 +132,9 @@ describe("recording routes", () => {
     listCalls = [];
     deleteCalls = [];
     deleteThrows = false;
+    analysisCalls = [];
+    analysisView = { status: "ready" };
+    analysisThrows = false;
   });
 
   describe("access", () => {
@@ -260,6 +274,61 @@ describe("recording routes", () => {
     it("rejects a window of zero days or more than a year", async () => {
       expect((await get(`/${WEBSITE}?days=0`, "u_owner")).status).toBe(400);
       expect((await get(`/${WEBSITE}?days=367`, "u_owner")).status).toBe(400);
+    });
+  });
+
+  describe("frustration filters", () => {
+    it("passes min score, signal and sort through", async () => {
+      await get(`/${WEBSITE}?min_frustration=30&signal=rage_click&sort=frustration`, "u_owner");
+      expect(listCalls[0]!.filters).toMatchObject({ minFrustration: 30, signal: "rage_click", sort: "frustration" });
+    });
+
+    it("rejects an unknown signal, sort, or a score out of range", async () => {
+      expect((await get(`/${WEBSITE}?signal=sad_click`, "u_owner")).status).toBe(400);
+      expect((await get(`/${WEBSITE}?sort=random`, "u_owner")).status).toBe(400);
+      expect((await get(`/${WEBSITE}?min_frustration=101`, "u_owner")).status).toBe(400);
+    });
+
+    it("leaves them unset when absent", async () => {
+      await get(`/${WEBSITE}`, "u_owner");
+      expect(listCalls[0]!.filters).toMatchObject({ minFrustration: undefined, signal: undefined, sort: undefined });
+    });
+  });
+
+  describe("analysis", () => {
+    it("lets a viewer read a session's analysis, summary included by default", async () => {
+      const res = await get(`/${WEBSITE}/${SESSION}/analysis`, "u_viewer");
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ data: { sessionId: SESSION, status: "ready" } });
+      expect(analysisCalls).toEqual([{ ref: WEBSITE, sessionId: SESSION, summarize: true }]);
+    });
+
+    it("reads the signals only with summarize=0", async () => {
+      await get(`/${WEBSITE}/${SESSION}/analysis?summarize=0`, "u_owner");
+      expect(analysisCalls[0]!.summarize).toBe(false);
+    });
+
+    it("refuses a stranger before reaching the service", async () => {
+      expect((await get(`/${WEBSITE}/${SESSION}/analysis`, "u_stranger")).status).toBe(403);
+      expect(analysisCalls).toEqual([]);
+    });
+
+    it("answers 404 for an unknown session", async () => {
+      analysisView = { status: "not_found" };
+      expect((await get(`/${WEBSITE}/${SESSION}/analysis`, "u_owner")).status).toBe(404);
+    });
+
+    it("sets Retry-After during a summary cooldown", async () => {
+      analysisView = { status: "ready", summaryStatus: "cooldown", retryAfterSec: 120 };
+      const res = await get(`/${WEBSITE}/${SESSION}/analysis`, "u_owner");
+      expect(res.headers.get("Retry-After")).toBe("120");
+    });
+
+    it("reports a failure as a 500 without leaking detail", async () => {
+      analysisThrows = true;
+      const res = await get(`/${WEBSITE}/${SESSION}/analysis`, "u_owner");
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ error: "Failed to analyse session" });
     });
   });
 

@@ -263,7 +263,7 @@ describe("the response cache", () => {
   });
 
   it("does not serve one domain's answer to another", async () => {
-    llm.content = goodResponse("SELECT name FROM funnels WHERE website_id::text = $1 LIMIT 10");
+    llm.content = goodResponse("SELECT name FROM funnels WHERE website_id = $1::uuid LIMIT 10");
     await runner.run(USER, SITE, "same question", "funnels");
     llm.content = goodResponse();
     await runner.run(USER, SITE, "same question", "analytics");

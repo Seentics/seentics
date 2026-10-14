@@ -11,15 +11,24 @@ import type { ActionHint, Evidence, EvidenceKind, InsightSnapshot, Pair, Signal 
 
 /** Thresholds, exported so the tests state them and a change to one is a visible decision. */
 export const THRESHOLDS = {
-  /** Visitors in the window before an insight is generated at all. Below it: "not enough data". */
+  /** Visitors in the window (or the one before) before an insight is generated at all. Below both: "not enough data". */
   minVisitors: 100,
   /** A change is ignored below this share, however large the volume. */
   minChange: { traffic: 0.15, conversion: 0.2, device: 0.25, page: 0.3, bounceTenths: 80, channel: 0.5 },
   /** The earlier window must have had at least this much behind it, or a percentage is noise. */
   minPrev: { traffic: 100, conversion: 20, deviceSessions: 100, pageViews: 50, channelVisitors: 50, errorCount: 10 },
+  /** A fall in visitors of this share or more is flagged as a sharp drop (possibly broken tracking). */
+  collapse: 0.7,
   /** Kept in the brief. */
   maxSignals: 10,
 } as const;
+
+/**
+ * Visitors fell by `collapse` or more from a window that had enough of them to count: the shape of a
+ * removed tracking script or a broken deploy, which should never read as "not enough data".
+ */
+export const isTrafficCollapse = (visitors: Pair): boolean =>
+  visitors.prev >= THRESHOLDS.minVisitors && visitors.cur <= visitors.prev * (1 - THRESHOLDS.collapse);
 
 /** `(cur - prev) / prev`, or null when there was nothing before to compare with. */
 export const change = (p: Pair): number | null => (p.prev > 0 ? (p.cur - p.prev) / p.prev : null);
@@ -43,9 +52,20 @@ export function detectSignals(s: InsightSnapshot): Signal[] {
   const window = `the last ${s.days} days`;
   const vs = `the ${s.days} days before`;
 
-  // Visitors.
+  // Visitors. A collapse is its own signal: it is more often broken tracking than lost interest.
   const visitorChange = change(t.visitors);
-  if (visitorChange !== null && t.visitors.prev >= THRESHOLDS.minPrev.traffic && Math.abs(visitorChange) >= THRESHOLDS.minChange.traffic) {
+  if (isTrafficCollapse(t.visitors)) {
+    const fell = Math.round(Math.abs(visitorChange ?? -1) * 100);
+    out.push({
+      id: 'traffic.collapse',
+      kind: 'traffic',
+      // Above anything else this week: every other figure is suspect while it stands.
+      score: scoreOf(1.5, t.visitors.prev, 3),
+      text: `Traffic dropped sharply: ${num(t.visitors.cur)} visitors over ${window} against ${num(t.visitors.prev)} in ${vs} (down ${fell}%). If nothing changed on your side, tracking may be broken: check the script is still on your pages.`,
+      brief: `traffic dropped sharply, tracking may be broken: visitors ${num(t.visitors.cur)} (${pct(visitorChange ?? -1)}), prev ${num(t.visitors.prev)}`,
+      evidence: ev('traffic', 'Traffic over time'),
+    });
+  } else if (visitorChange !== null && t.visitors.prev >= THRESHOLDS.minPrev.traffic && Math.abs(visitorChange) >= THRESHOLDS.minChange.traffic) {
     out.push({
       id: 'traffic.visitors',
       kind: 'traffic',
@@ -101,6 +121,7 @@ export function detectSignals(s: InsightSnapshot): Signal[] {
         action: r < 0 ? {
           title: `Recover ${device} conversions`,
           prompt: `${cap(device)} visitors are converting ${Math.round(Math.abs(r) * 100)}% less than before. Draft an automation that helps ${device} visitors who are about to leave without converting.`,
+          target: { kind: 'site', ref: null, device },
         } : undefined,
       });
     }
@@ -149,17 +170,36 @@ export function detectSignals(s: InsightSnapshot): Signal[] {
     });
   }
 
-  // Errors people are hitting.
+  // Errors people are hitting: occurrences inside the window, never a fault's lifetime total.
   for (const [i, e] of s.errors.entries()) {
+    const action: ActionHint = {
+      title: 'Get alerted about errors',
+      prompt: `Draft an automation that sends a webhook to my team when a JavaScript error happens on ${e.page}.`,
+      target: { kind: 'page', ref: e.page },
+    };
+    if (e.count === null) {
+      // Only the group list was readable: a new fault can be named, but not how often it happened.
+      if (!e.isNew) continue;
+      out.push({
+        id: `error.${i + 1}`,
+        kind: 'error',
+        score: scoreOf(1, THRESHOLDS.minPrev.errorCount * 20, 1.4),
+        text: `A new error appeared on ${e.page} in ${window}: ${e.message}`,
+        brief: `error (new): "${e.message}" on ${e.page}, first seen in ${window}`,
+        evidence: ev('error', 'Errors'),
+        action,
+      });
+      continue;
+    }
     if (e.count < THRESHOLDS.minPrev.errorCount) continue;
     out.push({
       id: `error.${i + 1}`,
       kind: 'error',
       score: scoreOf(e.isNew ? 1 : 0.6, e.count * 20, 1.4),
-      text: `${e.isNew ? 'A new error' : 'An error'} happened ${num(e.count)} times on ${e.page}: ${e.message}`,
-      brief: `error${e.isNew ? ' (new)' : ''}: "${e.message}" on ${e.page}, ${num(e.count)} times`,
+      text: `${e.isNew ? 'A new error' : 'An error'} happened ${num(e.count)} times on ${e.page} over ${window}: ${e.message}`,
+      brief: `error${e.isNew ? ' (new)' : ''}: "${e.message}" on ${e.page}, ${num(e.count)} times in ${window}`,
       evidence: ev('error', 'Errors'),
-      action: { title: 'Get alerted about errors', prompt: `Draft an automation that sends a webhook to my team when a JavaScript error happens on ${e.page}.` },
+      action,
     });
   }
 

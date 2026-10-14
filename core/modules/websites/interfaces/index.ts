@@ -30,6 +30,8 @@ export type { WebsiteInvitations } from "./website-invitations.interface";
 export type {
   AddWebsiteMemberBody,
   CreateGoalBody,
+  GoalDraft,
+  GoalDraftPort,
   UpdateGoalPatch,
   WebsiteGoalOperations,
   WebsiteInvitationOperations,

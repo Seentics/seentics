@@ -252,7 +252,15 @@ describe("listReplaySessions", () => {
         hasErrors: false,
         durationSeconds: 12,
         pagesViewed: 2,
+        frustrationScore: null,
+        signalCounts: null,
       });
+    });
+
+    it("carries the joined frustration score and only known signal counts", async () => {
+      rows = [row({ frustrationScore: 67, signalCounts: { rage_click: 1, error_click: 2, bogus: 4, dead_click: 0 } })];
+      const out = await listReplaySessions(WEBSITE, 20, 0);
+      expect(out.sessions[0]).toMatchObject({ frustrationScore: 67, signalCounts: { rage_click: 1, error_click: 2 } });
     });
 
     it("renders startedAt as an ISO string", async () => {
@@ -317,6 +325,8 @@ describe("listReplaySessionsRaw", () => {
       pages_viewed: 2,
       has_rage_clicks: false,
       has_errors: false,
+      frustration_score: null,
+      signal_counts: null,
     });
   });
 

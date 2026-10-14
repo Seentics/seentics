@@ -14,7 +14,10 @@ export interface ConversationViewProps {
   /** Omitted where the view is read-only — a shared transcript, or a fixture. */
   onConfirmProposal?: (messageId: string) => void;
   onDismissProposal?: (messageId: string) => void;
-  confirmingId?: string | null;
+  /** Messages whose proposal is being created. */
+  confirmingIds?: ReadonlySet<string>;
+  /** A stored thread is still loading; shown instead of the empty state and starters. */
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -28,8 +31,22 @@ export interface ConversationViewProps {
  */
 export function ConversationView({
   messages, starters = [], onStarter, emptyTitle = 'Ask about this website',
-  emptyBody, showUsage, onConfirmProposal, onDismissProposal, confirmingId, className,
+  emptyBody, showUsage, onConfirmProposal, onDismissProposal, confirmingIds,
+  isLoading, className,
 }: ConversationViewProps) {
+  if (messages.length === 0 && isLoading) {
+    return (
+      <div className={cn('space-y-4 py-2', className)} aria-busy="true">
+        {[0, 1].map((i) => (
+          <div key={i} className="space-y-3">
+            <div className="ml-auto h-9 w-1/2 animate-pulse rounded-xl bg-muted/60" />
+            <div className="h-16 w-3/4 animate-pulse rounded-xl bg-muted/40" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (messages.length === 0) {
     return (
       <div className={cn('mx-auto max-w-md py-10 text-center', className)}>
@@ -61,7 +78,7 @@ export function ConversationView({
           key={m.id}
           message={m}
           showUsage={showUsage}
-          isConfirming={confirmingId === m.id}
+          isConfirming={confirmingIds?.has(m.id) ?? false}
           onConfirmProposal={
             m.proposal && onConfirmProposal ? () => onConfirmProposal(m.id) : undefined
           }

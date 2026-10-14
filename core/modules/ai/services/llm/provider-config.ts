@@ -30,8 +30,8 @@ export type AiProviderConfig = {
 };
 
 const DEFAULT_MODEL: Record<AiProvider, string> = {
-  openai: "gpt-4o-mini",
-  anthropic: "claude-sonnet-5",
+  openai: "gpt-6-luna",
+  anthropic: "claude-haiku-5-5",
   google: "gemini-2.0-flash",
   "openai-compatible": "",
 };
@@ -44,12 +44,50 @@ const DEFAULT_MODEL: Record<AiProvider, string> = {
  * self-hosted deployment from booting over a figure that does not apply to it.
  */
 const DEFAULT_PRICING: Record<string, { input: number; output: number }> = {
+  // gpt-6-luna: OpenAI's small tier (Sept 2026). The gpt-6 family reasons before answering and,
+  // on Chat Completions, calls tools only with reasoning off — the client handles both.
+  "gpt-6-luna":         { input: 0.0000001,   output: 0.0000005 },
+  "gpt-6.1-sol":        { input: 0.000002,    output: 0.00001 },
   "gpt-4o-mini":        { input: 0.00000015,  output: 0.0000006 },
   "gpt-4o":             { input: 0.0000025,   output: 0.00001 },
-  "claude-sonnet-5":    { input: 0.000003,    output: 0.000015 },
-  "claude-haiku-4-5":   { input: 0.0000008,   output: 0.000004 },
+  // Haiku 5.5 is $0.50 / $2.50 per MTok above 100K input tokens; questions stay far below that.
+  "claude-haiku-5-5":   { input: 0.0000001,   output: 0.0000005 },
+  "claude-sonnet-5-5":  { input: 0.000002,    output: 0.00001 },
+  "claude-opus-5-5":    { input: 0.000004,    output: 0.00002 },
+  "claude-sonnet-5":    { input: 0.000002,    output: 0.00001 },
+  "claude-haiku-4-5":   { input: 0.000001,    output: 0.000005 },
   "gemini-2.0-flash":   { input: 0.0000001,   output: 0.0000004 },
 };
+
+/**
+ * The model for background work — daily insights, heatmap and session write-ups, alert
+ * explanations — when no feature-specific model is named: each provider's cheap, fast tier.
+ * These run for every site every day, so they never default to the chat model's price.
+ */
+export const BACKGROUND_MODEL: Record<AiProvider, string> = {
+  openai: "gpt-6-luna",
+  anthropic: "claude-haiku-5-5",
+  google: "gemini-2.0-flash",
+  // A self-hosted endpoint serves whatever AI_MODEL names; there is no cheaper tier to pick.
+  "openai-compatible": "",
+};
+
+/**
+ * Which provider to use.
+ *
+ * `AI_PROVIDER` when set. Otherwise whichever provider's own key is present, so setting
+ * `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` alone is enough. With both present and no
+ * `AI_PROVIDER`, Anthropic wins; set `AI_PROVIDER` to choose. A bare `AI_API_KEY` stays
+ * OpenAI, as it always was.
+ */
+export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiProvider {
+  const explicit = (env.AI_PROVIDER ?? "").trim().toLowerCase();
+  if (explicit) return explicit as AiProvider;
+  if ((env.ANTHROPIC_API_KEY ?? "").trim()) return "anthropic";
+  if ((env.OPENAI_API_KEY ?? "").trim()) return "openai";
+  if ((env.GOOGLE_API_KEY ?? "").trim()) return "google";
+  return "openai";
+}
 
 function num(value: string | undefined, fallback: number): number {
   const n = Number(value);
@@ -63,7 +101,7 @@ function num(value: string | undefined, fallback: number): number {
  * of the product must boot without it. The routes answer "not configured" instead.
  */
 export function readAiProviderConfig(env: NodeJS.ProcessEnv = process.env): AiProviderConfig | null {
-  const provider = (env.AI_PROVIDER ?? "openai").trim().toLowerCase() as AiProvider;
+  const provider = resolveAiProvider(env);
   if (!(provider in DEFAULT_MODEL)) return null;
 
   // Provider-specific key names are accepted so an existing OPENAI_API_KEY keeps working.
@@ -93,7 +131,9 @@ export function readAiProviderConfig(env: NodeJS.ProcessEnv = process.env): AiPr
     baseUrl,
     inputCostPerToken: num(env.AI_INPUT_COST_PER_TOKEN, pricing.input),
     outputCostPerToken: num(env.AI_OUTPUT_COST_PER_TOKEN, pricing.output),
-    maxOutputTokens: num(env.AI_MAX_OUTPUT_TOKENS, 800),
+    // Room for the model's thinking as well as its answer: on current Claude models both
+    // count against this, and a cap that only fits the answer cuts replies off mid-sentence.
+    maxOutputTokens: num(env.AI_MAX_OUTPUT_TOKENS, 4000),
     timeoutMs: num(env.AI_TIMEOUT_MS, 30_000),
   };
 }

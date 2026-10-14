@@ -6,7 +6,7 @@ import { PostgresWebsiteRepository } from "./repositories/postgres-website.repos
 import { createWebsiteRoutes } from "./routes";
 import { CachedWebsiteQuery } from "./services/cached-website-query.service";
 import { TrackerWebsiteService } from "./services/tracker-website.service";
-import { WebsiteRetentionSiteSource } from "./services/retention-sites.service";
+import { WebsiteRetentionSiteSource, getDigestSite, listInsightCandidateSites } from "./services/retention-sites.service";
 import { WebsiteInvitationService } from "./services/website-invitation.service";
 import { WebsiteMemberService } from "./services/website-member.service";
 import { WebsiteMutationService } from "./services/website-mutation.service";
@@ -14,6 +14,7 @@ import { WebsitePublicSharingService } from "./services/website-public-sharing.s
 import { WebsiteQueryService } from "./services/website-query.service";
 import { WebsiteTrafficService } from "./services/website-traffic.service";
 import * as goals from "./services/website-goal.service";
+import { GoalDraftService } from "./lib/goal-drafts";
 import { PostgresWebsitePrivacyService } from "./services/postgres-website-privacy.service";
 import { env } from "../../config";
 import { PostgresClientRepository } from "./repositories/postgres-client.repository";
@@ -84,6 +85,8 @@ export function initWebsitesModule(deps: {
     },
     usage: new WebsiteUsageCounter(),
     retentionSites: new WebsiteRetentionSiteSource(),
+    insightSites: { listInsightCandidateSites, getDigestSite },
+    goalDrafts: new GoalDraftService(),
     routes: createWebsiteRoutes({
       websites: query,
       traffic,

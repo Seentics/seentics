@@ -45,9 +45,11 @@ interface GeolocationOverviewProps {
     /** Optional controlled tab for embeds and content-engine captures. */
     activeTab?: 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents';
     onActiveTabChange?: (tab: 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents') => void;
+    /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+    headerAction?: React.ReactNode;
 }
 
-export function GeolocationOverview({ data, isLoading = false, className = '', onFilter, activeTab, onActiveTabChange }: GeolocationOverviewProps) {
+export function GeolocationOverview({ data, isLoading = false, className = '', onFilter, activeTab, onActiveTabChange, headerAction }: GeolocationOverviewProps) {
     const [selectedTab, handleTabChange] = useControllableState({
         value: activeTab,
         defaultValue: 'map2d' as const,
@@ -91,9 +93,12 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
     return (
         <Card className={cn("surface overflow-hidden", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 space-y-0 p-4 border-b border-border">
-                <CardTitle className="text-sm font-semibold tracking-tight">
-                    Locations
-                </CardTitle>
+                <div className="flex items-center gap-1">
+                    <CardTitle className="text-sm font-semibold tracking-tight">
+                        Locations
+                    </CardTitle>
+                    {headerAction}
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents')}>
                         <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5 flex-wrap">

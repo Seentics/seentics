@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, isNotNull, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, isNull, sql as dsql } from "drizzle-orm";
 import { aiQueries, db, sql } from "../../../db";
 import type {
   AgentSuccessRecord,
@@ -9,9 +9,13 @@ import type {
   WebsiteId,
 } from "../interfaces/ai-repository.interface";
 import type { AIHistoryItem } from "../interfaces/ai-query.types";
+import { AIDailyLimitError } from "../interfaces/ai.interface";
 
 /** Hard timeout for AI-generated SQL. Bounds the cost of a runaway or expensive query. */
 const AI_STATEMENT_TIMEOUT_MS = Number(process.env.AI_STATEMENT_TIMEOUT_MS ?? 8_000);
+
+/** The window the daily cap counts over. */
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * `AiRepository` over Postgres.
@@ -26,17 +30,26 @@ export class PostgresAiRepository implements AiRepository {
    * the statement was written, it cannot write. `statement_timeout` bounds what it can
    * cost. Both are `SET LOCAL`, so they last exactly as long as this transaction.
    *
-   * What neither of them does is stop a read of the wrong tenant — a `SELECT` against
-   * another customer's rows is a perfectly valid read-only statement. That is
-   * `validateAndSanitizeSQL`'s job, and it must have run before this is called.
+   * Neither of them stops a read of the wrong tenant — a `SELECT` against another
+   * customer's rows is a perfectly valid read-only statement. That is enforced by the
+   * database (db/sql/054): the role below sees only rows of the website named in
+   * `app.ai_website_id` (row-level security, and a filtered view for analytics_events).
+   * `validateAndSanitizeSQL` still runs first, as defence in depth.
    */
   async runGuarded(statement: string, boundId: string): Promise<Record<string, unknown>[]> {
     return (await sql.begin(async (tx) => {
       await tx.unsafe(`SET LOCAL statement_timeout = ${AI_STATEMENT_TIMEOUT_MS}`);
       await tx.unsafe("SET LOCAL transaction_read_only = on");
-      // The tenant check in the guard is a text check. This is the boundary behind it: a role that
-      // can read only the AI domains' tables (db/sql/044), so a statement the guard misses still
-      // cannot reach users, credentials or billing. Fails closed if the role is missing.
+      // The tenant every policy and the analytics_events view compare against. Transaction-local
+      // (`true`), bound rather than interpolated, and set before the role switch. Unset or empty,
+      // the role sees no rows at all.
+      await tx.unsafe("SELECT set_config('app.ai_website_id', $1, true)", [boundId]);
+      // `analytics_events` resolves to the tenant-filtered view in `ai_tenant` (054): the role has
+      // no grant on the base table, which as a compressed TimescaleDB hypertable cannot take RLS.
+      await tx.unsafe("SET LOCAL search_path = ai_tenant, public");
+      // A role that can read only the AI domains' tables (db/sql/044), so a statement the guard
+      // misses still cannot reach users, credentials or billing, and (054) only this tenant's rows
+      // of those. Fails closed if the role is missing.
       await tx.unsafe("SET LOCAL ROLE seentics_ai_readonly");
       // `boundId` is a bound parameter, never interpolated into the statement.
       return (await tx.unsafe(statement, [boundId])) as Record<string, unknown>[];
@@ -57,19 +70,39 @@ export class PostgresAiRepository implements AiRepository {
     prompt: string;
     model: string;
     conversationId?: string;
+    recommendationId?: string | null;
+    dailyCap?: number;
   }): Promise<string | null> {
-    const [inserted] = await db
-      .insert(aiQueries)
-      .values({
-        userId: input.userId,
-        websiteId: input.websiteUuid,
-        prompt: input.prompt,
-        conversationId: input.conversationId ?? null,
-        model: input.model,
-        status: "pending",
-      })
-      .returning({ id: aiQueries.id });
-    return inserted?.id ?? null;
+    const values = {
+      userId: input.userId,
+      websiteId: input.websiteUuid,
+      prompt: input.prompt,
+      conversationId: input.conversationId ?? null,
+      recommendationId: input.recommendationId ?? null,
+      model: input.model,
+      status: "pending",
+    };
+
+    if (!input.dailyCap || input.dailyCap <= 0) {
+      const [inserted] = await db.insert(aiQueries).values(values).returning({ id: aiQueries.id });
+      return inserted?.id ?? null;
+    }
+
+    const cap = input.dailyCap;
+    return db.transaction(async (tx) => {
+      // Serialises this user's attempts for the length of the transaction, so the count
+      // below and the insert after it cannot interleave with another request's.
+      await tx.execute(dsql`SELECT pg_advisory_xact_lock(hashtext(${`ai-cap:${input.userId}`}))`);
+      const [row] = await tx
+        .select({ n: count() })
+        .from(aiQueries)
+        .where(and(eq(aiQueries.userId, input.userId), gte(aiQueries.createdAt, new Date(Date.now() - DAY_MS))));
+      if ((row?.n ?? 0) >= cap) {
+        throw new AIDailyLimitError(`AI daily limit reached (${cap} questions in 24 hours)`);
+      }
+      const [inserted] = await tx.insert(aiQueries).values(values).returning({ id: aiQueries.id });
+      return inserted?.id ?? null;
+    });
   }
 
   async markSuccess(id: string, record: AiSuccessRecord): Promise<void> {
@@ -157,10 +190,12 @@ export class PostgresAiRepository implements AiRepository {
       // that could be held from a log or a shared link, and who is asking is the only
       // thing that should decide whether it reads.
       .where(and(eq(aiQueries.userId, userId), eq(aiQueries.conversationId, conversationId)))
-      .orderBy(asc(aiQueries.createdAt))
+      // The newest `limit` turns, then put back in reading order. Ascending with a limit
+      // would return the *oldest* turns and freeze a long conversation's context.
+      .orderBy(desc(aiQueries.createdAt))
       .limit(Math.min(limit, 100));
 
-    return rows.map((r) => ({
+    return rows.reverse().map((r) => ({
       ...r,
       proposal: r.proposal ?? null,
       proposalAppliedAt: r.proposalAppliedAt?.toISOString() ?? null,
@@ -170,7 +205,7 @@ export class PostgresAiRepository implements AiRepository {
 
   async pendingProposal(userId: string, queryId: string) {
     const [row] = await db
-      .select({ websiteId: aiQueries.websiteId, proposal: aiQueries.proposal })
+      .select({ websiteId: aiQueries.websiteId, proposal: aiQueries.proposal, recommendationId: aiQueries.recommendationId })
       .from(aiQueries)
       .where(and(
         eq(aiQueries.id, queryId),
@@ -181,7 +216,7 @@ export class PostgresAiRepository implements AiRepository {
       ))
       .limit(1);
 
-    return row?.proposal ? { websiteId: row.websiteId, proposal: row.proposal } : null;
+    return row?.proposal ? { websiteId: row.websiteId, proposal: row.proposal, recommendationId: row.recommendationId ?? null } : null;
   }
 
   async markProposalApplied(userId: string, queryId: string): Promise<boolean> {

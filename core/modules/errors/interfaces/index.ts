@@ -70,6 +70,17 @@ export type ErrorSample = {
   occurred_at: string;
 };
 
+/** A fault with how often it happened inside a window, from its stored occurrences. */
+export type ErrorGroupWindowCount = {
+  fingerprint: string;
+  message: string;
+  last_page_path: string;
+  first_seen: string;
+  last_seen: string;
+  /** Occurrences in `error_events` within the window: not the group's lifetime `event_count`. */
+  window_count: number;
+};
+
 export interface ErrorQueries {
   listGroups(
     websiteId: string,
@@ -80,6 +91,41 @@ export interface ErrorQueries {
     fingerprint: string,
     q: { days: number; limit?: number },
   ): Promise<{ group: ErrorGroupSummary | null; samples: ErrorSample[] }>;
+  /** Unresolved faults, most frequent within the last `days` first. */
+  listGroupsByWindowCount(
+    websiteId: string,
+    q: { days: number; limit?: number },
+  ): Promise<ErrorGroupWindowCount[]>;
+}
+
+/** One fault's occurrences in a window, with the same figure for each baseline window. */
+export type ErrorSurgeCandidate = {
+  fingerprint: string;
+  message: string;
+  last_page_path: string;
+  first_seen: string;
+  /** Occurrences in the current window. */
+  current: number;
+  /** Distinct sessions that hit it in the current window. */
+  sessions: number;
+  /** Occurrences in each baseline window, in the order given. */
+  baseline: number[];
+};
+
+/** The counts behind the AI module's hourly error-surge check. */
+export interface ErrorAnomalyReads {
+  /**
+   * The busiest faults of the current window (at most `limit`), plus any named in `include`
+   * (the ones already alerting, so they can resolve), each with its baseline counts. Ignored
+   * faults are left out. Index range scans on `error_events` (website + time, website +
+   * fingerprint + time).
+   */
+  surgeCandidates(
+    websiteId: string,
+    current: { start: Date; end: Date },
+    baselines: ReadonlyArray<{ start: Date; end: Date }>,
+    opts: { limit: number; include?: readonly string[] },
+  ): Promise<ErrorSurgeCandidate[]>;
 }
 
 export interface ErrorMutations {
@@ -94,5 +140,7 @@ export type ErrorsModule = ModuleLifecycle & {
   ingest: () => ErrorIngest;
   queries: ErrorQueries;
   mutations: ErrorMutations;
+  /** Per-window counts for the AI module's anomaly check. */
+  anomalyReads: ErrorAnomalyReads;
   routes: AuthedRouter;
 };

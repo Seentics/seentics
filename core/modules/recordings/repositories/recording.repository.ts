@@ -209,7 +209,8 @@ function likeTerm(term: string): string {
  * about the rows being paged through.
  */
 function sessionListWhere(websiteId: string, filters: SessionListFilters) {
-  const parts = [pgSql`website_id = ${websiteId}`, pgSql`sequence = 0`];
+  // `s.` where `session_analyses` (joined as `a`) has a column of the same name.
+  const parts = [pgSql`s.website_id = ${websiteId}`, pgSql`sequence = 0`];
 
   if (filters.device) {
     parts.push(pgSql`lower(COALESCE(device,'')) = ${filters.device.toLowerCase()}`);
@@ -220,12 +221,15 @@ function sessionListWhere(websiteId: string, filters: SessionListFilters) {
     const since = new Date(Date.now() - filters.days * 86_400_000).toISOString();
     parts.push(pgSql`timestamp >= ${since}`);
   }
+  // Both narrow to analysed sessions: an unanalysed one has no score to compare.
+  if (filters.minFrustration) parts.push(pgSql`a.frustration_score >= ${filters.minFrustration}`);
+  if (filters.signal) parts.push(pgSql`COALESCE((a.signal_counts->>${filters.signal})::int, 0) > 0`);
 
   const search = filters.search?.trim();
   if (search) {
     const t = likeTerm(search);
     parts.push(pgSql`(
-      session_id ILIKE ${t} ESCAPE '\\'
+      s.session_id ILIKE ${t} ESCAPE '\\'
       OR COALESCE(country,'') ILIKE ${t} ESCAPE '\\'
       OR COALESCE(browser,'') ILIKE ${t} ESCAPE '\\'
       OR COALESCE(os,'') ILIKE ${t} ESCAPE '\\'
@@ -236,6 +240,10 @@ function sessionListWhere(websiteId: string, filters: SessionListFilters) {
 
   return parts.reduce((acc, part) => pgSql`${acc} AND ${part}`);
 }
+
+/** The stored analysis, when there is one. `(website_id, session_id)` is its primary key. */
+const ANALYSIS_JOIN = pgSql`LEFT JOIN session_analyses a
+  ON a.website_id = s.website_id AND a.session_id = s.session_id AND a.status = 'ready'`;
 
 /**
  * One page of recorded sessions, newest first.
@@ -251,16 +259,22 @@ export async function listSessions(
   offset: number,
   filters: SessionListFilters = {},
 ): Promise<SessionMetaRow[]> {
+  // Worst first, then newest; sessions not yet analysed sort after every analysed one.
+  const order = filters.sort === "frustration"
+    ? pgSql`COALESCE(a.frustration_score, -1) DESC, timestamp DESC`
+    : pgSql`timestamp DESC`;
   return pgSql<SessionMetaRow[]>`
     SELECT
-      session_id AS "sessionId", website_id AS "websiteId",
+      s.session_id AS "sessionId", s.website_id AS "websiteId",
       COALESCE(browser,'') AS browser, COALESCE(device,'') AS device, COALESCE(os,'') AS os,
       COALESCE(country,'') AS country, COALESCE(entry_page,'') AS "entryPage",
       timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
-      duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed"
-    FROM session_replays
+      duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed",
+      a.frustration_score AS "frustrationScore", a.signal_counts AS "signalCounts"
+    FROM session_replays s
+    ${ANALYSIS_JOIN}
     WHERE ${sessionListWhere(websiteId, filters)}
-    ORDER BY timestamp DESC
+    ORDER BY ${order}
     LIMIT ${limit} OFFSET ${offset}
   `;
 }
@@ -291,7 +305,8 @@ export async function summarizeSessions(
       COUNT(*) FILTER (WHERE has_rage_clicks)::int AS with_rage,
       COALESCE(ROUND(AVG(duration_seconds) FILTER (WHERE duration_seconds > 0)), 0)::int
         AS avg_duration
-    FROM session_replays
+    FROM session_replays s
+    ${ANALYSIS_JOIN}
     WHERE ${sessionListWhere(websiteId, filters)}
   `;
   const row = rows[0];

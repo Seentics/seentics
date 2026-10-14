@@ -7,6 +7,8 @@ import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { UtmBreakdownCard, type UtmTab } from '@/components/analytics/UtmBreakdownCard';
 import { cn } from '@/lib/utils';
 
+export type AudiencePanel = 'pages' | 'sources' | 'geolocation' | 'devices' | 'utm';
+
 /** One panel's data plus whether it is still arriving. Each loads independently. */
 interface Panel<T> {
   data: T;
@@ -24,6 +26,8 @@ export interface AudienceSectionProps {
   utm: Panel<unknown> & { tab: UtmTab; onTabChange: (tab: UtmTab) => void };
   /** Rendered below the grid — the overview passes its goals section here. */
   footer?: React.ReactNode;
+  /** Per-panel header actions — the overview's "Ask AI" buttons. Omitted on embeds and the demo. */
+  headerActions?: Partial<Record<AudiencePanel, React.ReactNode>>;
   className?: string;
 }
 
@@ -40,7 +44,7 @@ export interface AudienceSectionProps {
  * back until the slowest one landed.
  */
 export function AudienceSection({
-  pages, sources, geolocation, devices, utm, footer, className,
+  pages, sources, geolocation, devices, utm, footer, headerActions, className,
 }: AudienceSectionProps) {
   return (
     <div className={cn('space-y-3', className)}>
@@ -54,6 +58,7 @@ export function AudienceSection({
                 entryPages={pages.entryPages as any}
                 exitPages={pages.exitPages as any}
                 isLoading={pages.isLoading ?? false}
+                headerAction={headerActions?.pages}
               />
             </ChartErrorBoundary>
           </CardContent>
@@ -63,7 +68,7 @@ export function AudienceSection({
           <CardContent className="p-4">
             <ChartErrorBoundary label="Top Sources">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              <TopSourcesChart data={sources.data as any} isLoading={sources.isLoading ?? false} />
+              <TopSourcesChart data={sources.data as any} isLoading={sources.isLoading ?? false} headerAction={headerActions?.sources} />
             </ChartErrorBoundary>
           </CardContent>
         </Card>
@@ -71,7 +76,7 @@ export function AudienceSection({
 
       <ChartErrorBoundary label="Geographic Intelligence">
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <GeolocationOverview data={geolocation.data as any} isLoading={geolocation.isLoading ?? false} />
+        <GeolocationOverview data={geolocation.data as any} isLoading={geolocation.isLoading ?? false} headerAction={headerActions?.geolocation} />
       </ChartErrorBoundary>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -84,6 +89,7 @@ export function AudienceSection({
                 osData={devices.osData as any}
                 browserData={devices.browserData as any}
                 isLoading={devices.isLoading ?? false}
+                headerAction={headerActions?.devices}
               />
             </ChartErrorBoundary>
           </CardContent>
@@ -94,6 +100,7 @@ export function AudienceSection({
           tab={utm.tab}
           onTabChange={utm.onTabChange}
           isLoading={utm.isLoading}
+          headerAction={headerActions?.utm}
           className="min-h-[420px]"
         />
       </div>

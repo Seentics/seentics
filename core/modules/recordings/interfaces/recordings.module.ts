@@ -3,7 +3,13 @@ import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { RetentionPurge } from "../../../platform/retention";
-import type { RecordingIngest, RecordingQuery, RecordingRawReads } from "./index";
+import type {
+  RecordingIngest,
+  RecordingQuery,
+  RecordingRawReads,
+  SessionAnalysisJobs,
+  SessionAnalysisReads,
+} from "./index";
 
 /** Everything the recordings module offers. */
 export interface RecordingsModule extends ModuleLifecycle {
@@ -31,6 +37,12 @@ export interface RecordingsModule extends ModuleLifecycle {
 
   /** The dashboard's read services, for the embed API: reads only, no deletion. */
   reads: Pick<RecordingQuery, "listSessions" | "getSessionDetail">;
+
+  /** Frustration signals and summaries per session, for the assistant's tools. */
+  analysis: SessionAnalysisReads;
+
+  /** The scheduled analysis and nightly summary jobs. */
+  analysisJobs: SessionAnalysisJobs;
 
   routes: AuthedRouter;
 }

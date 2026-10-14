@@ -10,6 +10,10 @@ import {
   saveHeatmapScreenshot,
 } from "./controllers/heatmap-mutation.controller";
 import {
+  getHeatmapInsights,
+  refreshHeatmapInsights,
+} from "./controllers/heatmap-insights.controller";
+import {
   getHeatmapData,
   getHeatmapLayoutSnapshot,
   listHeatmapPages,
@@ -21,6 +25,8 @@ export function createHeatmapRoutes(deps: HeatmapControllerDeps) {
   routes.get("/:website_id/pages", listHeatmapPages(deps));
   routes.get("/:website_id/data", getHeatmapData(deps));
   routes.get("/:website_id/layout-snapshot", getHeatmapLayoutSnapshot(deps));
+  routes.get("/:website_id/insights", getHeatmapInsights(deps));
+  routes.post("/:website_id/insights/refresh", refreshHeatmapInsights(deps));
   routes.post("/:website_id/save-screenshot", saveHeatmapScreenshot(deps));
   routes.delete("/:website_id/bulk-delete", deleteHeatmapPages(deps));
   routes.post("/:website_id/playwright-screenshot", captureHeatmapScreenshot(deps));

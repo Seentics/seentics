@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Bot, Plus } from 'lucide-react';
+import { Bot, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAssistantChat } from '@/features/ai/use-assistant-chat';
@@ -27,8 +27,22 @@ export interface AssistantChatProps {
   onConversationChange?: (conversationId: string) => void;
   /** Bumped by the parent to start a fresh thread without remounting. */
   resetKey?: number;
+  /**
+   * Starts a new thread. When given, the header's "New" button defers to it so the
+   * parent can clear its own selection too; otherwise the chat just resets itself.
+   */
+  onNewChat?: () => void;
   /** Rendered in the header — the page uses it for the default-mode toggle. */
   headerActions?: React.ReactNode;
+  /**
+   * A question to start with, from an "Ask AI about this" link. Typed into the composer
+   * and focused, not sent: the visitor reads it and decides.
+   */
+  initialPrompt?: string;
+  /** Where `initialPrompt` came from ("Top pages"), shown above the composer. */
+  promptContext?: string | null;
+  /** The recommendation `initialPrompt` came from; confirming the draft it leads to marks it applied. */
+  recommendationId?: string | null;
   className?: string;
 }
 
@@ -41,9 +55,10 @@ export interface AssistantChatProps {
  * for a transcript, an embed, or fixtures.
  */
 export function AssistantChat({
-  websiteId, showUsage, conversationId, onConversationChange, resetKey, headerActions, className,
+  websiteId, showUsage, conversationId, onConversationChange, resetKey, onNewChat, headerActions,
+  initialPrompt, promptContext, recommendationId, className,
 }: AssistantChatProps) {
-  const chat = useAssistantChat(websiteId, conversationId);
+  const chat = useAssistantChat(websiteId, conversationId, initialPrompt, recommendationId);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Scrolling belongs to whoever owns the scroll container, which is this frame — a
@@ -85,7 +100,7 @@ export function AssistantChat({
           <Button
             size="sm" variant="ghost"
             className="h-7 gap-1 text-xs md:hidden"
-            onClick={chat.reset}
+            onClick={onNewChat ?? chat.reset}
           >
             <Plus className="h-3.5 w-3.5" /> New
           </Button>
@@ -102,9 +117,10 @@ export function AssistantChat({
             messages={chat.messages}
             starters={STARTERS}
             onStarter={(p) => void chat.send(p)}
-            emptyBody="Traffic, funnels, recordings, heatmaps, errors and automations. I can also draft an automation for you to approve."
+            emptyBody="Traffic, funnels, recordings, heatmaps, errors and automations. I can also draft an automation, funnel or goal for you to approve."
             showUsage={showUsage}
-            confirmingId={chat.confirmingId}
+            isLoading={chat.isRestoring}
+            confirmingIds={chat.confirmingIds}
             onConfirmProposal={(id) => void chat.confirmProposal(id)}
             onDismissProposal={chat.dismissProposal}
           />
@@ -115,11 +131,19 @@ export function AssistantChat({
       <div className="shrink-0 p-3 pb-4">
         {/* Wider than the message column: prose reads better narrow, an input does not. */}
         <div className="mx-auto w-full max-w-4xl">
+          {promptContext && chat.messages.length === 0 && (
+            <p className="mb-1.5 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-primary" />
+              Asking about <span className="font-medium text-foreground">{promptContext}</span>
+            </p>
+          )}
           <ChatComposer
+            autoFocus={!!initialPrompt}
             value={chat.draft}
             onChange={chat.setDraft}
             onSend={() => void chat.send(chat.draft)}
             isSending={chat.isSending}
+            disabled={chat.isRestoring}
             placeholder="Ask about traffic, funnels, errors… or ask me to set something up"
           />
         </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { readAiProviderConfig } from "../services/llm/provider-config";
+import { BACKGROUND_MODEL, readAiProviderConfig, resolveAiProvider } from "../services/llm/provider-config";
 import { createLlmClient } from "../services/llm";
 import { stripJsonFence } from "../services/llm/anthropic-client";
 
@@ -15,7 +15,7 @@ describe("readAiProviderConfig", () => {
   it("defaults to openai with its default model", () => {
     const cfg = readAiProviderConfig(env({ AI_API_KEY: "k" }));
     expect(cfg?.provider).toBe("openai");
-    expect(cfg?.model).toBe("gpt-4o-mini");
+    expect(cfg?.model).toBe("gpt-6-luna");
   });
 
   it("still reads OPENAI_API_KEY, so existing deployments keep working", () => {
@@ -102,5 +102,40 @@ describe("stripJsonFence", () => {
 
   it("does not strip backticks that are part of the content", () => {
     expect(stripJsonFence('{"sql":"SELECT `x`"}')).toBe('{"sql":"SELECT `x`"}');
+  });
+});
+
+describe("resolveAiProvider — whichever provider is configured", () => {
+  it("uses OpenAI when only OPENAI_API_KEY is set", () => {
+    const cfg = readAiProviderConfig(env({ OPENAI_API_KEY: "o" }));
+    expect(cfg?.provider).toBe("openai");
+    expect(cfg?.apiKey).toBe("o");
+  });
+
+  it("uses Anthropic when only ANTHROPIC_API_KEY is set, with Haiku 5.5", () => {
+    const cfg = readAiProviderConfig(env({ ANTHROPIC_API_KEY: "a" }));
+    expect(cfg?.provider).toBe("anthropic");
+    expect(cfg?.model).toBe("claude-haiku-5-5");
+  });
+
+  it("uses Google when only GOOGLE_API_KEY is set", () => {
+    expect(resolveAiProvider(env({ GOOGLE_API_KEY: "g" }))).toBe("google");
+  });
+
+  it("lets AI_PROVIDER choose when several keys are present", () => {
+    const both = { ANTHROPIC_API_KEY: "a", OPENAI_API_KEY: "o" };
+    expect(readAiProviderConfig(env(both))?.provider).toBe("anthropic");
+    const cfg = readAiProviderConfig(env({ ...both, AI_PROVIDER: "openai" }));
+    expect(cfg?.provider).toBe("openai");
+    expect(cfg?.apiKey).toBe("o");
+  });
+
+  it("ignores a blank key", () => {
+    expect(resolveAiProvider(env({ ANTHROPIC_API_KEY: "  ", OPENAI_API_KEY: "o" }))).toBe("openai");
+  });
+
+  it("has a cheap background model for each hosted provider", () => {
+    expect(BACKGROUND_MODEL.openai).toBe("gpt-6-luna");
+    expect(BACKGROUND_MODEL.anthropic).toBe("claude-haiku-5-5");
   });
 });

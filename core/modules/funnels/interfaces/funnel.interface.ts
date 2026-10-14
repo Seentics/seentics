@@ -155,6 +155,37 @@ export interface FunnelPerformance {
    * not exist. `days` is clamped to 1..366 by the implementation.
    */
   report(websiteRef: string, funnelId: string, days?: number | undefined): Promise<FunnelReport | null>;
+  /**
+   * The same figures over a fixed window, for before-and-after comparisons (the AI module's
+   * recommendation impact reports). Counted from page views and events, so a funnel created
+   * today still has figures for the weeks before it existed. `null` when the funnel does not exist.
+   */
+  reportBetween(websiteRef: string, funnelId: string, from: Date, to: Date): Promise<FunnelReport | null>;
+}
+
+/**
+ * A funnel the AI assistant drafted, in the wire shape `create` takes.
+ *
+ * Steps are the stored JSONB form (`step_type`, `page_path` or `event_type`, `match_type`), built by
+ * the draft tool from a flat spec so the model never writes this shape itself.
+ */
+export type FunnelDraft = {
+  name: string;
+  description?: string;
+  steps: Record<string, unknown>[];
+  conversion_window_hours?: number | null;
+};
+
+/**
+ * Validates and creates funnels someone approved in the assistant.
+ *
+ * The AI module's whole write surface into funnels: `validate` runs the same checks `create` does,
+ * so a draft shown for approval would save; `createFromProposal` creates it, re-validated. No
+ * update or delete: an approved draft only ever adds a funnel.
+ */
+export interface FunnelDraftPort {
+  validate(draft: FunnelDraft): Promise<{ ok: true; draft: FunnelDraft } | { ok: false; error: string }>;
+  createFromProposal(input: { websiteId: string; userId: string; payload: unknown }): Promise<{ id: string }>;
 }
 
 /**

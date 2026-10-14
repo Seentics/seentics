@@ -22,6 +22,7 @@ function fakeLlm(turns: Partial<ChatTurn>[]): ToolCallingLlmClient & { calls: nu
       return {
         text: t.text ?? "", toolCalls: t.toolCalls ?? [],
         inputTokens: t.inputTokens ?? 10, outputTokens: t.outputTokens ?? 5,
+        stopReason: t.stopReason, raw: t.raw,
       };
     },
   } as ToolCallingLlmClient & { calls: number };
@@ -189,5 +190,69 @@ describe("isObviouslyOffTopic", () => {
     ]) {
       expect(isObviouslyOffTopic(q)).toBe(false);
     }
+  });
+});
+
+describe("runAgent — stop reasons and replay", () => {
+  const proposeTool = echoTool("propose_automation", {
+    proposal: { resource: "automation", operation: "create", summary: "s", payload: {} },
+  });
+
+  it("answers a draft with this run's prose only, not earlier answers in the history", async () => {
+    const seen: unknown[] = [];
+    const llm = fakeLlm([{ text: "Here's a popup draft.", toolCalls: [call("propose_automation")] }]);
+    const out = await runAgent({
+      llm, registry: new ToolRegistry([proposeTool]), ctx: CTX, system: "s",
+      history: [
+        { role: "user", content: "<question>traffic?</question>" },
+        { role: "assistant", content: "Traffic is up 12%." },
+      ],
+      question: "set up a popup",
+    });
+    seen.push(out.answer);
+    expect(out.proposal).not.toBeNull();
+    expect(out.answer).toBe("Here's a popup draft.");
+  });
+
+  it("does not run a tool call from a reply cut off at max_tokens", async () => {
+    let ran = 0;
+    const counted: AiTool<any> = { ...echoTool("a"), async handler() { ran++; return { ok: true, data: {} }; } };
+    const llm = fakeLlm([{ text: "Looking", toolCalls: [call("a")], stopReason: "max_tokens" }]);
+    const out = await run(llm, [counted]);
+    expect(ran).toBe(0);
+    expect(out.truncated).toBe(true);
+    expect(out.answer).toContain("cut short");
+  });
+
+  it("reports a refusal instead of an empty answer", async () => {
+    const out = await run(fakeLlm([{ text: "", stopReason: "refusal" }]), []);
+    expect(out.answer.length).toBeGreaterThan(0);
+  });
+
+  it("replays the provider's raw turn and answers every call in it, even over the limit", async () => {
+    const asked: Array<{ messages: unknown[] }> = [];
+    const many = Array.from({ length: 10 }, (_, i) => ({ id: `c${i}`, name: "a", args: {} }));
+    const raw = [{ type: "thinking", thinking: "", signature: "sig" }];
+    let i = 0;
+    const llm = {
+      supportsTools: true,
+      async complete() { throw new Error("unused"); },
+      async classify() { return ""; },
+      async chat(input: { messages: unknown[] }) {
+        // The live array: the loop keeps appending to it after this call returns.
+        asked.push({ messages: input.messages });
+        return i++ === 0
+          ? { text: "", toolCalls: many, raw, inputTokens: 1, outputTokens: 1, stopReason: "tool_use" as const }
+          : { text: "done", toolCalls: [], inputTokens: 1, outputTokens: 1, stopReason: "end" as const };
+      },
+    } as unknown as ToolCallingLlmClient;
+
+    const out = await run(llm, [echoTool("a")]);
+    expect(out.toolCalls).toHaveLength(8);
+    const second = asked[0]?.messages as Array<{ role: string; raw?: unknown; isError?: boolean }>;
+    expect(second.find((m) => m.role === "assistant")?.raw).toEqual(raw);
+    const results = second.filter((m) => m.role === "tool");
+    expect(results).toHaveLength(10);
+    expect(results.filter((m) => m.isError)).toHaveLength(2);
   });
 });

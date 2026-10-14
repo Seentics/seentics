@@ -1,5 +1,8 @@
 import type { AiProposalApplier } from "../../interfaces/ai-agent.interface";
 import type { AiRepository } from "../../interfaces/ai-repository.interface";
+import { log as baseLog } from "../../../../platform/observability/logger";
+
+const log = baseLog.child({ category: "ai_proposals" });
 
 /**
  * Creates the resource an approved draft describes.
@@ -15,6 +18,21 @@ export type ProposalWriters = {
     userId: string;
     payload: unknown;
   }): Promise<{ id: string }>;
+  /** Absent where the funnels module is not wired; a funnel draft is then refused. */
+  createFunnel?(input: { websiteId: string; userId: string; payload: unknown }): Promise<{ id: string }>;
+  /** Absent where goal drafts are not wired; a goal draft is then refused. */
+  createGoal?(input: { websiteId: string; userId: string; payload: unknown }): Promise<{ id: string }>;
+};
+
+/** What was created, told to whoever records it (the recommendations loop). */
+export type AppliedProposal = {
+  websiteId: string;
+  userId: string;
+  queryId: string;
+  /** The recommendation the chat was started from, if any. Unverified: the listener checks it. */
+  recommendationId: string | null;
+  proposal: { resource: string; payload: unknown; summary?: { title?: string } };
+  created: { resource: string; id: string };
 };
 
 export type ApplyResult =
@@ -33,11 +51,15 @@ export type ApplyResult =
  * - `markProposalApplied` is claimed *before* the write, and its update is conditional on
  *   the draft still being unapplied. Two concurrent confirms both see a pending draft;
  *   only one wins the update, so only one creates.
+ *
+ * Who may approve is the route's decision (a member or above), not this class's.
  */
 export class ProposalApplier implements AiProposalApplier {
   constructor(
     private readonly repo: AiRepository,
     private readonly writers: ProposalWriters,
+    /** Told after a successful create. Its failure is logged, never surfaced: the thing exists. */
+    private readonly onApplied?: (applied: AppliedProposal) => Promise<void>,
   ) {}
 
   async apply(input: {
@@ -58,10 +80,16 @@ export class ProposalApplier implements AiProposalApplier {
       resource?: string;
       operation?: string;
       payload?: unknown;
+      summary?: { title?: string };
     };
 
     if (proposal.operation !== "create") {
       return { ok: false, error: `Unsupported operation: ${proposal.operation ?? "none"}` };
+    }
+
+    const writer = this.writerFor(proposal.resource);
+    if (!writer) {
+      return { ok: false, error: `Unsupported resource: ${proposal.resource ?? "none"}` };
     }
 
     // Claimed before the write. Losing this race means another request is already
@@ -71,17 +99,40 @@ export class ProposalApplier implements AiProposalApplier {
       return { ok: false, error: "That draft has already been created." };
     }
 
-    switch (proposal.resource) {
-      case "automation": {
-        const created = await this.writers.createAutomation({
+    const created = await writer.call(this.writers, {
+      websiteId: input.websiteId,
+      userId: input.userId,
+      payload: proposal.payload,
+    });
+    const result = { resource: proposal.resource!, id: created.id };
+
+    if (this.onApplied) {
+      try {
+        await this.onApplied({
           websiteId: input.websiteId,
           userId: input.userId,
-          payload: proposal.payload,
+          queryId: input.queryId,
+          recommendationId: pending.recommendationId ?? null,
+          proposal: { resource: result.resource, payload: proposal.payload, summary: proposal.summary },
+          created: result,
         });
-        return { ok: true, created: { resource: "automation", id: created.id } };
+      } catch (err) {
+        log.warn({ msg: "proposal_applied_listener_failed", query_id: input.queryId, err: String(err) });
       }
+    }
+    return { ok: true, created: result };
+  }
+
+  private writerFor(resource: string | undefined) {
+    switch (resource) {
+      case "automation":
+        return this.writers.createAutomation;
+      case "funnel":
+        return this.writers.createFunnel;
+      case "goal":
+        return this.writers.createGoal;
       default:
-        return { ok: false, error: `Unsupported resource: ${proposal.resource ?? "none"}` };
+        return undefined;
     }
   }
 }

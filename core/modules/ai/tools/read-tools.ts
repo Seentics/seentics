@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { asLinks, asTable, type DisplayBlock } from "./display";
+import type { compactReport } from "./funnel-reads";
 import type { AiTool, ToolContext, ToolResult } from "./tool.types";
 
 /**
@@ -17,10 +18,10 @@ export type ReadPorts = {
   topPages(websiteId: string, days: number): Promise<unknown>;
   topSources(websiteId: string, days: number): Promise<unknown>;
   dimensions(websiteId: string, days: number): Promise<unknown>;
-  funnels(websiteId: string): Promise<unknown>;
+  funnels(websiteId: string, days: number): Promise<unknown>;
   funnelPerformance(websiteId: string, funnelId: string, days: number): Promise<unknown>;
   automations(websiteId: string): Promise<unknown>;
-  heatmapPages(websiteId: string): Promise<unknown>;
+  heatmapPages(websiteId: string, days: number): Promise<unknown>;
   recentSessions(websiteId: string, limit: number): Promise<unknown>;
   errorGroups(websiteId: string, days: number): Promise<unknown>;
   revenue(websiteId: string, days: number): Promise<unknown>;
@@ -72,6 +73,21 @@ const tableOf = (data: unknown) => {
   return rows.length ? asTable(rows) : undefined;
 };
 
+/** A funnel report as the funnel block: each step's visitors, and its share of those who entered. */
+function funnelBlock(data: unknown): DisplayBlock | undefined {
+  const report = data as Partial<ReturnType<typeof compactReport>> | null;
+  if (!report?.steps?.length) return undefined;
+  const entries = report.entries ?? 0;
+  return {
+    kind: "funnel",
+    steps: report.steps.map((s) => ({
+      label: s.name,
+      value: s.count,
+      conversionRate: entries > 0 ? s.count / entries : undefined,
+    })),
+  };
+}
+
 export function readTools(ports: ReadPorts): AiTool<any>[] {
   /*
    * Inferred from the schema rather than declared, so a field with `.default()` is
@@ -118,17 +134,20 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
 
     tool(
       "list_funnels",
-      "The funnels configured for this website, with their steps. Call this first when " +
-      "the user names a funnel, to find its id.",
-      z.object({}),
-      (_a, ctx) => read(() => ports.funnels(ctx.websiteId), tableOf),
+      "The funnels configured for this website, with their steps and each one's entries, " +
+      "completions and conversion rate (%) over the period. Call this first when the user " +
+      "names a funnel, to find its id.",
+      z.object({ days }),
+      (a, ctx) => read(() => ports.funnels(ctx.websiteId, a.days), tableOf),
     ),
 
     tool(
       "get_funnel_performance",
-      "Step-by-step conversion and drop-off for one funnel. Needs a funnel id from list_funnels.",
+      "Step-by-step counts and drop-off for one funnel over the period: entries, completions, " +
+      "conversion rate (%), and per step its visitors and how many dropped off before it. " +
+      "Needs a funnel id from list_funnels.",
       z.object({ funnelId: z.string().min(1).describe("Funnel id from list_funnels"), days }),
-      (a, ctx) => read(() => ports.funnelPerformance(ctx.websiteId, a.funnelId, a.days)),
+      (a, ctx) => read(() => ports.funnelPerformance(ctx.websiteId, a.funnelId, a.days), funnelBlock),
     ),
 
     tool(
@@ -140,9 +159,11 @@ export function readTools(ports: ReadPorts): AiTool<any>[] {
 
     tool(
       "list_heatmap_pages",
-      "Pages with heatmap data, and how many interactions each has recorded.",
-      z.object({}),
-      (_a, ctx) => read(() => ports.heatmapPages(ctx.websiteId), tableOf),
+      "Pages with heatmap data over the period: clicks, page views and the median scroll stop " +
+      "(% of the page height at least half the page views reached). Use get_heatmap_insights " +
+      "on one of these paths for what its heatmap says and what to fix.",
+      z.object({ days: days.default(30) }),
+      (a, ctx) => read(() => ports.heatmapPages(ctx.websiteId, a.days), tableOf),
     ),
 
     tool(

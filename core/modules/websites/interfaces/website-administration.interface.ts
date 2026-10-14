@@ -19,6 +19,18 @@ export type AddWebsiteMemberBody = {
   role?: string;
 };
 
+/** A goal the AI assistant drafted: a page reached, or a custom event fired. */
+export type GoalDraft = { name: string; type: "pageview" | "event"; identifier: string };
+
+/**
+ * Validates and creates goals someone approved in the assistant, with the create endpoint's own
+ * schema. The AI module's whole write surface into goals: no update, no delete.
+ */
+export interface GoalDraftPort {
+  validate(draft: unknown): { ok: true; draft: GoalDraft } | { ok: false; error: string };
+  createFromProposal(input: { websiteId: string; payload: unknown }): Promise<{ id: string }>;
+}
+
 export interface WebsiteGoalOperations {
   listWebsiteGoals(websiteId: string): Promise<unknown>;
   createWebsiteGoal(websiteId: string, body: CreateGoalBody): Promise<unknown>;

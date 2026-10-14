@@ -16,7 +16,22 @@ export interface ReplaySession {
   hasErrors?: boolean;
   durationSeconds: number;
   pagesViewed:     number;
+  /** 0-100 from the session's frustration analysis; null (or absent on an older core) until analysed. */
+  frustrationScore?: number | null;
+  /** Frustration signals found, by type; null until analysed. */
+  signalCounts?: SignalCounts | null;
 }
+
+/** Frustration signals the core detects in a recording, most severe first. */
+export type FrustrationSignalType =
+  | 'rage_click'
+  | 'error_click'
+  | 'form_abandon'
+  | 'dead_click'
+  | 'u_turn'
+  | 'scroll_thrash';
+
+export type SignalCounts = Partial<Record<FrustrationSignalType, number>>;
 
 /** Narrowing applied by the server, not the browser. */
 export interface ReplayListParams {
@@ -28,6 +43,12 @@ export interface ReplayListParams {
   hasRageClicks?:  boolean;
   /** Only sessions that started within this many days. */
   days?: number;
+  /** Only analysed sessions scoring at least this (1-100). */
+  minFrustration?: number;
+  /** Only analysed sessions with this signal. */
+  signal?: FrustrationSignalType;
+  /** `recent` (default) or `frustration` (worst first). */
+  sort?: 'recent' | 'frustration';
 }
 
 /** Headline figures over every session matching the filters, computed server-side. */

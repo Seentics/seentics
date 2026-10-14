@@ -27,7 +27,11 @@ export type InsightSnapshot = {
   pages: Array<{ path: string; views: Pair }>;
   /** The site's main conversion event, when it has one the code recognises. */
   conversion: { event: string; count: Pair } | null;
-  errors: Array<{ message: string; page: string; count: number; isNew: boolean }>;
+  /**
+   * Unresolved faults, most frequent in the window first. `count` is occurrences inside the window;
+   * `null` when only the group list could be read (then only new faults are listed, without a count).
+   */
+  errors: Array<{ message: string; page: string; count: number | null; isNew: boolean }>;
 };
 
 /** Where a line's evidence lives on the dashboard: a path suffix under `/websites/:id/`. */
@@ -46,7 +50,15 @@ export const EVIDENCE_PATH: Record<EvidenceKind, string> = {
 export type Evidence = { kind: EvidenceKind; label: string };
 
 /** A suggestion the owner can act on: what to ask the assistant to draft. */
-export type ActionHint = { title: string; prompt: string };
+export type ActionHint = {
+  title: string;
+  prompt: string;
+  /**
+   * What the suggestion is about, so the recommendations collector can key and measure it without
+   * parsing the prompt. Absent on insights stored before it existed.
+   */
+  target?: { kind: 'page' | 'site'; ref: string | null; device?: string };
+};
 
 export type Signal = {
   id: string;

@@ -165,6 +165,9 @@ export function createEmbedRoutes(deps: {
           hasErrors: d.has_errors,
           hasRageClicks: d.has_rage_clicks,
           days: d.days,
+          minFrustration: d.min_frustration,
+          signal: d.signal,
+          sort: d.sort,
         }),
       );
     }),

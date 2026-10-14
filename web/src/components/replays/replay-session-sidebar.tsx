@@ -23,6 +23,7 @@ import {
   type SessionNetworkDetail,
 } from '@/components/replays/session-replay-surface';
 import { stripClientVersionLabel } from '@/components/replays/session-environment-visuals';
+import { SessionAnalysisPanel } from '@/components/replays/session-analysis-panel';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -459,11 +460,14 @@ export function ReplaySessionSidebar({
   replayBridge = null,
   session = null,
   websiteId = '',
+  analysisSessionId,
   className,
 }: {
   replayBridge?: SessionReplayBridge | null;
   session?: ReplaySession | null;
   websiteId?: string;
+  /** Show the frustration and AI summary panel for this session. Left out on the demo and embeds. */
+  analysisSessionId?: string;
   /** Sizing from the page: full width when stacked under the player, a fixed column beside it. */
   className?: string;
 }) {
@@ -532,6 +536,13 @@ export function ReplaySessionSidebar({
       {/* Tab panels — scroll inside the panel so the player never moves */}
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         <div className="w-full">
+        {activeTab === 'summary' && analysisSessionId && (
+          <SessionAnalysisPanel
+            websiteId={websiteId}
+            sessionId={analysisSessionId}
+            replayBridge={replayBridge}
+          />
+        )}
         {activeTab === 'summary' && (
           <SessionSummaryCard
             session={session}

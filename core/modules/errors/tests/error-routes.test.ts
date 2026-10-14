@@ -28,6 +28,7 @@ function app() {
     queries: {
       listGroups: async () => ({ groups: listed as any }),
       getGroup: async () => ({ group: group as any, samples: [] }),
+      listGroupsByWindowCount: async () => [],
     },
     mutations: {
       setStatus: async (websiteId, fingerprint, status) => {

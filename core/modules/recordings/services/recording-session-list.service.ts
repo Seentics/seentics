@@ -2,8 +2,21 @@ import {
   listSessions,
   summarizeSessions,
 } from "../repositories/recording.repository";
-import type { SessionListFilters } from "../interfaces";
+import type { SessionListFilters, SignalCounts } from "../interfaces";
+import { isFrustrationSignalType } from "../interfaces";
 import { clampListParams, timestampToIso } from "./recording-query-normalization.service";
+
+/** The joined `signal_counts` jsonb: an object of counts, or `null` when not analysed. */
+function signalCountsOf(v: unknown): SignalCounts | null {
+  if (v == null) return null;
+  const obj = typeof v === "string" ? (() => { try { return JSON.parse(v) as unknown; } catch { return null; } })() : v;
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  const out: SignalCounts = {};
+  for (const [k, n] of Object.entries(obj as Record<string, unknown>)) {
+    if (isFrustrationSignalType(k) && Number(n) > 0) out[k] = Number(n);
+  }
+  return out;
+}
 
 /**
  * One page of recorded sessions, newest first, plus totals over the whole filtered set.
@@ -39,6 +52,8 @@ export async function listReplaySessions(
     hasErrors: s.hasErrors,
     durationSeconds: s.durationSeconds,
     pagesViewed: s.pagesViewed,
+    frustrationScore: s.frustrationScore == null ? null : Number(s.frustrationScore),
+    signalCounts: signalCountsOf(s.signalCounts),
   }));
   return { sessions: out, limit: lim, offset: off, total: summary.total, summary };
 }
@@ -76,6 +91,8 @@ export async function listReplaySessionsRaw(
       pages_viewed: s.pagesViewed,
       has_rage_clicks: s.hasRageClicks,
       has_errors: s.hasErrors,
+      frustration_score: s.frustrationScore == null ? null : Number(s.frustrationScore),
+      signal_counts: signalCountsOf(s.signalCounts),
     })),
   };
 }

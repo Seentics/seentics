@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { buildBrief, numbersIn } from '../brief';
-import { MAX_LINES, extractJson, parseModelOutput, ruleLines } from '../output';
+import { MAX_LINES, MAX_TEXT, extractJson, parseModelOutput, ruleLines } from '../output';
 import { detectSignals } from '../signals';
 import { troubledSnapshot } from './fixtures';
 
@@ -84,6 +84,36 @@ describe('parseModelOutput', () => {
   it('keeps at most three lines', () => {
     const many = signals.slice(0, 5).map((s) => ({ signal: s.id, text: `Something about ${s.id.split('.')[0]}.` }));
     expect(parseModelOutput(model(many), signals, brief.numbers).lines.length).toBeLessThanOrEqual(MAX_LINES);
+  });
+
+  it('drops a malformed line and keeps the good ones, instead of discarding the whole response', () => {
+    const out = parseModelOutput(model([
+      { signal: 'traffic.visitors', text: 'short' },
+      { signal: 42, text: 'Visitors fell 16% over the last 7 days.' },
+      'not an object',
+      { signal: 'traffic.bounce', kind: 'insight', text: 'Bounce rate rose 11 points to 55%.' },
+    ]), signals, brief.numbers);
+    expect(out.lines).toHaveLength(1);
+    // An unknown kind is read as a finding.
+    expect(out.lines[0]).toMatchObject({ kind: 'finding', text: 'Bounce rate rose 11 points to 55%.', evidence: { kind: 'bounce' } });
+    expect(out.dropped.map((d) => d.why)).toEqual(['malformed line', 'malformed line', 'malformed line']);
+    expect(out.dropped[0]!.signal).toBe('traffic.visitors');
+  });
+
+  it('cuts an over-long line rather than refusing it', () => {
+    const long = `Bounce rate rose 11 points to 55%. ${'Visitors leave from the first page they see '.repeat(10)}`;
+    const out = parseModelOutput(model([{ signal: 'traffic.bounce', text: long }]), signals, brief.numbers);
+    expect(out.lines).toHaveLength(1);
+    expect(out.lines[0]!.text.length).toBeLessThanOrEqual(MAX_TEXT);
+    expect(out.lines[0]!.text.startsWith('Bounce rate rose 11 points to 55%.')).toBe(true);
+    expect(out.lines[0]!.text.endsWith('…')).toBe(true);
+  });
+
+  it('reads at most six lines from a response that returns more', () => {
+    const junk = Array.from({ length: 6 }, () => ({ signal: 'made.up', text: 'Something happened to your business this week.' }));
+    const out = parseModelOutput(model([...junk, { signal: 'traffic.bounce', text: 'Bounce rate rose 11 points to 55%.' }]), signals, brief.numbers);
+    expect(out.lines).toEqual([]);
+    expect(out.dropped).toHaveLength(6);
   });
 
   it('rejects output that is not the expected shape', () => {

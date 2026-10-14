@@ -52,7 +52,16 @@ export default function ReplayDetailPage() {
 }
 
 /** One recording: the signed-in page, and the same page inside an embed (which names its own site and session). */
-export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionIdProp }: { websiteId?: string; sessionId?: string }) {
+export function ReplayDetailView({
+  websiteId: websiteIdProp,
+  sessionId: sessionIdProp,
+  embed = false,
+}: {
+  websiteId?: string;
+  sessionId?: string;
+  /** Inside an embed: read-only, and no session insight panel (the embed API does not serve it). */
+  embed?: boolean;
+}) {
   const router = useAppNavigation();
   const { toast } = useToast();
   const siteSegment = usePathSegment(1);
@@ -393,6 +402,7 @@ export function ReplayDetailView({ websiteId: websiteIdProp, sessionId: sessionI
               replayBridge={replayBridge}
               session={session ?? null}
               websiteId={websiteId}
+              analysisSessionId={!isDemoMode && !embed ? sessionId : undefined}
             />
           ) : null}
         </div>

@@ -7,12 +7,14 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { AskAiButton } from '@/components/ai/AskAiButton';
+import { askAbout } from '@/features/ai/ask-link';
 import { DataTable } from '@/components/ui/data-table';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Video, Clock, AlertTriangle, Search, Users, RefreshCw, Trash2, MousePointerClick } from 'lucide-react';
+import { Video, Clock, AlertTriangle, Search, Users, RefreshCw, Trash2, MousePointerClick, Flame } from 'lucide-react';
 
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
@@ -34,8 +36,9 @@ import { sessionColumns } from '@/components/replays/session-columns';
 import { formatDuration } from '@/features/replays/format';
 import {
   PAGE_SIZE_OPTIONS, SEARCH_DEBOUNCE_MS,
-  type DeviceFilter, type SessionRow,
+  type DeviceFilter, type SessionRow, type SessionSort,
 } from '@/features/replays/list-types';
+import { FRUSTRATED_MIN_SCORE } from '@/features/replays/analysis';
 
 export default function ReplaysPage() {
   return <ReplaysView />;
@@ -61,6 +64,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [rageOnly, setRageOnly] = useState(false);
+  /** Analysed sessions scoring at least `FRUSTRATED_MIN_SCORE`. */
+  const [frustratedOnly, setFrustratedOnly] = useState(false);
+  const [sort, setSort] = useState<SessionSort>('recent');
   /** Rolling window in days; 0 is every retained session. */
   const [rangeDays, setRangeDays] = useState<number>(DEFAULT_REPLAY_DAYS);
   const [pageIndex, setPageIndex] = useState(0);
@@ -77,7 +83,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     hasErrors: errorsOnly || undefined,
     hasRageClicks: rageOnly || undefined,
     days: rangeDays || undefined,
-  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays]);
+    minFrustration: frustratedOnly ? FRUSTRATED_MIN_SCORE : undefined,
+    sort: sort === 'frustration' ? 'frustration' : undefined,
+  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays, frustratedOnly, sort]);
 
   /** Narrowing the set changes what page 1 means, so never keep the old offset. */
   useEffect(() => {
@@ -157,6 +165,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         has_errors: s.has_errors,
         has_rage_clicks: s.has_rage_clicks,
         start_time: s.start_time,
+        // The demo fixtures carry no analysis.
+        frustration_score: null,
+        signal_counts: null,
       }));
     }
     return (apiData?.sessions ?? []).map((s: ReplaySession) => ({
@@ -172,6 +183,8 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
       has_errors: Boolean(s.hasErrors),
       has_rage_clicks: s.hasRageClicks,
       start_time: s.startedAt,
+      frustration_score: s.frustrationScore ?? null,
+      signal_counts: s.signalCounts ?? null,
     }));
 
   }, [isDemoMode, apiData, rangeDays]);
@@ -205,7 +218,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
 
   const totalRows = isDemoMode ? rows.length : (apiData?.total ?? 0);
   const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
-  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly;
+  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly || frustratedOnly;
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -213,6 +226,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     setDeviceFilter('all');
     setErrorsOnly(false);
     setRageOnly(false);
+    setFrustratedOnly(false);
   }, []);
 
   const columns = useMemo(
@@ -255,6 +269,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
           title="Session Replays"
           description="Watch real user sessions to understand exactly how people use your product."
         >
+          {!isDemoMode && (
+            <AskAiButton websiteId={websiteId} size="md" {...askAbout.replays(rangeDays)} />
+          )}
           <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
           {!isDemoMode && (
             <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
@@ -369,6 +386,16 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
               icon={<MousePointerClick className="h-3.5 w-3.5" />}
               activeClass="border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
             />
+            {!isDemoMode && (
+              <SignalFilter
+                pressed={frustratedOnly}
+                onPressedChange={setFrustratedOnly}
+                label="Frustrated"
+                title={`Only sessions with a frustration score of ${FRUSTRATED_MIN_SCORE} or more: rage, dead or error clicks, U-turns, abandoned forms`}
+                icon={<Flame className="h-3.5 w-3.5" />}
+                activeClass="border-orange-500/40 bg-orange-500/10 text-orange-700 hover:bg-orange-500/15 dark:text-orange-300"
+              />
+            )}
 
             <Select
               value={deviceFilter}
@@ -385,6 +412,18 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
               </SelectContent>
             </Select>
 
+            {!isDemoMode && (
+              <Select value={sort} onValueChange={(v) => setSort(v as SessionSort)}>
+                <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')} aria-label="Sort sessions">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent" className="text-xs">Newest first</SelectItem>
+                  <SelectItem value="frustration" className="text-xs">Most frustrated</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
             {filtersActive && (
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
                 Clear
@@ -396,7 +435,9 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         emptyIcon={<Video className="h-6 w-6" />}
         emptyTitle={filtersActive ? 'No matching sessions' : 'No sessions yet'}
         emptyDescription={
-          filtersActive
+          frustratedOnly
+            ? 'No frustrated sessions in this range. Sessions are analysed shortly after they end, so the newest may not be scored yet.'
+            : filtersActive
             ? 'No session matches these filters. The search covers every recorded session, not just this page.'
             : isDemoMode
               ? 'Demo mode has no sessions to show.'

@@ -8,12 +8,10 @@ import { validateAndSanitizeSQL } from "../services/ai-generated-sql-guard.servi
  * a live multi-tenant database, so it is tested as an adversary rather than as a
  * function: most of what follows is a table of queries that must be refused.
  *
- * The read-only transaction in `runAIQuery` is the second half of the defence, and it
- * is worth being precise about what it does and does not cover. It stops every write
- * and bounds runtime. It does nothing at all about *reading the wrong tenant's rows* —
- * a `SELECT` against another customer's data is a perfectly valid read-only statement.
- * Tenant isolation exists here or nowhere, which is why the cross-tenant block below is
- * the longest one.
+ * It is no longer the tenant boundary on its own: since db/sql/054 the role the
+ * statement runs as sees only the caller's website (row-level security, and a filtered
+ * view for analytics_events). But it is the first line, and the "known bypasses" block
+ * below records shapes that once passed it and read other tenants' rows.
  */
 
 const ANALYTICS = ["analytics_events"];
@@ -117,7 +115,7 @@ describe("validateAndSanitizeSQL", () => {
       accept(
         "SELECT ae.record_type, COUNT(*) AS n FROM automation_events ae " +
         "JOIN automations a ON ae.automation_id = a.id " +
-        "WHERE a.website_id::text = $1 GROUP BY ae.record_type LIMIT 50",
+        "WHERE a.website_id = $1::uuid GROUP BY ae.record_type LIMIT 50",
         AUTOMATIONS,
       );
     });
@@ -132,7 +130,7 @@ describe("validateAndSanitizeSQL", () => {
 
     it("rejects an unanchored subquery over the join-scoped table", () => {
       reject(
-        "SELECT (SELECT COUNT(*) FROM automation_events) AS leak FROM automations WHERE website_id::text = $1 LIMIT 10",
+        "SELECT (SELECT COUNT(*) FROM automation_events) AS leak FROM automations WHERE website_id = $1::uuid LIMIT 10",
         AUTOMATIONS,
       );
     });
@@ -143,8 +141,16 @@ describe("validateAndSanitizeSQL", () => {
       accept(VALID);
     });
 
-    it("accepts the ::text cast the uuid domains require", () => {
-      accept("SELECT name FROM funnels WHERE website_id::text = $1 LIMIT 10", FUNNELS);
+    it("accepts a cast on the parameter", () => {
+      accept("SELECT name FROM funnels WHERE website_id = $1::uuid LIMIT 10", FUNNELS);
+      accept("SELECT path FROM analytics_events WHERE website_id = $1::text LIMIT 10");
+    });
+
+    it("rejects a cast on the column", () => {
+      // The prompts say to cast the parameter; a column-side cast is also where an
+      // expression would hide (`website_id::text = $1`).
+      reject("SELECT name FROM funnels WHERE website_id::text = $1 LIMIT 10", FUNNELS);
+      reject("SELECT f.name FROM funnels f WHERE f.website_id::text = $1 LIMIT 10", FUNNELS);
     });
 
     it("accepts a table-qualified predicate", () => {
@@ -152,7 +158,7 @@ describe("validateAndSanitizeSQL", () => {
     });
 
     it("accepts a qualified-and-cast predicate", () => {
-      accept("SELECT f.name FROM funnels f WHERE f.website_id::text = $1 LIMIT 10", FUNNELS);
+      accept("SELECT f.name FROM funnels f WHERE f.website_id = $1::uuid LIMIT 10", FUNNELS);
     });
   });
 
@@ -280,20 +286,49 @@ describe("validateAndSanitizeSQL", () => {
   });
 
   describe("limit handling", () => {
+    /** The cap is applied by wrapping, so nothing inside the statement can lift it. */
+    const WRAP = /^SELECT \* FROM \(([\s\S]*)\) AS _q LIMIT (\d+)$/;
+
     it("adds a LIMIT when absent", () => {
       const r = accept("SELECT path FROM analytics_events WHERE website_id = $1");
-      expect(r.sql).toEndWith("LIMIT 500");
+      expect(r.sql).toBe("SELECT * FROM (SELECT path FROM analytics_events WHERE website_id = $1) AS _q LIMIT 500");
     });
 
     it("caps an oversized LIMIT", () => {
       const r = accept("SELECT path FROM analytics_events WHERE website_id = $1 LIMIT 99999");
-      expect(r.sql).toContain("LIMIT 1000");
-      expect(r.sql).not.toContain("99999");
+      expect(r.sql).toMatch(WRAP);
+      expect(r.sql).toEndWith(") AS _q LIMIT 1000");
+    });
+
+    it("caps a LIMIT written as an expression", () => {
+      const r = accept("SELECT path FROM analytics_events WHERE website_id = $1 LIMIT 100*100000");
+      expect(r.sql).toEndWith(") AS _q LIMIT 1000");
+    });
+
+    it("is not satisfied by a LIMIT inside a CTE", () => {
+      const r = accept(
+        "WITH few AS (SELECT path FROM analytics_events WHERE website_id = $1 LIMIT 5) " +
+        "SELECT a.path FROM analytics_events a WHERE a.website_id = $1",
+      );
+      expect(r.sql).toMatch(WRAP);
+      expect(WRAP.exec(r.sql)![2]).toBe("500");
+    });
+
+    it("wraps FETCH FIRST instead of appending a second LIMIT to it", () => {
+      const r = accept("SELECT path FROM analytics_events WHERE website_id = $1 FETCH FIRST 5000 ROWS ONLY");
+      expect(r.sql).toMatch(WRAP);
+      expect(r.sql).not.toContain("ONLY LIMIT");
+      expect(r.sql).toEndWith(") AS _q LIMIT 1000");
     });
 
     it("leaves a reasonable LIMIT alone", () => {
       const r = accept(VALID);
       expect(r.sql).toContain("LIMIT 50");
+    });
+
+    it("leaves the statement intact inside the wrapper", () => {
+      const r = accept(VALID);
+      expect(r.sql).toBe(`SELECT * FROM (${VALID}) AS _q LIMIT 1000`);
     });
 
     it("strips a trailing semicolon", () => {
@@ -325,6 +360,117 @@ describe("validateAndSanitizeSQL", () => {
       reject('SELECT * FROM analytics_events e, "users" WHERE e.website_id = $1');
       reject("SELECT $$x$$ FROM analytics_events WHERE website_id = $1");
       reject("SELECT E'\\x41' FROM analytics_events WHERE website_id = $1");
+    });
+  });
+  describe("known bypasses", () => {
+    /**
+     * Each of these passed an earlier version of the guard and, run against the
+     * database, returned another tenant's rows. The database now refuses them as well
+     * (054), but the guard must not let them through.
+     */
+    it("rejects SQL hidden in a string literal and run by query_to_xml", () => {
+      reject(
+        "SELECT query_to_xml('select * from analytics_events', true, false, '') " +
+        "FROM analytics_events WHERE website_id = $1 LIMIT 1",
+      );
+    });
+
+    it("rejects the whole family of functions that execute SQL text", () => {
+      for (const fn of [
+        "query_to_xml_and_xmlschema('select 1', true, false, '')",
+        "table_to_xml('analytics_events', true, false, '')",
+        "cursor_to_xml('c', 1, true, false, '')",
+        "schema_to_xml('public', true, false, '')",
+        "database_to_xml(true, false, '')",
+        "xpath('/x', '<x/>')",
+        "xmlparse(document '<x/>')",
+        "ts_stat('select to_tsvector(path) from analytics_events')",
+        "ts_rewrite('a'::tsquery, 'select 1')",
+      ]) {
+        reject(`SELECT ${fn} FROM analytics_events WHERE website_id = $1 LIMIT 1`);
+      }
+    });
+
+    it("rejects set_config, which could re-point the tenant setting", () => {
+      reject("SELECT set_config('app.ai_website_id', 'x', true) FROM analytics_events WHERE website_id = $1");
+      reject("SELECT current_setting('app.ai_website_id') FROM analytics_events WHERE website_id = $1");
+    });
+
+    it("rejects a boolean test that inverts the tenant predicate", () => {
+      reject("SELECT * FROM analytics_events WHERE website_id = $1 IS FALSE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id = $1 IS NOT TRUE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id = $1 IS UNKNOWN LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id = $1::text IS FALSE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE (website_id = $1) IS FALSE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE (website_id = $1) = FALSE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id = $1 IS DISTINCT FROM TRUE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id = $1 IS NOT DISTINCT FROM FALSE LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE website_id ISNULL AND website_id = $1 LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE path NOTNULL AND website_id = $1 LIMIT 10");
+    });
+
+    it("rejects the predicate anywhere but a WHERE / ON condition", () => {
+      reject("SELECT *, website_id = $1 AS mine FROM analytics_events LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE CASE WHEN website_id = $1 THEN FALSE ELSE TRUE END LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE COALESCE(website_id = $1, TRUE) LIMIT 10");
+      reject("SELECT * FROM analytics_events WHERE occurred_at IS NOT NULL HAVING website_id = $1");
+      // A tenant condition in ON is allowed but does not scope the table: an outer join
+      // keeps the rows it does not match.
+      reject(
+        "SELECT a.path FROM analytics_events a FULL JOIN analytics_events b " +
+        "ON a.website_id = $1 AND b.website_id = $1 LIMIT 10",
+      );
+    });
+
+    it("does not read the upper bound of a BETWEEN as a tenant condition", () => {
+      reject("SELECT * FROM analytics_events WHERE path BETWEEN 'a' AND website_id = $1 LIMIT 10");
+    });
+
+    it("rejects a self-join that filters one alias twice", () => {
+      reject(
+        "SELECT a.path FROM analytics_events a JOIN analytics_events b ON a.id = b.id " +
+        "WHERE a.website_id = $1 AND a.website_id = $1 LIMIT 10",
+      );
+      // Unqualified, the column would be ambiguous across two tenant tables anyway.
+      reject(
+        "SELECT a.path FROM analytics_events a JOIN analytics_events b ON a.id = b.id " +
+        "WHERE website_id = $1 AND website_id = $1 LIMIT 10",
+      );
+    });
+
+    it("rejects automation_events joined to a filtered automations on anything but its key", () => {
+      reject(
+        "SELECT ae.* FROM automation_events ae JOIN automations a ON a.id IS NOT NULL " +
+        "WHERE a.website_id = $1 LIMIT 10",
+        AUTOMATIONS,
+      );
+      reject(
+        "SELECT ae.* FROM automation_events ae, automations a WHERE a.website_id = $1 LIMIT 10",
+        AUTOMATIONS,
+      );
+      // Joined on its key, but to a parent that is not the filtered one.
+      reject(
+        "SELECT ae.* FROM automation_events ae JOIN automations x ON ae.automation_id = x.id " +
+        "JOIN automations a ON a.id = a.id WHERE a.website_id = $1 LIMIT 10",
+        AUTOMATIONS,
+      );
+    });
+
+    it("accepts automation_events joined on its key to a filtered automations", () => {
+      accept(
+        "SELECT ae.status FROM automation_events ae, automations a " +
+        "WHERE ae.automation_id = a.id AND a.website_id = $1::uuid LIMIT 10",
+        AUTOMATIONS,
+      );
+      accept(
+        "SELECT ae.status FROM automation_events ae JOIN automations a ON a.id = ae.automation_id " +
+        "WHERE a.website_id = $1 LIMIT 10",
+        AUTOMATIONS,
+      );
+    });
+
+    it("rejects unbalanced parentheses", () => {
+      reject("SELECT path FROM analytics_events WHERE website_id = $1) LIMIT 10");
     });
   });
 });

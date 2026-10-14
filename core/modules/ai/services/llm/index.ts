@@ -5,7 +5,7 @@ import { OpenAiCompatibleClient } from "./openai-compatible-client";
 import { readAiProviderConfig, type AiProviderConfig } from "./provider-config";
 
 export type { AiProviderConfig, AiProvider } from "./provider-config";
-export { readAiProviderConfig } from "./provider-config";
+export { BACKGROUND_MODEL, readAiProviderConfig, resolveAiProvider } from "./provider-config";
 
 /**
  * Build the client for the configured provider.

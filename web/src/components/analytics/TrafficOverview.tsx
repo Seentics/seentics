@@ -24,6 +24,8 @@ export interface TrafficOverviewProps {
   /** Controlled for deterministic embeds, recordings, and content-engine scenes. */
   view?: 'chart' | 'hourly';
   onViewChange?: (view: 'chart' | 'hourly') => void;
+  /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+  headerAction?: React.ReactNode;
 }
 
 const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm';
@@ -41,6 +43,7 @@ export function TrafficOverview({
   onDeleteAnnotation,
   view,
   onViewChange,
+  headerAction,
 }: TrafficOverviewProps) {
   const [activeView, handleViewChange] = useControllableState({
     value: view,
@@ -51,7 +54,10 @@ export function TrafficOverview({
   return (
     <Card className={cn("col-span-full surface overflow-hidden pb-2", className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3 shrink-0 border-b border-border">
-        <h2 className="text-sm font-semibold tracking-tight">Traffic Overview</h2>
+        <div className="flex min-w-0 items-center gap-1">
+          <h2 className="text-sm font-semibold tracking-tight">Traffic Overview</h2>
+          {headerAction}
+        </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {onComparisonToggle && (

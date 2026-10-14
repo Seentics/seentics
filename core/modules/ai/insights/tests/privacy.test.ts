@@ -18,6 +18,38 @@ describe('maskPath', () => {
   });
 });
 
+describe('maskPath: tokens, numbers and generated ids in segments', () => {
+  it('masks a token, a phone number or a long number in a segment', () => {
+    expect(maskPath('/auth/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0/done')).toBe('/auth/:id/done');
+    expect(maskPath('/s/Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MGFiY2RlZg')).toBe('/s/:id');
+    expect(maskPath('/call/+1-555-123-4567')).toBe('/call/:id');
+    expect(maskPath('/track/order-99887766')).toBe('/track/:id');
+  });
+
+  it('masks a high-entropy mixed letter and digit segment', () => {
+    expect(maskPath('/share/a8F3kd92')).toBe('/share/:id');
+    expect(maskPath('/c/x7Kq9pLm2/view')).toBe('/c/:id/view');
+    expect(maskPath('/d/AbcdEfgh1234')).toBe('/d/:id');
+  });
+
+  it('masks the segment after a prefix that names a person or a credential', () => {
+    expect(maskPath('/reset/hello-world')).toBe('/reset/:id');
+    expect(maskPath('/verify/abc')).toBe('/verify/:id');
+    expect(maskPath('/invite/team-ada/accept')).toBe('/invite/:id/accept');
+    expect(maskPath('/token/x')).toBe('/token/:id');
+    expect(maskPath('/u/ada')).toBe('/u/:id');
+    expect(maskPath('/user/ada/settings')).toBe('/user/:id/settings');
+  });
+
+  it('keeps ordinary routes, slugs and dates', () => {
+    expect(maskPath('/products/iphone15-pro-max')).toBe('/products/iphone15-pro-max');
+    expect(maskPath('/blog/top-10-tips-for-growing-your-small-business-in-2026')).toBe('/blog/top-10-tips-for-growing-your-small-business-in-2026');
+    expect(maskPath('/blog/2026-10-13/launch')).toBe('/blog/2026-10-13/launch');
+    expect(maskPath('/docs/v2/getting-started')).toBe('/docs/v2/getting-started');
+    expect(maskPath('/checkout/step2')).toBe('/checkout/step2');
+  });
+});
+
 describe('maskText', () => {
   it('replaces emails, ids, tokens, addresses and long numbers, and keeps the words', () => {
     const out = maskText('Failed for ada@example.com (user 3f2c9a10-1b2c-4d5e-8f90-123456789abc) from 203.0.113.9 order 99887766');

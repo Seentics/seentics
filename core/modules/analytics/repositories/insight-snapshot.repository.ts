@@ -11,7 +11,7 @@ import type { InsightSnapshotData } from "../interfaces";
  *  1. one row per (period, device, channel) of sessions with their visitors, pageviews, bounces,
  *     duration and conversions. Overall traffic, the device split and the channel split are all
  *     sums of those rows, so a site is scanned once for all three.
- *  2. the top pages, by views in each window.
+ *  2. the top pages, by the larger of their views in the two windows (so a collapsed page shows).
  *
  * Plus one small lookup to pick the site's conversion event. Scheduled daily and only for sites
  * with traffic, so none of this runs on a page load.
@@ -104,7 +104,11 @@ export async function getInsightSnapshotData(websiteId: string, days: number, no
       WHERE website_id = ${websiteId} AND event_type = 'pageview'
         AND occurred_at >= ${prevStart} AND occurred_at <= ${end}
       GROUP BY 1
-      ORDER BY count(*) FILTER (WHERE occurred_at >= ${curStart}) DESC
+      -- The busier of the two windows, so a page that fell to nothing this week still makes the list.
+      ORDER BY GREATEST(
+                 count(*) FILTER (WHERE occurred_at >= ${curStart}),
+                 count(*) FILTER (WHERE occurred_at < ${curStart})
+               ) DESC, 1
       LIMIT 25
     `,
   ]);

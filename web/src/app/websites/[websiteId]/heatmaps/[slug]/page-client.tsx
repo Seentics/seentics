@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, Layers, Link2, MoreHorizontal, Camera } from 'lucide-react';
+import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, Layers, Link2, MoreHorizontal, Camera, Lightbulb } from 'lucide-react';
 
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
@@ -38,6 +38,7 @@ import { RangeSelect } from '@/components/ui/range-select';
 import { getPageIcon } from '@/components/analytics/page-icon';
 
 import { HeatmapViewer, DemoHeatmapStage, type PreviewUnderlay } from '@/components/heatmaps/HeatmapViewer';
+import { HeatmapInsightsPanel } from '@/components/heatmaps/HeatmapInsightsPanel';
 import { isAbsoluteHttpUrl, heatmapPageHeading, scrollReachPoints, type HeatType, type DeviceType, type HeatPoint } from '@/features/heatmaps/preview-math';
 
 export default function HeatmapDetailPage() {
@@ -85,6 +86,9 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
   const [capturing, setCapturing] = useState(false);
   const [previewPopoverOpen, setPreviewPopoverOpen] = useState(false);
+  // Insights read the signed-in API, so an embed (no session) and the demo go without.
+  const [insightsOpen, setInsightsOpen] = useState(true);
+  const insightsAvailable = !isDemoMode && !embed;
 
   const urlPath = useMemo(() => {
     const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
@@ -329,6 +333,19 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
+            {insightsAvailable && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(GHOST_CONTROL, 'h-8 w-8', insightsOpen && 'bg-primary/10 text-primary')}
+                title={insightsOpen ? 'Hide insights' : 'Show insights'}
+                aria-label={insightsOpen ? 'Hide insights' : 'Show insights'}
+                aria-pressed={insightsOpen}
+                onClick={() => setInsightsOpen(o => !o)}
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Popover open={previewPopoverOpen} onOpenChange={setPreviewPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className={cn(GHOST_CONTROL, 'h-8 w-8')} title="Preview URL" aria-label="Preview URL">
@@ -470,7 +487,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
         </div>
       ) : null}
 
-      <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
+      <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col gap-2 px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2 lg:flex-row">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
           {!activePreviewUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
@@ -518,6 +535,17 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
             </div>
           )}
         </div>
+
+        {insightsAvailable && insightsOpen && (
+          <HeatmapInsightsPanel
+            websiteId={websiteId}
+            pagePath={urlPath}
+            days={days}
+            device={device}
+            onClose={() => setInsightsOpen(false)}
+            className="max-h-[45vh] shrink-0 lg:max-h-none lg:w-[340px]"
+          />
+        )}
       </main>
     </div>
   );

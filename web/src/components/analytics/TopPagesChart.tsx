@@ -17,6 +17,8 @@ export interface TopPagesChartProps {
   /** Optional controlled tab for replayable product demos and embedded screens. */
   activeTab?: 'top' | 'entry' | 'exit';
   onActiveTabChange?: (tab: 'top' | 'entry' | 'exit') => void;
+  /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+  headerAction?: React.ReactNode;
 }
 
 const uuidSegRe =
@@ -56,6 +58,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   onFilter,
   activeTab,
   onActiveTabChange,
+  headerAction,
 }) => {
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
@@ -134,7 +137,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
     <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'top' | 'entry' | 'exit')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
-           <h3 className="text-sm font-semibold tracking-tight">Top Pages</h3>
+           <div className="flex items-center gap-1">
+             <h3 className="text-sm font-semibold tracking-tight">Top Pages</h3>
+             {headerAction}
+           </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg shrink-0">
              <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
              <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>

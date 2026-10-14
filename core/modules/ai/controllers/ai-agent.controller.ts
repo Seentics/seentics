@@ -4,18 +4,24 @@ import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import { AIDailyLimitError } from "../interfaces/ai.interface";
 import type { AiAgent, AiProposalApplier } from "../interfaces/ai-agent.interface";
 import type { AiControllerDeps } from "./ai-controller.types";
+import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
 
 const MAX_PROMPT_CHARS = 2_000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function requireAccess(
   c: Context<{ Variables: AuthVars }>,
   deps: AiControllerDeps,
   websiteRef: string,
+  minimum: WebsiteRole = "viewer",
 ): Promise<{ userId: string } | Response> {
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "forbidden" }, 403);
-  if (!(await deps.websites.getRole(websiteRef, userId))) {
-    return c.json({ error: "forbidden" }, 403 as ContentfulStatusCode);
+  const role = await deps.websites.getRole(websiteRef, userId);
+  if (!role) return c.json({ error: "forbidden" }, 403 as ContentfulStatusCode);
+  if (!roleAtLeast(role, minimum)) {
+    // Read by the proposal card, so it says why rather than just "forbidden".
+    return c.json({ error: "Viewers cannot create this. Ask a member, admin or the owner to confirm it." }, 403 as ContentfulStatusCode);
   }
   return { userId };
 }
@@ -43,6 +49,12 @@ export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
 
     const conversationId =
       typeof body.conversation_id === "string" ? body.conversation_id : undefined;
+    // A recommendation id is only a label carried to the confirm step, which checks it belongs
+    // to this website before acting on it. Anything that is not a UUID is dropped here.
+    const recommendationId =
+      typeof body.recommendation_id === "string" && UUID.test(body.recommendation_id)
+        ? body.recommendation_id
+        : undefined;
 
     try {
       const result = await deps.agent.ask({
@@ -50,6 +62,7 @@ export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
         websiteId: websiteRef,
         prompt,
         conversationId,
+        recommendationId,
       });
       return c.json(result);
     } catch (err) {
@@ -76,7 +89,8 @@ export function confirmProposal(
 ) {
   return async (c: Context<{ Variables: AuthVars }>) => {
     const websiteRef = c.req.param("website_id") ?? "";
-    const access = await requireAccess(c, deps, websiteRef);
+    // Creating is a write: a viewer may ask the assistant to draft something, but not create it.
+    const access = await requireAccess(c, deps, websiteRef, "member");
     if (access instanceof Response) return access;
 
     const queryId = c.req.param("query_id") ?? "";

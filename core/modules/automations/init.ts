@@ -36,6 +36,7 @@ export function initAutomationsModule(deps: {
     },
 
     directory: new AutomationDirectoryService(repository),
+    stats: automationInsights,
     trackerSettings,
     // Built here so it publishes onto the real bus. An evaluation service holding its
     // own bus would fire `automation.action_executed` at nobody.

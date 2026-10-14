@@ -24,6 +24,8 @@ interface TopSourcesChartProps {
   /** Optional controlled tab for deterministic recorded states. */
   activeTab?: 'overview' | 'search' | 'social';
   onActiveTabChange?: (tab: 'overview' | 'search' | 'social') => void;
+  /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+  headerAction?: React.ReactNode;
 }
 
 const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> = {
@@ -76,6 +78,7 @@ export function TopSourcesChart({
   onFilter,
   activeTab,
   onActiveTabChange,
+  headerAction,
 }: TopSourcesChartProps) {
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
@@ -236,7 +239,10 @@ export function TopSourcesChart({
     <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'overview' | 'search' | 'social')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
-           <h3 className="text-sm font-semibold tracking-tight">Traffic Sources</h3>
+           <div className="flex items-center gap-1">
+             <h3 className="text-sm font-semibold tracking-tight">Traffic Sources</h3>
+             {headerAction}
+           </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg">
              <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
              <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>

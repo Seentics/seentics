@@ -21,6 +21,11 @@ import { ActiveFilterPills } from '@/components/analytics/ActiveFilterPills';
 import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
 import { AudienceSection } from '@/components/analytics/AudienceSection';
 import { AiModeButton } from '@/components/ai/AiModeButton';
+import { AskAiButton } from '@/components/ai/AskAiButton';
+import { InsightsCard } from '@/components/ai/InsightsCard';
+import { RecommendationsPanel } from '@/components/ai/RecommendationsPanel';
+import { AlertsBanner } from '@/components/ai/AlertsBanner';
+import { askAbout } from '@/features/ai/ask-link';
 import {
   selectTopPages, selectTopReferrers, selectTopCountries, selectTopBrowsers,
   selectTopDevices, selectTopOS, selectCustomEvents,
@@ -51,14 +56,16 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   const router = useRouter();
 
   /*
-   * Honour "open this website in AI mode". `?dashboard=1` opts out for one visit, which
-   * is what the AI page's own link back here uses — otherwise switching would bounce.
+   * Open in AI mode when that is this website's default (see `features/ai/default-mode`).
+   * `?dashboard=1` opts out for one visit, which is what every link meant to land on the
+   * dashboard uses — otherwise switching would bounce. Embeds and the demo never move.
+   * While the answer is pending the dashboard is held back, so it does not flash first.
    */
   const searchParamsForMode = useSearchParams();
-  useDefaultModeRedirect(
+  const landing = useDefaultModeRedirect(
     websiteId,
     router.replace,
-    embed || searchParamsForMode.get('dashboard') === '1',
+    embed || sample || websiteId === 'demo' || searchParamsForMode.get('dashboard') === '1',
   );
   const { user } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
@@ -174,6 +181,11 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
 
   // Check if we're in demo mode
   const isDemoMode = websiteId === 'demo' || sample;
+  // AI entry points need a real, signed-in website: not an embed, not the demo.
+  const showAi = !embed && !isDemoMode;
+  const ask = (about: { question: string; context: string }) => (
+    showAi ? <AskAiButton websiteId={websiteId} question={about.question} context={about.context} /> : undefined
+  );
 
   // Fetch websites for switcher
   useEffect(() => {
@@ -357,6 +369,15 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
           )}
         </div>
 
+        {/* Anomaly alerts: renders nothing unless something unusual is going on */}
+        {showAi && <AlertsBanner websiteId={websiteId} />}
+
+        {/* Today's AI read — above the numbers it explains */}
+        {showAi && <InsightsCard websiteId={websiteId} />}
+
+        {/* What to do next, and what changes made so far did */}
+        {showAi && <RecommendationsPanel websiteId={websiteId} />}
+
         {/* Summary cards */}
         <div>
           <SummaryCards
@@ -394,6 +415,7 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
               annotations={annotations}
               onAddAnnotation={handleAddAnnotation}
               onDeleteAnnotation={handleDeleteAnnotation}
+              headerAction={ask(askAbout.traffic(dateRange))}
             />
           </ChartErrorBoundary>
         </section>
@@ -421,6 +443,13 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
             onTabChange: setUtmTab,
             isLoading: !isDemoMode && customEventsLoading,
           }}
+          headerActions={showAi ? {
+            pages: ask(askAbout.pages(dateRange)),
+            sources: ask(askAbout.sources(dateRange)),
+            geolocation: ask(askAbout.geography(dateRange)),
+            devices: ask(askAbout.devices(dateRange)),
+            utm: ask(askAbout.utm(dateRange)),
+          } : undefined}
           footer={embed ? undefined : (
             <ChartErrorBoundary label="Goals">
               <WebsiteGoalsSection websiteId={websiteId} days={dateRange} enabled={belowFoldReleased} />
@@ -461,7 +490,8 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   return (
     <div className="min-h-0 w-full bg-background">
       <div className={embed ? "w-full p-3" : "mx-auto w-full max-w-[1200px] p-4 md:p-5 lg:px-6 lg:py-5"}>
-        {dashboardContent}
+        {/* Blank rather than a skeleton: it is usually a single tick, or a redirect away. */}
+        {landing.pending ? null : dashboardContent}
       </div>
 
       {/* Add Website Modal */}

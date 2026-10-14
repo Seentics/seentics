@@ -10,6 +10,7 @@ import type {
   WebsiteQuery,
 } from "./index";
 import type { ClientDirectory, OwnedWebsites } from "./client.interface";
+import type { GoalDraftPort } from "./website-administration.interface";
 
 /**
  * Everything the websites module offers, in one interface.
@@ -88,8 +89,21 @@ export interface WebsitesModule extends ModuleLifecycle {
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;
 
+  /** Validates and creates goals approved in the AI assistant. See `GoalDraftPort`. */
+  goalDrafts: GoalDraftPort;
+
   /** The site list the retention sweep iterates over. */
   retentionSites: RetentionSiteSource;
+
+  /** Active sites with recent traffic, busiest first — the daily AI insight job's list. */
+  insightSites: {
+    listInsightCandidateSites(opts: { days: number; limit: number }): Promise<{ websiteIds: string[]; truncated: boolean }>;
+    /**
+     * A site's name, bare hostname and everyone with access (owner first, then members,
+     * deduped) — the weekly digest's addressing. `null` when the site is gone or inactive.
+     */
+    getDigestSite(websiteId: string): Promise<{ id: string; name: string; domain: string; userIds: string[] } | null>;
+  };
 
   routes: AuthedRouter;
 }

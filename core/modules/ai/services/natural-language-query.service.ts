@@ -106,6 +106,7 @@ export class NaturalLanguageQueryService {
       websiteUuid: websiteId,
       prompt,
       model: this.modelInfo.model,
+      dailyCap: Number.isFinite(AI_MAX_QUERIES_PER_DAY) ? AI_MAX_QUERIES_PER_DAY : 0,
     });
 
     try {
@@ -177,7 +178,9 @@ export class NaturalLanguageQueryService {
   /** Falls back to analytics: a misrouted question still answers, a thrown one does not. */
   private async detectDomain(prompt: string): Promise<AIDomain> {
     try {
-      const raw = await this.llm.classify(CLASSIFIER_PROMPT, `<question>${prompt}</question>`);
+      // Models add punctuation or quotes ("heatmaps.", "**funnels**"); only the word counts.
+      const raw = (await this.llm.classify(CLASSIFIER_PROMPT, `<question>${prompt}</question>`))
+        .toLowerCase().replace(/[^a-z_]/g, "");
       return VALID_DOMAINS.includes(raw as AIDomain) ? (raw as AIDomain) : "analytics";
     } catch {
       return "analytics";

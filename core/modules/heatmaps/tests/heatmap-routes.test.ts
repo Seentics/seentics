@@ -6,6 +6,10 @@ import type {
   CaptureScreenshotRequest,
   CaptureScreenshotResult,
   HeatmapLayout,
+  HeatmapInsightNarration,
+  HeatmapInsightNarrator,
+  HeatmapPageAnalysis,
+  HeatmapPageAnalysisReads,
   HeatmapPageSummary,
   HeatmapPointOut,
 } from "../interfaces";
@@ -214,20 +218,71 @@ class FakeScreenshots {
   }
 }
 
+/** An analysis with one signal, enough to be worded. */
+function analysisFor(pagePath: string, days: number, device: HeatmapPageAnalysis["device"]): HeatmapPageAnalysis {
+  return {
+    page_path: pagePath,
+    days,
+    device,
+    sufficient: true,
+    reason: null,
+    overall: { device, scroll: null, clicks: null },
+    devices: [],
+    signals: [{
+      id: "scroll-all", kind: "scroll_depth", device: "all", score: 60,
+      finding: "Half of page views stop by 40% of the page.", fix: "Move the call to action up.", facts: "median stop 40%",
+    }],
+    limits: [],
+  };
+}
+
+class FakeAnalysis implements HeatmapPageAnalysisReads {
+  calls: { ref: string; path: string; days?: number; device?: string }[] = [];
+  insufficient = false;
+  async analyzePage(ref: string, path: string, opts?: { days?: number; device?: HeatmapPageAnalysis["device"] }) {
+    this.calls.push({ ref, path, days: opts?.days, device: opts?.device });
+    const a = analysisFor(path, opts?.days ?? 30, opts?.device ?? "all");
+    return this.insufficient ? { ...a, sufficient: false, reason: "Only 3 page views.", signals: [] } : a;
+  }
+}
+
+class FakeNarrator implements HeatmapInsightNarrator {
+  configured = true;
+  calls: { ref: string; refresh: boolean }[] = [];
+  throws = false;
+  retryAfter: number | null = null;
+  async narrate(ref: string, _a: HeatmapPageAnalysis, opts?: { refresh?: boolean }): Promise<HeatmapInsightNarration> {
+    this.calls.push({ ref, refresh: !!opts?.refresh });
+    if (this.throws) throw new Error("model exploded");
+    return {
+      source: "ai",
+      findings: [{ signal: "scroll-all", kind: "scroll_depth", device: "all", finding: "Most stop early.", fix: "Move it up." }],
+      generated_at: "2026-10-14T00:00:00.000Z",
+      reason: null,
+      retry_after_sec: this.retryAfter,
+    };
+  }
+}
+
 let websites: FakeWebsites;
 let heatmaps: FakeHeatmaps;
 let screenshots: FakeScreenshots;
+let analysis: FakeAnalysis;
+let narrator: FakeNarrator | null;
 let app: ReturnType<typeof createHeatmapRoutes>;
 
 beforeEach(() => {
   websites = new FakeWebsites();
   heatmaps = new FakeHeatmaps();
   screenshots = new FakeScreenshots();
+  analysis = new FakeAnalysis();
+  narrator = new FakeNarrator();
   app = createHeatmapRoutes({
     heatmapQueries: heatmaps,
     heatmapMutations: heatmaps,
     screenshots,
     websites,
+    insights: { analysis, narrator: () => narrator },
   });
 });
 
@@ -278,6 +333,14 @@ const ENDPOINTS: {
     {
       name: "GET /layout-snapshot",
       call: (u, ref = WEBSITE) => get(`/${ref}/layout-snapshot?page_path=%2Fpricing`, u),
+    },
+    {
+      name: "GET /insights",
+      call: (u, ref = WEBSITE) => get(`/${ref}/insights?page_path=%2Fpricing`, u),
+    },
+    {
+      name: "POST /insights/refresh",
+      call: (u, ref = WEBSITE) => send("POST", `/${ref}/insights/refresh?page_path=%2Fpricing`, {}, u),
     },
     {
       name: "POST /save-screenshot",
@@ -342,6 +405,8 @@ describe("heatmap routes", () => {
       expect(heatmaps.deleteCalls).toEqual([]);
       expect(screenshots.captureCalls).toEqual([]);
       expect(screenshots.batchCalls).toEqual([]);
+      expect(analysis.calls).toEqual([]);
+      expect(narrator!.calls).toEqual([]);
     });
 
     it("never launches a capture for an unknown website", async () => {
@@ -992,6 +1057,89 @@ describe("heatmap routes", () => {
 
       expect(screenshots.captureCalls).toEqual([]);
       expect(screenshots.batchCalls).toHaveLength(1);
+    });
+  });
+
+  describe("GET /insights", () => {
+    it("returns the analysis with the narrator's wording, 30 days and every device by default", async () => {
+      const res = await get(`/${WEBSITE}/insights?page_path=%2Fpricing`);
+
+      expect(res.status).toBe(200);
+      const body = await res.json() as { data: { analysis: HeatmapPageAnalysis; insights: HeatmapInsightNarration; ai_configured: boolean } };
+      expect(analysis.calls).toEqual([{ ref: WEBSITE, path: "/pricing", days: 30, device: "all" }]);
+      expect(narrator!.calls).toEqual([{ ref: WEBSITE, refresh: false }]);
+      expect(body.data.ai_configured).toBe(true);
+      expect(body.data.insights.source).toBe("ai");
+      expect(body.data.analysis.page_path).toBe("/pricing");
+    });
+
+    it("passes the window and device through", async () => {
+      await get(`/${WEBSITE}/insights?page_path=%2Fp&days=7&device=mobile`);
+
+      expect(analysis.calls).toEqual([{ ref: WEBSITE, path: "/p", days: 7, device: "mobile" }]);
+    });
+
+    it("rejects a bad device or window, and a missing path", async () => {
+      expect((await get(`/${WEBSITE}/insights?page_path=%2Fp&device=watch`)).status).toBe(400);
+      expect((await get(`/${WEBSITE}/insights?page_path=%2Fp&days=0`)).status).toBe(400);
+      expect((await get(`/${WEBSITE}/insights`)).status).toBe(400);
+      expect(analysis.calls).toEqual([]);
+    });
+
+    it("words findings from the rules when no model is configured", async () => {
+      narrator = null;
+      const res = await get(`/${WEBSITE}/insights?page_path=%2Fpricing`);
+      const body = await res.json() as { data: { insights: HeatmapInsightNarration; ai_configured: boolean } };
+
+      expect(body.data.ai_configured).toBe(false);
+      expect(body.data.insights.source).toBe("rules");
+      expect(body.data.insights.findings).toEqual([{
+        signal: "scroll-all", kind: "scroll_depth", device: "all",
+        finding: "Half of page views stop by 40% of the page.", fix: "Move the call to action up.",
+      }]);
+    });
+
+    it("still answers with the numbers when the narrator fails", async () => {
+      narrator!.throws = true;
+      const res = await get(`/${WEBSITE}/insights?page_path=%2Fpricing`);
+      const body = await res.json() as { data: { insights: HeatmapInsightNarration; ai_configured: boolean } };
+
+      expect(res.status).toBe(200);
+      expect(body.data.insights.source).toBe("rules");
+      expect(body.data.insights.reason).toContain("could not be produced");
+      expect(body.data.ai_configured).toBe(true);
+    });
+
+    it("does not call the narrator for a page without enough data", async () => {
+      analysis.insufficient = true;
+      const res = await get(`/${WEBSITE}/insights?page_path=%2Fpricing`);
+      const body = await res.json() as { data: { insights: HeatmapInsightNarration } };
+
+      expect(narrator!.calls).toEqual([]);
+      expect(body.data.insights).toMatchObject({ findings: [], reason: "Only 3 page views." });
+    });
+  });
+
+  describe("POST /insights/refresh", () => {
+    it("asks the narrator for a refresh", async () => {
+      const res = await send("POST", `/${WEBSITE}/insights/refresh?page_path=%2Fpricing`, {}, "u_member");
+
+      expect(res.status).toBe(200);
+      expect(narrator!.calls).toEqual([{ ref: WEBSITE, refresh: true }]);
+    });
+
+    it("refuses a viewer, since it can cost a model call", async () => {
+      const res = await send("POST", `/${WEBSITE}/insights/refresh?page_path=%2Fpricing`, {}, "u_viewer");
+
+      expect(res.status).toBe(403);
+      expect(narrator!.calls).toEqual([]);
+    });
+
+    it("sends Retry-After while cooling down", async () => {
+      narrator!.retryAfter = 1200;
+      const res = await send("POST", `/${WEBSITE}/insights/refresh?page_path=%2Fpricing`, {}, "u_owner");
+
+      expect(res.headers.get("Retry-After")).toBe("1200");
     });
   });
 });

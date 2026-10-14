@@ -84,6 +84,8 @@ export interface ChatMessage {
   proposal?: ActionProposal | null;
   /** Set once a proposal on this message has been created. */
   proposalApplied?: boolean;
+  /** Why creating the proposal failed. Shown on the proposal card, cleared on retry. */
+  proposalError?: string;
   toolsUsed?: string[];
   /** Per-message cost, shown to operators. */
   usage?: { tokens: { input: number; output: number }; costUsd: number; ms: number };

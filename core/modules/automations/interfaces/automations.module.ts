@@ -5,6 +5,7 @@ import type { RetentionPurge } from "../../../platform/retention";
 import type {
   AutomationDirectory,
   AutomationEvaluation,
+  AutomationInsights,
   AutomationTrackerSettings,
   AutomationTriggerWriter,
   VisitorProfileWriter,
@@ -23,6 +24,12 @@ export interface AutomationsModule {
 
   /** Name lookup for peers that attribute their own rows to an automation. */
   directory: AutomationDirectory;
+
+  /**
+   * One automation's execution totals, for the AI module's impact reports on automations its
+   * assistant drafted. Read-only; `null` when the automation is not on that website.
+   */
+  stats: Pick<AutomationInsights, "stats">;
 
   /** Active automations for the tracker's `/init`. One indexed read per session. */
   trackerSettings: AutomationTrackerSettings;

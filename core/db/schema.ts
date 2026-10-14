@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   char,
   check,
@@ -12,6 +13,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   unique,
@@ -496,6 +498,38 @@ export const sessionReplays = pgTable(
 );
 
 /**
+ * Frustration signals and the summary for one recorded session — see
+ * db/sql/055_session_analyses.sql, which also owns its indexes (partial and descending,
+ * so they are not declared here) and the trigger deleting a row with its recording.
+ * Owned by the recordings module (`services/session-analysis.service.ts`).
+ */
+export const sessionAnalyses = pgTable(
+  "session_analyses",
+  {
+    websiteId: text("website_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    status: varchar("status", { length: 12 }).notNull().default("ready"),
+    frustrationScore: smallint("frustration_score").notNull().default(0),
+    signalCounts: jsonb("signal_counts").notNull().$type<Record<string, number>>().default({}),
+    signals: jsonb("signals").notNull().$type<unknown[]>().default([]),
+    timeline: jsonb("timeline").notNull().$type<Record<string, unknown>>().default({}),
+    analyzedThroughMs: bigint("analyzed_through_ms", { mode: "number" }).notNull().default(0),
+    computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+    summary: jsonb("summary").$type<Record<string, unknown>>(),
+    summarySource: varchar("summary_source", { length: 8 }),
+    summaryModel: varchar("summary_model", { length: 100 }),
+    summaryInputTokens: integer("summary_input_tokens").notNull().default(0),
+    summaryOutputTokens: integer("summary_output_tokens").notNull().default(0),
+    summaryCostUsd: numeric("summary_cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    summaryGeneratedAt: timestamp("summary_generated_at", { withTimezone: true }),
+    summaryAnalysisAt: timestamp("summary_analysis_at", { withTimezone: true }),
+    summaryAttemptedAt: timestamp("summary_attempted_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.websiteId, t.sessionId] })],
+);
+
+/**
  * The daily dashboard insight for one website and UTC day — see db/sql/052_ai_insights.sql.
  * Owned by the AI module (`modules/ai/insights`).
  */
@@ -517,6 +551,121 @@ export const aiInsights = pgTable(
   },
   (t) => [primaryKey({ columns: [t.websiteId, t.insightDate] })],
 );
+
+/**
+ * Suggestions, what was done about them and what changed afterwards — see
+ * db/sql/058_ai_recommendations.sql. Owned by the AI module (`modules/ai/recommendations`).
+ */
+export const aiRecommendations = pgTable(
+  "ai_recommendations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    source: varchar("source", { length: 16 }).notNull(),
+    sourceRef: text("source_ref"),
+    dedupeKey: text("dedupe_key").notNull(),
+    title: text("title").notNull(),
+    rationale: text("rationale").notNull().default(""),
+    prompt: text("prompt").notNull().default(""),
+    target: jsonb("target").notNull().$type<Record<string, unknown>>().default({}),
+    metric: jsonb("metric").notNull().$type<Record<string, unknown>>().default({}),
+    status: varchar("status", { length: 16 }).notNull().default("open"),
+    baseline: jsonb("baseline").$type<Record<string, unknown>>(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    appliedBy: uuid("applied_by"),
+    appliedVia: varchar("applied_via", { length: 16 }),
+    resource: jsonb("resource").$type<Record<string, unknown>>(),
+    queryId: uuid("query_id"),
+    impact: jsonb("impact").$type<Record<string, unknown>>(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ux_ai_recommendations_website_key").on(t.websiteId, t.dedupeKey),
+    index("ix_ai_recommendations_website_status").on(t.websiteId, t.status, t.updatedAt),
+  ],
+);
+
+/**
+ * Plain-English findings for one page's heatmap, per device and window — see
+ * db/sql/056_ai_heatmap_insights.sql. Owned by the AI module (`modules/ai/heatmap-insights`).
+ */
+export const aiHeatmapInsights = pgTable(
+  "ai_heatmap_insights",
+  {
+    websiteId: uuid("website_id").notNull(),
+    pagePath: text("page_path").notNull(),
+    device: varchar("device", { length: 10 }).notNull(),
+    days: integer("days").notNull(),
+    source: varchar("source", { length: 8 }).notNull().default("rules"),
+    findings: jsonb("findings").notNull().$type<unknown[]>().default([]),
+    signals: jsonb("signals").notNull().$type<unknown[]>().default([]),
+    signalKey: text("signal_key").notNull().default(""),
+    reason: text("reason"),
+    model: varchar("model", { length: 100 }),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.websiteId, t.pagePath, t.device, t.days] }),
+    index("ix_ai_heatmap_insights_website_created").on(t.websiteId, t.createdAt),
+  ],
+);
+
+/**
+ * Anomaly alerts: one row per incident the hourly check found — see db/sql/057_ai_anomalies.sql.
+ * Owned by the AI module (`modules/ai/anomalies`). At most one open row per site, type and subject.
+ */
+export const aiAnomalies = pgTable(
+  "ai_anomalies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    type: varchar("type", { length: 32 }).notNull(),
+    subject: text("subject").notNull().default(""),
+    status: varchar("status", { length: 10 }).notNull().default("open"),
+    severity: varchar("severity", { length: 10 }).notNull(),
+    metric: varchar("metric", { length: 20 }).notNull(),
+    observed: doublePrecision("observed").notNull().default(0),
+    expected: doublePrecision("expected").notNull().default(0),
+    score: doublePrecision("score").notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    windowEnd: timestamp("window_end", { withTimezone: true }).notNull(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    explanation: text("explanation"),
+    explanationSource: varchar("explanation_source", { length: 8 }),
+    path: varchar("path", { length: 100 }).notNull().default(""),
+    facts: jsonb("facts").notNull().$type<Record<string, unknown>>().default({}),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolution: varchar("resolution", { length: 12 }),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    notifyStatus: varchar("notify_status", { length: 20 }),
+    resolvedNotifiedAt: timestamp("resolved_notified_at", { withTimezone: true }),
+    model: varchar("model", { length: 100 }),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  },
+  (t) => [
+    uniqueIndex("ux_ai_anomalies_open").on(t.websiteId, t.type, t.subject).where(sql`status = 'open'`),
+    index("ix_ai_anomalies_website_detected").on(t.websiteId, t.detectedAt.desc()),
+  ],
+);
+
+/** Per-site anomaly alert settings — see db/sql/057_ai_anomalies.sql. No row: enabled, normal. */
+export const aiAnomalySettings = pgTable("ai_anomaly_settings", {
+  websiteId: uuid("website_id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  sensitivity: varchar("sensitivity", { length: 10 }).notNull().default("normal"),
+  updatedBy: uuid("updated_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Aggregated heatmap cells per page / device / position. */
 export const heatmapPoints = pgTable(
@@ -605,6 +754,8 @@ export const aiQueries = pgTable(
     /** A draft awaiting approval. Read back at confirm time rather than trusted from the client. */
     proposal: jsonb("proposal").$type<Record<string, unknown>>(),
     proposalAppliedAt: timestamp("proposal_applied_at", { withTimezone: true }),
+    /** The recommendation this chat was started from ("Do it"); db/sql/058. */
+    recommendationId: uuid("recommendation_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

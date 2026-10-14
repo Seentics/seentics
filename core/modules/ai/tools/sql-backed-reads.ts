@@ -3,8 +3,9 @@ import type { AiRepository } from "../interfaces/ai-repository.interface";
 /**
  * The reads that have no typed port yet, over fixed statements.
  *
- * Funnels, automations, heatmaps and recordings keep their CRUD behind their own routes
- * and expose nothing another module can call, so these go through `runGuarded` — the
+ * Automations, heatmaps and recordings keep their CRUD behind their own routes and
+ * expose nothing another module can call, and funnel definitions have no read port (their
+ * figures do — see `funnel-reads.ts`), so these go through `runGuarded` — the
  * same read-only, statement-timed, `$1`-bound execution the SQL path uses.
  *
  * The crucial difference from that path: **these statements are written here, not by a
@@ -30,24 +31,6 @@ export function sqlBackedReads(repo: AiRepository) {
         websiteId,
       ),
 
-    /**
-     * Step-by-step counts for one funnel.
-     *
-     * `funnelId` is a model-supplied value, so it is *not* interpolated: the statement
-     * filters on the website and the caller matches the funnel afterwards. Binding a
-     * second parameter would be better, and is what a typed port will do.
-     */
-    funnelPerformance: async (websiteId: string, funnelId: string) => {
-      const all = await rows(
-        `SELECT id, name, steps
-           FROM funnels
-          WHERE website_id = $1
-          LIMIT 50`,
-        websiteId,
-      );
-      return all.filter((f) => String(f.id) === funnelId);
-    },
-
     automations: (websiteId: string) =>
       rows(
         `SELECT id, name, status, definition, created_at
@@ -58,26 +41,56 @@ export function sqlBackedReads(repo: AiRepository) {
         websiteId,
       ),
 
-    heatmapPages: (websiteId: string) =>
-      rows(
-        `SELECT page_path,
-                sum(intensity) AS interactions,
-                max(last_updated) AS last_seen
-           FROM heatmap_points
-          WHERE website_id = $1
-          GROUP BY page_path
-          ORDER BY interactions DESC
+    /**
+     * Pages with heatmap data over the last `days` days, each with its headline: clicks, page
+     * views (one scroll summary per view) and the median scroll stop — the deepest point at least
+     * half the page views reached, as % of page height. Raw stored paths, unmerged.
+     */
+    heatmapPages: (websiteId: string, days: number) => {
+      const window = Math.min(Math.max(1, Math.trunc(days) || 30), 366) - 1;
+      return rows(
+        `WITH pts AS (
+           SELECT page_path, event_type, y_percent, intensity, last_updated
+             FROM heatmap_points
+            WHERE website_id = $1
+              AND day >= (now() AT TIME ZONE 'UTC')::date - ${window}
+         ), depth AS (
+           SELECT page_path, y_percent AS depth, sum(intensity) AS n
+             FROM pts WHERE event_type = 'scroll'
+            GROUP BY page_path, y_percent
+         ), reach AS (
+           SELECT page_path, depth,
+                  sum(n) OVER (PARTITION BY page_path ORDER BY depth DESC) AS reached,
+                  sum(n) OVER (PARTITION BY page_path) AS views
+             FROM depth
+         ), scroll AS (
+           SELECT page_path, max(views) AS page_views,
+                  max(depth) FILTER (WHERE reached * 2 >= views) AS median_scroll_stop_pct
+             FROM reach GROUP BY page_path
+         ), totals AS (
+           SELECT page_path,
+                  COALESCE(sum(intensity) FILTER (WHERE event_type = 'click'), 0) AS clicks,
+                  max(last_updated) AS last_seen
+             FROM pts GROUP BY page_path
+         )
+         SELECT t.page_path, t.clicks::int AS clicks, COALESCE(s.page_views, 0)::int AS page_views,
+                s.median_scroll_stop_pct, t.last_seen
+           FROM totals t LEFT JOIN scroll s USING (page_path)
+          ORDER BY t.clicks + COALESCE(s.page_views, 0) DESC
           LIMIT 50`,
         websiteId,
-      ),
+      );
+    },
 
     recentSessions: (websiteId: string, limit: number) =>
       rows(
-        `SELECT session_id, started_at, duration_seconds, page_count,
-                device_type, browser, country, has_errors, has_rage_clicks
+        // Aliased to the names the tool's links block reads. `sequence = 0` is the one metadata
+        // row per session; the column names before this matched no column in the table.
+        `SELECT session_id, timestamp AS started_at, duration_seconds, pages_viewed AS page_count,
+                device AS device_type, browser, country, has_errors, has_rage_clicks
            FROM session_replays
-          WHERE website_id = $1
-          ORDER BY started_at DESC
+          WHERE website_id = $1 AND sequence = 0
+          ORDER BY timestamp DESC
           LIMIT ${Math.min(Math.max(1, Math.trunc(limit) || 10), 50)}`,
         websiteId,
       ),

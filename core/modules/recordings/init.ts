@@ -1,6 +1,6 @@
 import { recordingsLane } from "./ingest-lane";
 import type { WebsitesModule } from "../websites/interfaces";
-import type { RecordingsModule } from "./interfaces";
+import type { RecordingsModule, SessionSummarizer } from "./interfaces";
 import { RecordingUsageCounter } from "./services/usage-count.service";
 import { createRecordingRoutes } from "./routes";
 import { RecordingRawReadService } from "./services/recording-raw-read.service";
@@ -12,11 +12,27 @@ import { batchDeleteReplaySessions } from "./services/recording-session-deletion
 import { getReplaySessionDetail } from "./services/recording-session-detail.service";
 import { listReplaySessions } from "./services/recording-session-list.service";
 import { RecordingRetentionPurge } from "./services/retention-purge.service";
+import { readSessionAnalysisConfig, SessionAnalysisService } from "./services/session-analysis.service";
+import { loadRecordingEvents } from "./services/frustration/recording-event-loader";
+import { PostgresSessionAnalysisStore } from "./repositories/session-analysis.repository";
 
 /** Build the recordings module. */
 export function initRecordingsModule(deps: {
   websitesModule: WebsitesModule;
+  /**
+   * Writes session summaries; the AI module's, read when a summary is asked for (that
+   * module is composed after this one). Absent or returning `null`: no model is
+   * configured, and analyses carry signals only.
+   */
+  sessionSummarizer?: () => SessionSummarizer | null;
 }): RecordingsModule {
+  const analysis = new SessionAnalysisService({
+    store: new PostgresSessionAnalysisStore(),
+    load: loadRecordingEvents,
+    summarizer: () => deps.sessionSummarizer?.() ?? null,
+    config: readSessionAnalysisConfig(),
+  });
+
   return {
     lane: recordingsLane(() => recordingIngestService()),
 
@@ -31,8 +47,11 @@ export function initRecordingsModule(deps: {
       recordingList: { listSessions: listReplaySessions },
       recordingDetails: { getSessionDetail: getReplaySessionDetail },
       recordingDeletion: { batchDelete: batchDeleteReplaySessions },
+      recordingAnalysis: analysis,
       websites: deps.websitesModule.accessChecks,
     }),
+    analysis,
+    analysisJobs: analysis,
 
     // Constructing the service arms the chunk flush timer and opens a storage client, so
     // it happens here rather than at build time — same reason as the heatmap engine. The

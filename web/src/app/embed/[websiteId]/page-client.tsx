@@ -193,7 +193,7 @@ export default function EmbedPage() {
             {activeSection === 'recordings' && (
               view.section === 'recordings' && view.sessionId ? (
                 <div className={`flex flex-col ${DETAIL_HEIGHT}`}>
-                  <ReplayDetailView websiteId={dataSiteId} sessionId={view.sessionId} />
+                  <ReplayDetailView websiteId={dataSiteId} sessionId={view.sessionId} embed />
                 </div>
               ) : (
                 <ReplaysView websiteId={dataSiteId} embed />

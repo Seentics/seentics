@@ -1,3 +1,5 @@
+import type { SignalCounts } from './types';
+
 /** The flattened row the session table renders, built from a `ReplaySession`. */
 export interface SessionRow {
   id: string;
@@ -12,7 +14,13 @@ export interface SessionRow {
   has_errors: boolean;
   has_rage_clicks: boolean;
   start_time: string;
+  /** 0-100 once the session has been analysed; `null` before (or on the demo). */
+  frustration_score: number | null;
+  signal_counts: SignalCounts | null;
 }
+
+/** `recent`: newest first. `frustration`: worst first, unanalysed sessions last. */
+export type SessionSort = 'recent' | 'frustration';
 
 /** Device classes the server will filter on. */
 export type DeviceFilter = 'all' | 'desktop' | 'mobile' | 'tablet';

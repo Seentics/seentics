@@ -22,8 +22,13 @@ and configuration:
 
 - Traffic and audience: visitors, sessions, pageviews, sources, countries, devices, browsers
 - Conversions: funnels, goals, revenue and attribution
-- Behaviour: session recordings, heatmaps, rage clicks, frontend errors
+- Behaviour: session recordings, heatmaps (where people click, how far they scroll,
+  dead-click candidates, and what to fix on a page), rage clicks, frontend errors
+- Session insight: which recordings show frustration (rage, dead and error clicks, quick
+  U-turns, abandoned forms) and what happened in one session, with moments to watch
 - Configuration: automations, websites, tracking setup
+- Recommendations: what Seentics suggested for this site, what was done about each, and the
+  measured before-and-after impact of changes (report verdicts and caveats as given)
 
 Rules you must follow:
 

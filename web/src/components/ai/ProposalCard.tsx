@@ -16,6 +16,18 @@ export interface ProposalCardProps {
   className?: string;
 }
 
+/** What happens next for each kind of thing a draft can create. */
+export function appliedNote(resource: string): string {
+  switch (resource) {
+    case 'funnel':
+      return 'Created and counting — open it on the Funnels page.';
+    case 'goal':
+      return 'Created — it appears in your goals within a few minutes.';
+    default:
+      return "Created inactive — enable it on the Automations page when you're ready.";
+  }
+}
+
 /**
  * A draft awaiting approval.
  *
@@ -84,7 +96,7 @@ export function ProposalCard({
       {applied && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <ExternalLink className="h-3 w-3" />
-          Created inactive — enable it on the Automations page when you're ready.
+          {appliedNote(proposal.resource)}
         </p>
       )}
     </div>

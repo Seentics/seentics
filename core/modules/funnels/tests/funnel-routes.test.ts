@@ -191,6 +191,8 @@ class FakeFunnels
 
   async reports() { return this.report_ ? Object.fromEntries(this.funnels.map(f => [f.id, this.report_!])) : {}; }
 
+  async reportBetween(): Promise<FunnelReport | null> { return this.report_; }
+
   async activeForTracker(websiteId: string): Promise<Funnel[]> {
     this.activeRefs.push(websiteId);
     return this.funnels.filter((f) => f.is_active);

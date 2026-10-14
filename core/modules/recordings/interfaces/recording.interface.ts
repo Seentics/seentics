@@ -12,6 +12,7 @@
  */
 
 import type { TrackerEvent } from "../../ingest/interfaces";
+import type { FrustrationSignalType, SignalCounts } from "./session-analysis.interface";
 
 /** Server-side narrowing for the session list. Every field is optional. */
 export type SessionListFilters = {
@@ -21,6 +22,12 @@ export type SessionListFilters = {
   hasRageClicks?: boolean;
   /** Only sessions that started within this many days. */
   days?: number;
+  /** Only analysed sessions scoring at least this (0-100). */
+  minFrustration?: number;
+  /** Only analysed sessions with at least one signal of this type. */
+  signal?: FrustrationSignalType;
+  /** `recent` (default): newest first. `frustration`: highest score first, unanalysed last. */
+  sort?: "recent" | "frustration";
 };
 
 /** Totals over all sessions matching the filters, not just the current page. */
@@ -46,6 +53,10 @@ export type RecordingSummary = {
   hasErrors: boolean;
   durationSeconds: number;
   pagesViewed: number;
+  /** 0-100 from the stored analysis; `null` until the session has been analysed. */
+  frustrationScore: number | null;
+  /** Signals found, by type; `null` until analysed. */
+  signalCounts: SignalCounts | null;
 };
 
 export type RecordingChunkUrl = {
@@ -215,6 +226,9 @@ export interface RecordingRawReads {
       pages_viewed: number;
       has_rage_clicks: boolean;
       has_errors: boolean;
+      /** From the session analysis; `null` until the session has been analysed. */
+      frustration_score: number | null;
+      signal_counts: SignalCounts | null;
     }>;
   }>;
 }
@@ -240,4 +254,7 @@ export type SessionMetaRow = {
   hasErrors: boolean;
   durationSeconds: number;
   pagesViewed: number;
+  /** From the `session_analyses` join on the list read; absent elsewhere. */
+  frustrationScore?: number | null;
+  signalCounts?: SignalCounts | null;
 };

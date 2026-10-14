@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { zBoundedInt, zNonEmptyString } from "../../../platform/validation";
+import { FRUSTRATION_SIGNAL_TYPES } from "../interfaces/session-analysis.interface";
 
 /** `?has_errors=1` and `?has_errors=true` both read as on; absent means "don't filter". */
 const zFlag = z
@@ -17,6 +18,19 @@ export const replayListQuerySchema = z.object({
   has_rage_clicks: zFlag,
   /** Only sessions that started within this many days; absent means every retained session. */
   days: zBoundedInt({ min: 1, max: 366 }).optional(),
+  /** Only analysed sessions scoring at least this. */
+  min_frustration: zBoundedInt({ min: 1, max: 100 }).optional(),
+  /** Only analysed sessions with this signal. */
+  signal: z.enum(FRUSTRATION_SIGNAL_TYPES).optional(),
+  sort: z.enum(["recent", "frustration"]).optional(),
+});
+
+/** `?summarize=0` reads the signals without writing a summary; absent means write one if needed. */
+export const replayAnalysisQuerySchema = z.object({
+  summarize: z
+    .union([z.literal("1"), z.literal("true"), z.literal("0"), z.literal("false")])
+    .optional()
+    .transform((v) => !(v === "0" || v === "false")),
 });
 
 export const replayBatchDeleteSchema = z.object({

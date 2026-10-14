@@ -63,6 +63,7 @@ export class AgentService implements AiAgent {
     websiteId: string;
     prompt: string;
     conversationId?: string;
+    recommendationId?: string;
   }): Promise<AskResult> {
     const startedAt = Date.now();
     const conversationId = input.conversationId?.trim() || randomUUID();
@@ -95,6 +96,8 @@ export class AgentService implements AiAgent {
       prompt: input.prompt,
       model: this.modelInfo.model,
       conversationId,
+      recommendationId: input.recommendationId ?? null,
+      dailyCap: MAX_QUESTIONS_PER_DAY,
     });
 
     try {
@@ -170,8 +173,10 @@ export class AgentService implements AiAgent {
 
     const messages: ChatMessage[] = [];
     for (const t of recent) {
+      // A turn that failed or is still running has no answer to pair with its question.
+      if (!t.answer) continue;
       messages.push({ role: "user", content: `<question>${t.prompt}</question>` });
-      if (t.answer) messages.push({ role: "assistant", content: t.answer });
+      messages.push({ role: "assistant", content: t.answer });
     }
     return messages;
   }

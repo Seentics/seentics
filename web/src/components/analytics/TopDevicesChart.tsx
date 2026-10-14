@@ -24,6 +24,8 @@ interface TopDevicesChartProps {
   /** Optional controlled tab for deterministic recorded states. */
   activeTab?: 'os' | 'devices' | 'browsers';
   onActiveTabChange?: (tab: 'os' | 'devices' | 'browsers') => void;
+  /** Rendered beside the title — the overview puts its "Ask AI" button here. */
+  headerAction?: React.ReactNode;
 }
 
 const getSystemImage = (label: string, type: 'device' | 'os') => {
@@ -31,7 +33,7 @@ const getSystemImage = (label: string, type: 'device' | 'os') => {
   return getOsImagePath(label);
 };
 
-export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter, activeTab, onActiveTabChange }: TopDevicesChartProps) {
+export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter, activeTab, onActiveTabChange, headerAction }: TopDevicesChartProps) {
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
     defaultValue: 'os' as const,
@@ -138,7 +140,10 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
     <div className="flex flex-col">
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'os' | 'devices' | 'browsers')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
-           <h3 className="text-sm font-semibold tracking-tight">System Insights</h3>
+           <div className="flex items-center gap-1">
+             <h3 className="text-sm font-semibold tracking-tight">System Insights</h3>
+             {headerAction}
+           </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted p-0.5 rounded-lg shrink-0">
              <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
              <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>

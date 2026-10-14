@@ -1,3 +1,4 @@
+import type { ErrorGroupWindowCount, ErrorSurgeCandidate } from "../interfaces";
 import { sql } from "../../../db";
 import type { ErrorGroupSummary, ErrorSample } from "../interfaces";
 
@@ -144,4 +145,109 @@ export async function setErrorGroupStatus(
     RETURNING id
   `;
   return (rows as unknown[]).length > 0;
+}
+
+
+/**
+ * One site's unresolved faults, most frequent within the last `days` first.
+ *
+ * Counted from `error_events` (one row per occurrence, indexed on website and time), because
+ * `error_groups.event_count` only ever grows: it is a lifetime total, not a weekly one.
+ */
+export async function listErrorGroupsByWindowCount(
+  websiteId: string,
+  opts: { days: number; limit?: number },
+): Promise<ErrorGroupWindowCount[]> {
+  const since = windowStart(opts.days);
+  const limit = Math.min(MAX_GROUPS, Math.max(1, Math.trunc(opts.limit ?? 20) || 20));
+  const rows = await sql`
+    SELECT g.fingerprint, g.message, g.last_page_path, g.first_seen, g.last_seen, e.window_count
+    FROM (
+      SELECT fingerprint, count(*)::int AS window_count
+      FROM error_events
+      WHERE website_id = ${websiteId}::uuid AND occurred_at >= ${since}
+      GROUP BY fingerprint
+    ) e
+    JOIN error_groups g ON g.website_id = ${websiteId}::uuid AND g.fingerprint = e.fingerprint
+    WHERE g.status = 'unresolved'
+    ORDER BY e.window_count DESC, g.fingerprint
+    LIMIT ${limit}
+  `;
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    fingerprint: String(r.fingerprint),
+    message: String(r.message),
+    last_page_path: String(r.last_page_path ?? ""),
+    first_seen: new Date(r.first_seen as string).toISOString(),
+    last_seen: new Date(r.last_seen as string).toISOString(),
+    window_count: Number(r.window_count ?? 0),
+  }));
+}
+
+/**
+ * The anomaly check's error reads (`ErrorAnomalyReads.surgeCandidates`): the current window's
+ * busiest faults plus the ones named in `include`, with their sessions and their counts in
+ * each baseline window. Ignored faults are left out — the owner has said they do not matter.
+ *
+ * Two statements, both index range scans: the current window by website and time, then each
+ * candidate's baseline windows by website, fingerprint and time.
+ */
+export async function errorSurgeCandidates(
+  websiteId: string,
+  current: { start: Date; end: Date },
+  baselines: ReadonlyArray<{ start: Date; end: Date }>,
+  opts: { limit: number; include?: readonly string[] },
+): Promise<ErrorSurgeCandidate[]> {
+  const limit = Math.min(MAX_GROUPS, Math.max(1, Math.trunc(opts.limit) || 10));
+  const include = [...new Set(opts.include ?? [])].slice(0, 50);
+  const rows = await sql<{ fingerprint: string; message: string; last_page_path: string | null; first_seen: Date | string; current: number; sessions: number }[]>`
+    WITH cur AS (
+      SELECT fingerprint, count(*)::int AS current, count(DISTINCT session_id)::int AS sessions
+      FROM error_events
+      WHERE website_id = ${websiteId}::uuid
+        AND occurred_at >= ${current.start.toISOString()}::timestamptz AND occurred_at < ${current.end.toISOString()}::timestamptz
+      GROUP BY fingerprint
+    ),
+    picked AS (
+      (SELECT fingerprint FROM cur ORDER BY current DESC, fingerprint LIMIT ${limit})
+      UNION
+      SELECT unnest(${include}::text[])
+    )
+    SELECT g.fingerprint, g.message, g.last_page_path, g.first_seen,
+           coalesce(c.current, 0)::int AS current, coalesce(c.sessions, 0)::int AS sessions
+    FROM picked p
+    JOIN error_groups g ON g.website_id = ${websiteId}::uuid AND g.fingerprint = p.fingerprint
+    LEFT JOIN cur c ON c.fingerprint = p.fingerprint
+    WHERE g.status <> 'ignored'
+  `;
+  if (!rows.length) return [];
+
+  const fingerprints = rows.map((r) => r.fingerprint);
+  const counts = baselines.length
+    ? await sql<{ fingerprint: string; i: number; n: number }[]>`
+        SELECT f.fingerprint, w.i::int AS i, count(e.id)::int AS n
+        FROM unnest(${fingerprints}::text[]) AS f(fingerprint)
+        -- Bound as text[] and cast: this client cannot bind a timestamptz[] (see db/index.ts).
+        CROSS JOIN unnest(${baselines.map((b) => b.start.toISOString())}::text[]::timestamptz[], ${baselines.map((b) => b.end.toISOString())}::text[]::timestamptz[])
+             WITH ORDINALITY AS w(s, e, i)
+        LEFT JOIN error_events e
+          ON e.website_id = ${websiteId}::uuid AND e.fingerprint = f.fingerprint
+         AND e.occurred_at >= w.s AND e.occurred_at < w.e
+        GROUP BY f.fingerprint, w.i
+      `
+    : [];
+  const byFingerprint = new Map<string, number[]>();
+  for (const c of counts) {
+    const list = byFingerprint.get(c.fingerprint) ?? baselines.map(() => 0);
+    list[c.i - 1] = c.n;
+    byFingerprint.set(c.fingerprint, list);
+  }
+  return rows.map((r) => ({
+    fingerprint: r.fingerprint,
+    message: String(r.message ?? ""),
+    last_page_path: String(r.last_page_path ?? ""),
+    first_seen: new Date(r.first_seen).toISOString(),
+    current: Number(r.current ?? 0),
+    sessions: Number(r.sessions ?? 0),
+    baseline: byFingerprint.get(r.fingerprint) ?? baselines.map(() => 0),
+  }));
 }

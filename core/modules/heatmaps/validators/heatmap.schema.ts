@@ -28,3 +28,10 @@ export const heatmapBulkDeleteSchema = z.object({
   pagePaths: z.array(zNonEmptyString.max(2048)).min(1).max(500),
 });
 
+
+/** One page's insights. Defaults to the last 30 days, every device. */
+export const heatmapInsightsQuerySchema = z.object({
+  page_path: zNonEmptyString.max(2048),
+  days: z.coerce.number().int().min(1).max(366).optional().default(30),
+  device: z.enum(["all", "desktop", "tablet", "mobile"]).optional().default("all"),
+});

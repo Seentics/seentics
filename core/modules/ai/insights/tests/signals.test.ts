@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { THRESHOLDS, change, detectSignals } from '../signals';
+import { THRESHOLDS, change, detectSignals, isTrafficCollapse } from '../signals';
 import { steadySnapshot, troubledSnapshot } from './fixtures';
 
 const ids = (s: ReturnType<typeof detectSignals>) => s.map((x) => x.id);
@@ -74,5 +74,42 @@ describe('detectSignals', () => {
       devices: [{ name: 'Tablet', sessions: { cur: 40, prev: 60 }, bounceRate: { cur: 60, prev: 40 }, conversions: { cur: 0, prev: 6 } }],
     });
     expect(ids(detectSignals(small)).some((id) => id.startsWith('device.'))).toBe(false);
+  });
+
+  it('flags a sharp traffic drop as possibly broken tracking, instead of the ordinary visitors line', () => {
+    const collapsed = steadySnapshot({ traffic: { ...steadySnapshot().traffic, visitors: { cur: 40, prev: 5000 } } });
+    const signals = detectSignals(collapsed);
+    expect(signals[0]!.id).toBe('traffic.collapse');
+    expect(signals[0]!.text).toContain('Traffic dropped sharply');
+    expect(signals[0]!.text).toContain('tracking may be broken');
+    expect(signals[0]!.brief).toContain('visitors 40 (-99%), prev 5,000');
+    expect(ids(signals)).not.toContain('traffic.visitors');
+    // Just short of the threshold is an ordinary fall.
+    const fall = steadySnapshot({ traffic: { ...steadySnapshot().traffic, visitors: { cur: 1600, prev: 5000 } } });
+    expect(isTrafficCollapse({ cur: 1600, prev: 5000 })).toBe(false);
+    expect(ids(detectSignals(fall))).toContain('traffic.visitors');
+    expect(ids(detectSignals(fall))).not.toContain('traffic.collapse');
+    // Too little before to call it a collapse.
+    expect(isTrafficCollapse({ cur: 0, prev: THRESHOLDS.minVisitors - 1 })).toBe(false);
+    expect(isTrafficCollapse({ cur: 0, prev: THRESHOLDS.minVisitors })).toBe(true);
+  });
+
+  it('words an error count as occurrences in the window, and a count-less new error without a figure', () => {
+    const counted = detectSignals(steadySnapshot({ errors: [{ message: 'TypeError: boom', page: '/checkout', count: 84, isNew: false }] }));
+    const e = counted.find((s) => s.kind === 'error')!;
+    expect(e.text).toBe('An error happened 84 times on /checkout over the last 7 days: TypeError: boom');
+    expect(e.brief).toContain('84 times in the last 7 days');
+
+    const rare = detectSignals(steadySnapshot({ errors: [{ message: 'TypeError: boom', page: '/checkout', count: 3, isNew: true }] }));
+    expect(rare.some((s) => s.kind === 'error')).toBe(false);
+
+    const uncounted = detectSignals(steadySnapshot({ errors: [
+      { message: 'TypeError: old', page: '/a', count: null, isNew: false },
+      { message: 'TypeError: new', page: '/b', count: null, isNew: true },
+    ] }));
+    const only = uncounted.filter((s) => s.kind === 'error');
+    expect(only).toHaveLength(1);
+    expect(only[0]!.text).toBe('A new error appeared on /b in the last 7 days: TypeError: new');
+    expect(only[0]!.text).not.toMatch(/\d+ times/);
   });
 });

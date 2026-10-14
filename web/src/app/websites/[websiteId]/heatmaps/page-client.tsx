@@ -7,6 +7,8 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { AskAiButton } from '@/components/ai/AskAiButton';
+import { askAbout } from '@/features/ai/ask-link';
 import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
 
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -316,6 +318,9 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         title="Heatmaps"
         description="See where users click, move, and how far they scroll on each page."
       >
+        {!isDemoMode && (
+          <AskAiButton websiteId={websiteId} size="md" {...askAbout.heatmaps(days)} />
+        )}
         {!isDemoMode && (
           <Button
             variant="default"

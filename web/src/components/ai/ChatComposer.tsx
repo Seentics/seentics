@@ -9,15 +9,19 @@ export interface ChatComposerProps {
   onChange: (value: string) => void;
   onSend: () => void;
   isSending?: boolean;
+  /** Blocks sending (not typing) — e.g. while a stored thread is still loading. */
+  disabled?: boolean;
   placeholder?: string;
   /** Matches the server's own prompt ceiling, so the limit is felt before the refusal. */
   maxLength?: number;
+  /** Focus on mount, caret at the end — for a prefilled question the visitor should read first. */
+  autoFocus?: boolean;
   className?: string;
 }
 
 /** The input. Controlled, so the parent owns the draft and can prefill it. */
 export function ChatComposer({
-  value, onChange, onSend, isSending, placeholder, maxLength = 2000, className,
+  value, onChange, onSend, isSending, disabled, placeholder, maxLength = 2000, autoFocus, className,
 }: ChatComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -34,6 +38,15 @@ export function ChatComposer({
     el.style.height = 'auto';
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 76), 220)}px`;
   }, [value]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!autoFocus || !el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    // Mount only: refocusing on every change would fight the visitor's own clicks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     /*
@@ -60,7 +73,7 @@ export function ChatComposer({
           // rather than what a form field does.
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            onSend();
+            if (!disabled) onSend();
           }
         }}
         placeholder={placeholder}
@@ -71,7 +84,7 @@ export function ChatComposer({
       <Button
         size="icon"
         className="absolute bottom-2.5 right-2.5 h-9 w-9"
-        disabled={!value.trim() || isSending}
+        disabled={!value.trim() || isSending || disabled}
         onClick={onSend}
       >
         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CornerDownLeft className="h-4 w-4" />}

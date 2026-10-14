@@ -35,5 +35,21 @@ export type { HeatmapsModule } from "./heatmaps.module";
 
 export type { HeatmapRawReads } from "./heatmap.interface";
 
+/** Page insights: the deterministic analysis, and the port that words it. */
+export type {
+  HeatmapClickStats,
+  HeatmapClickTarget,
+  HeatmapDeviceAnalysis,
+  HeatmapInsightDevice,
+  HeatmapInsightFinding,
+  HeatmapInsightNarration,
+  HeatmapInsightNarrator,
+  HeatmapPageAnalysis,
+  HeatmapPageAnalysisReads,
+  HeatmapScrollStats,
+  HeatmapSignal,
+  HeatmapSignalKind,
+} from "./heatmap-insights.interface";
+
 /** Query contracts of the heatmap reads, shared with the embed API. */
 export { heatmapDataQuerySchema, heatmapPagesQuerySchema, heatmapSnapshotQuerySchema } from "../validators/heatmap.schema";

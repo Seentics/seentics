@@ -1,5 +1,6 @@
 import type {
   ErrorGroupSummary,
+  ErrorGroupWindowCount,
   ErrorMutations,
   ErrorQueries,
   ErrorSample,
@@ -7,6 +8,7 @@ import type {
 import {
   getErrorGroup,
   listErrorGroups,
+  listErrorGroupsByWindowCount,
   listErrorSamples,
   setErrorGroupStatus,
 } from "../repositories/error-reads.repository";
@@ -24,6 +26,13 @@ export class ErrorQueryService implements ErrorQueries {
     q: { days: number; status?: string; search?: string; limit?: number },
   ): Promise<{ groups: ErrorGroupSummary[] }> {
     return { groups: await listErrorGroups(websiteId, q) };
+  }
+
+  async listGroupsByWindowCount(
+    websiteId: string,
+    q: { days: number; limit?: number },
+  ): Promise<ErrorGroupWindowCount[]> {
+    return listErrorGroupsByWindowCount(websiteId, q);
   }
 
   /**

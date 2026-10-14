@@ -27,6 +27,15 @@ export class FunnelPerformanceService implements FunnelPerformance {
     return this.finish(prepared, counts);
   }
 
+  async reportBetween(websiteId: string, funnelId: string, from: Date, to: Date): Promise<FunnelReport | null> {
+    const funnel = await findFunnel(websiteId, funnelId);
+    if (!funnel) return null;
+    const prepared = await this.prepare(funnel);
+    const counts = prepared.reachable.length
+      ? await this.analyticsEvents.countFunnelProgress(websiteId, prepared.reachable, from.toISOString(), to.toISOString(), funnel.conversion_window_hours) : [];
+    return this.finish(prepared, counts);
+  }
+
   async reports(websiteId: string, days?: number): Promise<Record<string, FunnelReport>> {
     const funnels = await listFunnels(websiteId);
     const prepared = await Promise.all(funnels.map(funnel => this.prepare(funnel)));

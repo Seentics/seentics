@@ -97,8 +97,9 @@ export type Application = {
  * pageview counts, and every analytics query resolves a website — so websites takes
  * `() => analyticsModule` and reads it when a request arrives, by which point both
  * exist.
- * That getter is the only piece of indirection in this file; everything else is a
- * module handed its dependencies directly.
+ * The one other getter is heatmaps' insight narrator: heatmaps owns the analysis, the AI
+ * module (which reads that analysis, so is composed after it) owns the model that words it.
+ * Everything else is a module handed its dependencies directly.
  */
 export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   // ─── Infrastructure ──────────────────────────────────────────────────────
@@ -120,9 +121,18 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const apiKeysModule = initApiKeysModule({ websitesModule });
 
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
-  const recordingsModule = initRecordingsModule({ websitesModule });
+  // Session summaries are worded by the AI module, composed below: a getter, read per request.
+  const recordingsModule = initRecordingsModule({
+    websitesModule,
+    sessionSummarizer: () => aiModule.sessionSummarizer,
+  });
   const funnelsModule = initFunnelsModule({ websitesModule, analyticsModule });
-  const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
+  // Heatmap insights are worded by the AI module, composed below: a getter, read per request.
+  const heatmapsModule = initHeatmapsModule({
+    websitesModule,
+    analyticsModule,
+    insightNarrator: () => aiModule.heatmapNarrator,
+  });
   const automationsModule = initAutomationsModule({ websitesModule });
   const errorsModule = initErrorsModule({ websitesModule });
   // Integrations first: it owns the delivery outbox that leads hands every submission to.
@@ -134,11 +144,25 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     errorQueries: errorsModule.queries,
     analyticsInsights: analyticsModule.insightReads,
     sites: websitesModule.retentionSites,
+    funnelPerformance: funnelsModule.performance,
+    heatmapAnalysis: heatmapsModule.pageAnalysis,
+    sessionAnalysis: recordingsModule.analysis,
+    // The weekly digest goes out through the gateway's notify endpoint, as the ops alerts do.
+    notify: cfg.opsAlertUrl && cfg.globalApiKey ? { url: cfg.opsAlertUrl, apiKey: cfg.globalApiKey } : null,
+    // The hourly anomaly check reads traffic, goals and error counts through these ports.
+    anomalyReads: { traffic: analyticsModule.anomalyReads, errors: errorsModule.anomalyReads },
+    // Recommendation impact readings: fixed-window session counts, and drafted automations' runs.
+    impact: { reads: analyticsModule.impactReads, automationStats: automationsModule.stats },
     automationDrafts: automationsModule.draftValidator,
+    funnelDrafts: funnelsModule.drafts,
     // The entire write surface an approved AI proposal can reach.
     writers: {
       createAutomation: ({ websiteId, userId, payload }) =>
         automationsModule.draftWriter.createFromProposal({ websiteId, userId, payload }),
+      createFunnel: ({ websiteId, userId, payload }) =>
+        funnelsModule.drafts.createFromProposal({ websiteId, userId, payload }),
+      createGoal: ({ websiteId, payload }) =>
+        websitesModule.goalDrafts.createFromProposal({ websiteId, payload }),
     },
   });
 
@@ -276,6 +300,10 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
           retention,
           analyticsRollups: analyticsModule.rollups,
           aiInsights: aiModule.insights,
+          aiDigest: aiModule.digest,
+          aiAnomalies: aiModule.anomalies,
+          aiRecommendations: aiModule.recommendations,
+          recordingAnalysis: recordingsModule.analysisJobs,
         });
       }
 
