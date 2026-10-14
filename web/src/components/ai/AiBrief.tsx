@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, Lightbulb, Sparkles } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
 import { useAlerts } from '@/features/ai/alerts/queries';
 import { askWhyHref, bannerAlerts } from '@/features/ai/alerts/format';
 import { useDailyInsight } from '@/features/ai/insights/queries';
@@ -47,33 +46,41 @@ export function AiBrief({ websiteId }: { websiteId: string }) {
 
   if (lines.length === 0) return null;
 
+  // One line, not a panel: each point cut to its first clause, joined with dots.
+  const parts = lines.slice(0, MAX_LINES).map((l) => ({ ...l, short: briefPhrase(l.text, l.tone) }));
+  const alertPart = parts.find((p) => p.tone === 'alert');
+
   return (
-    <Card className="border border-border bg-card px-4 py-3">
-      <ul className="divide-y divide-border">
-        {lines.slice(0, MAX_LINES).map((l) => (
-          <li key={l.key} className="flex items-center gap-2.5 py-2 text-sm first:pt-0 last:pb-0">
-            {l.tone === 'alert' ? (
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-            ) : l.tone === 'action' ? (
-              <Lightbulb className="h-3.5 w-3.5 shrink-0 text-primary" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            )}
-            <span className={cn('min-w-0 flex-1 truncate', l.tone === 'alert' && 'font-medium')} title={l.text}>
-              {l.text}
-            </span>
-            <Link href={l.href} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline">
-              {l.cta} <ArrowRight className="h-3 w-3" />
+    <div className="flex min-h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm">
+      {alertPart ? (
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+      ) : (
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+      )}
+      <p className="min-w-0 flex-1 truncate text-muted-foreground" title={parts.map((p) => p.text).join(' · ')}>
+        {parts.map((p, i) => (
+          <span key={p.key}>
+            {i > 0 && <span className="px-1.5 text-muted-foreground/50">·</span>}
+            <Link href={p.href} className={cn('hover:underline', p.tone === 'alert' ? 'font-medium text-foreground' : 'text-foreground/90')}>
+              {p.short}
             </Link>
-          </li>
+          </span>
         ))}
-      </ul>
+      </p>
       <Link
         href={`/websites/${websiteId}/ai-reports`}
-        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
       >
-        All AI reports <ArrowRight className="h-3 w-3" />
+        Details <ArrowRight className="h-3 w-3" />
       </Link>
-    </Card>
+    </div>
   );
+}
+
+/** A point cut to its first clause, so three fit on one line; actions read as "Next: …". */
+export function briefPhrase(text: string, tone: BriefLine['tone']): string {
+  const first = text.split(/(?<=[a-z0-9%)])[,;:.](?:\s|$)| — | or /i)[0]!.trim();
+  const cut = first.length > 70 ? `${first.slice(0, 67).trimEnd()}…` : first;
+  if (tone !== 'action') return cut;
+  return `Next: ${cut.charAt(0).toLowerCase()}${cut.slice(1)}`;
 }
