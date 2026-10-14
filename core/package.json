@@ -12,7 +12,8 @@
     "verify:forms-sql": "bun run scripts/verify-forms-sql.ts",
     "verify:forms-flow": "bun run scripts/verify-forms-flow.ts",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "eval:ai": "bun run evals/ai/run.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",

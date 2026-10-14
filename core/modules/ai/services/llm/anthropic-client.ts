@@ -147,6 +147,7 @@ export class AnthropicLlmClient implements ToolCallingLlmClient {
     system: string;
     messages: ChatMessage[];
     tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+    toolChoice?: "auto" | "none";
   }): Promise<ChatTurn> {
     const body = await this.post({
       max_tokens: this.cfg.maxOutputTokens,
@@ -159,6 +160,7 @@ export class AnthropicLlmClient implements ToolCallingLlmClient {
               description: t.description,
               input_schema: t.parameters,
             })),
+            ...(input.toolChoice === "none" ? { tool_choice: { type: "none" } } : {}),
           }
         : {}),
       ...this.modelParams(true),

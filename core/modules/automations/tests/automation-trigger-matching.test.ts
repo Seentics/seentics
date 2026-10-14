@@ -54,3 +54,21 @@ describe("trigger configuration", () => {
     }
   });
 });
+
+describe("page limit on any trigger", () => {
+  it("applies a trigger's path to the page the event happened on", async () => {
+    const { triggerMatches } = await import("../services/automation-evaluation.service");
+    const def = { triggers: [{ type: "exit_intent", path: "/pricing", match_type: "exact" }] } as never;
+    expect(triggerMatches(def, { type: "exit_intent" }, "/pricing")).toBe(true);
+    expect(triggerMatches(def, { type: "exit_intent" }, "/")).toBe(false);
+    expect(triggerMatches(def, { type: "exit_intent" }, undefined)).toBe(false);
+    const section = { triggers: [{ type: "time_on_page", seconds: 10, path: "/blog/", match_type: "starts_with" }] } as never;
+    expect(triggerMatches(section, { type: "time_on_page", seconds: 10 }, "/blog/post")).toBe(true);
+    expect(triggerMatches(section, { type: "time_on_page", seconds: 10 }, "/pricing")).toBe(false);
+  });
+
+  it("leaves triggers without a path matching every page", async () => {
+    const { triggerMatches } = await import("../services/automation-evaluation.service");
+    expect(triggerMatches({ triggers: [{ type: "exit_intent" }] } as never, { type: "exit_intent" }, "/anything")).toBe(true);
+  });
+});

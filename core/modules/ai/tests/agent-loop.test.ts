@@ -211,7 +211,41 @@ describe("runAgent — stop reasons and replay", () => {
     });
     seen.push(out.answer);
     expect(out.proposal).not.toBeNull();
-    expect(out.answer).toBe("Here's a popup draft.");
+    expect(out.answer).toStartWith("Here's a popup draft.");
+    expect(out.answer).not.toContain("Traffic is up 12%");
+    expect(out.answer).toContain("confirm");
+  });
+
+  it("explains a draft from its own summary when the model wrote nothing", async () => {
+    const titled = echoTool("propose_automation", {
+      proposal: { resource: "automation", operation: "set_status", payload: {},
+        summary: { title: "Turn off Black Friday banner", lines: ["It stops showing to visitors."] } },
+    });
+    const out = await run(fakeLlm([{ text: "", toolCalls: [call("propose_automation")] }]), [titled]);
+    expect(out.answer).toContain("Turn off Black Friday banner");
+    expect(out.answer).toContain("It stops showing to visitors.");
+    expect(out.answer).toMatch(/Nothing changes until you review and confirm/);
+  });
+
+  it("withholds tools on the last turn so the model answers from what it read", async () => {
+    const choices: Array<string | undefined> = [];
+    let i = 0;
+    const llm = {
+      supportsTools: true,
+      async complete() { throw new Error("unused"); },
+      async classify() { return ""; },
+      async chat(input: { toolChoice?: string }) {
+        choices.push(input.toolChoice);
+        i++;
+        return i < 4
+          ? { text: "", toolCalls: [{ id: `c${i}`, name: "a", args: {} }], inputTokens: 1, outputTokens: 1, stopReason: "tool_use" as const }
+          : { text: "Traffic is up 12%; check /pricing next.", toolCalls: [], inputTokens: 1, outputTokens: 1, stopReason: "end" as const };
+      },
+    } as unknown as ToolCallingLlmClient;
+    const out = await run(llm, [echoTool("a")]);
+    // No propose_* tool registered here, so the final turn offers no tools at all.
+    expect(choices).toEqual([undefined, undefined, undefined, "none"]);
+    expect(out.answer).toBe("Traffic is up 12%; check /pricing next.");
   });
 
   it("does not run a tool call from a reply cut off at max_tokens", async () => {
@@ -254,5 +288,28 @@ describe("runAgent — stop reasons and replay", () => {
     const results = second.filter((m) => m.role === "tool");
     expect(results).toHaveLength(10);
     expect(results.filter((m) => m.isError)).toHaveLength(2);
+  });
+});
+
+describe("runAgent — final turn", () => {
+  it("keeps draft tools on the last turn so a researched change can still be drafted", async () => {
+    const offered: string[][] = [];
+    let i = 0;
+    const llm = {
+      supportsTools: true,
+      async complete() { throw new Error("unused"); },
+      async classify() { return ""; },
+      async chat(input: { tools: Array<{ name: string }> }) {
+        offered.push(input.tools.map((t) => t.name));
+        i++;
+        return i < 4
+          ? { text: "", toolCalls: [{ id: `c${i}`, name: "a", args: {} }], inputTokens: 1, outputTokens: 1, stopReason: "tool_use" as const }
+          : { text: "Drafting it.", toolCalls: [{ id: "p", name: "propose_automation", args: {} }], inputTokens: 1, outputTokens: 1, stopReason: "tool_use" as const };
+      },
+    } as unknown as ToolCallingLlmClient;
+    const propose = echoTool("propose_automation", { proposal: { resource: "automation", operation: "create", payload: {}, summary: { title: "x", lines: [] } } });
+    const out = await run(llm, [echoTool("a"), propose]);
+    expect(offered[3]).toEqual(["propose_automation"]);
+    expect(out.proposal).not.toBeNull();
   });
 });

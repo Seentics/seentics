@@ -112,6 +112,7 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
     system: string;
     messages: ChatMessage[];
     tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+    toolChoice?: "auto" | "none";
   }): Promise<ChatTurn> {
     const completion = await this.sdk().chat.completions.create({
       model: this.cfg.model,
@@ -125,7 +126,7 @@ export class OpenAiCompatibleClient implements ToolCallingLlmClient {
             function: { name: t.name, description: t.description, parameters: t.parameters },
           }))
         : undefined,
-      tool_choice: input.tools.length ? "auto" : undefined,
+      tool_choice: input.tools.length ? (input.toolChoice ?? "auto") : undefined,
       ...this.params(this.cfg.maxOutputTokens, 0.1, "none"),
     } as never) as OpenAI.Chat.Completions.ChatCompletion;
 

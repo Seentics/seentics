@@ -20,7 +20,7 @@ const stepSchema = z.object({
   name: z.string().trim().min(1).max(80).describe("Short step name, e.g. Pricing page"),
   type: z.enum(["page", "event"]).describe("page: a page view; event: a custom event"),
   value: z.string().trim().min(1).max(500).describe("The page path (e.g. /pricing) or the custom event name (e.g. signup)"),
-  match: z.enum(["exact", "contains", "starts_with"]).optional().describe("How a page path matches; default exact"),
+  match: z.enum(["exact", "contains", "starts_with"]).optional().describe("How a page path matches; default exact. Use starts_with for a section — every blog post is page_path /blog/ with starts_with — and exact for one page"),
 });
 
 const argsSchema = z.object({

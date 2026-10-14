@@ -15,21 +15,9 @@ import { createAiRoutes } from "./routes";
 import { AgentService } from "./services/agent/agent.service";
 import { ProposalApplier } from "./services/agent/proposal-applier";
 import { proposalWriters } from "./services/agent/proposal-writers";
-import { ToolRegistry } from "./tools/registry";
-import { readTools, type ReadPorts } from "./tools/read-tools";
 import { sqlBackedReads } from "./tools/sql-backed-reads";
-import { funnelReads } from "./tools/funnel-reads";
-import { proposeAutomationTool } from "./tools/propose-automation.tool";
-import { proposeFunnelTool } from "./tools/propose-funnel.tool";
-import { goalEditTools, proposeGoalTool } from "./tools/propose-goal.tool";
-import { automationEditTools } from "./tools/propose-automation-edit.tool";
-import { funnelEditTools } from "./tools/propose-funnel-edit.tool";
-import { alertTools, errorTriageTool, recommendationTriageTool } from "./tools/propose-triage.tool";
-import { siteSettingsTools } from "./tools/propose-site-settings.tool";
-import { recommendationTools } from "./tools/recommendation-reads";
+import { buildAgentRegistry } from "./tools/agent-tools";
 import { composeRecommendations } from "./recommendations/compose";
-import { heatmapInsightsTool } from "./tools/heatmap-reads";
-import { sessionTools } from "./tools/session-reads";
 import { SessionSummaryService } from "./sessions/summarizer";
 import { HeatmapInsightService } from "./heatmap-insights/service";
 import { PostgresHeatmapInsightRepository } from "./heatmap-insights/postgres-repository";
@@ -118,56 +106,35 @@ export function initAiModule(deps: {
   );
 
   /*
-   * Reads and one propose tool. The registry is the agent's entire vocabulary: it can
-   * answer from these and draft from that, and there is nothing else it could call.
+   * The registry is the agent's entire vocabulary: it can answer from these reads and draft
+   * from those proposals, and there is nothing else it could call. Composed in `agent-tools.ts`,
+   * which the evaluation harness shares.
    */
-  const q = (days: number) => ({ days: String(days) }) as never;
   const fixed = sqlBackedReads(repo);
-  const funnels = funnelReads({ definitions: fixed.funnels, performance: deps.funnelPerformance });
-  const reads: ReadPorts = {
-    trafficSummary: (id, days) => deps.analyticsReads.getDashboard(id, q(days)),
-    topPages:       (id, days) => deps.analyticsReads.getPages(id, q(days)),
-    topSources:     (id, days) => deps.analyticsReads.getSources(id, q(days)),
-    dimensions:     (id, days) => deps.analyticsReads.getDimensionsBulk(id, q(days)),
-    revenue:        (id, days) => deps.analyticsReads.getRevenueDashboard(id, q(days)),
-    // `fingerprint` is dropped on the way to the model (it reads as a device fingerprint there); an
-    // error group's is a hash of its message and source, and the model needs it to draft a status change.
-    errorGroups:    async (id, days) => {
-      const r = await deps.errorQueries.listGroups(id, { days });
-      return { groups: r.groups.map((g) => ({ ...g, error_fingerprint: g.fingerprint })) };
-    },
-    funnels:           funnels.funnels,
-    funnelPerformance: funnels.funnelPerformance,
-    automations:       fixed.automations,
-    heatmapPages:      fixed.heatmapPages,
-    recentSessions:    fixed.recentSessions,
-  };
-
-  const registry = new ToolRegistry([
-    ...readTools(reads),
-    heatmapInsightsTool(deps.heatmapAnalysis),
-    ...sessionTools(deps.sessionAnalysis),
-    proposeAutomationTool(deps.automationDrafts, deps.automationDrafts.vocabulary()),
-    ...automationEditTools({ automations: deps.automationProposals, validator: deps.automationDrafts }),
-    ...(deps.funnelDrafts ? [proposeFunnelTool(deps.funnelDrafts), ...funnelEditTools(deps.funnelDrafts)] : []),
-    proposeGoalTool(deps.websitesModule.goalDrafts),
-    ...goalEditTools(deps.websitesModule.goalDrafts),
-    ...siteSettingsTools(deps.websitesModule.siteSettingsDrafts),
-    errorTriageTool(deps.errorQueries),
+  const registry = buildAgentRegistry({
+    analytics: deps.analyticsReads,
+    errorQueries: deps.errorQueries,
+    fixed,
+    funnelPerformance: deps.funnelPerformance,
+    heatmapAnalysis: deps.heatmapAnalysis,
+    sessionAnalysis: deps.sessionAnalysis,
+    automationDrafts: deps.automationDrafts,
+    automationProposals: deps.automationProposals,
+    funnelDrafts: deps.funnelDrafts,
+    goalDrafts: deps.websitesModule.goalDrafts,
+    siteSettingsDrafts: deps.websitesModule.siteSettingsDrafts,
     // Read lazily: the anomaly and recommendation services are composed below.
-    ...(deps.anomalyReads ? alertTools({
+    alerts: deps.anomalyReads ? {
       list: (id, status) => anomalies!.list(id, status),
       get: (id, anomalyId) => anomalies!.get(id, anomalyId),
       settings: (id) => anomalies!.settings(id),
       snoozes: (id) => anomalies!.snoozes(id),
-    }) : []),
-    ...(deps.impact ? [recommendationTriageTool({ get: (id, recId) => recommendations!.reads.get(id, recId) })] : []),
-    // Read lazily: the service is composed below, once the insight model it words with exists.
-    ...(deps.impact ? recommendationTools({
+    } : undefined,
+    recommendations: deps.impact ? {
       list: (id, statuses) => recommendations!.reads.list(id, statuses),
       get: (id, recId) => recommendations!.reads.get(id, recId),
-    }) : []),
-  ]);
+    } : undefined,
+  });
 
   const modelInfo = providerConfig
     ? {

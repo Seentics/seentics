@@ -55,6 +55,20 @@ function buildArgsSchema(vocab: AutomationVocabulary) {
    * not have to track every action type's fields. The action *type* is still closed.
    */
   actionConfig: z.record(z.unknown()).optional(),
+  pagePath: z
+    .string()
+    .min(1)
+    .max(500)
+    .regex(/^\//, "a path starting with /")
+    .optional()
+    .describe(
+      "Limit the automation to this page path, e.g. /pricing. Set it whenever the user names a page " +
+      "or section; leave it out only for site-wide automations.",
+    ),
+  pageMatch: z
+    .enum(["equals", "startsWith", "contains"])
+    .optional()
+    .describe("How pagePath matches: equals (default) for one page, startsWith for a section like /blog/"),
   delaySeconds: z
     .number()
     .int()
@@ -75,6 +89,8 @@ type ProposeAutomationArgs = {
   trigger: string;
   action: string;
   actionConfig?: Record<string, unknown>;
+  pagePath?: string;
+  pageMatch?: "equals" | "startsWith" | "contains";
   delaySeconds?: number;
   activate?: boolean;
 };
@@ -86,23 +102,31 @@ type ProposeAutomationArgs = {
  * shape almost every automation someone describes in a sentence actually has, and
  * anything more elaborate belongs in the builder where it can be seen.
  */
+const MATCH_TYPE = { equals: "exact", startsWith: "starts_with", contains: "contains" } as const;
+
 function buildDefinition(args: ProposeAutomationArgs): unknown {
   const actionNode = {
     id: "n_action",
     kind: "action" as const,
     action: { type: args.action, ...(args.actionConfig ?? {}) },
   };
+  // A page limit lives on the trigger, as the builder's page-view trigger keeps it; the
+  // evaluator applies it to every trigger type (automation-evaluation.service pageScopeMatches).
+  const trigger = {
+    type: args.trigger,
+    ...(args.pagePath ? { path: args.pagePath, match_type: MATCH_TYPE[args.pageMatch ?? "equals"] } : {}),
+  };
 
   if (!args.delaySeconds) {
     return {
-      triggers: [{ type: args.trigger }],
+      triggers: [trigger],
       graph: { entry: actionNode.id, nodes: [actionNode], edges: [] },
     };
   }
 
   const delayNode = { id: "n_delay", kind: "delay" as const, seconds: args.delaySeconds };
   return {
-    triggers: [{ type: args.trigger }],
+    triggers: [trigger],
     graph: {
       entry: delayNode.id,
       nodes: [delayNode, actionNode],
@@ -114,6 +138,9 @@ function buildDefinition(args: ProposeAutomationArgs): unknown {
 /** One readable line per fact the approver needs, built from the validated payload. */
 function summarise(args: ProposeAutomationArgs): string[] {
   const lines = [`Trigger: ${args.trigger.replace(/_/g, " ")}`];
+  lines.push(args.pagePath
+    ? `Only on: ${args.pageMatch === "startsWith" ? `pages under ${args.pagePath}` : args.pageMatch === "contains" ? `pages containing ${args.pagePath}` : args.pagePath}`
+    : "On every page of the site");
   if (args.delaySeconds) lines.push(`Wait: ${args.delaySeconds}s`);
   lines.push(`Action: ${args.action.replace(/_/g, " ")}`);
 
@@ -147,7 +174,9 @@ export function proposeAutomationTool(
     kind: "propose",
     description:
       "Draft an automation for the user to review and approve. Does not create anything. " +
-      "Use when the user asks to set up, create or add an automation, popup, banner or webhook.",
+      "Use when the user asks to set up, create or add an automation, popup, banner or webhook. " +
+      "When the user names a page or section, set pagePath (and pageMatch for a section); the " +
+      "message, title or URL go in actionConfig, never page scoping.",
     schema: buildArgsSchema(vocab) as unknown as z.ZodType<ProposeAutomationArgs>,
     async handler(args): Promise<ToolResult> {
       const definition = buildDefinition(args);

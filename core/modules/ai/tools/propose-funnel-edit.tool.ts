@@ -41,7 +41,7 @@ const stepSchema = z.object({
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().max(500).optional(),
-  steps: z.array(stepSchema).min(2).max(20).optional().describe("Replaces all steps, in order. Send every step, changed or not"),
+  steps: z.array(stepSchema).min(2).max(20).optional().describe("Replaces all steps, in order. Send every step, changed or not. To add a step, send the existing steps with the new one inserted (a new first step goes at the start); to remove or reorder, send the list without it or in the new order"),
   conversionWindowHours: z.number().int().min(0).max(720).optional().describe("Hours allowed between steps; 0 removes the limit"),
 });
 

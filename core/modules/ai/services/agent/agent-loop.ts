@@ -95,7 +95,25 @@ export async function runAgent(input: {
 
   while (turns < MAX_TURNS) {
     turns++;
-    const turn = await llm.chat({ system, messages, tools });
+    // The last turn, or the tool budget spent: tools are withheld so the model answers from
+    // what it has already read, rather than the run ending on a canned "couldn't finish".
+    // On the final turn reads are withheld, so the model answers from what it has; drafts stay
+    // available, so a change it has finished researching can still be proposed.
+    const final = turns === MAX_TURNS || executed.length >= MAX_TOOL_CALLS;
+    const finalTools = final ? tools.filter((t) => t.name.startsWith("propose_")) : tools;
+    if (final && turns > 1) {
+      messages.push({
+        role: "user",
+        content: "No more reads are available for this question. Answer now from the tool results above " +
+          "(or draft the change, if that is what was asked): lead with what they show, and say what you could not check.",
+      });
+    }
+    const turn = await llm.chat({
+      system,
+      messages,
+      tools: finalTools,
+      ...(final && finalTools.length === 0 ? { toolChoice: "none" as const } : {}),
+    });
     inputTokens += turn.inputTokens;
     outputTokens += turn.outputTokens;
 
@@ -118,7 +136,7 @@ export async function runAgent(input: {
       };
     }
 
-    if (turn.toolCalls.length === 0) {
+    if (turn.toolCalls.length === 0 || (final && finalTools.length === 0 && turn.text.trim())) {
       return {
         answer: turn.text.trim(),
         blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
@@ -159,15 +177,12 @@ export async function runAgent(input: {
       // A draft is the end of the turn. The user's next move is to accept or decline.
       const closing = ownText.join(" ").trim();
       return {
-        answer: closing || "I've drafted this for you to review.",
+        answer: closing ? withConfirmNote(closing) : describeDraft(proposal),
         blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated,
       };
     }
 
-    if (executed.length >= MAX_TOOL_CALLS) {
-      truncated = true;
-      break;
-    }
+    if (executed.length >= MAX_TOOL_CALLS) truncated = true;
   }
 
   // Out of turns with no prose answer. Say so rather than returning an empty string,
@@ -178,6 +193,24 @@ export async function runAgent(input: {
       "single question. Try narrowing it down.",
     blocks, toolCalls: executed, proposal, inputTokens, outputTokens, turns, truncated: true,
   };
+}
+
+/**
+ * The reply for a draft the model proposed without writing anything itself: what will change,
+ * from the draft's own summary, and that nothing has changed yet.
+ */
+function describeDraft(p: ActionProposal): string {
+  const lines = (p.summary?.lines ?? []).filter(Boolean).slice(0, 2).join(" ");
+  const title = p.summary?.title?.trim();
+  const what = title ? `I've drafted this change: ${title}.` : "I've drafted this change.";
+  return `${what}${lines ? ` ${lines}` : ""} Nothing changes until you review and confirm it below.`;
+}
+
+/** The model's own words, plus the reminder that a draft still needs confirming if it left that out. */
+function withConfirmNote(text: string): string {
+  return /\b(confirm|review|approve)\b/i.test(text)
+    ? text
+    : `${text} Nothing changes until you review and confirm it below.`;
 }
 
 function toolMessage(

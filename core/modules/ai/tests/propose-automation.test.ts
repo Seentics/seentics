@@ -129,3 +129,35 @@ describe("propose_automation", () => {
     });
   });
 });
+
+describe("propose_automation — limited to a page", () => {
+  it("puts the page limit on the trigger, in a definition the real validator accepts", async () => {
+    const p = ok(await run({
+      name: "Pricing exit offer", trigger: "exit_intent", action: "show_modal",
+      actionConfig: { title: "20% off annual" }, pagePath: "/pricing",
+    }));
+    expect(validator.validateDefinition(p.payload.definition).ok).toBe(true);
+    expect(p.payload.definition.triggers).toEqual([{ type: "exit_intent", path: "/pricing", match_type: "exact" }]);
+    expect(p.summary.lines).toContain("Only on: /pricing");
+  });
+
+  it("limits a section with starts_with", async () => {
+    const p = ok(await run({
+      name: "Blog toast", trigger: "time_on_page", action: "show_toast",
+      pagePath: "/blog/", pageMatch: "startsWith", delaySeconds: 5,
+    }));
+    expect(validator.validateDefinition(p.payload.definition).ok).toBe(true);
+    expect(p.payload.definition.triggers[0]).toEqual({ type: "time_on_page", path: "/blog/", match_type: "starts_with" });
+    expect(p.summary.lines).toContain("Only on: pages under /blog/");
+  });
+
+  it("says plainly when an automation runs on every page", async () => {
+    const p = ok(await run({ name: "Site banner", trigger: "page_view", action: "show_banner" }));
+    expect(p.summary.lines).toContain("On every page of the site");
+  });
+
+  it("refuses a page limit that is not a path", async () => {
+    const r = await run({ name: "x", trigger: "page_view", action: "show_banner", pagePath: "pricing" });
+    expect(r.ok).toBe(false);
+  });
+});

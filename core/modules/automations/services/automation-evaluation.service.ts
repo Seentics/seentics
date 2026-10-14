@@ -67,9 +67,31 @@ function castDef(raw: Record<string, unknown>): AutomationDef {
 }
 
 /** An automation matches when ANY of its triggers has the incoming type. */
-export function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger']): boolean {
+export function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger'], page?: unknown): boolean {
   const triggers = Array.isArray(def.triggers) ? def.triggers : [];
-  return triggers.some((t) => !!t?.type && t.type === incoming.type && triggerConfigMatches(t, incoming));
+  return triggers.some((t) => !!t?.type && t.type === incoming.type && triggerConfigMatches(t, incoming) && pageScopeMatches(t, page));
+}
+
+/**
+ * A page limit on any trigger: exit intent, a timer or a scroll depth only on /pricing.
+ *
+ * `page_view` already matches its `path` against the page it reports, in triggerConfigMatches.
+ * Every other trigger reports its page in the request's context, so the same `path` and
+ * `match_type` are checked against that. A trigger without a `path` matches every page.
+ */
+export function pageScopeMatches(t: Record<string, unknown>, page: unknown): boolean {
+  if (t.type === 'page_view') return true;
+  if (t.path === undefined || t.path === null || t.path === '') return true;
+  return pathMatches(String(t.path), String(page ?? '').slice(0, 2048), t.match_type);
+}
+
+function pathMatches(want: string, path: string, matchType: unknown): boolean {
+  switch (matchType ?? 'contains') {
+    case 'exact': return path === want;
+    case 'starts_with': return path.startsWith(want);
+    case 'regex': return safeRegexTest(want, path);
+    default: return path.includes(want);
+  }
 }
 
 /**
@@ -86,15 +108,7 @@ export function triggerConfigMatches(t: Record<string, unknown>, incoming: Recor
   switch (t.type) {
     case 'page_view': {
       if (!configured('path')) return true;
-      const want = String(t.path);
-      const path = String(incoming.path ?? '').slice(0, 2048);
-      switch (t.match_type ?? 'contains') {
-        case 'exact': return path === want;
-        case 'starts_with': return path.startsWith(want);
-        case 'regex':
-          return safeRegexTest(want, path);
-        default: return path.includes(want);
-      }
+      return pathMatches(String(t.path), String(incoming.path ?? '').slice(0, 2048), t.match_type);
     }
     case 'click':
       return !configured('selector') || incoming.selector === t.selector;
@@ -342,7 +356,7 @@ export class AutomationEvaluationService
     }[] = [];
     for (const auto of rows) {
       const def = castDef(auto.definition);
-      if (!triggerMatches(def, trigger)) continue;
+      if (!triggerMatches(def, trigger, context?.page)) continue;
 
       // Walked before the cap lookup so an automation whose route reaches nothing can
       // be discarded without paying for its impression stats. Walking is pure and

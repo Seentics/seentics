@@ -95,6 +95,8 @@ export interface ToolCallingLlmClient extends LlmClient {
     system: string;
     messages: ChatMessage[];
     tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+    /** `none` makes the model answer in prose without calling a tool. Default: the model decides. */
+    toolChoice?: "auto" | "none";
   }): Promise<ChatTurn>;
 }
 
