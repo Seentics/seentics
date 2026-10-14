@@ -8,6 +8,11 @@ export interface HeatmapPageSummary {
   scroll_count: number;
   avg_scroll:   number; // 0-100 percent
   last_seen:    string;
+  /** For the list's one-line read; absent from an older core. See core HeatmapPageSummary. */
+  dead_click_pct?:     number | null;
+  reach_half_pct?:     number | null;
+  mobile_avg_scroll?:  number | null;
+  desktop_avg_scroll?: number | null;
 }
 
 export interface HeatmapPoint {

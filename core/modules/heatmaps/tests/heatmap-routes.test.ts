@@ -116,6 +116,10 @@ const PAGE: HeatmapPageSummary = {
   scroll_count: 91,
   avg_scroll: 63,
   last_seen: "2026-09-01T00:00:00.000Z",
+  dead_click_pct: null,
+  reach_half_pct: null,
+  mobile_avg_scroll: null,
+  desktop_avg_scroll: null,
 };
 
 const POINT: HeatmapPointOut = {

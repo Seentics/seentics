@@ -130,6 +130,16 @@ export type HeatmapPageSummary = {
   avg_scroll: number;
   /** ISO 8601. */
   last_seen: string;
+  /**
+   * Share of clicks (0–100) on elements that are not links, buttons or form controls, out of
+   * clicks whose element is known. `null` with too few, or too few known, to say.
+   */
+  dead_click_pct: number | null;
+  /** Share of page views (0–100) that scrolled at least halfway. `null` without scroll data. */
+  reach_half_pct: number | null;
+  /** Mean scroll depth per device, 0–100; `null` with fewer than 30 page views on it. */
+  mobile_avg_scroll: number | null;
+  desktop_avg_scroll: number | null;
 };
 
 /**
@@ -470,6 +480,14 @@ export type PageSummaryRow = {
   click_count: number;
   scroll_count: number;
   avg_scroll: number;
+  /** Raw sums, so path variants merge correctly before shares are taken. */
+  click_known?: number;
+  click_dead?: number;
+  scroll_half?: number;
+  mobile_scroll_sum?: number;
+  mobile_scroll_n?: number;
+  desktop_scroll_sum?: number;
+  desktop_scroll_n?: number;
   /** ISO 8601; driver may return timestamps as strings instead of `Date`. */
   last_seen: string;
 };

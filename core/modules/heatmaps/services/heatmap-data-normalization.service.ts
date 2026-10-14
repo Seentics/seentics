@@ -21,43 +21,35 @@ export function isJpeg(b: Uint8Array): boolean {
  * equal halves of the page's average depth.
  */
 export function mergeNormalizedPages(pages: PageSummaryRow[]): HeatmapPageSummary[] {
-  type Acc = {
-    page_path: string;
-    click_count: number;
-    scroll_count: number;
-    scroll_sum: number;
-    scroll_n: number;
-    last_seen: string;
-  };
+  const SUMS = ["click_count", "scroll_count", "click_known", "click_dead", "scroll_half",
+    "mobile_scroll_sum", "mobile_scroll_n", "desktop_scroll_sum", "desktop_scroll_n"] as const;
+  type Acc = Record<(typeof SUMS)[number], number> & { page_path: string; scroll_sum: number; last_seen: string };
   const by = new Map<string, Acc>();
   for (const p of pages) {
     const key = normalizeHeatmapPagePath(p.page_path);
-    const e = by.get(key);
-    if (e) {
-      e.click_count  += p.click_count;
-      e.scroll_count += p.scroll_count;
-      e.scroll_sum   += p.avg_scroll * p.scroll_count;
-      e.scroll_n     += p.scroll_count;
-      if (p.last_seen > e.last_seen) e.last_seen = p.last_seen;
-    } else {
-      by.set(key, {
-        page_path: key,
-        click_count: p.click_count,
-        scroll_count: p.scroll_count,
-        scroll_sum: p.avg_scroll * p.scroll_count,
-        scroll_n: p.scroll_count,
-        last_seen: p.last_seen,
-      });
-    }
+    const e: Acc = by.get(key) ?? {
+      page_path: key, scroll_sum: 0, last_seen: p.last_seen,
+      ...(Object.fromEntries(SUMS.map((k) => [k, 0])) as Record<(typeof SUMS)[number], number>),
+    };
+    for (const k of SUMS) e[k] += Number(p[k] ?? 0);
+    e.scroll_sum += p.avg_scroll * p.scroll_count;
+    if (p.last_seen > e.last_seen) e.last_seen = p.last_seen;
+    by.set(key, e);
   }
+  const share = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : null);
   return [...by.values()]
     .sort((a, b) => b.click_count - a.click_count)
     .map((e) => ({
       page_path:    e.page_path,
       click_count:  e.click_count,
       scroll_count: e.scroll_count,
-      avg_scroll:   e.scroll_n > 0 ? Math.round(e.scroll_sum / e.scroll_n) : 0,
+      avg_scroll:   e.scroll_count > 0 ? Math.round(e.scroll_sum / e.scroll_count) : 0,
       last_seen:    e.last_seen,
+      // Only with enough clicks, and enough of them on elements we know the type of.
+      dead_click_pct: e.click_known >= 30 && e.click_known * 2 >= e.click_count ? share(e.click_dead, e.click_known) : null,
+      reach_half_pct: e.scroll_count >= 30 ? share(e.scroll_half, e.scroll_count) : null,
+      mobile_avg_scroll: e.mobile_scroll_n >= 30 ? Math.round(e.mobile_scroll_sum / e.mobile_scroll_n) : null,
+      desktop_avg_scroll: e.desktop_scroll_n >= 30 ? Math.round(e.desktop_scroll_sum / e.desktop_scroll_n) : null,
     }));
 }
 

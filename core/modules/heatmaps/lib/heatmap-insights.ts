@@ -66,11 +66,11 @@ export const HEATMAP_INSIGHT_LIMITS = [
 ];
 
 /** Tags that are interactive by themselves. */
-const INTERACTIVE_TAGS = new Set([
+export const INTERACTIVE_TAGS = new Set([
   "a", "button", "input", "select", "textarea", "label", "summary", "option", "details", "video", "audio",
 ]);
 /** ARIA roles that promise interaction. */
-const INTERACTIVE_ROLES = new Set([
+export const INTERACTIVE_ROLES = new Set([
   "button", "link", "menuitem", "menuitemcheckbox", "menuitemradio", "tab", "checkbox", "radio",
   "switch", "option", "combobox", "textbox", "searchbox", "slider", "spinbutton", "treeitem", "gridcell",
 ]);

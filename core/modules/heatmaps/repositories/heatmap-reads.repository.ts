@@ -2,6 +2,7 @@ import { sql } from "../../../db";
 import type { HeatmapPointOut } from "../interfaces";
 import { NORM_PAGE_PATH_EXPR } from "./page-path-normalisation";
 import type { PageSummaryRow } from "../interfaces";
+import { INTERACTIVE_ROLES, INTERACTIVE_TAGS } from "../lib/heatmap-insights";
 
 /**
  * Reads against `heatmap_points`, for the dashboard and the raw API.
@@ -115,6 +116,9 @@ export async function getHeatmapData(
 }
 
 /** Every page with heatmap data over the last `days` days (every retained day when omitted). */
+const INTERACTIVE_TAG_LIST = [...INTERACTIVE_TAGS];
+const INTERACTIVE_ROLE_LIST = [...INTERACTIVE_ROLES];
+
 export async function listPages(websiteId: string, days?: number): Promise<PageSummaryRow[]> {
   const fromDay = windowStartDay(days);
   const rows = await sql`
@@ -129,7 +133,20 @@ export async function listPages(websiteId: string, days?: number): Promise<PageS
                / NULLIF(SUM(CASE WHEN event_type = 'scroll' THEN intensity END), 0),
              0
            ) AS avg_scroll_raw,
-           MAX(last_updated) AS last_seen
+           MAX(last_updated) AS last_seen,
+           -- For the list's one-line read (HeatmapPageSummary): raw sums, so variants merge.
+           COALESCE(SUM(intensity) FILTER (WHERE event_type = 'click'
+             AND (COALESCE(target_locator->>'tag', '') <> '' OR COALESCE(target_locator->>'role', '') <> '')), 0)::bigint AS click_known,
+           COALESCE(SUM(intensity) FILTER (WHERE event_type = 'click'
+             AND COALESCE(target_locator->>'tag', '') <> ''
+             AND COALESCE(target_locator->>'seentics_id', '') = ''
+             AND NOT (lower(target_locator->>'tag') = ANY(${INTERACTIVE_TAG_LIST}))
+             AND NOT (lower(COALESCE(target_locator->>'role', '')) = ANY(${INTERACTIVE_ROLE_LIST}))), 0)::bigint AS click_dead,
+           COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND y_percent >= 50), 0)::bigint AS scroll_half,
+           COALESCE(SUM(y_percent::bigint * intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'mobile'), 0)::bigint AS mobile_scroll_sum,
+           COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'mobile'), 0)::bigint AS mobile_scroll_n,
+           COALESCE(SUM(y_percent::bigint * intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'desktop'), 0)::bigint AS desktop_scroll_sum,
+           COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'desktop'), 0)::bigint AS desktop_scroll_n
     FROM heatmap_points
     WHERE website_id = ${websiteId}::uuid
       AND (${fromDay}::date IS NULL OR day >= ${fromDay}::date)
@@ -144,5 +161,12 @@ export async function listPages(websiteId: string, days?: number): Promise<PageS
     // division by 100 this used to do turned every page's average into 0 (or 1 at 100%).
     avg_scroll: Math.round(Number(r.avg_scroll_raw)),
     last_seen: pgTimestampToIso(r.last_seen),
+    click_known: Number(r.click_known ?? 0),
+    click_dead: Number(r.click_dead ?? 0),
+    scroll_half: Number(r.scroll_half ?? 0),
+    mobile_scroll_sum: Number(r.mobile_scroll_sum ?? 0),
+    mobile_scroll_n: Number(r.mobile_scroll_n ?? 0),
+    desktop_scroll_sum: Number(r.desktop_scroll_sum ?? 0),
+    desktop_scroll_n: Number(r.desktop_scroll_n ?? 0),
   }));
 }

@@ -35,6 +35,8 @@ import { RangeSelect } from '@/components/ui/range-select';
 import { getPageIcon } from '@/components/analytics/page-icon';
 
 import { cn } from '@/lib/utils';
+import { ListGroups } from '@/components/ui/list-groups';
+import { HEATMAP_GROUP_META, heatmapLine, inHeatmapGroup, type HeatmapGroupId } from '@/features/heatmaps/page-insights';
 
 /** A count with a bar under it, drawn against the busiest row, so rows compare at a glance. */
 function ShareCell({ value, max, barClass }: { value: number; max: number; barClass: string }) {
@@ -107,6 +109,10 @@ interface PageRow {
   avg_scroll: number;
   active:     boolean;
   last_seen?: string;
+  dead_click_pct?:     number | null;
+  reach_half_pct?:     number | null;
+  mobile_avg_scroll?:  number | null;
+  desktop_avg_scroll?: number | null;
 }
 
 export default function HeatmapsPage() {
@@ -169,6 +175,10 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         clicks:     p.clicks,
         avg_scroll: p.avg_scroll,
         active:     p.active,
+        dead_click_pct: p.dead_click_pct,
+        reach_half_pct: p.reach_half_pct,
+        mobile_avg_scroll: p.mobile_avg_scroll,
+        desktop_avg_scroll: p.desktop_avg_scroll,
       }));
     }
     return (apiPages ?? []).map((p: HeatmapPageSummary) => ({
@@ -178,8 +188,15 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
       avg_scroll: p.avg_scroll,
       active:     true,
       last_seen:  p.last_seen,
+      dead_click_pct: p.dead_click_pct,
+      reach_half_pct: p.reach_half_pct,
+      mobile_avg_scroll: p.mobile_avg_scroll,
+      desktop_avg_scroll: p.desktop_avg_scroll,
     }));
   }, [isDemoMode, apiPages]);
+
+  /** A group the table is narrowed to, from "Show all" below it. */
+  const [groupFilter, setGroupFilter] = useState<HeatmapGroupId | null>(null);
 
   const filtered = useMemo(
     () => pages.filter(p => !search || p.url.toLowerCase().includes(search.toLowerCase())),
@@ -219,15 +236,12 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
                 {display}
               </span>
             </div>
-            {row.original.last_seen ? (
-              <p className="text-[11px] text-muted-foreground tabular-nums pl-[26px] mt-0.5">
-                {new Date(row.original.last_seen).toLocaleDateString(undefined, {
-                  month: 'numeric',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </p>
-            ) : null}
+            <p
+              className="mt-0.5 truncate pl-[26px] text-[11px] text-muted-foreground"
+              title={row.original.last_seen ? `Last data ${new Date(row.original.last_seen).toLocaleDateString()}` : undefined}
+            >
+              {heatmapLine(row.original)}
+            </p>
           </div>
         );
       },
@@ -350,7 +364,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
 
       <DataTable
         className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2 [&_th]:!py-2"
-        data={filtered}
+        data={groupFilter ? filtered.filter((p) => inHeatmapGroup(p, groupFilter)) : filtered}
         columns={columns}
         isLoading={isLoading}
         enableRowSelection={!embed}
@@ -409,6 +423,21 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         emptyDescription="Install the tracker script, then open Settings → Features to enable heatmaps and adjust URL include/exclude patterns (localhost is often blocked by include rules). Run npm run bundle-trackers in seentics/web after changing the tracker."
         pageSize={10}
       />
+
+      {!embed && (
+        <ListGroups
+          className="mt-6"
+          title="Pages by what visitors do"
+          description="From each page's clicks and scrolls in this period. Open a group to see its pages."
+          groups={HEATMAP_GROUP_META.map((meta) => ({
+            ...meta,
+            items: pages
+              .filter((p) => inHeatmapGroup(p, meta.id))
+              .map((p) => ({ key: p.url, text: `${p.url} — ${heatmapLine(p)}`, onClick: () => router.push(heatmapHref(p.url)) })),
+          }))}
+          onShowAll={(id) => { setGroupFilter(id as HeatmapGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        />
+      )}
     </div>
   );
 }
