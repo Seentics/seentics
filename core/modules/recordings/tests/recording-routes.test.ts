@@ -51,6 +51,8 @@ class FakeWebsites implements WebsiteQuery {
 }
 
 const summary: RecordingSummary = {
+  summary: null,
+  outcome: null,
   sessionId: SESSION,
   websiteId: WEBSITE,
   browser: "Chrome",

@@ -169,6 +169,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         // A spread of scores, so the demo's frustration filter and sort have something to show.
         frustration_score: demoSessionFrustration(i).frustrationScore,
         signal_counts: demoSessionFrustration(i).signalCounts,
+        summary: demoSessionFrustration(i).summary,
       }));
     }
     return (apiData?.sessions ?? []).map((s: ReplaySession) => ({
@@ -186,6 +187,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
       start_time: s.startedAt,
       frustration_score: s.frustrationScore ?? null,
       signal_counts: s.signalCounts ?? null,
+      summary: s.summary ?? null,
     }));
 
   }, [isDemoMode, apiData, rangeDays]);

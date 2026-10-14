@@ -7,6 +7,45 @@ import { isFrustrationSignalType } from "../interfaces";
 import { clampListParams, timestampToIso } from "./recording-query-normalization.service";
 
 /** The joined `signal_counts` jsonb: an object of counts, or `null` when not analysed. */
+/** Worst first: the signal a one-line description leads with. */
+const HEADLINE_ORDER = ["error_click", "rage_click", "form_abandon", "dead_click", "u_turn", "scroll_thrash"];
+
+/**
+ * One line for the session list: the AI summary's first sentence when there is one, otherwise the
+ * worst signal in plain words. Exported for tests.
+ */
+export function sessionHeadline(summaryText: unknown, signals: unknown): string | null {
+  if (typeof summaryText === "string" && summaryText.trim()) {
+    const first = summaryText.trim().match(/^.+?[.!?](?=\s|$)/)?.[0] ?? summaryText.trim();
+    return first.length > 160 ? `${first.slice(0, 157).trimEnd()}…` : first;
+  }
+  if (!Array.isArray(signals) || signals.length === 0) return null;
+  const list = signals.filter((x): x is Record<string, unknown> => !!x && typeof x === "object");
+  const worst = [...list].sort((a, b) => HEADLINE_ORDER.indexOf(String(a.type)) - HEADLINE_ORDER.indexOf(String(b.type)))[0];
+  if (!worst) return null;
+  const label = typeof worst.label === "string" && worst.label ? worst.label : "an element";
+  const page = typeof worst.page === "string" && worst.page ? ` on ${worst.page}` : "";
+  const times = typeof worst.count === "number" && worst.count > 1 ? ` ${worst.count} times` : "";
+  const line = (() => {
+    switch (worst.type) {
+      case "error_click": return `Hit an error clicking ${label}${page}`;
+      case "rage_click": return `Rage-clicked ${label}${times}${page}`;
+      case "form_abandon": return `Started a form${page} and gave up`;
+      case "dead_click": return `Clicked ${label}${page} and nothing happened`;
+      case "u_turn": return `Left${page || " a page"} within seconds and came back`;
+      case "scroll_thrash": return `Scrolled back and forth${page}, searching`;
+      default: return null;
+    }
+  })();
+  if (!line) return null;
+  const more = list.length - 1;
+  return more > 0 ? `${line} (+${more} more)` : line;
+}
+
+function outcomeOf(v: unknown): "succeeded" | "struggled" | "abandoned" | null {
+  return v === "succeeded" || v === "struggled" || v === "abandoned" ? v : null;
+}
+
 function signalCountsOf(v: unknown): SignalCounts | null {
   if (v == null) return null;
   const obj = typeof v === "string" ? (() => { try { return JSON.parse(v) as unknown; } catch { return null; } })() : v;
@@ -54,6 +93,8 @@ export async function listReplaySessions(
     pagesViewed: s.pagesViewed,
     frustrationScore: s.frustrationScore == null ? null : Number(s.frustrationScore),
     signalCounts: signalCountsOf(s.signalCounts),
+    summary: sessionHeadline(s.summaryText, s.signals),
+    outcome: outcomeOf(s.summaryOutcome),
   }));
   return { sessions: out, limit: lim, offset: off, total: summary.total, summary };
 }
@@ -93,6 +134,8 @@ export async function listReplaySessionsRaw(
       has_errors: s.hasErrors,
       frustration_score: s.frustrationScore == null ? null : Number(s.frustrationScore),
       signal_counts: signalCountsOf(s.signalCounts),
+      summary: sessionHeadline(s.summaryText, s.signals),
+      outcome: outcomeOf(s.summaryOutcome),
     })),
   };
 }

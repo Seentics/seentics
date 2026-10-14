@@ -22,9 +22,6 @@ import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
 import { AudienceSection } from '@/components/analytics/AudienceSection';
 import { AiModeButton } from '@/components/ai/AiModeButton';
 import { AskAiButton } from '@/components/ai/AskAiButton';
-import { InsightsCard } from '@/components/ai/InsightsCard';
-import { RecommendationsPanel } from '@/components/ai/RecommendationsPanel';
-import { AlertsBanner } from '@/components/ai/AlertsBanner';
 import { askAbout } from '@/features/ai/ask-link';
 import {
   selectTopPages, selectTopReferrers, selectTopCountries, selectTopBrowsers,
@@ -37,6 +34,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
 import { forgetWebsite, rememberedWebsite, rememberWebsite } from '@/lib/last-website';
 import { useNearViewport } from '@/hooks/use-near-viewport';
+import { AiBrief } from '@/components/ai/AiBrief';
 
 export interface WebsiteOverviewProps {
   websiteId: string;
@@ -370,14 +368,8 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
           )}
         </div>
 
-        {/* Anomaly alerts: renders nothing unless something unusual is going on */}
-        {showAi && <AlertsBanner websiteId={websiteId} />}
-
-        {/* Today's AI read — above the numbers it explains */}
-        {showAi && <InsightsCard websiteId={websiteId} />}
-
-        {/* What to do next, and what changes made so far did */}
-        {showAi && <RecommendationsPanel websiteId={websiteId} />}
+        {/* The AI's read in at most three lines; alerts, insight and recommendations behind "Details" */}
+        {showAi && <AiBrief websiteId={websiteId} />}
 
         {/* Summary cards */}
         <div>

@@ -205,16 +205,16 @@ export function demoRecommendations(): Recommendation[] {
 // ─── Session analysis ─────────────────────────────────────────────────────────
 
 /** Frustration for the demo replay list, by position, so the list has a range to filter and sort. */
-export function demoSessionFrustration(index: number): { frustrationScore: number; signalCounts: SignalCounts } {
-  const table: Array<{ frustrationScore: number; signalCounts: SignalCounts }> = [
-    { frustrationScore: 76, signalCounts: { rage_click: 2, error_click: 1, u_turn: 1 } },
-    { frustrationScore: 12, signalCounts: {} },
-    { frustrationScore: 48, signalCounts: { dead_click: 3, scroll_thrash: 1 } },
-    { frustrationScore: 0, signalCounts: {} },
-    { frustrationScore: 31, signalCounts: { form_abandon: 1, u_turn: 1 } },
-    { frustrationScore: 5, signalCounts: {} },
-    { frustrationScore: 62, signalCounts: { rage_click: 1, dead_click: 2 } },
-    { frustrationScore: 0, signalCounts: {} },
+export function demoSessionFrustration(index: number): { frustrationScore: number; signalCounts: SignalCounts; summary: string | null } {
+  const table: Array<{ frustrationScore: number; signalCounts: SignalCounts; summary: string | null }> = [
+    { frustrationScore: 76, signalCounts: { rage_click: 2, error_click: 1, u_turn: 1 }, summary: 'Tried to buy Pro with a coupon; the coupon failed and they left without paying.' },
+    { frustrationScore: 12, signalCounts: {}, summary: 'Read the pricing page and compared plans, then left.' },
+    { frustrationScore: 48, signalCounts: { dead_click: 3, scroll_thrash: 1 }, summary: 'Clicked div.plan-card "Pro" on /pricing and nothing happened (+3 more)' },
+    { frustrationScore: 0, signalCounts: {}, summary: null },
+    { frustrationScore: 31, signalCounts: { form_abandon: 1, u_turn: 1 }, summary: 'Started the signup form on /signup and gave up (+1 more)' },
+    { frustrationScore: 5, signalCounts: {}, summary: 'Read the docs introduction and signed up for a trial.' },
+    { frustrationScore: 62, signalCounts: { rage_click: 1, dead_click: 2 }, summary: 'Rage-clicked the Pro plan card 5 times on /pricing (+2 more)' },
+    { frustrationScore: 0, signalCounts: {}, summary: null },
   ];
   return table[index % table.length]!;
 }

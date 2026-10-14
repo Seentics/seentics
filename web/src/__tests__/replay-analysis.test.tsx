@@ -64,21 +64,23 @@ describe('session list columns', () => {
   const cell = (id: string, original: Record<string, unknown>) =>
     render(<div>{(cols.find(c => c.id === id) as any).cell({ row: { original } })}</div>);
 
-  it('shows the score, or a dash before analysis', () => {
-    cell('frustration', { frustration_score: 67 });
-    expect(screen.getByText('67')).toBeTruthy();
-  });
+  const base = { pages_viewed: 3, entry_page: '/pricing', has_errors: false, has_rage_clicks: false, frustration_score: null, summary: null };
 
-  it('shows detected signals in place of the ingest flags once analysed', () => {
-    cell('signals', { has_errors: true, has_rage_clicks: false, signal_counts: { error_click: 2, u_turn: 1 } });
-    expect(screen.getByText('Error clicks')).toBeTruthy();
-    expect(screen.getByText('U-turns')).toBeTruthy();
-    expect(screen.queryByText('Errors')).toBeNull();
+  it('shows the one-line summary once analysed, on one line', () => {
+    const { container } = cell('summary', { ...base, frustration_score: 76, summary: 'Rage-clicked button "Apply coupon" 4 times on /checkout' });
+    expect(screen.getByText('Rage-clicked button "Apply coupon" 4 times on /checkout')).toBeTruthy();
+    expect(container.querySelector('.truncate')).toBeTruthy();
+    expect(container.querySelector('[title="Frustration score 76/100"]')).toBeTruthy();
   });
 
   it('falls back to the ingest flags for an unanalysed session', () => {
-    cell('signals', { has_errors: true, has_rage_clicks: false, signal_counts: null });
-    expect(screen.getByText('Errors')).toBeTruthy();
+    cell('summary', { ...base, has_errors: true });
+    expect(screen.getByText(/^Hit an error · 3 pages from/)).toBeTruthy();
+  });
+
+  it('says a calm analysed session had no friction', () => {
+    cell('summary', { ...base, frustration_score: 0 });
+    expect(screen.getByText(/no friction$/)).toBeTruthy();
   });
 });
 

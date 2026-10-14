@@ -20,6 +20,8 @@ export interface ReplaySession {
   frustrationScore?: number | null;
   /** Frustration signals found, by type; null until analysed. */
   signalCounts?: SignalCounts | null;
+  /** One line on what happened, from the analysis; null until analysed. */
+  summary?: string | null;
 }
 
 /** Frustration signals the core detects in a recording, most severe first. */

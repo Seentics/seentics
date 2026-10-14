@@ -254,7 +254,26 @@ describe("listReplaySessions", () => {
         pagesViewed: 2,
         frustrationScore: null,
         signalCounts: null,
+        summary: null,
+        outcome: null,
       });
+    });
+
+    it("gives each analysed session one line: the AI summary's first sentence, else its worst signal", async () => {
+      rows = [
+        row({ summaryText: "A visitor compared plans. Then they left.", summaryOutcome: "abandoned" }),
+        row({ signals: [
+          { type: "u_turn", page: "/features" },
+          { type: "rage_click", page: "/checkout", label: 'button "Apply coupon"', count: 4 },
+        ] }),
+        row({ signals: [] }),
+      ];
+      const out = await listReplaySessions(WEBSITE, 20, 0);
+      expect(out.sessions.map((s) => [s.summary, s.outcome])).toEqual([
+        ["A visitor compared plans.", "abandoned"],
+        ['Rage-clicked button "Apply coupon" 4 times on /checkout (+1 more)', null],
+        [null, null],
+      ]);
     });
 
     it("carries the joined frustration score and only known signal counts", async () => {
@@ -327,6 +346,8 @@ describe("listReplaySessionsRaw", () => {
       has_errors: false,
       frustration_score: null,
       signal_counts: null,
+      summary: null,
+      outcome: null,
     });
   });
 

@@ -4,10 +4,10 @@ import { SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data
 import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 import { formatDuration, timeAgo, entryPathDisplay } from '@/features/replays/format';
 import type { SessionRow } from '@/features/replays/list-types';
-import { SIGNAL_META, TONE_CLASS, frustrationTone, signalChips } from '@/features/replays/analysis';
+import { FRUSTRATED_MIN_SCORE, frustrationTone } from '@/features/replays/analysis';
 import { cn } from '@/lib/utils';
 
-import { AlertTriangle, Clock, MousePointerClick, Play, Trash2 } from 'lucide-react';
+import { Clock, Play, Trash2 } from 'lucide-react';
 
 export interface SessionColumnsOptions {
   websiteId: string;
@@ -87,70 +87,27 @@ export function sessionColumns({
       },
     },
     {
-      id: 'frustration',
-      header: 'Frustration',
+      id: 'summary',
+      header: 'What happened',
+      // Sorts by frustration: the score is what the dot shows.
       accessorFn: row => row.frustration_score ?? -1,
-      size: 92,
-      cell: ({ row }) => {
-        const score = row.original.frustration_score;
-        if (score == null) {
-          return <span className="text-xs text-muted-foreground" title="Analysed once the session ends">—</span>;
-        }
-        return (
-          <span
-            className={cn('inline-flex min-w-[2.25rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', TONE_CLASS[frustrationTone(score)])}
-            title="Frustration score, 0-100"
-          >
-            {score}
-          </span>
-        );
-      },
-    },
-    {
-      id: 'signals',
-      header: 'Signals',
-      accessorFn: row => (row.has_errors ? 2 : 0) + (row.has_rage_clicks ? 1 : 0),
-      size: 180,
+      size: 220,
       cell: ({ row }) => {
         const s = row.original;
-        const chips = signalChips(s.signal_counts);
-        // Analysed: the detected signals say more than the two ingest flags, and include them.
-        if (chips.length) {
-          return (
-            <div className="flex flex-wrap items-center gap-1">
-              {chips.slice(0, 3).map(c => (
-                <span
-                  key={c.type}
-                  title={SIGNAL_META[c.type].description}
-                  className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', SIGNAL_META[c.type].chip)}
-                >
-                  {c.label}
-                  {c.count > 1 && <span className="tabular-nums opacity-80">{c.count}</span>}
-                </span>
-              ))}
-              {chips.length > 3 && <span className="text-[11px] text-muted-foreground">+{chips.length - 3}</span>}
-            </div>
-          );
-        }
-        if (!s.has_errors && !s.has_rage_clicks) {
-          return <span className="text-xs text-muted-foreground">—</span>;
-        }
-        /* Two 6px dots stacked in the Location column used to carry this, which
-           needed a tooltip to mean anything. Labelled chips say it outright. */
+        const score = s.frustration_score;
+        const text = sessionLine(s, websiteId);
         return (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {s.has_errors && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                Errors
-              </span>
-            )}
-            {s.has_rage_clicks && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
-                Rage
-              </span>
-            )}
+          <div className="flex w-[13rem] min-w-0 items-center gap-2 xl:w-[16rem] 2xl:w-[24rem]">
+            <span
+              className={cn('h-2 w-2 shrink-0 rounded-full', score == null ? 'bg-muted-foreground/30' : DOT_CLASS[frustrationTone(score)])}
+              title={score == null ? 'Analysed once the session ends' : `Frustration score ${score}/100`}
+            />
+            <span
+              className={cn('truncate text-sm', score != null && score >= FRUSTRATED_MIN_SCORE ? 'text-foreground' : 'text-muted-foreground')}
+              title={text}
+            >
+              {text}
+            </span>
           </div>
         );
       },
@@ -204,4 +161,24 @@ export function sessionColumns({
       ),
     }
   ];
+}
+
+const DOT_CLASS: Record<ReturnType<typeof frustrationTone>, string> = {
+  none: 'bg-emerald-500',
+  low: 'bg-amber-400',
+  medium: 'bg-orange-500',
+  high: 'bg-red-500',
+};
+
+/** One line for the list: the server's summary, else what the ingest flags and page count say. */
+export function sessionLine(
+  s: Pick<SessionRow, 'summary' | 'has_errors' | 'has_rage_clicks' | 'pages_viewed' | 'entry_page' | 'frustration_score'>,
+  websiteId: string,
+): string {
+  if (s.summary) return s.summary;
+  const pages = `${s.pages_viewed} page${s.pages_viewed === 1 ? '' : 's'} from ${entryPathDisplay(s.entry_page, websiteId).display}`;
+  if (s.has_errors && s.has_rage_clicks) return `Hit errors and rage-clicked · ${pages}`;
+  if (s.has_errors) return `Hit an error · ${pages}`;
+  if (s.has_rage_clicks) return `Rage-clicked · ${pages}`;
+  return s.frustration_score != null ? `Browsed ${pages} — no friction` : `Browsed ${pages}`;
 }

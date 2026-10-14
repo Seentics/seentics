@@ -57,6 +57,13 @@ export type RecordingSummary = {
   frustrationScore: number | null;
   /** Signals found, by type; `null` until analysed. */
   signalCounts: SignalCounts | null;
+  /**
+   * One line saying what happened: the AI summary's first sentence, or the worst signal in plain
+   * words. `null` until analysed, or when an analysed session had no friction.
+   */
+  summary: string | null;
+  /** From the AI summary, when there is one. */
+  outcome: "succeeded" | "struggled" | "abandoned" | null;
 };
 
 export type RecordingChunkUrl = {
@@ -239,6 +246,8 @@ export interface RecordingRawReads {
       /** From the session analysis; `null` until the session has been analysed. */
       frustration_score: number | null;
       signal_counts: SignalCounts | null;
+      summary: string | null;
+      outcome: "succeeded" | "struggled" | "abandoned" | null;
     }>;
   }>;
 }
@@ -267,4 +276,8 @@ export type SessionMetaRow = {
   /** From the `session_analyses` join on the list read; absent elsewhere. */
   frustrationScore?: number | null;
   signalCounts?: SignalCounts | null;
+  /** The AI summary's text and outcome, and the stored signals, for the one-line list summary. */
+  summaryText?: string | null;
+  summaryOutcome?: string | null;
+  signals?: unknown;
 };

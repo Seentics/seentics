@@ -17,6 +17,8 @@ export interface SessionRow {
   /** 0-100 once the session has been analysed; `null` before (or on the demo). */
   frustration_score: number | null;
   signal_counts: SignalCounts | null;
+  /** One line on what happened, from the session's analysis; `null` before. */
+  summary: string | null;
 }
 
 /** `recent`: newest first. `frustration`: worst first, unanalysed sessions last. */

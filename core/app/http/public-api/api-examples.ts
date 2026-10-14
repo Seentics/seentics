@@ -215,6 +215,7 @@ export const API_EXAMPLES: Record<string, unknown> = {
       session_id: 's_8f2a1c', website_id: SITE_ID, browser: 'Chrome', device: 'Desktop', os: 'Windows', country: 'US',
       entry_page: '/menu', started_at: '2026-10-09T07:41:12.000Z', duration_seconds: 184, pages_viewed: 4,
       has_rage_clicks: false, has_errors: false, frustration_score: 18, signal_counts: { dead_click: 1 },
+      summary: 'Clicked div.plan-card "Pro" on /pricing and nothing happened', outcome: null,
     }],
   },
   [`${P}/heatmap/pages`]: {

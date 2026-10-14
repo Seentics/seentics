@@ -270,7 +270,9 @@ export async function listSessions(
       COALESCE(country,'') AS country, COALESCE(entry_page,'') AS "entryPage",
       timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
       duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed",
-      a.frustration_score AS "frustrationScore", a.signal_counts AS "signalCounts"
+      a.frustration_score AS "frustrationScore", a.signal_counts AS "signalCounts",
+      a.summary->>'text' AS "summaryText", a.summary->>'outcome' AS "summaryOutcome",
+      a.signals AS "signals"
     FROM session_replays s
     ${ANALYSIS_JOIN}
     WHERE ${sessionListWhere(websiteId, filters)}
