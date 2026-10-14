@@ -321,4 +321,41 @@ describe("RecordingIngestService.processEvents", () => {
       expect(stamps).toEqual([T0, T0 + 1_000, T0 + 5_000]);
     });
   });
+  describe("stylesheet discovery", () => {
+    const linkSnapshot = (ts: number) =>
+      rrweb(ts, {
+        type: 2,
+        inner: { node: { type: 0, childNodes: [{ type: 2, tagName: "link", attributes: { rel: "stylesheet", href: "https://x.test/app.css" }, childNodes: [] }] } },
+      });
+
+    it("reports a session's events once the batch is stored, and not for a redelivery", async () => {
+      const reported: { websiteId: string; count: number }[] = [];
+      const engine = new RecordingIngestService({
+        stylesheets: async (websiteId, events) => reported.push({ websiteId, count: events.length }),
+      });
+      await engine.processEvents("b1", [linkSnapshot(T0)]);
+      await engine.processEvents("b1", [linkSnapshot(T0)]);
+      expect(reported).toEqual([{ websiteId: "w1", count: 1 }]);
+      expect(uploads).toHaveLength(1);
+    });
+
+    it("skips batches with no full snapshot and no added nodes", async () => {
+      let calls = 0;
+      const engine = new RecordingIngestService({ stylesheets: async () => calls++ });
+      await engine.processEvents("b1", [click(T0, 1, 1), rrweb(T0 + 10, { inner: { source: 0, adds: [] } })]);
+      expect(calls).toBe(0);
+      await engine.processEvents("b2", [rrweb(T0 + 20, { inner: { source: 0, adds: [{ parentId: 1, node: { type: 3 } }] } })]);
+      expect(calls).toBe(1);
+    });
+
+    it("never fails the batch when discovery throws", async () => {
+      const engine = new RecordingIngestService({
+        stylesheets: async () => {
+          throw new Error("archive down");
+        },
+      });
+      await engine.processEvents("b1", [linkSnapshot(T0)]);
+      expect(rowFor("s1")).toBeDefined();
+    });
+  });
 });

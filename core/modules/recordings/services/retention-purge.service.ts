@@ -38,8 +38,16 @@ const STORAGE_CONCURRENCY = 8;
  * A session whose prefix delete keeps failing is therefore re-selected every pass. The
  * loop tracks that: a pass that clears nothing stops rather than spinning on the same rows.
  */
+/** Ages out a site's archived stylesheets — `StylesheetArchiveService.purgeUnseen`. */
+export type StylesheetPurge = {
+  purgeUnseen(websiteId: string, before: Date, batchSize: number): Promise<{ rows: number; objects: number; failures: number }>;
+};
+
 export class RecordingRetentionPurge implements RetentionPurge {
   readonly name = "recordings";
+
+  /** `stylesheets` absent: only recordings are swept (the tests that predate the archive). */
+  constructor(private readonly stylesheets?: StylesheetPurge) {}
 
   async purge(
     target: RetentionTarget,
@@ -131,8 +139,26 @@ export class RecordingRetentionPurge implements RetentionPurge {
       if (oldSessions.length < options.batchSize) break;
     }
 
+    // Archived stylesheets go once nothing has linked to them for as long as either a
+    // recording or a heatmap snapshot (both link to them) is kept — the older cutoff.
+    let stylesheetRows = 0;
+    let stylesheetFailures = 0;
+    if (this.stylesheets) {
+      const before = cutoffs.replay < cutoffs.heatmap ? cutoffs.replay : cutoffs.heatmap;
+      try {
+        const r = await this.stylesheets.purgeUnseen(target.websiteId, before, options.batchSize);
+        stylesheetRows = r.rows;
+        stylesheetFailures = r.failures;
+      } catch (e) {
+        stylesheetFailures += 1;
+        log.warn({ msg: "retention_stylesheet_purge_failed", website_id: target.websiteId, err: String(e) });
+      }
+    }
+
     return {
       replaySessionsPurged: sessionsPurged,
+      replayStylesheetRows: stylesheetRows,
+      replayStylesheetDeleteFailures: stylesheetFailures,
       sessionReplayPgRows: rowsDeleted,
       /** Non-zero means objects were left in place on purpose; the next sweep retries them. */
       replayStorageDeleteFailures: storageFailures,

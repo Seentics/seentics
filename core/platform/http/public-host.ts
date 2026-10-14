@@ -19,8 +19,10 @@ for (const [network, prefix] of [
   ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 3],
 ] as const) blocked.addSubnet(network, prefix, "ipv4");
 for (const [network, prefix] of [
-  ["::", 128], ["::1", 128], ["64:ff9b::", 96], ["100::", 64], ["2001:db8::", 32],
-  ["2002::", 16], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8],
+  // `::/96` also covers the deprecated IPv4-compatible form (`::127.0.0.1`), which the
+  // IPv4-mapped handling below does not; `fec0::/10` is the retired site-local range.
+  ["::", 96], ["::1", 128], ["64:ff9b::", 96], ["100::", 64], ["2001:db8::", 32],
+  ["2002::", 16], ["fc00::", 7], ["fe80::", 10], ["fec0::", 10], ["ff00::", 8],
 ] as const) blocked.addSubnet(network, prefix, "ipv6");
 
 export class NonPublicHostError extends Error {

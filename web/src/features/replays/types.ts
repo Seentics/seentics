@@ -99,4 +99,7 @@ export interface SessionReplayApiResponse {
   replay_url_expires_at?: string;
   /** True when metadata exists but recording bytes are not downloadable yet (retry shortly). */
   recording_pending?: boolean;
+  /** Reads this site's archived stylesheets (`/embed/:websiteId/stylesheet?…&st=`). */
+  stylesheet_token?: string;
+  stylesheet_token_expires_at?: string;
 }

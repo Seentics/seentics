@@ -21,7 +21,11 @@ export type LoadedRecording = { rows: unknown[]; chunks: number; truncated: bool
  * Read once per analysis. The result is stored, so neither the list, the summary nor the
  * assistant downloads the recording again.
  */
-export async function loadRecordingEvents(websiteId: string, sessionId: string): Promise<LoadedRecording | null> {
+export async function loadRecordingEvents(
+  websiteId: string,
+  sessionId: string,
+  maxChunks: number = MAX_ANALYSIS_CHUNKS,
+): Promise<LoadedRecording | null> {
   const bucket = env().s3.bucket;
   const listed = await listSessionReplayChunks(bucket, websiteId, sessionId);
   const bySeq = new Map<number, string>();
@@ -34,7 +38,7 @@ export async function loadRecordingEvents(websiteId: string, sessionId: string):
     return { rows: await getJsonGzip(bucket, bundle), chunks: 1, truncated: false };
   }
 
-  const wanted = keys.slice(0, MAX_ANALYSIS_CHUNKS);
+  const wanted = keys.slice(0, maxChunks);
   const parts: unknown[][] = new Array(wanted.length);
   let next = 0;
   const worker = async () => {

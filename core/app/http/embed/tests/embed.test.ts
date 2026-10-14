@@ -61,6 +61,32 @@ const heatmapsStub = (calls: string[]) => ({
   getLayoutSnapshot: async (id: string, path: string, device?: string) => (calls.push(`layout:${id}:${path}:${device}`), { layout: null }),
 }) as never;
 
+/** The real archive over memory: the endpoint's auth and fallback are the service's. */
+let stylesheetArchive: Awaited<ReturnType<typeof makeArchive>>;
+const ARCHIVED_CSS = "https://acme.app/_next/static/css/3e3ba49c0fe97c41.css";
+async function makeArchive() {
+  const { StylesheetArchiveService, readStylesheetArchiveConfig } = await import(
+    "../../../../modules/recordings/services/stylesheets/stylesheet-archive.service"
+  );
+  const { MemoryStylesheetStore } = await import("../../../../modules/recordings/tests/support/memory-stylesheet-store");
+  const store = new MemoryStylesheetStore();
+  const objects = new Map<string, string>();
+  const archive = new StylesheetArchiveService({
+    store,
+    storage: { put: async (k, v) => void objects.set(k, v), get: async (k) => objects.get(k)!, delete: async () => {} },
+    loadRecording: async () => null,
+    config: readStylesheetArchiveConfig({}),
+    fetcher: async (url) => ({ kind: "ok", status: 200, url, contentType: "text/css", body: new TextEncoder().encode("body{color:red}") }),
+    secret: () => "embed-test-secret",
+  });
+  await archive.discover(SITE, [ARCHIVED_CSS]);
+  await archive.runOnce();
+  return { archive, store };
+}
+beforeAll(async () => {
+  stylesheetArchive = await makeArchive();
+});
+
 async function setup(clientStatus = "active") {
   const embedLinks = await memoryEmbedLinks();
   const calls: string[] = [];
@@ -85,6 +111,7 @@ async function setup(clientStatus = "active") {
     } as never,
     recordings: recordingsStub(calls),
     heatmaps: heatmapsStub(calls),
+    stylesheets: stylesheetArchive.archive,
   });
   const tokenFor = async (target: { websiteId: string } | { clientId: string }, sections?: EmbedSection[]) =>
     embedLinks.tokenFor((await embedLinks.getOrCreate(OWNER, target, sections)).link);
@@ -183,6 +210,7 @@ describe("GET /:websiteId/analytics/:name", () => {
       clients: {} as never,
       recordings: {} as never,
       heatmaps: {} as never,
+      stylesheets: {} as never,
     });
     const token = await embedLinks.tokenFor((await embedLinks.getOrCreate(OWNER, { websiteId: SITE })).link);
     await routes.request(`/${SITE}/analytics/top-pages?days=7&timezone=Asia/Dhaka&limit=3&live=0`, H(token));
@@ -426,5 +454,61 @@ describe("sections", () => {
     for (const path of ["/replays", "/replays/s", "/heatmaps/pages"]) {
       expect((await routes.request(`/${SITE}${path}`, H(token))).status).toBe(401);
     }
+  });
+});
+
+describe("archived stylesheets", () => {
+  const path = (site: string, url: string, token?: string) =>
+    `/${site}/stylesheet?url=${encodeURIComponent(url)}${token ? `&st=${encodeURIComponent(token)}` : ""}`;
+
+  it("serves the archived CSS to the site's own token, with nosniff, a CSP and long caching", async () => {
+    const { routes } = await setup();
+    const { token } = stylesheetArchive.archive.accessToken(SITE);
+    const res = await routes.request(path(SITE, ARCHIVED_CSS, token));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("body{color:red}");
+    expect(res.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(res.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+    expect(res.headers.get("Cache-Control")).toContain("immutable");
+  });
+
+  it("refuses another site's token, a missing token, and an embed link token", async () => {
+    const { routes, tokenFor } = await setup();
+    const otherToken = stylesheetArchive.archive.accessToken(OTHER).token;
+    expect((await routes.request(path(SITE, ARCHIVED_CSS, otherToken))).status).toBe(403);
+    expect((await routes.request(path(SITE, ARCHIVED_CSS))).status).toBe(403);
+    const embedToken = await tokenFor({ websiteId: SITE });
+    expect((await routes.request(path(SITE, ARCHIVED_CSS, embedToken))).status).toBe(403);
+    expect((await routes.request(path(SITE, ARCHIVED_CSS), H(embedToken))).status).toBe(403);
+  });
+
+  it("never serves one site's archive under another site's id", async () => {
+    const { routes } = await setup();
+    const res = await routes.request(path(OTHER, ARCHIVED_CSS, stylesheetArchive.archive.accessToken(OTHER).token));
+    // OTHER never linked to that URL: refused, never SITE's archived body.
+    expect(res.status).toBe(404);
+  });
+
+  it("redirects to the original while a discovered stylesheet has no copy, briefly cached", async () => {
+    const { routes } = await setup();
+    const url = "https://acme.app/_next/static/css/not-yet.css";
+    await stylesheetArchive.archive.discover(SITE, [url]);
+    const res = await routes.request(path(SITE, url, stylesheetArchive.archive.accessToken(SITE).token));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(url);
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=60");
+  });
+
+  it("does not redirect to a URL the site never linked to", async () => {
+    const { routes } = await setup();
+    const res = await routes.request(path(SITE, "https://phish.test/login", stylesheetArchive.archive.accessToken(SITE).token));
+    expect(res.status).toBe(404);
+  });
+
+  it("is 404 for a URL that is not http(s)", async () => {
+    const { routes } = await setup();
+    const res = await routes.request(path(SITE, "javascript:alert(1)", stylesheetArchive.archive.accessToken(SITE).token));
+    expect(res.status).toBe(404);
   });
 });

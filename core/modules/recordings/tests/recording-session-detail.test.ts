@@ -79,6 +79,7 @@ mock.module("../services/recording-ingest.service", () => ({
   // Not driven here, but a global stub has to list every runtime export or an
   // unrelated file fails on the missing name — see `app/tests/mock-completeness.test.ts`.
   stopRecordingIngestService: async () => {},
+  configureRecordingStylesheetSink: () => {},
 }));
 
 const { getReplaySessionDetail } = await import("../services/recording-session-detail.service");

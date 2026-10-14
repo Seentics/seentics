@@ -23,6 +23,7 @@ let jobs: Cron[] = [];
  *  - recording-analysis : every 10 min — frustration signals for recordings that have gone idle
  *  - ai-session-summaries : daily at 05:30 UTC — summaries for each site's most frustrated sessions
  *  - ai-recommendations : daily at 06:00 UTC — collects suggestions, expires stale ones, measures applied ones
+ *  - stylesheet-archive : every minute — fetches and stores stylesheets recordings link to, plus a bounded backfill
  *  - screenshot-refresh : every 3 days at 03:00 UTC — re-captures stale heatmap page screenshots
  */
 export function startScheduler(
@@ -41,6 +42,8 @@ export function startScheduler(
     aiRecommendations?: { enabled: boolean; runDaily(): Promise<unknown> };
     /** Analyses ended recordings for frustration signals, and pre-writes summaries for the worst. */
     recordingAnalysis?: { analyzePending(): Promise<unknown>; summarizeTop(): Promise<unknown>; summariesEnabled(): boolean };
+    /** Archives the stylesheets recordings and heatmap snapshots link to. */
+    stylesheetArchive?: { runOnce(): Promise<unknown> };
   },
 ): void {
   if (jobs.length > 0) {
@@ -247,6 +250,30 @@ export function startScheduler(
       jobs.push(summaryJob);
       log.info({ msg: "scheduler_job_registered", job: "ai-session-summaries", schedule: summaryCron });
     }
+  }
+
+  // Stylesheet archive — every minute: fetches a bounded batch of pending stylesheets (SSRF-guarded,
+  // capped, concurrency-limited) and scans a few pre-archive recordings for more. `protect`: a slow
+  // run is skipped over, never stacked. Worker role only, like every job here.
+  const stylesheetArchive = deps?.stylesheetArchive;
+  if (process.env.STYLESHEET_ARCHIVE_ENABLED === "false") {
+    log.info({ msg: "scheduler_job_disabled", job: "stylesheet-archive", reason: "STYLESHEET_ARCHIVE_ENABLED=false" });
+  } else if (stylesheetArchive) {
+    const archiveCron = process.env.STYLESHEET_ARCHIVE_CRON ?? "* * * * *";
+    const archiveJob = new Cron(
+      archiveCron,
+      { timezone: "UTC", name: "stylesheet-archive", catch: true, protect: true },
+      async () => {
+        try {
+          const stats = await traceJob("stylesheet-archive", () => stylesheetArchive.runOnce());
+          log.debug({ msg: "scheduler_job_done", job: "stylesheet-archive", stats });
+        } catch (e) {
+          log.error({ msg: "scheduler_job_failed", job: "stylesheet-archive", err: String(e) });
+        }
+      },
+    );
+    jobs.push(archiveJob);
+    log.info({ msg: "scheduler_job_registered", job: "stylesheet-archive", schedule: archiveCron });
   }
 
   // Heatmap screenshot refresh — every 3 days at 03:00 UTC. Last: it returns early when unwired.

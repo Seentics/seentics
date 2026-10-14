@@ -36,6 +36,7 @@ import {
 import { clampHeatmapPreviewDimensions, documentPixelHeightForHeatmap, documentPixelWidthForHeatmap, heatmapDocHeightHintPx, type HeatPoint, type HeatType } from '@/features/heatmaps/preview-math';
 import { drawClickHeatmap, drawScrollHeatmap } from '@/features/heatmaps/canvas';
 import type { HeatmapPageScreenshot } from '@/features/heatmaps/types';
+import { rewriteSnapshotStylesheets } from '@/lib/stylesheet-archive';
 
 
 export function HeatOnlyUnderlay() {
@@ -223,6 +224,45 @@ export function DemoHeatmapStage({ pageUrl, heatType }: { pageUrl: string; heatT
   );
 }
 
+type SnapshotDoc = { state: 'pending' } | { state: 'ready'; html: string } | { state: 'direct' };
+
+/**
+ * The DOM snapshot as a document with its stylesheet links pointed at the archive.
+ *
+ * `pending` while it is fetched, `ready` with the rewritten HTML, and `direct` — load the
+ * presigned URL as before — without a token, or when the fetch fails (an object store
+ * without a CORS rule for this origin). Falling back means the background is never lost,
+ * only its stylesheets may be.
+ */
+function useArchivedSnapshotDoc(htmlUrl: string, websiteId: string | undefined, token: string | undefined, pageUrl: string): SnapshotDoc {
+  const usable = !!htmlUrl && !!websiteId && !!token;
+  const [doc, setDoc] = useState<{ key: string; value: SnapshotDoc } | null>(null);
+  const key = `${htmlUrl}\n${websiteId}\n${token}`;
+
+  useEffect(() => {
+    if (!usable) return;
+    let cancelled = false;
+    (async () => {
+      let value: SnapshotDoc;
+      try {
+        const res = await fetch(htmlUrl, { credentials: 'omit' });
+        if (!res.ok) throw new Error(`snapshot fetch ${res.status}`);
+        const html = await res.text();
+        value = { state: 'ready', html: rewriteSnapshotStylesheets(html, { websiteId: websiteId!, token: token! }, /^https?:\/\//i.test(pageUrl) ? pageUrl : undefined) };
+      } catch {
+        value = { state: 'direct' };
+      }
+      if (!cancelled) setDoc({ key, value });
+    })();
+    return () => { cancelled = true; };
+    // `pageUrl` only matters for a snapshot without a <base>; a change of it alone is no reason to refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, usable]);
+
+  if (!usable) return { state: 'direct' };
+  return doc?.key === key ? doc.value : { state: 'pending' };
+}
+
 export function HeatmapViewer({
   pageUrl,
   points,
@@ -232,7 +272,10 @@ export function HeatmapViewer({
   preferredViewportWidth = null,
   pageScreenshot = null,
   requestedDevice = 'all',
+  websiteId,
 }: {
+  /** With the layout's `stylesheet_token`: the snapshot's stylesheets load from the archive. */
+  websiteId?: string;
   pageUrl: string;
   points: HeatPoint[];
   heatType: HeatType;
@@ -254,6 +297,12 @@ export function HeatmapViewer({
   const [renderPoints, setRenderPoints] = useState<HeatPoint[]>(points);
 
   const hasHtmlSnapshot = !!pageScreenshot?.html_url?.trim();
+  const snapshotDoc = useArchivedSnapshotDoc(
+    pageScreenshot?.html_url?.trim() || '',
+    websiteId,
+    pageScreenshot?.stylesheet_token,
+    pageUrl,
+  );
   const hasJpegSnapshot = !!pageScreenshot?.image_url?.trim();
   const screenshotActive =
     underlay === 'screenshot' && (hasHtmlSnapshot || hasJpegSnapshot);
@@ -528,9 +577,15 @@ export function HeatmapViewer({
                 }}
               >
                 {hasHtmlSnapshot && pageScreenshot.html_url ? (
+                  snapshotDoc.state === 'pending' ? null : (
                   <iframe
                     ref={iframeRef}
-                    src={pageScreenshot.html_url}
+                    // The stored snapshot links the live site's stylesheets, which a deploy deletes;
+                    // as srcdoc its links point at the archived copies instead. `src` when that
+                    // could not be prepared (no token, or the object store refused the fetch).
+                    {...(snapshotDoc.state === 'ready'
+                      ? { srcDoc: snapshotDoc.html }
+                      : { src: pageScreenshot.html_url })}
                     title="Page snapshot"
                     // The snapshot is page content any visitor's browser could have posted for this site,
                     // and the measurement script has to run in it. The sandbox gives it an opaque origin:
@@ -555,6 +610,7 @@ export function HeatmapViewer({
                     }}
                     onError={() => setLoadState('error')}
                   />
+                  )
                 ) : pageScreenshot.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

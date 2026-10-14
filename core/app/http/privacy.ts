@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "../../db";
 import { env } from "../../config";
-import { deleteS3Objects, deleteSessionPrefix } from "../../platform/storage/s3";
+import { deletePrefix, deleteS3Objects, deleteSessionPrefix } from "../../platform/storage/s3";
+import { stylesheetPrefix } from "../../platform/storage/s3-keys";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 
 const r = new Hono<{ Variables: AuthVars }>();
@@ -94,6 +95,8 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
   for (const row of sessions) await deleteSessionPrefix(cfg.s3.bucket, websiteId, row.session_id);
   const keys = snapshots.flatMap((row) => [row.s3_key, row.html_s3_key]).filter((key): key is string => Boolean(key));
   if (keys.length) await deleteS3Objects(cfg.s3.bucket, keys);
+  // The site's archived replay stylesheets (db/sql/059): one prefix, shared by its recordings.
+  await deletePrefix(cfg.s3.bucket, stylesheetPrefix(websiteId));
 
   await sql.begin(async (tx) => {
     await tx`DELETE FROM analytics_events WHERE website_id = ${websiteId}`;
@@ -109,6 +112,7 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
       await tx`DELETE FROM analytics_rollup_stale WHERE website_id = ${websiteId}`;
     }
     await tx`DELETE FROM session_replays WHERE website_id = ${websiteId}`;
+    await tx`DELETE FROM replay_stylesheets WHERE website_id = ${websiteId}`;
     await tx`DELETE FROM heatmap_points WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM user_profiles WHERE website_id = ${websiteId}::uuid`;

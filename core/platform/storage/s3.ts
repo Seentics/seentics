@@ -100,6 +100,23 @@ export async function putHtml(bucket: string, key: string, body: string): Promis
   );
 }
 
+export async function putCss(bucket: string, key: string, body: string): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: "text/css; charset=utf-8",
+    }),
+  );
+}
+
+/** One object's body as UTF-8 text. */
+export async function getText(bucket: string, key: string): Promise<string> {
+  const out = await s3().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  return out.Body!.transformToString("utf-8");
+}
+
 export async function putJpeg(bucket: string, key: string, body: Uint8Array): Promise<void> {
   await s3().send(
     new PutObjectCommand({
@@ -221,7 +238,12 @@ export async function deleteS3Objects(bucket: string, keys: string[]): Promise<v
 }
 
 export async function deleteSessionPrefix(bucket: string, websiteId: string, sessionId: string): Promise<void> {
-  const prefix = sessionPrefix(websiteId, sessionId);
+  await deletePrefix(bucket, sessionPrefix(websiteId, sessionId));
+}
+
+/** Delete every object under `prefix`, a listing page at a time. */
+export async function deletePrefix(bucket: string, prefix: string): Promise<void> {
+  if (!prefix) throw new Error("refusing to delete an empty prefix");
   let token: string | undefined;
   do {
     const list = await s3().send(

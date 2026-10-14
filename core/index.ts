@@ -122,6 +122,7 @@ app.route(
     websites: application.modules.websites.query,
     recordings: application.modules.recordings.reads,
     heatmaps: application.modules.heatmaps.reads,
+    stylesheets: application.modules.recordings.stylesheets,
   }),
 );
 app.route("/api/v1/privacy", privacyRoutes);

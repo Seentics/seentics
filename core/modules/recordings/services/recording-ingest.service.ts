@@ -135,12 +135,24 @@ function normalizeReplayPageUrl(u: unknown): string {
   }
 }
 
+/**
+ * Where ingest reports the stylesheets a session's events link to. Best-effort: it must
+ * not throw, and the ingest does not wait on anything slower than one bounded insert.
+ */
+export type StylesheetSink = (websiteId: string, events: readonly Record<string, unknown>[]) => Promise<unknown>;
+
 export class RecordingIngestService implements RecordingIngest {
   private bucket: string;
+  private readonly stylesheets: StylesheetSink | null;
 
-  constructor() {
+  /**
+   * `stylesheets` is absent in tests that build the engine directly; the process-wide
+   * engine (`recordingIngestService`) reports to the archive.
+   */
+  constructor(opts: { stylesheets?: StylesheetSink } = {}) {
     const c = env();
     this.bucket = c.s3.bucket;
+    this.stylesheets = opts.stylesheets ?? null;
   }
 
   async shutdown(): Promise<void> {}
@@ -318,6 +330,26 @@ export class RecordingIngestService implements RecordingIngest {
       return;
     }
 
+    await this.reportStylesheets(work);
+  }
+
+  /**
+   * Hand each session's stylesheet links to the archive, after the batch is durable.
+   *
+   * After, not before: a discovery failure must never fail (and so redeliver) a batch whose
+   * recording is already stored. Errors are logged here as well as in the sink, so a sink
+   * that does throw still cannot reach the queue.
+   */
+  private async reportStylesheets(work: SessionWork[]): Promise<void> {
+    if (!this.stylesheets) return;
+    for (const w of work) {
+      if (!w.batch.hasFullSnapshot && !w.batch.events.some(mayAddNodes)) continue;
+      try {
+        await this.stylesheets(w.batch.websiteId, w.batch.events);
+      } catch (err) {
+        log.warn({ msg: "replay_stylesheet_discovery_failed", session_id: w.sessionId, err: String(err) });
+      }
+    }
   }
 
   warmChunks(_websiteId: string, _sessionId: string): WarmTail | null {
@@ -327,6 +359,15 @@ export class RecordingIngestService implements RecordingIngest {
   }
 
   removeSpool(_websiteId: string, _sessionId: string): void {}
+}
+
+/** An rrweb DOM-mutation event: the only incremental kind that can add a `<link>`. */
+function mayAddNodes(e: Record<string, unknown>): boolean {
+  if (e.type !== "rrweb") return false;
+  const d = e.data as Record<string, unknown> | undefined;
+  if (!d || Number(d.type) !== 3) return false;
+  const inner = d.data as Record<string, unknown> | undefined;
+  return !!inner && Number(inner.source) === 0 && Array.isArray(inner.adds) && inner.adds.length > 0;
 }
 
 function sortBatchEvents(events: Record<string, unknown>[]): void {
@@ -349,6 +390,16 @@ function hasRageClickPattern(clicks: RageClick[]): boolean {
 
 let _engine: RecordingIngestService | null = null;
 
+let _stylesheets: StylesheetSink | undefined;
+
+/**
+ * Where the process-wide engine reports stylesheet links. Set by `initRecordingsModule`
+ * before anything can ingest; an engine built earlier (none is, outside tests) has none.
+ */
+export function configureRecordingStylesheetSink(sink: StylesheetSink): void {
+  _stylesheets = sink;
+}
+
 /**
  * The process-wide service.
  *
@@ -359,7 +410,7 @@ let _engine: RecordingIngestService | null = null;
  * the service and the routes, which is a change worth making on its own.
  */
 export function recordingIngestService(): RecordingIngestService {
-  if (!_engine) _engine = new RecordingIngestService();
+  if (!_engine) _engine = new RecordingIngestService({ stylesheets: _stylesheets });
   return _engine;
 }
 

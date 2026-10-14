@@ -132,6 +132,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     websitesModule,
     analyticsModule,
     insightNarrator: () => aiModule.heatmapNarrator,
+    // Snapshots link the site's stylesheets; recordings owns the archive that keeps them.
+    stylesheets: recordingsModule.stylesheets,
   });
   const automationsModule = initAutomationsModule({ websitesModule });
   const errorsModule = initErrorsModule({ websitesModule });
@@ -304,6 +306,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
           aiAnomalies: aiModule.anomalies,
           aiRecommendations: aiModule.recommendations,
           recordingAnalysis: recordingsModule.analysisJobs,
+          stylesheetArchive: recordingsModule.stylesheets,
         });
       }
 

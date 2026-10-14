@@ -327,6 +327,8 @@ export function fakeDbModule() {
     accountApiKeys: table("account_api_keys"),
     embedLinks: table("embed_links"),
     sessionReplays: table("session_replays"),
+    replayStylesheets: table("replay_stylesheets"),
+    replayStylesheetBackfill: table("replay_stylesheet_backfill"),
     heatmapPoints: table("heatmap_points"),
     aiQueries: table("ai_queries"),
     heatmapPageSnapshots: table("heatmap_page_snapshots"),

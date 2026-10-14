@@ -9,6 +9,7 @@ import type {
   HeatmapSettings,
 } from "../interfaces";
 import type { HeatmapAutoCapture } from "./heatmap-auto-capture.service";
+import type { StylesheetAccess } from "../../recordings/interfaces";
 import { readLayoutSnapshot } from "./heatmap-layout-snapshot.service";
 import { getHeatmapPoints, listHeatmapPages } from "./heatmap-page-query.service";
 
@@ -17,6 +18,8 @@ export class HeatmapQueryService implements HeatmapQuery {
   constructor(
     private readonly settings: HeatmapSettings,
     private readonly autoCapture: HeatmapAutoCapture,
+    /** Issues the token a DOM snapshot's viewer loads archived stylesheets with. */
+    private readonly stylesheets: StylesheetAccess | null = null,
   ) {}
 
   listPages(websiteId: string, days?: number): Promise<{ pages: HeatmapPageSummary[] }> {
@@ -48,6 +51,11 @@ export class HeatmapQueryService implements HeatmapQuery {
       return { layout: null };
     }
     if (snapshot.stale && target) this.autoCapture.schedule(resolved, normalizedPath, true);
-    return { layout: snapshot.layout };
+    const layout = snapshot.layout;
+    if (layout?.html_url && this.stylesheets) {
+      const access = this.stylesheets.accessToken(websiteId);
+      return { layout: { ...layout, stylesheet_token: access.token, stylesheet_token_expires_at: access.expiresAt } };
+    }
+    return { layout };
   }
 }

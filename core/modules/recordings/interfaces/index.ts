@@ -23,6 +23,16 @@ export type { RecordingsModule } from "./recordings.module";
 export type { RecordingRawReads } from "./recording.interface";
 
 export type {
+  StylesheetAccess,
+  StylesheetArchive,
+  StylesheetArchiveJobs,
+  StylesheetArchiveRunStats,
+  StylesheetDiscovery,
+  StylesheetServeResult,
+  StylesheetServing,
+} from "./stylesheet-archive.interface";
+
+export type {
   AnalyzeRunStats,
   FrustratedSessionRow,
   FrustrationSignal,

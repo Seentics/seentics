@@ -170,6 +170,13 @@ export type HeatmapLayout = {
   source_path: string;
   /** Structural version of the DOM snapshot; empty for image-only/legacy captures. */
   dom_fingerprint?: string;
+  /**
+   * With `html_url`: the token for the site's archived stylesheets
+   * (`/embed/:websiteId/stylesheet?url=…&st=…`). The snapshot links the live site's CSS,
+   * which a deploy deletes; the viewer points those links at the archive instead.
+   */
+  stylesheet_token?: string;
+  stylesheet_token_expires_at?: string;
 };
 
 /**

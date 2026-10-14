@@ -144,6 +144,9 @@ mock.module("../../../platform/storage/s3", () => ({
   uploadSessionChunkGzip: async () => {},
   uploadSessionBatchChunkGzip: async () => {},
   deleteSessionPrefix: async () => {},
+  deletePrefix: async () => {},
+  putCss: async () => {},
+  getText: async () => "",
   listSessionReplayChunks: async () => [],
   presignGet: async (_bucket: string, key: string) => `https://signed.test/${key}`,
   locateBundle: async () => null,
@@ -829,6 +832,24 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
 
       await expect(service().storeDomSnapshot(domEvent())).rejects.toThrow("s3 unreachable");
       expect(htmlUpserts).toEqual([]);
+    });
+
+    it("hands the stored snapshot to the stylesheet archive, and survives it failing", async () => {
+      const seen: { websiteId: string; pageUrl: string; html: string }[] = [];
+      const html = `<html><head><base href="https://shop.test/"><link rel="stylesheet" href="/a.css"></head>`.padEnd(200, "x") + "</html>";
+      const archive = new SnapshotIngestService(BUCKET, null, {
+        discoverFromHtml: async (websiteId, h, pageUrl) => void seen.push({ websiteId, pageUrl, html: h }),
+      });
+      await archive.storeDomSnapshot(domEvent({ data: { html } }));
+      expect(seen).toEqual([{ websiteId: SITE, pageUrl: "https://shop.test/pricing", html }]);
+
+      const failing = new SnapshotIngestService(BUCKET, null, {
+        discoverFromHtml: async () => {
+          throw new Error("archive down");
+        },
+      });
+      await failing.storeDomSnapshot(domEvent({ data: { html: html.replace("/a.css", "/b.css") } }));
+      expect(htmlUpserts).toHaveLength(2);
     });
   });
 

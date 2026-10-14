@@ -19,6 +19,7 @@
  *   GET /:websiteId/heatmaps/data             [heatmaps] = GET /heatmaps/:websiteId/data
  *   GET /:websiteId/heatmaps/layout-snapshot  [heatmaps] = GET /heatmaps/:websiteId/layout-snapshot
  *   GET /client/:clientId/websites     a client's websites, for the embed's site switcher
+ *   GET /:websiteId/stylesheet?url=&st= an archived stylesheet — see below; not embed-token auth
  *
  * Reads only: no deletes, no captures, no exports. Anything else is 404.
  */
@@ -29,7 +30,7 @@ import type { EmbedSection } from "../../../modules/api-keys/interfaces";
 import type { EmbedClaim, EmbedLinks } from "../../../modules/api-keys/interfaces";
 import type { AnalyticsReads } from "../../../modules/analytics/interfaces";
 import type { ClientDirectory, WebsiteQuery } from "../../../modules/websites/interfaces";
-import type { RecordingsModule } from "../../../modules/recordings/interfaces";
+import type { RecordingsModule, StylesheetServing } from "../../../modules/recordings/interfaces";
 import type { HeatmapsModule } from "../../../modules/heatmaps/interfaces";
 import { replayListQuerySchema } from "../../../modules/recordings/interfaces";
 import {
@@ -55,8 +56,48 @@ export function createEmbedRoutes(deps: {
   websites: WebsiteQuery;
   recordings: RecordingsModule["reads"];
   heatmaps: HeatmapsModule["reads"];
+  stylesheets: StylesheetServing;
 }) {
   const r = new Hono();
+
+  /**
+   * An archived copy of a stylesheet a recording or heatmap snapshot links to.
+   *
+   * Loaded by the browser from a `<link href>` inside the replay player's iframe or a
+   * sandboxed snapshot — places no header and (in an embed, or a sandbox with an opaque
+   * origin) no cookie can reach. So it is authorized like a presigned chunk URL: `st` is a
+   * site-scoped token handed out by the recording or layout read that was itself
+   * authorized (dashboard session or embed token). Here because this is the path the
+   * gateway serves without a session, after refusing a suspended owner's site.
+   *
+   * 200 with the archived CSS; 302 to the original while there is no archived copy (it is
+   * queued); 403 for a token not issued for this site; 404 for a URL that is not http(s).
+   */
+  r.get("/:websiteId/stylesheet", async (c) => {
+    const result = await deps.stylesheets.serve(c.req.param("websiteId"), c.req.query("url") ?? "", c.req.query("st"));
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; sandbox");
+    // Loaded from the dashboard's origin, an embed's, and a sandboxed snapshot's opaque one.
+    c.header("Cross-Origin-Resource-Policy", "cross-origin");
+    c.header("Referrer-Policy", "no-referrer");
+    switch (result.kind) {
+      case "css":
+        // Stable per site and day (the token's lifetime), and an archived copy never changes.
+        c.header("Cache-Control", "private, max-age=31536000, immutable");
+        c.header("Content-Type", "text/css; charset=utf-8");
+        return c.body(result.body, 200);
+      case "redirect":
+        // Short: once the archive has a copy, the next load should get it.
+        c.header("Cache-Control", "private, max-age=60");
+        return c.redirect(result.location, 302);
+      case "forbidden":
+        c.header("Cache-Control", "no-store");
+        return c.text("forbidden", 403);
+      default:
+        c.header("Cache-Control", "no-store");
+        return c.text("not found", 404);
+    }
+  });
 
   /** The client, when it is still the link owner's and in service. */
   const liveClient = async (claim: EmbedClaim, clientId: string) => {

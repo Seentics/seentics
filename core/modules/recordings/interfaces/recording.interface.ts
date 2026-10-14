@@ -83,6 +83,16 @@ export type RecordingDetailMeta = {
 
 type RecordingWarmChunk = { sequence: number; data: unknown; timestamp: string };
 
+/**
+ * The archived-stylesheet capability for this recording's site (`StylesheetAccess`). The
+ * player points each stylesheet `<link>` at `/embed/:websiteId/stylesheet?url=…&st=<token>`
+ * instead of the live site, whose hashed CSS files are gone after its next deploy.
+ */
+export type RecordingStylesheetAccess = {
+  stylesheet_token?: string;
+  stylesheet_token_expires_at?: string;
+};
+
 /** A recording response in each of its storage/readiness states. */
 export type RecordingDetail =
   | {
@@ -93,7 +103,7 @@ export type RecordingDetail =
         warm_chunks: RecordingWarmChunk[];
         recording_pending: false;
         replay_storage?: "legacy_inline";
-      };
+      } & RecordingStylesheetAccess;
     }
   | {
       status: 200;
@@ -102,7 +112,7 @@ export type RecordingDetail =
         meta: RecordingDetailMeta | null;
         recording_pending: true;
         replay_storage?: "pending";
-      };
+      } & RecordingStylesheetAccess;
     }
   | {
       status: 200;
@@ -114,7 +124,7 @@ export type RecordingDetail =
         replay_chunk_urls: RecordingChunkUrl[];
         warm_chunks?: RecordingWarmChunk[];
         recording_pending: false;
-      };
+      } & RecordingStylesheetAccess;
     }
   | {
       status: 200;
@@ -125,7 +135,7 @@ export type RecordingDetail =
         replay_url: string;
         replay_url_expires_at: string;
         recording_pending: false;
-      };
+      } & RecordingStylesheetAccess;
     }
   | { status: 404; body: { error: string } };
 

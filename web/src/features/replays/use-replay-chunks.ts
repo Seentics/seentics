@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchGzipJsonArray, chunkLoadHint, eventsFromChunkList } from '@/features/replays/api';
 import type { RRWebEvent, SessionCustomEvent } from '@/features/replays/types';
+import { createReplayStylesheetRewriter } from '@/lib/stylesheet-archive';
 import {
   INITIAL_BATCH, CHUNK_CONCURRENCY, createLimiter, type ChunkProgress,
 } from '@/features/replays/chunk-loading';
@@ -11,6 +12,8 @@ export interface ReplayChunkSource {
   warm_chunks?: Array<{ sequence: number; data: unknown[] }> | null;
   replay_url?: string | null;
   recording_pending?: boolean;
+  /** Reads this site's archived stylesheets — see `lib/stylesheet-archive`. */
+  stylesheet_token?: string | null;
 }
 
 export interface ReplayChunksState {
@@ -38,7 +41,11 @@ export interface ReplayChunksState {
  * through them: events that arrive before the player mounts queue in `pendingEventsRef`,
  * and `addEventsRef` is how the surface reports that it is ready to receive them.
  */
-export function useReplayChunks(session: ReplayChunkSource | undefined): ReplayChunksState {
+export function useReplayChunks(
+  session: ReplayChunkSource | undefined,
+  /** With the session's `stylesheet_token`: point stylesheet links at the archived copies. */
+  websiteId?: string,
+): ReplayChunksState {
 // Phase 2: progressive chunk loading state
 const [initialEvents, setInitialEvents] = useState<RRWebEvent[]>([]);
 const [customEvents, setCustomEvents] = useState<SessionCustomEvent[]>([]);
@@ -78,6 +85,19 @@ useEffect(() => {
 
   let cancelled = false;
 
+  // Before rrweb sees them: the recorded stylesheet URLs are the live site's, and a deploy
+  // deletes hashed CSS files, so they are pointed at the archive. One rewriter per load — it
+  // remembers link node ids across chunks.
+  const token = session.stylesheet_token;
+  const rewriteStylesheets = token && websiteId
+    ? createReplayStylesheetRewriter({ websiteId, token })
+    : null;
+  const toPlayerEvents = (chunks: Array<{ sequence: number; data: unknown[] }>) => {
+    const out = eventsFromChunkList(chunks);
+    rewriteStylesheets?.(out.events);
+    return out;
+  };
+
   (async () => {
     // Warm-chunks-only or legacy bundle: load everything at once (no incremental gain)
     if (total === 0) {
@@ -97,7 +117,7 @@ useEffect(() => {
         }
       }
       if (cancelled) return;
-      const { events, customEvents: cevs } = eventsFromChunkList(chunks);
+      const { events, customEvents: cevs } = toPlayerEvents(chunks);
       setInitialEvents(events);
       setCustomEvents(cevs);
       setInitialBatchDone(true);
@@ -147,7 +167,7 @@ useEffect(() => {
     // assumes chronologically increasing events; mounting the tail first and then
     // streaming older S3 chunks after it corrupts the timeline. Warm events are
     // appended last, after every S3 chunk has streamed in.
-    const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(initChunks);
+    const { events: initEvs, customEvents: initCevs } = toPlayerEvents(initChunks);
     setInitialEvents(initEvs);
     setCustomEvents(initCevs);
     setInitialBatchDone(true);
@@ -188,7 +208,7 @@ useEffect(() => {
       const result = await pending;
       if (cancelled) return;
       if (result.ok) {
-        const { events: newEvs, customEvents: newCevs } = eventsFromChunkList([
+        const { events: newEvs, customEvents: newCevs } = toPlayerEvents([
           { sequence: result.value.sequence, data: result.value.data },
         ]);
         appendStreamed(newEvs, newCevs);
@@ -203,7 +223,7 @@ useEffect(() => {
 
     // Finally append the warm in-memory tail (newest events, sequence > all S3 chunks)
     if (!cancelled && warmChunks?.length) {
-      const { events: warmEvs, customEvents: warmCevs } = eventsFromChunkList(warmChunks);
+      const { events: warmEvs, customEvents: warmCevs } = toPlayerEvents(warmChunks);
       appendStreamed(warmEvs, warmCevs);
     }
   })();

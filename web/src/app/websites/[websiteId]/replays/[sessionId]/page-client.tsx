@@ -106,7 +106,7 @@ export function ReplayDetailView({
     initialBatchDone,
     addEventsRef,
     pendingEventsRef,
-  } = useReplayChunks(sessionApiResp);
+  } = useReplayChunks(sessionApiResp, websiteId);
 
   // Pre-warm rrweb-player bundle while metadata is loading
   useEffect(() => {

@@ -15,6 +15,7 @@ import { putJpeg, putHtml } from "../../../platform/storage/s3";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
 import type { HeatmapIngestEvent, ScreenshotJob } from "../interfaces";
 import type { TrackerWebsites } from "../../websites/interfaces";
+import type { StylesheetDiscovery } from "../../recordings/interfaces";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { isJpeg } from "./heatmap-data-normalization.service";
 import { STALE_MS } from "./heatmap-layout-snapshot.service";
@@ -97,6 +98,12 @@ export class SnapshotIngestService {
      * performed unguarded.
      */
     private readonly websites: TrackerWebsites | null,
+    /**
+     * The recordings module's stylesheet archive. A snapshot links the site's stylesheets
+     * by URL, and hashed CSS files vanish on the site's next deploy; this keeps a copy.
+     * `null`: nothing is archived.
+     */
+    private readonly stylesheets: StylesheetDiscovery | null = null,
   ) {}
 
   /**
@@ -250,6 +257,12 @@ export class SnapshotIngestService {
     await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion, sourcePath);
     if (pageVersion) {
       await upsertLayoutVersion(ev.websiteId, norm, device, pageVersion, key, sum, docW, docH);
+    }
+    // After the snapshot is stored, and never allowed to fail it: discovery is best-effort.
+    if (this.stylesheets) {
+      await this.stylesheets.discoverFromHtml(ev.websiteId, html, ev.url ?? "").catch((err) =>
+        log.warn({ msg: "heatmap_stylesheet_discovery_failed", website_id: ev.websiteId, err: String(err) }),
+      );
     }
     log.info({
       msg: "heatmap_dom_snapshot_stored",

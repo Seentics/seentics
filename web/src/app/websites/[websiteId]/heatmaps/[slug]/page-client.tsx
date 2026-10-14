@@ -510,6 +510,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                   preferredViewportWidth={preferredViewportWidth}
                   pageScreenshot={pageScreenshot ?? null}
                   requestedDevice={device}
+                  websiteId={websiteId}
                 />
               )}
               {points.length === 0 && !isLoading && !isDemoMode && (

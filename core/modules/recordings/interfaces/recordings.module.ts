@@ -9,6 +9,7 @@ import type {
   RecordingRawReads,
   SessionAnalysisJobs,
   SessionAnalysisReads,
+  StylesheetArchive,
 } from "./index";
 
 /** Everything the recordings module offers. */
@@ -43,6 +44,13 @@ export interface RecordingsModule extends ModuleLifecycle {
 
   /** The scheduled analysis and nightly summary jobs. */
   analysisJobs: SessionAnalysisJobs;
+
+  /**
+   * Archived copies of the stylesheets recordings and heatmap snapshots link to: discovery
+   * for heatmaps' snapshot ingest, the access token and serving for the player, and the
+   * scheduled fetch job.
+   */
+  stylesheets: StylesheetArchive;
 
   routes: AuthedRouter;
 }

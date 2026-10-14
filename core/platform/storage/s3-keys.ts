@@ -19,3 +19,13 @@ export function sessionChunkKey(
   const suffix = batchId && /^[a-f0-9]{32}$/i.test(batchId) ? `-${batchId.toLowerCase()}` : "";
   return `sessions/${websiteId}/${sessionId}/chunk-${padded}${suffix}.json.gz`;
 }
+
+/** Every archived replay stylesheet of one website — the prefix a site's erasure clears. */
+export function stylesheetPrefix(websiteId: string): string {
+  return `stylesheets/${websiteId}/`;
+}
+
+/** One archived stylesheet, content-addressed: identical files of a site share an object. */
+export function stylesheetObjectKey(websiteId: string, contentSha256: string): string {
+  return `stylesheets/${websiteId}/${contentSha256}.css`;
+}

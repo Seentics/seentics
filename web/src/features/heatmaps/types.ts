@@ -63,6 +63,9 @@ export interface HeatmapPageScreenshot {
   /** The real page captured — `/orders/8213` for `/orders/:id`; empty when unknown. */
   source_path?:          string;
   dom_fingerprint?:      string;
+  /** With `html_url`: reads this site's archived stylesheets — see `lib/stylesheet-archive`. */
+  stylesheet_token?:     string;
+  stylesheet_token_expires_at?: string;
 }
 
 export interface PlaywrightScreenshotResult {

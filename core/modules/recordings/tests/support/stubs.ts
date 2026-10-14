@@ -71,6 +71,15 @@ export const s3DeleteFailures = new Set<string>();
 export let maxConcurrentPrefixDeletes = 0;
 let inFlightPrefixDeletes = 0;
 
+/** Stored stylesheet bodies, keyed by object key: what `putCss` wrote and `getText` reads. */
+export const cssObjects = new Map<string, string>();
+
+/** Keys handed to `deleteS3Objects`, and prefixes to `deletePrefix`, in call order. */
+export const objectDeletes: string[] = [];
+
+/** Set to make `deleteS3Objects` throw, as an unreachable store would. */
+export const storageFlags = { deleteThrows: false };
+
 /** Chunk rows `listSessionReplayChunks` returns, keyed by session id. */
 export const storedChunks = new Map<string, { sequence: number; key: string }[]>();
 
@@ -86,7 +95,22 @@ mock.module("../../../../platform/storage/s3", () => ({
   s3: () => ({}),
   putHtml: async () => {},
   putJpeg: async () => {},
-  deleteS3Objects: async () => {},
+  putCss: async (_bucket: string, key: string, body: string) => {
+    cssObjects.set(key, body);
+  },
+  getText: async (_bucket: string, key: string) => {
+    const body = cssObjects.get(key);
+    if (body === undefined) throw new Error("NoSuchKey");
+    return body;
+  },
+  deleteS3Objects: async (_bucket: string, keys: string[]) => {
+    if (storageFlags.deleteThrows) throw new Error("storage unreachable");
+    objectDeletes.push(...keys);
+    for (const k of keys) cssObjects.delete(k);
+  },
+  deletePrefix: async (_bucket: string, prefix: string) => {
+    objectDeletes.push(prefix);
+  },
   getNextReplayChunkSequence: async () => 0,
   uploadSessionChunkGzip: async (
     _bucket: string,
@@ -138,4 +162,7 @@ export function resetStubs(): void {
   inFlightPrefixDeletes = 0;
   s3DeleteFailures.clear();
   storedChunks.clear();
+  cssObjects.clear();
+  objectDeletes.length = 0;
+  storageFlags.deleteThrows = false;
 }

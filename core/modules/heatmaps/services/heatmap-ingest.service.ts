@@ -7,6 +7,7 @@ import { eventsToPoints, eventsToScreenshotJobs } from "./heatmap-event-projecti
 import { SnapshotIngestService } from "./heatmap-snapshot-ingest.service";
 import { trackerRowsToHeatmapEvents } from "./tracker-heatmap-event-mapping.service";
 import type { TrackerWebsites } from "../../websites/interfaces";
+import type { StylesheetDiscovery } from "../../recordings/interfaces";
 import { log as baseLog } from "../../../platform/observability/logger";
 
 const log = baseLog.child({ category: "heatmap" });
@@ -61,9 +62,12 @@ export class HeatmapIngestService implements HeatmapIngest {
      * URL and a bucket just to exercise a write.
      */
     snapshots?: SnapshotIngestService;
+    /** Told the stylesheets each stored DOM snapshot links to, so they are archived. */
+    stylesheets?: StylesheetDiscovery | null;
   } = {}) {
     this.snapshots =
-      opts.snapshots ?? new SnapshotIngestService(env().s3.heatmapBucket, opts.websites ?? null);
+      opts.snapshots ??
+      new SnapshotIngestService(env().s3.heatmapBucket, opts.websites ?? null, opts.stylesheets ?? null);
   }
 
   /**
@@ -176,7 +180,10 @@ export function heatmapIngestService(): HeatmapIngestService {
  * `initHeatmapsModule().start` before anything can ingest; returns the same instance
  * `heatmapIngestService()` will hand out.
  */
-export function createHeatmapIngestService(websites: TrackerWebsites): HeatmapIngestService {
-  _engine = new HeatmapIngestService({ websites });
+export function createHeatmapIngestService(
+  websites: TrackerWebsites,
+  stylesheets: StylesheetDiscovery | null = null,
+): HeatmapIngestService {
+  _engine = new HeatmapIngestService({ websites, stylesheets });
   return _engine;
 }

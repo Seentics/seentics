@@ -1,10 +1,11 @@
 import { recordingsLane } from "./ingest-lane";
 import type { WebsitesModule } from "../websites/interfaces";
-import type { RecordingsModule, SessionSummarizer } from "./interfaces";
+import type { RecordingDetail, RecordingsModule, SessionSummarizer } from "./interfaces";
 import { RecordingUsageCounter } from "./services/usage-count.service";
 import { createRecordingRoutes } from "./routes";
 import { RecordingRawReadService } from "./services/recording-raw-read.service";
 import {
+  configureRecordingStylesheetSink,
   recordingIngestService,
   stopRecordingIngestService,
 } from "./services/recording-ingest.service";
@@ -15,6 +16,7 @@ import { RecordingRetentionPurge } from "./services/retention-purge.service";
 import { readSessionAnalysisConfig, SessionAnalysisService } from "./services/session-analysis.service";
 import { loadRecordingEvents } from "./services/frustration/recording-event-loader";
 import { PostgresSessionAnalysisStore } from "./repositories/session-analysis.repository";
+import { stylesheetArchive } from "./services/stylesheets/stylesheet-archive";
 
 /** Build the recordings module. */
 export function initRecordingsModule(deps: {
@@ -33,25 +35,45 @@ export function initRecordingsModule(deps: {
     config: readSessionAnalysisConfig(),
   });
 
+  const stylesheets = stylesheetArchive();
+  // Ingest reports each stored batch's stylesheet links to the archive (best-effort).
+  configureRecordingStylesheetSink((websiteId, events) => stylesheets.discoverFromReplayEvents(websiteId, events));
+
+  /**
+   * A recording, with the capability its player needs to load the site's archived
+   * stylesheets. Here rather than in the detail service so both callers — the dashboard
+   * route and the embed API — get it from the one read they already authorize.
+   */
+  const getSessionDetail = async (websiteId: string, sessionId: string): Promise<RecordingDetail> => {
+    const detail = await getReplaySessionDetail(websiteId, sessionId);
+    if (detail.status !== 200) return detail;
+    const access = stylesheets.accessToken(websiteId);
+    return {
+      ...detail,
+      body: { ...detail.body, stylesheet_token: access.token, stylesheet_token_expires_at: access.expiresAt },
+    } as RecordingDetail;
+  };
+
   return {
     lane: recordingsLane(() => recordingIngestService()),
 
     // This module's own accessor, called here rather than reached for by ingest — which is
     // what removed ingest's edge into a process-wide singleton it could not stub.
     ingest: () => recordingIngestService(),
-    retention: new RecordingRetentionPurge(),
+    retention: new RecordingRetentionPurge(stylesheets),
     usage: new RecordingUsageCounter(),
     rawReads: new RecordingRawReadService(),
-    reads: { listSessions: listReplaySessions, getSessionDetail: getReplaySessionDetail },
+    reads: { listSessions: listReplaySessions, getSessionDetail },
     routes: createRecordingRoutes({
       recordingList: { listSessions: listReplaySessions },
-      recordingDetails: { getSessionDetail: getReplaySessionDetail },
+      recordingDetails: { getSessionDetail },
       recordingDeletion: { batchDelete: batchDeleteReplaySessions },
       recordingAnalysis: analysis,
       websites: deps.websitesModule.accessChecks,
     }),
     analysis,
     analysisJobs: analysis,
+    stylesheets,
 
     // Constructing the service arms the chunk flush timer and opens a storage client, so
     // it happens here rather than at build time — same reason as the heatmap engine. The

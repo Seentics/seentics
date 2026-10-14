@@ -1,6 +1,7 @@
 import { heatmapsLane } from "./ingest-lane";
 import type { AnalyticsModule } from "../analytics/interfaces";
 import type { WebsitesModule } from "../websites/interfaces";
+import type { StylesheetAccess, StylesheetDiscovery } from "../recordings/interfaces";
 import type { HeatmapInsightNarrator, HeatmapsModule } from "./interfaces";
 import { HeatmapUsageCounter } from "./services/usage-count.service";
 import { createHeatmapRoutes } from "./routes";
@@ -38,6 +39,12 @@ export function initHeatmapsModule(deps: {
    * returning `null`, findings are worded from the rules that found them.
    */
   insightNarrator?: () => HeatmapInsightNarrator | null;
+  /**
+   * The recordings module's stylesheet archive: snapshot ingest reports the stylesheets a
+   * DOM snapshot links to, and the layout read hands the viewer a token to load archived
+   * copies. Omitted: snapshots keep loading the live site's CSS.
+   */
+  stylesheets?: StylesheetDiscovery & StylesheetAccess;
 }): HeatmapsModule {
 
   const settings = new HeatmapSettingsService(deps.websitesModule.query);
@@ -46,7 +53,7 @@ export function initHeatmapsModule(deps: {
     screenshots.captureForResolved,
     deps.analyticsModule.pageviewUrls,
   );
-  const heatmapQueries = new HeatmapQueryService(settings, autoCapture);
+  const heatmapQueries = new HeatmapQueryService(settings, autoCapture, deps.stylesheets ?? null);
   const heatmapMutations = new HeatmapMutationService();
   const pageAnalysis = new HeatmapPageAnalysisService();
 
@@ -80,7 +87,7 @@ export function initHeatmapsModule(deps: {
       // The engine takes the bus, so it has to be built from the composed graph — an
       // engine created lazily on first ingest publishes to nobody. Here rather than
       // above because constructing it arms flush timers.
-      createHeatmapIngestService(deps.websitesModule.trackerWebsites);
+      createHeatmapIngestService(deps.websitesModule.trackerWebsites, deps.stylesheets ?? null);
     },
 
     /**

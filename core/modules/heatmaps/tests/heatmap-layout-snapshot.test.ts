@@ -68,6 +68,9 @@ mock.module("../../../platform/storage/s3", () => ({
   uploadSessionChunkGzip: async () => {},
   uploadSessionBatchChunkGzip: async () => {},
   deleteSessionPrefix: async () => {},
+  deletePrefix: async () => {},
+  putCss: async () => {},
+  getText: async () => "",
   listSessionReplayChunks: async () => [],
   presignGet: async (_bucket: string, key: string) => `https://signed.test/${key}`,
   locateBundle: async () => null,
@@ -407,5 +410,28 @@ describe("readLayoutSnapshot", () => {
 
     expect((await read("/orders/8213")).missing).toBe(true);
     expect((await read("/orders/:id")).missing).toBe(false);
+  });
+});
+
+describe("HeatmapQueryService.getLayoutSnapshot — archived stylesheet access", () => {
+  const settings = { getCaptureTarget: async () => null } as never;
+  const autoCapture = { schedule: () => {} } as never;
+  const access = { accessToken: (id: string) => ({ token: `tok-${id}`, expiresAt: "2026-10-16T00:00:00.000Z" }) };
+
+  it("hands a DOM snapshot's viewer the site's stylesheet token", async () => {
+    const { HeatmapQueryService } = await import("../services/heatmap-query.service");
+    storedRows.set(`${SITE}:/pricing`, row({ s3_key: "", html_s3_key: "site/slot.html" }));
+    const out = await new HeatmapQueryService(settings, autoCapture, access).getLayoutSnapshot(SITE, "/pricing");
+    expect(out.layout).toMatchObject({ stylesheet_token: `tok-${SITE}`, stylesheet_token_expires_at: "2026-10-16T00:00:00.000Z" });
+  });
+
+  it("adds none to an image-only background, or without an archive", async () => {
+    const { HeatmapQueryService } = await import("../services/heatmap-query.service");
+    storedRows.set(`${SITE}:/pricing`, row());
+    const image = await new HeatmapQueryService(settings, autoCapture, access).getLayoutSnapshot(SITE, "/pricing");
+    expect(image.layout?.stylesheet_token).toBeUndefined();
+    storedRows.set(`${SITE}:/pricing`, row({ s3_key: "", html_s3_key: "site/slot.html" }));
+    const none = await new HeatmapQueryService(settings, autoCapture).getLayoutSnapshot(SITE, "/pricing");
+    expect(none.layout?.stylesheet_token).toBeUndefined();
   });
 });

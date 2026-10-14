@@ -530,6 +530,48 @@ export const sessionAnalyses = pgTable(
 );
 
 /**
+ * Archived stylesheets that recordings and heatmap snapshots link to — see
+ * db/sql/059_replay_stylesheets.sql, which owns the partial indexes and the status check.
+ * Owned by the recordings module (`services/stylesheets/`).
+ */
+export const replayStylesheets = pgTable(
+  "replay_stylesheets",
+  {
+    websiteId: text("website_id").notNull(),
+    urlHash: char("url_hash", { length: 64 }).notNull(),
+    url: text("url").notNull(),
+    status: varchar("status", { length: 12 }).notNull().default("pending"),
+    storageKey: text("storage_key"),
+    bytes: integer("bytes"),
+    contentSha256: char("content_sha256", { length: 64 }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+    attempts: smallint("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lastError: text("last_error"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.websiteId, t.urlHash] }),
+    check(
+      "ck_replay_stylesheets_status",
+      sql`${t.status} IN ('pending', 'stored', 'failed', 'too_large', 'not_css')`,
+    ),
+  ],
+);
+
+/** The stylesheet backfill's single cursor row — see db/sql/059_replay_stylesheets.sql. */
+export const replayStylesheetBackfill = pgTable("replay_stylesheet_backfill", {
+  id: smallint("id").primaryKey().default(1),
+  cursorTs: timestamp("cursor_ts", { withTimezone: true }).notNull(),
+  cursorWebsiteId: text("cursor_website_id").notNull().default(""),
+  cursorSessionId: text("cursor_session_id").notNull().default(""),
+  floorTs: timestamp("floor_ts", { withTimezone: true }).notNull(),
+  sessionsScanned: integer("sessions_scanned").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+/**
  * The daily dashboard insight for one website and UTC day — see db/sql/052_ai_insights.sql.
  * Owned by the AI module (`modules/ai/insights`).
  */
