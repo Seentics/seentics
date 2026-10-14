@@ -73,7 +73,9 @@ import {
  * action on this page and it was two clicks deep behind a `MoreVertical`.
  */
 
-import { Chip, FlowCell, StatusCell, RowMenu, rateTone } from '@/components/automations/automation-cells';
+import { FlowCell, StatusCell, RowMenu } from '@/components/automations/automation-cells';
+import { ListGroups } from '@/components/ui/list-groups';
+import { AUTOMATION_GROUP_META, AUTOMATION_TONE_DOT, AUTOMATION_TONE_RANK, automationLine, automationTone, inAutomationGroup, type AutomationGroupId } from '@/features/automations/insights';
 import { TRIGGERS, ACTIONS } from '@/features/automations/catalog';
 
 export default function AutomationsPage() {
@@ -84,6 +86,8 @@ export default function AutomationsPage() {
   const [search, setSearch] = useState('');
   const [confirm, confirmDialog] = useConfirm();
   const { data, isLoading } = useAutomations(websiteId);
+  /** A group the table is narrowed to, from "Show all" below it. */
+  const [groupFilter, setGroupFilter] = useState<AutomationGroupId | null>(null);
   const automations: Automation[] = data?.automations ?? [];
   const bulkDelete = useBulkDeleteAutomations();
 
@@ -146,42 +150,18 @@ export default function AutomationsPage() {
       cell: ({ row }) => <FlowCell automation={row.original} />,
     },
     {
-      id: 'runs',
-      header: ({ column }) => <SortableHeader column={column}>Runs</SortableHeader>,
-      accessorFn: row => row.stats?.totalExecutions ?? 0,
-      size: 80,
-      cell: ({ getValue }) => {
-        const runs = getValue() as number;
-        return runs > 0 ? (
-          <span className="text-[15px] font-semibold tabular-nums text-foreground">{runs.toLocaleString()}</span>
-        ) : (
-          <span className="text-sm text-muted-foreground">—</span>
-        );
-      },
-    },
-    {
-      id: 'success',
-      header: ({ column }) => <SortableHeader column={column}>Success</SortableHeader>,
-      accessorFn: row => row.stats?.successRate ?? 0,
-      size: 130,
+      id: 'what',
+      header: 'What happened',
+      accessorFn: row => AUTOMATION_TONE_RANK[automationTone(row)],
+      size: 380,
       cell: ({ row }) => {
-        const stats = row.original.stats;
-        if (!stats || stats.totalExecutions === 0) {
-          return <span className="text-sm text-muted-foreground">—</span>;
-        }
+        const tone = automationTone(row.original);
+        const text = automationLine(row.original);
         return (
-          <div className="flex items-center gap-2.5">
-            <div className="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn(
-                  'h-full rounded-full',
-                  stats.successRate >= 90 ? 'bg-emerald-500' : stats.successRate >= 70 ? 'bg-amber-500' : 'bg-rose-500',
-                )}
-                style={{ width: `${Math.min(stats.successRate, 100)}%` }}
-              />
-            </div>
-            <span className={cn('text-sm font-semibold tabular-nums', rateTone(stats.successRate))}>
-              {stats.successRate.toFixed(0)}%
+          <div className="flex min-w-0 max-w-[30rem] items-center gap-2">
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', AUTOMATION_TONE_DOT[tone])} />
+            <span className={cn('truncate text-sm', tone === 'failing' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
+              {text}
             </span>
           </div>
         );
@@ -251,7 +231,7 @@ export default function AutomationsPage() {
 
       <DataTable
         className="rounded-lg shadow-sm [&_td]:!py-3.5 [&_th]:!py-2.5"
-        data={filtered}
+        data={groupFilter ? filtered.filter((a) => inAutomationGroup(a, groupFilter)) : filtered}
         columns={columns}
         isLoading={isLoading}
         enableRowSelection
@@ -312,6 +292,19 @@ export default function AutomationsPage() {
             : 'Create your first automation to trigger actions based on user behavior.'
         }
         pageSize={10}
+      />
+
+      <ListGroups
+        className="mt-6"
+        title="Automations by how they are doing"
+        description="From each automation's runs. Open a group to see its automations."
+        groups={AUTOMATION_GROUP_META.map((meta) => ({
+          ...meta,
+          items: automations
+            .filter((a) => inAutomationGroup(a, meta.id))
+            .map((a) => ({ key: a.id, text: `${a.name} — ${automationLine(a)}`, onClick: () => router.push(`/websites/${websiteId}/automations/${a.id}`) })),
+        }))}
+        onShowAll={(id) => { setGroupFilter(id as AutomationGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
       />
     </div>
   );

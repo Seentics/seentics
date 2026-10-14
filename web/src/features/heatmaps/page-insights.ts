@@ -58,3 +58,20 @@ export function heatmapLine(p: HeatmapPageFacts): string {
   const line = parts.join(' · ');
   return line.charAt(0).toUpperCase() + line.slice(1);
 }
+
+export type HeatmapTone = 'problem' | 'healthy' | 'unknown';
+
+/** Whether a page needs attention, for its dot in the list. */
+export function heatmapTone(p: HeatmapPageFacts): HeatmapTone {
+  const f = flags(p);
+  if (!f.enough) return 'unknown';
+  return f.dead || f.low || f.gap ? 'problem' : 'healthy';
+}
+
+export const HEATMAP_TONE_DOT: Record<HeatmapTone, string> = {
+  problem: 'bg-orange-500',
+  healthy: 'bg-emerald-500',
+  unknown: 'bg-muted-foreground/40',
+};
+
+export const HEATMAP_TONE_RANK: Record<HeatmapTone, number> = { problem: 2, healthy: 1, unknown: 0 };

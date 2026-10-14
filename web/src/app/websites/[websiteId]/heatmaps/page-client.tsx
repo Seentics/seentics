@@ -36,22 +36,8 @@ import { getPageIcon } from '@/components/analytics/page-icon';
 
 import { cn } from '@/lib/utils';
 import { ListGroups } from '@/components/ui/list-groups';
-import { HEATMAP_GROUP_META, heatmapLine, inHeatmapGroup, type HeatmapGroupId } from '@/features/heatmaps/page-insights';
+import { HEATMAP_GROUP_META, HEATMAP_TONE_DOT, HEATMAP_TONE_RANK, heatmapLine, heatmapTone, inHeatmapGroup, type HeatmapGroupId } from '@/features/heatmaps/page-insights';
 
-/** A count with a bar under it, drawn against the busiest row, so rows compare at a glance. */
-function ShareCell({ value, max, barClass }: { value: number; max: number; barClass: string }) {
-  return (
-    <div className="w-24">
-      <p className="text-sm font-semibold tabular-nums text-foreground">{value.toLocaleString()}</p>
-      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn('h-full rounded-full', barClass)}
-          style={{ width: `${Math.max(3, Math.round((value / max) * 100))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 /** Path-only label for table; tooltip keeps full stored path. */
 const HEATMAP_PATH_MAX = 56;
@@ -209,9 +195,6 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
     ? Math.round(pages.reduce((s, p) => s + p.avg_scroll, 0) / pages.length)
     : 0;
   const activePages = pages.filter(p => p.active).length;
-  // Each count's bar is drawn against the busiest page, so rows compare at a glance.
-  const maxViews  = Math.max(1, ...pages.map(p => p.views));
-  const maxClicks = Math.max(1, ...pages.map(p => p.clicks));
 
   const columns: ColumnDef<PageRow>[] = useMemo(() => [
     ...(embed ? [] : [selectionColumn<PageRow>()]),
@@ -236,47 +219,26 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
                 {display}
               </span>
             </div>
-            <p
-              className="mt-0.5 truncate pl-[26px] text-[11px] text-muted-foreground"
-              title={row.original.last_seen ? `Last data ${new Date(row.original.last_seen).toLocaleDateString()}` : undefined}
-            >
-              {heatmapLine(row.original)}
-            </p>
+
           </div>
         );
       },
     },
     {
-      id: 'views',
-      header: ({ column }) => <SortableHeader column={column}>Views</SortableHeader>,
-      accessorKey: 'views',
-      size: 120,
-      cell: ({ getValue }) => (
-        <ShareCell value={getValue() as number} max={maxViews} barClass="bg-primary/60" />
-      ),
-    },
-    {
-      id: 'clicks',
-      header: ({ column }) => <SortableHeader column={column}>Clicks</SortableHeader>,
-      accessorKey: 'clicks',
-      size: 120,
-      cell: ({ getValue }) => (
-        <ShareCell value={getValue() as number} max={maxClicks} barClass="bg-violet-500/60" />
-      ),
-    },
-    {
-      id: 'scroll',
-      header: ({ column }) => <SortableHeader column={column}>Avg scroll</SortableHeader>,
-      accessorKey: 'avg_scroll',
-      size: 150,
-      cell: ({ getValue }) => {
-        const v = Math.max(0, Math.min(100, Math.round(getValue() as number)));
+      id: 'what',
+      header: 'What happened',
+      // Sorts by how much needs attention: problems first, then healthy, then too little data.
+      accessorFn: (row) => HEATMAP_TONE_RANK[heatmapTone(row)],
+      size: 560,
+      cell: ({ row }) => {
+        const tone = heatmapTone(row.original);
+        const text = heatmapLine(row.original);
         return (
-          <div className="flex items-center gap-2.5">
-            <div className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${v}%` }} />
-            </div>
-            <span className="text-sm font-semibold tabular-nums text-foreground">{v}%</span>
+          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', HEATMAP_TONE_DOT[tone])} />
+            <span className={cn('truncate text-sm', tone === 'problem' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
+              {text}
+            </span>
           </div>
         );
       },
@@ -321,7 +283,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         </div>
       ),
     },
-  ], [heatmapHref, router, deleteMutation, websiteId, maxViews, maxClicks, embed]);
+  ], [heatmapHref, router, deleteMutation, websiteId, embed]);
 
 
   return (

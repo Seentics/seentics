@@ -83,3 +83,19 @@ export function funnelLine(
   }
   return parts.join(' · ');
 }
+
+export type FunnelTone = 'worse' | 'leak' | 'better' | 'steady' | 'quiet';
+
+/** How much a funnel needs attention, for its dot in the list. */
+export function funnelTone(funnel: Funnel, a: FunnelAnalyticsItem | undefined, prev: FunnelPrevious | null): FunnelTone {
+  if (!funnel.is_active || !a || (a.total_starts ?? 0) < MIN_STARTS) return 'quiet';
+  if (inFunnelGroup(funnel, a, prev, 'worse')) return 'worse';
+  if (inFunnelGroup(funnel, a, prev, 'leak')) return 'leak';
+  if (inFunnelGroup(funnel, a, prev, 'better')) return 'better';
+  return 'steady';
+}
+
+export const FUNNEL_TONE_DOT: Record<FunnelTone, string> = {
+  worse: 'bg-red-500', leak: 'bg-orange-500', better: 'bg-emerald-500', steady: 'bg-sky-500', quiet: 'bg-muted-foreground/40',
+};
+export const FUNNEL_TONE_RANK: Record<FunnelTone, number> = { worse: 4, leak: 3, better: 2, steady: 1, quiet: 0 };

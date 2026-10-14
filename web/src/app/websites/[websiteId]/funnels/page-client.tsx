@@ -9,21 +9,21 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
+import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
-import { useFunnels, useFunnelsAnalytics, type Funnel, type FunnelAnalyticsResponse } from '@/features/funnels/queries';
+import { useFunnels, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
 import { DataTable, SortableHeader, selectionColumn } from '@/components/ui/data-table';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { ListGroups } from '@/components/ui/list-groups';
-import { FUNNEL_GROUP_META, funnelLine, inFunnelGroup, previousFrom, type FunnelGroupId, type FunnelPrevious } from '@/features/funnels/insights';
+import { FUNNEL_GROUP_META, FUNNEL_TONE_DOT, FUNNEL_TONE_RANK, funnelLine, funnelTone, inFunnelGroup, previousFrom, type FunnelGroupId, type FunnelPrevious } from '@/features/funnels/insights';
 
 /** The demo's period before, so its trends read like a real site's. */
 const DEMO_PREVIOUS: Record<string, FunnelPrevious> = {
@@ -31,26 +31,6 @@ const DEMO_PREVIOUS: Record<string, FunnelPrevious> = {
   'demo-funnel-2': { starts: 31_900, conversions: 3_250 },
 };
 
-function FunnelCellStats({ analytics, isLoading }: { analytics?: FunnelAnalyticsResponse; isLoading: boolean }) {
-  if (isLoading) return <Skeleton className="h-4 w-24" />;
-  const item = analytics?.analytics?.[0];
-  if (!item || (!item.total_starts && !item.total_conversions)) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  const rate = Math.max(0, Math.min(100, item.conversion_rate || 0));
-
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${rate}%` }} />
-      </div>
-      <span className="text-sm font-semibold tabular-nums">{rate.toFixed(1)}%</span>
-      <span className="text-[11px] text-muted-foreground tabular-nums">
-        {item.total_conversions?.toLocaleString()} / {item.total_starts?.toLocaleString()}
-      </span>
-    </div>
-  );
-}
 
 export default function FunnelsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -170,46 +150,34 @@ export default function FunnelsPage() {
                   {row.original.steps?.length || 0} steps
                 </span>
               </div>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={row.original.description || undefined}>
-                {funnelLine(row.original, reportOf(row.original.id), previousOf(row.original.id), false)}
-              </p>
+              {row.original.description ? (
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{row.original.description}</p>
+              ) : null}
             </div>
           </div>
         </div>
       )
     },
     {
-      id: 'status',
-      header: 'Status',
-      accessorKey: 'is_active',
-      size: 100,
-      cell: ({ getValue }: { getValue: any }) => {
-        const active = getValue() as boolean;
-        return (
-          <Badge variant={active ? 'default' : 'secondary'} className="h-5 px-2 text-[10px]">
-            {active ? 'Active' : 'Paused'}
-          </Badge>
+      id: 'what',
+      header: 'What happened',
+      accessorFn: (f: Funnel) => FUNNEL_TONE_RANK[funnelTone(f, reportOf(f.id), previousOf(f.id))],
+      size: 560,
+      cell: ({ row }: { row: any }) => {
+        const f = row.original as Funnel;
+        const tone = funnelTone(f, reportOf(f.id), previousOf(f.id));
+        const text = funnelLine(f, reportOf(f.id), previousOf(f.id));
+        return funnelReports.isLoading ? (
+          <Skeleton className="h-4 w-64" />
+        ) : (
+          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[tone])} />
+            <span className={cn('truncate text-sm', tone === 'worse' || tone === 'leak' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
+              {text}
+            </span>
+          </div>
         );
-      }
-    },
-    {
-      id: 'performance',
-      header: `Performance (${FUNNEL_RANGES.find((r) => r.days === dateRange)?.short ?? `${dateRange}d`})`,
-      cell: ({ row }: { row: any }) => (
-        <FunnelCellStats analytics={funnelReports.data?.[row.original.id]} isLoading={funnelReports.isLoading} />
-      )
-    },
-    {
-      id: 'created',
-      header: 'Created',
-      accessorKey: 'created_at',
-      size: 120,
-      cell: ({ getValue }: { getValue: any }) => (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Calendar size={12} className="opacity-50" />
-          {new Date(getValue() as string).toLocaleDateString()}
-        </div>
-      )
+      },
     },
     {
       id: 'actions',
