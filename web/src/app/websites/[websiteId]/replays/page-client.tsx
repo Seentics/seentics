@@ -40,6 +40,9 @@ import {
 } from '@/features/replays/list-types';
 import { FRUSTRATED_MIN_SCORE } from '@/features/replays/analysis';
 import { demoSessionFrustration } from '@/lib/demo/ai';
+import { SessionGroups } from '@/components/replays/SessionGroups';
+import { SESSION_GROUP_META, inSessionGroup } from '@/features/replays/groups';
+import type { SessionGroup } from '@/features/replays/types';
 
 export default function ReplaysPage() {
   return <ReplaysView />;
@@ -68,6 +71,8 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
   /** Analysed sessions scoring at least `FRUSTRATED_MIN_SCORE`. */
   const [frustratedOnly, setFrustratedOnly] = useState(false);
   const [sort, setSort] = useState<SessionSort>('recent');
+  /** A session group the table is narrowed to, from "Show all" in Session groups. */
+  const [groupFilter, setGroupFilter] = useState<SessionGroup | null>(null);
   /** Rolling window in days; 0 is every retained session. */
   const [rangeDays, setRangeDays] = useState<number>(DEFAULT_REPLAY_DAYS);
   const [pageIndex, setPageIndex] = useState(0);
@@ -86,7 +91,14 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     days: rangeDays || undefined,
     minFrustration: frustratedOnly ? FRUSTRATED_MIN_SCORE : undefined,
     sort: sort === 'frustration' ? 'frustration' : undefined,
-  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays, frustratedOnly, sort]);
+    group: groupFilter ?? undefined,
+  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays, frustratedOnly, sort, groupFilter]);
+
+  /** What the groups are counted within: everything but the group itself. */
+  const groupScope: ReplayListParams = useMemo(() => {
+    const { group: _g, sort: _s, ...rest } = filters;
+    return rest;
+  }, [filters]);
 
   /** Narrowing the set changes what page 1 means, so never keep the old offset. */
   useEffect(() => {
@@ -219,9 +231,15 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     };
   }, [isDemoMode, rows, apiData]);
 
-  const totalRows = isDemoMode ? rows.length : (apiData?.total ?? 0);
+  /** Demo mode groups in the browser; the server does it for real sites. */
+  const demoGroupCounts = useMemo(
+    () => (isDemoMode ? Object.fromEntries(SESSION_GROUP_META.map((g) => [g.id, rows.filter((r) => inSessionGroup(r, g.id)).length])) : undefined),
+    [isDemoMode, rows],
+  );
+  const tableRows = isDemoMode && groupFilter ? rows.filter((r) => inSessionGroup(r, groupFilter)) : rows;
+  const totalRows = isDemoMode ? tableRows.length : (apiData?.total ?? 0);
   const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
-  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly || frustratedOnly;
+  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly || frustratedOnly || groupFilter !== null;
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -230,6 +248,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     setErrorsOnly(false);
     setRageOnly(false);
     setFrustratedOnly(false);
+    setGroupFilter(null);
   }, []);
 
   const columns = useMemo(
@@ -314,7 +333,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
 
       <DataTable
         className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-2 [&_th]:!py-2"
-        data={rows}
+        data={tableRows}
         columns={columns}
         isLoading={isLoading || isFetching}
         rowClassName={() => 'hover:bg-muted/35'}
@@ -425,6 +444,11 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
               </Select>
             )}
 
+            {groupFilter && (
+              <Button variant="secondary" size="sm" className="h-8 gap-1 text-xs" onClick={() => setGroupFilter(null)}>
+                {SESSION_GROUP_META.find((g) => g.id === groupFilter)?.label} ×
+              </Button>
+            )}
             {filtersActive && (
               <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
                 Clear
@@ -462,6 +486,18 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
           setPageSize(nextSize);
         }}
       />
+
+      {!embed && (
+        <SessionGroups
+          className="mt-6"
+          websiteId={websiteId}
+          filters={groupScope}
+          counts={isDemoMode ? demoGroupCounts : apiData?.summary?.groups}
+          demoRows={isDemoMode ? rows : undefined}
+          onPlay={(id) => router.push(`/websites/${websiteId}/replays/${id}`)}
+          onShowAll={(g) => { setGroupFilter(g); setPageIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        />
+      )}
 
     </div>
   );
