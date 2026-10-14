@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 /**
  * Whether `ref`'s element has come within `rootMargin` of the viewport — and stays true once
@@ -10,9 +10,17 @@ import { useEffect, useState, type RefObject } from 'react';
 export function useNearViewport(ref: RefObject<Element | null>, rootMargin = '300px'): boolean {
   const [near, setNear] = useState(() => typeof window !== 'undefined' && typeof IntersectionObserver === 'undefined');
 
+  // Watched element and its observer, so a render that changes nothing does not rebuild it.
+  const watching = useRef<{ element: Element; observer: IntersectionObserver } | null>(null);
+
+  // No dependency list on purpose: the element can mount after the first render (a page that
+  // renders nothing while it decides on a redirect, a skeleton swapped for content), and a ref
+  // changing does not re-run an effect. Checking after every render attaches as soon as it exists.
   useEffect(() => {
     const element = ref.current;
     if (near || !element || typeof IntersectionObserver === 'undefined') return;
+    if (watching.current?.element === element) return;
+    watching.current?.observer.disconnect();
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) setNear(true);
@@ -20,8 +28,16 @@ export function useNearViewport(ref: RefObject<Element | null>, rootMargin = '30
       { rootMargin },
     );
     observer.observe(element);
-    return () => observer.disconnect();
-  }, [ref, rootMargin, near]);
+    watching.current = { element, observer };
+  });
+
+  useEffect(() => () => watching.current?.observer.disconnect(), []);
+  useEffect(() => {
+    if (near) {
+      watching.current?.observer.disconnect();
+      watching.current = null;
+    }
+  }, [near]);
 
   return near;
 }

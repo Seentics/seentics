@@ -130,10 +130,22 @@ describe('SessionAnalysisPanel', () => {
     await renderPanel({ durationMs: 40_000, player: { goto } });
     expect(await screen.findByText('The coupon button kept failing on /cart.')).toBeTruthy();
     expect(screen.getByText('Abandoned')).toBeTruthy();
-    expect(getSessionAnalysis).toHaveBeenCalledWith('w1', 's1', true);
+    // The stored analysis already has its summary: one fast read, no second request for it.
+    expect(getSessionAnalysis).toHaveBeenCalledWith('w1', 's1', false);
+    expect(getSessionAnalysis).not.toHaveBeenCalledWith('w1', 's1', true);
     fireEvent.click(screen.getByText('0:32'));
     expect(goto).toHaveBeenCalledWith(32_409, false);
     expect(screen.getByLabelText('Ask AI about this')).toBeTruthy();
+  });
+
+  it('shows the signals first, then asks for the summary when there is none yet', async () => {
+    getSessionAnalysis
+      .mockResolvedValueOnce({ ...analysis, summary: null, summarySource: null, summaryStatus: 'not_requested' })
+      .mockResolvedValueOnce(analysis);
+    await renderPanel();
+    expect(await screen.findByText('The coupon button kept failing on /cart.')).toBeTruthy();
+    expect(getSessionAnalysis).toHaveBeenNthCalledWith(1, 'w1', 's1', false);
+    expect(getSessionAnalysis).toHaveBeenNthCalledWith(2, 'w1', 's1', true);
   });
 
   it('asks for signals only, and shows no AI, when AI is not configured', async () => {

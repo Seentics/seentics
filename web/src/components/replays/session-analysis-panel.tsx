@@ -45,13 +45,27 @@ export function SessionAnalysisPanel({
   // Wait for the status so a configured deployment does not make two requests.
   const statusSettled = !aiStatus.isLoading;
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['replay-analysis', websiteId, sessionId, aiConfigured],
-    queryFn: () => getSessionAnalysis(websiteId, sessionId, aiConfigured),
+  // Signals first — the stored analysis comes back fast — then the summary, which may need the
+  // model on a session's first view. The panel shows the signals while the summary is written.
+  const signalsQuery = useQuery({
+    queryKey: ['replay-analysis', websiteId, sessionId, false],
+    queryFn: () => getSessionAnalysis(websiteId, sessionId, false),
     enabled: !!websiteId && !!sessionId && statusSettled,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
+  const summaryQuery = useQuery({
+    queryKey: ['replay-analysis', websiteId, sessionId, true],
+    queryFn: () => getSessionAnalysis(websiteId, sessionId, true),
+    enabled: aiConfigured && signalsQuery.data?.status === 'ready' && !signalsQuery.data.summary,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const data = summaryQuery.data ?? signalsQuery.data;
+  const { isLoading, isError } = signalsQuery;
+  const isFetching = signalsQuery.isFetching || summaryQuery.isFetching;
+  const refetch = () => { void signalsQuery.refetch(); if (aiConfigured) void summaryQuery.refetch(); };
+  const writingSummary = summaryQuery.isFetching && !data?.summary;
 
   const { playing, syncNow } = useReplayPlayback();
   const durationMs = replayBridge?.durationMs || data?.timeline?.durationMs || 0;
@@ -118,6 +132,9 @@ export function SessionAnalysisPanel({
           </p>
         ) : (
           <>
+            {aiConfigured && writingSummary && (
+              <p className="text-xs text-muted-foreground">Writing the AI summary…</p>
+            )}
             {aiConfigured && (data.summary || notice) && (
               <section aria-label="AI summary" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
