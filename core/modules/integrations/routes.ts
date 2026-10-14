@@ -17,8 +17,11 @@ export type IntegrationControllerDeps = {
 const CALLS_PER_MINUTE = 10;
 
 const STATUS: Record<IntegrationFailure["code"], ContentfulStatusCode> = {
-  invalid: 400, rejected: 422, unavailable: 502, not_found: 404, no_key: 503,
+  invalid: 400, rejected: 422, unavailable: 502, not_found: 404, no_key: 503, connection_limit: 409,
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const notFound = (c: Context) => c.json({ error: "not_found", message: "This destination does not exist." }, 404);
 
 /** Viewers may read; connecting, changing and testing need at least `member`. */
 async function requireAccess(
@@ -51,7 +54,7 @@ export function createIntegrationRoutes(deps: IntegrationControllerDeps) {
     const websiteId = c.req.param("website_id");
     const denied = await requireAccess(c, deps, websiteId, { write: false });
     if (denied) return denied;
-    return c.json({ data: { providers: await deps.queries.list(websiteId) } });
+    return c.json({ data: await deps.queries.list(websiteId) });
   });
 
   routes.get("/:website_id/deliveries", async (c) => {
@@ -60,26 +63,40 @@ export function createIntegrationRoutes(deps: IntegrationControllerDeps) {
     if (denied) return denied;
     const q = deliveriesQuerySchema.safeParse(c.req.query());
     if (!q.success) return c.json({ error: "invalid query" }, 400);
-    return c.json({ data: { deliveries: await deps.queries.deliveries(websiteId, q.data.limit) } });
+    const { limit, status, connection_id: connectionId } = q.data;
+    return c.json({ data: { deliveries: await deps.queries.deliveries(websiteId, { limit, status, connectionId }) } });
   });
 
-  routes.put("/:website_id/:provider", async (c) => {
+  routes.post("/:website_id/deliveries/:id/retry", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return c.json({ error: "not_found", message: "This delivery can no longer be retried." }, 404);
+
+    const result = await deps.mutations.retryDelivery(websiteId, id);
+    return result.ok ? c.json({ data: result.value }) : failure(c, result);
+  });
+
+  routes.post("/:website_id/connections", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireAccess(c, deps, websiteId, { write: true });
     if (denied) return denied;
     const body = connectSchema.safeParse(await c.req.json().catch(() => null));
-    if (!body.success) return c.json({ error: "invalid", message: "Credentials are required." }, 400);
+    if (!body.success) return c.json({ error: "invalid", message: "Choose a destination and fill in its details." }, 400);
     const limited = rateLimited(c, websiteId);
     if (limited) return limited;
 
-    const result = await deps.mutations.connect(websiteId, c.req.param("provider"), body.data);
-    return result.ok ? c.json({ data: result.value }) : failure(c, result);
+    const result = await deps.mutations.connect(websiteId, body.data);
+    return result.ok ? c.json({ data: result.value }, 201) : failure(c, result);
   });
 
-  routes.patch("/:website_id/:provider", async (c) => {
+  routes.patch("/:website_id/connections/:id", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireAccess(c, deps, websiteId, { write: true });
     if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return notFound(c);
     const body = updateSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return c.json({ error: "invalid", message: "Nothing to update." }, 400);
     if (body.data.config !== undefined || body.data.credentials !== undefined) {
@@ -87,27 +104,29 @@ export function createIntegrationRoutes(deps: IntegrationControllerDeps) {
       if (limited) return limited;
     }
 
-    const result = await deps.mutations.update(websiteId, c.req.param("provider"), body.data);
+    const result = await deps.mutations.update(websiteId, id, body.data);
     return result.ok ? c.json({ data: result.value }) : failure(c, result);
   });
 
-  routes.delete("/:website_id/:provider", async (c) => {
+  routes.delete("/:website_id/connections/:id", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireAccess(c, deps, websiteId, { write: true });
     if (denied) return denied;
-    return (await deps.mutations.disconnect(websiteId, c.req.param("provider")))
-      ? c.json({ data: { provider: c.req.param("provider") } })
-      : c.json({ error: "not_found", message: "This integration is not connected." }, 404);
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return notFound(c);
+    return (await deps.mutations.disconnect(websiteId, id)) ? c.json({ data: { id } }) : notFound(c);
   });
 
-  routes.post("/:website_id/:provider/test", async (c) => {
+  routes.post("/:website_id/connections/:id/test", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireAccess(c, deps, websiteId, { write: true });
     if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return notFound(c);
     const limited = rateLimited(c, websiteId);
     if (limited) return limited;
 
-    const result = await deps.mutations.sendTest(websiteId, c.req.param("provider"));
+    const result = await deps.mutations.sendTest(websiteId, id);
     return result.ok ? c.json({ data: result.value }) : failure(c, result);
   });
 

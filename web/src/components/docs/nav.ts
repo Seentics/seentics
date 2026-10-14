@@ -105,7 +105,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
         title: 'Integrations',
         href: '/docs/integrations',
         icon: Plug,
-        summary: 'Send leads to Zapier, Mailchimp, Klaviyo and HubSpot.',
+        summary: 'Send form submissions to Zapier, any webhook, Mailchimp, Klaviyo and HubSpot.',
       },
     ],
   },

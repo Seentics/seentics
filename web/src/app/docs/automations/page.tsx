@@ -91,18 +91,25 @@ export default function AutomationsPage() {
         <P>
           Turn on <C>Collect emails with a form</C> in a modal action and the button is replaced by a
           form: an email field, up to seven more (text or phone), a thank-you message, and an
-          optional consent checkbox. Submissions land in the <C>Leads</C> inbox, where you can search,
-          mark a contact as contacted or archived, export a CSV, or delete a contact and everything
-          they sent.
+          optional consent checkbox. Submissions are listed on the automation&apos;s own page, under <C>Submissions</C>,
+          where you can search them, export a CSV, or delete one. They are also sent on to the destinations you choose for that form: Zapier or any webhook, Mailchimp,
+          Klaviyo or HubSpot (see{' '}
+          <Link href="/docs/integrations" className="text-primary hover:underline">Integrations</Link>).
         </P>
         <Ul>
           <Li>
-            Each submission records the popup, the A/B variant and the page it came from, so you can
-            see which message produced a lead.
+            <strong>Send submissions to.</strong> Under the form in the builder, send to every
+            destination (the default, which includes ones you add later) or tick the ones this form
+            should use. A form can send to several at once.
           </Li>
           <Li>
-            A repeat submission from the same email updates the one contact instead of adding a
-            second row.
+            <strong>Kept for 90 days.</strong> Seentics is not a contact database: submissions stay
+            on the automation&apos;s page for 90 days, then are deleted. Keep long-term contacts in
+            the tool a destination feeds, such as your email platform, CRM or a spreadsheet.
+          </Li>
+          <Li>
+            Each submission records the popup, the A/B variant and the page it came from, so you can
+            see which message produced it.
           </Li>
           <Li>
             A successful submit records a <C>lead_captured</C> custom event, so you can build a goal
@@ -114,8 +121,8 @@ export default function AutomationsPage() {
           </Li>
         </Ul>
         <Callout>
-          Leads are personal data you collect from your visitors. Ask for consent where your
-          jurisdiction requires it, using the consent checkbox, and delete contacts on request.
+          Submissions are personal data you collect from your visitors. Ask for consent where your
+          jurisdiction requires it, using the consent checkbox, and delete a submission on request.
         </Callout>
       </DocSection>
 

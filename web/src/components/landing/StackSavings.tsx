@@ -12,7 +12,7 @@ import { ArrowRight, Check } from 'lucide-react';
 const STACK = [
   { name: 'Web analytics', detail: 'Privacy-friendly pageviews, sources, goals', price: 'from about $9' },
   { name: 'Session replay & heatmaps', detail: 'Recordings, click and scroll maps', price: 'from about $25 to $39' },
-  { name: 'Popups & lead capture', detail: 'Exit-intent popups, forms, a leads inbox', price: 'from about $25' },
+  { name: 'Popups & lead capture', detail: 'Exit-intent popups and forms that send to your tools', price: 'from about $25' },
 ] as const;
 
 export default function StackSavings() {
@@ -56,7 +56,7 @@ export default function StackSavings() {
             <span className="text-sm text-muted-foreground">/month, or $14 billed yearly</span>
           </p>
           <ul className="mt-5 space-y-2.5 text-[14px]">
-            {['Web analytics, goals and funnels', 'Session replay and heatmaps', 'Popups, forms and a leads inbox', 'Automations and AI analyses', 'Logs, traces and error tracking'].map((f) => (
+            {['Web analytics, goals and funnels', 'Session replay and heatmaps', 'Popups and forms that send to your tools', 'Automations and AI analyses', 'Logs, traces and error tracking'].map((f) => (
               <li key={f} className="flex gap-2.5 text-foreground/90">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{f}
               </li>

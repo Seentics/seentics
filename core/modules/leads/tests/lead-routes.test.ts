@@ -12,89 +12,94 @@ mock.module("../../../platform/middleware/auth", () => ({
 const { createLeadRoutes } = await import("../routes");
 
 const SITE = "11111111-1111-4111-8111-111111111111";
-const CONTACT = "22222222-2222-4222-8222-222222222222";
+const FORM = "33333333-3333-4333-8333-333333333333";
+const SUB = "22222222-2222-4222-8222-222222222222";
 
 const roles: Record<string, string | null> = { owner: "owner", viewer: "viewer", stranger: null };
 const calls: string[] = [];
-let contactExists = true;
+let exists = true;
 
-const contact = {
-  id: CONTACT, email: "jane@example.com", name: "=Jane", phone: "", status: "new", consent: true,
-  submission_count: 2, first_submitted_at: "2026-01-01", last_submitted_at: "2026-01-02",
+const stored = {
+  id: SUB, email: "jane@example.com", name: "=Jane", phone: "", consent: true, fields: { company: "Acme" },
+  prize: { id: "1", label: "10% off", coupon_code: "SAVE10" }, variant: "b", page_url: "/p", referrer: "", created_at: "2026-01-01T00:00:00.000Z",
 };
 
 function app() {
   const routes = createLeadRoutes({
     websites: { getRole: async (_s: string, u: string) => roles[u] ?? null } as any,
     queries: {
-      listContacts: async (_s, q) => { calls.push(`list:${q.limit}:${q.status}:${q.search}`); return { contacts: [contact as any], total: 1 }; },
-      getContact: async () => (contactExists ? { contact: contact as any, submissions: [] } : null),
-      stats: async () => ({ total: 1, last_7_days: 1, by_automation: [] }),
-      exportContacts: async () => [contact as any],
+      listSubmissions: async (_s, f, q) => { calls.push(`list:${f}:${q.limit}:${q.offset}:${q.search}`); return { submissions: [{ ...stored, deliveries: [] }], total: 1 }; },
+      summary: async (_s, f) => { calls.push(`summary:${f}`); return { total: 1, last_7_days: 1, last_30_days: 1, with_prize: 1, by_variant: [] }; },
+      websiteSummary: async () => ({ total: 4, last_7_days: 2, this_month: 3 }),
+      exportSubmissions: async (_s, f, limit) => { calls.push(`export:${f}:${limit}`); return [stored]; },
     },
-    mutations: {
-      setStatus: async (_s, id, status) => { calls.push(`status:${id}:${status}`); return contactExists; },
-      deleteContact: async (_s, id) => { calls.push(`delete:${id}`); return contactExists; },
-    },
+    mutations: { deleteSubmission: async (_s, f, id) => { calls.push(`delete:${f}:${id}`); return exists; } },
   });
   return new Hono().route("/leads", routes);
 }
 
-const req = (method: string, path: string, user = "owner", body?: unknown) =>
-  app().request(`/leads/${SITE}${path}`, {
-    method,
-    headers: { "x-test-user": user, "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+const req = (method: string, path: string, user = "owner") =>
+  app().request(`/leads/${SITE}${path}`, { method, headers: { "x-test-user": user } });
 
-beforeEach(() => { calls.length = 0; contactExists = true; });
+beforeEach(() => { calls.length = 0; exists = true; });
 
-describe("leads dashboard routes", () => {
+describe("form submission routes", () => {
   it("requires a session and membership", async () => {
-    expect((await req("GET", "/contacts", "")).status).toBe(401);
-    expect((await req("GET", "/contacts", "stranger")).status).toBe(403);
+    expect((await req("GET", `/forms/${FORM}/submissions`, "")).status).toBe(401);
+    expect((await req("GET", `/forms/${FORM}/submissions`, "stranger")).status).toBe(403);
+    expect((await req("GET", "/summary", "stranger")).status).toBe(403);
   });
 
-  it("lists with validated, defaulted query params", async () => {
-    const res = await req("GET", "/contacts?status=new&search=jane");
+  it("lists one form's submissions, with paging and search", async () => {
+    const res = await req("GET", `/forms/${FORM}/submissions?limit=10&offset=20&search=jane`, "viewer");
     expect(res.status).toBe(200);
-    expect(calls).toContain("list:25:new:jane");
-    expect((await req("GET", "/contacts?status=bogus")).status).toBe(400);
-    expect((await req("GET", "/contacts?limit=9999")).status).toBe(400);
+    const body = await res.json();
+    expect(body.data.total).toBe(1);
+    expect(body.data.submissions[0]).toMatchObject({ id: SUB, email: "jane@example.com", deliveries: [] });
+    expect(calls).toEqual([`list:${FORM}:10:20:jane`]);
   });
 
-  it("returns a contact, or 404 for a malformed or unknown id", async () => {
-    expect((await req("GET", `/contacts/${CONTACT}`)).status).toBe(200);
-    expect((await req("GET", "/contacts/not-a-uuid")).status).toBe(404);
-    contactExists = false;
-    expect((await req("GET", `/contacts/${CONTACT}`)).status).toBe(404);
+  it("validates the query and the ids", async () => {
+    expect((await req("GET", `/forms/${FORM}/submissions?limit=0`)).status).toBe(400);
+    expect((await req("GET", `/forms/${FORM}/submissions?limit=500`)).status).toBe(400);
+    expect((await req("GET", "/forms/not-a-uuid/submissions")).status).toBe(404);
+    expect((await req("GET", "/forms/not-a-uuid/summary")).status).toBe(404);
+    expect((await req("GET", "/forms/not-a-uuid/submissions.csv")).status).toBe(404);
+    expect((await req("DELETE", `/forms/${FORM}/submissions/nope`)).status).toBe(404);
+    expect(calls).toEqual([]);
   });
 
-  it("lets viewers read but not change or erase", async () => {
-    expect((await req("GET", "/contacts", "viewer")).status).toBe(200);
-    expect((await req("PATCH", `/contacts/${CONTACT}`, "viewer", { status: "archived" })).status).toBe(403);
-    expect((await req("DELETE", `/contacts/${CONTACT}`, "viewer")).status).toBe(403);
-    expect(calls.filter((c) => c.startsWith("status") || c.startsWith("delete"))).toHaveLength(0);
+  it("summarises a form and the website", async () => {
+    expect((await (await req("GET", `/forms/${FORM}/summary`, "viewer")).json()).data).toMatchObject({ total: 1, with_prize: 1 });
+    expect((await (await req("GET", "/summary", "viewer")).json()).data).toEqual({ total: 4, last_7_days: 2, this_month: 3 });
   });
 
-  it("updates status and rejects an unknown one", async () => {
-    expect((await req("PATCH", `/contacts/${CONTACT}`, "owner", { status: "contacted" })).status).toBe(200);
-    expect(calls).toContain(`status:${CONTACT}:contacted`);
-    expect((await req("PATCH", `/contacts/${CONTACT}`, "owner", { status: "nope" })).status).toBe(400);
-  });
-
-  it("deletes, and 404s when the contact is not on this site", async () => {
-    expect((await req("DELETE", `/contacts/${CONTACT}`)).status).toBe(200);
-    contactExists = false;
-    expect((await req("DELETE", `/contacts/${CONTACT}`)).status).toBe(404);
-  });
-
-  it("exports CSV with formula-looking cells defused", async () => {
-    const res = await req("GET", "/export");
+  it("exports CSV that cannot run as a spreadsheet formula", async () => {
+    const res = await req("GET", `/forms/${FORM}/submissions.csv`, "viewer");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/csv");
+    expect(res.headers.get("content-disposition")).toContain("submissions.csv");
     const text = await res.text();
-    expect(text.split("\r\n")[0]).toBe("email,name,phone,status,consent,submissions,first_submitted_at,last_submitted_at");
+    expect(text.split("\r\n")[0]).toBe("submitted_at,email,name,phone,consent,variant,prize,coupon_code,page_url,referrer,company");
     expect(text).toContain("'=Jane");
+    expect(calls).toEqual([`export:${FORM}:10000`]);
+  });
+
+  it("lets viewers read but not delete", async () => {
+    expect((await req("DELETE", `/forms/${FORM}/submissions/${SUB}`, "viewer")).status).toBe(403);
+    expect(calls).toEqual([]);
+  });
+
+  it("deletes a submission on that form, and 404s when it is not there", async () => {
+    expect((await req("DELETE", `/forms/${FORM}/submissions/${SUB}`)).status).toBe(200);
+    expect(calls).toEqual([`delete:${FORM}:${SUB}`]);
+    exists = false;
+    expect((await req("DELETE", `/forms/${FORM}/submissions/${SUB}`)).status).toBe(404);
+  });
+
+  it("has no site-wide inbox any more", async () => {
+    expect((await req("GET", "/contacts")).status).toBe(404);
+    expect((await req("GET", "/stats")).status).toBe(404);
+    expect((await req("GET", "/export")).status).toBe(404);
   });
 });

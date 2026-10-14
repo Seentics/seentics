@@ -224,7 +224,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'exit-intent-newsletter',
     name: 'Exit-Intent Newsletter Signup',
-    description: 'Collect an email from visitors about to leave. Leads appear in the Leads inbox.',
+    description: 'Collect an email from visitors about to leave. Submissions are listed on the automation page and sent to your destinations.',
     category: 'Lead capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {

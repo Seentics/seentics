@@ -10,7 +10,7 @@ Analytics platform for real-time tracking and behavior analysis. Core features a
 ### 📧 Email & Communication
 - **Automated Email Support** - Send behavioral-triggered emails to customers
 - **Email Campaign Management** - Track and manage internal customer emails
-- **Email Service Integrations** - ✅ Leads sync to Zapier (any HTTPS webhook), Mailchimp, Klaviyo and HubSpot, with credentials encrypted at rest. Still planned: ConvertKit and other providers (the provider interface makes each one a single file)
+- **Email Service Integrations** - ✅ Form submissions are forwarded to any number of destinations (Zapier or any HTTPS webhook, Mailchimp, Klaviyo, HubSpot), chosen per form, through a durable queue with automatic retries and a delivery log. Credentials are encrypted at rest. Still planned: ConvertKit and other providers (the provider interface makes each one a single file)
 
 ### 🎟️ Support & Success
 - **Integrated Support Desk** - Manage customer queries and support tickets directly in Seentics
@@ -20,7 +20,7 @@ Analytics platform for real-time tracking and behavior analysis. Core features a
 ### 📝 Customer Engagement
 - **Dynamic Forms** - ✅ Email capture forms inside popups (custom fields, consent, thank-you message); standalone embeddable forms are still planned
 - **Survey Engine** - Trigger NPS and satisfaction surveys based on user behavior
-- **Lead Capture Tools** - ✅ Leads inbox with search, status, CSV export and per-popup/variant attribution. Popup types are done: spin-to-win (server-side prize), multi-step, countdown, teaser tab, sticky bar and coupon codes, with a live preview in the builder. Still planned: a drag-and-drop canvas, a larger template library and per-variant A/B results. Email and CRM sync is done; see Email Service Integrations.
+- **Lead Capture Tools** - ✅ Each form's submissions are listed on its automation page (search, CSV export, per-variant counts, delivery status) and kept for 90 days; Seentics forwards leads rather than acting as a CRM. Popup types are done: spin-to-win (server-side prize), multi-step, countdown, teaser tab, sticky bar and coupon codes, with a live preview in the builder. Still planned: a drag-and-drop canvas, a larger template library and per-variant A/B results. Email and CRM sync is done; see Email Service Integrations.
 
 ### 🎨 Frontend & UI
 - **Dashboard Polish** - Premium layout refinements and advanced data visualization

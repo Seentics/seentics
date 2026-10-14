@@ -32,5 +32,11 @@ export const leadFormSchema = z.object({
   /** When set, a consent checkbox is shown; `consent_required` makes it mandatory. */
   consent_text: z.string().max(300).optional(),
   consent_required: z.boolean().default(true),
+  /**
+   * Integration connection ids that receive this form's submissions. Absent means every
+   * enabled destination on the website; an empty list means none. Ids that no longer exist
+   * are ignored at delivery, so deleting a destination never breaks the form.
+   */
+  destinations: z.array(z.string().uuid()).max(20).optional(),
 });
 export type LeadForm = z.infer<typeof leadFormSchema>;

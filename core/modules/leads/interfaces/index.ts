@@ -1,18 +1,16 @@
 import type { AuthedRouter, PublicRouter } from "../../../platform/http/router";
 import type { ModuleLifecycle } from "../../../app/module";
+import type { RetentionPurge } from "../../../platform/retention";
 import type { UsageCounter } from "../../../platform/usage";
 
-export const CONTACT_STATUSES = ["new", "contacted", "archived"] as const;
-export type ContactStatus = (typeof CONTACT_STATUSES)[number];
-
-/** A form's extra fields, after sanitising: short string/number/boolean values only. */
+/** A form's extra answers, after sanitising: short string/number/boolean values only. */
 export type LeadFields = Record<string, string | number | boolean>;
 
 /**
  * One submission as the tracker sends it, validated and normalised.
  *
  * `email` is already trimmed and lower-cased; `automationId` and `variant` are claims by
- * the browser and are only stored when the automation exists on this website.
+ * the browser and are only kept when the automation exists on this website.
  */
 export type LeadSubmission = {
   websiteId: string;
@@ -29,42 +27,6 @@ export type LeadSubmission = {
   referrer: string;
 };
 
-export type Contact = {
-  id: string;
-  email: string;
-  name: string;
-  phone: string;
-  status: ContactStatus;
-  consent: boolean;
-  submission_count: number;
-  first_submitted_at: string;
-  last_submitted_at: string;
-};
-
-export type ContactSubmission = {
-  id: string;
-  automation_id: string | null;
-  automation_name: string | null;
-  variant: string | null;
-  fields: LeadFields;
-  page_url: string;
-  referrer: string;
-  created_at: string;
-};
-
-export type ContactListQuery = {
-  search: string;
-  status: ContactStatus | "";
-  limit: number;
-  offset: number;
-};
-
-export type LeadStats = {
-  total: number;
-  last_7_days: number;
-  by_automation: { automation_id: string | null; name: string | null; count: number }[];
-};
-
 /**
  * A reward chosen by the server for a submission: a wheel slice or a coupon.
  *
@@ -77,53 +39,122 @@ export type Prize = {
   coupon_code: string | null;
 };
 
-/** What a successful capture reports, for listeners and for the visitor's response. */
+/** What a successful capture reports to the visitor's request. */
 export type CapturedLead = {
-  contactId: string;
-  isNewContact: boolean;
-  submission: LeadSubmission;
+  submissionId: string;
   /** Set when the popup pays a reward. A returning email gets the prize it had before. */
   prize: Prize | null;
+  /** How many destinations the lead was queued for. Zero is allowed: it is still stored. */
+  queuedFor: number;
+};
+
+/** A stored submission, as the sink needs it to deliver it. */
+export type QueuedLead = {
+  submissionId: string;
+  submission: LeadSubmission;
+  prize: Prize | null;
+  submittedAt: string;
+};
+
+/** How one destination is doing with one submission. */
+export type SubmissionDelivery = {
+  /** The delivery's own id; what "retry" is called with. */
+  id: string;
+  connection_id: string;
+  connection_name: string;
+  provider: string;
+  status: "pending" | "success" | "failed" | "skipped";
+  attempt_count: number;
+  error: string | null;
+  completed_at: string | null;
 };
 
 /**
- * Something that wants to hear about every captured lead — an email-platform connector, a
- * webhook forwarder. Called after the row is committed and never awaited by the visitor's
- * request, so a slow or failing listener cannot lose a lead or slow a form.
+ * Where a stored submission goes next — implemented by the integrations module.
+ *
+ * `enqueue` is awaited by the visitor's request and must be a durable write and nothing
+ * more: no call to a third party may happen inside it. A lead that was stored but never
+ * queued would be silently lost, so a failure here fails the request and the visitor retries.
  */
-export type LeadCapturedListener = (lead: CapturedLead) => Promise<void> | void;
-
-export interface LeadCapture {
-  /** Store a submission. Idempotent per email: a repeat refreshes the contact. */
-  capture(submission: LeadSubmission): Promise<CapturedLead>;
-  /** Register a listener. Returns an unsubscribe function. */
-  onCaptured(listener: LeadCapturedListener): () => void;
+export interface LeadSink {
+  /**
+   * Queue the lead for each enabled destination on its website, narrowed to
+   * `destinationIds` when the form names some (`null` means all). Returns the rows created.
+   */
+  enqueue(lead: QueuedLead, destinationIds: readonly string[] | null): Promise<number>;
+  /** Wake the delivery worker; does not wait for it. */
+  kick(): void;
+  /** Delivery state per submission, for the form's submissions list. */
+  statuses(websiteId: string, submissionIds: readonly string[]): Promise<Map<string, SubmissionDelivery[]>>;
+  /** Cancel pending deliveries and clear the payloads of the rest, when submissions are erased. */
+  forget(websiteId: string, submissionIds: readonly string[]): Promise<void>;
 }
 
+export interface LeadCapture {
+  /** Store a submission and queue it for delivery. */
+  capture(submission: LeadSubmission): Promise<CapturedLead>;
+}
+
+export type SubmissionView = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  consent: boolean;
+  fields: LeadFields;
+  prize: Prize | null;
+  variant: string | null;
+  page_url: string;
+  referrer: string;
+  created_at: string;
+  deliveries: SubmissionDelivery[];
+};
+
+export type SubmissionListQuery = {
+  search: string;
+  limit: number;
+  offset: number;
+};
+
+export type FormSummary = {
+  total: number;
+  last_7_days: number;
+  last_30_days: number;
+  with_prize: number;
+  by_variant: { variant: string; count: number }[];
+};
+
+export type WebsiteLeadSummary = { total: number; last_7_days: number; this_month: number };
+
+/** A submission row exactly as stored, before delivery state is attached. */
+export type StoredSubmission = Omit<SubmissionView, "deliveries">;
+
 export interface LeadQueries {
-  listContacts(websiteId: string, q: ContactListQuery): Promise<{ contacts: Contact[]; total: number }>;
-  getContact(
+  listSubmissions(
     websiteId: string,
-    contactId: string,
-  ): Promise<{ contact: Contact; submissions: ContactSubmission[] } | null>;
-  stats(websiteId: string): Promise<LeadStats>;
-  /** Every contact on the site, oldest first, capped — for export. */
-  exportContacts(websiteId: string, limit: number): Promise<Contact[]>;
+    automationId: string,
+    q: SubmissionListQuery,
+  ): Promise<{ submissions: SubmissionView[]; total: number }>;
+  summary(websiteId: string, automationId: string): Promise<FormSummary>;
+  websiteSummary(websiteId: string): Promise<WebsiteLeadSummary>;
+  /** Every stored submission of the form, newest first, capped — for export. */
+  exportSubmissions(websiteId: string, automationId: string, limit: number): Promise<StoredSubmission[]>;
 }
 
 export interface LeadMutations {
-  /** False when the contact is not on this website. */
-  setStatus(websiteId: string, contactId: string, status: ContactStatus): Promise<boolean>;
-  /** Erases the contact and its submissions. False when it is not on this website. */
-  deleteContact(websiteId: string, contactId: string): Promise<boolean>;
+  /** Erases the submission and its pending deliveries. False when it is not on this form. */
+  deleteSubmission(websiteId: string, automationId: string, submissionId: string): Promise<boolean>;
 }
 
 export type LeadsModule = ModuleLifecycle & {
   capture: LeadCapture;
   queries: LeadQueries;
   mutations: LeadMutations;
+  /** Form submissions this calendar month, per account — the `leads` plan limit's count. */
   usage: UsageCounter;
-  /** The dashboard inbox, behind the session middleware. */
+  /** Ages out stored submissions after `SUBMISSION_RETENTION_DAYS`. */
+  retention: RetentionPurge;
+  /** Each form's submissions, behind the session middleware. */
   routes: AuthedRouter;
   /** The anonymous submit endpoint a popup form posts to; mounted under `/tracker/leads`. */
   trackerRoutes: PublicRouter;

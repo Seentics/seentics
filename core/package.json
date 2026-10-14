@@ -9,6 +9,8 @@
     "db:push": "drizzle-kit push",
     "db:push:force": "drizzle-kit push --force",
     "check": "tsc --noEmit",
+    "verify:forms-sql": "bun run scripts/verify-forms-sql.ts",
+    "verify:forms-flow": "bun run scripts/verify-forms-flow.ts",
     "test": "bun test",
     "test:watch": "bun test --watch"
   },

@@ -9,8 +9,8 @@ import { getProvider, providers } from "../providers/registry";
 import { webhookBody, zapier } from "../providers/zapier";
 
 const lead: LeadPayload = {
-  contactId: "c1", isNewContact: true, email: "Jane@Example.com", name: "Jane van Doe", firstName: "Jane", lastName: "van Doe",
-  phone: "+1 (415) 555-0100", consent: true, fields: { company: "Acme" }, popupId: "a1", variant: "b",
+  submissionId: "5d3f1c0e-8a6b-4f5e-9d2c-1a2b3c4d5e6f", email: "Jane@Example.com", name: "Jane van Doe", firstName: "Jane", lastName: "van Doe",
+  phone: "+1 (415) 555-0100", consent: true, fields: { company: "Acme" }, prize: { label: "10% off", coupon_code: "SAVE10" }, popupId: "a1", variant: "b",
   pageUrl: "https://shop.test/pricing", referrer: "", submittedAt: "2026-01-01T00:00:00.000Z",
 };
 
@@ -49,7 +49,19 @@ describe("zapier / webhook", () => {
     expect(calls[0]!.method).toBe("POST");
     const body = JSON.parse(calls[0]!.body!);
     expect(body).toMatchObject({ event: "lead.captured", test: false, email: "Jane@Example.com", first_name: "Jane", consent: true, source: { popup_id: "a1", variant: "b" } });
+    expect(body).toMatchObject({ submission_id: lead.submissionId, prize: { label: "10% off", coupon_code: "SAVE10" } });
+    expect(body).not.toHaveProperty("contact_id");
     expect(webhookBody({ ...lead, test: true }).event).toBe("lead.test");
+  });
+
+  it("names the submission and the delivery so a receiver can de-duplicate a retry", async () => {
+    const { ctx, calls } = fakeCtx([{ status: 200 }, { status: 200 }]);
+    await zapier.deliver(lead, credentials, {}, ctx, { id: "delivery-1" });
+    await zapier.deliver(lead, credentials, {}, ctx);
+    expect(calls[0]!.headers!["Idempotency-Key"]).toBe(lead.submissionId);
+    expect(calls[0]!.headers!["X-Seentics-Delivery"]).toBe("delivery-1");
+    expect(calls[1]!.headers!["Idempotency-Key"]).toBe(lead.submissionId);
+    expect(calls[1]!.headers).not.toHaveProperty("X-Seentics-Delivery");
   });
 
   it("signs the body when a secret is set", async () => {

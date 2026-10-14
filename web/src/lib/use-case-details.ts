@@ -6,7 +6,7 @@ import type { ExampleProps } from '@/components/use-cases/PopupExample';
  * use-cases.ts; this adds the pictures and the worked examples around them.
  *
  * Screenshots are real: the Seentics dashboard on its built-in demo data (public/use-cases).
- * Annotation positions are percentages of the 1440x900 image. The popups, the leads inbox,
+ * Annotation positions are percentages of the 1440x900 image. The popups, the submissions list,
  * the alert and the funnel bars are drawn illustrations with sample values, and every one of
  * them says so on the page. Nothing here is a measured result.
  */
@@ -18,7 +18,7 @@ export type Visual =
   | { kind: 'example'; props: ExampleProps }
   | { kind: 'funnel'; steps: { label: string; value: number }[]; caption?: string }
   | { kind: 'alert'; title: string; lines: string[]; channel?: string }
-  | { kind: 'inbox' };
+  | { kind: 'submissions' };
 
 export interface UseCaseDetail {
   hero: Visual;
@@ -121,11 +121,11 @@ export const USE_CASE_DETAILS: Record<string, UseCaseDetail> = {
   'capture-leads': {
     hero: { kind: 'example', props: { kind: 'email-modal', layout: 'store', url: 'yourstore.com/products/trailhead-32l', title: 'Get 10% off your first order', body: 'Join our list and we will email your code, plus a heads-up on new arrivals.', fields: [{ label: 'First name', placeholder: 'Maya' }], consent: 'Yes, send me offers by email. You can unsubscribe at any time.', button: 'Send my code', note: 'A Show Modal action with "Collect emails with a form" turned on. Wording, colours, fields and the thank-you message are yours to set.' } },
     seen: {
-      heading: 'From popup to lead inbox',
-      text: 'The visitor sees a form on the page. When they submit, the contact lands in your Leads inbox with the popup, variant and page that produced it.',
+      heading: 'From popup to your tools',
+      text: 'The visitor sees a form on the page. When they submit, the submission is listed on the automation page with the popup, variant and page that produced it, and is sent on to your email platform, CRM or webhook.',
       visuals: [
         { kind: 'example', props: { kind: 'email-modal', layout: 'article', url: 'yourblog.com/guides/seo-checklist', title: 'Get the full checklist', body: 'Enter your email and we will send the PDF.', fields: [], button: 'Send it to me', note: 'The same action on a content page: only an email is required.' } },
-        { kind: 'inbox' },
+        { kind: 'submissions' },
       ],
     },
     scenario: {
@@ -133,12 +133,12 @@ export const USE_CASE_DETAILS: Record<string, UseCaseDetail> = {
       paras: [
         'A furniture store sees that its buying guide pages are read to the end by many visitors who never join the mailing list. They add one automation: when a visitor scrolls past 60% of a guide, show a modal offering the printable checklist for an email address.',
         'They turn on the email form, add a first-name field, tick the consent box and make it required, and write a short thank-you message. They cap it at once per visitor and scope it to the guides section so it never appears on checkout.',
-        'A week later they open the Leads inbox. Each contact shows which guide it came from, and the funnel built on lead_captured shows how many of those readers later reached a product page.',
+        'A week later they open the automation Submissions list and their email tool. Each submission shows which guide it came from, and the funnel built on lead_captured shows how many of those readers later reached a product page.',
       ],
     },
     playbooks: [
-      { name: 'Guide readers to subscribers', trigger: 'Scroll Depth past 60%', condition: 'On a guide or article page', action: 'Show Modal with an email form', result: 'New contacts in Leads, with the guide they came from' },
-      { name: 'First-order incentive', trigger: 'Exit Intent', condition: 'On a product or cart page', action: 'Show Modal with an offer and an email form', result: 'A lead_captured event and a contact for each taker' },
+      { name: 'Guide readers to subscribers', trigger: 'Scroll Depth past 60%', condition: 'On a guide or article page', action: 'Show Modal with an email form', result: 'New submissions listed with the guide they came from, and sent to your email tool' },
+      { name: 'First-order incentive', trigger: 'Exit Intent', condition: 'On a product or cart page', action: 'Show Modal with an offer and an email form', result: 'A lead_captured event and a submission for each taker' },
       { name: 'Waitlist for something not ready', trigger: 'Page View', condition: 'On a coming-soon page', action: 'Show Modal with an email and name form', result: 'A growing waitlist you can export as CSV' },
     ],
     dashboard: {
@@ -146,9 +146,9 @@ export const USE_CASE_DETAILS: Record<string, UseCaseDetail> = {
       text: 'Every automation has its own page showing how often it ran and whether it worked.',
       shots: [SHOTS.automationDetail, SHOTS.automations],
     },
-    loop: LOOP(['Find the moment', 'Funnels and scroll heatmaps show where interest peaks.'], ['Show the form', 'A popup at that moment, with the fields you need.'], ['Collect and follow up', 'Contacts land in Leads; export a CSV for your email tool.'], ['Measure', 'lead_captured feeds goals and funnels, per popup and variant.']),
-    checklist: ['Pick one page and one trigger to start', 'Ask for as little as you can: email, plus at most a name', 'Add a consent checkbox, and make it required where the law needs it', 'Set a frequency cap and a cooldown', 'Write a thank-you message that says what happens next', 'Send a test submission and check it reaches the Leads inbox', 'Build a funnel with lead_captured as a step'],
-    without: ['A static form at the bottom of the page that few people reach', 'Contacts with no idea what earned them', 'Analytics, popups and leads in three separate tools'],
+    loop: LOOP(['Find the moment', 'Funnels and scroll heatmaps show where interest peaks.'], ['Show the form', 'A popup at that moment, with the fields you need.'], ['Collect and follow up', 'Submissions are sent to your email tool or CRM, and listed on the automation.'], ['Measure', 'lead_captured feeds goals and funnels, per popup and variant.']),
+    checklist: ['Pick one page and one trigger to start', 'Ask for as little as you can: email, plus at most a name', 'Add a consent checkbox, and make it required where the law needs it', 'Set a frequency cap and a cooldown', 'Write a thank-you message that says what happens next', 'Send a test submission and check it reaches your destination', 'Build a funnel with lead_captured as a step'],
+    without: ['A static form at the bottom of the page that few people reach', 'Sign-ups with no idea what earned them', 'Analytics, popups and leads in three separate tools'],
     withSeentics: ['A form at the moment interest peaks', 'Every lead tagged with its popup, variant and page', 'Capture rate and what leads do next in the same dashboard'],
   },
 
@@ -475,7 +475,7 @@ export const USE_CASE_DETAILS: Record<string, UseCaseDetail> = {
     },
     playbooks: [
       { name: 'Ask at engagement', trigger: 'Scroll Depth past 75%', condition: 'On long-form pages', action: 'Show Banner linking to membership or donations', result: 'More visitors reach the form' },
-      { name: 'Newsletter invite', trigger: 'Time on Page', condition: 'On articles', action: 'Show Modal with an email form', result: 'Subscribers in Leads' },
+      { name: 'Newsletter invite', trigger: 'Time on Page', condition: 'On articles', action: 'Show Modal with an email form', result: 'Subscribers sent to your email tool' },
       { name: 'Credit the story', trigger: 'A gift is made', action: 'seentics.track("purchase") with value and order id', result: 'Donations by campaign in Revenue' },
     ],
     dashboard: { heading: 'Which pages hold attention', text: 'The list shows views, clicks and average scroll per page, so you know where a prompt will be seen.', shots: [SHOTS.heatmaps, SHOTS.revenue] },

@@ -29,9 +29,8 @@ function app() {
         capture: async (s) => {
           if (failCapture) throw new Error("db down");
           captured.push(s);
-          return { contactId: "c1", isNewContact: true, submission: s, prize: prizeToReturn };
+          return { submissionId: "s1", prize: prizeToReturn, queuedFor: 1 };
         },
-        onCaptured: () => () => {},
       },
     }),
   );
@@ -110,7 +109,7 @@ describe("POST /tracker/leads", () => {
     expect(captured).toHaveLength(0);
   });
 
-  it("returns the prize chosen by the server, and nothing else about the contact", async () => {
+  it("returns the prize chosen by the server, and nothing else about the submission", async () => {
     prizeToReturn = { id: "2", label: "10% off", coupon_code: "SAVE10" };
     const res = await post(valid);
     expect(await res.json()).toEqual({ status: "ok", prize: prizeToReturn });
@@ -120,7 +119,7 @@ describe("POST /tracker/leads", () => {
     expect(await (await post(valid)).json()).toEqual({ status: "ok" });
   });
 
-  it("reports a storage failure as 500", async () => {
+  it("reports a storage or queueing failure as 500, so the visitor can try again", async () => {
     failCapture = true;
     expect((await post(valid)).status).toBe(500);
   });

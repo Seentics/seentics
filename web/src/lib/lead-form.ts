@@ -23,7 +23,15 @@ export type LeadForm = {
   success_redirect_url?: string;
   consent_text?: string;
   consent_required: boolean;
+  /**
+   * Destination ids this form sends to. Absent means every enabled destination on the site;
+   * present means exactly those (an empty list is "nowhere"). See `lib/form-routing`.
+   */
+  destinations?: string[];
 };
+
+/** The most destinations one form can name; core's schema allows the same. */
+export const MAX_DESTINATIONS = 20;
 
 /** Email is implicit, so this is the number of *extra* fields. */
 export const MAX_EXTRA_FIELDS = 7;
@@ -80,6 +88,9 @@ export function validateLeadForm(form: LeadForm): string[] {
   const redirect = form.success_redirect_url?.trim();
   if (redirect && !/^(https?:\/\/|\/(?!\/))/i.test(redirect)) {
     problems.push('The redirect must be an http(s) URL or a path starting with /.');
+  }
+  if (form.destinations && form.destinations.length > MAX_DESTINATIONS) {
+    problems.push(`A form can send to at most ${MAX_DESTINATIONS} destinations.`);
   }
   return problems;
 }

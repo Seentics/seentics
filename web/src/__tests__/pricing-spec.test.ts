@@ -47,22 +47,22 @@ describe('yearly pricing', () => {
 });
 
 describe('pricing cards', () => {
-  it('Free: 300 recordings, 3 GB of telemetry, 100 leads', () => {
+  it('Free: 300 recordings, 3 GB of telemetry, 100 form submissions', () => {
     const lines = labels(FREE);
     expect(lines).toContain('Up to 20K events');
     expect(lines).toContain('Up to 300 session recordings');
     expect(lines).toContain('Up to 3 GB logs, traces & metrics');
-    expect(lines).toContain('100 leads from popup forms');
+    expect(lines).toContain('100 form submissions a month');
     expect(lines).toContain('3 heatmaps, 1 funnel, 3 automations');
   });
 
-  it('Analytics: 500K events and analytics, with nothing it does not have: no recordings, telemetry, heatmaps or leads', () => {
+  it('Analytics: 500K events and analytics, with nothing it does not have: no recordings, telemetry, heatmaps or submissions', () => {
     const lines = labels(ANALYTICS);
     expect(lines).toContain('Up to 500K events');
     expect(lines).toContain('3 years analytics retention');
     expect(lines).toContain('Goals and unlimited funnels');
     expect(lines).toContain('API access');
-    expect(lines.join('\n')).not.toMatch(/recording|logs, traces|heatmap|automation|leads/i);
+    expect(lines.join('\n')).not.toMatch(/recording|logs, traces|heatmap|automation|submissions/i);
     expect(cardSectionsFor(ANALYTICS)[1]!.items.map((i) => i.label).join('\n')).toContain('Need replay or heatmaps? Go Pro');
   });
 
@@ -73,7 +73,7 @@ describe('pricing cards', () => {
     expect(lines).toContain('Up to 5K session recordings');
     expect(lines).toContain('Up to 30 GB logs, traces & metrics');
     expect(lines).toContain('Unlimited heatmaps, funnels, automations');
-    expect(lines).toContain('25K leads from popup forms');
+    expect(lines).toContain('25K form submissions a month');
     // Extra usage is not spelled out on the card: a bigger need is a conversation.
     expect(extra!.title).toBe('Need more?');
     expect(extra!.items).toEqual([{ value: '', label: 'Contact us for a custom plan', href: '/contact' }]);
@@ -90,8 +90,8 @@ describe('comparison table', () => {
     expect(cell('Recordings / month', PRO)).toBe('Up to 5K');
     expect(cell('Heatmaps', ANALYTICS)).toBe(false);
     expect(cell('Automations', ANALYTICS)).toBe(false);
-    expect(cell('Popups & lead capture', ANALYTICS)).toBe(false);
-    expect(cell('Popups & lead capture', PRO)).toBe('25K leads');
+    expect(cell('Popups & forms', ANALYTICS)).toBe(false);
+    expect(cell('Popups & forms', PRO)).toBe('25K submissions / mo');
     expect(cell('Logs, traces & metrics / month', ANALYTICS)).toBe(false);
     expect(cell('Logs, traces & metrics / month', PRO)).toBe('Up to 30 GB');
   });

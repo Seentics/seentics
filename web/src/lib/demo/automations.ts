@@ -3,10 +3,23 @@
  */
 import { TEMPLATES } from '@/features/automations/templates';
 import { demoDate } from './fixture-utils';
+import { DEMO_ROUTING } from './submissions';
 
 /** A template's definition, so a demo popup opens in the builder exactly as the template does. */
 const templateDefinition = (id: string): Record<string, unknown> =>
   TEMPLATES.find((t) => t.id === id)!.definition as unknown as Record<string, unknown>;
+
+/**
+ * A lead-form template routed to the demo's destinations, so its page shows where submissions go
+ * (and the builder's "Send submissions to" control opens with a real selection).
+ */
+function routedTemplate(id: string, automationId: string): Record<string, unknown> {
+  const def = JSON.parse(JSON.stringify(templateDefinition(id))) as { graph?: { nodes?: { action?: { form?: Record<string, unknown> } }[] } };
+  for (const node of def.graph?.nodes ?? []) {
+    if (node.action?.form) node.action.form.destinations = DEMO_ROUTING[automationId] ?? [];
+  }
+  return def as Record<string, unknown>;
+}
 
 export const demoAutomations = () => ({
   automations: [
@@ -83,7 +96,7 @@ export const demoAutomations = () => ({
       triggerType: 'time_on_page',
       triggerConfig: { type: 'time_on_page', seconds: 15 },
       isActive: true,
-      definition: templateDefinition('spin-to-win'),
+      definition: routedTemplate('spin-to-win', 'demo-auto-5'),
       createdAt: demoDate(-10 * 86400000).toISOString(),
       updatedAt: demoDate().toISOString(),
       actions: [
@@ -100,7 +113,7 @@ export const demoAutomations = () => ({
       triggerType: 'exit_intent',
       triggerConfig: { type: 'exit_intent' },
       isActive: true,
-      definition: templateDefinition('exit-intent-newsletter'),
+      definition: routedTemplate('exit-intent-newsletter', 'demo-auto-6'),
       createdAt: demoDate(-8 * 86400000).toISOString(),
       updatedAt: demoDate().toISOString(),
       actions: [

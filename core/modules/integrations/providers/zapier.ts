@@ -20,8 +20,7 @@ export function webhookBody(lead: LeadPayload) {
     event: lead.test ? "lead.test" : "lead.captured",
     test: lead.test === true,
     submitted_at: lead.submittedAt,
-    contact_id: lead.contactId,
-    is_new_contact: lead.isNewContact,
+    submission_id: lead.submissionId,
     email: lead.email,
     name: lead.name,
     first_name: lead.firstName,
@@ -29,6 +28,7 @@ export function webhookBody(lead: LeadPayload) {
     phone: lead.phone,
     consent: lead.consent,
     fields: lead.fields,
+    prize: lead.prize,
     source: { popup_id: lead.popupId, variant: lead.variant, page_url: lead.pageUrl, referrer: lead.referrer },
   };
 }
@@ -43,7 +43,7 @@ export function webhookBody(lead: LeadPayload) {
 export const zapier: IntegrationProvider<Credentials, Record<string, never>> = {
   id: "zapier",
   label: "Zapier / Webhook",
-  description: "Send every new lead to a Zapier Catch Hook, or to any HTTPS endpoint that accepts JSON.",
+  description: "Send every new submission to a Zapier Catch Hook, or to any HTTPS endpoint that accepts JSON.",
   docsUrl: "https://help.zapier.com/hc/en-us/articles/8496083355661",
   fields: [
     { kind: "credential", name: "webhook_url", label: "Webhook URL", type: "password", placeholder: "https://hooks.zapier.com/hooks/catch/…", help: "Copy it from your Zap's Catch Hook trigger. Treat it like a password.", required: true },
@@ -57,10 +57,17 @@ export const zapier: IntegrationProvider<Credentials, Record<string, never>> = {
     return this.deliver({ ...SAMPLE, test: true }, credentials, config, ctx);
   },
 
-  async deliver(lead, credentials, _config, ctx) {
+  async deliver(lead, credentials, _config, ctx, delivery) {
     await ctx.assertPublicUrl(credentials.webhook_url);
     const body = JSON.stringify(webhookBody(lead));
-    const headers: Record<string, string> = { "Content-Type": "application/json", "User-Agent": "Seentics-Webhook/1.0" };
+    // Delivery is at-least-once (a retry after a lost reply sends the lead again), so every
+    // request names its submission: receivers de-duplicate on `Idempotency-Key`.
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent": "Seentics-Webhook/1.0",
+      "Idempotency-Key": lead.submissionId,
+      ...(delivery && { "X-Seentics-Delivery": delivery.id }),
+    };
     if (credentials.signing_secret) {
       headers["X-Seentics-Signature"] = `sha256=${createHmac("sha256", credentials.signing_secret).update(body).digest("hex")}`;
     }
@@ -70,8 +77,7 @@ export const zapier: IntegrationProvider<Credentials, Record<string, never>> = {
 };
 
 const SAMPLE: LeadPayload = {
-  contactId: "00000000-0000-0000-0000-000000000000",
-  isNewContact: true,
+  submissionId: "00000000-0000-0000-0000-000000000000",
   email: "seentics-test@example.com",
   name: "Seentics Test",
   firstName: "Seentics",
@@ -79,6 +85,7 @@ const SAMPLE: LeadPayload = {
   phone: "",
   consent: true,
   fields: {},
+  prize: null,
   popupId: null,
   variant: null,
   pageUrl: "https://example.com/",

@@ -125,8 +125,9 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const heatmapsModule = initHeatmapsModule({ websitesModule, analyticsModule });
   const automationsModule = initAutomationsModule({ websitesModule });
   const errorsModule = initErrorsModule({ websitesModule });
-  const leadsModule = initLeadsModule({ websitesModule, automations: automationsModule.directory });
-  const integrationsModule = initIntegrationsModule({ websitesModule, leads: leadsModule.capture, cfg });
+  // Integrations first: it owns the delivery outbox that leads hands every submission to.
+  const integrationsModule = initIntegrationsModule({ websitesModule, cfg });
+  const leadsModule = initLeadsModule({ websitesModule, automations: automationsModule.directory, sink: integrationsModule.sink });
   const aiModule = initAiModule({
     websitesModule,
     analyticsReads: analyticsModule.reads,
@@ -169,6 +170,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     analyticsModule.retention,
     automationsModule.retention,
     errorsModule.retention,
+    leadsModule.retention,
     integrationsModule.retention,
     aiModule.retention,
     recordingsModule.retention,

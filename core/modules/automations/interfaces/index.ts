@@ -35,7 +35,7 @@ export type {
 
 export type { AutomationRepository } from "./automation-repository.interface";
 
-export type { AutomationDirectory, PopupRewards, WheelSegment } from "./automation-directory.interface";
+export type { AutomationDirectory, FormRouting, PopupRewards, WheelSegment } from "./automation-directory.interface";
 
 export type { AutomationTrackerSettings } from "./automation-settings.interface";
 

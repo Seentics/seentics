@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { FormDestinations } from './FormDestinations';
 import {
   MAX_EXTRA_FIELDS, addField, defaultLeadForm, removeField, updateField, validateLeadForm,
   type LeadForm, type LeadFormFieldType,
@@ -23,8 +24,8 @@ function Labeled({ label, children }: { label: string; children: React.ReactNode
 
 /**
  * Turns a modal into a lead-capture form: email plus up to seven more fields, a thank-you
- * message and optional consent. Submissions land in the site's Leads inbox, attributed to
- * this popup (and its A/B variant).
+ * message and optional consent. Submissions are listed on this automation's page and sent to the
+ * destinations chosen below (Settings > Integrations), attributed to this popup and its A/B variant.
  *
  * Off by default and collapsed to a single switch, so a modal that is only a message or a
  * link stays as simple as it was.
@@ -40,7 +41,7 @@ export function LeadFormFields({
       <div className="flex items-center justify-between gap-3 px-3 py-2">
         <div>
           <p className="text-xs font-semibold text-foreground">Collect emails with a form</p>
-          <p className="text-[11px] text-muted-foreground">Submissions appear in Leads. Replaces the button.</p>
+          <p className="text-[11px] text-muted-foreground">Submissions are listed on this automation’s page. Replaces the button.</p>
         </div>
         <Switch checked={enabled} onCheckedChange={(on) => onChange(on ? defaultLeadForm() : undefined)} aria-label="Collect emails with a form" />
       </div>
@@ -101,6 +102,8 @@ export function LeadFormFields({
           <Labeled label="Consent checkbox text (optional)">
             <Input value={form.consent_text ?? ''} maxLength={300} placeholder="I agree to receive emails." onChange={(e) => onChange({ ...form, consent_text: e.target.value })} className={inp} />
           </Labeled>
+
+          <FormDestinations form={form} onChange={onChange} />
 
           {problems.length > 0 && (
             <ul className="list-disc space-y-1 pl-4 text-[11px] text-destructive" role="alert">

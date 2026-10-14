@@ -1,17 +1,17 @@
-import { sql } from "../../../db";
 import type { UsageCounter, UsageScope } from "../../../platform/usage";
+import { countSince } from "../repositories/submission.repository";
 
-/** Contacts across the user's websites. The key is part of the gateway's usage contract. */
+/**
+ * Form submissions this calendar month, across the user's websites.
+ *
+ * The key is part of the gateway's usage contract, and is what the `leads` plan limit is
+ * measured against. A submission counts when it is stored, whether or not any destination
+ * was connected.
+ */
 export class LeadUsageCounter implements UsageCounter {
   readonly key = "leads";
 
-  async countForUser(scope: UsageScope): Promise<number> {
-    if (scope.websiteUuids.length === 0) return 0;
-    const rows = await sql<[{ c: number }]>`
-      SELECT COUNT(*)::int AS c
-      FROM contacts
-      WHERE website_id = ANY(${scope.websiteUuids as string[]}::uuid[])
-    `;
-    return rows[0]?.c ?? 0;
+  countForUser(scope: UsageScope): Promise<number> {
+    return countSince(scope.websiteUuids, scope.monthStart);
   }
 }

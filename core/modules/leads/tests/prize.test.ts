@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { couponPrize, pickWheelPrize, prizeFromFields, prizeToFields, withoutPrizeFields } from "../lib/prize";
+import { couponPrize, pickWheelPrize, withoutPrizeFields } from "../lib/prize";
 
 const segs = [
   { label: "A", weight: 1, coupon_code: "A1" },
@@ -33,18 +33,7 @@ describe("pickWheelPrize", () => {
   });
 });
 
-describe("prize fields", () => {
-  it("round-trips through the stored answers", () => {
-    const prize = { id: "1", label: "10% off", coupon_code: "SAVE10" };
-    expect(prizeFromFields(prizeToFields(prize))).toEqual(prize);
-    expect(prizeFromFields(prizeToFields({ ...prize, coupon_code: null }))).toEqual({ ...prize, coupon_code: null });
-  });
-
-  it("reads nothing from answers without a prize", () => {
-    expect(prizeFromFields({ company: "Acme" })).toBeNull();
-    expect(prizeFromFields(null)).toBeNull();
-  });
-
+describe("reserved answers", () => {
   it("strips every key with the reserved prefix, in any case", () => {
     expect(withoutPrizeFields({ a: 1, prize: "x", PRIZE_CODE: "y", prizefoo: "z", notprize: "ok" })).toEqual({ a: 1, notprize: "ok" });
   });

@@ -57,14 +57,25 @@ export function rewardsOfDefinition(definition: Record<string, unknown>): PopupR
 }
 
 /**
- * The action as the browser may see it: coupon codes removed.
+ * The form's destination ids, removed for the browser: connection ids are harmless alone, but a
+ * page has no use for them and no reason to learn how many destinations a site has.
+ */
+function withoutRouting<T extends Action>(action: T): T {
+  if (!isObject(action.form) || !("destinations" in action.form)) return action;
+  const { destinations: _omit, ...form } = action.form;
+  return { ...action, form };
+}
+
+/**
+ * The action as the browser may see it: coupon codes and form destinations removed.
  *
  * The prize is chosen server-side when the lead is stored, and the code is returned with
  * it. A code left in the definition would be readable by anyone who opens the page's
  * network tab, which would make both the wheel and the email gate decoration. Labels,
  * weights and colours stay: the wheel has to be drawn.
  */
-export function redactRewards<T extends Action>(action: T): T {
+export function redactRewards<T extends Action>(input: T): T {
+  const action = withoutRouting(input);
   if (!extractRewards(action)) return action;
   const out: Action = { ...action };
   if (isObject(action.wheel) && Array.isArray(action.wheel.segments)) {

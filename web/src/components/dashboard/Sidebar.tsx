@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Inbox, Sparkles, Radio, ArrowUpRight,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,8 +46,6 @@ function buildMainNav(websiteId: string): NavItem[] {
   return [
     { label: 'Overview',    href: `/websites/${websiteId}`,             icon: LayoutDashboard },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
-    // Next to Automations: leads are what a popup's form produces.
-    { label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Inbox },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
     // Directly after Recording because that is what it leads into: an error row's whole
     // value is the replay of the visitor who hit it.

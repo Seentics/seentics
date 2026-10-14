@@ -168,7 +168,7 @@ export default function DpaPage() {
             </tr>
             <tr>
               <th>Data subjects</th>
-              <td>Visitors to and users of your websites and applications; people who subscribe to your status pages; your alert contacts.</td>
+              <td>Visitors to and users of your websites and applications; people who subscribe to your status pages; people who submit a form you build with Seentics; your alert contacts.</td>
             </tr>
             <tr>
               <th>Personal data</th>
@@ -177,7 +177,7 @@ export default function DpaPage() {
                 coarse location (country, region, city) and device, browser and operating system; session recordings
                 and page snapshots, with typed input and text you choose masked; error messages and stack traces;
                 telemetry your applications send; user ids and traits you send with <code>identify</code>; status-page
-                subscriber email addresses and alert contact details. IP addresses are used in memory for location and
+                subscriber email addresses and alert contact details; the answers people give in forms you build (email, and any name, phone or other fields you ask for), kept for 90 days and sent on to the destinations you connect. IP addresses are used in memory for location and
                 anonymous counting and are not stored.
               </td>
             </tr>

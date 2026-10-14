@@ -47,3 +47,14 @@ describe('lead form helpers', () => {
     expect(validateLeadForm({ ...base, success_redirect_url: '//evil.test' }).length).toBe(1);
   });
 });
+
+describe('destinations', () => {
+  it('is valid when absent, empty or short, and rejects more than the cap', () => {
+    const base = defaultLeadForm();
+    expect(validateLeadForm(base)).toEqual([]);
+    expect(validateLeadForm({ ...base, destinations: [] })).toEqual([]);
+    expect(validateLeadForm({ ...base, destinations: Array.from({ length: 21 }, (_, i) => String(i)) })).toEqual([
+      'A form can send to at most 20 destinations.',
+    ]);
+  });
+});

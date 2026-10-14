@@ -1,17 +1,23 @@
 import type { RetentionCutoffs, RetentionOptions, RetentionPurge, RetentionTarget } from "../../../platform/retention/interfaces";
-import { purgeDeliveriesBefore } from "../repositories/integration.repository";
+import { PAYLOAD_RETENTION_DAYS, purgeDeliveries } from "../repositories/delivery.repository";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Ages out the delivery log with the rest of a site's automation history.
+ * Ages out the delivery history with the rest of a site's automation history, and enforces the
+ * 30-day limit on keeping a lead that was never delivered.
  *
- * Only the log: connections are configuration the owner made and keep until they remove them,
- * and the leads those deliveries were about are customer records this sweep never touches.
+ * Destinations are configuration the owner made and are never touched; the submissions
+ * themselves belong to the leads module's own purge.
  */
 export class IntegrationsRetentionPurge implements RetentionPurge {
   readonly name = "integrations";
 
+  constructor(private readonly now: () => number = Date.now) {}
+
   async purge(target: RetentionTarget, cutoffs: RetentionCutoffs, _options: RetentionOptions): Promise<Record<string, number>> {
-    const deleted = await purgeDeliveriesBefore(target.websiteId, cutoffs.funnelAutomation);
-    return { integrationDeliveryRows: deleted };
+    const payloadCutoff = new Date(this.now() - PAYLOAD_RETENTION_DAYS * DAY_MS);
+    const { deleted, expired, scrubbed } = await purgeDeliveries(target.websiteId, cutoffs.funnelAutomation, payloadCutoff);
+    return { integrationDeliveryRows: deleted, integrationDeliveriesExpired: expired, integrationPayloadsCleared: scrubbed };
   }
 }

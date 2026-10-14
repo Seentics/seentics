@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { LeadSubmission } from "../interfaces";
+import type { LeadSubmission, Prize, QueuedLead } from "../interfaces";
 
 mock.module("../../../platform/observability/logger", () => {
   const logger: Record<string, unknown> = { debug: mock(() => {}), info: mock(() => {}), warn: mock(() => {}), error: mock(() => {}) };
@@ -7,116 +7,141 @@ mock.module("../../../platform/observability/logger", () => {
   return { log: logger };
 });
 
-const inserted: LeadSubmission[] = [];
-let chooser: ((existing: unknown) => unknown) | undefined;
-let existingPrize: unknown = null;
+const events: string[] = [];
+const inserted: Array<{ id: string; s: LeadSubmission; prize: Prize | null }> = [];
+let existingClaim: Prize | null = null;
+const claims: Array<{ hash: string; drawn: Prize | null }> = [];
+let failRemove = false;
+
 // Complete on purpose: a mock.module stub must export everything the real module does.
 const unused = async () => { throw new Error("not used by this test"); };
-mock.module("../repositories/lead.repository", () => ({
-  insertSubmission: async (s: LeadSubmission, choosePrize?: (existing: unknown) => unknown) => {
-    inserted.push(s);
-    chooser = choosePrize;
-    return { contactId: "c1", isNewContact: true, prize: choosePrize ? choosePrize(existingPrize) : null };
+mock.module("../repositories/submission.repository", () => ({
+  SUBMISSION_RETENTION_DAYS: 90,
+  insertSubmission: async (id: string, s: LeadSubmission, prize: Prize | null) => { events.push("insert"); inserted.push({ id, s, prize }); },
+  removeSubmissionById: async (id: string) => { events.push(`remove:${id}`); if (failRemove) throw new Error("db down"); },
+  listSubmissions: unused, formSummary: unused, websiteSummary: unused, exportSubmissions: unused,
+  deleteSubmission: unused, countSince: unused, purgeBefore: unused,
+}));
+mock.module("../repositories/prize.repository", () => ({
+  claimPrize: async (_w: string, _a: string, hash: string, draw: () => Prize | null) => {
+    events.push("claim");
+    const prize = existingClaim ?? draw();
+    claims.push({ hash, drawn: prize });
+    return prize;
   },
-  listContacts: unused,
-  getContact: unused,
-  leadStats: unused,
-  exportContacts: unused,
-  updateContactStatus: unused,
-  deleteContact: unused,
 }));
 
 const { LeadCaptureService } = await import("../services/lead-capture.service");
+const { hashEmail } = await import("../lib/email-hash");
 
 const SITE = "550e8400-e29b-41d4-a716-446655440000";
 const KNOWN = "11111111-1111-4111-8111-111111111111";
 
 const base: LeadSubmission = {
-  websiteId: SITE, email: "a@b.co", name: "", phone: "", consent: false, fields: {},
+  websiteId: SITE, email: "a@b.co", name: "A B", phone: "", consent: true, fields: {},
   anonymousId: null, sessionId: null, automationId: KNOWN, variant: "b", pageUrl: "", referrer: "",
 };
 
 let rewards: any = null;
+let routing: { destinations: string[] | null } | null = { destinations: null };
 const directory = {
   names: async (_w: string, ids: readonly string[]) => new Map(ids.filter((i) => i === KNOWN).map((i) => [i, "Exit popup"])),
   rewards: async () => rewards,
+  routing: async () => routing,
 };
 
-beforeEach(() => { inserted.length = 0; chooser = undefined; existingPrize = null; rewards = null; });
+const enqueued: Array<{ lead: QueuedLead; destinations: readonly string[] | null }> = [];
+let queued = 2;
+let failEnqueue = false;
+let kicks = 0;
+const sink = {
+  enqueue: async (lead: QueuedLead, destinations: readonly string[] | null) => {
+    events.push("enqueue");
+    if (failEnqueue) throw new Error("db down");
+    enqueued.push({ lead, destinations });
+    return queued;
+  },
+  kick: () => { events.push("kick"); kicks++; },
+  statuses: unused, forget: unused,
+};
+
+const service = () => new LeadCaptureService(directory, sink as any, () => "sub-1");
+
+beforeEach(() => {
+  events.length = 0; inserted.length = 0; enqueued.length = 0; claims.length = 0;
+  existingClaim = null; rewards = null; routing = { destinations: null }; queued = 2; failEnqueue = false; failRemove = false; kicks = 0;
+});
 
 describe("LeadCaptureService", () => {
-  it("keeps attribution for an automation on the website", async () => {
-    await new LeadCaptureService(directory).capture(base);
-    expect(inserted[0]).toMatchObject({ automationId: KNOWN, variant: "b" });
+  it("stores, queues and then wakes the worker, in that order", async () => {
+    const out = await service().capture(base);
+    expect(out).toEqual({ submissionId: "sub-1", prize: null, queuedFor: 2 });
+    expect(events).toEqual(["insert", "enqueue", "kick"]);
+    expect(inserted[0]).toMatchObject({ id: "sub-1", s: { automationId: KNOWN, variant: "b", email: "a@b.co" }, prize: null });
+    expect(enqueued[0]!.lead).toMatchObject({ submissionId: "sub-1", prize: null, submission: { email: "a@b.co" } });
+    expect(typeof enqueued[0]!.lead.submittedAt).toBe("string");
   });
 
-  it("drops attribution, not the lead, for an unknown automation", async () => {
-    await new LeadCaptureService(directory).capture({ ...base, automationId: "22222222-2222-4222-8222-222222222222" });
+  it("still stores a lead when no destination is connected", async () => {
+    queued = 0;
+    const out = await service().capture(base);
+    expect(out.queuedFor).toBe(0);
     expect(inserted).toHaveLength(1);
-    expect(inserted[0]).toMatchObject({ automationId: null, variant: null });
   });
 
-  it("notifies listeners after storing, and isolates a failing one", async () => {
-    const svc = new LeadCaptureService(directory);
-    const heard: string[] = [];
-    svc.onCaptured(() => { throw new Error("connector down"); });
-    svc.onCaptured((l) => { heard.push(l.contactId); });
-    const result = await svc.capture(base);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(result.contactId).toBe("c1");
-    expect(heard).toEqual(["c1"]);
+  it("routes to the destinations the form names, read from its definition", async () => {
+    routing = { destinations: ["d1", "d2"] };
+    await service().capture(base);
+    expect(enqueued[0]!.destinations).toEqual(["d1", "d2"]);
   });
 
-  it("strips prize fields the browser tries to send", async () => {
-    await new LeadCaptureService(directory).capture({ ...base, fields: { company: "Acme", prize_label: "99% off", prize_code: "FREE", Prize_id: "0" } });
-    expect(inserted[0]!.fields).toEqual({ company: "Acme" });
+  it("sends to every destination when the form names none, or the popup is unknown", async () => {
+    await service().capture(base);
+    await service().capture({ ...base, automationId: "22222222-2222-4222-8222-222222222222" });
+    await service().capture({ ...base, automationId: null });
+    expect(enqueued.map((e) => e.destinations)).toEqual([null, null, null]);
   });
 
-  describe("prizes", () => {
-    const wheel = [
-      { label: "10% off", weight: 1, coupon_code: "SAVE10" },
-      { label: "Try again", weight: 0, coupon_code: "" },
-    ];
-
-    it("pays no prize when the popup has none", async () => {
-      const result = await new LeadCaptureService(directory).capture(base);
-      expect(result.prize).toBeNull();
-      expect(chooser).toBeUndefined();
-    });
-
-    it("draws from the stored wheel, never from the request", async () => {
-      rewards = { wheel, coupon: null };
-      const result = await new LeadCaptureService(directory).capture(base);
-      expect(result.prize).toEqual({ id: "0", label: "10% off", coupon_code: "SAVE10" });
-    });
-
-    it("gives a returning email the prize it already won", async () => {
-      rewards = { wheel, coupon: null };
-      existingPrize = { id: "1", label: "Try again", coupon_code: null };
-      const result = await new LeadCaptureService(directory).capture(base);
-      expect(result.prize).toEqual(existingPrize as any);
-    });
-
-    it("hands out a fixed coupon behind the email", async () => {
-      rewards = { wheel: null, coupon: { code: "WELCOME", description: "Welcome gift" } };
-      const result = await new LeadCaptureService(directory).capture(base);
-      expect(result.prize).toEqual({ id: "coupon", label: "Welcome gift", coupon_code: "WELCOME" });
-    });
-
-    it("asks for rewards only when the attribution held up", async () => {
-      rewards = { wheel, coupon: null };
-      const result = await new LeadCaptureService(directory).capture({ ...base, automationId: "22222222-2222-4222-8222-222222222222" });
-      expect(result.prize).toBeNull();
-    });
+  it("drops attribution, not the lead, for an automation that is not on this website", async () => {
+    await service().capture({ ...base, automationId: "22222222-2222-4222-8222-222222222222" });
+    expect(inserted[0]!.s).toMatchObject({ automationId: null, variant: null });
   });
 
-  it("stops notifying an unsubscribed listener", async () => {
-    const svc = new LeadCaptureService(directory);
-    const heard: string[] = [];
-    const off = svc.onCaptured((l) => { heard.push(l.contactId); });
-    off();
-    await svc.capture(base);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(heard).toEqual([]);
+  it("discards prize-looking answers sent by the browser", async () => {
+    await service().capture({ ...base, fields: { prize_label: "FREE CAR", company: "Acme" } });
+    expect(inserted[0]!.s.fields).toEqual({ company: "Acme" });
+  });
+
+  it("claims a wheel prize for the address hash, before storing", async () => {
+    rewards = { wheel: [{ label: "20% off", weight: 1, coupon_code: "SPIN20" }], coupon: null };
+    const out = await service().capture({ ...base, email: "jane@example.com" });
+    expect(out.prize).toEqual({ id: "0", label: "20% off", coupon_code: "SPIN20" });
+    expect(claims[0]!.hash).toBe(hashEmail("jane@example.com"));
+    expect(events.slice(0, 3)).toEqual(["claim", "insert", "enqueue"]);
+    expect(inserted[0]!.prize).toEqual(out.prize);
+    expect(enqueued[0]!.lead.prize).toEqual(out.prize);
+  });
+
+  it("pays a fixed coupon behind the email", async () => {
+    rewards = { wheel: null, coupon: { code: "WELCOME10", description: "10% off" } };
+    expect((await service().capture(base)).prize).toEqual({ id: "coupon", label: "10% off", coupon_code: "WELCOME10" });
+  });
+
+  it("hands back the prize an address already won instead of drawing again", async () => {
+    rewards = { wheel: [{ label: "20% off", weight: 1, coupon_code: "SPIN20" }], coupon: null };
+    existingClaim = { id: "3", label: "Free shipping", coupon_code: "SHIP" };
+    expect((await service().capture(base)).prize).toEqual(existingClaim);
+  });
+
+  it("withdraws the stored row and fails when it cannot be queued", async () => {
+    failEnqueue = true;
+    await expect(service().capture(base)).rejects.toThrow("db down");
+    expect(events).toEqual(["insert", "enqueue", "remove:sub-1"]);
+    expect(kicks).toBe(0);
+  });
+
+  it("still reports the queueing failure when the rollback also fails", async () => {
+    failEnqueue = true; failRemove = true;
+    await expect(service().capture(base)).rejects.toThrow("db down");
   });
 });

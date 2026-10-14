@@ -1,42 +1,44 @@
-export const CONTACT_STATUSES = ['new', 'contacted', 'archived'] as const;
-export type ContactStatus = (typeof CONTACT_STATUSES)[number];
+import type { DeliveryStatus, ProviderId } from '@/features/integrations/types';
 
-export type Contact = {
+/** Where one submission was sent, and how that went. */
+export type SubmissionDelivery = {
+  /** The delivery's own id: what a retry is addressed to. */
+  id: string;
+  connection_id: string;
+  connection_name: string;
+  provider: ProviderId;
+  status: DeliveryStatus;
+  attempt_count: number;
+  error: string | null;
+  completed_at: string | null;
+};
+
+/** The reward the server drew for a spin wheel or coupon popup. */
+export type SubmissionPrize = { id: string; label: string; coupon_code: string | null };
+
+/** One form submission, as listed on the automation's page. */
+export type Submission = {
   id: string;
   email: string;
   name: string;
   phone: string;
-  status: ContactStatus;
   consent: boolean;
-  submission_count: number;
-  first_submitted_at: string;
-  last_submitted_at: string;
-};
-
-export type ContactSubmission = {
-  id: string;
-  automation_id: string | null;
-  automation_name: string | null;
-  variant: string | null;
   fields: Record<string, string | number | boolean>;
+  prize: SubmissionPrize | null;
+  variant: string | null;
   page_url: string;
   referrer: string;
   created_at: string;
+  deliveries: SubmissionDelivery[];
 };
 
-export type ContactFilters = {
-  search: string;
-  /** Empty means every status. */
-  status: ContactStatus | '';
-  limit: number;
-  offset: number;
-};
+export type SubmissionFilters = { search: string; limit: number; offset: number };
+export type SubmissionPage = { submissions: Submission[]; total: number };
 
-export type ContactPage = { contacts: Contact[]; total: number };
-export type ContactDetail = { contact: Contact; submissions: ContactSubmission[] };
-
-export type LeadStats = {
+export type FormSummary = {
   total: number;
   last_7_days: number;
-  by_automation: { automation_id: string | null; name: string | null; count: number }[];
+  last_30_days: number;
+  by_variant: { variant: string | null; count: number }[];
+  with_prize: number;
 };

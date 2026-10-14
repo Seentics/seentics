@@ -19,9 +19,9 @@ import type { ElementType } from 'react';
  *
  * Lead capture (docs/automations): a modal action with "Collect emails with a form" shows
  * an email field plus up to seven more (text or phone), a thank-you message or redirect and
- * an optional consent checkbox. Submissions land in the Leads inbox (search, contacted or
- * archived, CSV export, delete), a repeat email updates one contact, a honeypot and a
- * per-visitor rate limit filter bots, and a `lead_captured` event feeds goals and funnels.
+ * an optional consent checkbox. Submissions are listed on the automation's page (search, CSV
+ * export, delete, kept 90 days) and sent to the destinations the form picks (webhook, Mailchimp,
+ * Klaviyo, HubSpot), a honeypot and a per-visitor rate limit filter bots, and a `lead_captured` event feeds goals and funnels.
  * Forms live in modal actions; banners, toasts and tooltips carry a message, not a form.
  *
  * Every claim has to be something the product does today (docs/analytics, session-replays,
@@ -91,7 +91,7 @@ export const USE_CASES: UseCase[] = [
     group: 'capture', slug: 'capture-leads', name: 'Capture more leads', icon: Magnet,
     summary: 'Popups and forms that turn visitors into contacts',
     headline: 'Capture leads with popups and forms, and see where each one came from',
-    metaDescription: 'Show a popup with an email and contact form at the right moment, collect leads in an inbox, and see which popup, variant, page and source produced each one. Lead capture from Seentics.',
+    metaDescription: 'Show a popup with an email and contact form at the right moment, send them to your email tool or CRM, and see which popup, variant, page and source produced each one. Lead capture from Seentics.',
     intro: 'Most visitors leave without a trace. A popup form shown at the right moment gets you their email; Seentics also tells you which popup, variant, page and campaign produced each lead, and what the visitor did first.',
     who: [
       { audience: 'Ecommerce stores', how: 'Offer a discount for an email before a shopper leaves the cart or a product page.' },
@@ -107,22 +107,22 @@ export const USE_CASES: UseCase[] = [
       { title: 'Choose the moment', body: 'Pick a trigger: Exit Intent, Scroll Depth, Time on Page, Click, Inactivity or a custom event. A reader who got to 60% of a guide is a better prospect than someone who just arrived.' },
       { title: 'Add the form', body: 'In Automations, add a Show Modal action and turn on "Collect emails with a form". It adds an email field plus up to seven more (text or phone), a thank-you message or redirect, and an optional consent checkbox that can be required.' },
       { title: 'Limit how often it shows', body: 'Set a frequency cap and a cooldown, and scope it to the pages where it makes sense, so a visitor sees it once.' },
-      { title: 'Work the leads', body: 'Submissions land in the Leads inbox: search them, mark them contacted or archived, export a CSV for your email or CRM tool, or delete a contact and everything they sent.' },
+      { title: 'Send them where you work', body: 'Each submission is listed on the automation\'s page and sent to the destinations you pick in Settings > Integrations: Zapier or any webhook, Mailchimp, Klaviyo or HubSpot. Failed sends are retried automatically. You can also search them, export a CSV, or delete one.' },
       { title: 'Measure it', body: 'Each lead records the popup, the A/B variant and the page it came from, and a lead_captured event is recorded so you can build a goal or a funnel step on it.' },
     ],
     features: [
-      { key: 'leads', answers: 'A form in a popup, a Leads inbox, deduplication by email, a honeypot and rate limit against bots, and a consent checkbox.' },
+      { key: 'leads', answers: 'A form in a popup, a list of submissions per form, destinations that send each one to your tools with retries, a honeypot and rate limit against bots, and a consent checkbox.' },
       { key: 'automations', answers: 'Thirteen triggers, frequency caps, cooldowns, priority and A/B variants so you can test messages.' },
       { key: 'funnels', answers: 'Use lead_captured as a funnel step to see how many leads go on to sign up or buy.' },
-      { key: 'analytics', answers: 'Leads by page and source sit beside your traffic reports.' },
+      { key: 'analytics', answers: 'Submissions by page and source sit beside your traffic reports.' },
     ],
     funnel: { name: 'Lead capture funnel', steps: ['Landing or content page', 'Popup shown', 'Lead captured (lead_captured event)', 'Sign-up or purchase'], note: 'lead_captured is recorded automatically on a successful submit.' },
     automation: { trigger: 'Scroll Depth past 60% on a guide or article', action: 'Show Modal with an email form offering the next step', why: 'Readers who got that far are the likeliest to say yes, and it does not interrupt people who have just arrived.' },
-    metrics: ['Leads by popup, variant, page and source', 'Capture rate for each popup', 'Leads by status: new, contacted, archived', 'Lead to customer conversion'],
+    metrics: ['Submissions by popup, variant, page and source', 'Capture rate for each popup', 'Submissions by destination: delivered, retrying, failed', 'Lead to customer conversion'],
     faqs: [
-      { q: 'Where do the leads go?', a: 'Into the Leads inbox in your dashboard. Export a CSV to use them in your email or CRM tool. A repeat submission from the same email updates one contact instead of adding a second row.' },
+      { q: 'Where do the leads go?', a: 'To the destinations you choose for the form: Zapier or any webhook, Mailchimp, Klaviyo or HubSpot, and each submission is also listed on the automation\'s page for 90 days. Seentics is not a contact database, so keep long-term contacts in the tool a destination feeds.' },
       { q: 'How are bots handled?', a: 'A hidden honeypot field and a per-visitor rate limit filter them, and nothing is stored for a submission that trips either.' },
-      { q: 'What about consent?', a: 'Add the consent checkbox and make it required where your jurisdiction needs it. Leads are personal data, so delete contacts on request. Seentics does not make you compliant on its own.' },
+      { q: 'What about consent?', a: 'Add the consent checkbox and make it required where your jurisdiction needs it. Submissions are personal data, so delete them on request. Seentics does not make you compliant on its own.' },
     ],
   },
   {
@@ -192,7 +192,7 @@ export const USE_CASES: UseCase[] = [
     automation: { trigger: 'Form Abandonment on the booking form', action: 'Webhook to your team channel, and Tag Session', why: 'The alert carries no personal data, only that a form was left. A fast call back can win the booking, and the recording shows where it stopped.' },
     metrics: ['Bookings by page and source', 'Form completion rate', 'Enquiries per listing or vehicle', 'Mobile versus desktop bookings'],
     faqs: [
-      { q: 'Does it replace my CRM or booking system?', a: 'No. It shows what happens on your website. A Webhook action posts alerts to the endpoint your tools provide, and you can export leads as CSV.' },
+      { q: 'Does it replace my CRM or booking system?', a: 'No. It shows what happens on your website. A Webhook action posts alerts to the endpoint your tools provide, and you can send submissions to your CRM or export them as CSV.' },
       { q: 'Are form entries visible in recordings?', a: 'No. Typed values are masked, and you can exclude any page or element.' },
       { q: 'Is it fine for healthcare sites?', a: 'Seentics makes no compliance claim. Keep patient data out of events, exclude sensitive pages, and ask your compliance team what you may track.' },
     ],

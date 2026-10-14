@@ -128,7 +128,7 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
             value: '',
             label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
           },
-    ...(has(leads) ? [{ value: formatCount(leads), label: 'leads from popup forms' }] : []),
+    ...(has(leads) ? [{ value: formatCount(leads), label: 'form submissions a month' }] : []),
     { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
     // Analytics: API access only. The other plans have the whole agency kit (clients, APIs, embeds).
     plan.tier === 'analytics'
@@ -202,7 +202,7 @@ export const COMPARE_GROUPS: CompareGroup[] = [
     rows: [
       { label: 'Funnels', value: countCell('core', 'funnels') },
       { label: 'Automations', value: countCell('core', 'automations') },
-      { label: 'Popups & lead capture', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `${formatCount(v)} leads`; } },
+      { label: 'Popups & forms', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `${formatCount(v)} submissions / mo`; } },
       { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
       { label: 'Agency: client accounts, APIs & embeds', value: () => true },
       { label: 'Monthly spend cap on extra usage', value: (p) => p.tier === 'pro' },

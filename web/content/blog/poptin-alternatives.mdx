@@ -25,7 +25,7 @@ This guide compares nine options (Popupsmart, Poper, OptinMonster, Privy, Wisepo
 - **Want a mature ecosystem with deep targeting:** OptinMonster.
 - **Run an online store with email and SMS:** Privy.
 - **Want popups tied to real behavior and measurable results, with optional self-hosting:** Seentics.
-- **Be clear about the gap:** Seentics now captures emails in popups and keeps them in a Leads inbox, and also offers spin-to-win wheels, countdown timers, multi-step quizzes, sticky bars, teaser tabs and coupon codes. It does not yet have a drag-and-drop canvas, a template library as large as Poptin's, or the long tail of integrations Poptin offers. It does send new leads to Zapier or any webhook, Mailchimp, Klaviyo and HubSpot. If your main job is polished, template-driven email capture with a wide integration catalogue, a dedicated tool fits better today.
+- **Be clear about the gap:** Seentics now captures emails in popups, lists each form's submissions for 90 days and sends them to your email tool, CRM or a webhook, and also offers spin-to-win wheels, countdown timers, multi-step quizzes, sticky bars, teaser tabs and coupon codes. It does not yet have a drag-and-drop canvas, a template library as large as Poptin's, or the long tail of integrations Poptin offers. It does send new leads to Zapier or any webhook, Mailchimp, Klaviyo and HubSpot. If your main job is polished, template-driven email capture with a wide integration catalogue, a dedicated tool fits better today.
 - **Test with one campaign** on one page for two weeks before migrating everything.
 
 ## Why people look beyond Poptin
@@ -55,7 +55,7 @@ Capterra reviewers mention a learning curve, some confusing menus (A/B testing i
 | What sizes the plan (visitors, pageviews, contacts)? | Determines how the bill reacts to growth. |
 | Which triggers exist (exit intent, scroll, time, click, returning visitor)? | Targeting quality decides whether popups help or annoy. |
 | Are mobile triggers supported? | Cursor-based exit intent does not exist on phones. |
-| Where do leads go (inbox, email platform, webhook)? | Submissions must reach your CRM or list. |
+| Where do leads go (a built-in list, email platform, webhook)? | Submissions must reach your CRM or list. |
 | Can you measure what happens after the popup? | Without it you see form fills, not business impact. |
 | Is consent handled? | Collecting emails needs a lawful basis and a clear notice. |
 | Is there a free tier or trial? | Lets you test with real traffic first. |
@@ -141,7 +141,7 @@ A small modal, a form posting to your backend, and a few lines of JavaScript. Fi
 - **Triggers:** exit intent, time on page, scroll depth, element clicks and visit history.
 - **Conditions:** country, region, city, browser, OS, device, referrer, visit count, new vs returning, and traits you pass with `seentics.identify()`.
 - **Popup types:** simple popups, a spin-to-win wheel (the prize is drawn on the server and the coupon code is only sent with the winning slice, so it cannot be read from the page), multi-step quizzes whose answers are stored with the lead, countdown timers (per-visitor or fixed end date), teaser tabs, sticky bars with an inline email form, and coupon codes revealed after the email. A live preview in the builder runs the same code as your site.
-- **Lead capture:** a modal can carry an email form (extra fields, consent checkbox, thank-you message). Submissions go to a Leads inbox with search, status, CSV export and delete, and each lead records which popup, A/B variant and page produced it.
+- **Lead capture:** a modal can carry an email form (extra fields, consent checkbox, thank-you message). Submissions are listed on the automation's page with search, CSV export and delete (kept 90 days), are sent to the destinations each form picks (several per site, retried automatically), and each records which popup, A/B variant and page produced it. It is not a contact database: long-term contacts live in the tool you send them to.
 - **Measurement in the same product:** funnels, goals (including CSS-selector conversions), heatmaps, session replays and revenue attribution, so you can check whether a popup moved a conversion and watch what visitors did next.
 
 ![The Seentics analytics dashboard](/assets/dashboard.png)
@@ -167,7 +167,7 @@ Figures are what we could read from vendor or third-party pages and may be stale
 | Wisepops | Free trial | From $49 (50K pageviews, per Capterra) | Pageviews | No | Yes |
 | Email platform forms | Varies | Varies | Contacts | No | Native |
 | DIY modal | n/a | Your time | n/a | Yes | Whatever you build |
-| Seentics | Self-host free; Free plan | See [pricing](/pricing) | Events / plan limits | Yes (AGPL v3) | Built-in Leads inbox and CSV export; Mailchimp, Klaviyo, HubSpot and Zapier/webhook sync |
+| Seentics | Self-host free; Free plan | See [pricing](/pricing) | Events / plan limits | Yes (AGPL v3) | Per-form submissions list and CSV export; Mailchimp, Klaviyo, HubSpot and Zapier/webhook delivery with retries |
 
 ## Which one for which team
 
@@ -205,7 +205,7 @@ Several tools have free tiers with visitor, pageview or contact caps (Poper, Pop
 
 ### Does Seentics replace Poptin completely?
 
-Not yet. It covers behavior-triggered popups and banners with email capture, a Leads inbox and measurement, and syncs leads to Mailchimp, Klaviyo, HubSpot and Zapier, but not Poptin's drag-and-drop canvas, its much larger template library or its wider integration catalogue. See [Poptin vs Seentics](/blog/poptin-vs-seentics).
+Not yet. It covers behavior-triggered popups and banners with email capture and measurement, and sends submissions to Mailchimp, Klaviyo, HubSpot and Zapier or any webhook, but it has no central contact list, no drag-and-drop canvas like Poptin's, a much smaller template library and a narrower integration catalogue. See [Poptin vs Seentics](/blog/poptin-vs-seentics).
 
 ### Do popups hurt SEO?
 

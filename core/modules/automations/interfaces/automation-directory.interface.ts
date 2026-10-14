@@ -20,6 +20,15 @@ export type PopupRewards = {
   coupon: { code: string; description: string } | null;
 };
 
+/**
+ * Where a popup's form sends its submissions.
+ *
+ * `destinations` are integration connection ids the owner picked in the builder; `null`
+ * means the owner picked none, so every enabled destination on the website receives it.
+ * An empty array is a deliberate "nowhere".
+ */
+export type FormRouting = { destinations: string[] | null };
+
 export interface AutomationDirectory {
   /**
    * Names of the given automations that belong to this website, keyed by id.
@@ -34,4 +43,10 @@ export interface AutomationDirectory {
    * exist on this website or whose popup has none.
    */
   rewards(websiteId: string, automationId: string): Promise<PopupRewards | null>;
+
+  /**
+   * Where the automation's form sends submissions, or `null` for an automation that does not
+   * exist on this website. An automation without a form routes to every destination.
+   */
+  routing(websiteId: string, automationId: string): Promise<FormRouting | null>;
 }

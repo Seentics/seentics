@@ -1,5 +1,6 @@
 import { sql } from "../../../db";
-import type { AutomationDirectory, AutomationRepository, PopupRewards } from "../interfaces";
+import type { AutomationDirectory, AutomationRepository, FormRouting, PopupRewards } from "../interfaces";
+import { routingOfDefinition } from "../lib/form-routing";
 import { rewardsOfDefinition } from "../lib/popup-rewards";
 
 export class AutomationDirectoryService implements AutomationDirectory {
@@ -17,5 +18,10 @@ export class AutomationDirectoryService implements AutomationDirectory {
   async rewards(websiteId: string, automationId: string): Promise<PopupRewards | null> {
     const automation = await this.repository.findById(websiteId, automationId);
     return automation ? rewardsOfDefinition(automation.definition) : null;
+  }
+
+  async routing(websiteId: string, automationId: string): Promise<FormRouting | null> {
+    const automation = await this.repository.findById(websiteId, automationId);
+    return automation ? routingOfDefinition(automation.definition) : null;
   }
 }

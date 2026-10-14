@@ -1,48 +1,61 @@
 /** Write hooks for the integrations feature, with the cache invalidation each one implies. */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { submissionKeys } from '@/features/leads/queries';
 import { integrationsApi } from './api';
 import { integrationKeys } from './queries';
-import type { ConnectInput, UpdateInput } from './types';
+import type { CreateInput, UpdateInput } from './types';
 
 /** Any change can alter both the cards and the log behind them. */
 function useRefresh(websiteId: string) {
   const qc = useQueryClient();
   return () => {
-    void qc.invalidateQueries({ queryKey: integrationKeys.list(websiteId) });
+    void qc.invalidateQueries({ queryKey: integrationKeys.overview(websiteId) });
     void qc.invalidateQueries({ queryKey: integrationKeys.deliveries(websiteId) });
   };
 }
 
-export function useConnectIntegration(websiteId: string) {
+export function useCreateDestination(websiteId: string) {
   const refresh = useRefresh(websiteId);
   return useMutation({
-    mutationFn: (vars: { provider: string; input: ConnectInput }) => integrationsApi.connect(websiteId, vars.provider, vars.input),
+    mutationFn: (input: CreateInput) => integrationsApi.create(websiteId, input),
     onSuccess: refresh,
   });
 }
 
-export function useUpdateIntegration(websiteId: string) {
+export function useUpdateDestination(websiteId: string) {
   const refresh = useRefresh(websiteId);
   return useMutation({
-    mutationFn: (vars: { provider: string; input: UpdateInput }) => integrationsApi.update(websiteId, vars.provider, vars.input),
+    mutationFn: (vars: { connectionId: string; input: UpdateInput }) => integrationsApi.update(websiteId, vars.connectionId, vars.input),
     onSuccess: refresh,
   });
 }
 
-export function useDisconnectIntegration(websiteId: string) {
+export function useRemoveDestination(websiteId: string) {
   const refresh = useRefresh(websiteId);
   return useMutation({
-    mutationFn: (provider: string) => integrationsApi.disconnect(websiteId, provider),
+    mutationFn: (connectionId: string) => integrationsApi.remove(websiteId, connectionId),
     onSuccess: refresh,
   });
 }
 
-export function useTestIntegration(websiteId: string) {
+export function useTestDestination(websiteId: string) {
   const refresh = useRefresh(websiteId);
   return useMutation({
-    mutationFn: (provider: string) => integrationsApi.sendTest(websiteId, provider),
-    // The send is recorded by the server only for real leads; a test shows in the card, not the log,
-    // but a failing connection may change state, so refresh anyway.
+    mutationFn: (connectionId: string) => integrationsApi.sendTest(websiteId, connectionId),
+    // A failing connection may change state, so refresh whatever the outcome.
     onSettled: refresh,
+  });
+}
+
+export function useRetryDelivery(websiteId: string) {
+  const qc = useQueryClient();
+  const refresh = useRefresh(websiteId);
+  return useMutation({
+    mutationFn: (deliveryId: string) => integrationsApi.retryDelivery(websiteId, deliveryId),
+    onSuccess: () => {
+      refresh();
+      // A form's submissions list shows the same deliveries, so it must pick up the retry too.
+      void qc.invalidateQueries({ queryKey: submissionKeys.all });
+    },
   });
 }

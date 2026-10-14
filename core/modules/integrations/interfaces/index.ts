@@ -1,24 +1,26 @@
 import type { z } from "zod";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { AuthedRouter } from "../../../platform/http/router";
+import type { LeadSink } from "../../leads/interfaces";
 import type { RetentionPurge } from "../../../platform/retention";
 
 export const PROVIDER_IDS = ["zapier", "mailchimp", "klaviyo", "hubspot"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 export type ConnectionStatus = "active" | "error";
-export type DeliveryStatus = "success" | "failed" | "skipped";
+/** `pending` covers a delivery waiting for its first attempt or for a retry. */
+export type DeliveryStatus = "pending" | "success" | "failed" | "skipped";
 
 /**
  * A captured lead, in the shape providers map from.
  *
- * Deliberately not `CapturedLead`: providers should not depend on the leads module's
- * types, and everything a connector needs is flat here. `firstName`/`lastName` are split
- * from the single `name` the form collects, once, so four providers do not split it four ways.
+ * Deliberately not the leads module's types: providers should not depend on them, and
+ * everything a connector needs is flat here. `firstName`/`lastName` are split from the single
+ * `name` the form collects, once, so four providers do not split it four ways. It is also what
+ * the outbox stores as JSON until the lead is delivered.
  */
 export type LeadPayload = {
-  contactId: string;
-  isNewContact: boolean;
+  submissionId: string;
   email: string;
   name: string;
   firstName: string;
@@ -27,6 +29,8 @@ export type LeadPayload = {
   /** Whether the visitor ticked the marketing-consent checkbox. */
   consent: boolean;
   fields: Record<string, string | number | boolean>;
+  /** The reward the visitor was shown, when the popup pays one. */
+  prize: { label: string; coupon_code: string | null } | null;
   popupId: string | null;
   variant: string | null;
   pageUrl: string;
@@ -35,6 +39,9 @@ export type LeadPayload = {
   /** True for the dashboard's "send test" button; never for a real visitor. */
   test?: boolean;
 };
+
+/** Which delivery a provider call belongs to, so a receiver can de-duplicate a retry. */
+export type DeliveryMeta = { id: string };
 
 /**
  * What one attempt at delivering a lead came to.
@@ -93,12 +100,14 @@ export interface IntegrationProvider<C = unknown, K = unknown> {
   hint(credentials: C): string;
   /** A real, side-effect-free call that proves the credentials and config work. */
   verify(credentials: C, config: K, ctx: ProviderContext): Promise<Outcome>;
-  deliver(lead: LeadPayload, credentials: C, config: K, ctx: ProviderContext): Promise<Outcome>;
+  deliver(lead: LeadPayload, credentials: C, config: K, ctx: ProviderContext, delivery?: DeliveryMeta): Promise<Outcome>;
 }
 
-/** A connection as the dashboard sees it. Never carries credentials. */
+/** A destination as the dashboard sees it. Never carries credentials. */
 export type ConnectionView = {
+  id: string;
   provider: ProviderId;
+  name: string;
   enabled: boolean;
   status: ConnectionStatus;
   config: Record<string, unknown>;
@@ -107,55 +116,73 @@ export type ConnectionView = {
   last_error: string | null;
   last_attempt_at: string | null;
   last_success_at: string | null;
+  /** Leads waiting to be sent, or to be retried. */
+  pending_count: number;
   created_at: string;
   updated_at: string;
 };
 
-export type ProviderView = {
+/** A kind of destination the owner can add, with the form to connect it. */
+export type ProviderInfo = {
   id: ProviderId;
   label: string;
   description: string;
   docs_url: string;
   fields: readonly ProviderField[];
-  connection: ConnectionView | null;
 };
 
 export type DeliveryView = {
   id: string;
+  connection_id: string;
+  connection_name: string;
   provider: ProviderId;
-  contact_id: string | null;
+  submission_id: string;
+  automation_id: string | null;
   status: DeliveryStatus;
   attempt_count: number;
+  /** When a pending delivery will next be tried. */
+  next_attempt_at: string | null;
   http_status: number | null;
   error: string | null;
   duration_ms: number;
   created_at: string;
+  completed_at: string | null;
 };
 
-/** Why a connect, update or test did not go through, in words the dashboard can show. */
-export type IntegrationFailure = { ok: false; code: "invalid" | "rejected" | "unavailable" | "not_found" | "no_key"; message: string };
+export type DeliveryQuery = { limit: number; status?: DeliveryStatus; connectionId?: string };
+
+/** Why a connect, update, test or retry did not go through, in words the dashboard can show. */
+export type IntegrationFailure = {
+  ok: false;
+  code: "invalid" | "rejected" | "unavailable" | "not_found" | "no_key" | "connection_limit";
+  message: string;
+};
 export type IntegrationResult<T> = { ok: true; value: T } | IntegrationFailure;
 
 export interface IntegrationQueries {
-  list(websiteId: string): Promise<ProviderView[]>;
-  deliveries(websiteId: string, limit: number): Promise<DeliveryView[]>;
+  list(websiteId: string): Promise<{ providers: ProviderInfo[]; connections: ConnectionView[] }>;
+  deliveries(websiteId: string, q: DeliveryQuery): Promise<DeliveryView[]>;
 }
 
 export interface IntegrationMutations {
-  /** Validate, test against the provider, then store. Replaces an existing connection. */
-  connect(websiteId: string, provider: string, input: { credentials: unknown; config: unknown }): Promise<IntegrationResult<ConnectionView>>;
-  /** Change config or the enabled switch; new credentials, if given, are re-verified. */
-  update(websiteId: string, provider: string, input: { enabled?: boolean; config?: unknown; credentials?: unknown }): Promise<IntegrationResult<ConnectionView>>;
-  /** Deletes the connection and its stored credentials. False when there was none. */
-  disconnect(websiteId: string, provider: string): Promise<boolean>;
-  /** Sends a clearly marked sample lead through the connection. */
-  sendTest(websiteId: string, provider: string): Promise<IntegrationResult<Outcome>>;
+  /** Validate, test against the provider, then store as a new destination. */
+  connect(websiteId: string, input: { provider: string; name?: string; credentials: unknown; config: unknown }): Promise<IntegrationResult<ConnectionView>>;
+  /** Rename, switch on or off, change config; new credentials, if given, are re-verified. */
+  update(websiteId: string, connectionId: string, input: { name?: string; enabled?: boolean; config?: unknown; credentials?: unknown }): Promise<IntegrationResult<ConnectionView>>;
+  /** Deletes the destination, its stored credentials and its delivery history. False when there was none. */
+  disconnect(websiteId: string, connectionId: string): Promise<boolean>;
+  /** Sends a clearly marked sample lead through the destination, outside the queue. */
+  sendTest(websiteId: string, connectionId: string): Promise<IntegrationResult<Outcome>>;
+  /** Queues a failed delivery for another round of attempts. */
+  retryDelivery(websiteId: string, deliveryId: string): Promise<IntegrationResult<{ id: string }>>;
 }
 
 export type IntegrationsModule = ModuleLifecycle & {
   queries: IntegrationQueries;
   mutations: IntegrationMutations;
-  /** Ages out the delivery log with the rest of a site's history. */
+  /** Where the leads module hands over a captured submission. */
+  sink: LeadSink;
+  /** Ages out the delivery history and clears payloads that were never delivered. */
   retention: RetentionPurge;
   routes: AuthedRouter;
 };

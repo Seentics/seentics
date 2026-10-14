@@ -53,8 +53,8 @@ const TABLE_OWNER: Record<string, string> = {
   account_api_keys: "api-keys",
   embed_links: "api-keys",
   clients: "websites",
-  contacts: "leads",
-  lead_submissions: "leads",
+  form_submissions: "leads",
+  form_prizes: "leads",
   integration_connections: "integrations",
   integration_deliveries: "integrations",
 };

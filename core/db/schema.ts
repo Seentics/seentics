@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  char,
   check,
   date,
   doublePrecision,
@@ -835,66 +836,55 @@ export const errorEvents = pgTable(
 );
 
 /**
- * One email address on one website — the row the leads inbox lists.
- *
- * De-duplicated on `(websiteId, email)`: a returning visitor raises `submissionCount`
- * rather than adding a row. Mirrors `sql/050_leads.sql`; keep them in step.
+ * One form submission, listed on the submitting popup's automation page. Mirrors
+ * `sql/053_form_submissions.sql`; keep them in step. Aged out after 90 days.
  */
-export const contacts = pgTable(
-  "contacts",
+export const formSubmissions = pgTable(
+  "form_submissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     websiteId: uuid("website_id")
       .notNull()
       .references(() => websites.id, { onDelete: "cascade" }),
-    /** Stored lower-cased and trimmed — it is the de-duplication key. */
+    automationId: uuid("automation_id"),
+    variant: varchar("variant", { length: 64 }),
+    /** Stored lower-cased and trimmed. */
     email: varchar("email", { length: 254 }).notNull(),
     name: varchar("name", { length: 200 }).notNull().default(""),
     phone: varchar("phone", { length: 50 }).notNull().default(""),
-    /** new | contacted | archived */
-    status: varchar("status", { length: 16 }).notNull().default("new"),
     consent: boolean("consent").notNull().default(false),
-    submissionCount: integer("submission_count").notNull().default(1),
-    anonymousId: text("anonymous_id"),
-    firstSubmittedAt: timestamp("first_submitted_at", { withTimezone: true }).notNull().defaultNow(),
-    lastSubmittedAt: timestamp("last_submitted_at", { withTimezone: true }).notNull().defaultNow(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    uniqueIndex("contacts_website_email_uq").on(t.websiteId, t.email),
-    index("ix_contacts_website_last_submitted").on(t.websiteId, t.lastSubmittedAt),
-    index("ix_contacts_website_status").on(t.websiteId, t.status),
-  ],
-);
-
-/** Each form submission, kept so a contact can be attributed to a popup, variant and page. */
-export const leadSubmissions = pgTable(
-  "lead_submissions",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    websiteId: uuid("website_id")
-      .notNull()
-      .references(() => websites.id, { onDelete: "cascade" }),
-    contactId: uuid("contact_id")
-      .notNull()
-      .references(() => contacts.id, { onDelete: "cascade" }),
-    automationId: uuid("automation_id"),
-    variant: varchar("variant", { length: 64 }),
     fields: jsonb("fields").notNull().default({}),
+    prize: jsonb("prize"),
     pageUrl: text("page_url").notNull().default(""),
     referrer: text("referrer").notNull().default(""),
     sessionId: text("session_id"),
+    anonymousId: text("anonymous_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("ix_lead_submissions_contact_created").on(t.contactId, t.createdAt),
-    index("ix_lead_submissions_website_automation").on(t.websiteId, t.automationId),
+    index("ix_form_submissions_form_created").on(t.websiteId, t.automationId, t.createdAt),
+    index("ix_form_submissions_website_created").on(t.websiteId, t.createdAt),
   ],
 );
 
+/** The prize an email won from a popup. Keyed by a hash of the address: no address is stored. */
+export const formPrizes = pgTable(
+  "form_prizes",
+  {
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    automationId: uuid("automation_id").notNull(),
+    emailHash: char("email_hash", { length: 64 }).notNull(),
+    prize: jsonb("prize").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.websiteId, t.automationId, t.emailHash] })],
+);
+
 /**
- * One outbound integration on one website. Mirrors `sql/051_integrations.sql`.
+ * One destination on one website; several per website, even of one provider.
+ * Mirrors `sql/051_integrations.sql` and `053`.
  *
  * `credentials` is ciphertext, never plaintext — see `modules/integrations/lib/vault.ts`.
  */
@@ -906,6 +896,7 @@ export const integrationConnections = pgTable(
       .notNull()
       .references(() => websites.id, { onDelete: "cascade" }),
     provider: varchar("provider", { length: 32 }).notNull(),
+    name: varchar("name", { length: 80 }).notNull().default(""),
     credentials: text("credentials").notNull(),
     credentialsHint: varchar("credentials_hint", { length: 8 }).notNull().default(""),
     config: jsonb("config").notNull().default({}),
@@ -919,10 +910,10 @@ export const integrationConnections = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("integration_connections_website_provider_uq").on(t.websiteId, t.provider)],
+  (t) => [index("ix_integration_connections_website").on(t.websiteId, t.createdAt)],
 );
 
-/** A bounded log of what was sent to each connection and how it went. */
+/** The delivery outbox: one row per (destination, submission). */
 export const integrationDeliveries = pgTable(
   "integration_deliveries",
   {
@@ -933,17 +924,24 @@ export const integrationDeliveries = pgTable(
     websiteId: uuid("website_id")
       .notNull()
       .references(() => websites.id, { onDelete: "cascade" }),
-    contactId: uuid("contact_id"),
-    /** success | failed | skipped */
-    status: varchar("status", { length: 16 }).notNull(),
-    attemptCount: integer("attempt_count").notNull().default(1),
+    submissionId: uuid("submission_id").notNull(),
+    automationId: uuid("automation_id"),
+    payload: jsonb("payload"),
+    /** pending | success | failed | skipped */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
     httpStatus: integer("http_status"),
     error: text("error"),
     durationMs: integer("duration_ms").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [
-    index("ix_integration_deliveries_connection_created").on(t.connectionId, t.createdAt),
+    uniqueIndex("integration_deliveries_connection_submission_uq").on(t.connectionId, t.submissionId),
     index("ix_integration_deliveries_website_created").on(t.websiteId, t.createdAt),
+    index("ix_integration_deliveries_submission").on(t.submissionId),
   ],
 );

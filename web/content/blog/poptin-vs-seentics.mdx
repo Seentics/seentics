@@ -23,7 +23,7 @@ Poptin details come from public sources such as [Capterra](https://www.capterra.
 
 - **Poptin wins** at building campaigns fast: templates, form fields, a leads list and email integrations.
 - **Seentics wins** at targeting from real behavior, measuring what happened next (funnels, goals, replays, revenue), privacy and self-hosting.
-- **Seentics does not fully replace Poptin yet.** It captures emails and keeps them in a Leads inbox, syncs them to Mailchimp, Klaviyo, HubSpot and Zapier, but has no drag-and-drop canvas, a much smaller template library and a narrower integration catalogue.
+- **Seentics does not fully replace Poptin yet.** It captures emails, lists each form's submissions on its automation page for 90 days and sends them on to Mailchimp, Klaviyo, HubSpot, Zapier or any webhook, but it is not a contact database. It has no drag-and-drop canvas, a much smaller template library and a narrower integration catalogue.
 - **You can use both:** a form tool for email capture and Seentics for analytics and behavior-triggered messages.
 
 ## At a glance
@@ -36,8 +36,8 @@ Poptin details come from public sources such as [Capterra](https://www.capterra.
 | Triggers | Exit intent, scroll, time and more | Exit intent, time on page, scroll depth, element click, visit history |
 | Targeting | Visitor rules | Country, region, city, browser, OS, device, referrer, visit count, new vs returning, `identify()` traits |
 | Actions | Popups, forms, bars | Modals, banners, webhooks, redirects, custom JavaScript |
-| Leads inbox | Yes | Yes: search, status, CSV export, delete, per-popup and per-variant attribution |
-| Email platform integrations | Yes, a wide catalogue | Four: Zapier / webhook, Mailchimp, Klaviyo, HubSpot. Anything else via Zapier, a webhook or CSV export |
+| Leads list | Yes, a central list of leads | No central list. Each form lists its own submissions for 90 days (search, CSV export, delete, variant attribution) and forwards them to your tools |
+| Email platform integrations | Yes, a wide catalogue | Four kinds: Zapier / webhook, Mailchimp, Klaviyo, HubSpot, with several destinations per site, per-form routing and automatic retries. Anything else via Zapier, a webhook or CSV export |
 | Funnels, heatmaps, session replay | Not the focus | Included |
 | Revenue and UTM attribution | No | Yes |
 | Self-hosting | No | Yes (AGPL v3) |
@@ -74,7 +74,7 @@ The practical difference: Poptin charges for the popup tool, so a site that also
 **Goal:** show a free-trial offer to first-time visitors who read most of the pricing page and try to leave.
 
 - **In Poptin:** pick an exit-intent template, set the page and new-visitor rules, add an email field and connect your email platform. Results show views and submissions.
-- **In Seentics:** create an automation with an exit-intent trigger on the pricing page and conditions for first-time visitors, then add a modal with the email form switched on. Leads land in the Leads inbox, attributed to the popup and variant. Add a goal on the `lead_captured` event and open the funnel to compare visitors who saw the message with those who did not.
+- **In Seentics:** create an automation with an exit-intent trigger on the pricing page and conditions for first-time visitors, then add a modal with the email form switched on. Submissions are listed on the automation's page, attributed to the popup and variant, and sent to the destinations you chose, such as Mailchimp or a webhook. Add a goal on the `lead_captured` event and open the funnel to compare visitors who saw the message with those who did not.
 
 Both work. The first is faster to build. The second is easier to evaluate.
 
@@ -102,11 +102,11 @@ More options are in [Poptin alternatives](/blog/poptin-alternatives).
 
 ### Is Seentics a Poptin alternative?
 
-For behavior-triggered popups with email capture, a Leads inbox and measurement, yes. For a drag-and-drop builder with a very large template library and a wide integration catalogue, not yet.
+For behavior-triggered popups with email capture, delivery to your email tool or CRM, and measurement, yes. For a drag-and-drop builder with a very large template library and a wide integration catalogue, not yet.
 
 ### Can Seentics collect email addresses?
 
-Yes. A modal can carry an email form with optional extra fields and a consent checkbox. Submissions go to a built-in Leads inbox that you can search, export as CSV or delete from. Leads can also be sent automatically to Mailchimp, Klaviyo, HubSpot or Zapier (or any HTTPS webhook) from Settings > Integrations. Mailchimp and Klaviyo subscriptions are only made for visitors who ticked the consent box.
+Yes. A modal can carry an email form with optional extra fields and a consent checkbox. Submissions are listed on the automation's page, where you can search them, export a CSV or delete one, and are kept for 90 days. They are also sent automatically to the destinations you pick for that form: Mailchimp, Klaviyo, HubSpot or Zapier (or any HTTPS webhook), added in Settings > Integrations and retried if a tool is down. Seentics does not keep a long-term contact list, so keep that in the tool the destination feeds. Mailchimp and Klaviyo subscriptions are only made for visitors who ticked the consent box.
 
 ### Does Seentics need a cookie banner?
 

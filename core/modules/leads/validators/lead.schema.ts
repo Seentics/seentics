@@ -1,6 +1,4 @@
 import { z } from "zod";
-import { CONTACT_STATUSES } from "../interfaces";
-
 /** Rejects an address with no `@`/domain dot; deliberately not a full RFC check. */
 const email = z.string().trim().min(3).max(254).email();
 
@@ -29,11 +27,8 @@ export const leadSubmitSchema = z.object({
 });
 export type LeadSubmitBody = z.infer<typeof leadSubmitSchema>;
 
-export const contactListSchema = z.object({
+export const submissionListSchema = z.object({
   search: z.string().trim().max(100).default(""),
-  status: z.enum([...CONTACT_STATUSES, ""]).default(""),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 });
-
-export const contactStatusSchema = z.object({ status: z.enum(CONTACT_STATUSES) });

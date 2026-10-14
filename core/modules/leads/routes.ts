@@ -4,8 +4,8 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteQuery } from "../websites/interfaces";
 import type { LeadMutations, LeadQueries } from "./interfaces";
-import { csvCell } from "./lib/sanitize";
-import { contactListSchema, contactStatusSchema } from "./validators/lead.schema";
+import { submissionsToCsv } from "./lib/submission-csv";
+import { submissionListSchema } from "./validators/lead.schema";
 
 export type LeadControllerDeps = {
   queries: LeadQueries;
@@ -13,10 +13,10 @@ export type LeadControllerDeps = {
   websites: WebsiteQuery;
 };
 
-const EXPORT_LIMIT = 50_000;
+export const EXPORT_LIMIT = 10_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Membership check, run before every handler. Viewers may read; changing or erasing contacts needs at least `member`. */
+/** Membership check, run before every handler. Viewers may read; erasing a submission needs at least `member`. */
 async function requireLeadAccess(
   c: Context<{ Variables: AuthVars }>,
   deps: LeadControllerDeps,
@@ -32,84 +32,67 @@ async function requireLeadAccess(
   return null;
 }
 
+/**
+ * The dashboard side of the module. There is deliberately no site-wide inbox: submissions are
+ * read per form, from that form's automation page.
+ */
 export function createLeadRoutes(deps: LeadControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
   routes.use(authMiddleware);
 
-  routes.get("/:website_id/stats", async (c) => {
+  routes.get("/:website_id/summary", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
     if (denied) return denied;
-    return c.json({ data: await deps.queries.stats(websiteId) });
+    return c.json({ data: await deps.queries.websiteSummary(websiteId) });
   });
 
-  routes.get("/:website_id/export", async (c) => {
+  routes.get("/:website_id/forms/:automation_id/summary", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
     if (denied) return denied;
+    const automationId = c.req.param("automation_id");
+    if (!UUID.test(automationId)) return c.json({ error: "not found" }, 404);
+    return c.json({ data: await deps.queries.summary(websiteId, automationId) });
+  });
 
-    const contacts = await deps.queries.exportContacts(websiteId, EXPORT_LIMIT);
-    const header = ["email", "name", "phone", "status", "consent", "submissions", "first_submitted_at", "last_submitted_at"];
-    const lines = [header.join(",")];
-    for (const k of contacts) {
-      lines.push(
-        [k.email, k.name, k.phone, k.status, k.consent, k.submission_count, k.first_submitted_at, k.last_submitted_at]
-          .map(csvCell)
-          .join(","),
-      );
-    }
-    return new Response(lines.join("\r\n") + "\r\n", {
+  routes.get("/:website_id/forms/:automation_id/submissions.csv", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const automationId = c.req.param("automation_id");
+    if (!UUID.test(automationId)) return c.json({ error: "not found" }, 404);
+
+    const rows = await deps.queries.exportSubmissions(websiteId, automationId, EXPORT_LIMIT);
+    return new Response(submissionsToCsv(rows), {
       headers: {
         "content-type": "text/csv; charset=utf-8",
-        "content-disposition": 'attachment; filename="contacts.csv"',
+        "content-disposition": 'attachment; filename="submissions.csv"',
         "cache-control": "no-store",
       },
     });
   });
 
-  routes.get("/:website_id/contacts", async (c) => {
+  routes.get("/:website_id/forms/:automation_id/submissions", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
     if (denied) return denied;
+    const automationId = c.req.param("automation_id");
+    if (!UUID.test(automationId)) return c.json({ error: "not found" }, 404);
 
-    const q = contactListSchema.safeParse(c.req.query());
+    const q = submissionListSchema.safeParse(c.req.query());
     if (!q.success) return c.json({ error: "invalid query" }, 400);
-    return c.json({ data: await deps.queries.listContacts(websiteId, q.data) });
+    return c.json({ data: await deps.queries.listSubmissions(websiteId, automationId, q.data) });
   });
 
-  routes.get("/:website_id/contacts/:id", async (c) => {
-    const websiteId = c.req.param("website_id");
-    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
-    if (denied) return denied;
-
-    const id = c.req.param("id");
-    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
-    const found = await deps.queries.getContact(websiteId, id);
-    return found ? c.json({ data: found }) : c.json({ error: "not found" }, 404);
-  });
-
-  routes.patch("/:website_id/contacts/:id", async (c) => {
+  routes.delete("/:website_id/forms/:automation_id/submissions/:id", async (c) => {
     const websiteId = c.req.param("website_id");
     const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
     if (denied) return denied;
-
+    const automationId = c.req.param("automation_id");
     const id = c.req.param("id");
-    const body = contactStatusSchema.safeParse(await c.req.json().catch(() => null));
-    if (!body.success) return c.json({ error: "invalid status" }, 400);
-    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
-    return (await deps.mutations.setStatus(websiteId, id, body.data.status))
-      ? c.json({ data: { id, status: body.data.status } })
-      : c.json({ error: "not found" }, 404);
-  });
-
-  routes.delete("/:website_id/contacts/:id", async (c) => {
-    const websiteId = c.req.param("website_id");
-    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
-    if (denied) return denied;
-
-    const id = c.req.param("id");
-    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
-    return (await deps.mutations.deleteContact(websiteId, id))
+    if (!UUID.test(automationId) || !UUID.test(id)) return c.json({ error: "not found" }, 404);
+    return (await deps.mutations.deleteSubmission(websiteId, automationId, id))
       ? c.json({ data: { id } })
       : c.json({ error: "not found" }, 404);
   });

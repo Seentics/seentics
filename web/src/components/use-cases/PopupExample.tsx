@@ -154,46 +154,44 @@ export function PopupExample({
   );
 }
 
-/** The Leads inbox, with sample contacts. Illustrative, not live data. */
-export function LeadsInboxMock() {
+/** A form's Submissions list with where each one was sent. Illustrative, not live data. */
+export function FormSubmissionsMock() {
   const rows = [
-    ['maya@northwind.example', 'Maya R.', 'Exit offer · A', '/pricing', 'new'],
-    ['dev@brightpath.example', 'Dev P.', 'Guide popup · B', '/guides/seo', 'contacted'],
-    ['sam@harbor.example', 'Sam K.', 'Exit offer · A', '/cart', 'new'],
-    ['lena@fieldco.example', 'Lena F.', 'Newsletter bar', '/blog/launch', 'archived'],
+    ['maya@northwind.example', 'Maya R.', 'Exit offer · A', '/pricing', 'Mailchimp: delivered'],
+    ['dev@brightpath.example', 'Dev P.', 'Exit offer · B', '/guides/seo', 'Webhook: delivered'],
+    ['sam@harbor.example', 'Sam K.', 'Exit offer · A', '/cart', 'Mailchimp: retrying'],
+    ['lena@fieldco.example', 'Lena F.', 'Exit offer · A', '/blog/launch', 'Webhook: delivered'],
   ];
-  const tone: Record<string, string> = {
-    new: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
-    contacted: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-    archived: 'bg-muted text-muted-foreground',
-  };
+  const tone = (state: string) => state.endsWith('retrying')
+    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+    : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
   return (
     <figure className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-        <p className="text-[14px] font-semibold text-foreground">Leads</p>
+        <p className="text-[14px] font-semibold text-foreground">Submissions · Exit offer</p>
         <span className="rounded-md border border-border px-2.5 py-1 text-[12px] text-muted-foreground">Export CSV</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-[12.5px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground/70">
-              {['Contact', 'Came from', 'Page', 'Status'].map((h) => <th key={h} className="px-5 py-2.5 font-semibold">{h}</th>)}
+              {['Visitor', 'Variant', 'Page', 'Sent to'].map((h) => <th key={h} className="px-5 py-2.5 font-semibold">{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {rows.map(([email, name, src, page, status]) => (
+            {rows.map(([email, name, src, page, state]) => (
               <tr key={email} className="border-b border-border/60 last:border-0">
                 <td className="px-5 py-3"><span className="block font-medium text-foreground">{name}</span><span className="text-muted-foreground">{email}</span></td>
                 <td className="px-5 py-3 text-muted-foreground">{src}</td>
                 <td className="px-5 py-3 font-mono text-muted-foreground">{page}</td>
-                <td className="px-5 py-3"><span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${tone[status]}`}>{status}</span></td>
+                <td className="px-5 py-3"><span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${tone(state!)}`}>{state}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <figcaption className="border-t border-border px-5 py-3 text-[12px] text-muted-foreground">
-        Sample contacts. Each lead records the popup, the A/B variant and the page it came from.
+        Sample submissions. Each records the popup, the A/B variant and the page it came from, and is sent on to the destinations you choose.
       </figcaption>
     </figure>
   );

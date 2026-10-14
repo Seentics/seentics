@@ -27,6 +27,8 @@ import {
 import {
   triggerLabel, actionLabel, triggerIcon, actionIcon,
 } from '@/features/automations/catalog';
+import { FormSubmissions } from '@/components/automations/submissions/FormSubmissions';
+import { formInfoOf } from '@/lib/form-routing';
 
 export default function AutomationDetailPage() {
   const params = { websiteId: usePathSegment(1) ?? '', automationId: usePathSegment(3) ?? '' };
@@ -75,6 +77,7 @@ export default function AutomationDetailPage() {
   // The stored definition is used directly: it is the full state, including the step
   // chain, frequency caps, A/B configuration and priority.
   const def = automation.definition ?? {};
+  const formInfo = formInfoOf(def);
   const rawDefinition: AutomationDefinition = {
     triggers: Array.isArray(def.triggers)
       ? (def.triggers as AutomationDefinition['triggers'])
@@ -345,6 +348,8 @@ export default function AutomationDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {formInfo.hasForm && <FormSubmissions websiteId={websiteId} automationId={automationId} form={formInfo} />}
         </>
       )}
     </div>
