@@ -73,7 +73,7 @@ import {
  * action on this page and it was two clicks deep behind a `MoreVertical`.
  */
 
-import { FlowCell, StatusCell, RowMenu } from '@/components/automations/automation-cells';
+import { StatusCell, RowMenu } from '@/components/automations/automation-cells';
 import { ListGroups } from '@/components/ui/list-groups';
 import { AUTOMATION_GROUP_META, AUTOMATION_TONE_DOT, AUTOMATION_TONE_RANK, automationLine, automationTone, inAutomationGroup, type AutomationGroupId } from '@/features/automations/insights';
 import { TRIGGERS, ACTIONS } from '@/features/automations/catalog';
@@ -133,32 +133,22 @@ export default function AutomationsPage() {
               <TriggerIcon className="h-5 w-5" />
             </div>
             <div className="min-w-0 max-w-[280px]">
-              <p className="truncate text-[15px] font-semibold leading-tight text-foreground">{a.name}</p>
-              {a.description ? (
-                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{a.description}</p>
-              ) : null}
+              <p className="truncate text-[15px] font-semibold leading-tight text-foreground" title={a.description || undefined}>{a.name}</p>
             </div>
           </div>
         );
       },
     },
     {
-      id: 'flow',
-      header: 'What it does',
-      size: 280,
-      enableSorting: false,
-      cell: ({ row }) => <FlowCell automation={row.original} />,
-    },
-    {
       id: 'what',
       header: 'What happened',
       accessorFn: row => AUTOMATION_TONE_RANK[automationTone(row)],
-      size: 380,
+      size: 560,
       cell: ({ row }) => {
         const tone = automationTone(row.original);
         const text = automationLine(row.original);
         return (
-          <div className="flex min-w-0 max-w-[30rem] items-center gap-2">
+          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
             <span className={cn('h-2 w-2 shrink-0 rounded-full', AUTOMATION_TONE_DOT[tone])} />
             <span className={cn('truncate text-sm', tone === 'failing' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
               {text}
