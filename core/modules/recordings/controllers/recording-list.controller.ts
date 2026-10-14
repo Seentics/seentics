@@ -22,6 +22,7 @@ export function listRecordings(deps: RecordingControllerDeps) {
       minFrustration: data.min_frustration,
       signal: data.signal,
       sort: data.sort,
+      group: data.group,
     });
     return c.json(result);
   };

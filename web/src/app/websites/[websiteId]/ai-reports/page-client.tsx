@@ -14,7 +14,7 @@ export default function AiReportsPage() {
   const websiteId = usePathSegment(1) ?? '';
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-4 md:p-5 lg:px-6 lg:py-5">
       <DashboardPageHeader
         title="AI Reports"
         description="Unusual activity, today's insights, and what to fix next — with the results of what you changed."

@@ -51,7 +51,11 @@ export interface ReplayListParams {
   signal?: FrustrationSignalType;
   /** `recent` (default) or `frustration` (worst first). */
   sort?: 'recent' | 'frustration';
+  /** One session group — see `features/replays/groups`. */
+  group?: SessionGroup;
 }
+
+export type SessionGroup = 'smooth' | 'errors' | 'rage' | 'dead_clicks' | 'forms' | 'u_turns' | 'thrash' | 'gave_up';
 
 /** Headline figures over every session matching the filters, computed server-side. */
 export interface ReplayListSummary {
@@ -60,6 +64,8 @@ export interface ReplayListSummary {
   withRageClicks:     number;
   /** Mean over sessions that have a duration at all; 0 when none do. */
   avgDurationSeconds: number;
+  /** Sessions in each group under the same filters; absent from an older core. */
+  groups?: Partial<Record<SessionGroup, number>>;
 }
 
 export interface ReplayListPage {

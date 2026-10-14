@@ -45,6 +45,7 @@ mock.module("../repositories/recording.repository", () => ({
     withErrors: 0,
     withRageClicks: 0,
     avgDurationSeconds: 0,
+    groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 },
   }),
   getSessionMeta: async () => metaRow,
   deleteSession: async (websiteId: string, sessionId: string) => {

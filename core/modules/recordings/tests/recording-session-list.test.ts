@@ -31,6 +31,7 @@ let summary: SessionListSummary = {
   withErrors: 0,
   withRageClicks: 0,
   avgDurationSeconds: 0,
+  groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 },
 };
 /** Every `listSessions` call, in order. */
 const listCalls: { websiteId: string; limit: number; offset: number; filters?: SessionListFilters }[] =
@@ -102,7 +103,7 @@ function row(over: Record<string, unknown> = {}): Record<string, unknown> {
 beforeEach(() => {
   resetStubs();
   rows = [row()];
-  summary = { total: 137, withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42 };
+  summary = { total: 137, withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42, groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 } };
   listCalls.length = 0;
   summaryCalls.length = 0;
   listDelayMs = 0;
@@ -131,6 +132,7 @@ describe("listReplaySessions", () => {
         withErrors: 9,
         withRageClicks: 4,
         avgDurationSeconds: 42,
+        groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 },
       });
     });
 
@@ -142,7 +144,7 @@ describe("listReplaySessions", () => {
 
     it("reports a zero total for an empty set without failing", async () => {
       rows = [];
-      summary = { total: 0, withErrors: 0, withRageClicks: 0, avgDurationSeconds: 0 };
+      summary = { total: 0, withErrors: 0, withRageClicks: 0, avgDurationSeconds: 0, groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 } };
 
       const out = await listReplaySessions(WEBSITE, 20, 0);
 

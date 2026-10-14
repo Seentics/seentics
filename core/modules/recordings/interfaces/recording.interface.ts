@@ -28,7 +28,19 @@ export type SessionListFilters = {
   signal?: FrustrationSignalType;
   /** `recent` (default): newest first. `frustration`: highest score first, unanalysed last. */
   sort?: "recent" | "frustration";
+  /** One of the session groups the list is browsed by (`SESSION_GROUPS`). */
+  group?: SessionGroup;
 };
+
+/**
+ * The groups the session list is browsed by: what kind of visit it was.
+ *
+ * A session can be in several (errors and rage clicks together); `smooth` is an analysed session
+ * with no friction at all. Errors and rage clicks also count the ingest flags, so a session still
+ * waiting for its analysis is grouped by those.
+ */
+export const SESSION_GROUPS = ["smooth", "errors", "rage", "dead_clicks", "forms", "u_turns", "thrash", "gave_up"] as const;
+export type SessionGroup = (typeof SESSION_GROUPS)[number];
 
 /** Totals over all sessions matching the filters, not just the current page. */
 export type SessionListSummary = {
@@ -36,6 +48,8 @@ export type SessionListSummary = {
   withErrors: number;
   withRageClicks: number;
   avgDurationSeconds: number;
+  /** Sessions in each group, under the same filters (a group filter itself aside). */
+  groups: Record<SessionGroup, number>;
 };
 
 /** Summary of one recorded session, as the session list renders it. */

@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 
 import { SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
-import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
+import { SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 import { formatDuration, timeAgo, entryPathDisplay } from '@/features/replays/format';
 import type { SessionRow } from '@/features/replays/list-types';
 import { FRUSTRATED_MIN_SCORE, frustrationTone } from '@/features/replays/analysis';
@@ -41,30 +41,6 @@ export function sessionColumns({
       cell: ({ row }) => <SessionCountryVisual country={row.original.country} />,
     },
     {
-      id: 'client',
-      header: 'Client',
-      accessorFn: row => `${row.browser}|${row.os}|${row.device}`,
-      size: 200,
-      cell: ({ row }) => {
-        const s = row.original;
-        return <SessionClientRowStack browser={s.browser} os={s.os} device={s.device} />;
-      },
-    },
-    {
-      id: 'entry_page',
-      header: 'Entry page',
-      accessorKey: 'entry_page',
-      size: 220,
-      cell: ({ getValue }) => {
-        const { display, title } = entryPathDisplay(getValue() as string, websiteId);
-        return (
-          <span className="block max-w-[16rem] truncate font-mono text-[13px] text-foreground" title={title}>
-            {display}
-          </span>
-        );
-      },
-    },
-    {
       id: 'duration',
       header: ({ column }) => <SortableHeader column={column}>Duration</SortableHeader>,
       accessorKey: 'duration_seconds',
@@ -91,13 +67,13 @@ export function sessionColumns({
       header: 'What happened',
       // Sorts by frustration: the score is what the dot shows.
       accessorFn: row => row.frustration_score ?? -1,
-      size: 220,
+      size: 560,
       cell: ({ row }) => {
         const s = row.original;
         const score = s.frustration_score;
         const text = sessionLine(s, websiteId);
         return (
-          <div className="flex w-[13rem] min-w-0 items-center gap-2 xl:w-[16rem] 2xl:w-[24rem]">
+          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
             <span
               className={cn('h-2 w-2 shrink-0 rounded-full', score == null ? 'bg-muted-foreground/30' : DOT_CLASS[frustrationTone(score)])}
               title={score == null ? 'Analysed once the session ends' : `Frustration score ${score}/100`}

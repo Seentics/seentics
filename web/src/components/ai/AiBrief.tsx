@@ -49,9 +49,9 @@ export function AiBrief({ websiteId }: { websiteId: string }) {
 
   return (
     <Card className="border border-border bg-card px-4 py-3">
-      <ul className="space-y-1.5">
+      <ul className="divide-y divide-border">
         {lines.slice(0, MAX_LINES).map((l) => (
-          <li key={l.key} className="flex items-center gap-2.5 text-sm">
+          <li key={l.key} className="flex items-center gap-2.5 py-2 text-sm first:pt-0 last:pb-0">
             {l.tone === 'alert' ? (
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-orange-500" />
             ) : l.tone === 'action' ? (

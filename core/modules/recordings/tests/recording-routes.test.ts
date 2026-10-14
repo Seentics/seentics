@@ -84,7 +84,7 @@ const recordings = {
       limit,
       offset,
       total: 137,
-      summary: { total: 137, withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42 },
+      summary: { total: 137, withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42, groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 } },
     };
   },
   async getSessionDetail(): Promise<RecordingDetail> {
@@ -221,7 +221,7 @@ describe("recording routes", () => {
     it("returns whole-set totals, not page-derived ones", async () => {
       const res = await get(`/${WEBSITE}?limit=1`, "u_owner");
       expect(await res.json()).toMatchObject({
-        summary: { withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42 },
+        summary: { withErrors: 9, withRageClicks: 4, avgDurationSeconds: 42, groups: { smooth: 0, errors: 0, rage: 0, dead_clicks: 0, forms: 0, u_turns: 0, thrash: 0, gave_up: 0 } },
       });
     });
 

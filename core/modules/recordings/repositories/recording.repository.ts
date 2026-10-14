@@ -1,6 +1,7 @@
 import { sql as pgSql, sessionReplays } from "../../../db";
 import { sql as dsql } from "drizzle-orm";
 import type { BatchTx } from "../../../platform/idempotency";
+import { SESSION_GROUPS, type SessionGroup } from "../interfaces/recording.interface";
 import type {
   SessionListFilters,
   SessionListSummary,
@@ -224,6 +225,7 @@ function sessionListWhere(websiteId: string, filters: SessionListFilters) {
   // Both narrow to analysed sessions: an unanalysed one has no score to compare.
   if (filters.minFrustration) parts.push(pgSql`a.frustration_score >= ${filters.minFrustration}`);
   if (filters.signal) parts.push(pgSql`COALESCE((a.signal_counts->>${filters.signal})::int, 0) > 0`);
+  if (filters.group) parts.push(GROUP_PREDICATE[filters.group]);
 
   const search = filters.search?.trim();
   if (search) {
@@ -240,6 +242,27 @@ function sessionListWhere(websiteId: string, filters: SessionListFilters) {
 
   return parts.reduce((acc, part) => pgSql`${acc} AND ${part}`);
 }
+
+const signalSeen = (type: string) => pgSql`COALESCE((a.signal_counts->>${type})::int, 0) > 0`;
+
+/** What puts a session in each group (SESSION_GROUPS). Needs the analysis join as `a`. */
+const GROUP_PREDICATE: Record<SessionGroup, ReturnType<typeof signalSeen>> = {
+  smooth: pgSql`(a.frustration_score IS NOT NULL AND a.frustration_score < 10
+    AND NOT COALESCE(has_errors, FALSE) AND NOT COALESCE(has_rage_clicks, FALSE)
+    AND COALESCE(a.summary->>'outcome', '') <> 'abandoned')`,
+  errors: pgSql`(COALESCE(has_errors, FALSE) OR ${signalSeen("error_click")})`,
+  rage: pgSql`(COALESCE(has_rage_clicks, FALSE) OR ${signalSeen("rage_click")})`,
+  dead_clicks: signalSeen("dead_click"),
+  forms: signalSeen("form_abandon"),
+  u_turns: signalSeen("u_turn"),
+  thrash: signalSeen("scroll_thrash"),
+  gave_up: pgSql`(a.summary->>'outcome' = 'abandoned')`,
+};
+
+/** One `COUNT(*) FILTER` per group, comma-separated, read as `g_<group>`. */
+const GROUP_COUNTS = SESSION_GROUPS
+  .map((g) => pgSql`COUNT(*) FILTER (WHERE ${GROUP_PREDICATE[g]})::int AS ${pgSql(`g_${g}`)}`)
+  .reduce((acc, part) => pgSql`${acc}, ${part}`);
 
 /** The stored analysis, when there is one. `(website_id, session_id)` is its primary key. */
 const ANALYSIS_JOIN = pgSql`LEFT JOIN session_analyses a
@@ -299,10 +322,11 @@ export async function summarizeSessions(
   filters: SessionListFilters = {},
 ): Promise<SessionListSummary> {
   const rows = await pgSql<
-    { total: number; with_errors: number; with_rage: number; avg_duration: number }[]
+    Array<{ total: number; with_errors: number; with_rage: number; avg_duration: number } & Record<string, number>>
   >`
     SELECT
       COUNT(*)::int AS total,
+      ${GROUP_COUNTS},
       COUNT(*) FILTER (WHERE has_errors)::int AS with_errors,
       COUNT(*) FILTER (WHERE has_rage_clicks)::int AS with_rage,
       COALESCE(ROUND(AVG(duration_seconds) FILTER (WHERE duration_seconds > 0)), 0)::int
@@ -312,11 +336,21 @@ export async function summarizeSessions(
     WHERE ${sessionListWhere(websiteId, filters)}
   `;
   const row = rows[0];
+  // Groups are counted across the whole filtered set, not inside the group being browsed.
+  let groupRow: Record<string, number> | undefined = row;
+  if (filters.group) {
+    const { group: _browsing, ...rest } = filters;
+    const all = await pgSql<Array<Record<string, number>>>`
+      SELECT ${GROUP_COUNTS} FROM session_replays s ${ANALYSIS_JOIN} WHERE ${sessionListWhere(websiteId, rest)}
+    `;
+    groupRow = all[0];
+  }
   return {
     total: row?.total ?? 0,
     withErrors: row?.with_errors ?? 0,
     withRageClicks: row?.with_rage ?? 0,
     avgDurationSeconds: row?.avg_duration ?? 0,
+    groups: Object.fromEntries(SESSION_GROUPS.map((g) => [g, Number(groupRow?.[`g_${g}`] ?? 0)])) as Record<SessionGroup, number>,
   };
 }
 

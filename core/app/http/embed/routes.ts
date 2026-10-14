@@ -209,6 +209,7 @@ export function createEmbedRoutes(deps: {
           minFrustration: d.min_frustration,
           signal: d.signal,
           sort: d.sort,
+          group: d.group,
         }),
       );
     }),

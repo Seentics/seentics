@@ -1,3 +1,4 @@
+import { SESSION_GROUPS } from "../interfaces/recording.interface";
 import { z } from "zod";
 import { zBoundedInt, zNonEmptyString } from "../../../platform/validation";
 import { FRUSTRATION_SIGNAL_TYPES } from "../interfaces/session-analysis.interface";
@@ -23,6 +24,8 @@ export const replayListQuerySchema = z.object({
   /** Only analysed sessions with this signal. */
   signal: z.enum(FRUSTRATION_SIGNAL_TYPES).optional(),
   sort: z.enum(["recent", "frustration"]).optional(),
+  /** One session group (SESSION_GROUPS). */
+  group: z.enum(SESSION_GROUPS).optional(),
 });
 
 /** `?summarize=0` reads the signals without writing a summary; absent means write one if needed. */

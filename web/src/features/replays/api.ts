@@ -193,6 +193,7 @@ export function replayListQuery(params: ReplayListParams = {}): Record<string, s
   if (params.minFrustration) query.min_frustration = Math.min(100, Math.max(1, Math.round(params.minFrustration)));
   if (params.signal)         query.signal = params.signal;
   if (params.sort === 'frustration') query.sort = 'frustration';
+  if (params.group)          query.group = params.group;
   return query;
 }
 
