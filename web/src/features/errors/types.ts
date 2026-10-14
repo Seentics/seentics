@@ -15,6 +15,13 @@ export interface ErrorGroup {
   last_page_path: string;
   first_seen:     string;
   last_seen:      string;
+  /** The listed period, from stored occurrences; absent from an older core. */
+  window?: {
+    count:      number;
+    prev_count: number;
+    sessions:   number;
+    pages:      string[];
+  };
 }
 
 /** One stored occurrence of a fault. */

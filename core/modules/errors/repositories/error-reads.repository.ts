@@ -1,6 +1,6 @@
 import type { ErrorGroupWindowCount, ErrorSurgeCandidate } from "../interfaces";
 import { sql } from "../../../db";
-import type { ErrorGroupSummary, ErrorSample } from "../interfaces";
+import type { ErrorGroupSummary, ErrorGroupWindowStats, ErrorSample } from "../interfaces";
 
 /** Hard ceilings, so a caller cannot ask for an unbounded scan. */
 const MAX_GROUPS = 200;
@@ -65,7 +65,52 @@ export async function listErrorGroups(
     ORDER BY last_seen DESC
     LIMIT ${limit}
   `;
-  return (rows as Record<string, unknown>[]).map(toGroup);
+  const groups = (rows as Record<string, unknown>[]).map(toGroup);
+  const stats = await windowStats(websiteId, groups.map((g) => g.fingerprint), opts.days);
+  return groups.map((g) => ({ ...g, window: stats.get(g.fingerprint) ?? { count: 0, prev_count: 0, sessions: 0, pages: [] } }));
+}
+
+/**
+ * This period's and the previous period's occurrences for the listed faults, with visitors and
+ * pages. Only the faults on the page, through `ix_error_events_group_occurred`, so it stays as
+ * bounded as the list itself.
+ */
+async function windowStats(websiteId: string, fingerprints: string[], days: number): Promise<Map<string, ErrorGroupWindowStats>> {
+  const out = new Map<string, ErrorGroupWindowStats>();
+  if (fingerprints.length === 0) return out;
+  const d = Math.min(365, Math.max(1, Math.trunc(days) || 7));
+  const since = new Date(Date.now() - d * 86_400_000).toISOString();
+  const before = new Date(Date.now() - 2 * d * 86_400_000).toISOString();
+  const rows = await sql`
+    WITH ev AS (
+      SELECT fingerprint, occurred_at >= ${since} AS cur, session_id, page_path
+      FROM error_events
+      WHERE website_id = ${websiteId}::uuid
+        AND fingerprint = ANY(${fingerprints})
+        AND occurred_at >= ${before}
+    ),
+    pages AS (
+      SELECT fingerprint, page_path, count(*) AS n,
+             row_number() OVER (PARTITION BY fingerprint ORDER BY count(*) DESC, page_path) AS rk
+      FROM ev WHERE cur AND page_path <> '' GROUP BY fingerprint, page_path
+    )
+    SELECT e.fingerprint,
+           count(*) FILTER (WHERE e.cur)::int AS count,
+           count(*) FILTER (WHERE NOT e.cur)::int AS prev_count,
+           count(DISTINCT e.session_id) FILTER (WHERE e.cur)::int AS sessions,
+           COALESCE((SELECT array_agg(p.page_path ORDER BY p.rk) FROM pages p WHERE p.fingerprint = e.fingerprint AND p.rk <= 3), '{}') AS pages
+    FROM ev e
+    GROUP BY e.fingerprint
+  `;
+  for (const r of rows as Record<string, unknown>[]) {
+    out.set(String(r.fingerprint), {
+      count: Number(r.count ?? 0),
+      prev_count: Number(r.prev_count ?? 0),
+      sessions: Number(r.sessions ?? 0),
+      pages: Array.isArray(r.pages) ? (r.pages as unknown[]).map(String) : [],
+    });
+  }
+  return out;
 }
 
 /** One group's header row, or null when the fingerprint is not this site's. */

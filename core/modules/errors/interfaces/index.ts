@@ -51,6 +51,22 @@ export type ErrorGroupSummary = {
   last_page_path: string;
   first_seen: string;
   last_seen: string;
+  /**
+   * The period the list was asked for, from stored occurrences: how often, how many visitors,
+   * where, and the same count for the period before. Present on the list read only.
+   */
+  window?: ErrorGroupWindowStats;
+};
+
+export type ErrorGroupWindowStats = {
+  /** Occurrences in the period. */
+  count: number;
+  /** Occurrences in the period of the same length just before it. */
+  prev_count: number;
+  /** Distinct sessions affected in the period. */
+  sessions: number;
+  /** Pages it happened on in the period, most frequent first (at most 3). */
+  pages: string[];
 };
 
 /** One stored occurrence, including the session that can be replayed. */

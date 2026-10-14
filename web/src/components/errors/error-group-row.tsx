@@ -14,6 +14,8 @@ export interface ErrorGroupRowProps {
   share?: number;
   /** Pinned by a recording so the rendered frame is deterministic. */
   now?: number;
+  /** One plain-words line for the listed period (`errorLine`); the page and source when absent. */
+  line?: string;
   className?: string;
 }
 
@@ -42,7 +44,7 @@ export function MessageLine({ message }: { message: string }) {
  * scene, instead of the content engine keeping a hand-copied lookalike that drifts every
  * time this file changes.
  */
-export function ErrorGroupRow({ group, onOpen, share = 0, now, className }: ErrorGroupRowProps) {
+export function ErrorGroupRow({ group, onOpen, share = 0, now, line, className }: ErrorGroupRowProps) {
   const body = (
     <>
       <Bug className="mt-0.5 h-4 w-4 shrink-0 text-destructive/70" />
@@ -52,10 +54,14 @@ export function ErrorGroupRow({ group, onOpen, share = 0, now, className }: Erro
           <MessageLine message={group.message} />
         </p>
         <p className="mt-0.5 flex items-center gap-2 truncate text-xs text-muted-foreground">
-          <span className="truncate">
-            {group.last_page_path || '—'}
-            {group.source_file ? ` · ${group.source_file}` : ''}
-            {group.line_no != null ? `:${group.line_no}` : ''}
+          <span className="truncate" title={line ? `${group.last_page_path}${group.source_file ? ` · ${group.source_file}` : ''}${group.line_no != null ? `:${group.line_no}` : ''}` : undefined}>
+            {line || (
+              <>
+                {group.last_page_path || '—'}
+                {group.source_file ? ` · ${group.source_file}` : ''}
+                {group.line_no != null ? `:${group.line_no}` : ''}
+              </>
+            )}
           </span>
           {group.status !== 'unresolved' && (
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium capitalize text-foreground/80">

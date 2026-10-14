@@ -11,6 +11,34 @@ import type { ErrorGroup, ErrorSample } from './types';
  */
 export const ERROR_GROUPS_DEMO_DATA: ErrorGroup[] = [
   {
+    id: 'demo-group-resize',
+    fingerprint: 'demo00000000000000000000000000000000000000000000000000000resize',
+    kind: 'error',
+    message: 'ResizeObserver loop completed with undelivered notifications.',
+    source_file: '',
+    line_no: null,
+    status: 'unresolved',
+    event_count: 1840,
+    last_page_path: '/',
+    first_seen: '2025-12-02T11:00:00.000Z',
+    last_seen: '2026-03-04T16:55:00.000Z',
+    window: { count: 214, prev_count: 198, sessions: 171, pages: ['/', '/features'] },
+  },
+  {
+    id: 'demo-group-coupon',
+    fingerprint: 'demo00000000000000000000000000000000000000000000000000000coupon',
+    kind: 'unhandledrejection',
+    message: 'Failed to fetch: POST /api/coupons/apply',
+    source_file: '/_next/static/chunks/checkout.js',
+    line_no: 88,
+    status: 'unresolved',
+    event_count: 96,
+    last_page_path: '/checkout',
+    first_seen: '2026-03-04T09:02:00.000Z',
+    last_seen: '2026-03-04T16:40:00.000Z',
+    window: { count: 96, prev_count: 0, sessions: 14, pages: ['/checkout'] },
+  },
+  {
     id: 'demo-group-checkout',
     fingerprint: 'demo0000000000000000000000000000000000000000000000000000checkout',
     kind: 'error',
@@ -21,6 +49,7 @@ export const ERROR_GROUPS_DEMO_DATA: ErrorGroup[] = [
     event_count: 412,
     last_page_path: '/checkout',
     first_seen: '2026-03-01T09:12:00.000Z',
+    window: { count: 412, prev_count: 0, sessions: 138, pages: ['/checkout'] },
     last_seen: '2026-03-04T16:48:00.000Z',
   },
   {
@@ -34,6 +63,7 @@ export const ERROR_GROUPS_DEMO_DATA: ErrorGroup[] = [
     event_count: 187,
     last_page_path: '/cart',
     first_seen: '2026-03-02T11:30:00.000Z',
+    window: { count: 187, prev_count: 41, sessions: 64, pages: ['/cart', '/checkout'] },
     last_seen: '2026-03-04T15:02:00.000Z',
   },
   {
@@ -45,6 +75,7 @@ export const ERROR_GROUPS_DEMO_DATA: ErrorGroup[] = [
     line_no: 88,
     status: 'resolved',
     event_count: 34,
+    window: { count: 3, prev_count: 31, sessions: 3, pages: ['/search'] },
     last_page_path: '/search',
     first_seen: '2026-02-18T08:05:00.000Z',
     last_seen: '2026-02-26T13:20:00.000Z',

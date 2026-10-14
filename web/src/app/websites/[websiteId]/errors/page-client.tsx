@@ -23,6 +23,9 @@ import { useErrorGroup, useErrorGroups } from '@/features/errors/queries';
 import { useSetErrorStatus } from '@/features/errors/mutations';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
+import { ListGroups, type ListGroup } from '@/components/ui/list-groups';
+import { ERROR_GROUP_META, errorLine, inErrorGroup, type ErrorGroupId } from '@/features/errors/insights';
+import type { ErrorGroup } from '@/features/errors/types';
 
 /**
  * Route composition only.
@@ -55,6 +58,8 @@ export default function ErrorsPage() {
   const [status, setStatus] = useState('unresolved');
   const [search, setSearch] = useState('');
   const [openFingerprint, setOpenFingerprint] = useState<string | null>(null);
+  /** A group the list is narrowed to, from "Show all" below it. */
+  const [groupFilter, setGroupFilter] = useState<ErrorGroupId | null>(null);
 
   // The API treats an empty status as "every status"; the select calls that "all".
   const filters = { days, status: status === 'all' ? '' : status, search };
@@ -73,6 +78,21 @@ export default function ErrorsPage() {
   const lastSeen = list.reduce<string | null>(
     (latest, g) => (!latest || g.last_seen > latest ? g.last_seen : latest), null,
   );
+
+  const periodLabel = days === 1 ? 'in the last 24 hours' : `in the last ${days} days`;
+  const lineFor = (g: ErrorGroup) => errorLine(g, rangeStart, periodLabel);
+  const shownList = groupFilter ? list.filter((g) => inErrorGroup(g, groupFilter, rangeStart)) : list;
+  const errorGroups: ListGroup[] = ERROR_GROUP_META.map((meta) => ({
+    ...meta,
+    items: list
+      .filter((g) => inErrorGroup(g, meta.id, rangeStart))
+      .map((g) => ({
+        key: g.fingerprint,
+        text: g.message,
+        meta: g.window ? `${g.window.count.toLocaleString()}×` : undefined,
+        onClick: () => setOpenFingerprint(g.fingerprint),
+      })),
+  }));
 
   const watchReplay = (sessionId: string) =>
     router.push(`/websites/${websiteId}/replays/${sessionId}`);
@@ -141,7 +161,8 @@ export default function ErrorsPage() {
       )}
 
       <ErrorGroupList
-        groups={list}
+        groups={shownList}
+        lineFor={lineFor}
         isLoading={isLoading}
         status={status}
         now={now}
@@ -150,11 +171,17 @@ export default function ErrorsPage() {
           <div>
             <h3 className="font-semibold text-foreground">Error groups</h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {list.length} fault{list.length !== 1 ? 's' : ''} in this range
+              {shownList.length} fault{shownList.length !== 1 ? 's' : ''} in this range
             </p>
           </div>
         }
         toolbarRight={
+          <div className="flex items-center gap-2">
+          {groupFilter && (
+            <Button variant="secondary" size="sm" className="h-8 gap-1 text-xs" onClick={() => setGroupFilter(null)}>
+              {ERROR_GROUP_META.find((g) => g.id === groupFilter)?.label} ×
+            </Button>
+          )}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -164,7 +191,16 @@ export default function ErrorsPage() {
               className="h-8 w-56 pl-8 text-xs"
             />
           </div>
+          </div>
         }
+      />
+
+      <ListGroups
+        className="mt-6"
+        title="Error groups by trend"
+        description="What each error is doing in this period. Open a group to see its errors."
+        groups={errorGroups}
+        onShowAll={(id) => { setGroupFilter(id as ErrorGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
       />
     </div>
   );

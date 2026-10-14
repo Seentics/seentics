@@ -12,6 +12,8 @@ export interface ErrorGroupListProps {
   /** Shapes the empty copy — "no unresolved errors" is good news, "nothing here" is not. */
   status?: string;
   now?: number;
+  /** The plain-words line for each fault, by fingerprint. */
+  lineFor?: (group: ErrorGroup) => string;
   /** Card toolbar slots, laid out like DataTable's: a title on the left, search on the right. */
   toolbarLeft?: React.ReactNode;
   toolbarRight?: React.ReactNode;
@@ -25,7 +27,7 @@ export interface ErrorGroupListProps {
  * *is*, and a recording that films a loading frame should get the real one.
  */
 export function ErrorGroupList({
-  groups, onOpen, isLoading, status = 'unresolved', now, toolbarLeft, toolbarRight, className,
+  groups, onOpen, isLoading, status = 'unresolved', now, lineFor, toolbarLeft, toolbarRight, className,
 }: ErrorGroupListProps) {
   const maxEvents = Math.max(0, ...groups.map((g) => g.event_count));
 
@@ -77,6 +79,7 @@ export function ErrorGroupList({
               group={g}
               share={maxEvents > 0 ? g.event_count / maxEvents : 0}
               now={now}
+              line={lineFor?.(g)}
               onOpen={onOpen ? () => onOpen(g.fingerprint) : undefined}
             />
           ))}
