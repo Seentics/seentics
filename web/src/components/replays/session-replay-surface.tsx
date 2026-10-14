@@ -707,14 +707,15 @@ function applyReplayCoverScale(
   containerH: number,
   maxScale: number,
   resizePayload?: { width?: number; height?: number },
-): void {
+): { w: number; h: number } | null {
   const { w: fw, h: fh } = readReplayerLogicalSize(replayer, resizePayload);
-  if (fw < 2 || fh < 2 || containerW < 2 || containerH < 2) return;
+  if (fw < 2 || fh < 2 || containerW < 2 || containerH < 2) return null;
   const widthScale = containerW / fw;
   const heightScale = containerH / fh;
   const scale = Math.min(maxScale, Math.min(widthScale, heightScale));
   replayer.wrapper.style.transformOrigin = '50% 0';
   replayer.wrapper.style.transform = `translate(-50%, 0) scale(${scale})`;
+  return { w: fw, h: fh };
 }
 
 /** Minimal surface of rrweb Replayer for our chrome (avoids duplicate rrweb type graphs). */
@@ -1331,7 +1332,19 @@ export function SessionReplaySurface({
   );
 
   const timelineMarkers = useMemo(() => buildReplayTimelineMarkers(events), [events]);
-  const aspect = useMemo(() => recordingAspect(events), [events]);
+  /*
+   * The box takes the shape the replay actually plays at. The first Meta event's size is only a
+   * starting guess: rrweb plays at the viewport it reads from the recording, which can differ
+   * (a resized window, browser chrome), and a box shaped by the guess left the page short of it.
+   */
+  const [liveAspect, setLiveAspect] = useState<number | null>(null);
+  useEffect(() => setLiveAspect(null), [events]);
+  const noteSize = useCallback((size: { w: number; h: number } | null) => {
+    if (!size) return;
+    const next = size.w / size.h;
+    setLiveAspect((prev) => (prev && Math.abs(prev - next) / next < 0.01 ? prev : next));
+  }, []);
+  const aspect = useMemo(() => liveAspect ?? recordingAspect(events), [liveAspect, events]);
 
   const logEntries = useMemo(
     () =>
@@ -1423,7 +1436,7 @@ export function SessionReplaySurface({
         coverRaf = 0;
         const shell = shellRef.current;
         if (!shell) return;
-        applyReplayCoverScale(r, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE, lastResizeDims);
+        noteSize(applyReplayCoverScale(r, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE, lastResizeDims));
       });
     };
 
@@ -1590,7 +1603,7 @@ export function SessionReplaySurface({
         coverRaf = 0;
         const shell = shellRef.current;
         if (!shell) return;
-        applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE);
+        noteSize(applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE));
       });
     };
     scheduleCover();

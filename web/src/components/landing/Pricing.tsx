@@ -7,7 +7,6 @@ import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import StackSavings from './StackSavings';
 
 
 export default function Pricing() {
@@ -55,7 +54,6 @@ export default function Pricing() {
           <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
         </div>
 
-        <StackSavings />
       </div>
     </section>
   );

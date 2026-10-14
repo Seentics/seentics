@@ -5,6 +5,7 @@ import Hero from '@/components/landing/Hero';
 import ObservabilityBonus from '@/components/landing/ObservabilityBonus';
 import { FeatureGrid } from '@/components/landing/FeatureSections';
 import WhyChoose from '@/components/landing/WhyChoose';
+import AiSection from '@/components/landing/AiSection';
 import Pricing from '@/components/landing/Pricing';
 import FaqCta from '@/components/landing/FaqCta';
 import Footer from '@/components/landing/Footer';
@@ -22,6 +23,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <FeatureGrid />
+        <AiSection />
         <WhyChoose />
         <ObservabilityBonus />
         <Pricing />
