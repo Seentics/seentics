@@ -65,15 +65,35 @@ test.describe('Session Replays E2E Tests', () => {
               hasRageClicks: true,
               startedAt: new Date().toISOString(),
             },
+            {
+              // Analysed by core: its own one-line summary wins over the ingest flags.
+              sessionId: 'sess-ana-555',
+              websiteId: 'web-123',
+              country: 'DE',
+              browser: 'Firefox',
+              os: 'Linux',
+              device: 'desktop',
+              entryPage: '/checkout',
+              durationSeconds: 300,
+              pagesViewed: 4,
+              hasErrors: false,
+              hasRageClicks: false,
+              frustrationScore: 72,
+              signalCounts: { form_abandon: 1 },
+              summary: 'Started the checkout form and left at the shipping step',
+              startedAt: new Date().toISOString(),
+            },
           ],
           limit: 20,
           offset: 0,
-          total: 2,
+          total: 3,
           summary: {
-            total: 2,
+            total: 3,
             withErrors: 1,
             withRageClicks: 1,
-            avgDurationSeconds: 95,
+            avgDurationSeconds: 163,
+            // Per-group totals, counted by core, drive the "Session groups" card.
+            groups: { errors: 1, rage: 1, forms: 1 },
           },
         }),
       });
@@ -83,29 +103,51 @@ test.describe('Session Replays E2E Tests', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Session Replays');
 
-    // One row per session, asserted through the table rather than by session id — the
-    // list shows location, client, entry page, duration and signals, and has never
-    // rendered the id. The previous assertions waited 30s for `sess-abc-123` and timed
-    // out on a page that was rendering both sessions correctly.
+    // The table is Location, Duration, "What happened" and Recorded. Browser and OS
+    // columns were dropped for the one-line summary (6bb44878), so they are not asserted.
+    const table = page.getByRole('table');
+    for (const header of ['Location', 'Duration', 'What happened', 'Recorded']) {
+      await expect(table.getByRole('columnheader', { name: header })).toBeVisible();
+    }
+
     const rows = page.getByRole('row');
-    await expect(rows.filter({ hasText: '/pricing' })).toBeVisible();
-    await expect(rows.filter({ hasText: '/blog/news' })).toBeVisible();
+    const pricing = rows.filter({ hasText: '/pricing' });
+    const blog = rows.filter({ hasText: '/blog/news' });
+    const checkout = rows.filter({ hasText: 'shipping step' });
 
-    // The client column, which is what identifies a session to the user.
-    await expect(rows.filter({ hasText: 'Chrome' })).toContainText('macOS');
-    await expect(rows.filter({ hasText: 'Safari' })).toContainText('iOS');
+    // Location, and the duration rendered rather than raw seconds, with the page count.
+    await expect(pricing).toContainText('US');
+    await expect(pricing).toContainText('2m 25s');
+    await expect(pricing).toContainText('3 pages');
+    await expect(blog).toContainText('GB');
+    await expect(blog).toContainText('0m 45s');
+    await expect(blog).toContainText('1 page');
 
-    // Duration is rendered, not raw seconds: 145s and 45s.
-    await expect(rows.filter({ hasText: '/pricing' })).toContainText('2m 25s');
-    await expect(rows.filter({ hasText: '/blog/news' })).toContainText('0m 45s');
+    // "What happened": from the ingest flags until a session is analysed, then core's summary.
+    await expect(pricing).toContainText('Hit an error · 3 pages from /pricing');
+    await expect(blog).toContainText('Rage-clicked · 1 page from /blog/news');
+    await expect(checkout).toContainText('Started the checkout form and left at the shipping step');
+    await expect(checkout).toContainText('DE');
 
-    // The per-row signal chips, from `hasErrors` and `hasRageClicks`.
-    await expect(rows.filter({ hasText: '/pricing' })).toContainText('Errors');
-    await expect(rows.filter({ hasText: '/blog/news' })).toContainText('Rage');
+    // The headline figures come from the response's own `summary`, not from counting the page.
+    // `.first()`: the stat cards come before the session groups, which also has a "Rage clicks" row.
+    const stat = (label: string) => page.getByText(label, { exact: true }).first().locator('..').locator('..');
+    await expect(stat('Total Sessions')).toContainText('3');
+    await expect(stat('Avg Duration')).toContainText('2m 43s');
+    await expect(stat('With Errors')).toContainText('1');
+    await expect(stat('Rage clicks')).toContainText('1');
+    await expect(page.getByText('3 sessions recorded')).toBeVisible();
+    await expect(page.getByText('1–3 of 3 rows')).toBeVisible();
 
-    // The summary comes from the response's own `summary`, not from counting the page.
-    await expect(page.getByText('2 sessions recorded')).toBeVisible();
-    await expect(page.getByText('1–2 of 2 rows')).toBeVisible();
+    // Below the table, sessions are grouped by what kind of visit they were.
+    await expect(page.getByRole('heading', { name: 'Session groups' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Errors.*Hit a JavaScript/ })).toContainText('1');
+    await expect(page.getByRole('button', { name: /^Rage clicks/ })).toContainText('1');
+    await expect(page.getByRole('button', { name: /^Abandoned forms/ })).toContainText('1');
+
+    // Watch opens the player for that session.
+    await blog.getByRole('button', { name: 'Watch' }).click();
+    await expect(page).toHaveURL(/\/websites\/web-123\/replays\/sess-xyz-987$/);
   });
 
   test('should open replay player page and show player content', async ({ page }) => {

@@ -43,6 +43,24 @@ async function canvasHasPaintNear(canvas: Locator, x: number, y: number) {
   }, { x, y });
 }
 
+
+/**
+ * Whole-stack only. This drives a real tracker against a real core, Postgres and object
+ * store, which `npm run test:e2e:heatmap` brings up in Docker and describes through
+ * `E2E_BASE_URL` / `E2E_FIXTURE_URL` (see ./run.mjs and ./playwright.config.ts).
+ *
+ * The default `npm run test:e2e` config also collects this file (its testDir is ./e2e),
+ * but it starts only `next dev` — no core to collect, store or serve anything — so the
+ * test could never pass there; it failed on `new URL(undefined)`. Mocking the collector
+ * and storage would remove the very thing it verifies, so it is skipped unless the stack
+ * is described. The same behaviour is also covered end to end by the cross-repo suite
+ * (seentics-cloud/e2e/tests/heatmaps.spec.ts and heatmaps-advanced.spec.ts).
+ */
+test.skip(
+  !process.env.E2E_BASE_URL || !process.env.E2E_FIXTURE_URL,
+  'Needs the Docker stack: run `npm run test:e2e:heatmap`.',
+);
+
 test('collects real heatmap clicks and scroll depth, stores a visitor DOM snapshot, and aligns both in the dashboard', async ({ page, browser, request }, testInfo) => {
   const fixture = await startTrackedWebsite(Number(new URL(process.env.E2E_FIXTURE_URL!).port));
   const visitor = await browser.newContext({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block' });

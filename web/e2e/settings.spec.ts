@@ -31,10 +31,11 @@ test.describe('Website Settings E2E Tests', () => {
   test('should load websites settings list, edit, view snippet, and delete dialogs', async ({ page }) => {
     await page.goto('/websites/web-123/settings/websites');
 
-    // Verify title and description
-    await expect(page.locator('h1')).toContainText('Websites');
-    await expect(page.locator("text=Jane's Portfolio")).toBeVisible();
-    await expect(page.locator('text=https://janesite.com')).toBeVisible();
+    // The settings shell has its own "Settings" h1 above the section's, so a bare
+    // `h1` locator is a strict-mode violation. Named, so it finds the section title.
+    await expect(page.getByRole('heading', { level: 1, name: 'Websites' })).toBeVisible();
+    await expect(page.getByText("Jane's Portfolio").first()).toBeVisible();
+    await expect(page.getByText('https://janesite.com').first()).toBeVisible();
 
     // Click dropdown menu trigger for actions
     await page.click('button:has-text("Open menu")');

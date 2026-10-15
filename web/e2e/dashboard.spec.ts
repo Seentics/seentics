@@ -146,10 +146,16 @@ test.describe('Dashboard E2E Tests', () => {
       });
     });
 
+    // Under CI's fresh `next dev`, the redirect target compiles on first request, and the
+    // dashboard is the heaviest page in the app: the redirect itself happens at once, but
+    // the URL only changes once that compile is done. The default 5s expect timeout failed
+    // here on CI (and passed on retry, once compiled), so the wait is sized for a cold compile.
+    test.slow();
+
     await page.goto('/websites');
 
     // Should automatically redirect to /websites/web-123
-    await expect(page).toHaveURL(/\/websites\/web-123/);
+    await expect(page).toHaveURL(/\/websites\/web-123/, { timeout: 30_000 });
 
     // Each figure asserted inside its own tile. A bare `text=980` is a page-wide
     // substring match and collides with any other element containing those digits.

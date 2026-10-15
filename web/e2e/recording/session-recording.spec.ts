@@ -42,6 +42,24 @@ async function storedEvents(request: APIRequestContext, detail: Detail): Promise
   return result;
 }
 
+
+/**
+ * Whole-stack only. This drives a real tracker against a real core, Postgres and object
+ * store, which `npm run test:e2e:recording` brings up in Docker and describes through
+ * `E2E_BASE_URL` / `E2E_FIXTURE_URL` (see ./run.mjs and ./playwright.config.ts).
+ *
+ * The default `npm run test:e2e` config also collects this file (its testDir is ./e2e),
+ * but it starts only `next dev` — no core to collect, store or serve anything — so the
+ * test could never pass there; it failed on `new URL(undefined)`. Mocking the collector
+ * and storage would remove the very thing it verifies, so it is skipped unless the stack
+ * is described. The same behaviour is also covered end to end by the cross-repo suite
+ * (seentics-cloud/e2e/tests/recordings.spec.ts and recordings-advanced.spec.ts).
+ */
+test.skip(
+  !process.env.E2E_BASE_URL || !process.env.E2E_FIXTURE_URL,
+  'Needs the Docker stack: run `npm run test:e2e:recording`.',
+);
+
 test('records real visitor actions, persists them, and reproduces them in the dashboard player', async ({ page, browser, request }, testInfo) => {
   const fixture = await startTrackedWebsite(Number(new URL(process.env.E2E_FIXTURE_URL!).port));
   const visitor = await browser.newContext({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block' });

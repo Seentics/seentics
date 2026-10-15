@@ -1,19 +1,31 @@
 import { test, expect } from '@playwright/test';
 import { mockGlobalApiRoutes } from './helpers/mock-api';
-import { signinForm, signupForm } from './helpers/auth-forms';
 
 /**
- * The first-use journey crosses the authentication boundary and the websites
- * boundary.  The focused auth and dashboard specs cover their error states;
- * this test protects the contract between them:
+ * The first-use journey, from this app's side of the authentication boundary:
  *
- *   register -> automatic login -> create first website -> sign out -> sign in
+ *   signed in (gateway cookie) -> add first website -> tracking code -> log out
+ *   -> forwarded to the auth app -> back signed in -> straight to the dashboard
  *
- * It uses a small stateful gateway mock rather than a live database.  That keeps
- * the UI suite safe to run locally and in CI while still exercising the actual
- * browser navigation, persisted auth store, request payloads, and onboarding UI.
+ * Creating the account and typing credentials happen on the auth app (auth/web,
+ * auth.seentics.com) now; this app's /signup and /signin only forward there. That half
+ * is covered end to end by the whole-stack suite (e2e/tests/auth.spec.ts at the repo
+ * root). What this app still owns is what it does with the session the auth app leaves
+ * in the gateway's cookie: `AuthInitializer` reads it through `/user/auth/me`, because
+ * the auth app's own localStorage is unreadable from here.
+ *
+ * The test used to fill a sign-up form on /signup. That page became a redirect, so the
+ * test followed it to the live auth site and typed into the real form there.
+ *
+ * A small stateful gateway mock rather than a live database keeps the UI suite safe to
+ * run locally and in CI while still exercising real navigation and request payloads.
  */
-test('a new user can create an account, add their first website, and return by signing in', async ({ page }) => {
+const AUTH_ORIGIN = new URL(process.env.NEXT_PUBLIC_AUTH_URL || 'https://auth.seentics.com').origin;
+
+test('a new user can add their first website, sign out, and return straight to its dashboard', async ({ page }) => {
+  // Two cold `next dev` compiles in one test (onboarding, then the dashboard).
+  test.slow();
+
   const user = { id: 'user-e2e-1', name: 'Avery Example', email: 'avery@example.test' };
   const website = {
     id: 'website-e2e-1',
@@ -23,40 +35,30 @@ test('a new user can create an account, add their first website, and return by s
     user_id: user.id,
     is_verified: false,
   };
-  const tokens = {
-    access_token: 'e2e-access-token',
-    refresh_token: 'e2e-refresh-token',
-  };
   const calls: string[] = [];
+  let signedIn = true;
   let hasWebsite = false;
+
+  // The auth app, stubbed: never followed out to the live site.
+  await page.route(`${AUTH_ORIGIN}/**`, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>auth app</body></html>' }),
+  );
 
   await mockGlobalApiRoutes(page);
 
-  await page.route('**/user/auth/register', async (route) => {
-    calls.push('register');
-    expect(route.request().postDataJSON()).toEqual({
-      name: user.name,
-      email: user.email,
-      password: 'Password123!',
-    });
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({ message: 'User registered successfully' }),
-    });
+  // The gateway's cookie session, as the auth app left it.
+  await page.route('**/user/auth/me', async (route) => {
+    await route.fulfill(
+      signedIn
+        ? { status: 200, contentType: 'application/json', body: JSON.stringify({ data: { user } }) }
+        : { status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Unauthorized' }) },
+    );
   });
 
-  await page.route('**/user/auth/login', async (route) => {
-    calls.push('login');
-    expect(route.request().postDataJSON()).toEqual({
-      email: user.email,
-      password: 'Password123!',
-    });
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: { user, tokens } }),
-    });
+  await page.route('**/user/auth/logout', async (route) => {
+    calls.push('logout');
+    signedIn = false;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
 
   await page.route('**/user/websites', async (route) => {
@@ -70,7 +72,6 @@ test('a new user can create an account, add their first website, and return by s
     }
 
     calls.push('create-website');
-    expect(route.request().headers().authorization).toBe(`Bearer ${tokens.access_token}`);
     expect(route.request().postDataJSON()).toEqual({
       name: website.name,
       url: website.url,
@@ -84,16 +85,9 @@ test('a new user can create an account, add their first website, and return by s
     });
   });
 
-  await page.goto('/signup');
-  const signup = signupForm(page);
-  await signup.name.fill(user.name);
-  await signup.email.fill(user.email);
-  await signup.password.fill('Password123!');
-  await signup.confirmPassword.fill('Password123!');
-  await signup.submit.click();
-
-  await expect(page).toHaveURL(/\/websites$/);
-  await expect(page.getByRole('heading', { name: 'Add your website' })).toBeVisible();
+  // First visit after signing up on the auth app: no websites yet, so onboarding.
+  await page.goto('/websites');
+  await expect(page.getByRole('heading', { name: 'Add your website' })).toBeVisible({ timeout: 20_000 });
 
   await page.getByLabel('Website name').fill(website.name);
   await page.getByLabel('Website domain').fill('store.example.test');
@@ -101,18 +95,19 @@ test('a new user can create an account, add their first website, and return by s
 
   await expect(page.getByRole('heading', { name: 'Tracking code' })).toBeVisible();
   await expect(page.locator('pre')).toContainText(`data-website-id="${website.id}"`);
-  expect(calls).toEqual(['register', 'login', 'create-website']);
+  expect(calls).toEqual(['create-website']);
 
-  // A fresh visit should restore the persisted session and skip first-site
-  // onboarding because the website created above now belongs to this user.
+  // Log out revokes the gateway session and hands over to the auth app's sign-in.
   await page.getByRole('button', { name: /log out/i }).click();
-  await expect(page).toHaveURL(/\/signin/);
+  await expect(page).toHaveURL(`${AUTH_ORIGIN}/signin`, { timeout: 20_000 });
+  expect(calls).toEqual(['create-website', 'logout']);
 
-  const signin = signinForm(page);
-  await signin.email.fill(user.email);
-  await signin.password.fill('Password123!');
-  await signin.submit.click();
+  // Signing back in happens on the auth app; it leaves the cookie session behind and
+  // sends the user here. With a website now, onboarding is skipped.
+  signedIn = true;
+  await page.goto('/websites');
 
-  await expect(page).toHaveURL(new RegExp(`/websites/${website.id}`));
-  expect(calls).toEqual(['register', 'login', 'create-website', 'login']);
+  await expect(page).toHaveURL(new RegExp(`/websites/${website.id}`), { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Add your website' })).toHaveCount(0);
+  expect(calls).toEqual(['create-website', 'logout']);
 });
