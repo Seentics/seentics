@@ -419,8 +419,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
       <div className="landing-container h-full flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <Logo size="lg" />
-          <span className="font-bold text-base text-foreground tracking-tight">Seentics</span>
+          <Logo size="xl" />
+          <span className="font-bold text-[1.3125rem] text-foreground tracking-tight">Seentics</span>
         </Link>
 
         {/* Desktop: nav and actions grouped together on the right, the way
