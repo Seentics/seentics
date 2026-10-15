@@ -179,7 +179,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
 
               <div className="flex items-center gap-2">
                 {member.role !== 'owner' && member.userId !== user?.id && canManageMembers && (
-                  <DropdownMenu>
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
                         <MoreVertical className="h-4 w-4 text-muted-foreground" />

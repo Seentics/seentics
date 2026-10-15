@@ -434,7 +434,9 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                     <Code2 className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Tracking code</span>
                   </Button>
-                  <DropdownMenu>
+                  {/* Not modal: its items open a dialog, and a modal menu left pointer-events: none on the
+                      page when that dialog closed — nothing on the page could be clicked until a reload. */}
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />

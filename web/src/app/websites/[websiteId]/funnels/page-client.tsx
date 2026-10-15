@@ -196,7 +196,7 @@ export default function FunnelsPage() {
           >
             <Eye size={13} /> View
           </Button>
-          {canEdit && <DropdownMenu>
+          {canEdit && <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                 <MoreVertical size={14} />
