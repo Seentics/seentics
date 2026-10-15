@@ -19,6 +19,7 @@ export type {
   FunnelStepCount,
   FunnelStep,
   FunnelTrackerConfig,
+  TrackerFunnel,
   UpdateFunnelInput,
 } from "./funnel.interface";
 

@@ -226,13 +226,16 @@ export interface FunnelDraftPort {
  *
  * Controllers resolve public website references before calling this capability.
  */
+/** A funnel as the tracker receives it: what it matches steps with, nothing more. */
+export type TrackerFunnel = { id: string; name: string; steps: Array<Record<string, unknown>> };
+
 export interface FunnelTrackerConfig {
   /**
    * For `/tracker/init`, which has already loaded the website row — so this takes
    * the resolved `websites.id` UUID and does no lookup. Re-resolving here would add
    * a query to the hottest public endpoint in the product.
    */
-  activeForTracker(websiteId: string): Promise<Funnel[]>;
+  activeForTracker(websiteId: string): Promise<TrackerFunnel[]>;
 
 }
 
