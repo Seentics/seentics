@@ -99,9 +99,16 @@ export class WebsiteInvitationService implements WebsiteInvitations {
       eq(websiteMembers.userId, userId),
     )).limit(1);
     if (existing) {
-      await db.update(websiteMembers)
-        .set({ role: invitation.role, updatedAt: new Date() })
-        .where(eq(websiteMembers.id, existing.id));
+      // Accepting only ever raises a member's role. It used to set it: an admin could not
+      // demote a fellow admin directly, but could invite their address as a viewer, and
+      // the link demoted them when they clicked it.
+      const current = normalizeWebsiteRole(existing.role);
+      const invited = normalizeWebsiteRole(invitation.role);
+      if (!roleAtLeast(current, invited)) {
+        await db.update(websiteMembers)
+          .set({ role: invitation.role, updatedAt: new Date() })
+          .where(eq(websiteMembers.id, existing.id));
+      }
     } else {
       await db.insert(websiteMembers).values({
         websiteId: invitation.websiteId,
