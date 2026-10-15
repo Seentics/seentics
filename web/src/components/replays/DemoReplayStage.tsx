@@ -22,15 +22,15 @@ export function DemoReplayViewport() {
     <div className="absolute inset-0 bg-black">
       {/* Flex column so the footer can take `mt-auto` and sit at the bottom of
           however tall the frame turns out to be. */}
-      <div className="absolute inset-3 flex flex-col overflow-hidden rounded-lg bg-white text-black shadow-inner">
+      <div className="absolute inset-3 flex flex-col overflow-hidden rounded-lg bg-white text-black shadow-inner dark:bg-[#161719] dark:text-white">
         {/* Site nav */}
-        <div className="flex items-center gap-4 border-b border-black/[0.08] px-5 py-3">
-          <span className="text-[13px] font-black tracking-[0.2em] text-black/85">NORTHBOUND</span>
+        <div className="flex items-center gap-4 border-b border-black/[0.08] dark:border-white/[0.08] px-5 py-3">
+          <span className="text-[13px] font-black tracking-[0.2em] text-black/85 dark:text-white/85">NORTHBOUND</span>
           <div className="flex-1" />
-          <span className="text-[10px] font-medium text-black/55">Shop</span>
-          <span className="text-[10px] font-medium text-black/55">Journal</span>
-          <span className="text-[10px] font-medium text-black/55">About</span>
-          <span className="rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white">Cart · 2</span>
+          <span className="text-[10px] font-medium text-black/55 dark:text-white/55">Shop</span>
+          <span className="text-[10px] font-medium text-black/55 dark:text-white/55">Journal</span>
+          <span className="text-[10px] font-medium text-black/55 dark:text-white/55">About</span>
+          <span className="rounded-full bg-black px-3 py-1 text-[10px] font-semibold text-white dark:bg-white dark:text-black">Cart · 2</span>
         </div>
 
         {/*
@@ -41,38 +41,38 @@ export function DemoReplayViewport() {
         */}
         <div className="grid grid-cols-[1.2fr_1fr] gap-6 px-5 py-6">
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-black/35">New season</p>
-            <p className="mt-1.5 text-[19px] font-extrabold leading-[1.15] tracking-tight text-black/90">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-black/35 dark:text-white/35">New season</p>
+            <p className="mt-1.5 text-[19px] font-extrabold leading-[1.15] tracking-tight text-black/90 dark:text-white/90">
               Built for the
               <br />
               long way round.
             </p>
-            <p className="mt-2 max-w-[15rem] text-[10px] leading-relaxed text-black/50">
+            <p className="mt-2 max-w-[15rem] text-[10px] leading-relaxed text-black/50 dark:text-white/50">
               Weatherproof packs and layers, made to be repaired rather than replaced.
             </p>
             <div className="mt-4 flex items-center gap-2">
-              <span className="rounded-lg bg-black px-3.5 py-2 text-[10px] font-semibold text-white">
+              <span className="rounded-lg bg-black px-3.5 py-2 text-[10px] font-semibold text-white dark:bg-white dark:text-black">
                 Shop the collection
               </span>
-              <span className="rounded-lg border border-black/15 px-3 py-2 text-[10px] font-semibold text-black/70">
+              <span className="rounded-lg border border-black/15 dark:border-white/15 px-3 py-2 text-[10px] font-semibold text-black/70 dark:text-white/70">
                 Size guide
               </span>
             </div>
           </div>
 
-          <div className="rounded-lg border border-black/[0.07] bg-black/[0.02] p-3">
-            <div className="h-full rounded-lg bg-white p-2.5">
-              <div className="h-16 rounded-lg bg-black/[0.07]" />
-              <p className="mt-2 text-[10px] font-semibold text-black/80">Trailhead 32L</p>
-              <p className="text-[9px] text-black/45">Recycled ripstop · 3 colours</p>
-              <p className="mt-1 text-[11px] font-bold text-black/85">$168</p>
+          <div className="rounded-lg border border-black/[0.07] dark:border-white/[0.07] bg-black/[0.02] dark:bg-white/[0.02] p-3">
+            <div className="h-full rounded-lg bg-white p-2.5 dark:bg-[#1c1d20]">
+              <div className="h-16 rounded-lg bg-black/[0.07] dark:bg-white/[0.07]" />
+              <p className="mt-2 text-[10px] font-semibold text-black/80 dark:text-white/80">Trailhead 32L</p>
+              <p className="text-[9px] text-black/45 dark:text-white/45">Recycled ripstop · 3 colours</p>
+              <p className="mt-1 text-[11px] font-bold text-black/85 dark:text-white/85">$168</p>
             </div>
           </div>
         </div>
 
         {/* Product row. A real storefront's thumbnails are photographs, and grey
             stands in for one better than four unrelated hues do. */}
-        <div className="grid grid-cols-4 gap-2.5 border-t border-black/[0.06] px-5 py-4">
+        <div className="grid grid-cols-4 gap-2.5 border-t border-black/[0.06] dark:border-white/[0.06] px-5 py-4">
           {[
             { name: 'Fell Shell', price: '$240' },
             { name: 'Ridge Mid', price: '$185' },
@@ -80,9 +80,9 @@ export function DemoReplayViewport() {
             { name: 'Moor Cap', price: '$45' },
           ].map((item) => (
             <div key={item.name}>
-              <div className="h-12 rounded-lg bg-black/[0.07]" />
-              <p className="mt-1.5 text-[9px] font-semibold text-black/75">{item.name}</p>
-              <p className="text-[9px] font-bold text-black/50">{item.price}</p>
+              <div className="h-12 rounded-lg bg-black/[0.07] dark:bg-white/[0.07]" />
+              <p className="mt-1.5 text-[9px] font-semibold text-black/75 dark:text-white/75">{item.name}</p>
+              <p className="text-[9px] font-bold text-black/50 dark:text-white/50">{item.price}</p>
             </div>
           ))}
         </div>
@@ -95,10 +95,10 @@ export function DemoReplayViewport() {
           nothing here the recording ended in 200px of blank white, which reads as a
           rendering fault rather than as the bottom of a page.
         */}
-        <div className="mt-auto grid grid-cols-[1.4fr_1fr_1fr] gap-6 border-t border-black/[0.06] bg-black/[0.015] px-5 py-5">
+        <div className="mt-auto grid grid-cols-[1.4fr_1fr_1fr] gap-6 border-t border-black/[0.06] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.015] px-5 py-5">
           <div>
-            <p className="text-[10px] font-black tracking-[0.2em] text-black/70">NORTHBOUND</p>
-            <p className="mt-1.5 max-w-[16rem] text-[9px] leading-relaxed text-black/45">
+            <p className="text-[10px] font-black tracking-[0.2em] text-black/70 dark:text-white/70">NORTHBOUND</p>
+            <p className="mt-1.5 max-w-[16rem] text-[9px] leading-relaxed text-black/45 dark:text-white/45">
               Repairs are free for the life of the product. Returns within 60 days, no questions.
             </p>
           </div>
@@ -107,10 +107,10 @@ export function DemoReplayViewport() {
             { head: 'Company', links: ['Our repairs', 'Stockists', 'Contact'] },
           ].map((col) => (
             <div key={col.head}>
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-black/45">{col.head}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-black/45 dark:text-white/45">{col.head}</p>
               <div className="mt-1.5 space-y-1">
                 {col.links.map((l) => (
-                  <p key={l} className="text-[9px] text-black/55">{l}</p>
+                  <p key={l} className="text-[9px] text-black/55 dark:text-white/55">{l}</p>
                 ))}
               </div>
             </div>

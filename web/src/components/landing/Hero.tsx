@@ -49,7 +49,7 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0.08)}
-          className="lx-display lx-hero-title mt-6 max-w-[15ch] text-[2.75rem] sm:text-6xl lg:text-[4.75rem]"
+          className="lx-display mt-6 max-w-[15ch] text-[2.75rem] !font-bold sm:text-6xl lg:text-[4.75rem]"
         >
           Analytics that shows you why visitors leave
         </motion.h1>

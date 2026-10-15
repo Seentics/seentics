@@ -188,12 +188,6 @@
   /* Headlines: Inter's display optical size, set tight. */
   .lx-display { font-weight: 590; letter-spacing: -0.034em; line-height: 1.04; color: var(--lx-text); }
   .lx-heading { font-weight: 560; letter-spacing: -0.026em; line-height: 1.1; color: var(--lx-text); }
-  .lx-hero-title {
-    background: linear-gradient(180deg, var(--lx-text) 40%, color-mix(in oklab, var(--lx-text) 58%, transparent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
   .lx-dim { color: var(--lx-dim); }
   .lx-faint { color: var(--lx-faint); }
   .lx-mono { font-family: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace; font-size: 11px; letter-spacing: 0.02em; }
