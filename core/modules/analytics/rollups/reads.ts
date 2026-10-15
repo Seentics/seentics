@@ -131,13 +131,17 @@ type TotalsRow = {
  */
 export async function dashboardRows(websiteId: string, days: number, tz = "UTC") {
   await ensureFresh(websiteId);
-  const row = tz === "UTC" ? await utcTotals(websiteId, days) : await localTotals(websiteId, days, tz);
-  return shapeTotals(row);
+  return shapeTotals(await localTotals(websiteId, days, tz));
 }
 
 /**
  * Totals over the viewer's local days, from the hourly rollup: pageviews and visitors by the hour
  * they happened, sessions, bounces and duration by the hour each session began.
+ *
+ * The previous window stops as far into its last day as the current one is into today. It
+ * used to run to the end of that day, so at 09:00 "today" (nine hours) was set against all
+ * of yesterday and a flat day read as a 60% drop — the raw-event path compares equal spans.
+ * UTC goes through here too: the daily rollup it read could not cut a day short.
  *
  * Hours rolled up before those session columns existed (migration 063) have them NULL; a UTC day
  * with no session-carrying hour falls back to its daily row, counted in the window when most of
@@ -154,6 +158,7 @@ async function localTotals(websiteId: string, days: number, tz: string): Promise
       SELECT r.pageviews, r.visitors, r.sessions, r.bounces, r.duration_s, r.hour, r.hour >= b.f AS cur
       FROM analytics_rollup_hourly r, b
       WHERE r.website_id = ${websiteId} AND r.hour >= b.pf
+        AND (r.hour >= b.f OR r.hour < b.pf + (now() - b.f))
     ),
     covered AS (SELECT DISTINCT (hour AT TIME ZONE 'UTC')::date AS day FROM h WHERE sessions IS NOT NULL),
     legacy AS (
@@ -180,30 +185,6 @@ async function localTotals(websiteId: string, days: number, tz: string): Promise
       coalesce(sum(bounces) FILTER (WHERE NOT cur), 0)::bigint AS prev_bounces,
       coalesce(sum(duration_s) FILTER (WHERE NOT cur), 0)::bigint AS prev_duration
     FROM s
-  `;
-  return row;
-}
-
-async function utcTotals(websiteId: string, days: number): Promise<TotalsRow | undefined> {
-  const w = rollupWindow(days);
-  const [row] = await pgSql<TotalsRow[]>`
-    SELECT
-      coalesce(sum(pageviews) FILTER (WHERE cur), 0)::bigint AS pv,
-      coalesce(round(hll_cardinality(hll_union_agg(visitors) FILTER (WHERE cur))), 0)::int AS uv,
-      coalesce(sum(sessions) FILTER (WHERE cur), 0)::bigint AS sessions,
-      coalesce(sum(bounces) FILTER (WHERE cur), 0)::bigint AS bounces,
-      coalesce(sum(duration_s) FILTER (WHERE cur), 0)::bigint AS duration,
-      coalesce(sum(pageviews) FILTER (WHERE NOT cur), 0)::bigint AS prev_pv,
-      coalesce(round(hll_cardinality(hll_union_agg(visitors) FILTER (WHERE NOT cur))), 0)::int AS prev_uv,
-      coalesce(sum(sessions) FILTER (WHERE NOT cur), 0)::bigint AS prev_sessions,
-      coalesce(sum(bounces) FILTER (WHERE NOT cur), 0)::bigint AS prev_bounces,
-      coalesce(sum(duration_s) FILTER (WHERE NOT cur), 0)::bigint AS prev_duration
-    FROM (
-      SELECT *, day >= ${w.from}::date AS cur
-      FROM analytics_rollup_daily
-      WHERE website_id = ${websiteId} AND dimension = 'site'
-        AND day BETWEEN ${w.prevFrom}::date AND ${w.to}::date
-    ) d
   `;
   return row;
 }
