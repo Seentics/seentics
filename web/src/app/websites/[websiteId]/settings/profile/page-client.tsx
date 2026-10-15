@@ -25,7 +25,7 @@ import { isDemo, demoMutationGuard } from '@/lib/demo';
 
 export default function ProfileSettingsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
-  const { user, setUser } = useAuth();
+  const { user, setUser, setTokens } = useAuth();
   const { toast } = useToast();
 
   const demo = isDemo(params.websiteId);
@@ -77,10 +77,14 @@ export default function ProfileSettingsPage() {
     }
     setSavingPassword(true);
     try {
-      await api.put('/user/users/change-password', {
+      const res = await api.put('/user/users/change-password', {
         current_password: currentPassword,
         new_password: newPassword,
       });
+      // The change ends every session issued under the old password, this one included;
+      // the server hands back a fresh pair so this tab stays signed in.
+      const tokens = res.data?.data?.tokens;
+      if (tokens?.access_token && tokens?.refresh_token) setTokens(tokens);
       toast({ title: 'Password changed', description: 'Your password has been updated.' });
       setCurrentPassword('');
       setNewPassword('');

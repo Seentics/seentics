@@ -29,8 +29,9 @@ r.put("/change-password", async (c) => {
   const current = typeof body?.current_password === "string" ? body.current_password : "";
   const next = typeof body?.new_password === "string" ? body.new_password : "";
   if (!current || !next) return c.json({ error: "current_password and new_password are required" }, 400);
-  switch (await deps.passwords.changePassword(uid, current, next)) {
-    case "changed": return c.json({ data: { ok: true } });
+  const result = await deps.passwords.changePassword(uid, current, next);
+  switch (result.status) {
+    case "changed": return c.json({ data: { ok: true, tokens: result.tokens } });
     case "bad-current": return c.json({ error: "Current password is incorrect" }, 400);
     case "invalid-new": return c.json({ error: "A password (8-256 characters) is required" }, 400);
     default: return c.json({ error: "unauthorized" }, 401);

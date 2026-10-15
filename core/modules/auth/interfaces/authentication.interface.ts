@@ -23,7 +23,10 @@ export interface CredentialAuthentication {
 }
 
 /** A signed-in user replacing their password — the one write peers may ask auth for. */
-export type PasswordChangeResult = "changed" | "bad-current" | "invalid-new" | "not-found";
+/** A change hands back a fresh pair: the password change ended the caller's old session too. */
+export type PasswordChangeResult =
+  | { status: "changed"; tokens: AuthTokens }
+  | { status: "bad-current" | "invalid-new" | "not-found" };
 export interface PasswordChanger {
   changePassword(userId: string, currentPassword: string, newPassword: string): Promise<PasswordChangeResult>;
 }

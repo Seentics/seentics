@@ -207,7 +207,7 @@ describe("refresh", () => {
 
     const next = await auth.refresh(first.data.tokens.refresh_token);
     expect(await verifyAccessToken(next.access_token)).toEqual({ userId });
-    expect(await verifyRefreshToken(next.refresh_token)).toEqual({ userId });
+    expect(await verifyRefreshToken(next.refresh_token)).toMatchObject({ userId });
   });
 
   it("refuses an access token in place of a refresh token", async () => {
@@ -254,7 +254,7 @@ describe("changePassword", () => {
 
   it("replaces the password when the current one is right", async () => {
     const id = await userId();
-    expect(await auth.changePassword(id, REGISTRATION.password, "a brand new password")).toBe("changed");
+    expect(await auth.changePassword(id, REGISTRATION.password, "a brand new password")).toMatchObject({ status: "changed" });
     await expect(auth.login({ email: REGISTRATION.email, password: REGISTRATION.password })).rejects.toThrow();
     const after = await auth.login({ email: REGISTRATION.email, password: "a brand new password" });
     expect(after.data.user.id).toBe(id);
@@ -262,17 +262,28 @@ describe("changePassword", () => {
 
   it("refuses a wrong current password and changes nothing", async () => {
     const id = await userId();
-    expect(await auth.changePassword(id, "not my password", "a brand new password")).toBe("bad-current");
+    expect(await auth.changePassword(id, "not my password", "a brand new password")).toEqual({ status: "bad-current" });
     const still = await auth.login({ email: REGISTRATION.email, password: REGISTRATION.password });
     expect(still.data.user.id).toBe(id);
   });
 
   it("holds a new password to registration's bounds", async () => {
     const id = await userId();
-    expect(await auth.changePassword(id, REGISTRATION.password, "short")).toBe("invalid-new");
+    expect(await auth.changePassword(id, REGISTRATION.password, "short")).toEqual({ status: "invalid-new" });
+  });
+
+  // A stolen session used to outlive the password change meant to end it.
+  it("ends sessions issued under the old password and hands the caller a working pair", async () => {
+    const id = await userId();
+    const before = await auth.login({ email: REGISTRATION.email, password: REGISTRATION.password });
+    const result = await auth.changePassword(id, REGISTRATION.password, "a brand new password");
+    if (result.status !== "changed") throw new Error("expected a change");
+    await expect(auth.refresh(before.data.tokens.refresh_token)).rejects.toThrow("session expired");
+    const next = await auth.refresh(result.tokens.refresh_token);
+    expect(await verifyAccessToken(next.access_token)).toEqual({ userId: id });
   });
 
   it("does nothing for an unknown user", async () => {
-    expect(await auth.changePassword("no-such-user", "x", "a brand new password")).toBe("not-found");
+    expect(await auth.changePassword("no-such-user", "x", "a brand new password")).toEqual({ status: "not-found" });
   });
 });

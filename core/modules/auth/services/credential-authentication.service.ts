@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   signAccessToken,
   signRefreshToken,
@@ -93,10 +94,14 @@ export class CredentialAuthenticationService implements CredentialAuthentication
    * session.
    */
   async refresh(refreshToken: string): Promise<AuthTokens> {
-    const { userId } = await verifyRefreshToken(refreshToken);
+    const { userId, passwordStamp: stamp } = await verifyRefreshToken(refreshToken);
     const row = await this.users.findById(userId);
     if (!row?.isActive) throw new Error("account disabled");
-    return this.tokensFor(row.id);
+    // Issued under a password that has since changed: someone holding an old session —
+    // possibly the reason the password was changed — does not get to keep it. Tokens
+    // from before the stamp existed carry none and age out within their seven days.
+    if (stamp !== undefined && stamp !== passwordStamp(row.passwordHash)) throw new Error("session expired");
+    return this.tokensFor(row);
   }
 
   /**
@@ -107,23 +112,31 @@ export class CredentialAuthenticationService implements CredentialAuthentication
    * current password was never checked. Same bounds as registration.
    */
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<PasswordChangeResult> {
-    if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) return "invalid-new";
+    if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) return { status: "invalid-new" };
     const row = await this.users.findById(userId);
-    if (!row?.isActive) return "not-found";
-    if (!row.passwordHash || !(await this.hasher.verify(currentPassword, row.passwordHash))) return "bad-current";
-    await this.users.setPasswordHash(row.id, await this.hasher.hash(newPassword));
-    return "changed";
+    if (!row?.isActive) return { status: "not-found" };
+    if (!row.passwordHash || !(await this.hasher.verify(currentPassword, row.passwordHash))) return { status: "bad-current" };
+    // The new hash changes the stamp in refresh tokens, so every other session ends at its
+    // next refresh. The caller is handed a fresh pair to stay signed in.
+    const passwordHash = await this.hasher.hash(newPassword);
+    await this.users.setPasswordHash(row.id, passwordHash);
+    return { status: "changed", tokens: await this.tokensFor({ ...row, passwordHash }) };
   }
 
   private async issue(row: UserRow): Promise<AuthResult> {
-    return { data: { user: toFrontendUser(row), tokens: await this.tokensFor(row.id) } };
+    return { data: { user: toFrontendUser(row), tokens: await this.tokensFor(row) } };
   }
 
-  private async tokensFor(userId: string): Promise<AuthTokens> {
+  private async tokensFor(row: Pick<UserRow, "id" | "passwordHash">): Promise<AuthTokens> {
     const [access_token, refresh_token] = await Promise.all([
-      signAccessToken(userId),
-      signRefreshToken(userId),
+      signAccessToken(row.id),
+      signRefreshToken(row.id, passwordStamp(row.passwordHash)),
     ]);
     return { access_token, refresh_token };
   }
+}
+
+/** A short digest of the stored password hash: changes whenever the password does. */
+function passwordStamp(passwordHash: string | null): string {
+  return passwordHash ? createHash("sha256").update(passwordHash).digest("base64url").slice(0, 16) : "";
 }
