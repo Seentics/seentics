@@ -200,6 +200,12 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       await tx.delete(websiteMembers).where(eq(websiteMembers.websiteId, websiteId));
       // Pending invitations carry the invitee's email address.
       await tx.delete(websiteInvitations).where(eq(websiteInvitations.websiteId, websiteId));
+      // The site's lead-form entries (visitors' names and emails), integrations (their stored
+      // credentials) and embed links. Some migrations declare a cascading foreign key for these,
+      // but a table created by the schema push first never got one: deleted by name.
+      for (const table of ["form_submissions", "form_prizes", "integration_deliveries", "integration_connections", "embed_links"]) {
+        await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE website_id::text = ${websiteId}`);
+      }
 
 
       await tx.delete(websites).where(eq(websites.id, websiteId));

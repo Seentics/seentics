@@ -131,8 +131,22 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
     await tx`DELETE FROM funnels WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM goals WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM api_keys WHERE website_id = ${websiteId}::uuid`;
+    // What the analysis and the AI features derived from the site's visits: each session's
+    // signals and written summary (a visitor's story), and the AI's insights, alerts and
+    // recommendations. None of these tables has a foreign key to the website that a delete
+    // could rely on, so each is erased by name. The column is compared as text: some of these
+    // tables key the site by uuid, some by text.
+    for (const table of WEBSITE_DERIVED_TABLES) {
+      await tx.unsafe(`DELETE FROM ${table} WHERE website_id::text = $1`, [websiteId]);
+    }
   });
 }
+
+/** Tables holding data derived from a website's visits, erased with its analytics. */
+const WEBSITE_DERIVED_TABLES = [
+  "session_analyses", "ai_insights", "ai_heatmap_insights", "ai_anomalies", "ai_anomaly_snoozes",
+  "ai_anomaly_settings", "ai_recommendations", "heatmap_page_versions", "analytics_event_counts",
+] as const;
 
 r.get("/export/:user_id", async (c) => {
   const userId = user(c);
@@ -248,7 +262,7 @@ function visitorQuery(c: Context): { visitorId: string; userId: string } | null 
 
 async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string) {
   const { visitorIds: v, sessionIds: s } = ref;
-  const [events, recordings, profiles, aliases, errors, automationRuns, impressions] = await Promise.all([
+  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses] = await Promise.all([
     sql`SELECT * FROM analytics_events WHERE website_id = ${websiteId} AND visitor_id = ANY(${v}) ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT session_id, entry_page, timestamp, pages_viewed, duration_seconds, browser, device, os, country FROM session_replays WHERE website_id = ${websiteId} AND session_id = ANY(${s}) AND sequence = 0`,
     sql`SELECT * FROM user_profiles WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
@@ -256,8 +270,10 @@ async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string)
     sql`SELECT * FROM error_events WHERE website_id = ${websiteId}::uuid AND visitor_id = ANY(${v}) ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT ae.* FROM automation_events ae JOIN automations a ON a.id = ae.automation_id WHERE a.website_id = ${websiteId}::uuid AND ae.visitor_id = ANY(${v}) ORDER BY ae.created_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT * FROM automation_impressions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
+    // What was worked out about their sessions, including the written summary of each visit.
+    sql`SELECT session_id, frustration_score, signal_counts, signals, summary, computed_at FROM session_analyses WHERE website_id = ${websiteId} AND session_id = ANY(${s})`,
   ]);
-  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions };
+  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses };
 }
 
 async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string): Promise<void> {
@@ -279,6 +295,8 @@ async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string):
       await tx`DELETE FROM analytics_events WHERE website_id = ${websiteId} AND visitor_id = ${id}`;
     }
     await tx`DELETE FROM session_replays WHERE website_id = ${websiteId} AND session_id = ANY(${s})`;
+    // Each session's analysis holds a written account of the visit: theirs, so it goes too.
+    await tx`DELETE FROM session_analyses WHERE website_id = ${websiteId} AND session_id = ANY(${s})`;
     await tx`DELETE FROM error_events WHERE website_id = ${websiteId}::uuid AND visitor_id = ANY(${v})`;
     await tx`DELETE FROM automation_events AS ae USING automations AS a WHERE ae.automation_id = a.id AND a.website_id = ${websiteId}::uuid AND ae.visitor_id = ANY(${v})`;
     await tx`DELETE FROM automation_impressions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`;
