@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   signAccessToken,
   signRefreshToken,
@@ -74,7 +74,12 @@ export class CredentialAuthenticationService implements CredentialAuthentication
   async login(input: LoginUserInput): Promise<AuthResult> {
     const email = input.email.trim().toLowerCase();
     const row = await this.users.findByEmail(email);
-    if (!row?.passwordHash) throw new Error("invalid credentials");
+    if (!row?.passwordHash) {
+      // As slow as a wrong password: answering an unknown address without a bcrypt check
+      // told anyone timing the reply which addresses have accounts.
+      await this.hasher.verify(input.password, await this.dummyHash());
+      throw new Error("invalid credentials");
+    }
 
     const ok = await this.hasher.verify(input.password, row.passwordHash);
     if (!ok) throw new Error("invalid credentials");
@@ -121,6 +126,14 @@ export class CredentialAuthenticationService implements CredentialAuthentication
     const passwordHash = await this.hasher.hash(newPassword);
     await this.users.setPasswordHash(row.id, passwordHash);
     return { status: "changed", tokens: await this.tokensFor({ ...row, passwordHash }) };
+  }
+
+  private dummy: Promise<string> | null = null;
+
+  /** A hash at the configured cost, of a password nobody has, made once. */
+  private dummyHash(): Promise<string> {
+    this.dummy ??= this.hasher.hash(randomBytes(24).toString("base64url"));
+    return this.dummy;
   }
 
   private async issue(row: UserRow): Promise<AuthResult> {

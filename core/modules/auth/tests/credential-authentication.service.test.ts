@@ -147,6 +147,18 @@ describe("login", () => {
     ).rejects.toThrow("invalid credentials");
   });
 
+  // Answering an unknown address without a bcrypt check was measurably faster than a wrong
+  // password: timing the reply told which addresses have accounts.
+  it("checks a password for an unknown email too, as slow as a wrong one", async () => {
+    const hasher = new FakePasswordHasher();
+    let verifies = 0;
+    const verify = hasher.verify.bind(hasher);
+    hasher.verify = async (plain, hash) => { verifies++; return verify(plain, hash); };
+    const timed = new CredentialAuthenticationService(repo, hasher);
+    await expect(timed.login({ email: "nobody@example.com", password: "whatever" })).rejects.toThrow("invalid credentials");
+    expect(verifies).toBe(1);
+  });
+
   describe("a disabled account", () => {
     beforeEach(() => {
       repo.rows[0]!.isActive = false;
