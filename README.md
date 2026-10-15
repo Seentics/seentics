@@ -5,44 +5,73 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics — real-time dashboards, session replays,<br />
-  heatmaps, funnels, revenue tracking, behavioral automations, and natural-language queries.
+  <strong>The open-source Google Analytics + Hotjar you can self-host in one <code>docker compose up</code>.</strong><br />
+  Traffic analytics, session replay, heatmaps, funnels, revenue, on-site popups and an AI analyst.<br />
+  Cookie-free by default, and it runs on just PostgreSQL and S3.
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#tracking">Tracking</a> ·
-  <a href="#project-layout">Layout</a> ·
+  <a href="https://github.com/Seentics/seentics/stargazers"><img src="https://img.shields.io/github/stars/Seentics/seentics?style=flat&color=f5c518" alt="GitHub stars" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0 license" /></a>
+  <a href="https://github.com/Seentics/seentics/commits/main"><img src="https://img.shields.io/github/last-commit/Seentics/seentics" alt="Last commit" /></a>
+  <a href="https://github.com/Seentics/seentics/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/Seentics/seentics/good%20first%20issue?label=good%20first%20issues&color=7057ff" alt="Good first issues" /></a>
+  <a href="https://seentics.com/websites/demo"><img src="https://img.shields.io/badge/live%20demo-no%20signup-22c55e" alt="Live demo" /></a>
+</p>
+
+<p align="center">
+  <a href="https://seentics.com/websites/demo"><strong>Live demo</strong></a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-compares">How it compares</a> ·
+  <a href="ROADMAP.md">Roadmap</a> ·
   <a href="#contributing">Contributing</a> ·
-  <a href="DEPLOYMENT.md">Deployment</a>
+  <a href="https://www.seentics.com">Seentics Cloud</a>
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="web/public/assets/dashboard-dark.png" />
-    <img src="web/public/assets/dashboard.png" alt="Seentics analytics overview — summary cards, traffic chart, top pages and traffic sources" width="100%" />
-  </picture>
+  <a href="https://seentics.com/websites/demo">
+    <img src="web/public/assets/demo.gif" alt="Seentics tour: traffic overview, a session replay, a click heatmap of the pricing page with AI findings, and an AI answer about this week's traffic" width="100%" />
+  </a>
 </p>
 
 <p align="center">
-  <em>Try it at <a href="https://seentics.com/websites/demo">seentics.com/websites/demo</a> — no account needed.</em>
+  <em>Click around the <a href="https://seentics.com/websites/demo">live demo</a>. No account needed.</em><br />
+  If Seentics saves you a Hotjar bill, a ⭐ helps other people find it.
 </p>
 
 ---
 
-Self-hosted analytics without cookies, fingerprinting, or third-party data sharing.
-Your data stays on your infrastructure.
+Most teams pay for a traffic tool, a replay and heatmap tool, and a popup tool, and send
+visitor data to all three. Seentics does all of that in one place, on your own servers, and
+no data leaves your infrastructure.
 
 ## Features
 
-- **Real-time analytics** — live visitor map, active pages, traffic as it happens
-- **Behavioral automations** — modals, banners, webhooks and redirects from behaviour
-- **Session replays** — full recordings with rage-click and JS error detection
-- **Heatmaps** — click maps, scroll depth, captured page screenshots
-- **Funnels** — multi-step conversion analysis with drop-off rates
-- **Revenue** — orders, AOV, ARPU, UTM channel attribution
-- **Events and goals** — page, event or CSS-selector conversions
-- **Seentics AI** — ask questions in plain English, get charts back (`⌘K`)
+- **Real-time analytics**: live visitor map, active pages, traffic as it happens
+- **Session replays**: full recordings with rage-click and JS error detection
+- **Heatmaps**: click maps, scroll depth, captured page screenshots, AI findings per page
+- **Funnels**: multi-step conversion analysis with drop-off rates
+- **Revenue**: orders, AOV, ARPU, UTM channel attribution
+- **Behavioral automations**: popups, forms, banners, webhooks and redirects triggered by behavior, with leads sent to Mailchimp, Klaviyo, HubSpot or Zapier
+- **Events and goals**: page, event or CSS-selector conversions
+- **Seentics AI**: ask questions in plain English and get charts back (`⌘K`)
+
+## How it compares
+
+| | **Seentics** | Plausible CE | Umami | PostHog (self-hosted) | Hotjar |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Open source | ✅ AGPL-3.0 | ✅ AGPL-3.0 | ✅ MIT | ✅ MIT | ❌ |
+| Self-hosting | ✅ Supported | ✅ | ✅ | ⚠️ Hobby deploy, officially unsupported | ❌ |
+| Minimum infrastructure | PostgreSQL + S3 | PostgreSQL + ClickHouse | PostgreSQL | 4 vCPU / 16 GB RAM VM | — |
+| Cookie-free by default | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Traffic analytics | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Session replay | ✅ | ❌ | ✅ | ✅ | ✅ |
+| Heatmaps | ✅ | ❌ | ✅ | ✅ | ✅ |
+| Funnels | ✅ | Cloud only | ✅ | ✅ | ✅ |
+| Revenue tracking | ✅ | Cloud only | ✅ | ✅ | ❌ |
+| On-site popups and forms | ✅ | ❌ | ❌ | Surveys only | Surveys only |
+| Ask questions in plain English | ✅ | ❌ | ❌ | ✅ | — |
+
+<sub>Compiled in October 2026 from each product's public docs. These products change fast, so if a cell is wrong, <a href="https://github.com/Seentics/seentics/issues/new">open an issue</a> and we will fix it.</sub>
 
 ## Quick Start
 
@@ -155,6 +184,11 @@ looking for something to pick up.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR process.
 
+New here? Issues labelled [`good first issue`](https://github.com/Seentics/seentics/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+are scoped to a single file or two. Adding an integration provider, for example, means adding one file under
+`core/modules/integrations/providers/` and one line in its `registry.ts`. The [roadmap](ROADMAP.md) lists what is
+planned, and [Discussions](https://github.com/Seentics/seentics/discussions) is the place for questions and ideas.
+
 ## License
 
 [GNU AGPL v3.0](LICENSE) — self-host freely; modifications must be released under
@@ -164,6 +198,7 @@ the same license. The [`@seentics/ui`](ui/blocks) package is separately
 ---
 
 <p align="center">
+  Don't want to run it yourself? <a href="https://www.seentics.com">Seentics Cloud</a> is the same product, hosted.<br />
   Built by the <a href="https://github.com/Seentics">Seentics</a> team ·
   <a href="https://github.com/Seentics/seentics/issues">Report an issue</a>
 </p>
