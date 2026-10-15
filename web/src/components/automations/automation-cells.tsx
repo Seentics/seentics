@@ -120,14 +120,15 @@ export function FlowCell({ automation }: { automation: Automation }) {
 }
 
 /** In-place activate/pause. */
-export function StatusCell({ automation, websiteId }: { automation: Automation; websiteId: string }) {
+/** `readOnly`: a viewer sees the state but cannot switch it (the server refuses them too). */
+export function StatusCell({ automation, websiteId, readOnly = false }: { automation: Automation; websiteId: string; readOnly?: boolean }) {
   const { mutate: toggle, isPending } = useToggleAutomation();
 
   return (
     <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
       <Switch
         checked={automation.isActive}
-        disabled={isPending}
+        disabled={isPending || readOnly}
         onCheckedChange={() => toggle({ websiteId, automationId: automation.id })}
         aria-label={automation.isActive ? `Pause ${automation.name}` : `Activate ${automation.name}`}
       />

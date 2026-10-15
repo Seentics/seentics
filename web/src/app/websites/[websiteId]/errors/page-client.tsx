@@ -5,6 +5,7 @@ import { usePathSegment } from '@/lib/path-segment';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -67,6 +68,7 @@ export default function ErrorsPage() {
   const { data: groups, isLoading, error } = useErrorGroups(websiteId, filters);
   const detail    = useErrorGroup(websiteId, openFingerprint, days);
   const setStatusMutation = useSetErrorStatus(websiteId);
+  const { canEdit } = usePermissions(websiteId);
 
   // Demo data is dated against a fixed clock; relative times read against it too.
   const now = isDemo(websiteId) ? DEMO_REFERENCE_DATE.getTime() : undefined;
@@ -117,9 +119,9 @@ export default function ErrorsPage() {
             now={now}
             isUpdating={setStatusMutation.isPending}
             onWatchReplay={watchReplay}
-            onSetStatus={(next) =>
+            onSetStatus={canEdit ? (next) =>
               setStatusMutation.mutate({ fingerprint: openFingerprint, status: next })
-            }
+            : undefined}
           />
         )}
       </div>

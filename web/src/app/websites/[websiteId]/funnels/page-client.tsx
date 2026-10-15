@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { usePermissions } from '@/hooks/use-permissions';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -37,6 +38,8 @@ export default function FunnelsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const websiteId = params?.websiteId as string;
+  // Creating, editing and deleting funnels is for members and up; a viewer reads the reports.
+  const { canEdit } = usePermissions(websiteId);
   const isDemoMode = isDemo(websiteId);
 
   const [dateRange, setDateRange] = useState<number>(DEFAULT_FUNNEL_DAYS);
@@ -132,7 +135,7 @@ export default function FunnelsPage() {
   }, [funnels, search]);
 
   const columns = useMemo(() => [
-    selectionColumn<Funnel>(),
+    ...(canEdit ? [selectionColumn<Funnel>()] : []),
     {
       id: 'name',
       header: ({ column }: { column: any }) => <SortableHeader column={column}>Funnel</SortableHeader>,
@@ -193,7 +196,7 @@ export default function FunnelsPage() {
           >
             <Eye size={13} /> View
           </Button>
-          <DropdownMenu>
+          {canEdit && <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                 <MoreVertical size={14} />
@@ -207,11 +210,11 @@ export default function FunnelsPage() {
                 <Trash2 size={12} className="mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu>}
         </div>
       )
     }
-  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading, doubledReports.data, isDemoMode]);
+  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading, doubledReports.data, isDemoMode, canEdit]);
 
 
   // Summary Metrics
@@ -247,13 +250,13 @@ export default function FunnelsPage() {
       >
         <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnels(dateRange)} />
         <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
-        <Button
+        {canEdit && <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}
           size="sm"
           className="gap-1.5"
         >
           <Plus size={14} /> New Funnel
-        </Button>
+        </Button>}
       </DashboardPageHeader>
 
       <StatCards cards={summary} isLoading={funnelsLoading} />
@@ -266,7 +269,7 @@ export default function FunnelsPage() {
           columns={columns as any}
           data={groupFilter ? filtered.filter((f) => inFunnelGroup(f, reportOf(f.id), previousOf(f.id), groupFilter)) : filtered}
           isLoading={funnelsLoading}
-          enableRowSelection={true}
+          enableRowSelection={canEdit}
           selectionActions={(selectedRows) => (
             <>
               <span className="text-sm font-medium text-muted-foreground mr-2">

@@ -7,6 +7,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { usePermissions } from '@/hooks/use-permissions';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
@@ -111,6 +112,9 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
   const router     = useAppNavigation();
   const websiteId  = websiteIdProp ?? segment;
   const isDemoMode = isDemo(websiteId);
+  // Deleting is for members and up; a viewer, like the watch-only embed, only looks.
+  const { canEdit } = usePermissions(embed ? '' : websiteId);
+  const readOnly = embed || !canEdit;
   const queryClient = useQueryClient();
   const { toast }   = useToast();
   const [confirm, confirmDialog] = useConfirm();
@@ -197,7 +201,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
   const activePages = pages.filter(p => p.active).length;
 
   const columns: ColumnDef<PageRow>[] = useMemo(() => [
-    ...(embed ? [] : [selectionColumn<PageRow>()]),
+    ...(readOnly ? [] : [selectionColumn<PageRow>()]),
     {
       id: 'url',
 
@@ -262,7 +266,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
             <Flame className="h-3.5 w-3.5" />
             View
           </Button>
-          {!embed && <Button
+          {!readOnly && <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
@@ -283,7 +287,7 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         </div>
       ),
     },
-  ], [heatmapHref, router, deleteMutation, websiteId, embed]);
+  ], [heatmapHref, router, deleteMutation, websiteId, readOnly]);
 
 
   return (
@@ -329,8 +333,8 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
         data={groupFilter ? filtered.filter((p) => inHeatmapGroup(p, groupFilter)) : filtered}
         columns={columns}
         isLoading={isLoading}
-        enableRowSelection={!embed}
-        selectionActions={embed ? undefined : (selectedRows) => (
+        enableRowSelection={!readOnly}
+        selectionActions={readOnly ? undefined : (selectedRows) => (
           <>
             <span className="text-sm font-medium text-muted-foreground mr-2">
               {selectedRows.length} selected

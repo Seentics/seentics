@@ -4,14 +4,20 @@ import { useQuery } from '@tanstack/react-query';
 import { getMyRole, WebsiteRole } from '@/lib/websites-api';
 import { isValidId } from '@/lib/utils';
 
+/** Least privilege first, as the server orders them (core websites/interfaces roleAtLeast). */
+const ROLE_ORDER = ['viewer', 'member', 'admin', 'owner'] as const;
+const atLeast = (role: WebsiteRole, minimum: (typeof ROLE_ORDER)[number]) =>
+  role !== '' && ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(minimum);
+
 /**
- * Hook that fetches the current user's role for a given website.
- * Returns permission helpers for role-based UI rendering.
+ * The current user's role on a website, and what it lets them do — the same rules the server
+ * enforces, so the dashboard does not offer an action the server will refuse.
  *
- * Roles hierarchy: owner > admin > viewer
- * - owner: full control (billing, delete, manage members/roles)
- * - admin: manage settings, members, analytics (cannot change roles or delete website)
- * - viewer: read-only access to all analytics
+ * - owner: everything, including billing, roles and deleting the website
+ * - admin: settings and members as well
+ * - member: creates, changes and deletes the site's data (automations, funnels, goals,
+ *   heatmaps, recordings, error status)
+ * - viewer: reads everything, changes nothing
  */
 export function usePermissions(websiteId: string) {
   const { data: role = '', isLoading } = useQuery<WebsiteRole>({
@@ -25,20 +31,17 @@ export function usePermissions(websiteId: string) {
   return {
     role,
     isLoading,
-
-    // Role checks
     isOwner: role === 'owner',
     isAdmin: role === 'admin',
     isViewer: role === 'viewer',
     isMember: role !== '',
-
-    // Permission checks (what can the user do?)
-    canEdit: role === 'owner' || role === 'admin',
-    canManageMembers: role === 'owner' || role === 'admin',
+    // Until the role is known, offer nothing that changes data.
+    canEdit: atLeast(role, 'member'),
+    canManageMembers: atLeast(role, 'admin'),
     canChangeRoles: role === 'owner',
     canDeleteWebsite: role === 'owner',
     canManageBilling: role === 'owner',
-    canInviteMembers: role === 'owner' || role === 'admin',
-    canViewAnalytics: role === 'owner' || role === 'admin' || role === 'viewer',
+    canInviteMembers: atLeast(role, 'admin'),
+    canViewAnalytics: role !== '',
   };
 }

@@ -67,7 +67,7 @@ export interface WebsiteMember {
   userEmail?: string;
 }
 
-export type WebsiteRole = 'owner' | 'admin' | 'viewer' | '';
+export type WebsiteRole = 'owner' | 'admin' | 'member' | 'viewer' | '';
 
 export interface WebsiteInvitation {
   id: string;

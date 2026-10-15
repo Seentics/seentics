@@ -74,6 +74,7 @@ import {
  */
 
 import { StatusCell, RowMenu } from '@/components/automations/automation-cells';
+import { usePermissions } from '@/hooks/use-permissions';
 import { ListGroups } from '@/components/ui/list-groups';
 import { AUTOMATION_GROUP_META, AUTOMATION_TONE_DOT, AUTOMATION_TONE_RANK, automationLine, automationTone, inAutomationGroup, type AutomationGroupId } from '@/features/automations/insights';
 import { TRIGGERS, ACTIONS } from '@/features/automations/catalog';
@@ -90,6 +91,8 @@ export default function AutomationsPage() {
   const [groupFilter, setGroupFilter] = useState<AutomationGroupId | null>(null);
   const automations: Automation[] = data?.automations ?? [];
   const bulkDelete = useBulkDeleteAutomations();
+  // A viewer reads; creating, switching and deleting are for members and up.
+  const { canEdit } = usePermissions(websiteId);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -113,7 +116,7 @@ export default function AutomationsPage() {
     : 0;
 
   const columns: ColumnDef<Automation>[] = [
-    selectionColumn<Automation>(),
+    ...(canEdit ? [selectionColumn<Automation>()] : []),
     {
       id: 'name',
       header: ({ column }) => <SortableHeader column={column}>Automation</SortableHeader>,
@@ -162,14 +165,14 @@ export default function AutomationsPage() {
       header: 'Status',
       accessorFn: row => (row.isActive ? 1 : 0),
       size: 160,
-      cell: ({ row }) => <StatusCell automation={row.original} websiteId={websiteId} />,
+      cell: ({ row }) => <StatusCell automation={row.original} websiteId={websiteId} readOnly={!canEdit} />,
     },
     {
       id: 'actions',
       header: '',
       size: 56,
       enableSorting: false,
-      cell: ({ row }) => (
+      cell: ({ row }) => canEdit && (
         <div className="flex justify-end pr-1">
           <RowMenu
             automation={row.original}
@@ -189,19 +192,23 @@ export default function AutomationsPage() {
         title="Automations"
         description="Trigger actions automatically based on user behavior and analytics events."
       >
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
-        >
-          <LayoutTemplate className="h-3.5 w-3.5" />
-          Templates
-        </Button>
-        <Button size="sm" className="gap-1.5" onClick={() => router.push(`/websites/${websiteId}/automations/new`)}>
-          <Plus className="h-3.5 w-3.5" />
-          New automation
-        </Button>
+        {canEdit && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
+            >
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              Templates
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => router.push(`/websites/${websiteId}/automations/new`)}>
+              <Plus className="h-3.5 w-3.5" />
+              New automation
+            </Button>
+          </>
+        )}
       </DashboardPageHeader>
 
       <StatCards
@@ -224,7 +231,7 @@ export default function AutomationsPage() {
         data={groupFilter ? filtered.filter((a) => inAutomationGroup(a, groupFilter)) : filtered}
         columns={columns}
         isLoading={isLoading}
-        enableRowSelection
+        enableRowSelection={canEdit}
         rowClassName={() => 'hover:bg-muted/35'}
         selectionActions={selectedRows => (
           <>

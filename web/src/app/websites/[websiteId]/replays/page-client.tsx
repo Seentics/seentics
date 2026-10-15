@@ -7,6 +7,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { usePermissions } from '@/hooks/use-permissions';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { DataTable } from '@/components/ui/data-table';
@@ -57,6 +58,8 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
   const router = useAppNavigation();
   const websiteId = websiteIdProp ?? segment;
   const isDemoMode = isDemo(websiteId);
+  // Deleting a recording is for members and up; a viewer, like the watch-only embed, only looks.
+  const { canEdit } = usePermissions(embed ? '' : websiteId);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -255,7 +258,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
     () => sessionColumns({
       websiteId,
       onPlay: (sessionId) => router.push(`/websites/${websiteId}/replays/${sessionId}`),
-      readOnly: embed,
+      readOnly: embed || !canEdit,
       // The confirm lived inside the column's cell before it was extracted. It belongs
       // here: the column renders a button, the page decides what destroying a session
       // requires.
@@ -270,7 +273,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
       },
       isMutating: deleteMutation.isPending,
     }),
-    [websiteId, router, deleteMutation, confirm, embed],
+    [websiteId, router, deleteMutation, confirm, embed, canEdit],
   );
 
 
@@ -337,8 +340,8 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         columns={columns}
         isLoading={isLoading || isFetching}
         rowClassName={() => 'hover:bg-muted/35'}
-        enableRowSelection={!embed}
-        selectionActions={embed ? undefined : (selectedRows) => (
+        enableRowSelection={!embed && canEdit}
+        selectionActions={embed || !canEdit ? undefined : (selectedRows) => (
           <>
             <span className="text-sm font-medium text-muted-foreground mr-2">
               {selectedRows.length} selected
