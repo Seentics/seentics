@@ -18,39 +18,32 @@ function makeCtx(headerEntries: Record<string, string> = {}, peerIp?: string): C
 }
 
 describe("clientIpFromRequestHeaders", () => {
-  it("returns cf-connecting-ip when present", () => {
-    const h = makeHeaders({ "cf-connecting-ip": "1.2.3.4", "x-real-ip": "5.6.7.8" });
-    expect(clientIpFromRequestHeaders(h)).toBe("1.2.3.4");
-  });
-
-  it("falls back to true-client-ip when no cf header", () => {
-    const h = makeHeaders({ "true-client-ip": "9.9.9.9", "x-real-ip": "5.5.5.5" });
-    expect(clientIpFromRequestHeaders(h)).toBe("9.9.9.9");
-  });
-
-  it("falls back to x-real-ip when no cf or true-client-ip", () => {
-    const h = makeHeaders({ "x-real-ip": "3.3.3.3" });
-    expect(clientIpFromRequestHeaders(h)).toBe("3.3.3.3");
-  });
-
-  it("returns first IP from x-forwarded-for chain", () => {
-    const h = makeHeaders({ "x-forwarded-for": "10.0.0.1, 172.16.0.1, 1.2.3.4" });
-    expect(clientIpFromRequestHeaders(h)).toBe("10.0.0.1");
-  });
-
-  it("trims whitespace from extracted IP", () => {
+  it("reads the first address of X-Forwarded-For by default", () => {
     const h = makeHeaders({ "x-forwarded-for": "  8.8.8.8 , 1.2.3.4" });
     expect(clientIpFromRequestHeaders(h)).toBe("8.8.8.8");
   });
 
-  it("returns empty string when no relevant headers present", () => {
+  // A proxy that sets only X-Forwarded-For passes these through as the caller sent them:
+  // trusting them first let every request choose a new address and escape per-IP limits.
+  it("ignores CF-Connecting-IP, True-Client-IP and X-Real-IP unless configured", () => {
+    const h = makeHeaders({ "cf-connecting-ip": "6.6.6.6", "true-client-ip": "7.7.7.7", "x-real-ip": "9.9.9.9", "x-forwarded-for": "1.2.3.4" });
+    expect(clientIpFromRequestHeaders(h)).toBe("1.2.3.4");
+    expect(clientIpFromRequestHeaders(makeHeaders({ "cf-connecting-ip": "6.6.6.6" }))).toBe("");
+  });
+
+  it("reads the configured header instead", () => {
+    const h = makeHeaders({ "cf-connecting-ip": "6.6.6.6", "x-forwarded-for": "1.2.3.4" });
+    expect(clientIpFromRequestHeaders(h, "cf-connecting-ip")).toBe("6.6.6.6");
+  });
+
+  it("returns empty string when the header is absent", () => {
     expect(clientIpFromRequestHeaders(makeHeaders({}))).toBe("");
   });
 });
 
 describe("getClientIp (trustProxy=true)", () => {
   it("returns forwarded header ip when trustProxy is true", () => {
-    const ctx = makeCtx({ "cf-connecting-ip": "1.2.3.4" }, "10.0.0.1");
+    const ctx = makeCtx({ "x-forwarded-for": "1.2.3.4" }, "10.0.0.1");
     expect(getClientIp(ctx, true)).toBe("1.2.3.4");
   });
 
@@ -89,13 +82,13 @@ describe("clientIpForIngest — private IP detection", () => {
     expect(ip).toBe("::1");
   });
 
-  it("returns cf-connecting-ip even without trustProxy (safe CF header)", () => {
+  it("does not trust cf-connecting-ip without trustProxy: any caller can send it", () => {
     const ctx = makeCtx({ "cf-connecting-ip": "5.6.7.8" }, "10.0.0.1");
-    expect(clientIpForIngest(ctx, false, PROD)).toBe("5.6.7.8");
+    expect(clientIpForIngest(ctx, false, PROD)).toBe("10.0.0.1");
   });
 
   it("returns forwarded header ip with trustProxy=true", () => {
-    const ctx = makeCtx({ "x-real-ip": "4.4.4.4" }, "127.0.0.1");
+    const ctx = makeCtx({ "x-real-ip": "6.6.6.6", "x-forwarded-for": "4.4.4.4" }, "127.0.0.1");
     expect(clientIpForIngest(ctx, true, PROD)).toBe("4.4.4.4");
   });
 

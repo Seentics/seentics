@@ -27,27 +27,23 @@ function isNonPublicClientIp(ip: string): boolean {
 }
 
 /**
- * Best-effort client IP for GeoIP. When you terminate TLS at a proxy, ensure it sets
- * cf-connecting-ip, true-client-ip, x-real-ip, or a trustworthy x-forwarded-for chain,
- * and set TRUST_PROXY=true so these headers are honored for rate limiting and ingest.
+ * The one header the proxy in front of Core is configured to set (`CLIENT_IP_HEADER`,
+ * X-Forwarded-For by default), honoured only with TRUST_PROXY=true.
+ *
+ * Never the first of several candidates. This read CF-Connecting-IP, True-Client-IP and
+ * X-Real-IP ahead of X-Forwarded-For, but a proxy that sets only X-Forwarded-For (Caddy,
+ * Next.js, Traefik, the gateway) passes the others through as the caller sent them: a new
+ * address in CF-Connecting-IP on every request escaped every per-IP limit — sign-in brute
+ * force included — and chose the visitor's country. Set CLIENT_IP_HEADER=CF-Connecting-IP
+ * only when the origin accepts connections from Cloudflare alone. The gateway resolves the
+ * address the same way (gateway/lib/client-ip.ts).
  */
-export function clientIpFromRequestHeaders(headers: Headers): string {
-  const cf = headers.get("cf-connecting-ip")?.trim();
-  if (cf) return cf;
+export function clientIpFromRequestHeaders(headers: Headers, header = configuredClientIpHeader()): string {
+  return headers.get(header)?.split(",")[0]?.trim() ?? "";
+}
 
-  const trueClient = headers.get("true-client-ip")?.trim();
-  if (trueClient) return trueClient;
-
-  const realIp = headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const xff = headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-
-  return "";
+function configuredClientIpHeader(): string {
+  return (process.env.CLIENT_IP_HEADER ?? "").trim().toLowerCase() || "x-forwarded-for";
 }
 
 /**
@@ -70,11 +66,12 @@ export function getClientIp(c: Context, trustProxy: boolean): string {
 }
 
 /**
- * GeoIP source IP: honors proxy headers when TRUST_PROXY=true.
- * When TRUST_PROXY=false and the TCP peer is private (typical Cloudflare → gateway → core),
- * cf-connecting-ip is still used unconditionally — Cloudflare strips any client-supplied value
- * before setting its own, so it is safe without TRUST_PROXY. Other forwarded headers
- * (x-real-ip, x-forwarded-for) are only trusted in non-production to avoid spoofing.
+ * GeoIP source IP: honors the proxy's header when TRUST_PROXY=true.
+ * When TRUST_PROXY=false, the TCP peer; forwarded headers are trusted only outside
+ * production, so MaxMind resolves locally. CF-Connecting-IP used to be trusted here
+ * unconditionally, but it is only Cloudflare's when the origin is reachable through
+ * Cloudflare alone — otherwise any caller sets it. Behind Cloudflare, set TRUST_PROXY=true
+ * and CLIENT_IP_HEADER=CF-Connecting-IP.
  */
 export function clientIpForIngest(c: Context, trustProxy: boolean, isProduction: boolean): string {
   const headers = c.req.raw.headers;
@@ -89,11 +86,6 @@ export function clientIpForIngest(c: Context, trustProxy: boolean, isProduction:
 
   // Direct public connection — peer is the actual visitor.
   if (peer && !isNonPublicClientIp(peer)) return peer;
-
-  // Behind Cloudflare: cf-connecting-ip is injected by CF infrastructure and
-  // is not spoofable by the client, so safe to trust for geo even without TRUST_PROXY.
-  const cfIp = headers.get("cf-connecting-ip")?.trim();
-  if (cfIp) return cfIp;
 
   // Development fallback: trust any forwarded header so MaxMind resolves locally.
   if (!isProduction) {
