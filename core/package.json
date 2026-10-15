@@ -13,6 +13,7 @@
     "verify:forms-flow": "bun run scripts/verify-forms-flow.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "test:integration": "bash scripts/test-integration.sh",
     "eval:ai": "bun run evals/ai/run.ts"
   },
   "dependencies": {

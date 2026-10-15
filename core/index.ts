@@ -1,20 +1,10 @@
-import { Hono } from "hono";
 import { env } from "./config";
 import { runCoreMigrations } from "./db/migrate";
 import { configureLogger, log } from "./platform/observability/logger";
 import { SEENTICS_PEER_IP_HEADER } from "./platform/http/client-ip";
-import { handleAppError } from "./platform/http/error-handler";
 import { bootstrap } from "./app/bootstrap";
-import { corsMiddleware } from "./platform/middleware/cors";
-import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
-import { requestLogMiddleware } from "./platform/middleware/request-log";
-import { requestSpans, shutdownObserve } from "./platform/observability/observe";
-import { isGlobalApiKeyValid } from "./platform/security/global-key";
-import { privacyRoutes } from "./app/http/privacy";
-import { createRawDataRoutes } from "./app/http/public-api/routes";
-import { createManagementRoutes } from "./app/http/management-api/routes";
-import { createEmbedRoutes } from "./app/http/embed/routes";
-import { createUserBranchRoutes } from "./app/http/user-branch";
+import { shutdownObserve } from "./platform/observability/observe";
+import { createHttpApp } from "./app/http-app";
 
 
 type BunServerWithRequestIp = {
@@ -40,9 +30,6 @@ const core_log = log.child({ category: 'startup' });
 
 let ready = false;
 
-const app = new Hono();
-app.onError(handleAppError);
-
 // Compose the modular graph: infrastructure, then modules, then their routes. Each
 // module is built by its own `init.ts` and receives its peer modules through interfaces
 // — and because every member of an `XModule` interface is itself an interface, no
@@ -56,90 +43,7 @@ app.onError(handleAppError);
 // lives inside the analytics router, behind auth — see `middleware/analytics-cache.ts`.
 const application = bootstrap(cfg, core_log);
 
-// The span first, so the request's own log line carries its trace id.
-app.use("*", requestSpans());
-app.use("*", requestLogMiddleware(cfg));
-app.use("*", rateLimitMiddleware(cfg));
-app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
-
-// Return 503 while migrations are running so the healthcheck waits without counting failures
-app.get("/health", (c) => ready ? c.text("ok") : c.text("starting", 503));
-
-// Core is a downstream service in managed Cloud. This closes a directly
-// reachable debug port as a route around Gateway auth, quotas, and auditing.
-app.use("/api/*", async (c, next) => {
-  if (!cfg.gatewayOnly || isGlobalApiKeyValid(cfg, c.req.header("X-API-Key"))) return next();
-  return c.json({ error: "Gateway authentication required" }, 401);
-});
-
-app.route("/api/v1/auth", application.modules.auth.routes);
-app.route(
-  "/api/v1/user",
-  createUserBranchRoutes({
-    websites: application.routes.websites,
-    invitations: application.modules.websites.invitations,
-    authModule: application.modules.auth,
-    agency: {
-      clients: application.modules.websites.agencyRoutes,
-      apiKeys: application.modules.apiKeys.accountRoutes,
-      embedLinks: application.modules.apiKeys.embedRoutes,
-    },
-  }),
-);
-app.route("/api/v1/ai", application.routes.ai);
-app.route("/api/v1/analytics", application.routes.analytics);
-app.route(
-  "/api/v1/raw",
-  createRawDataRoutes({
-    analytics: application.modules.analytics.reads,
-    apiKeys: application.modules.apiKeys.verifier,
-    ports: {
-      analyticsEvents: application.modules.analytics.rawEvents,
-      heatmaps: application.modules.heatmaps.rawReads,
-      recordings: application.modules.recordings.rawReads,
-    },
-  }),
-);
-// Provisioning clients and websites with an account API key — what a multi-tenant
-// platform calls from its own signup handler. See app/http/management-api/routes.ts.
-app.route(
-  "/api/v1/manage",
-  createManagementRoutes({
-    accountKeys: application.modules.apiKeys.accountVerifier,
-    embedLinks: application.modules.apiKeys.embedLinks,
-    clients: application.modules.websites.clients,
-    ownedWebsites: application.modules.websites.ownedWebsites,
-    routers: application.modules.websites.managementRoutes,
-  }),
-);
-// Iframed dashboards, read with a permanent, revocable embed link's token. See app/http/embed/routes.ts.
-app.route(
-  "/api/v1/embed",
-  createEmbedRoutes({
-    embedLinks: application.modules.apiKeys.embedLinks,
-    clients: application.modules.websites.clients,
-    analytics: application.modules.analytics.reads,
-    websites: application.modules.websites.query,
-    recordings: application.modules.recordings.reads,
-    heatmaps: application.modules.heatmaps.reads,
-    stylesheets: application.modules.recordings.stylesheets,
-  }),
-);
-app.route("/api/v1/privacy", privacyRoutes);
-app.route("/api/v1/internal", application.routes.internal);
-
-app.route("/api/v1/funnels", application.routes.funnels.publicRoutes);
-app.route("/api/v1/websites", application.routes.websites);
-app.route("/api/v1/websites", application.routes.funnels.authRoutes);
-app.route("/api/v1/automations", application.routes.automations);
-app.route("/api/v1/leads", application.routes.leads);
-app.route("/api/v1/integrations", application.routes.integrations);
-
-app.route("/api/v1/replays", application.routes.recordings);
-app.route("/api/v1/heatmaps", application.routes.heatmaps);
-app.route("/api/v1/errors", application.routes.errors);
-app.route("/api/v1/tracker", application.routes.tracker);
-app.route("/api/v1/tracker/leads", application.routes.leadsTracker);
+const app = createHttpApp(cfg, application, () => ready);
 
 const port = cfg.port;
 
