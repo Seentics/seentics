@@ -30,6 +30,9 @@ let getPageUtmBreakdownAnalytics: Repo;
 let getDimensionsBulkAnalytics: Repo;
 
 beforeAll(async () => {
+  // These are the raw-event reads: pinned here, not inherited from whichever test file ran
+  // before and left the rollups switch on (that made this file fail now and then).
+  (await import("../rollups/reads")).setRollupsEnabled(false);
   ({ getPagesAnalytics } = (await import("../repositories/pages.repository")) as never);
   ({ getReferrersAnalytics } = (await import("../repositories/referrers.repository")) as never);
   ({ getSourcesAnalytics } = (await import("../repositories/sources.repository")) as never);

@@ -366,8 +366,11 @@ export const updateMemberRole = async (websiteId: string, userId: string, role: 
 export const getMyRole = async (websiteId: string): Promise<WebsiteRole> => {
   if (isDemo(websiteId)) return 'owner'; // demo mode always has full access
   try {
+    // The server answers `{ data: { role } }`. Reading `response.data.role` gave every user an
+    // empty role, so anything gated on it was hidden from owners too.
     const response = await api.get(`/user/websites/${websiteId}/my-role`);
-    return response.data.role || '';
+    const body = response.data as { data?: { role?: WebsiteRole }; role?: WebsiteRole };
+    return body?.data?.role ?? body?.role ?? '';
   } catch {
     return '';
   }
