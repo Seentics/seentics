@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
+import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { PathOverrideProvider } from '@/lib/path-segment';
 import { DashboardMock } from './mocks/DashboardMock';
 import { MockNavContext, MockSidebar, useMockContentProps, type MockNavLabel } from './mocks/MockSidebar';
 import { LazyAutomationBuilderMock, LazyFunnelMock, LazyHeatmapMock, LazyReplayMock } from './mocks/lazy';
@@ -19,12 +22,61 @@ function AutomationsScreen() {
   );
 }
 
+/**
+ * The real pages, as the demo site shows them: rendered beside the mock sidebar, reading
+ * `/websites/demo/...` as their path, so they draw their demo data. Loaded on demand.
+ */
+const loadingPage = () => <div className="h-full w-full bg-background" />;
+const ErrorsPage = dynamic(() => import('@/app/websites/[websiteId]/errors/page-client'), { ssr: false, loading: loadingPage });
+const RevenuePage = dynamic(() => import('@/app/websites/[websiteId]/revenue/page-client'), { ssr: false, loading: loadingPage });
+const AiReportsPage = dynamic(() => import('@/app/websites/[websiteId]/ai-reports/page-client'), { ssr: false, loading: loadingPage });
+const DevelopersPage = dynamic(() => import('@/app/websites/[websiteId]/agency/page-client'), { ssr: false, loading: loadingPage });
+const SettingsLayout = dynamic(() => import('@/app/websites/[websiteId]/settings/layout'), { ssr: false, loading: loadingPage });
+const SettingsPage = dynamic(() => import('@/app/websites/[websiteId]/settings/websites/page-client'), { ssr: false, loading: loadingPage });
+
+/**
+ * A router that goes nowhere, for the real pages inside the preview. They navigate on their
+ * own (the settings index redirects to its first tab, rows open details), and with the app's
+ * router that took the whole landing page with them — to the demo, then to sign-in.
+ */
+const STAY: AppRouterInstance = {
+  back: () => {},
+  forward: () => {},
+  refresh: () => {},
+  push: () => {},
+  replace: () => {},
+  prefetch: () => {},
+};
+
+function RealPage({ label, path, children }: { label: MockNavLabel; path: string; children: ReactNode }) {
+  const contentProps = useMockContentProps();
+  return (
+    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+      <MockSidebar active={label} />
+      <div {...contentProps} className="min-w-0 flex-1 overflow-hidden bg-background">
+        <AppRouterContext.Provider value={STAY}>
+          <PathOverrideProvider path={path}>{children}</PathOverrideProvider>
+        </AppRouterContext.Provider>
+      </div>
+    </div>
+  );
+}
+
 const SCREENS: Record<string, ComponentType> = {
   Overview: DashboardMock,
   Recording: LazyReplayMock,
   Heatmaps: LazyHeatmapMock,
   Funnels: LazyFunnelMock,
   Automations: AutomationsScreen,
+  Revenue: () => <RealPage label="Revenue" path="/websites/demo/revenue"><RevenuePage /></RealPage>,
+  'AI Reports': () => <RealPage label="AI Reports" path="/websites/demo/ai-reports"><AiReportsPage /></RealPage>,
+  Errors: () => <RealPage label="Errors" path="/websites/demo/errors"><ErrorsPage /></RealPage>,
+  Developers: () => <RealPage label="Developers" path="/websites/demo/agency"><DevelopersPage /></RealPage>,
+  Settings: () => (
+    <RealPage label="Settings" path="/websites/demo/settings/websites">
+      <SettingsLayout><SettingsPage /></SettingsLayout>
+    </RealPage>
+  ),
 };
 const VIEWS = Object.keys(SCREENS) as MockNavLabel[];
 

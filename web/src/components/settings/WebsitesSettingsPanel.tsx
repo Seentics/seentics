@@ -55,6 +55,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Card, CardContent } from '@/components/ui/card';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { isDemo, demoMutationGuard, demoWebsite } from '@/lib/demo';
+import { usePathSegment } from '@/lib/path-segment';
 
 function trackingSnippetFor(id: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://analytics.seentics.com';
@@ -78,7 +79,9 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const onDemoSite = typeof window !== 'undefined' && isDemo(window.location.pathname.split('/')[2] ?? '');
+  // The shared reader of the site in the path (lib/path-segment), like the rest of the app:
+  // it also answers for the landing page's preview, which shows this page as the demo's.
+  const onDemoSite = isDemo(usePathSegment(1) ?? '');
   const [listLoading, setListLoading] = useState(true);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [addOpen, setAddOpen] = useState(false);

@@ -28,7 +28,7 @@ export default function Hero() {
   });
 
   return (
-    <section className="relative overflow-hidden pt-28 sm:pt-32">
+    <section className="relative overflow-hidden pt-36 sm:pt-48 lg:pt-56">
       <div className="lx-container relative">
 
         <motion.h1
