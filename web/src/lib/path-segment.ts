@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
 
 /**
@@ -34,12 +35,15 @@ export function PathOverrideProvider({ path, children }: { path: string; childre
 export function usePathSegment(indexFromStart: number): string | null {
   const override = useContext(PathOverride);
   const [value, setValue] = useState<string | null>(null);
+  // Only a trigger: a client-side navigation (the website switcher's router.push) keeps
+  // the layout mounted, so the URL has to be read again whenever the path changes.
+  const pathname = usePathname();
 
   useEffect(() => {
     if (override !== null) return;
     const segments = window.location.pathname.split('/').filter(Boolean);
     setValue(segments[indexFromStart] ?? null);
-  }, [indexFromStart, override]);
+  }, [indexFromStart, override, pathname]);
 
   if (override !== null) return override.split('/').filter(Boolean)[indexFromStart] ?? null;
   return value;
