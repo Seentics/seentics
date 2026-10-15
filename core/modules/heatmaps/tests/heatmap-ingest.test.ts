@@ -27,6 +27,8 @@ mock.module("../repositories/heatmap-writes.repository", () => ({
     return rows.length;
   },
   deleteHeatmaps: async () => {},
+  heatmapPageObjectKeys: async () => [],
+  deleteHeatmapPageSnapshots: async () => {},
 }));
 
 /** Batch ids already applied, standing in for the marker table. */

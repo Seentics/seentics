@@ -1,6 +1,8 @@
 import { normalizeHeatmapPagePath } from "../lib/paths";
 import type { HeatmapMutations } from "../interfaces";
-import { deleteHeatmaps } from "../repositories/heatmap-writes.repository";
+import { env } from "../../../config";
+import { deleteS3Objects } from "../../../platform/storage/s3";
+import { deleteHeatmapPageSnapshots, deleteHeatmaps, heatmapPageObjectKeys } from "../repositories/heatmap-writes.repository";
 import { decodeJpegUpload, storeDashboardScreenshot } from "./heatmap-layout-snapshot.service";
 
 /** Dashboard-authenticated screenshot and deletion operations. */
@@ -17,7 +19,16 @@ export class HeatmapMutationService implements HeatmapMutations {
     await storeDashboardScreenshot(websiteId, normalizedPath, jpeg, docWidth, docHeight);
   }
 
+  /**
+   * The page's clicks, and its backgrounds: deleting only the points left every screenshot
+   * and copy of the page in storage, and the page still showed its background afterwards.
+   * Objects before rows, so a failed object delete leaves rows that can find them again.
+   */
   async bulkDeletePages(websiteId: string, pagePaths: string[]): Promise<void> {
     await deleteHeatmaps(websiteId, pagePaths);
+    const normalized = [...new Set(pagePaths.map(normalizeHeatmapPagePath))];
+    const keys = await heatmapPageObjectKeys(websiteId, normalized);
+    if (keys.length) await deleteS3Objects(env().s3.heatmapBucket, keys);
+    await deleteHeatmapPageSnapshots(websiteId, normalized);
   }
 }

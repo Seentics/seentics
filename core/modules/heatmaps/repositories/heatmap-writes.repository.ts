@@ -140,3 +140,23 @@ export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Pr
       )
   `;
 }
+
+/**
+ * The stored objects behind the pages' backgrounds: screenshots and HTML copies, the
+ * canonical one and every page variant's. Keyed by the normalised path they are stored under.
+ */
+export async function heatmapPageObjectKeys(websiteId: string, normalizedPaths: string[]): Promise<string[]> {
+  if (normalizedPaths.length === 0) return [];
+  const rows = await sql<{ key: string | null }[]>`
+    SELECT s3_key AS key FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${normalizedPaths})
+    UNION SELECT html_s3_key FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${normalizedPaths})
+    UNION SELECT html_s3_key FROM heatmap_page_versions WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${normalizedPaths})
+  `;
+  return rows.map((r) => r.key).filter((k): k is string => Boolean(k));
+}
+
+export async function deleteHeatmapPageSnapshots(websiteId: string, normalizedPaths: string[]): Promise<void> {
+  if (normalizedPaths.length === 0) return;
+  await sql`DELETE FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${normalizedPaths})`;
+  await sql`DELETE FROM heatmap_page_versions WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${normalizedPaths})`;
+}
