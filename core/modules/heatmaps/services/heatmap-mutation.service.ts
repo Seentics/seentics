@@ -25,8 +25,10 @@ export class HeatmapMutationService implements HeatmapMutations {
    * Objects before rows, so a failed object delete leaves rows that can find them again.
    */
   async bulkDeletePages(websiteId: string, pagePaths: string[]): Promise<void> {
-    await deleteHeatmaps(websiteId, pagePaths);
+    // Points by the paths as sent and as stored: "/gone/" must remove the points kept under
+    // "/gone", or the page kept its clicks while losing its background.
     const normalized = [...new Set(pagePaths.map(normalizeHeatmapPagePath))];
+    await deleteHeatmaps(websiteId, [...new Set([...pagePaths, ...normalized])]);
     const keys = await heatmapPageObjectKeys(websiteId, normalized);
     if (keys.length) await deleteS3Objects(env().s3.heatmapBucket, keys);
     await deleteHeatmapPageSnapshots(websiteId, normalized);
