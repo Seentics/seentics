@@ -75,7 +75,7 @@ function makeWebsite(): Website {
 
 function makeFunnel(overrides: Partial<Funnel> = {}): Funnel {
   return {
-    id: "fn_1",
+    id: "11111111-1111-4111-8111-111111111111",
     website_id: WEBSITE_UUID,
     user_id: OWNER,
     name: "Checkout",
@@ -286,10 +286,10 @@ describe("funnel routes", () => {
     it("guards writes as well as reads", async () => {
       const paths: [string, string][] = [
         ["POST", `/api/v1/websites/${WEBSITE_UUID}/funnels`],
-        ["PUT", `/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1`],
-        ["DELETE", `/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1`],
+        ["PUT", `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`],
+        ["DELETE", `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`],
         ["DELETE", `/api/v1/websites/${WEBSITE_UUID}/funnels/bulk-delete`],
-        ["GET", `/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1/stats`],
+        ["GET", `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats`],
       ];
 
       for (const [method, path] of paths) {
@@ -312,7 +312,7 @@ describe("funnel routes", () => {
       expect((await app.request(path)).status).toBe(401);
       const response = await asOwner(path);
       expect(response.status).toBe(200);
-      expect((await response.json()).data.fn_1).toEqual(funnels.report_);
+      expect((await response.json()).data["11111111-1111-4111-8111-111111111111"]).toEqual(funnels.report_);
       expect((await app.request(path, { headers: { "X-Test-User": "stranger" } })).status).toBe(403);
     });
     it("wraps the list in `data`", async () => {
@@ -322,13 +322,13 @@ describe("funnel routes", () => {
     });
 
     it("wraps one funnel in `data`", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1`);
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`);
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ data: funnels.funnels[0] });
     });
 
     it("answers 404 for a funnel that does not exist", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/missing`);
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/22222222-2222-4222-8222-222222222222`);
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "not found" });
     });
@@ -371,18 +371,18 @@ describe("funnel routes", () => {
 
   describe("update", () => {
     it("answers 200 with the funnel under `data`", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1`, {
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Renamed" }),
       });
 
       expect(res.status).toBe(200);
-      expect(funnels.updated).toEqual([{ funnelId: "fn_1", input: { name: "Renamed" } }]);
+      expect(funnels.updated).toEqual([{ funnelId: "11111111-1111-4111-8111-111111111111", input: { name: "Renamed" } }]);
     });
 
     it("answers 404 when nothing matched", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/missing`, {
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/22222222-2222-4222-8222-222222222222`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Renamed" }),
@@ -393,17 +393,17 @@ describe("funnel routes", () => {
 
   describe("delete", () => {
     it("answers 204 with an empty body", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1`, {
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`, {
         method: "DELETE",
       });
 
       expect(res.status).toBe(204);
       expect(await res.text()).toBe("");
-      expect(funnels.removed).toEqual(["fn_1"]);
+      expect(funnels.removed).toEqual(["11111111-1111-4111-8111-111111111111"]);
     });
 
     it("answers 204 for a funnel that was already gone", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/missing`, {
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/22222222-2222-4222-8222-222222222222`, {
         method: "DELETE",
       });
       expect(res.status).toBe(204);
@@ -448,25 +448,25 @@ describe("funnel routes", () => {
 
   describe("stats", () => {
     it("wraps the report in `data`", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1/stats`);
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats`);
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ data: funnels.report_ });
     });
 
     it("answers 404 for a funnel that does not exist", async () => {
       funnels.report_ = null;
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/missing/stats`);
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/22222222-2222-4222-8222-222222222222/stats`);
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "not found" });
     });
 
     it("forwards `days` as a number", async () => {
-      await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1/stats?days=7`);
+      await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats?days=7`);
       expect(funnels.reportArgs[0]?.days).toBe(7);
     });
 
     it("omits `days` when absent so the service applies its default", async () => {
-      await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1/stats`);
+      await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats`);
       expect(funnels.reportArgs[0]?.days).toBeUndefined();
     });
 
@@ -474,7 +474,7 @@ describe("funnel routes", () => {
     // forwards the unparseable value and lets the service clamp it.
     it("forwards an unparseable `days` rather than rejecting the request", async () => {
       const res = await asOwner(
-        `/api/v1/websites/${WEBSITE_UUID}/funnels/fn_1/stats?days=last-month`,
+        `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats?days=last-month`,
       );
       expect(res.status).toBe(200);
       expect(funnels.reportArgs[0]?.days).toBeNaN();
