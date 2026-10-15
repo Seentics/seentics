@@ -3,7 +3,7 @@ import type { SessionSummaryInput } from "../../recordings/interfaces";
 import type { LlmClient } from "../interfaces/llm-client.interface";
 import { buildSessionBrief, clock } from "../sessions/brief";
 import { normaliseOutcome, parseSessionSummary } from "../sessions/output";
-import { ruleOutcome, ruleSummary } from "../sessions/rules";
+import { ruleOutcome, ruleSummary, stageOf, worthModel } from "../sessions/rules";
 import { SessionSummaryService } from "../sessions/summarizer";
 
 /** The broken-coupon session: a product page, then rage and error clicks on /cart. */
@@ -127,9 +127,11 @@ describe("parsing the model's answer", () => {
 describe("the rule-based summary", () => {
   it("states what happened from the stored fields only", () => {
     const s = ruleSummary(input());
-    expect(s.text).toContain("3 pages, starting on / and ending on /cart");
-    expect(s.text).toContain('hit an error after clicking button "Apply" on /cart');
-    expect(s.text).toContain("6 JavaScript errors were recorded");
+    expect(s.text).toBe(
+      'The visitor went from / to /products/trailhead-32l to /cart in 40s. On /cart they hit an error after clicking button "Apply" 6 times, '
+      + "then rage-clicked it 5 times. 6 failed requests were recorded. They left from /cart without checking out.",
+    );
+    expect(s.intent).toBe("Buy something (put items in the cart)");
     expect(s.outcome).toBe("struggled");
     expect(s.moments.map((m) => m.atMs)).toEqual([32_409, 34_281]);
   });
@@ -138,8 +140,38 @@ describe("the rule-based summary", () => {
     const quiet = { score: 0, counts: {}, signals: [] };
     expect(ruleOutcome(input({ ...quiet, timeline: { ...input().timeline, goal: { reached: true, page: "/thank-you" } } }))).toBe("succeeded");
     expect(ruleOutcome(input({ score: 20, counts: { form_abandon: 1 } }))).toBe("abandoned");
-    const calm = { ...quiet, timeline: { ...input().timeline, errors: [], errorCount: 0 } };
+    const calm = { ...quiet, timeline: { ...input().timeline, errors: [], errorCount: 0, failedRequests: 0, pages: [{ path: "/docs/setup", atMs: 0, dwellMs: 40_000 }] } };
     expect(ruleSummary(input(calm)).text).toContain("Nothing in the recording suggests they ran into problems.");
+  });
+});
+
+describe("the template's reading of a visit", () => {
+  it("reads what the visitor was after from the deepest kind of page they reached", () => {
+    expect(stageOf("/checkout/payment")).toBe("checkout");
+    expect(stageOf("/en/pricing")).toBe("pricing");
+    expect(stageOf("/products/:id")).toBe("product");
+    expect(stageOf("/about")).toBeNull();
+    const pages = (...paths: string[]) => ({ ...input().timeline, pages: paths.map((path, i) => ({ path, atMs: i * 1000, dwellMs: 1000 })) });
+    expect(ruleSummary(input({ timeline: pages("/blog/x", "/pricing", "/signup") })).intent).toBe("Sign up");
+    expect(ruleSummary(input({ timeline: pages("/docs/setup") })).intent).toBe("Find an answer in the docs");
+  });
+
+  it("tells a converted visit and an unsent form by how they ended", () => {
+    const quiet = { score: 0, counts: {}, signals: [] };
+    const won = ruleSummary(input({ ...quiet, timeline: { ...input().timeline, errorCount: 0, failedRequests: 0, goal: { reached: true, page: "/thank-you" } } }));
+    expect(won.text).toContain("They reached /thank-you, so the visit ended in a conversion.");
+    expect(won.text).toContain('They clicked button "Add to cart" on /products/trailhead-32l.');
+    const form = ruleSummary(input({ score: 30, counts: { form_abandon: 1 }, signals: [{ type: "form_abandon", atMs: 5000, page: "/contact" }], timeline: { ...input().timeline, fieldsTouched: 3 } }));
+    expect(form.text).toContain("They typed into 3 form fields but never submitted.");
+    expect(form.text).not.toContain("without submitting it");
+  });
+
+  it("asks the model only when there is a story to read", () => {
+    expect(worthModel(input())).toBe(true);
+    const calm = { score: 0, counts: {}, signals: [], timeline: { ...input().timeline, errorCount: 0, failedRequests: 0 } };
+    expect(worthModel(input(calm))).toBe(false);
+    const bounce = { timeline: { ...input().timeline, durationMs: 9000, pages: [{ path: "/", atMs: 0, dwellMs: 9000 }] } };
+    expect(worthModel(input(bounce))).toBe(false);
   });
 });
 

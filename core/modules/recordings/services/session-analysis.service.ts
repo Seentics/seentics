@@ -8,6 +8,7 @@ import type {
   SessionAnalysisView,
   SessionSummarizer,
   SessionSummary,
+  SessionSummaryInput,
   SessionSummaryStatus,
   SummaryRunStats,
 } from "../interfaces";
@@ -120,8 +121,9 @@ export class SessionAnalysisService implements SessionAnalysisReads, SessionAnal
     this.now = deps.now ?? (() => new Date());
   }
 
+  /** Whether summaries can be worded by a model (the template needs none). */
   summariesEnabled(): boolean {
-    return this.deps.summarizer() !== null;
+    return this.deps.summarizer()?.modelConfigured === true;
   }
 
   /**
@@ -223,39 +225,41 @@ export class SessionAnalysisService implements SessionAnalysisReads, SessionAnal
     const summarizer = this.deps.summarizer();
     const existing = { summary: a.summary, source: a.summarySource };
     const current = !!a.summary && !!a.summaryAnalysisAt && a.summaryAnalysisAt.getTime() >= a.computedAt.getTime();
-    const retryable = a.summarySource === "rules" && a.summaryModel === null && summarizer !== null;
+    const retryable = a.summarySource === "rules" && a.summaryModel === null && summarizer?.modelConfigured === true;
     if (current && !retryable) return { ...existing, status: "ready", generated: false };
     if (!summarizer) return a.summary ? { ...existing, status: "ready", generated: false } : { summary: null, source: null, status: "unavailable", generated: false };
     if (a.status !== "ready" || !a.timeline) return { summary: null, source: null, status: "no_data", generated: false };
+
+    const input: SessionSummaryInput = {
+      websiteId: s.websiteId,
+      sessionId: s.sessionId,
+      device: s.device,
+      browser: s.browser,
+      os: s.os,
+      country: s.country,
+      score: a.score,
+      counts: a.counts,
+      signals: a.signals,
+      timeline: a.timeline,
+    };
+    // The template, unsaved: free and instant. Served when a model would add nothing (a calm visit,
+    // a bounce), when there is none, and in place of "try later" when the model cannot be asked now.
+    const template = (): EnsuredSummary => ({ summary: summarizer.template(input), source: "rules", status: "ready", generated: false });
+    if (!summarizer.modelConfigured || !summarizer.worthModel(input)) return a.summary ? { ...existing, status: "ready", generated: false } : template();
 
     const { config, store } = this.deps;
     const now = this.now();
     const used = await store.countSummariesSince(s.websiteId, new Date(now.getTime() - 86_400_000));
     if (used >= config.dailySummaryCap) {
-      return a.summary ? { ...existing, status: "ready", generated: false } : { summary: null, source: null, status: "limit", generated: false };
+      return a.summary ? { ...existing, status: "ready", generated: false } : template();
     }
     const claimed = await store.claimSummary(s.websiteId, s.sessionId, new Date(now.getTime() - config.summaryCooldownMs));
     if (!claimed) {
-      const since = a.summaryAttemptedAt ? now.getTime() - a.summaryAttemptedAt.getTime() : 0;
-      const retryAfterSec = Math.max(1, Math.ceil((config.summaryCooldownMs - since) / 1000));
-      return a.summary
-        ? { ...existing, status: "ready", generated: false }
-        : { summary: null, source: null, status: "cooldown", retryAfterSec, generated: false };
+      return a.summary ? { ...existing, status: "ready", generated: false } : template();
     }
 
     try {
-      const result = await summarizer.summarize({
-        websiteId: s.websiteId,
-        sessionId: s.sessionId,
-        device: s.device,
-        browser: s.browser,
-        os: s.os,
-        country: s.country,
-        score: a.score,
-        counts: a.counts,
-        signals: a.signals,
-        timeline: a.timeline,
-      });
+      const result = await summarizer.summarize(input);
       await store.saveSummary(s.websiteId, s.sessionId, {
         summary: result.summary,
         source: result.source,
@@ -276,7 +280,7 @@ export class SessionAnalysisService implements SessionAnalysisReads, SessionAnal
       };
     } catch (err) {
       log.warn({ msg: "session_summary_failed", website_id: s.websiteId, session_id: s.sessionId, err: String(err) });
-      return a.summary ? { ...existing, status: "ready", generated: false } : { summary: null, source: null, status: "failed", generated: false };
+      return a.summary ? { ...existing, status: "ready", generated: false } : template();
     }
   }
 
@@ -326,7 +330,7 @@ export class SessionAnalysisService implements SessionAnalysisReads, SessionAnal
   async summarizeTop(): Promise<SummaryRunStats> {
     const stats: SummaryRunStats = { generated: 0, skipped: 0, failed: 0, tokens: 0, costUsd: 0 };
     const { config, store } = this.deps;
-    if (!this.deps.summarizer() || config.nightlyPerSite <= 0 || config.nightlyMaxTotal <= 0) return stats;
+    if (!this.summariesEnabled() || config.nightlyPerSite <= 0 || config.nightlyMaxTotal <= 0) return stats;
     const candidates = await store.listSummaryCandidates({
       since: new Date(this.now().getTime() - config.nightlyLookbackMs),
       minScore: config.nightlyMinScore,

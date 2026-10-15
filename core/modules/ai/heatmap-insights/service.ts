@@ -88,7 +88,8 @@ export class HeatmapInsightService implements HeatmapInsightNarrator {
     if (!analysis.sufficient || !analysis.signals.length) {
       return { source: 'rules', findings: [], generated_at: now.toISOString(), reason: analysis.reason, retry_after_sec: null };
     }
-    if (!this.configured) return this.rulesNow(analysis, now, null);
+    // One finding is said as well by its template as by a model: the model only for several to rank and connect.
+    if (!this.configured || analysis.signals.length < 2) return this.rulesNow(analysis, now, null);
 
     const key = { websiteId, pagePath: analysis.page_path, device: analysis.device, days: analysis.days };
     const signalKey = signalKeyOf(analysis);

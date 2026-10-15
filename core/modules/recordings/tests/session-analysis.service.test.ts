@@ -96,6 +96,10 @@ class FakeStore implements SessionAnalysisStore {
 class FakeSummarizer implements SessionSummarizer {
   calls: SessionSummaryInput[] = [];
   mode: "ai" | "down" | "throw" = "ai";
+  modelConfigured = true;
+  worth = true;
+  template() { return { text: "Template.", intent: "Unclear", outcome: "succeeded" as const, moments: [] }; }
+  worthModel() { return this.worth; }
   async summarize(input: SessionSummaryInput): Promise<SessionSummaryResult> {
     this.calls.push(input);
     if (this.mode === "throw") throw new Error("boom");
@@ -190,20 +194,31 @@ describe("summaries", () => {
     expect(store.claims).toBe(0);
   });
 
-  it("refuses a second attempt inside the cooldown, with a retry time", async () => {
+  it("serves the template inside the cooldown, without a second model call", async () => {
     store.add("s1");
     await service().getAnalysis(SITE, "s1", { summarize: false });
     store.sessions.get("s1")!.analysis!.summaryAttemptedAt = new Date(NOW.getTime() - 4 * 60_000);
     const view = await service().getAnalysis(SITE, "s1");
-    expect(view).toMatchObject({ summaryStatus: "cooldown", retryAfterSec: 360 });
+    expect(view).toMatchObject({ summaryStatus: "ready", summarySource: "rules", summary: { text: "Template." } });
     expect(summarizer.calls).toEqual([]);
   });
 
-  it("stops at the site's daily allowance", async () => {
+  it("serves the template once the site's daily allowance is used", async () => {
     store.add("s1");
     store.used = 5;
-    expect((await service().getAnalysis(SITE, "s1")).summaryStatus).toBe("limit");
+    expect(await service().getAnalysis(SITE, "s1")).toMatchObject({ summaryStatus: "ready", summarySource: "rules", summary: { text: "Template." } });
     expect(summarizer.calls).toEqual([]);
+  });
+
+  it("serves the template, with no model call, for a visit a model would add nothing to, or without a model", async () => {
+    store.add("s1");
+    summarizer.worth = false;
+    expect(await service().getAnalysis(SITE, "s1")).toMatchObject({ summaryStatus: "ready", summarySource: "rules" });
+    summarizer.worth = true;
+    summarizer.modelConfigured = false;
+    expect(await service().getAnalysis(SITE, "s1")).toMatchObject({ summaryStatus: "ready", summarySource: "rules" });
+    expect(summarizer.calls).toEqual([]);
+    expect(service().summariesEnabled()).toBe(false);
   });
 
   it("serves the template summary when the model is down, and tries the model again after the cooldown", async () => {
@@ -219,10 +234,10 @@ describe("summaries", () => {
     expect(summarizer.calls).toHaveLength(2);
   });
 
-  it("reports a generation that threw as failed", async () => {
+  it("serves the template when generation threw", async () => {
     store.add("s1");
     summarizer.mode = "throw";
-    expect((await service().getAnalysis(SITE, "s1")).summaryStatus).toBe("failed");
+    expect(await service().getAnalysis(SITE, "s1")).toMatchObject({ summaryStatus: "ready", summarySource: "rules" });
   });
 });
 

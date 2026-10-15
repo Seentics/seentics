@@ -5,7 +5,7 @@ import type { ModelInfo } from '../insights/service';
 import { buildSessionBrief } from './brief';
 import { parseSessionSummary } from './output';
 import { SESSION_SUMMARY_SYSTEM_PROMPT } from './prompts';
-import { ruleSummary } from './rules';
+import { ruleSummary, worthModel } from './rules';
 
 const log = baseLog.child({ category: 'ai_session_summary' });
 
@@ -20,6 +20,18 @@ const log = baseLog.child({ category: 'ai_session_summary' });
  */
 export class SessionSummaryService implements SessionSummarizer {
   constructor(private readonly deps: { llm: LlmClient | null; model: ModelInfo | null }) {}
+
+  get modelConfigured(): boolean {
+    return !!this.deps.llm && !!this.deps.model;
+  }
+
+  template(input: SessionSummaryInput) {
+    return ruleSummary(input);
+  }
+
+  worthModel(input: SessionSummaryInput): boolean {
+    return worthModel(input);
+  }
 
   async summarize(input: SessionSummaryInput): Promise<SessionSummaryResult> {
     const rules = ruleSummary(input);

@@ -114,7 +114,13 @@ export type SessionSummaryResult = {
  * through `source` and `model`. A throw means something else went wrong.
  */
 export interface SessionSummarizer {
+  /** Whether a model is configured. Without one, every summary is the template. */
+  readonly modelConfigured: boolean;
   summarize(input: SessionSummaryInput): Promise<SessionSummaryResult>;
+  /** The summary written from the analysis alone: free, instant, never a model call. */
+  template(input: SessionSummaryInput): SessionSummary;
+  /** Whether a model would add anything over the template (a calm visit or a bounce: no). */
+  worthModel(input: SessionSummaryInput): boolean;
 }
 
 /**

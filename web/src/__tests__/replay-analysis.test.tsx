@@ -148,12 +148,14 @@ describe('SessionAnalysisPanel', () => {
     expect(getSessionAnalysis).toHaveBeenNthCalledWith(2, 'w1', 's1', true);
   });
 
-  it('asks for signals only, and shows no AI, when AI is not configured', async () => {
+  it('shows the template summary, and no AI, when AI is not configured', async () => {
     aiStatus.data = { configured: false };
-    getSessionAnalysis.mockResolvedValue({ ...analysis, summary: null, summarySource: null, summaryStatus: 'not_requested' });
+    getSessionAnalysis
+      .mockResolvedValueOnce({ ...analysis, summary: null, summarySource: null, summaryStatus: 'not_requested' })
+      .mockResolvedValueOnce({ ...analysis, summary: { ...analysis.summary!, text: 'The visitor went from / to /cart in 40s.' }, summarySource: 'rules' });
     await renderPanel();
-    expect(await screen.findByText('Rage click')).toBeTruthy();
-    expect(getSessionAnalysis).toHaveBeenCalledWith('w1', 's1', false);
+    expect(await screen.findByText('The visitor went from / to /cart in 40s.')).toBeTruthy();
+    expect(screen.getByText('Summary')).toBeTruthy();
     expect(screen.queryByText(/AI summary/)).toBeNull();
     expect(screen.queryByLabelText('Ask AI about this')).toBeNull();
   });

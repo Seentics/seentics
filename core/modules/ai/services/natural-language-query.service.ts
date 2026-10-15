@@ -21,7 +21,7 @@ import { AUTOMATIONS_PROMPT, AUTOMATIONS_TABLES } from "./domains/automations";
 // ─── Guardrails ────────────────────────────────────────────────────────────────
 
 /** Per-user rolling-24h query cap (cost/abuse control). 0 disables. */
-const AI_MAX_QUERIES_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 200);
+const AI_MAX_QUERIES_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 50);
 /** Short-TTL cache so repeated identical questions skip both the LLM call and the DB query. */
 const AI_CACHE_TTL_MS = 60_000;
 const AI_CACHE_MAX = 300;

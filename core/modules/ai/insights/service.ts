@@ -22,6 +22,8 @@ export const MIN_REFRESH_MS = 6 * 60 * 60 * 1000;
 export const MODEL_UNREACHABLE_REASON = 'The model could not be reached; these lines are written from the data alone.';
 /** A row that only exists because the model was down may be regenerated this soon by a refresh. */
 export const MODEL_RETRY_MS = 15 * 60 * 1000;
+/** Fewer signals than this are worded from templates: there is nothing for a model to connect. */
+export const MODEL_MIN_SIGNALS = 2;
 /** After this many model failures in a row, a daily run stops calling the model until it ends. */
 export const MODEL_BREAKER_THRESHOLD = 5;
 
@@ -196,7 +198,8 @@ export class InsightService {
     const rules = (reason: string | null, extra: Partial<typeof base> = {}) => ({
       ...base, ...extra, status: 'ready' as const, source: 'rules' as const, lines: ruleLines(signals), signals, reason,
     });
-    if (!this.deps.llm || !this.deps.model || noModel) return rules(null);
+    // One change is said as well by its template line as by a model: the model only for several to weigh.
+    if (!this.deps.llm || !this.deps.model || noModel || signals.length < MODEL_MIN_SIGNALS) return rules(null);
     if (skipModel) return { ...rules(MODEL_UNREACHABLE_REASON), modelFailed: true };
 
     const brief = buildBrief(snapshot, signals);

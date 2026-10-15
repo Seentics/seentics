@@ -202,12 +202,13 @@ export function initAiModule(deps: {
     AI_MAX_OUTPUT_TOKENS: process.env.AI_SESSION_SUMMARY_MAX_OUTPUT_TOKENS ?? "700",
   } as NodeJS.ProcessEnv);
   const summaryLlm = createLlmClient(summaryConfig);
-  const sessionSummarizer = summaryLlm && summaryConfig
-    ? new SessionSummaryService({
-        llm: summaryLlm,
-        model: { name: summaryConfig.model, inputCostPerToken: summaryConfig.inputCostPerToken, outputCostPerToken: summaryConfig.outputCostPerToken },
-      })
-    : null;
+  // Always present: without a model it writes every summary from the template.
+  const sessionSummarizer = new SessionSummaryService({
+    llm: summaryLlm,
+    model: summaryLlm && summaryConfig
+      ? { name: summaryConfig.model, inputCostPerToken: summaryConfig.inputCostPerToken, outputCostPerToken: summaryConfig.outputCostPerToken }
+      : null,
+  });
 
   /*
    * Anomaly alerts: detection is deterministic and runs without a model; the cheap insight model,

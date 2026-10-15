@@ -13,7 +13,7 @@ import { runAgent } from "./agent-loop";
 import { isObviouslyOffTopic, OUT_OF_SCOPE_REPLY, SEENTICS_SCOPE } from "./scope";
 
 /** Per-user rolling-24h cap, shared with the SQL path. 0 disables. */
-const MAX_QUESTIONS_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 200);
+const MAX_QUESTIONS_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 50);
 const DAY_MS = 86_400_000;
 
 /**

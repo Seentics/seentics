@@ -57,14 +57,15 @@ export function SessionAnalysisPanel({
   const summaryQuery = useQuery({
     queryKey: ['replay-analysis', websiteId, sessionId, true],
     queryFn: () => getSessionAnalysis(websiteId, sessionId, true),
-    enabled: aiConfigured && signalsQuery.data?.status === 'ready' && !signalsQuery.data.summary,
+    // Always asked for: without AI (or past its allowance) the server writes the summary from a template.
+    enabled: signalsQuery.data?.status === 'ready' && !signalsQuery.data.summary,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
   const data = summaryQuery.data ?? signalsQuery.data;
   const { isLoading, isError } = signalsQuery;
   const isFetching = signalsQuery.isFetching || summaryQuery.isFetching;
-  const refetch = () => { void signalsQuery.refetch(); if (aiConfigured) void summaryQuery.refetch(); };
+  const refetch = () => { void signalsQuery.refetch(); void summaryQuery.refetch(); };
   const writingSummary = summaryQuery.isFetching && !data?.summary;
 
   const { playing, syncNow } = useReplayPlayback();
@@ -101,7 +102,7 @@ export function SessionAnalysisPanel({
           )}
         </div>
         <CardDescription className="text-xs leading-relaxed">
-          Frustration found in the recording{aiConfigured ? ', and an AI summary of the visit' : ''}. Click a time to jump there.
+          What the visitor did and where it went wrong. Click a time to jump there.
         </CardDescription>
       </CardHeader>
 
@@ -109,7 +110,7 @@ export function SessionAnalysisPanel({
         {isLoading || !statusSettled ? (
           <div className="space-y-2" aria-busy="true">
             <p className="text-xs text-muted-foreground">
-              {aiConfigured ? 'Analysing this session and writing a summary…' : 'Analysing this session…'}
+              Analysing this session…
             </p>
             <div className="h-3 w-full animate-pulse rounded bg-muted" />
             <div className="h-3 w-4/5 animate-pulse rounded bg-muted" />
@@ -132,13 +133,13 @@ export function SessionAnalysisPanel({
           </p>
         ) : (
           <>
-            {aiConfigured && writingSummary && (
-              <p className="text-xs text-muted-foreground">Writing the AI summary…</p>
+            {writingSummary && (
+              <p className="text-xs text-muted-foreground">Writing the summary…</p>
             )}
-            {aiConfigured && (data.summary || notice) && (
-              <section aria-label="AI summary" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+            {(data.summary || notice) && (
+              <section aria-label="Summary" className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Sparkles className="h-3 w-3" aria-hidden />
+                  {data.summarySource !== 'rules' && <Sparkles className="h-3 w-3" aria-hidden />}
                   {data.summarySource === 'rules' ? 'Summary' : 'AI summary'}
                 </div>
                 {data.summary ? (
@@ -163,11 +164,6 @@ export function SessionAnalysisPanel({
                           </li>
                         ))}
                       </ul>
-                    )}
-                    {data.summarySource === 'rules' && (
-                      <p className="text-[11px] text-muted-foreground">
-                        Written from the recorded signals: the AI summary isn&apos;t available right now.
-                      </p>
                     )}
                   </>
                 ) : (
