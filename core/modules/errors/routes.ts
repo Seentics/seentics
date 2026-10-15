@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
-import type { WebsiteQuery } from "../websites/interfaces";
+import { roleAtLeast, type WebsiteQuery, type WebsiteRole } from "../websites/interfaces";
 import type { ErrorMutations, ErrorQueries } from "./interfaces";
 import { isErrorStatus } from "./lib/status";
 
@@ -19,14 +19,17 @@ export type ErrorControllerDeps = {
  * because each one resolves the website through its own port, and a single helper would
  * need every module's deps to look alike.
  */
+/** Any member reads; changing an error's status needs `minimum` (a viewer only looks). */
 async function requireErrorAccess(
   c: Context<{ Variables: AuthVars }>,
   deps: ErrorControllerDeps,
   websiteRef: string,
+  minimum: WebsiteRole = "viewer",
 ): Promise<Response | null> {
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "forbidden" }, 403);
-  if (!(await deps.websites.getRole(websiteRef, userId))) {
+  const role = await deps.websites.getRole(websiteRef, userId);
+  if (!role || !roleAtLeast(role, minimum)) {
     return c.json({ error: "forbidden" }, 403 as ContentfulStatusCode);
   }
   return null;
@@ -78,7 +81,7 @@ export function createErrorRoutes(deps: ErrorControllerDeps) {
 
   routes.patch("/:website_id/groups/:fingerprint", async (c) => {
     const websiteRef = c.req.param("website_id");
-    const denied = await requireErrorAccess(c, deps, websiteRef);
+    const denied = await requireErrorAccess(c, deps, websiteRef, "member");
     if (denied) return denied;
 
     let body: Record<string, unknown>;

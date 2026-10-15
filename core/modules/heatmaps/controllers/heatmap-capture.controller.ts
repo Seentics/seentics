@@ -16,7 +16,7 @@ const MAX_BATCH = 50;
 export function captureHeatmapScreenshot(deps: HeatmapControllerDeps) {
   return async (c: Context<{ Variables: AuthVars }, "/:website_id/playwright-screenshot">) => {
     const websiteRef = c.req.param("website_id");
-    const denied = await requireHeatmapAccess(c, deps, websiteRef);
+    const denied = await requireHeatmapAccess(c, deps, websiteRef, "member");
     if (denied) return denied;
     const parsed = await readJsonBody(c);
     if (!parsed.ok) return parsed.res;
@@ -50,7 +50,7 @@ export function captureHeatmapScreenshot(deps: HeatmapControllerDeps) {
 export function captureHeatmapScreenshotBatch(deps: HeatmapControllerDeps) {
   return async (c: Context<{ Variables: AuthVars }, "/:website_id/playwright-batch-screenshots">) => {
     const websiteRef = c.req.param("website_id");
-    const denied = await requireHeatmapAccess(c, deps, websiteRef);
+    const denied = await requireHeatmapAccess(c, deps, websiteRef, "member");
     if (denied) return denied;
     const parsed = await readJsonBody(c);
     if (!parsed.ok) return parsed.res;

@@ -24,7 +24,7 @@ export function listAutomations(deps: AutomationControllerDeps) {
 export function createAutomation(deps: AutomationControllerDeps) {
   return async (c: AutomationContext<"/:website_id">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireAutomationAccess(c, deps, websiteRef);
+    const access = await requireAutomationAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const raw = await c.req.json().catch(() => null);
     const parsed = automationsUpsertBodySchema.safeParse(raw);
@@ -41,7 +41,7 @@ export function createAutomation(deps: AutomationControllerDeps) {
 export function bulkDeleteAutomations(deps: AutomationControllerDeps) {
   return async (c: AutomationContext<"/:website_id/bulk-delete">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireAutomationAccess(c, deps, websiteRef);
+    const access = await requireAutomationAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, automationsBulkDeleteSchema);
     if (!parsed.ok) return parsed.res;
@@ -62,7 +62,7 @@ export function getAutomation(deps: AutomationControllerDeps) {
 export function updateAutomation(deps: AutomationControllerDeps) {
   return async (c: AutomationContext<"/:website_id/:id">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireAutomationAccess(c, deps, websiteRef);
+    const access = await requireAutomationAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const raw = await c.req.json().catch(() => null);
     const parsed = automationsPatchBodySchema.safeParse(raw);
@@ -79,7 +79,7 @@ export function updateAutomation(deps: AutomationControllerDeps) {
 export function deleteAutomation(deps: AutomationControllerDeps) {
   return async (c: AutomationContext<"/:website_id/:id">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireAutomationAccess(c, deps, websiteRef);
+    const access = await requireAutomationAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     await deps.automationCrud.remove(websiteRef, c.req.param("id"));
     return c.body(null, 204);

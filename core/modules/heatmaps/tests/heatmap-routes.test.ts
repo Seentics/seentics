@@ -441,14 +441,12 @@ describe("heatmap routes", () => {
       expect(await res.json()).toEqual({ pages: [PAGE] });
     });
 
-    it("lets a viewer delete heatmap pages", async () => {
-      // Pinning what this surface actually does rather than what it should do. Heatmap
-      // points are aggregates that regenerate from live traffic, so unlike a session
-      // recording a viewer-triggered delete is not destruction of unrecoverable data.
-      // If that judgement changes, this is the test that has to change with it.
+    it("does not let a viewer delete heatmap pages", async () => {
+      // New traffic fills a page again, but the deleted days' clicks and scrolls are gone for
+      // good: a viewer only looks. Deleting needs a member (heatmap-access.ts).
       const res = await send("DELETE", `/${WEBSITE}/bulk-delete`, { pagePaths: ["/p"] }, "u_viewer");
 
-      expect(res.status).toBe(204);
+      expect(res.status).toBe(403);
     });
   });
 
