@@ -206,7 +206,8 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       for (const table of ["form_submissions", "form_prizes", "integration_deliveries", "integration_connections", "embed_links"]) {
         await tx.execute(sql`DELETE FROM ${sql.identifier(table)} WHERE website_id::text = ${websiteId}`);
       }
-
+      // Its privacy settings, keyed by `site_id` rather than `website_id`, outlived it.
+      await tx.execute(sql`DELETE FROM website_privacy_settings WHERE site_id = ${websiteId}`);
 
       await tx.delete(websites).where(eq(websites.id, websiteId));
       return true;

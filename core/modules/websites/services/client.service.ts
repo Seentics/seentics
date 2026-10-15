@@ -90,7 +90,15 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
     client_log.info({ msg: "client_created", client_id: client.id, owner_id: ownerId });
 
     if (website) {
-      await this.createWebsite(ownerId, { ...website, clientId: client.id });
+      // The client and its first site are one request: when the site cannot be made (the
+      // account's site cap, an unusable address) the client goes too. It was left behind,
+      // and the caller, told the request failed, had a client it did not know about.
+      try {
+        await this.createWebsite(ownerId, { ...website, clientId: client.id });
+      } catch (e) {
+        await this.clients.delete(client.id);
+        throw e;
+      }
     }
     return { client: (await this.withWebsites([client]))[0]!, created: true };
   }

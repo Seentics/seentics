@@ -5,7 +5,7 @@ import { parseJson, parseQuery, validationErrorResponse } from "../../../platfor
 import { presentWebsite } from "../lib/website-presenter";
 import { presentClient, presentClientWebsite } from "../lib/client-presenter";
 import { toUpdateWebsiteInput } from "../lib/patch-mapping";
-import { websiteCreateSchema, websitePatchSchema } from "../validators/website.schema";
+import { websiteCreateSchema, websitePatchSchema, zSiteAddress } from "../validators/website.schema";
 import {
   clientCreateSchema,
   clientUpdateSchema,
@@ -141,7 +141,7 @@ const websiteListQuerySchema = pageQuerySchema.extend({ client_id: z.string().uu
 
 /** A bare host is accepted here, unlike the dashboard's form: a signup handler has a hostname, not a URL. */
 const ownedWebsiteCreateSchema = websiteCreateSchema.extend({
-  url: z.string().trim().min(1).max(2048),
+  url: zSiteAddress,
   client_id: z.string().uuid().nullable().optional(),
 });
 

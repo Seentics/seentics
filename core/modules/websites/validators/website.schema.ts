@@ -1,12 +1,32 @@
 import { z } from "zod";
 import { zNonEmptyString, zUrl } from "../../../platform/validation";
+import { normalizeHostname } from "../lib/hostname";
+
+/** A URL or bare host the site can be stored under (lib/hostname.ts). */
+export const zSiteAddress = z.string().trim().min(1).max(2048).refine((v) => {
+  try {
+    normalizeHostname(v);
+    return true;
+  } catch {
+    return false;
+  }
+}, "invalid website URL format");
 
 export const websiteCreateSchema = z.object({
   name: zNonEmptyString.max(120),
   url: zUrl,
 });
 
-export const websitePatchSchema = z.record(z.unknown());
+/**
+ * The fields with rules are checked; anything else passes to `toUpdateWebsiteInput`, which
+ * keeps the keys it knows. This was `z.record(z.unknown())`: a blank name or a sampling rate
+ * of 5 was stored, and an unparseable URL threw in the repository and came back as 403.
+ */
+export const websitePatchSchema = z.object({
+  name: zNonEmptyString.max(120).optional(),
+  url: zSiteAddress.optional(),
+  replay_sampling_rate: z.number().min(0).max(1).optional(),
+}).passthrough();
 
 export const goalCreateSchema = z.object({
   name: zNonEmptyString.max(120),
@@ -15,7 +35,13 @@ export const goalCreateSchema = z.object({
   selector: z.string().trim().max(1024).optional(),
 });
 
-export const goalPatchSchema = z.record(z.unknown());
+/** A supplied field obeys the same rules as on create; `selector: null` clears it. */
+export const goalPatchSchema = z.object({
+  name: zNonEmptyString.max(120).optional(),
+  type: zNonEmptyString.max(64).optional(),
+  identifier: zNonEmptyString.max(256).optional(),
+  selector: z.string().trim().max(1024).nullable().optional(),
+}).passthrough();
 
 /**
  * The four roles, as an enum rather than a free string.
