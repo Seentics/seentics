@@ -101,28 +101,28 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
   return (
     <div
       className={cn(
-        'relative bg-white text-black',
+        'relative bg-white text-black dark:bg-[#161719] dark:text-white',
         heat === 'scroll' && '[&_[data-blob]]:hidden',
       )}
       style={{ height: DEMO_HEATMAP_PAGE_HEIGHT }}
     >
       {/* Nav — every link and the CTA carries its own cluster */}
-      <div className="flex items-center gap-4 border-b border-black/[0.07] px-6 py-4">
-        <span className="text-[13px] font-black tracking-[0.18em] text-black/85">NORTHBOUND</span>
+      <div className="flex items-center gap-4 border-b border-black/[0.07] dark:border-white/[0.07] px-6 py-4">
+        <span className="text-[13px] font-black tracking-[0.18em] text-black/85 dark:text-white/85">NORTHBOUND</span>
         <div className="flex-1" />
-        <span className="relative text-[11px] font-medium text-black/55">
+        <span className="relative text-[11px] font-medium text-black/55 dark:text-white/55">
           Product
           <HotSpot size={46} strength={0.3} />
         </span>
-        <span className="relative text-[11px] font-medium text-black/55">
+        <span className="relative text-[11px] font-medium text-black/55 dark:text-white/55">
           Pricing
           <HotSpot size={72} strength={0.62} />
         </span>
-        <span className="relative text-[11px] font-medium text-black/55">
+        <span className="relative text-[11px] font-medium text-black/55 dark:text-white/55">
           Docs
           <HotSpot size={40} strength={0.22} />
         </span>
-        <span className="relative rounded-lg bg-black px-3.5 py-1.5 text-[11px] font-semibold text-white">
+        <span className="relative rounded-lg bg-black px-3.5 py-1.5 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
           Get started
           <HotSpot size={104} />
         </span>
@@ -131,10 +131,10 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
       {/* Hero */}
       <div className="px-6 pt-9 text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-600">Pricing</p>
-        <p className="mt-2 text-[22px] font-extrabold tracking-tight text-black/90">
+        <p className="mt-2 text-[22px] font-extrabold tracking-tight text-black/90 dark:text-white/90">
           Simple plans, no surprises
         </p>
-        <p className="mx-auto mt-2 max-w-[22rem] text-[11px] leading-relaxed text-black/55">
+        <p className="mx-auto mt-2 max-w-[22rem] text-[11px] leading-relaxed text-black/55 dark:text-white/55">
           Every plan includes the full product. Pay for the traffic you actually get, and
           change plan whenever you like.
         </p>
@@ -147,20 +147,20 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
             key={plan.name}
             className={cn(
               'rounded-lg border p-4',
-              plan.featured ? 'border-black/25 shadow-sm' : 'border-black/[0.08]',
+              plan.featured ? 'border-black/25 dark:border-white/25 shadow-sm' : 'border-black/[0.08] dark:border-white/[0.08]',
             )}
           >
-            <p className="text-[11px] font-bold text-black/80">{plan.name}</p>
-            <p className="text-[9px] text-black/45">{plan.note}</p>
-            <p className="mt-3 text-[20px] font-extrabold tracking-tight text-black/90">
+            <p className="text-[11px] font-bold text-black/80 dark:text-white/80">{plan.name}</p>
+            <p className="text-[9px] text-black/45 dark:text-white/45">{plan.note}</p>
+            <p className="mt-3 text-[20px] font-extrabold tracking-tight text-black/90 dark:text-white/90">
               {plan.price}
-              <span className="text-[10px] font-medium text-black/40"> /mo</span>
+              <span className="text-[10px] font-medium text-black/40 dark:text-white/40"> /mo</span>
             </p>
             <div className="mt-3 space-y-1.5">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-black/25" />
-                  <span className="h-1.5 flex-1 rounded-full bg-black/[0.07]" />
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-black/25 dark:bg-white/25" />
+                  <span className="h-1.5 flex-1 rounded-full bg-black/[0.07] dark:bg-white/[0.07]" />
                 </div>
               ))}
             </div>
@@ -169,7 +169,7 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
             <div
               className={cn(
                 'relative mt-4 rounded-lg py-2 text-center text-[10px] font-semibold',
-                plan.featured ? 'bg-black text-white' : 'border border-black/15 text-black/70',
+                plan.featured ? 'bg-black text-white dark:bg-white dark:text-black' : 'border border-black/15 dark:border-white/15 text-black/70 dark:text-white/70',
               )}
             >
               {plan.cta}
@@ -180,18 +180,18 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
       </div>
 
       {/* Comparison strip */}
-      <div className="mt-9 border-t border-black/[0.06] px-6 pt-7">
-        <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-black/40">
+      <div className="mt-9 border-t border-black/[0.06] dark:border-white/[0.06] px-6 pt-7">
+        <p className="text-center text-[11px] font-bold uppercase tracking-[0.18em] text-black/40 dark:text-white/40">
           Compare plans
         </p>
         <div className="mt-4 space-y-2">
           {['Websites', 'Events per month', 'Data retention', 'Session recordings', 'Team members'].map(
             (row) => (
-              <div key={row} className="flex items-center gap-3 rounded border border-black/[0.05] px-3 py-2">
-                <span className="w-40 shrink-0 text-[10px] font-medium text-black/70">{row}</span>
-                <span className="h-1.5 flex-1 rounded-full bg-black/[0.06]" />
-                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06]" />
-                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06]" />
+              <div key={row} className="flex items-center gap-3 rounded border border-black/[0.05] dark:border-white/[0.05] px-3 py-2">
+                <span className="w-40 shrink-0 text-[10px] font-medium text-black/70 dark:text-white/70">{row}</span>
+                <span className="h-1.5 flex-1 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
+                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
+                <span className="h-1.5 w-16 shrink-0 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
               </div>
             ),
           )}
@@ -200,34 +200,34 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
 
       {/* FAQ */}
       <div className="mt-9 px-6">
-        <p className="text-[13px] font-bold tracking-tight text-black/80">Common questions</p>
+        <p className="text-[13px] font-bold tracking-tight text-black/80 dark:text-white/80">Common questions</p>
         <div className="mt-3 space-y-2">
           {['Can I change plan later?', 'What counts as an event?', 'Do you offer refunds?'].map((q) => (
-            <div key={q} className="flex items-center justify-between rounded border border-black/[0.06] px-3 py-2.5">
-              <span className="text-[11px] font-medium text-black/70">{q}</span>
-              <span className="text-[13px] leading-none text-black/25">+</span>
+            <div key={q} className="flex items-center justify-between rounded border border-black/[0.06] dark:border-white/[0.06] px-3 py-2.5">
+              <span className="text-[11px] font-medium text-black/70 dark:text-white/70">{q}</span>
+              <span className="text-[13px] leading-none text-black/25 dark:text-white/25">+</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Footer — the bottom of a real page, which is why the scroll map matters */}
-      <div className="mt-9 border-t border-black/[0.07] bg-black/[0.015] px-6 py-6">
+      <div className="mt-9 border-t border-black/[0.07] dark:border-white/[0.07] bg-black/[0.015] dark:bg-white/[0.015] px-6 py-6">
         <div className="grid grid-cols-4 gap-6">
           <div>
-            <span className="text-[11px] font-black tracking-[0.16em] text-black/70">NORTHBOUND</span>
+            <span className="text-[11px] font-black tracking-[0.16em] text-black/70 dark:text-white/70">NORTHBOUND</span>
             <div className="mt-2 space-y-1.5">
-              <div className="h-1.5 w-24 rounded-full bg-black/[0.07]" />
-              <div className="h-1.5 w-20 rounded-full bg-black/[0.07]" />
+              <div className="h-1.5 w-24 rounded-full bg-black/[0.07] dark:bg-white/[0.07]" />
+              <div className="h-1.5 w-20 rounded-full bg-black/[0.07] dark:bg-white/[0.07]" />
             </div>
           </div>
           {['Product', 'Company', 'Legal'].map((col) => (
             <div key={col}>
-              <p className="text-[10px] font-semibold text-black/60">{col}</p>
+              <p className="text-[10px] font-semibold text-black/60 dark:text-white/60">{col}</p>
               <div className="mt-2 space-y-1.5">
-                <div className="h-1.5 w-16 rounded-full bg-black/[0.06]" />
-                <div className="h-1.5 w-14 rounded-full bg-black/[0.06]" />
-                <div className="h-1.5 w-16 rounded-full bg-black/[0.06]" />
+                <div className="h-1.5 w-16 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
+                <div className="h-1.5 w-14 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
+                <div className="h-1.5 w-16 rounded-full bg-black/[0.06] dark:bg-white/[0.06]" />
               </div>
             </div>
           ))}
@@ -263,8 +263,8 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
             { at: '84%', label: '11% reached here' },
           ].map((fold) => (
             <div key={fold.at} className="absolute inset-x-0" style={{ top: fold.at }}>
-              <div className="h-px w-full bg-black/45" />
-              <span className="absolute right-3 top-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+              <div className="h-px w-full bg-black/45 dark:bg-white/45" />
+              <span className="absolute right-3 top-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-semibold text-white dark:bg-white/85 dark:text-black">
                 {fold.label}
               </span>
             </div>

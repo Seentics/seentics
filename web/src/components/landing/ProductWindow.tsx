@@ -16,6 +16,7 @@ export function ProductWindow({
   children,
   className,
   crop,
+  interactiveLabel,
 }: {
   designWidth: number;
   designHeight: number;
@@ -23,6 +24,11 @@ export function ProductWindow({
   className?: string;
   /** Show only this share of the screen's height, fading out at the bottom. */
   crop?: number;
+  /**
+   * An explorable screen (the hero's): it takes input and is announced under this label.
+   * Without it the window is a picture — inert, hidden from assistive tech.
+   */
+  interactiveLabel?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
@@ -42,10 +48,12 @@ export function ProductWindow({
 
   return (
     <div
-      aria-hidden
-      inert
+      {...(interactiveLabel
+        ? { role: 'region', 'aria-label': interactiveLabel }
+        : { 'aria-hidden': true, inert: true })}
       className={cn(
-        'pointer-events-none relative select-none overflow-hidden rounded-xl border',
+        'relative select-none overflow-hidden rounded-xl border',
+        !interactiveLabel && 'pointer-events-none',
         className,
       )}
       style={{

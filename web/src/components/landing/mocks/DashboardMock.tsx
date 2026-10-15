@@ -9,7 +9,7 @@ import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { demoAnalyticsData } from '@/lib/demo';
-import { MockSidebar } from './MockSidebar';
+import { MockSidebar, useMockContentProps } from './MockSidebar';
 
 /**
  * The analytics overview, whole: sidebar, page chrome, and the real charts.
@@ -27,6 +27,7 @@ const INNER_SCALE = 0.86;
  * crops this shot at the right edge, so the centring margin only showed up as a gap.
  */
 export function DashboardMock({ flush = false }: { flush?: boolean }) {
+  const contentProps = useMockContentProps();
   const demoData = useMemo(() => demoAnalyticsData(), []);
 
   const topPages = useMemo(
@@ -81,7 +82,7 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
     >
       <MockSidebar active="Overview" />
 
-      <main className="min-w-0 flex-1 overflow-hidden bg-background">
+      <main {...contentProps} className="min-w-0 flex-1 overflow-hidden bg-background">
         {/*
           Capped, but wider than the real page's 1200.
 

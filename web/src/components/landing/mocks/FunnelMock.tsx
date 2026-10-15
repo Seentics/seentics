@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { cn } from '@/lib/utils';
 import { demoFunnelAnalytics, demoFunnels } from '@/lib/demo';
-import { MockSidebar } from './MockSidebar';
+import { MockSidebar, useMockContentProps } from './MockSidebar';
 
 /**
  * A funnel's analytics page.
@@ -22,6 +22,7 @@ import { MockSidebar } from './MockSidebar';
  * prefixed grid would reflow the shot on a narrower window.
  */
 export function FunnelMock() {
+  const contentProps = useMockContentProps();
   const { funnel, analytics } = useMemo(() => {
     const f = demoFunnels().funnels[0]!;
     return { funnel: f, analytics: demoFunnelAnalytics(f.id).analytics[0]! };
@@ -35,7 +36,7 @@ export function FunnelMock() {
     <div className="flex h-full w-full bg-background text-foreground">
       <MockSidebar active="Funnels" />
 
-      <main className="min-w-0 flex-1 overflow-hidden">
+      <main {...contentProps} className="min-w-0 flex-1 overflow-hidden">
         <div className="mx-auto w-full max-w-[1200px] p-8">
           <div className="mb-6 flex items-center gap-3">
             <span className="flex h-8 items-center gap-1.5 px-2 text-sm font-medium text-muted-foreground">

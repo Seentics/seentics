@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Banknote,
   Bot,
@@ -9,8 +11,10 @@ import {
   PanelLeftClose,
   Radio,
   Settings,
+  Sparkles,
   Video,
 } from 'lucide-react';
+import { createContext, useContext } from 'react';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 
@@ -25,13 +29,15 @@ import { cn } from '@/lib/utils';
  */
 
 const NAV = [
+  // The real sidebar's order (components/dashboard/Sidebar.tsx).
   { label: 'Overview', icon: LayoutDashboard },
-  { label: 'Automations', icon: Bot },
   { label: 'Recording', icon: Video },
-  { label: 'Errors', icon: Bug },
   { label: 'Heatmaps', icon: Flame },
   { label: 'Funnels', icon: GitBranch },
+  { label: 'Automations', icon: Bot },
   { label: 'Revenue', icon: Banknote },
+  { label: 'AI Reports', icon: Sparkles },
+  { label: 'Errors', icon: Bug },
   { label: 'Developers', icon: Code2 },
   { label: 'Settings', icon: Settings },
 ] as const;
@@ -43,7 +49,27 @@ const WORKSPACE = [
 
 export type MockNavLabel = (typeof NAV)[number]['label'];
 
+/**
+ * Set by the landing hero to make the mock explorable: the sidebar items it has a screen
+ * for become buttons that switch to it. Everywhere else (no provider) the mock stays a
+ * still picture.
+ */
+export const MockNavContext = createContext<{
+  views: readonly MockNavLabel[];
+  onSelect: (label: MockNavLabel) => void;
+} | null>(null);
+
+/**
+ * Props for a mock's content area. In the explorable hero only the sidebar takes input:
+ * the screen beside it is a picture, so it is inert — not focusable, not clickable — and
+ * keyboard users are not walked through dozens of controls that do nothing.
+ */
+export function useMockContentProps(): { inert?: boolean } {
+  return useContext(MockNavContext) ? { inert: true } : {};
+}
+
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
+  const nav = useContext(MockNavContext);
   return (
     <aside className="flex h-full w-[216px] shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border dark:border-none">
       {/* Header — logo, wordmark, collapse control */}
@@ -62,21 +88,40 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
       {/* Nav */}
       <nav className="flex-1 px-3 py-2">
         <ul className="space-y-0.5">
-          {NAV.map((item) => (
-            <li key={item.label}>
-              <span
-                className={cn(
-                  'flex h-10 items-center gap-3 rounded-lg px-3',
-                  item.label === active
-                    ? 'bg-accent text-foreground'
-                    : 'text-foreground/60',
-                )}
-              >
+          {NAV.map((item) => {
+            const isActive = item.label === active;
+            const className = cn(
+              'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left',
+              isActive ? 'bg-accent text-foreground' : 'text-foreground/60',
+            );
+            const body = (
+              <>
                 <item.icon className="h-[17px] w-[17px] shrink-0" />
                 <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
-              </span>
-            </li>
-          ))}
+              </>
+            );
+            const explorable = nav?.views.includes(item.label);
+            return (
+              <li key={item.label}>
+                {explorable ? (
+                  <button
+                    type="button"
+                    onClick={() => nav!.onSelect(item.label)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      className,
+                      'cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      !isActive && 'hover:bg-muted/60 hover:text-foreground',
+                    )}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  <span className={cn(className, nav && 'opacity-60')}>{body}</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
 

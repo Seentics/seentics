@@ -46,15 +46,15 @@ function buildMainNav(websiteId: string): NavItem[] {
   return [
     // `?dashboard=1`: picking Overview means the dashboard, even where AI mode is the default.
     { label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard },
-    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
+    // What a visitor did, where they clicked and where they dropped out, then what to do
+    // about it; errors last, beside the developer tools that follow.
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
-    // Directly after Recording because that is what it leads into: an error row's whole
-    // value is the replay of the visitor who hit it.
-    { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
+    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
     { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
+    { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },
   ];
 }
 

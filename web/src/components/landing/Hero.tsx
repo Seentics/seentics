@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '@/stores/useAuthStore';
-import { DashboardMock } from './mocks/DashboardMock';
-import { ProductWindow } from './ProductWindow';
+import { HeroExplorer } from './HeroExplorer';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -76,10 +75,15 @@ export default function Hero() {
             transition={reduce ? { duration: 0 } : { duration: 1.3, delay: 0.3, ease: EASE }}
             style={{ transformOrigin: 'center top' }}
           >
-            <ProductWindow designWidth={1440} designHeight={1010} crop={0.78}>
-              <DashboardMock />
-            </ProductWindow>
+            <HeroExplorer />
           </motion.div>
+          <p className="lx-faint mt-6 text-center text-sm">
+            The real dashboard, with demo data. Use the sidebar to look around, or{' '}
+            <Link href="/websites/demo" className="underline decoration-[color:var(--lx-line-strong)] underline-offset-4 hover:text-[color:var(--lx-text)]">
+              open the full demo
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </section>

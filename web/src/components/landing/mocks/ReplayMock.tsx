@@ -1,9 +1,11 @@
+'use client';
+
 import { ArrowLeft, Copy, Video } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { DemoReplayPlayer } from '@/components/replays/DemoReplayStage';
-import { MockSidebar } from './MockSidebar';
+import { MockSidebar, useMockContentProps } from './MockSidebar';
 
 /**
  * A session replay, playing.
@@ -36,11 +38,12 @@ const SUMMARY = [
 ];
 
 export function ReplayMock() {
+  const contentProps = useMockContentProps();
   return (
     <div className="flex h-full w-full bg-background text-foreground">
       <MockSidebar active="Recording" />
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main {...contentProps} className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <div className="w-full shrink-0 border-b border-border">
           <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5 px-5 py-2">
