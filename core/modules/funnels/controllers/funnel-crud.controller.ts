@@ -25,7 +25,7 @@ export function listFunnels(deps: FunnelControllerDeps) {
 export function createFunnel(deps: FunnelControllerDeps) {
   return async (c: FunnelContext<"/:website_id/funnels">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireFunnelAccess(c, deps, websiteRef);
+    const access = await requireFunnelAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const raw = await c.req.json().catch(() => null);
     const parsed = funnelsUpsertBodySchema.safeParse(raw);
@@ -47,7 +47,7 @@ export function createFunnel(deps: FunnelControllerDeps) {
 export function bulkDeleteFunnels(deps: FunnelControllerDeps) {
   return async (c: FunnelContext<"/:website_id/funnels/bulk-delete">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireFunnelAccess(c, deps, websiteRef);
+    const access = await requireFunnelAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const parsed = await parseJson(c, funnelsBulkDeleteSchema);
     if (!parsed.ok) return parsed.res;
@@ -77,7 +77,7 @@ export function getFunnel(deps: FunnelControllerDeps) {
 export function updateFunnel(deps: FunnelControllerDeps) {
   return async (c: FunnelContext<"/:website_id/funnels/:funnel_id">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireFunnelAccess(c, deps, websiteRef);
+    const access = await requireFunnelAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     const raw = await c.req.json().catch(() => null);
     const parsed = funnelsUpsertBodySchema.safeParse(raw);
@@ -99,7 +99,7 @@ export function updateFunnel(deps: FunnelControllerDeps) {
 export function deleteFunnel(deps: FunnelControllerDeps) {
   return async (c: FunnelContext<"/:website_id/funnels/:funnel_id">) => {
     const websiteRef = c.req.param("website_id");
-    const access = await requireFunnelAccess(c, deps, websiteRef);
+    const access = await requireFunnelAccess(c, deps, websiteRef, "member");
     if ("denied" in access) return access.denied;
     try {
       await deps.definitions.remove(websiteRef, c.req.param("funnel_id"));
