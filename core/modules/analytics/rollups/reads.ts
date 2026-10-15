@@ -118,14 +118,75 @@ export function rollupWindow(days: number, now = Date.now()): RollupWindow {
 
 const uniques = (expr = "visitors") => pgSql.unsafe(`coalesce(round(hll_cardinality(hll_union_agg(${expr}))), 0)::int`);
 
-/** Site totals for the window and the one before it, in the dashboard's row shape. */
-export async function dashboardRows(websiteId: string, days: number) {
+type TotalsRow = {
+  pv: number; uv: number; sessions: number; bounces: number; duration: number;
+  prev_pv: number; prev_uv: number; prev_sessions: number; prev_bounces: number; prev_duration: number;
+};
+
+/**
+ * Site totals for the window and the one before it, in the dashboard's row shape.
+ *
+ * In UTC the window is whole UTC days. In any other zone it is the viewer's local days — the
+ * same window the daily chart draws (`dailyRows`), so the headline numbers and the chart add up.
+ */
+export async function dashboardRows(websiteId: string, days: number, tz = "UTC") {
   await ensureFresh(websiteId);
+  const row = tz === "UTC" ? await utcTotals(websiteId, days) : await localTotals(websiteId, days, tz);
+  return shapeTotals(row);
+}
+
+/**
+ * Totals over the viewer's local days, from the hourly rollup: pageviews and visitors by the hour
+ * they happened, sessions, bounces and duration by the hour each session began.
+ *
+ * Hours rolled up before those session columns existed (migration 063) have them NULL; a UTC day
+ * with no session-carrying hour falls back to its daily row, counted in the window when most of
+ * it is. Within the raw-event retention every day is rebuilt with them, so this is exact for any
+ * recent window and close for an older one's first day.
+ */
+async function localTotals(websiteId: string, days: number, tz: string): Promise<TotalsRow | undefined> {
+  const [row] = await pgSql<TotalsRow[]>`
+    WITH b AS (
+      SELECT (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz} AS f,
+             (date_trunc('day', now() AT TIME ZONE ${tz}) - ${2 * days - 1} * interval '1 day') AT TIME ZONE ${tz} AS pf
+    ),
+    h AS (
+      SELECT r.pageviews, r.visitors, r.sessions, r.bounces, r.duration_s, r.hour, r.hour >= b.f AS cur
+      FROM analytics_rollup_hourly r, b
+      WHERE r.website_id = ${websiteId} AND r.hour >= b.pf
+    ),
+    covered AS (SELECT DISTINCT (hour AT TIME ZONE 'UTC')::date AS day FROM h WHERE sessions IS NOT NULL),
+    legacy AS (
+      SELECT d.sessions, d.bounces, d.duration_s, (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= b.f AS cur
+      FROM analytics_rollup_daily d, b
+      WHERE d.website_id = ${websiteId} AND d.dimension = 'site'
+        AND (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= b.pf
+        AND d.day NOT IN (SELECT day FROM covered)
+    ),
+    s AS (
+      SELECT cur, sessions, bounces, duration_s FROM h WHERE sessions IS NOT NULL
+      UNION ALL
+      SELECT cur, sessions, bounces, duration_s FROM legacy
+    )
+    SELECT
+      (SELECT coalesce(sum(pageviews) FILTER (WHERE cur), 0) FROM h)::bigint AS pv,
+      (SELECT coalesce(round(hll_cardinality(hll_union_agg(visitors) FILTER (WHERE cur))), 0) FROM h)::int AS uv,
+      (SELECT coalesce(sum(pageviews) FILTER (WHERE NOT cur), 0) FROM h)::bigint AS prev_pv,
+      (SELECT coalesce(round(hll_cardinality(hll_union_agg(visitors) FILTER (WHERE NOT cur))), 0) FROM h)::int AS prev_uv,
+      coalesce(sum(sessions) FILTER (WHERE cur), 0)::bigint AS sessions,
+      coalesce(sum(bounces) FILTER (WHERE cur), 0)::bigint AS bounces,
+      coalesce(sum(duration_s) FILTER (WHERE cur), 0)::bigint AS duration,
+      coalesce(sum(sessions) FILTER (WHERE NOT cur), 0)::bigint AS prev_sessions,
+      coalesce(sum(bounces) FILTER (WHERE NOT cur), 0)::bigint AS prev_bounces,
+      coalesce(sum(duration_s) FILTER (WHERE NOT cur), 0)::bigint AS prev_duration
+    FROM s
+  `;
+  return row;
+}
+
+async function utcTotals(websiteId: string, days: number): Promise<TotalsRow | undefined> {
   const w = rollupWindow(days);
-  const [row] = await pgSql<{
-    pv: number; uv: number; sessions: number; bounces: number; duration: number;
-    prev_pv: number; prev_uv: number; prev_sessions: number; prev_bounces: number; prev_duration: number;
-  }[]>`
+  const [row] = await pgSql<TotalsRow[]>`
     SELECT
       coalesce(sum(pageviews) FILTER (WHERE cur), 0)::bigint AS pv,
       coalesce(round(hll_cardinality(hll_union_agg(visitors) FILTER (WHERE cur))), 0)::int AS uv,
@@ -144,6 +205,10 @@ export async function dashboardRows(websiteId: string, days: number) {
         AND day BETWEEN ${w.prevFrom}::date AND ${w.to}::date
     ) d
   `;
+  return row;
+}
+
+function shapeTotals(row: TotalsRow | undefined) {
   const n = (v: unknown) => Number(v ?? 0);
   const rate = (part: number, whole: number) => (whole > 0 ? (part * 100) / whole : 0);
   const avg = (total: number, count: number) => (count > 0 ? Math.round(total / count) : 0);

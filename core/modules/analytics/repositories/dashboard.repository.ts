@@ -1,7 +1,7 @@
 /** High-level KPIs for the main dashboard (single scan where possible). */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { log } from "../../../platform/observability/logger";
-import { parseDays } from "./shared";
+import { parseDays, sanitizeTimezone } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
 import { dashboardRows, rollupsEnabled } from "../rollups/reads";
 
@@ -291,7 +291,7 @@ export async function getDashboardStats(
   // since they cover the last 30 seconds.
   if (rollupsEnabled()) {
     const [{ agg, sess }, liveVisitors] = await Promise.all([
-      dashboardRows(websiteId, days),
+      dashboardRows(websiteId, days, sanitizeTimezone(query.timezone)),
       query.live === '0' ? Promise.resolve(0) : fetchLiveVisitors(websiteId),
     ]);
     return shapeDashboardStats(websiteId, days, { agg, sess, liveVisitors });

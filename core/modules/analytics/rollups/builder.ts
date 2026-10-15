@@ -304,15 +304,28 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
       DELETE FROM analytics_rollup_hourly
       WHERE website_id = ${websiteId} AND hour >= ${dayStart} AND hour < ${dayEnd}
     `;
+    // Pageviews and visitors by the hour they happened; sessions, bounces and duration by the
+    // hour each session began (the sessions of this day, above), so a local-day window can be
+    // read exactly from these hours (reads.ts dashboardRows).
     await tx`
-      INSERT INTO analytics_rollup_hourly (website_id, hour, pageviews, visitors)
-      SELECT ${websiteId}, date_trunc('hour', occurred_at), count(*),
-             coalesce(hll_add_agg(hll_hash_text(${u(VISITOR_KEY)}), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)}))
-      FROM analytics_events
-      WHERE website_id = ${websiteId} AND event_type = 'pageview'
-        AND occurred_at >= ${dayStart} AND occurred_at < ${dayEnd}
-      -- By expression, not position: column 1 is the website id.
-      GROUP BY date_trunc('hour', occurred_at)
+      INSERT INTO analytics_rollup_hourly (website_id, hour, pageviews, visitors, sessions, bounces, duration_s)
+      SELECT ${websiteId}, coalesce(pv.hr, s.hr), coalesce(pv.n, 0),
+             coalesce(pv.v, hll_empty(${u(HLL_PARAMS)})), coalesce(s.n, 0), coalesce(s.b, 0), coalesce(s.d, 0)
+      FROM (
+        SELECT date_trunc('hour', occurred_at) AS hr, count(*) AS n,
+               hll_add_agg(hll_hash_text(${u(VISITOR_KEY)}), ${u(HLL_PARAMS)}) AS v
+        FROM analytics_events
+        WHERE website_id = ${websiteId} AND event_type = 'pageview'
+          AND occurred_at >= ${dayStart} AND occurred_at < ${dayEnd}
+        GROUP BY 1
+      ) pv
+      FULL JOIN (
+        SELECT date_trunc('hour', started_at) AS hr, count(*) AS n, count(*) FILTER (WHERE pageviews = 1) AS b,
+               coalesce(sum(greatest(0, extract(epoch FROM ended_at - started_at))), 0)::bigint AS d
+        FROM analytics_rollup_sessions
+        WHERE website_id = ${websiteId} AND day = ${day}::date
+        GROUP BY 1
+      ) s ON s.hr = pv.hr
     `;
 
     // ── Orders, for the revenue dashboard over any range ───────────────────────
