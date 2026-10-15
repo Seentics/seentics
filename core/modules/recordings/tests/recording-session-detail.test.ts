@@ -63,6 +63,10 @@ const removedSpools: string[] = [];
  */
 let onWarmChunks: (() => void) | null = null;
 
+// Loaded before the stub below so the real class can be handed through: the stub is global,
+// and `recording-ingest.test.ts` constructs this class when it runs after this file.
+const { RecordingIngestService: RealRecordingIngestService } = await import("../services/recording-ingest.service");
+
 mock.module("../services/recording-ingest.service", () => ({
   recordingIngestService: () => ({
     warmChunks: () => {
@@ -76,7 +80,7 @@ mock.module("../services/recording-ingest.service", () => ({
     shutdown: async () => {},
     flushNow: async () => {},
   }),
-  RecordingIngestService: class {},
+  RecordingIngestService: RealRecordingIngestService,
   // Not driven here, but a global stub has to list every runtime export or an
   // unrelated file fails on the missing name — see `app/tests/mock-completeness.test.ts`.
   stopRecordingIngestService: async () => {},
