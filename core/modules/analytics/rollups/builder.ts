@@ -481,6 +481,19 @@ export async function buildStaleRollups(
     }
   }
 
+  // The day before a stale day is rebuilt without a marker of its own. When pacing put it
+  // off, or its rebuild failed, nothing remembered it: the stale day's marker was cleared
+  // below, and yesterday's session rows (duration, bounce, exit page) stayed as they were.
+  const marked = new Set(stale.map((row) => `${row.website_id}|${row.day}`));
+  for (const key of [...deferred, ...failed]) {
+    if (marked.has(key)) continue;
+    const [websiteId, day] = key.split("|") as [string, string];
+    await sql`
+      INSERT INTO analytics_rollup_stale (website_id, day) VALUES (${websiteId}, ${day}::date)
+      ON CONFLICT DO NOTHING
+    `;
+  }
+
   for (const row of stale) {
     const key = `${row.website_id}|${row.day}`;
     // A paced day keeps its marker and is built on a later run.
