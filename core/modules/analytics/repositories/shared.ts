@@ -32,6 +32,9 @@ export function parseDays(raw: string | undefined, def = 7): number {
 export function sanitizeTimezone(tz: string | undefined): string {
   if (!tz || typeof tz !== "string") return "UTC";
   if (!/^[A-Za-z0-9_+\-/]+$/.test(tz)) return "UTC";
+  // Names only. `Intl` accepts a bare offset such as "+05", but Postgres reads one in POSIX
+  // terms, positive meaning west: the days came out shifted by twice the offset.
+  if (/^[+-]/.test(tz)) return "UTC";
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
     return tz;

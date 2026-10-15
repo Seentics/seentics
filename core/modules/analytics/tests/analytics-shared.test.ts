@@ -127,6 +127,13 @@ describe("sanitizeTimezone", () => {
     expect(sanitizeTimezone("Etc/GMT-14")).toBe("Etc/GMT-14");
   });
 
+  // Intl accepts these; Postgres reads them with the opposite sign (POSIX), shifting the days.
+  it("refuses a bare offset", () => {
+    expect(sanitizeTimezone("+05")).toBe("UTC");
+    expect(sanitizeTimezone("-08")).toBe("UTC");
+    expect(sanitizeTimezone("+0530")).toBe("UTC");
+  });
+
   it("defaults to UTC when absent or empty", () => {
     expect(sanitizeTimezone(undefined)).toBe("UTC");
     expect(sanitizeTimezone("")).toBe("UTC");
