@@ -33,4 +33,11 @@ describe("forModel — what a tool result may send to the AI provider", () => {
     const at = new Date("2026-01-01T00:00:00Z");
     expect(forModel({ n: 3, ok: false, none: null, at })).toEqual({ n: 3, ok: false, none: null, at });
   });
+
+  // Slack, Zapier and Discord hooks carry their credential in the path; custom headers are keys.
+  it("keeps a webhook's path, header values and named secrets from the provider", () => {
+    expect(forModel({ type: "webhook", url: "https://hooks.slack.com/services/T0/B0/xyz", headers: { "X-API-Key": "k" }, method: "POST" }))
+      .toEqual({ type: "webhook", url: "https://hooks.slack.com/[hidden]", headers: { "X-API-Key": "[hidden]" }, method: "POST" });
+    expect(forModel({ provider: "zapier", token: "t-1", name: "Zap" })).toEqual({ provider: "zapier", token: "[hidden]", name: "Zap" });
+  });
 });

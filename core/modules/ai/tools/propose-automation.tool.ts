@@ -148,7 +148,10 @@ function summarise(args: ProposeAutomationArgs): string[] {
   for (const key of ["url", "message", "title", "selector", "content"]) {
     const v = cfg[key];
     if (typeof v === "string" && v.trim()) {
-      lines.push(`${key}: ${v.slice(0, 200)}`);
+      // Where a URL really goes, first: cut to fit, a long one can read as another address.
+      let host = "";
+      if (key === "url") try { host = `${new URL(v).host} — `; } catch { /* not absolute */ }
+      lines.push(`${key}: ${host}${v.slice(0, 200)}`);
     }
   }
   lines.push(args.activate

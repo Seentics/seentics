@@ -31,14 +31,47 @@ function scrubText(value: string): string {
   return value.replace(EMAIL, "[email]").replace(URL_TAIL, "$1");
 }
 
+/**
+ * Marks a value kept from the model. An edit that sends it back keeps the stored value
+ * (`restoreTruncated` in tools/propose-automation-edit.tool.ts).
+ */
+export const HIDDEN = "[hidden]";
+
+/** Keys whose values are credentials: sent as HIDDEN. */
+const SECRET_KEYS = new Set(["secret", "token", "api_key", "apikey", "password", "signing_secret", "webhook_secret"]);
+
+/**
+ * A webhook's address past its host. Slack, Zapier and Discord hooks carry their
+ * credential in the path, and a custom header is usually a key: both reached the provider
+ * whenever the assistant listed or opened an automation.
+ */
+function hideWebhookSecrets(action: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...action };
+  if (typeof out.url === "string") {
+    try {
+      const u = new URL(out.url);
+      out.url = `${u.protocol}//${u.host}/${HIDDEN}`;
+    } catch {
+      out.url = HIDDEN;
+    }
+  }
+  if (out.headers && typeof out.headers === "object" && !Array.isArray(out.headers)) {
+    out.headers = Object.fromEntries(Object.keys(out.headers).map((k) => [k, HIDDEN]));
+  }
+  return out;
+}
+
 export function forModel(value: unknown): unknown {
   if (typeof value === "string") return scrubText(value);
   if (Array.isArray(value)) return value.map(forModel);
   if (value && typeof value === "object" && !(value instanceof Date)) {
+    const source = (value as Record<string, unknown>).type === "webhook"
+      ? hideWebhookSecrets(value as Record<string, unknown>)
+      : (value as Record<string, unknown>);
     const out: Record<string, unknown> = {};
-    for (const [key, v] of Object.entries(value)) {
+    for (const [key, v] of Object.entries(source)) {
       if (IDENTIFYING_KEYS.has(key.toLowerCase())) continue;
-      out[key] = forModel(v);
+      out[key] = SECRET_KEYS.has(key.toLowerCase()) && typeof v === "string" ? HIDDEN : forModel(v);
     }
     return out;
   }

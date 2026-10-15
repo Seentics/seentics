@@ -4,6 +4,7 @@ import type {
   AutomationDraftWriter,
   AutomationSnapshot,
 } from "../../automations/interfaces/automations.module";
+import { HIDDEN } from "../services/agent/model-view";
 import { UUID, diffFields, diffLines, drafted, proposal, refuse } from "./proposal-policy";
 import type { AiTool, ProposalRisk, ToolResult } from "./tool.types";
 
@@ -62,7 +63,7 @@ function actionText(action: Record<string, unknown>): string {
   const type = String(action.type ?? "action").replace(/_/g, " ");
   // Every visible field, so a change to any of them shows in the diff.
   const parts = ["title", "message", "content", "url", "selector"]
-    .map((k) => action[k])
+    .map((k) => (k === "url" ? withHost(action[k]) : action[k]))
     .filter((v): v is string => typeof v === "string" && !!v.trim())
     .map((v) => v.slice(0, 80));
   return parts.length ? `${type}: ${parts.join(" — ")}` : type;
@@ -85,15 +86,42 @@ export function describeDefinition(def: Def): { triggers: string[]; actions: str
   return { triggers, actions, conditions };
 }
 
+/** The external actions in full — compared raw, since the card's lines cut long values. */
+function externalActions(def: Def): string {
+  return JSON.stringify((def.graph?.nodes ?? [])
+    .filter((n) => n.kind === "action" && EXTERNAL.has(String((n.action as Record<string, unknown> | undefined)?.type ?? "")))
+    .map((n) => n.action));
+}
+
 function actionTypes(def: Def): string[] {
   return (def.graph?.nodes ?? []).filter((n) => n.kind === "action").map((n) => String((n.action as Record<string, unknown> | undefined)?.type ?? ""));
 }
 
 /** A value sent back with the truncation marker means "unchanged": the stored one is kept. */
+/**
+ * Where a URL really goes, first: cut to fit a line, `https://hooks.slack.com.x…@evil.example/`
+ * read as a Slack address while it posts to evil.example.
+ */
+function withHost(url: unknown): unknown {
+  if (typeof url !== "string") return url;
+  try {
+    return `${new URL(url).host} (${url})`;
+  } catch {
+    return url;
+  }
+}
+
+/** Values the model saw cut or hidden (model-view.ts), sent back as they were: the stored ones are kept. */
 function restoreTruncated(next: Record<string, unknown>, prev: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...next };
+  const elided = (v: unknown) => typeof v === "string" && (v.includes(TRUNCATED) || v.includes(HIDDEN));
   for (const [k, v] of Object.entries(out)) {
-    if (typeof v === "string" && v.includes(TRUNCATED) && typeof prev[k] === "string") out[k] = prev[k];
+    if (elided(v) && typeof prev[k] === "string") out[k] = prev[k];
+    // Header values are hidden one by one.
+    const before = prev[k];
+    if (v && typeof v === "object" && !Array.isArray(v) && before && typeof before === "object" && !Array.isArray(before)) {
+      out[k] = Object.fromEntries(Object.entries(v).map(([hk, hv]) => [hk, elided(hv) ? (before as Record<string, unknown>)[hk] : hv]));
+    }
   }
   return out;
 }
@@ -237,7 +265,7 @@ export function automationEditTools(deps: {
       }
 
       const external = definition
-        ? actionTypes(definition).some((t) => EXTERNAL.has(t)) && JSON.stringify(after.actions) !== JSON.stringify(b.actions)
+        ? actionTypes(definition).some((t) => EXTERNAL.has(t)) && externalActions(definition) !== externalActions(before)
         : false;
       const risks: ProposalRisk[] = [];
       if (a.isActive) risks.push({ kind: "live", message: "This automation is live: the change reaches visitors as soon as you confirm." });

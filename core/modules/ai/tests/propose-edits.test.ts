@@ -101,6 +101,17 @@ describe("automation drafts", () => {
     expect(merged.ok && (merged.definition.graph!.nodes![1]!.action as any).custom_html).toHaveLength(1000);
   });
 
+  // The model sees a webhook's path and header values as [hidden] (model-view.ts); sent
+  // back, they must not overwrite the real ones.
+  it("keeps a hidden webhook address and header values sent back unchanged", () => {
+    const def = structuredClone(definition);
+    (def.graph!.nodes![1] as { action: unknown }).action = { type: "webhook", url: "https://hooks.slack.com/services/T0/B0/secret", headers: { "X-API-Key": "k-123", "X-Mode": "a" } };
+    const merged = applyAutomationPatch(def, { actionUpdates: [{ nodeId: "n_action", changes: { url: "https://hooks.slack.com/[hidden]", headers: { "X-API-Key": "[hidden]", "X-Mode": "b" } } }] });
+    expect(merged.ok && merged.definition.graph!.nodes![1]!.action).toEqual({
+      type: "webhook", url: "https://hooks.slack.com/services/T0/B0/secret", headers: { "X-API-Key": "k-123", "X-Mode": "b" },
+    });
+  });
+
   it("refuses an invalid patch: unknown node, bad trigger, broken condition, and no change", async () => {
     expect(errorOf(await autoRegistry.run("propose_automation_update", { automationId: AUTO, patch: { actionUpdates: [{ nodeId: "nope", changes: {} }] } }, ctx))).toContain("No action node");
     expect(errorOf(await autoRegistry.run("propose_automation_update", { automationId: AUTO, patch: { triggers: [{ type: "telepathy" }] } }, ctx))).toContain("not valid");

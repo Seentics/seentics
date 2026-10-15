@@ -62,7 +62,7 @@ export async function executeWebhook(
   const rawBody = action.body ?? {};
 
   if (!validateWebhookUrl(url)) {
-    log.warn({ msg: 'webhook_blocked_ssrf', automationId, url });
+    log.warn({ msg: 'webhook_blocked_ssrf', automationId, host: hostOf(url) });
     try {
       await db.insert(webhookDeliveries).values({
         automationId,
@@ -84,7 +84,7 @@ export async function executeWebhook(
   try {
     await hostGuard(new URL(url).hostname);
   } catch (err) {
-    log.warn({ msg: 'webhook_blocked_dns', automationId, url, err: err instanceof Error ? err.message : String(err) });
+    log.warn({ msg: 'webhook_blocked_dns', automationId, host: hostOf(url), err: err instanceof Error ? err.message : String(err) });
     try {
       await db.insert(webhookDeliveries).values({
         automationId, runId: runId ?? null, url, statusCode: null, success: false, attemptCount: 0,
@@ -162,6 +162,18 @@ export async function executeWebhook(
   }
 
   if (!success) {
-    log.warn({ msg: 'webhook_failed', automationId, url, lastCode, lastError });
+    log.warn({ msg: 'webhook_failed', automationId, host: hostOf(url), lastCode, lastError });
+  }
+}
+
+/**
+ * Only the host reaches the logs: a Slack, Discord or Zapier hook's address is its
+ * credential, and every failing one was written out whole and shipped to observability.
+ */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "invalid";
   }
 }
