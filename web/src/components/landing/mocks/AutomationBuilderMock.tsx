@@ -319,15 +319,15 @@ function NodePalette() {
 
 /* ── Canvas controls ─────────────────────────────────────────────────────────── */
 
-/** ReactFlow's `<Controls showInteractive={false} />`, bottom-left. Library
-    defaults, not app tokens — that is what the builder actually shows. */
+/** ReactFlow's `<Controls showInteractive={false} />`, bottom-left, in the app's own
+    colours: the library's white buttons were a bright block on the dark canvas. */
 function CanvasControls() {
   return (
-    <div className="absolute bottom-4 left-4 flex w-[27px] flex-col overflow-hidden rounded-[2px] shadow-lg">
+    <div className="absolute bottom-4 left-4 flex w-[27px] flex-col overflow-hidden rounded-md border border-border">
       {[Plus, Minus, Maximize].map((Icon, i) => (
         <span
           key={i}
-          className="flex h-[26px] items-center justify-center border-b border-[#eee] bg-[#fefefe] text-[#333] last:border-b-0"
+          className="flex h-[26px] items-center justify-center border-b border-border bg-card text-muted-foreground last:border-b-0"
         >
           <Icon className="h-3 w-3" strokeWidth={2.5} />
         </span>
@@ -343,15 +343,20 @@ export function AutomationBuilderMock() {
     <div className="flex h-full w-full overflow-hidden bg-background">
       <style>{`@keyframes seenticsMockDash { to { stroke-dashoffset: -10; } }`}</style>
 
-      {/* Canvas — ReactFlow's `bg-muted/20` and its dotted background at gap 24 */}
+      {/* Canvas — ReactFlow's dotted background at gap 24 */}
+      {/* The canvas takes whatever width the frame gives it; the graph keeps its own
+          CANVAS_W layout, centred in it. A fixed-width canvas left an empty strip beside the
+          palette whenever the mock was shown wider than it was drawn for. */}
       <div
-        className="relative h-full bg-muted/20"
+        // The page colour with a faint dot grid, per theme: the solid mid-grey dots on a
+        // tinted fill were the busiest thing in the frame.
+        className="relative h-full min-w-0 flex-1 bg-background [--canvas-dot:rgb(15_15_20/0.13)] dark:[--canvas-dot:rgb(255_255_255/0.07)]"
         style={{
-          width: CANVAS_W,
-          backgroundImage: 'radial-gradient(circle at 1px 1px, #91919a 1px, transparent 0)',
+          backgroundImage: 'radial-gradient(circle at 1px 1px, var(--canvas-dot) 1px, transparent 0)',
           backgroundSize: '24px 24px',
         }}
       >
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: CANVAS_W }}>
         <Edges />
 
         <TriggerCard />
@@ -393,6 +398,7 @@ export function AutomationBuilderMock() {
         {/* Edge labels last, so the branch names sit above the paths. */}
         <EdgeLabel x={(YES_X + centreX(ACTION_YES.x)) / 2} y={(BRANCH.y + H_NODE + ACTION_YES.y) / 2} text="Yes" />
         <EdgeLabel x={(NO_X + centreX(ACTION_NO.x)) / 2} y={(BRANCH.y + H_NODE + ACTION_NO.y) / 2} text="No" />
+        </div>
 
         <CanvasControls />
       </div>

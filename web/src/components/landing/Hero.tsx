@@ -28,14 +28,14 @@ export default function Hero() {
   });
 
   return (
-    <section className="relative overflow-hidden pt-36 sm:pt-48 lg:pt-56">
+    <section className="relative overflow-hidden pt-40 sm:pt-52 lg:pt-64">
       <div className="lx-container relative">
 
         <motion.h1
           {...rise(0.08)}
-          className="lx-display max-w-[16ch] text-[2.25rem] !font-bold sm:text-5xl lg:text-[3.5rem]"
+          className="lx-display max-w-[16ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
         >
-          Analytics that shows you why visitors leave
+          Know what visitors do, and why
         </motion.h1>
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
