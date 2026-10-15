@@ -321,6 +321,17 @@ export async function summarizeSessions(
   websiteId: string,
   filters: SessionListFilters = {},
 ): Promise<SessionListSummary> {
+  return computeSummary(websiteId, filters);
+}
+
+async function computeSummary(websiteId: string, filters: SessionListFilters): Promise<SessionListSummary> {
+  // Browsing a group still counts every group (over the other filters): both scans at once.
+  const { group: browsing, ...rest } = filters;
+  const allGroups = browsing
+    ? pgSql<Array<Record<string, number>>>`
+        SELECT ${GROUP_COUNTS} FROM session_replays s ${ANALYSIS_JOIN} WHERE ${sessionListWhere(websiteId, rest)}
+      `
+    : null;
   const rows = await pgSql<
     Array<{ total: number; with_errors: number; with_rage: number; avg_duration: number } & Record<string, number>>
   >`
@@ -337,14 +348,7 @@ export async function summarizeSessions(
   `;
   const row = rows[0];
   // Groups are counted across the whole filtered set, not inside the group being browsed.
-  let groupRow: Record<string, number> | undefined = row;
-  if (filters.group) {
-    const { group: _browsing, ...rest } = filters;
-    const all = await pgSql<Array<Record<string, number>>>`
-      SELECT ${GROUP_COUNTS} FROM session_replays s ${ANALYSIS_JOIN} WHERE ${sessionListWhere(websiteId, rest)}
-    `;
-    groupRow = all[0];
-  }
+  const groupRow: Record<string, number> | undefined = allGroups ? (await allGroups)[0] : row;
   return {
     total: row?.total ?? 0,
     withErrors: row?.with_errors ?? 0,
