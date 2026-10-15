@@ -53,13 +53,13 @@ export function TrafficOverview({
 
   return (
     <Card className={cn("col-span-full surface overflow-hidden pb-2", className)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 px-4 py-3 shrink-0 border-b border-border">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 space-y-0 px-4 py-3 shrink-0 border-b border-border">
         <div className="flex min-w-0 items-center gap-1">
           <h2 className="text-sm font-semibold tracking-tight">Traffic Overview</h2>
           {headerAction}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex max-w-full items-center gap-2 overflow-x-auto [scrollbar-width:none] sm:shrink-0 sm:overflow-visible [&::-webkit-scrollbar]:hidden">
           {onComparisonToggle && (
             <ComparisonToggle enabled={showComparison} onToggle={onComparisonToggle} />
           )}

@@ -23,20 +23,20 @@ function EventRow({ event }: { event: any }) {
   return (
     <div className="border-b border-border last:border-0">
       <div
-        className={cn('flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors', hasProps && 'cursor-pointer')}
+        className={cn('flex items-center gap-3 px-4 py-3.5 hover:bg-muted/20 sm:gap-4 sm:px-5 transition-colors', hasProps && 'cursor-pointer')}
         onClick={() => hasProps && setOpen(o => !o)}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{event.event_type}</span>
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{event.event_type}</span>
             {hasProps && (
-              <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
+              <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
             )}
           </div>
         </div>
-        <span className="text-sm font-semibold w-24 text-right shrink-0">{(event.count || 0).toLocaleString()}</span>
+        <span className="text-sm font-semibold w-16 text-right shrink-0 sm:w-24">{(event.count || 0).toLocaleString()}</span>
         {/* The API field is `unique_visitors`; this read `unique_users` alone and showed 0 for every event. */}
-        <span className="text-xs text-muted-foreground w-28 text-right shrink-0">{(event.unique_visitors ?? event.unique_users ?? 0).toLocaleString()} users</span>
+        <span className="text-xs text-muted-foreground w-20 text-right shrink-0 sm:w-28">{(event.unique_visitors ?? event.unique_users ?? 0).toLocaleString()} users</span>
       </div>
 
       {open && hasProps && (
@@ -119,10 +119,10 @@ export default function EventsPage() {
       </div>
       <Card className="border border-border">
         <CardContent className="p-0">
-          <div className="flex items-center gap-4 px-5 py-2.5 bg-muted/20 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="flex items-center gap-3 px-4 py-2.5 sm:gap-4 sm:px-5 bg-muted/20 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             <span className="flex-1">Event</span>
-            <span className="w-24 text-right">Count</span>
-            <span className="w-28 text-right">Unique users</span>
+            <span className="w-16 text-right sm:w-24">Count</span>
+            <span className="w-20 text-right sm:w-28">Unique users</span>
           </div>
 
           {isLoading ? (

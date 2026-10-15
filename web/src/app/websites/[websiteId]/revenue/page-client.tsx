@@ -225,7 +225,7 @@ export default function RevenuePage() {
               <h3 className="text-sm font-semibold text-foreground">Attribution</h3>
               <p className="mt-0.5 text-[11px] text-muted-foreground">Where revenue comes from</p>
             </div>
-            <TabsList className="h-8 bg-muted/60 p-0.5">
+            <TabsList className="h-8 max-w-full justify-start overflow-x-auto bg-muted/60 p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {([
                 ['source', 'Source'],
                 ['medium', 'Medium'],

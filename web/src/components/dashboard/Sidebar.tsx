@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, GitBranch,
   Video, Flame, Bot, Settings,
-  LogOut, PanelLeftClose,
+  LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
   Code2, Bug, Sparkles, Radio, ArrowUpRight,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/stores/useAuthStore';
 import { useEntitlements } from '@/features/suite/queries';
 import { workspaceIncludes } from '@/features/suite/workspace';
@@ -102,7 +103,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
     return e ? e[0]!.toUpperCase() : '?';
   }, [user]);
 
-  const [collapsed, setCollapsed] = useState(() => {
+  const [collapsedPref, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
@@ -112,7 +113,12 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
     localStorage.setItem('sidebar-collapsed', String(v));
   };
 
-  const renderItem = (item: NavItem) => {
+  // Phones get the same navigation as a drawer behind a top bar; it closes once a link
+  // has taken them somewhere.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => setDrawerOpen(false), [pathname]);
+
+  const renderItem = (item: NavItem, collapsed: boolean) => {
     const active = isNavActive(item.href, pathname);
     return (
       <li key={item.href}>
@@ -140,7 +146,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   // observe.seentics.com), so it's a real navigation, not client-side routing.
   // The shared Domain=.seentics.com session cookie (see Phase 1 SSO) means
   // the destination is already authenticated, no token-passing needed.
-  const renderSuiteItem = (item: SuiteNavItem) => (
+  const renderSuiteItem = (item: SuiteNavItem, collapsed: boolean) => (
     <li key={item.href}>
       <a
         href={item.href}
@@ -162,15 +168,16 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
     </li>
   );
 
-  return (
+  const panel = (collapsed: boolean, inDrawer: boolean) => (
     <aside className={cn(
-      'flex flex-col h-screen shrink-0 overflow-hidden select-none',
+      'flex-col shrink-0 overflow-hidden select-none',
+      inDrawer ? 'flex h-full w-full' : 'hidden md:flex h-screen',
       // bg-sidebar, not bg-card: the sidebar is app chrome and belongs on the
       // deepest layer. On bg-card it sat level with the panels it frames, which
       // collapsed sidebar, page and cards into one flat surface.
       'bg-sidebar border-r border-sidebar-border dark:border-none',
       'transition-[width] duration-200 ease-in-out',
-      collapsed ? 'w-[64px]' : 'w-[216px]',
+      !inDrawer && (collapsed ? 'w-[64px]' : 'w-[216px]'),
     )}>
 
       {/* Header: expanded = logo + title + collapse; collapsed = single logo control to expand */}
@@ -196,7 +203,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             <Logo size="sm" className="shrink-0" />
             <span className="flex-1 text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
           </Link>
-            <button
+            {!inDrawer && <button
               type="button"
               onClick={() => persist(true)}
               title="Collapse sidebar"
@@ -204,7 +211,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
               className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
-            </button>
+            </button>}
            </div>
         )}
       </div>
@@ -212,8 +219,8 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
         <ul className="space-y-0.5">
-          {mainNav.map(renderItem)}
-          {secondNav.map(renderItem)}
+          {mainNav.map((item) => renderItem(item, collapsed))}
+          {secondNav.map((item) => renderItem(item, collapsed))}
         </ul>
       </nav>
 
@@ -226,7 +233,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
           )}
           <ul className="space-y-0.5">
-            {suiteNav.map(renderSuiteItem)}
+            {suiteNav.map((item) => renderSuiteItem(item, collapsed))}
           </ul>
         </div>
       )}
@@ -270,7 +277,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           </PopoverTrigger>
           <PopoverContent
             className="w-64 border border-border bg-card p-0 shadow-md"
-            side="right"
+            side={inDrawer ? 'top' : 'right'}
             align="end"
             sideOffset={10}
             collisionPadding={12}
@@ -338,5 +345,31 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         </Popover>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border bg-sidebar px-3 md:hidden dark:border-border/40">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open navigation"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link href="/" className="flex items-center gap-2">
+          <Logo size="sm" className="shrink-0" />
+          <span className="text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
+        </Link>
+      </div>
+      {panel(collapsedPref, false)}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="left" className="w-[264px] max-w-[85vw] border-sidebar-border bg-sidebar p-0 md:hidden">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          {panel(false, true)}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

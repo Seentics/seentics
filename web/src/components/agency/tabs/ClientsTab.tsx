@@ -407,9 +407,9 @@ export function ClientsTab({
           </div>
         }
         toolbarRight={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Select value={filter} onValueChange={v => setFilter(v as Filter)}>
-              <SelectTrigger className="h-8 w-36 !bg-card text-xs">
+              <SelectTrigger className="h-8 w-32 shrink-0 !bg-card text-xs sm:w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -418,13 +418,13 @@ export function ClientsTab({
                 ))}
               </SelectContent>
             </Select>
-            <div className="relative">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search client, ID or domain…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="h-8 w-60 !bg-card pl-8 text-xs"
+                className="h-8 w-full !bg-card pl-8 text-xs sm:w-60"
               />
             </div>
           </div>

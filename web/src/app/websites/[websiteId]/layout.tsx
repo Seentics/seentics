@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const isAiMode = pathname === `/websites/${websiteId}/ai`;
 
   return (
-    <div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground supports-[height:100dvh]:h-[100dvh] md:flex-row">
       {websiteId && !isAiMode && <Sidebar websiteId={websiteId} />}
       {/*
         flex flex-col + min-h-0: children can use flex-1 (e.g. session replay) and get real height.

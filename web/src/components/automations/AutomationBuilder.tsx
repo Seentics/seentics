@@ -1730,6 +1730,8 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
   });
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [paletteTab, setPaletteTab] = useState<PaletteTab>('triggers');
+  // Phones: the palette is a bottom sheet over the canvas rather than a column beside it.
+  const [mobilePalette, setMobilePalette] = useState(false);
 
   const [showJson, setShowJson] = useState(false);
   /** Where the next node from the palette attaches. Set by an outlet's "+". */
@@ -1929,6 +1931,15 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           paletteMime={PALETTE_MIME}
         />
 
+        <button
+          type="button"
+          onClick={() => setMobilePalette(true)}
+          className="absolute right-3 top-3 z-10 inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-md md:hidden"
+        >
+          <Plus className="h-4 w-4" />
+          Add node
+        </button>
+
         {/*
           An empty canvas looks the same as a broken one, so it gets a hint — but only a
           hint. This used to *replace* the canvas before the first trigger existed, which
@@ -1971,7 +1982,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
       </div>
 
       {/* Right sidebar — node palette */}
-      <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden border-l border-border bg-card lg:w-[380px] xl:w-[420px]">
+      <aside className="hidden w-[320px] shrink-0 flex-col overflow-hidden border-l border-border bg-card md:flex lg:w-[380px] xl:w-[420px]">
         <NodePalette
           tab={paletteTab}
           onTab={setPaletteTab}
@@ -1984,6 +1995,32 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           onDragStart={onPaletteDragStart}
         />
       </aside>
+
+      {mobilePalette && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobilePalette(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add a node"
+            className="absolute inset-x-0 bottom-0 flex h-[75dvh] flex-col overflow-hidden rounded-t-xl border-t border-border bg-card shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <NodePalette
+              tab={paletteTab}
+              onTab={setPaletteTab}
+              onAddTrigger={type => { addTriggerType(type); setMobilePalette(false); }}
+              onAddAction={type => { addNode('action', type); setMobilePalette(false); }}
+              onAddCondition={() => { addNode('if'); setMobilePalette(false); }}
+              onAddSwitch={() => { addNode('switch'); setMobilePalette(false); }}
+              onAddWait={() => { addNode('wait_until'); setMobilePalette(false); }}
+              onAddDelay={() => { addNode('delay'); setMobilePalette(false); }}
+              onDragStart={onPaletteDragStart}
+              onClose={() => setMobilePalette(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Node editor */}
       {selected && (
