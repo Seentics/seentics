@@ -6,6 +6,7 @@ import type { AiAgent, AiProposalApplier } from "../interfaces/ai-agent.interfac
 import type { AiControllerDeps } from "./ai-controller.types";
 import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
 import { can, type Permission } from "../../../platform/permissions";
+import { log } from "../../../platform/observability/logger";
 
 const MAX_PROMPT_CHARS = 2_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,10 +72,10 @@ export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
       if (err instanceof AIDailyLimitError) {
         return c.json({ error: err.message }, 429);
       }
-      return c.json(
-        { error: err instanceof Error ? err.message : "AI request failed" },
-        502 as ContentfulStatusCode,
-      );
+      // The detail stays in the logs: it held the provider's error body, or a database
+      // error with its statement and parameters.
+      log.warn({ category: "ai", msg: "ai_agent_request_failed", err: String(err) });
+      return c.json({ error: "The assistant could not answer just now. Try again." }, 502 as ContentfulStatusCode);
     }
   };
 }
@@ -115,10 +116,8 @@ export function confirmProposal(
       }
       return c.json({ ok: true, created: result.created, operation: result.operation });
     } catch (err) {
-      return c.json(
-        { error: err instanceof Error ? err.message : "Could not apply the proposal" },
-        400,
-      );
+      log.warn({ category: "ai", msg: "ai_proposal_confirm_failed", err: String(err) });
+      return c.json({ error: "Could not apply the proposal" }, 400);
     }
   };
 }

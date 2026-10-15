@@ -187,7 +187,10 @@ export class ProposalApplier implements AiProposalApplier {
     } catch (err) {
       await this.release(input);
       log.warn({ msg: "proposal_apply_failed", query_id: input.queryId, resource, operation, err: String(err) });
-      return { ok: false, error: err instanceof Error ? err.message.slice(0, 300) : `Could not apply the ${label} change.` };
+      // The writers' own refusals are plain Errors worded for the user; anything else (a
+      // database error carries its statement and parameters) stays in the log above.
+      const own = err instanceof Error && err.constructor === Error;
+      return { ok: false, error: own ? (err as Error).message.slice(0, 300) : `Could not apply the ${label} change.` };
     }
 
     const result = { resource, id: done.id };
