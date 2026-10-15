@@ -3,8 +3,9 @@
 Seentics ships a production Compose stack in `docker-compose.production.yml`. It
 keeps Postgres, [objex](https://github.com/kajdesk/objex) (S3-compatible object
 storage), and the core API on a private Docker network; Caddy is the only service
-that listens on the host (ports 80 and 443). Dashboard API calls stay same-origin
-through the Next.js server, while a separate TLS hostname serves only signed replay
+that listens on the host (ports 80 and 443). The dashboard is a static build served by
+its own Caddy (`web/Caddyfile`), which keeps API calls same-origin by proxying `/api` to
+the core API, while a separate TLS hostname serves only signed replay
 and heatmap objects from objex.
 
 Do not use `docker-compose.yml` for a public deployment. It is deliberately a

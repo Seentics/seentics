@@ -1,4 +1,4 @@
-# Multi-stage build for Next.js production
+# Multi-stage build: Next.js static export, served by Caddy (see Caddyfile)
 FROM node:20-alpine AS base
 
 # Install dependencies only when needed
@@ -35,10 +35,6 @@ ENV NEXT_PUBLIC_IS_ENTERPRISE=$NEXT_PUBLIC_IS_ENTERPRISE
 ARG NEXT_PUBLIC_SUPPORT_EMAIL=support@seentics.com
 ENV NEXT_PUBLIC_SUPPORT_EMAIL=$NEXT_PUBLIC_SUPPORT_EMAIL
 
-# Gateway URL for Next.js rewrites (baked at build time)
-ARG API_GATEWAY_URL=http://gateway:8000
-ENV API_GATEWAY_URL=$API_GATEWAY_URL
-
 # Seentics self-tracking (baked at build time)
 ARG NEXT_PUBLIC_SEENTICS_SITE_ID
 ENV NEXT_PUBLIC_SEENTICS_SITE_ID=$NEXT_PUBLIC_SEENTICS_SITE_ID
@@ -53,37 +49,25 @@ ARG NEXT_PUBLIC_CRISP_WEBSITE_ID
 ENV NEXT_PUBLIC_CRISP_WEBSITE_ID=$NEXT_PUBLIC_CRISP_WEBSITE_ID
 
 RUN NODE_OPTIONS="--max_old_space_size=2048" npm run build
+RUN node scripts/caddy-shell-rules.cjs public/_redirects shell-rules.caddy
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# The export is plain files, so the runtime needs no Node: Caddy serves them and proxies
+# /api to the core API.
+FROM caddy:2.8.4-alpine AS runner
 
-ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_IS_ENTERPRISE=false
+ENV SEENTICS_ENTERPRISE=$NEXT_PUBLIC_IS_ENTERPRISE
+# Where /api/* goes; the compose service name by default.
+ENV API_UPSTREAM=api:8001
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /app/shell-rules.caddy /etc/caddy/shell-rules.caddy
+COPY --from=builder /app/out /srv
 
-COPY --from=builder /app/public ./public
+# Validate at build time, so a broken rule fails the image rather than the deploy.
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+# Caddy writes its state under /data and /config even with nothing to persist.
+RUN chown -R nobody:nobody /data /config
+USER nobody
 EXPOSE 4000
-
-ENV PORT=4000
-# set hostname to localhost
-ENV HOSTNAME=0.0.0.0
-
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]

@@ -3,6 +3,7 @@
 # modules from replacing the Linux dependencies installed in the image.
 node_modules
 .next
+out
 .env
 .env.*
 .git
