@@ -637,6 +637,9 @@ const UNLOAD_SESSION_PIECE = 16_000;
 const unloadParts = (payload) => {
   const { session, heatmaps, heatmap_dom_snapshot: doms, ...rest } = payload;
   const envelope = { website_id: payload.website_id, domain: payload.domain, ua: payload.ua, consent: payload.consent };
+  // Each piece is named after the batch it came from (`<batch_id>#<piece>`): if the whole batch
+  // already reached the server, its pieces are recognised as repeats; if not, each is new.
+  const pieceId = (piece) => (payload.batch_id ? `${payload.batch_id}#${piece}` : undefined);
   const hasCore = Object.values(rest).some(v => Array.isArray(v) && v.length > 0);
   const inPieces = (key, items, max = UNLOAD_PART_MAX) => {
     const pieces = [];
@@ -645,23 +648,23 @@ const unloadParts = (payload) => {
     for (const item of items ?? []) {
       const n = JSON.stringify(item).length;
       if (chunk.length && size + n > max) {
-        pieces.push(JSON.stringify({ ...envelope, [key]: chunk }));
+        pieces.push(JSON.stringify({ ...envelope, batch_id: pieceId(`${key}${pieces.length}`), [key]: chunk }));
         chunk = [];
         size = 0;
       }
       chunk.push(item);
       size += n;
     }
-    if (chunk.length) pieces.push(JSON.stringify({ ...envelope, [key]: chunk }));
+    if (chunk.length) pieces.push(JSON.stringify({ ...envelope, batch_id: pieceId(`${key}${pieces.length}`), [key]: chunk }));
     return pieces;
   };
   return {
-    core: hasCore ? JSON.stringify(rest) : null,
+    core: hasCore ? JSON.stringify({ ...rest, batch_id: pieceId('core') }) : null,
     heatmaps: inPieces('heatmaps', heatmaps),
     // Small pieces: what is left of the closing page's budget after the analytics and
     // heatmap parts is filled with as much of the recording as fits, in order.
     session: inPieces('session', session, UNLOAD_SESSION_PIECE),
-    snapshots: (doms ?? []).map(item => JSON.stringify({ ...envelope, heatmap_dom_snapshot: [item] })),
+    snapshots: (doms ?? []).map((item, i) => JSON.stringify({ ...envelope, batch_id: pieceId(`dom${i}`), heatmap_dom_snapshot: [item] })),
   };
 };
 

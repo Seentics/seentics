@@ -122,7 +122,7 @@ describe("the session template, across every combination", () => {
       if (!input.timeline.goal.reached) expect(text).not.toContain("conversion");
       const troubled = input.signals.length > 0 || input.timeline.errorCount > 0 || input.timeline.failedRequests > 0;
       if (troubled) expect(text).not.toContain("Nothing in the recording suggests");
-      expect(worthModel(input)).toBe(troubled && !(input.timeline.pages.length <= 1 && input.timeline.durationMs < 15_000));
+      expect(worthModel(input)).toBe(troubled);
     }
   });
 

@@ -222,12 +222,11 @@ export function ruleSummary(input: SessionSummaryInput): SessionSummary {
 
 /**
  * Whether a model would add anything to the template: only when there is a story to read — some
- * friction, an error or a failed request — across more than a glance. A calm visit or a bounce is
- * told as well by the template, so it costs nothing.
+ * friction, an error or a failed request, however short the visit (five rage clicks in four
+ * seconds are why someone opens the recording). A calm visit or a bounce is told as well by the
+ * template, so it costs nothing.
  */
 export function worthModel(input: SessionSummaryInput): boolean {
   const t = input.timeline;
-  const trouble = input.signals.length > 0 || t.errorCount > 0 || t.failedRequests > 0;
-  const glance = t.pages.length <= 1 && t.durationMs < 15_000;
-  return trouble && !glance;
+  return input.signals.length > 0 || t.errorCount > 0 || t.failedRequests > 0;
 }

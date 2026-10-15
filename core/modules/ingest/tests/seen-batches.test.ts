@@ -16,3 +16,19 @@ describe("seen tracker batches", () => {
     expect(alreadyStored("w", "", t0)).toBe(false);
   });
 });
+
+describe("pieces of a batch split at page close", () => {
+  beforeEach(resetSeenBatches);
+  const t0 = 1_800_000_000_000;
+
+  it("are repeats once the whole batch arrived, and new pieces otherwise", () => {
+    markStored("w", "b1", t0);
+    expect(alreadyStored("w", "b1#core", t0)).toBe(true);
+    expect(alreadyStored("w", "b1#heatmaps0", t0)).toBe(true);
+    // The whole batch never arrived: each piece is new, then a repeat of itself.
+    expect(alreadyStored("w", "b2#core", t0)).toBe(false);
+    markStored("w", "b2#core", t0);
+    expect(alreadyStored("w", "b2#heatmaps0", t0)).toBe(false);
+    expect(alreadyStored("w", "b2#core", t0)).toBe(true);
+  });
+});

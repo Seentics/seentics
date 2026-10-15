@@ -15,9 +15,11 @@ const log = baseLog.child({ category: "ops_alert" });
  */
 export async function alertOps(title: string, details: Record<string, string | number> = {}): Promise<void> {
   log.error({ msg: "ops_alert", title, ...details });
-  const cfg = env();
-  if (!cfg.opsAlertUrl || !cfg.globalApiKey) return;
   try {
+    // Inside the try: a configuration that cannot be read must not turn an alert into a rejection
+    // its fire-and-forget callers never handle.
+    const cfg = env();
+    if (!cfg.opsAlertUrl || !cfg.globalApiKey) return;
     const res = await fetch(cfg.opsAlertUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": cfg.globalApiKey },

@@ -135,19 +135,25 @@ export async function listPages(websiteId: string, days?: number): Promise<PageS
            ) AS avg_scroll_raw,
            MAX(last_updated) AS last_seen,
            -- For the list's one-line read (HeatmapPageSummary): raw sums, so variants merge.
+           -- Known and dead as the insights judge them (lib/heatmap-insights.ts isInteractive):
+           -- the element's tag, or the one its selector starts with; marked elements are neither.
            COALESCE(SUM(intensity) FILTER (WHERE event_type = 'click'
-             AND (COALESCE(target_locator->>'tag', '') <> '' OR COALESCE(target_locator->>'role', '') <> '')), 0)::bigint AS click_known,
+             AND (k.interactive OR (NOT k.annotated AND k.tag IS NOT NULL))), 0)::bigint AS click_known,
            COALESCE(SUM(intensity) FILTER (WHERE event_type = 'click'
-             AND COALESCE(target_locator->>'tag', '') <> ''
-             AND COALESCE(target_locator->>'seentics_id', '') = ''
-             AND NOT (lower(target_locator->>'tag') = ANY(${INTERACTIVE_TAG_LIST}))
-             AND NOT (lower(COALESCE(target_locator->>'role', '')) = ANY(${INTERACTIVE_ROLE_LIST}))), 0)::bigint AS click_dead,
+             AND NOT k.interactive AND NOT k.annotated AND k.tag IS NOT NULL), 0)::bigint AS click_dead,
            COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND y_percent >= 50), 0)::bigint AS scroll_half,
            COALESCE(SUM(y_percent::bigint * intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'mobile'), 0)::bigint AS mobile_scroll_sum,
            COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'mobile'), 0)::bigint AS mobile_scroll_n,
            COALESCE(SUM(y_percent::bigint * intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'desktop'), 0)::bigint AS desktop_scroll_sum,
            COALESCE(SUM(intensity) FILTER (WHERE event_type = 'scroll' AND lower(device_type) = 'desktop'), 0)::bigint AS desktop_scroll_n
     FROM heatmap_points
+    CROSS JOIN LATERAL (
+      SELECT t.tag, t.role,
+             (t.role = ANY(${INTERACTIVE_ROLE_LIST}) OR t.tag = ANY(${INTERACTIVE_TAG_LIST})) AS interactive,
+             (COALESCE(target_locator->>'seentics_id', '') <> '' OR COALESCE(target_selector, '') LIKE '[data-seentics-id%') AS annotated
+      FROM (SELECT lower(COALESCE(NULLIF(target_locator->>'tag', ''), substring(COALESCE(target_selector, '') FROM '^([A-Za-z][A-Za-z0-9-]*)(?:[#.]|$)'))) AS tag,
+                   lower(COALESCE(target_locator->>'role', '')) AS role) t
+    ) k
     WHERE website_id = ${websiteId}::uuid
       AND (${fromDay}::date IS NULL OR day >= ${fromDay}::date)
     GROUP BY page_path

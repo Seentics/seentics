@@ -15,8 +15,12 @@ const seen = new Map<string, number>();
 
 export function alreadyStored(websiteId: string, batchId: unknown, now = Date.now()): boolean {
   if (typeof batchId !== "string" || !batchId) return false;
-  const at = seen.get(`${websiteId}|${batchId}`);
-  return at !== undefined && now - at < TTL_MS;
+  const fresh = (id: string) => { const at = seen.get(`${websiteId}|${id}`); return at !== undefined && now - at < TTL_MS; };
+  if (fresh(batchId)) return true;
+  // A piece of a batch split while its page closed (`<batch>#<piece>`): a repeat when the whole
+  // batch already arrived.
+  const hash = batchId.indexOf("#");
+  return hash > 0 && fresh(batchId.slice(0, hash));
 }
 
 export function markStored(websiteId: string, batchId: unknown, now = Date.now()): void {

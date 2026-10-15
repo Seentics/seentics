@@ -170,8 +170,9 @@ describe("the template's reading of a visit", () => {
     expect(worthModel(input())).toBe(true);
     const calm = { score: 0, counts: {}, signals: [], timeline: { ...input().timeline, errorCount: 0, failedRequests: 0 } };
     expect(worthModel(input(calm))).toBe(false);
-    const bounce = { timeline: { ...input().timeline, durationMs: 9000, pages: [{ path: "/", atMs: 0, dwellMs: 9000 }] } };
-    expect(worthModel(input(bounce))).toBe(false);
+    // A short visit with friction still has a story.
+    const short = { timeline: { ...input().timeline, durationMs: 4000, pages: [{ path: "/", atMs: 0, dwellMs: 4000 }] } };
+    expect(worthModel(input(short))).toBe(true);
   });
 });
 
