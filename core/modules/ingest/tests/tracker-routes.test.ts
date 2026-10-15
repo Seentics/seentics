@@ -458,6 +458,29 @@ describe("GET /config/:website_id", () => {
 // ─── POST /collect ───────────────────────────────────────────────────────────
 
 describe("POST /collect", () => {
+  // Answered "processed" while every row was dropped: the tracker retries only on 429/5xx,
+  // so a batch arriving during a stalled flush was lost for good.
+  it("asks for a retry, and does not mark it stored, when nothing of the batch was taken", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const full = queue.enqueue;
+    queue.enqueue = (_lane: string, _w: string, rows: readonly unknown[]) => ({ accepted: 0, dropped: rows.length });
+    const send = () => app.request("/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ website_id: "site_abc", consent: true, batch_id: "busy-batch-1", events: [{ type: "pageview", ts: Date.now(), url: "https://shop.test/", sid: "s1", vid: "v1" }] }),
+    });
+    try {
+      const res = await send();
+      expect(res.status).toBe(503);
+      expect(res.headers.get("Retry-After")).toBeTruthy();
+    } finally {
+      queue.enqueue = full;
+    }
+    const retry = await send();
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()) as { message: string }).message).toBe("processed");
+  });
+
   it("returns 400 for invalid JSON body", async () => {
     const res = await app.request("/collect", {
       method: "POST",

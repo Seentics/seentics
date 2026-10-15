@@ -68,6 +68,14 @@ export function collectTracker(deps: TrackerControllerDeps) {
         ? await deps.visitorSalt()
         : undefined,
     });
+    // Nothing of it taken: every lane it needed was full (a stalled flush, a burst). It was
+    // answered "processed" and the tracker, which retries only on 429 and 5xx, threw it
+    // away. Not marked stored, so the retry is taken in full. A batch partly taken is
+    // still acknowledged: retrying it would store its accepted rows twice.
+    if (result.kind === "processed" && result.queued === 0 && result.dropped > 0) {
+      c.header("Retry-After", "5");
+      return c.json({ status: "busy", message: "ingest is at capacity; retry", dropped: result.dropped }, 503);
+    }
     markStored(website.id, batchId);
     if (result.kind === "empty") return c.json({ status: "ok", message: "nothing to process" });
     if (result.kind === "privacy-disabled") {
