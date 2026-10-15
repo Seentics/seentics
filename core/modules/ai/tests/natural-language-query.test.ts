@@ -296,6 +296,14 @@ describe("the daily cap", () => {
     expect(repo.pendingCreated).toBe(0);
   });
 
+  // Working the domain out is a model call too: past the cap it was still made, and paid
+  // for, on every request before the cap refused it.
+  it("does not classify the question when refusing", async () => {
+    repo.queriesInWindow = 200;
+    await expect(runner.run(USER, SITE, "q", "auto")).rejects.toThrow(AIDailyLimitError);
+    expect(llm.classifyCalls).toBe(0);
+  });
+
   /** A cached answer costs nothing, so it must not be refused by a cost guard. */
   it("still serves a cached answer once the cap is reached", async () => {
     await runner.run(USER, SITE, "top pages", "analytics");

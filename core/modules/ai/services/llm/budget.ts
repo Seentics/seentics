@@ -80,7 +80,11 @@ export function withDailyBudget<T extends LlmClient>(client: T, prices: Prices):
     },
     async classify(system, user): Promise<string> {
       assertWithinBudget();
-      return client.classify(system, user);
+      const label = await client.classify(system, user);
+      // The client reports no usage for a classification; it was billed all the same, and
+      // left out of the day's spend. Estimated at four characters a token.
+      recordSpend(cost({ inputTokens: Math.ceil((system.length + user.length) / 4), outputTokens: Math.ceil(label.length / 4) + 1 }));
+      return label;
     },
   };
   if (!supportsToolCalling(client)) return guarded as T;

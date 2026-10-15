@@ -28,6 +28,13 @@ describe("the daily AI budget", () => {
     expect(inner.calls).toBe(3);
   });
 
+  // A classification reports no usage; it was billed all the same and left out of the day.
+  it("counts a classification's cost", async () => {
+    const llm = withDailyBudget(fake(), PRICES);
+    await llm.classify("s".repeat(400), "u".repeat(400));
+    expect(spentToday()).toBeGreaterThan(0.2); // ≥ 200 input tokens × 0.001
+  });
+
   it("starts again the next UTC day, and is off at 0", () => {
     recordSpend(9, new Date("2026-10-15T23:00:00Z"));
     expect(() => assertWithinBudget(5, new Date("2026-10-15T23:30:00Z"))).toThrow(AiBudgetExceededError);

@@ -85,6 +85,9 @@ export class NaturalLanguageQueryService {
     initialDomain: AIDomain | "auto" = "auto",
   ): Promise<AIQueryResult> {
     const startedAt = Date.now();
+    // Working the domain out is a model call of its own: past the cap, it was still made
+    // (and paid for) on every request before the cap refused it.
+    if (initialDomain === "auto") await this.assertUnderDailyCap(userId);
     const domain =
       initialDomain === "auto" ? await this.detectDomain(prompt) : initialDomain;
 
@@ -96,7 +99,7 @@ export class NaturalLanguageQueryService {
     const cached = this.getCached(cacheKey);
     if (cached) return { ...cached, execution_time_ms: Date.now() - startedAt };
 
-    // Cost/abuse guardrail. Cache hits above are exempt — they cost nothing.
+    // Cost/abuse guardrail. Cache hits above are exempt when the domain was given — they cost nothing.
     await this.assertUnderDailyCap(userId);
 
     // Recorded before the call, so an attempt that crashes mid-flight still counts
