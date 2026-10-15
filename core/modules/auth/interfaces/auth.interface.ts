@@ -49,6 +49,9 @@ export interface UserDirectory {
   /** `null` when no such user. */
   getById(userId: string): Promise<UserProfile | null>;
 
+  /** Whether the account exists and is not disabled — for credentials that outlive a session. */
+  isActive(userId: string): Promise<boolean>;
+
   /**
    * The full wire shape the web client expects for a signed-in user.
    *

@@ -21,6 +21,10 @@ export class UserDirectoryService implements UserDirectory {
     return this.users.profileById(userId);
   }
 
+  async isActive(userId: string): Promise<boolean> {
+    return (await this.users.findById(userId))?.isActive === true;
+  }
+
   async getProfileForClient(userId: string): Promise<FrontendUser | null> {
     const row = await this.users.findById(userId);
     return row ? toFrontendUser(row) : null;

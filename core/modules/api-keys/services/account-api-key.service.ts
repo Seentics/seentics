@@ -93,12 +93,25 @@ const answers = new Map<string, { value: VerifiedAccountKey | null; expiresAt: n
 const inFlight = new Map<string, Promise<VerifiedAccountKey | null>>();
 const lastUsedWritten = new Map<string, number>();
 
+/**
+ * Bumped by every revoke. A check that read the key before a revoke and finished after it
+ * would otherwise cache the revoked key as good for another 30 seconds.
+ */
+let revocations = 0;
+
 export function forgetVerifiedAccountKeys(): void {
+  revocations++;
   answers.clear();
   inFlight.clear();
 }
 
-export async function verifyAccountApiKey(rawKey: string | undefined): Promise<VerifiedAccountKey | null> {
+/** Whether the key's account may still act: a disabled account's keys stop with its sessions. */
+export type AccountActiveCheck = (userId: string) => Promise<boolean>;
+
+export async function verifyAccountApiKey(
+  rawKey: string | undefined,
+  accountActive?: AccountActiveCheck,
+): Promise<VerifiedAccountKey | null> {
   if (!rawKey?.startsWith(ACCOUNT_KEY_PREFIX)) return null;
 
   const cacheKey = createHash("sha256").update(rawKey).digest("hex");
@@ -107,8 +120,10 @@ export async function verifyAccountApiKey(rawKey: string | undefined): Promise<V
   const running = inFlight.get(cacheKey);
   if (running) return running;
 
-  const check = checkKey(rawKey)
+  const generation = revocations;
+  const check = checkKey(rawKey, accountActive)
     .then((value) => {
+      if (generation !== revocations) return value;
       if (answers.size >= CACHE_MAX_ENTRIES) answers.delete(answers.keys().next().value!);
       answers.set(cacheKey, { value, expiresAt: Date.now() + (value ? VERIFIED_TTL_MS : REFUSED_TTL_MS) });
       return value;
@@ -118,10 +133,11 @@ export async function verifyAccountApiKey(rawKey: string | undefined): Promise<V
   return check;
 }
 
-async function checkKey(rawKey: string): Promise<VerifiedAccountKey | null> {
+async function checkKey(rawKey: string, accountActive?: AccountActiveCheck): Promise<VerifiedAccountKey | null> {
   const rows = await db.select().from(accountApiKeys).where(eq(accountApiKeys.keyPrefix, rawKey.slice(0, 16)));
   for (const row of rows) {
     if (!(await compareKey(rawKey, row.keyHash))) continue;
+    if (accountActive && !(await accountActive(row.userId))) return null;
     stampLastUsed(row.id);
     return { userId: row.userId, apiKeyId: row.id, scopes: (row.scopes ?? []) as AccountScope[] };
   }

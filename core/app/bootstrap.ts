@@ -118,7 +118,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     eraseWebsiteData: eraseWebsiteAnalytics,
   });
 
-  const apiKeysModule = initApiKeysModule({ websitesModule });
+  const apiKeysModule = initApiKeysModule({ websitesModule, accountActive: (userId) => authModule.users.isActive(userId) });
 
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
   // Session summaries are worded by the AI module, composed below: a getter, read per request.
