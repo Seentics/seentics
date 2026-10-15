@@ -25,13 +25,17 @@ export function clampRawDays(days: number): number {
  * is left out too: the retention policy may be dropping it while a caller reads.
  */
 export async function rawEventsFrom(): Promise<string | null> {
+  // Two statements, not a CASE around the second: Postgres resolves every table a query
+  // names before running it, so without TimescaleDB the guarded subquery still failed with
+  // "relation timescaledb_information.jobs does not exist" — and with it every rollup
+  // build, scheduled or on read, so a self-hosted dashboard kept its old numbers.
+  const [timescale] = await sql<{ ok: boolean }[]>`SELECT to_regclass('timescaledb_information.jobs') IS NOT NULL AS ok`;
+  if (!timescale?.ok) return null;
   const [row] = await sql<{ from_day: string | null }[]>`
-    SELECT CASE WHEN to_regclass('timescaledb_information.jobs') IS NULL THEN NULL ELSE (
-      SELECT ((now() - (config->>'drop_after')::interval)::date + 1)::text
-      FROM timescaledb_information.jobs
-      WHERE proc_name = 'policy_retention' AND hypertable_name = 'analytics_events'
-      LIMIT 1
-    ) END AS from_day
+    SELECT ((now() - (config->>'drop_after')::interval)::date + 1)::text AS from_day
+    FROM timescaledb_information.jobs
+    WHERE proc_name = 'policy_retention' AND hypertable_name = 'analytics_events'
+    LIMIT 1
   `;
   return row?.from_day ?? null;
 }
