@@ -165,14 +165,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # This catches broken standalone output, missing runtime files, and accidental
-      # development-only dependencies before a deployment ever reaches a registry.
+      # This catches a broken static export, a shell rule Caddy rejects (the web image
+      # validates its config while building), and missing runtime files before a
+      # deployment ever reaches a registry.
       - name: Build core image
         run: docker build --file core/Dockerfile --tag seentics-core:ci core
 
       - name: Build web image
         run: >-
           docker build --file web/Dockerfile --tag seentics-web:ci
-          --build-arg API_GATEWAY_URL=http://api:8080
           --build-arg NEXT_PUBLIC_API_URL=/api/v1
           web

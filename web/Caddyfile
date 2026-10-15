@@ -1,0 +1,97 @@
+# The self-hosted web image: Caddy serving the static export (`next build` writes out/).
+#
+# Seentics Cloud serves the same export from Cloudflare Pages, where public/_redirects,
+# public/_headers and functions/ do the work below. Each piece has its counterpart here:
+#   _redirects              -> shell-rules.caddy, generated from it at build time
+#   _headers                -> the header route
+#   functions/api/**        -> reverse_proxy to the API (it owns CORS itself)
+#   functions/_middleware   -> the OSS-mode redirects
+# functions/api/contact and functions/api/tools are Cloud's marketing pages and have no
+# counterpart: self-hosted builds answer 404 there.
+#
+# TLS is not terminated here. The edge Caddy (deploy/Caddyfile) does that and proxies to
+# this on :4000.
+{
+	admin off
+	auto_https off
+	servers {
+		# The edge proxy's X-Forwarded-For is kept, so the API (TRUST_PROXY=true) sees the
+		# visitor's address rather than the edge's.
+		trusted_proxies static private_ranges
+	}
+}
+
+:4000 {
+	encode zstd gzip
+
+	handle /api/* {
+		# Replay batches routinely exceed 10 MB; stream them rather than buffer.
+		reverse_proxy {$API_UPSTREAM:api:8001} {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv
+
+		# Cloudflare-only files that end up in the export; Pages hides them, so do we.
+		@pages_config path /_redirects /_headers /_routes.json
+		respond @pages_config 404
+
+		# OSS mode (functions/_middleware.ts): sign-up goes through first-run setup and there
+		# is no pricing page. Baked from NEXT_PUBLIC_IS_ENTERPRISE when the image is built.
+		@oss_signup {
+			path /signup /signup/* /signup.txt
+			expression "{$SEENTICS_ENTERPRISE:false}" != "true"
+		}
+		redir @oss_signup /setup 307
+		@oss_pricing {
+			path /pricing /pricing/* /pricing.txt
+			expression "{$SEENTICS_ENTERPRISE:false}" != "true"
+		}
+		redir @oss_pricing / 307
+
+		# public/_headers, in its order: later rules override earlier ones, as there. A route
+		# runs its directives as written rather than in Caddy's default order.
+		route {
+			header {
+				Cache-Control "public, max-age=0, must-revalidate"
+				X-Content-Type-Options "nosniff"
+				Referrer-Policy "strict-origin-when-cross-origin"
+				X-Frame-Options "DENY"
+				Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+			}
+			# On its own: a block that deletes a header is deferred to the end of the response,
+			# which would let these defaults overwrite every override below.
+			header -Server
+			# Embeds are iframed by customers' own products; the token in the URL guards them.
+			header /embed/* {
+				-X-Frame-Options
+				Cache-Control "private, no-store"
+				Content-Security-Policy "frame-ancestors *"
+			}
+			# The analytics demo is embedded in the landing page's product showcase.
+			header /websites/demo* X-Frame-Options "SAMEORIGIN"
+			# Content-hashed names: a given URL never changes.
+			@immutable path /_next/static/* /trackers/seentics-l.* /trackers/seentics-a.* /trackers/seentics-r.* /trackers/seentics-d.*
+			header @immutable Cache-Control "public, max-age=31536000, immutable"
+			# The tracker core keeps one name (customers' snippets point at it).
+			header /trackers/seentics.min.js Cache-Control "public, max-age=300, stale-while-revalidate=86400"
+
+			# Every real dashboard URL onto the HTML shell (or RSC payload) built for it. Inside
+			# this route, after the headers, so those still match the URL that was asked for.
+			import /etc/caddy/shell-rules.caddy
+			@shell not vars {seentics_shell} ""
+			rewrite @shell {seentics_shell}
+			try_files {path} {path}.html {path}/index.html
+		}
+
+		file_server
+	}
+
+	handle_errors 404 {
+		root * /srv
+		rewrite * /404.html
+		file_server
+	}
+}

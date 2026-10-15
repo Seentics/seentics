@@ -3,8 +3,8 @@
 # docker compose --env-file /secure/path/seentics.production.env -f docker-compose.production.yml up -d --build
 #
 # The API, Postgres, and objex are deliberately not published to the host. Caddy is
-# the only public entry point (80/443); dashboard API calls are same-origin through
-# Next.js rewrites. Set the image variables to immutable tags or digests before use.
+# the only public entry point (80/443); the web service is the static dashboard behind
+# its own Caddy, which also proxies same-origin /api calls to the API (web/Caddyfile). Set the image variables to immutable tags or digests before use.
 services:
   caddy:
     image: ${CADDY_IMAGE:?Set CADDY_IMAGE to a pinned Caddy image or digest}
@@ -33,13 +33,11 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        API_GATEWAY_URL: http://api:8001
         NEXT_PUBLIC_API_URL: /api/v1
         NEXT_PUBLIC_IS_ENTERPRISE: ${NEXT_PUBLIC_IS_ENTERPRISE:-false}
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      API_GATEWAY_URL: http://api:8001
+      API_UPSTREAM: api:8001
     expose: ["4000"]
     depends_on:
       api:
@@ -47,11 +45,11 @@ services:
     networks: [private]
     security_opt: [no-new-privileges:true]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4000/signin"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 10s
 
   api:
     build:
