@@ -9,7 +9,7 @@ import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { demoAnalyticsData } from '@/lib/demo';
-import { MockSidebar, useMockContentProps } from './MockSidebar';
+import { MockSidebar, useInMockExplorer, useMockContentProps } from './MockSidebar';
 
 /**
  * The analytics overview, whole: sidebar, page chrome, and the real charts.
@@ -28,6 +28,10 @@ const INNER_SCALE = 0.86;
  */
 export function DashboardMock({ flush = false }: { flush?: boolean }) {
   const contentProps = useMockContentProps();
+  // In the hero's explorer it sits beside the other screens: same scale as theirs (no
+  // zoom-out, or the sidebar jumps in size on every switch) and filling the window.
+  const inExplorer = useInMockExplorer();
+  const zoom = inExplorer ? 1 : INNER_SCALE;
   const demoData = useMemo(() => demoAnalyticsData(), []);
 
   const topPages = useMemo(
@@ -74,10 +78,10 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
     <div
       className="flex bg-background text-foreground"
       style={{
-        transform: `scale(${INNER_SCALE})`,
+        transform: `scale(${zoom})`,
         transformOrigin: 'top left',
-        width: `${100 / INNER_SCALE}%`,
-        height: `${100 / INNER_SCALE}%`,
+        width: `${100 / zoom}%`,
+        height: `${100 / zoom}%`,
       }}
     >
       <MockSidebar active="Overview" />
@@ -92,7 +96,7 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
           against the sidebar. 1290 is the compromise: the stretch is gone and the
           leftover margin is small enough not to read as a gap.
         */}
-        <div className={`w-full max-w-[1290px] space-y-6 ${flush ? 'p-6' : 'mx-auto p-8'}`}>
+        <div className={`w-full space-y-6 ${inExplorer ? 'p-6' : `max-w-[1290px] ${flush ? 'p-6' : 'mx-auto p-8'}`}`}>
           {/* Header — the real page's single compact control row */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 w-[180px] items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm dark:border-none">

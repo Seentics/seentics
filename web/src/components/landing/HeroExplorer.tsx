@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, type ComponentType } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { DashboardMock } from './mocks/DashboardMock';
 import { MockNavContext, MockSidebar, useMockContentProps, type MockNavLabel } from './mocks/MockSidebar';
 import { LazyAutomationBuilderMock, LazyFunnelMock, LazyHeatmapMock, LazyReplayMock } from './mocks/lazy';
@@ -36,43 +35,48 @@ const VIEWS = Object.keys(SCREENS) as MockNavLabel[];
  */
 export function HeroExplorer() {
   const [view, setView] = useState<MockNavLabel>('Overview');
-  const reduce = useReducedMotion();
 
+  // The other screens mount once the page is idle: they are ready before a click, and
+  // their weight stays out of the first paint.
+  const [warm, setWarm] = useState(false);
   useEffect(() => {
-    // Warm the other screens so the first click does not wait on a chunk.
-    const load = () => {
-      void import('./mocks/ReplayMock');
-      void import('./mocks/HeatmapMock');
-      void import('./mocks/FunnelMock');
-      void import('./mocks/AutomationBuilderMock');
-    };
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-    if (idle) idle(load);
-    else setTimeout(load, 1500);
+    if (idle) idle(() => setWarm(true));
+    else setTimeout(() => setWarm(true), 1500);
   }, []);
-
-  const Screen = SCREENS[view];
 
   return (
     <MockNavContext.Provider value={{ views: VIEWS, onSelect: setView }}>
       <ProductWindow
-        designWidth={1440}
-        designHeight={1010}
-        crop={0.78}
+        // 1280, not the dashboard's 1440: each screen caps its content (the real pages do
+        // too), and at 1440 that left an empty band on the right of the window. Here every
+        // screen fills it edge to edge.
+        designWidth={1280}
+        designHeight={900}
+        crop={0.8}
         interactiveLabel="Seentics dashboard preview. Use the sidebar to switch screens."
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={view}
-            className="flex h-full w-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduce ? 0 : 0.18 }}
-          >
-            <Screen />
-          </motion.div>
-        </AnimatePresence>
+        {/* Every screen stays mounted, stacked, and only the chosen one is shown: switching
+            is instant, as in the app. Unmounting on each click re-drew the screen, sidebar
+            and all, and replayed its chart animations, which read as a page refresh.
+            `invisible` (not `hidden`) keeps the hidden screens laid out at full size, so
+            their charts do not collapse and re-measure when shown again. */}
+        <div className="relative h-full w-full">
+          {VIEWS.map((label) => {
+            const Screen = SCREENS[label];
+            const shown = label === view;
+            if (!shown && !warm) return null;
+            return (
+              <div
+                key={label}
+                className={`absolute inset-0 flex ${shown ? '' : 'invisible'}`}
+                aria-hidden={shown ? undefined : true}
+              >
+                <Screen />
+              </div>
+            );
+          })}
+        </div>
       </ProductWindow>
     </MockNavContext.Provider>
   );

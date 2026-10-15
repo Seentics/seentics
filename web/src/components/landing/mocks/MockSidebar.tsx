@@ -64,6 +64,11 @@ export const MockNavContext = createContext<{
  * the screen beside it is a picture, so it is inert — not focusable, not clickable — and
  * keyboard users are not walked through dozens of controls that do nothing.
  */
+/** Whether this mock is inside the hero's explorer (screens there share one scale and fill it). */
+export function useInMockExplorer(): boolean {
+  return useContext(MockNavContext) !== null;
+}
+
 export function useMockContentProps(): { inert?: boolean } {
   return useContext(MockNavContext) ? { inert: true } : {};
 }

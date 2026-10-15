@@ -208,13 +208,6 @@
   .lx-btn-primary:hover { opacity: 0.88; }
   .lx-btn-ghost { color: var(--lx-text); }
   .lx-btn-ghost:hover { background: var(--lx-line); }
-  .lx-pill {
-    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[13px] transition-colors;
-    border-color: var(--lx-line-strong);
-    color: var(--lx-dim);
-    background: color-mix(in oklab, var(--lx-panel) 70%, transparent);
-  }
-  .lx-pill:hover { color: var(--lx-text); }
 
 
   /* ── Surfaces ─────────────────────────────────────────────────────────────

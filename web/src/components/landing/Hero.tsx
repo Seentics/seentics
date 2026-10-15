@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '@/stores/useAuthStore';
 import { HeroExplorer } from './HeroExplorer';
@@ -30,18 +30,10 @@ export default function Hero() {
   return (
     <section className="relative overflow-hidden pt-28 sm:pt-32">
       <div className="lx-container relative">
-        <motion.div {...rise(0)}>
-          <Link href="/websites/demo/ai" className="lx-pill">
-            <span className="font-medium" style={{ color: 'var(--lx-text)' }}>Seentics AI</span>
-            <span aria-hidden className="h-3 w-px" style={{ background: 'var(--lx-line-strong)' }} />
-            Ask your analytics in plain words
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </motion.div>
 
         <motion.h1
           {...rise(0.08)}
-          className="lx-display mt-6 max-w-[16ch] text-[2.25rem] !font-bold sm:text-5xl lg:text-[3.5rem]"
+          className="lx-display max-w-[16ch] text-[2.25rem] !font-bold sm:text-5xl lg:text-[3.5rem]"
         >
           Analytics that shows you why visitors leave
         </motion.h1>
