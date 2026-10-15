@@ -9,10 +9,10 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      // Border, not shadow: a card is a flat surface on the page, not a floating
-      // one. Shadows belong to things that actually lift off it — popovers,
-      // dropdowns, dialogs — and using them here left every surface faintly hazy.
-      "rounded-lg bg-card text-muted-foreground border dark:border-none",
+      // Light: a faint translucent edge (--panel-edge) instead of a drawn grey border,
+      // as in Linear's light mode. The transparent border keeps the box model, so a
+      // caller's border colour still shows. Dark: the surface step alone.
+      "rounded-lg bg-card text-muted-foreground border border-transparent shadow-[var(--panel-edge)] dark:border-none dark:shadow-none",
       className
     )}
     {...props}

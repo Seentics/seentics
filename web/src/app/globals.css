@@ -16,7 +16,10 @@
        page remaps the shared tokens for its own canvas, and its product shots restore
        these. Never override --app-* in a scoped block. */
     --app-page: 240 5% 96.5%;         /* #f5f5f6 */
-    --app-border: 240 5% 89%;         /* #e2e2e5 */
+    /* Hairlines barely there, as in Linear's light mode: panels are told apart by a soft
+       edge (see .surface / Card), not a drawn box. Inputs keep a firmer line of their own. */
+    --app-border: 240 5% 92%;         /* #e9e9ec */
+    --app-input: 240 5% 86%;          /* #dadadf */
     --app-card: 0 0% 100%;
     --app-popover: 0 0% 100%;
     --app-muted-foreground: 220 5% 43%; /* #686c73 */
@@ -40,9 +43,11 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     --border: var(--app-border);
-    --input: var(--app-border);
+    --input: var(--app-input);
     --ring: 221 83% 53%;
     --radius: 0.5rem;
+    /* A panel's edge in light mode: a faint translucent ring and the slightest lift. */
+    --panel-edge: 0 0 0 1px rgb(15 15 20 / 0.05), 0 1px 2px rgb(15 15 20 / 0.04);
 
     --chart-1: 221 83% 53%;
     --chart-2: 160 60% 45%;
@@ -68,6 +73,7 @@
     --app-border: 228 7% 15%;         /* #232429 */
     --app-card: 220 6% 8.5%;          /* #141517 */
     --app-popover: 220 6% 10%;        /* #18191b */
+    --app-input: 225 6% 15%;
     --app-muted-foreground: 218 6% 57%; /* #8a8f98 */
     --background: var(--app-page);
     --foreground: 210 9% 93%;         /* #ebedef */
@@ -94,8 +100,9 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: var(--app-border);
-    --input: 225 6% 15%;
+    --input: var(--app-input);
     --ring: 214 90% 60%;
+    --panel-edge: none;
 
     --chart-1: 214 90% 60%;
     --chart-2: 160 64% 43%;
@@ -156,7 +163,7 @@
   .lx .app-surface {
     --background: var(--app-page);
     --border: var(--app-border);
-    --input: var(--app-border);
+    --input: var(--app-input);
     --card: var(--app-card);
     --popover: var(--app-popover);
     --muted-foreground: var(--app-muted-foreground);
@@ -221,8 +228,10 @@
      Use .surface for any flat panel. Anything that genuinely floats above the
      page — popover, dropdown, dialog — keeps its shadow and does not use this. */
   .surface {
-    @apply rounded-lg border border-border bg-card dark:border-transparent;
+    @apply rounded-lg border border-transparent bg-card;
+    box-shadow: var(--panel-edge);
   }
+  .dark .surface { box-shadow: none; }
 
   /* Panel/table header. Kept white like every other surface — the rule below it
      does the separating, so headers never introduce a second surface colour. */
