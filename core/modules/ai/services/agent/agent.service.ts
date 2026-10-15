@@ -4,7 +4,7 @@ import type {
   AiRepository,
   ConversationTurn,
 } from "../../interfaces/ai-repository.interface";
-import { AIDailyLimitError } from "../../interfaces/ai.interface";
+import { AIDailyLimitError, AiNotConfiguredError } from "../../interfaces/ai.interface";
 import type { ChatMessage, LlmClient } from "../../interfaces/llm-client.interface";
 import { supportsToolCalling } from "../../interfaces/llm-client.interface";
 import type { AiAgent } from "../../interfaces/ai-agent.interface";
@@ -79,6 +79,8 @@ export class AgentService implements AiAgent {
       };
     }
 
+    // No model at all is a different answer from a model that cannot call tools.
+    if ((this.llm as { unconfigured?: boolean }).unconfigured) throw new AiNotConfiguredError();
     if (!supportsToolCalling(this.llm)) {
       throw new Error(
         "The configured AI model does not support tool calling, which the assistant " +

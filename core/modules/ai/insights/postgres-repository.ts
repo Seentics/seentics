@@ -53,6 +53,8 @@ export class PostgresInsightRepository implements InsightRepository {
       inputTokens: insight.inputTokens,
       outputTokens: insight.outputTokens,
       costUsd: insight.costUsd.toFixed(6),
+      // The time it was made, as the caller already reports it — not the insert's own clock.
+      createdAt: new Date(insight.createdAt),
     };
     await db
       .insert(aiInsights)

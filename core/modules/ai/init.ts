@@ -360,5 +360,5 @@ function unconfiguredLlm(): LlmClient {
       "and AI_BASE_URL for a self-hosted or OpenAI-compatible endpoint.",
     );
   };
-  return { complete: fail, classify: fail };
+  return { complete: fail, classify: fail, unconfigured: true } as LlmClient;
 }

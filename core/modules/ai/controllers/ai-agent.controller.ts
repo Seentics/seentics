@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
-import { AIDailyLimitError } from "../interfaces/ai.interface";
+import { AIDailyLimitError, AiNotConfiguredError } from "../interfaces/ai.interface";
 import type { AiAgent, AiProposalApplier } from "../interfaces/ai-agent.interface";
 import type { AiControllerDeps } from "./ai-controller.types";
 import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
@@ -67,6 +67,7 @@ export function askAgent(deps: AiControllerDeps & { agent: AiAgent }) {
       });
       return c.json(result);
     } catch (err) {
+      if (err instanceof AiNotConfiguredError) return c.json({ error: err.message }, 503);
       if (err instanceof AIDailyLimitError) {
         return c.json({ error: err.message }, 429);
       }

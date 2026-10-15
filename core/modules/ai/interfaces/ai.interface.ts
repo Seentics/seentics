@@ -13,6 +13,14 @@ import type { AIDomain, AIHistoryItem, AIQueryResult } from "./ai-query.types";
 export type { AIDomain, AIHistoryItem, AIQueryResult };
 
 /** Raised when the authenticated user has exhausted the daily AI allowance. */
+/** No model is configured on this deployment: the assistant cannot answer at all. */
+export class AiNotConfiguredError extends Error {
+  constructor() {
+    super("AI is not set up on this deployment. Add an OpenAI or Anthropic API key to turn it on.");
+    this.name = "AiNotConfiguredError";
+  }
+}
+
 export class AIDailyLimitError extends Error {
   constructor(message = "AI daily query limit reached") {
     super(message);
