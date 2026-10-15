@@ -376,10 +376,17 @@ export async function getSessionMeta(
   return rows[0] ?? null;
 }
 
-/** Delete one session's rows. */
+/**
+ * Delete one session's rows, and its analysis: the timeline and written account of the
+ * visit outlived the recording it was made from.
+ */
 export async function deleteSession(websiteId: string, sessionId: string): Promise<void> {
   await pgSql`
     DELETE FROM session_replays
+    WHERE website_id = ${websiteId} AND session_id = ${sessionId}
+  `;
+  await pgSql`
+    DELETE FROM session_analyses
     WHERE website_id = ${websiteId} AND session_id = ${sessionId}
   `;
 }

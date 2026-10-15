@@ -73,10 +73,44 @@ export class HeatmapRetentionPurge implements RetentionPurge {
       snapshotRows += affectedRows(deleted);
     }
 
+    // A page's structural variants keep their own copies of the HTML and were never aged
+    // out: every redesign of a page left one in storage for good. A copy the canonical
+    // snapshot still points at stays with it.
+    let versionRows = 0;
+    const versions = await sql<{ html_s3_key: string | null }[]>`
+      SELECT html_s3_key FROM heatmap_page_versions v
+      WHERE v.website_id = ${websiteId}::uuid
+        AND v.last_seen_at < ${cutoffs.heatmap}
+        AND NOT EXISTS (
+          SELECT 1 FROM heatmap_page_snapshots s
+          WHERE s.website_id = v.website_id AND s.html_s3_key = v.html_s3_key
+        )
+    `;
+    if (versions.length > 0) {
+      const keys = versions.map((v) => v.html_s3_key ?? "").filter(Boolean);
+      try {
+        if (keys.length) await deleteS3Objects(options.heatmapBucket, keys);
+        snapshotObjects += keys.length;
+      } catch (e) {
+        log.warn({ msg: "retention_heatmap_version_s3_failed", website_id: websiteId, n: keys.length, err: String(e) });
+      }
+      const deleted = await sql`
+        DELETE FROM heatmap_page_versions v
+        WHERE v.website_id = ${websiteId}::uuid
+          AND v.last_seen_at < ${cutoffs.heatmap}
+          AND NOT EXISTS (
+            SELECT 1 FROM heatmap_page_snapshots s
+            WHERE s.website_id = v.website_id AND s.html_s3_key = v.html_s3_key
+          )
+      `;
+      versionRows = affectedRows(deleted);
+    }
+
     return {
       heatmapPointRows: affectedRows(points),
       heatmapSnapshotRows: snapshotRows,
       heatmapSnapshotS3Deleted: snapshotObjects,
+      heatmapVersionRows: versionRows,
     };
   }
 }

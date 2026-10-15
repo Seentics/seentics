@@ -134,6 +134,13 @@ export class RecordingRetentionPurge implements RetentionPurge {
         )
       `;
       rowsDeleted += affectedRows(deleted);
+      // Their analyses (timeline, written summary) go with them.
+      await sql`
+        DELETE FROM session_analyses
+        WHERE (website_id, session_id) IN (
+          SELECT * FROM unnest(${cleared.map((r) => r.website_id)}::text[], ${cleared.map((r) => r.session_id)}::text[])
+        )
+      `;
 
       // A short page means the cutoff is exhausted apart from rows we deliberately kept.
       if (oldSessions.length < options.batchSize) break;

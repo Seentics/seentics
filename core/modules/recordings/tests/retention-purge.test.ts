@@ -19,6 +19,8 @@ let table: Row[] = [];
 
 /** How many DELETE statements the sweep issued — one per page, not one per session. */
 let deleteStatements = 0;
+/** Sessions whose analysis the sweep deleted. */
+let analysesDeleted: string[] = [];
 mock.module("../../../db", () => {
   const select = (limit: number) => table.slice(0, limit);
 
@@ -27,6 +29,11 @@ mock.module("../../../db", () => {
     if (!text.includes("DELETE") && text.includes("SELECT")) {
       const limit = values[values.length - 1] as number;
       return Promise.resolve(select(limit));
+    }
+    if (text.includes("DELETE FROM session_analyses")) {
+      if (!text.includes("unnest(")) throw new Error(`DELETE must match pairs via unnest: ${text}`);
+      analysesDeleted.push(...(values[1] as string[]));
+      return Promise.resolve({ count: 0 });
     }
     if (text.includes("DELETE")) {
       deleteStatements += 1;
@@ -69,6 +76,7 @@ describe("RecordingRetentionPurge", () => {
   beforeEach(() => {
     table = [];
     deleteStatements = 0;
+    analysesDeleted = [];
     resetStubs();
   });
 
@@ -170,6 +178,16 @@ describe("RecordingRetentionPurge", () => {
 
       // The two that failed keep their rows so the next sweep retries them.
       expect(table.map((r) => r.session_id).sort()).toEqual(["s2", "s4"]);
+    });
+
+    // The written account of a visit outlived the recording it was made from.
+    it("deletes the analyses of exactly the sessions it deleted", async () => {
+      table = Array.from({ length: 4 }, (_, i) => ({ website_id: "w1", session_id: `s${i}` }));
+      s3DeleteFailures.add("s1");
+
+      await purge();
+
+      expect(analysesDeleted.sort()).toEqual(["s0", "s2", "s3"]);
     });
 
     it("runs prefix deletes concurrently, but bounded", async () => {

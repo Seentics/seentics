@@ -88,13 +88,20 @@ async function exportWebsite(website: Website, budget = new ExportBudget(EXPORT_
  */
 export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
   const cfg = env();
-  const [sessions, snapshots] = await Promise.all([
+  const [sessions, snapshots, versions] = await Promise.all([
     sql<{ session_id: string }[]>`SELECT DISTINCT session_id FROM session_replays WHERE website_id = ${websiteId} AND sequence = 0`,
     sql<{ s3_key: string; html_s3_key: string | null }[]>`SELECT s3_key, html_s3_key FROM heatmap_page_snapshots WHERE website_id = ${websiteId}::uuid`,
+    // Each structural variant of a page keeps its own immutable copy of the HTML.
+    sql<{ html_s3_key: string | null }[]>`SELECT html_s3_key FROM heatmap_page_versions WHERE website_id = ${websiteId}::uuid`,
   ]);
   for (const row of sessions) await deleteSessionPrefix(cfg.s3.bucket, websiteId, row.session_id);
-  const keys = snapshots.flatMap((row) => [row.s3_key, row.html_s3_key]).filter((key): key is string => Boolean(key));
-  if (keys.length) await deleteS3Objects(cfg.s3.bucket, keys);
+  const keys = [...new Set([
+    ...snapshots.flatMap((row) => [row.s3_key, row.html_s3_key]),
+    ...versions.map((row) => row.html_s3_key),
+  ].filter((key): key is string => Boolean(key)))];
+  // The heatmap bucket, where these are written: deleting them from the main bucket left
+  // every screenshot and page copy behind whenever S3_BUCKET_HEATMAPS was set.
+  if (keys.length) await deleteS3Objects(cfg.s3.heatmapBucket, keys);
   // The site's archived replay stylesheets (db/sql/059): one prefix, shared by its recordings.
   await deletePrefix(cfg.s3.bucket, stylesheetPrefix(websiteId));
 
