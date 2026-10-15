@@ -287,18 +287,30 @@ export const automationDefinitionSchema = z
     }
   });
 
+/**
+ * Whether it runs, as `enabled` or `is_active` (the dashboard sends the latter), handed on
+ * as `is_active`. Both used to be dropped — `enabled` was accepted and never read,
+ * `is_active` stripped by the schema — so an automation created switched off went live.
+ */
+const withActive = <T extends { enabled?: boolean; is_active?: boolean }>({ enabled, is_active, ...rest }: T) => ({
+  ...rest,
+  ...((enabled ?? is_active) !== undefined ? { is_active: enabled ?? is_active } : {}),
+});
+
 export const automationsUpsertBodySchema = z.object({
   name: z.string().min(1).max(200),
   enabled: z.boolean().optional(),
+  is_active: z.boolean().optional(),
   definition: automationDefinitionSchema,
-});
+}).transform(withActive);
 
 /** A partial update: any field may be omitted, but a supplied one is validated in full. */
 export const automationsPatchBodySchema = z.object({
   name: z.string().min(1).max(200).optional(),
   enabled: z.boolean().optional(),
+  is_active: z.boolean().optional(),
   definition: automationDefinitionSchema.optional(),
-});
+}).transform(withActive);
 
 export const automationsBulkDeleteSchema = z.object({
   ids: z.array(zNonEmptyString.max(128)).max(500).optional().default([]),
