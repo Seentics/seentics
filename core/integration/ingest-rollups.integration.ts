@@ -336,3 +336,25 @@ describe("freshness on read", () => {
     expect(await staleDays(s.id)).toEqual([]);
   });
 });
+
+describe("the websites list on the rollups", () => {
+  it("reports each site's 30-day traffic from the rollups, matching the raw events", async () => {
+    const owner = await seedUser();
+    const busy = await seedWebsite(owner.id);
+    const quiet = await seedWebsite(owner.id);
+    await rebuild(busy.id, await seedMixedTraffic(busy.id));
+
+    const stats = async () => {
+      const res = await api("GET", "/api/v1/websites", { token: owner.token });
+      expect(res.status).toBe(200);
+      return Object.fromEntries(res.body.data.map((s: { id: string; stats: unknown }) => [s.id, s.stats]));
+    };
+    const fromRollups = await stats();
+    setRollupsEnabled(false);
+    const fromRaw = await stats();
+
+    expect(fromRollups[busy.id]).toEqual(expect.objectContaining({ totalPageviews: 7, uniqueVisitors: 3 }));
+    expect(fromRollups[quiet.id]).toEqual(expect.objectContaining({ totalPageviews: 0, uniqueVisitors: 0 }));
+    expect(fromRollups).toEqual(fromRaw);
+  });
+});

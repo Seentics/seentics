@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import {
   drizzleCalls,
   fakeDbModule,
@@ -6,6 +6,7 @@ import {
   queueDrizzleRows,
   queueRows,
   resetDb,
+  sqlCalls,
 } from "./helpers/fake-db";
 import type { WebsitePublicSharing } from "../../websites/interfaces";
 
@@ -25,10 +26,12 @@ mock.module("../../../platform/observability/logger", fakeLogger);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let PublicDashboardService: any;
 let AnalyticsTrafficSummaryService: any;
+let setRollupsEnabled: (value: boolean) => void;
 
 beforeAll(async () => {
   ({ PublicDashboardService } = await import("../services/public-dashboard-analytics.service"));
   ({ AnalyticsTrafficSummaryService } = await import("../services/website-traffic-summary.service"));
+  ({ setRollupsEnabled } = await import("../rollups/reads"));
 });
 
 beforeEach(resetDb);
@@ -222,5 +225,33 @@ describe("AnalyticsTrafficSummaryService", () => {
   it("returns an empty map when no site in the list has traffic", async () => {
     queueDrizzleRows([]);
     expect((await service.summarizeSites(["a", "b"])).size).toBe(0);
+  });
+
+  describe("with rollups", () => {
+    beforeEach(() => setRollupsEnabled(true));
+    afterEach(() => setRollupsEnabled(false));
+
+    it("reads the daily site rollup in one grouped query, never the raw events", async () => {
+      queueRows([
+        { websiteId: "a", pageviews: "10", visitors: 4 },
+        { websiteId: "b", pageviews: "3", visitors: 2 },
+      ]);
+      const out = await service.summarizeSites(["a", "b", "c"]);
+
+      expect(drizzleCalls).toHaveLength(0);
+      expect(sqlCalls).toHaveLength(1);
+      expect(sqlCalls[0]!.text).toContain("FROM analytics_rollup_daily");
+      expect(sqlCalls[0]!.text).toContain("dimension = 'site'");
+      expect(sqlCalls[0]!.values[0]).toEqual(["a", "b", "c"]);
+      expect(out.get("a")).toEqual({ totalPageviews: 10, uniqueVisitors: 4, averageSessionDuration: 0, bounceRate: 0 });
+      expect(out.has("c")).toBe(false);
+    });
+
+    it("covers the dashboard's 30-day window: today and the 29 days before", async () => {
+      await service.summarizeSites(["a"]);
+      const [, from, to] = sqlCalls[0]!.values as string[];
+      expect((Date.parse(to!) - Date.parse(from!)) / 86_400_000).toBe(29);
+      expect(to).toBe(new Date().toISOString().slice(0, 10));
+    });
   });
 });
