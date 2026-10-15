@@ -15,7 +15,7 @@ export type LeadSubmitDeps = {
 };
 
 /** A form is a few hundred bytes; anything near this is not one. */
-const MAX_BODY_BYTES = 16 * 1024;
+export const MAX_BODY_BYTES = 16 * 1024;
 /** Per visitor IP, per website: generous for a person, tight for a script. */
 const SUBMITS_PER_WINDOW = 5;
 const WINDOW_MS = 60_000;

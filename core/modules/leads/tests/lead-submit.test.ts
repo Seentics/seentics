@@ -84,6 +84,22 @@ describe("POST /tracker/leads", () => {
     expect(captured).toHaveLength(0);
   });
 
+  // The handler's own check ran after the whole body was buffered, up to the server's 128 MB.
+  it("refuses an oversized body at the mounted route before reading it", async () => {
+    const { createLeadTrackerRoutes } = await import("../tracker-routes");
+    const routes = createLeadTrackerRoutes({
+      trackerWebsites: { resolve: async () => website, listGoals: async () => [], buildConfig: async () => ({}) },
+      capture: { capture: async (s) => { captured.push(s); return { submissionId: "s1", prize: null, queuedFor: 0 }; } },
+    });
+    const res = await routes.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": String(10 * 1024 * 1024) },
+      body: "x".repeat(17 * 1024),
+    });
+    expect(res.status).toBe(413);
+    expect(captured).toHaveLength(0);
+  });
+
   it("acknowledges a honeypot hit without storing", async () => {
     const res = await post({ ...valid, hp: "http://spam" });
     expect(res.status).toBe(200);
