@@ -131,6 +131,11 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
     await tx`DELETE FROM funnels WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM goals WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM api_keys WHERE website_id = ${websiteId}::uuid`;
+    // Leads: what visitors typed into the site's popups (email, name, phone, answers), the
+    // copies queued or kept for delivery to integrations, and the prizes tied to an address.
+    await tx`DELETE FROM integration_deliveries WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM form_submissions WHERE website_id = ${websiteId}::uuid`;
+    await tx`DELETE FROM form_prizes WHERE website_id = ${websiteId}::uuid`;
     // What the analysis and the AI features derived from the site's visits: each session's
     // signals and written summary (a visitor's story), and the AI's insights, alerts and
     // recommendations. None of these tables has a foreign key to the website that a delete
@@ -262,7 +267,7 @@ function visitorQuery(c: Context): { visitorId: string; userId: string } | null 
 
 async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string) {
   const { visitorIds: v, sessionIds: s } = ref;
-  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses] = await Promise.all([
+  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads] = await Promise.all([
     sql`SELECT * FROM analytics_events WHERE website_id = ${websiteId} AND visitor_id = ANY(${v}) ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT session_id, entry_page, timestamp, pages_viewed, duration_seconds, browser, device, os, country FROM session_replays WHERE website_id = ${websiteId} AND session_id = ANY(${s}) AND sequence = 0`,
     sql`SELECT * FROM user_profiles WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
@@ -272,8 +277,10 @@ async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string)
     sql`SELECT * FROM automation_impressions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
     // What was worked out about their sessions, including the written summary of each visit.
     sql`SELECT session_id, frustration_score, signal_counts, signals, summary, computed_at FROM session_analyses WHERE website_id = ${websiteId} AND session_id = ANY(${s})`,
+    // What they typed into the site's popups.
+    sql`SELECT * FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s})) ORDER BY created_at`,
   ]);
-  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses };
+  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads };
 }
 
 async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string): Promise<void> {
@@ -302,6 +309,17 @@ async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string):
     await tx`DELETE FROM automation_impressions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`;
     await tx`DELETE FROM user_profiles WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`;
     await tx`DELETE FROM identity_aliases WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`;
+    // Their leads (email, name, phone, answers), and every copy queued or kept for an
+    // integration: what is still waiting is cancelled, the payload of the rest dropped.
+    const leads = await tx<{ id: string }[]>`
+      DELETE FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s}))
+      RETURNING id::text
+    `;
+    if (leads.length) {
+      const ids = leads.map((row) => row.id);
+      await tx`DELETE FROM integration_deliveries WHERE website_id = ${websiteId}::uuid AND submission_id = ANY(${ids}::uuid[]) AND status = 'pending'`;
+      await tx`UPDATE integration_deliveries SET payload = NULL, updated_at = NOW() WHERE website_id = ${websiteId}::uuid AND submission_id = ANY(${ids}::uuid[]) AND payload IS NOT NULL`;
+    }
     // The rollups' per-session rows (last three days, rollups/builder.ts) carry session
     // and visitor ids. The table exists only where the `hll` extension does (db/sql/031).
     const [rollups] = await tx<{ ok: boolean }[]>`SELECT to_regclass('analytics_rollup_sessions') IS NOT NULL AS ok`;
