@@ -1,3 +1,4 @@
+import { pinnedFetch } from "./pinned-fetch";
 import { assertPublicHost, type Lookup } from "./public-host";
 
 /**
@@ -65,7 +66,8 @@ export function unsafeUrlReason(raw: string): string | null {
 }
 
 export async function safeFetch(url: string, opts: SafeFetchOptions): Promise<SafeFetchResult> {
-  const fetchImpl = opts.fetchImpl ?? fetch;
+  // Each hop connected to the address it was checked against (pinned-fetch.ts).
+  const fetchImpl = opts.fetchImpl ?? (((u: string | URL, i?: RequestInit) => pinnedFetch(u as string, i)) as typeof fetch);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   let current = url;

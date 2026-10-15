@@ -6,6 +6,7 @@ import { db, webhookDeliveries } from '../../../db';
 import { log } from '../../../platform/observability/logger';
 import { validateWebhookUrl } from '../../../platform/http/origin';
 import { assertPublicHost } from '../../../platform/http/public-host';
+import { pinnedFetch } from '../../../platform/http/pinned-fetch';
 import { renderTemplateDeep } from '../lib/automation-template-renderer';
 
 export interface WebhookAction {
@@ -35,6 +36,16 @@ async function sleep(ms: number) {
 let hostGuard: (hostname: string) => Promise<void> = assertPublicHost;
 export function setHostGuard(guard: (hostname: string) => Promise<void> = assertPublicHost) {
   hostGuard = guard;
+}
+
+/**
+ * How a delivery reaches the URL: connected to the address that was checked (pinned-fetch.ts),
+ * so a name cannot answer the check with a public address and the call with an internal one.
+ * Replaceable so a test can answer from a stub.
+ */
+let transport: typeof fetch = ((url: string | URL, init?: RequestInit) => pinnedFetch(url as string, init)) as typeof fetch;
+export function setWebhookTransport(t: typeof fetch = ((url: string | URL, init?: RequestInit) => pinnedFetch(url as string, init)) as typeof fetch) {
+  transport = t;
 }
 
 export async function executeWebhook(
@@ -102,7 +113,7 @@ export async function executeWebhook(
       // retry seconds later is the widest such window. fetch resolves the name itself, so this
       // narrows the window rather than closing it; the real boundary is network egress policy.
       if (attempt > 1) await hostGuard(new URL(url).hostname);
-      const res = await fetch(url, {
+      const res = await transport(url, {
         method,
         headers: { 'Content-Type': 'application/json', ...headers },
         body: payload,

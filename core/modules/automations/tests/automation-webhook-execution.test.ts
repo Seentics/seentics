@@ -21,7 +21,10 @@ let DEFAULT_WEBHOOK_RETRY: typeof import("../services/automation-webhook-executi
 let setHostGuard: typeof import("../services/automation-webhook-execution.service").setHostGuard;
 
 beforeAll(async () => {
-  ({ executeWebhook, DEFAULT_WEBHOOK_RETRY, setHostGuard } = await import("../services/automation-webhook-execution.service"));
+  const svc = await import("../services/automation-webhook-execution.service");
+  ({ executeWebhook, DEFAULT_WEBHOOK_RETRY, setHostGuard } = svc);
+  // These tests answer through a stubbed global fetch; production connects through pinnedFetch.
+  svc.setWebhookTransport(((url: string | URL, init?: RequestInit) => globalThis.fetch(url, init)) as typeof fetch);
   // DNS is public-host.test.ts's business; here every name is public.
   setHostGuard(async () => {});
 });

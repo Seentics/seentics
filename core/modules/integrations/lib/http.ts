@@ -1,5 +1,9 @@
 import { validateWebhookUrl } from "../../../platform/http/origin";
 import { assertPublicHost } from "../../../platform/http/public-host";
+import { pinnedFetch } from "../../../platform/http/pinned-fetch";
+
+/** Connected to the address that was checked: no DNS change between the check and the call. */
+const pinned = ((url: string | URL, init?: RequestInit) => pinnedFetch(url as string, init)) as typeof fetch;
 import type { HttpRequest, HttpResponse, Outcome, ProviderContext } from "../interfaces";
 
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -15,7 +19,7 @@ export class TransportError extends Error {}
  * Redirects are reported, not followed: a 3xx could carry the request, its body and its
  * authorisation header to a host nobody checked. The timeout covers the whole exchange.
  */
-export function createProviderContext(fetchImpl: typeof fetch = fetch, timeoutMs: number = REQUEST_TIMEOUT_MS): ProviderContext {
+export function createProviderContext(fetchImpl: typeof fetch = pinned, timeoutMs: number = REQUEST_TIMEOUT_MS): ProviderContext {
   return {
     async request(req: HttpRequest): Promise<HttpResponse> {
       try {
