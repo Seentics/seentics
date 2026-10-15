@@ -29,9 +29,29 @@ export function markStored(websiteId: string, batchId: unknown, now = Date.now()
   seen.set(`${websiteId}|${batchId}`, now);
 }
 
+/**
+ * Heatmap events already taken, by the `event_id` the tracker gives each click and each page
+ * view's scroll summary. When a page closes, batches still in flight are sent again in pieces
+ * (seentics.js flushBeacon); a piece of one that had already arrived used to count its clicks
+ * twice. Keyed per site; same hour and bound as the batches.
+ */
+const seenEvents = new Map<string, number>();
+
+/** True the first time an id is offered (and remembers it); false for a repeat within the hour. */
+export function firstHeatmapSighting(websiteId: string, eventId: unknown, now = Date.now()): boolean {
+  if (typeof eventId !== "string" || !eventId) return true; // nothing to tell it by: keep it
+  const key = `${websiteId}|${eventId}`;
+  const at = seenEvents.get(key);
+  if (at !== undefined && now - at < TTL_MS) return false;
+  if (seenEvents.size >= MAX * 5) seenEvents.delete(seenEvents.keys().next().value!);
+  seenEvents.set(key, now);
+  return true;
+}
+
 /** For tests. */
 export function resetSeenBatches(): void {
   seen.clear();
+  seenEvents.clear();
 }
 
 setInterval(() => {
@@ -39,5 +59,9 @@ setInterval(() => {
   for (const [k, at] of seen) {
     if (at >= cutoff) break; // insertion order is time order
     seen.delete(k);
+  }
+  for (const [k, at] of seenEvents) {
+    if (at >= cutoff) break;
+    seenEvents.delete(k);
   }
 }, 5 * 60_000).unref?.();

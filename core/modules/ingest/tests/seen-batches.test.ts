@@ -32,3 +32,18 @@ describe("pieces of a batch split at page close", () => {
     expect(alreadyStored("w", "b2#core", t0)).toBe(true);
   });
 });
+
+describe("heatmap events resent when their page closed", () => {
+  beforeEach(resetSeenBatches);
+  const t0 = 1_800_000_000_000;
+
+  it("are taken once per site, for an hour; events without an id are always kept", async () => {
+    const { firstHeatmapSighting } = await import("../lib/seen-batches");
+    expect(firstHeatmapSighting("w", "e1", t0)).toBe(true);
+    expect(firstHeatmapSighting("w", "e1", t0 + 1000)).toBe(false);
+    expect(firstHeatmapSighting("other", "e1", t0)).toBe(true);
+    expect(firstHeatmapSighting("w", "e1", t0 + 61 * 60_000)).toBe(true);
+    expect(firstHeatmapSighting("w", undefined, t0)).toBe(true);
+    expect(firstHeatmapSighting("w", undefined, t0)).toBe(true);
+  });
+});

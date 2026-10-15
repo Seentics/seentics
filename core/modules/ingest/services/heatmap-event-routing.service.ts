@@ -1,4 +1,5 @@
 import { log } from "../../../platform/observability/logger";
+import { firstHeatmapSighting } from "../lib/seen-batches";
 import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import {
   chronological,
@@ -8,8 +9,11 @@ import {
 
 export function routeHeatmapEvents(ctx: TrackerBatchRoutingContext): number {
   if (!ctx.website.heatmap_enabled) return 0;
+  // A click or scroll summary already taken (resent when its page closed) is not counted again.
+  const points = normalizeTrackerEvents(Array.isArray(ctx.body.heatmaps) ? ctx.body.heatmaps : [])
+    .filter((event) => firstHeatmapSighting(ctx.website.id, event.data?.event_id));
   const raw = [
-    ...normalizeTrackerEvents(Array.isArray(ctx.body.heatmaps) ? ctx.body.heatmaps : []),
+    ...points,
     ...normalizeTrackerEvents(Array.isArray(ctx.body.heatmap_screenshot) ? ctx.body.heatmap_screenshot : []),
     ...normalizeTrackerEvents(Array.isArray(ctx.body.heatmap_dom_snapshot) ? ctx.body.heatmap_dom_snapshot : []),
   ];
