@@ -1,3 +1,4 @@
+import { alertOps } from "../../../../platform/observability/ops-alert";
 import { randomUUID } from "node:crypto";
 import type {
   AiRepository,
@@ -185,6 +186,8 @@ export class AgentService implements AiAgent {
     if (MAX_QUESTIONS_PER_DAY <= 0) return;
     const used = await this.repo.countQueriesSince(userId, new Date(Date.now() - DAY_MS));
     if (used >= MAX_QUESTIONS_PER_DAY) {
+      // The operators hear once an hour at most (alertOps holds a repeated title back).
+      void alertOps("A user reached the AI assistant's daily question limit", { user_id: userId, limit: MAX_QUESTIONS_PER_DAY });
       throw new AIDailyLimitError(
         `AI daily limit reached (${MAX_QUESTIONS_PER_DAY} questions in 24 hours)`,
       );

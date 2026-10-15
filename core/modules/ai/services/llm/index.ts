@@ -5,6 +5,8 @@ import { OpenAiCompatibleClient } from "./openai-compatible-client";
 import { readAiProviderConfig, type AiProviderConfig } from "./provider-config";
 
 export type { AiProviderConfig, AiProvider } from "./provider-config";
+import { withDailyBudget } from "./budget";
+export { AiBudgetExceededError, spentToday } from "./budget";
 export { BACKGROUND_MODEL, readAiProviderConfig, resolveAiProvider } from "./provider-config";
 
 /**
@@ -15,10 +17,11 @@ export { BACKGROUND_MODEL, readAiProviderConfig, resolveAiProvider } from "./pro
  */
 export function createLlmClient(cfg: AiProviderConfig | null = readAiProviderConfig()): LlmClient | null {
   if (!cfg) return null;
+  // Every client counts toward one daily ceiling (budget.ts), whichever feature made it.
   switch (cfg.provider) {
-    case "anthropic": return new AnthropicLlmClient(cfg);
-    case "google":    return new GoogleLlmClient(cfg);
+    case "anthropic": return withDailyBudget(new AnthropicLlmClient(cfg), cfg);
+    case "google":    return withDailyBudget(new GoogleLlmClient(cfg), cfg);
     // OpenAI itself and every compatible endpoint share one adapter.
-    default:          return new OpenAiCompatibleClient(cfg);
+    default:          return withDailyBudget(new OpenAiCompatibleClient(cfg), cfg);
   }
 }

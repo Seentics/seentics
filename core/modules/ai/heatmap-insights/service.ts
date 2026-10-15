@@ -1,3 +1,4 @@
+import { alertOps } from '../../../platform/observability/ops-alert';
 import { log as baseLog } from '../../../platform/observability/logger';
 import type {
   HeatmapInsightFinding,
@@ -110,6 +111,7 @@ export class HeatmapInsightService implements HeatmapInsightNarrator {
 
     const since = startOfUtcDay(now);
     if ((await this.deps.repo.countSince(websiteId, since)) >= this.dailyCap) {
+      void alertOps("A site reached its daily AI heatmap insight limit", { website_id: websiteId, limit: this.dailyCap });
       // Kept as it was when there is something stored; otherwise the rules, unsaved.
       if (existing) return present(existing, Math.ceil((since.getTime() + 86_400_000 - now.getTime()) / 1000));
       return this.rulesNow(analysis, now, DAILY_CAP_REASON);

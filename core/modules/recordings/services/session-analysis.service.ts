@@ -1,4 +1,5 @@
 import { log as baseLog } from "../../../platform/observability/logger";
+import { alertOps } from "../../../platform/observability/ops-alert";
 import type {
   AnalyzeRunStats,
   FrustratedSessionRow,
@@ -251,6 +252,7 @@ export class SessionAnalysisService implements SessionAnalysisReads, SessionAnal
     const now = this.now();
     const used = await store.countSummariesSince(s.websiteId, new Date(now.getTime() - 86_400_000));
     if (used >= config.dailySummaryCap) {
+      void alertOps("A site reached its daily AI session summary limit", { website_id: s.websiteId, limit: config.dailySummaryCap });
       return a.summary ? { ...existing, status: "ready", generated: false } : template();
     }
     const claimed = await store.claimSummary(s.websiteId, s.sessionId, new Date(now.getTime() - config.summaryCooldownMs));
