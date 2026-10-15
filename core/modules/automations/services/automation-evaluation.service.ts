@@ -11,6 +11,7 @@
  *  5. Return client-side action payloads
  */
 
+import { takeRateToken } from '../../../platform/cache/token-bucket';
 import { safeRegexTest } from '../lib/safe-regex';
 import { and, eq } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
@@ -45,6 +46,9 @@ export type { ClientAction, EvaluateRequest, EvaluateResult };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
+/** Webhook calls one automation may make a minute (AUTOMATION_WEBHOOKS_PER_MINUTE). */
+const WEBHOOKS_PER_MINUTE = Math.max(1, Number(process.env.AUTOMATION_WEBHOOKS_PER_MINUTE) || 300);
 /**
  * A stored automation definition.
  *
@@ -405,6 +409,13 @@ export class AutomationEvaluationService
       for (const action of walked.webhooks) {
         const actionKey = `${action.type}_${actionIndex++}`;
         const t0 = Date.now();
+        // The trigger comes from a public endpoint: a script inventing visitors could otherwise
+        // make us call the owner's webhook without end. Past the cap the run is logged, not sent.
+        if (!takeRateToken(`automation-webhook:${auto.id}`, WEBHOOKS_PER_MINUTE, 60_000).allowed) {
+          log.warn({ msg: 'webhook_rate_limited', automationId: auto.id, limit_per_minute: WEBHOOKS_PER_MINUTE });
+          void writeEventLog([actionResultRow(auto.id, runId, actionKey, 'failed', 0, `rate limited: over ${WEBHOOKS_PER_MINUTE} webhook calls a minute`)]);
+          continue;
+        }
         void this.deps.executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
           .then(() => {
             const ms = Date.now() - t0;

@@ -347,6 +347,15 @@ describe("webhook actions", () => {
     expect(String(runId)).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it("stops calling one automation's webhook past 300 a minute, whoever triggers it", async () => {
+    // The trigger arrives on a public endpoint: a script inventing visitors must not be able to
+    // make us call the owner's webhook without end.
+    automationRows = [auto("capped", { entry: "h", nodes: [hookNode("h")], edges: [] })];
+    for (let i = 0; i < 305; i++) await service().evaluate({ ...request(), anonymousId: `anon-${i}`, sessionId: `sess-${i}` });
+    await flush();
+    expect(executeWebhook).toHaveBeenCalledTimes(300);
+  });
+
   it("does not fail the evaluate when a webhook rejects", async () => {
     executeWebhook.mockImplementationOnce(async () => {
       throw new Error("endpoint down");
