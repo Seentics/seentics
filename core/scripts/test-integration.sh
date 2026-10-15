@@ -6,6 +6,14 @@
 #   bun run test:integration privacy    # only files whose path matches "privacy"
 #   KEEP=1 ...                          # leave the containers running afterwards (default: kept)
 #   DOWN=1 ...                          # remove the containers afterwards
+#
+# The default database is the self-hosted one (hll, no TimescaleDB). To run against the
+# managed cloud's image (hll + TimescaleDB, seentics-cloud/deploy/postgres), start it and
+# point the suite at it:
+#   docker build -t seentics-postgres:prod-tsdb ../../deploy/postgres
+#   docker run -d --name seentics-core-test-tsdb -e POSTGRES_USER=seentics -e POSTGRES_PASSWORD=test \
+#     -e POSTGRES_DB=seentics_test -p 55433:5432 seentics-postgres:prod-tsdb postgres -c shared_preload_libraries=timescaledb
+#   TEST_DATABASE_URL=postgres://seentics:test@localhost:55433/seentics_test bun run test:integration
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

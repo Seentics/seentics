@@ -71,8 +71,19 @@ describe("rebuilding from stale markers", () => {
   // runs, so the subquery on timescaledb_information.jobs fails whenever TimescaleDB is absent
   // — and with it every buildStaleRollups (the scheduled builder and the dashboard's own
   // refresh). On an hll-without-TimescaleDB Postgres the rollups are never built after startup.
-  it("rawEventsFrom() answers null on a Postgres without TimescaleDB", async () => {
-    expect(await rawEventsFrom()).toBeNull();
+  // The suite runs on both databases: plain Postgres with hll (self-hosted) and the
+  // production image with TimescaleDB. Without it the lookup threw and stopped every build.
+  it("rawEventsFrom() answers null without TimescaleDB, and the retention edge with it", async () => {
+    const [ts] = await sql<{ ok: boolean }[]>`SELECT to_regclass('timescaledb_information.jobs') IS NOT NULL AS ok`;
+    const from = await rawEventsFrom();
+    if (!ts!.ok) expect(from).toBeNull();
+    else {
+      // The day after the retention policy's edge (about a month back, db/sql/037–038).
+      const daysBack = (Date.now() - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+      expect(from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(daysBack).toBeGreaterThan(27);
+      expect(daysBack).toBeLessThan(32);
+    }
   });
 
   it("clears the site's stale markers after rebuilding them, and leaves other sites' alone", async () => {
