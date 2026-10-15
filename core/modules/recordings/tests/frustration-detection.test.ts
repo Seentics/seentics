@@ -275,3 +275,24 @@ describe.if(existsSync(DEMO))("the demo recording", () => {
     expect(result.score).toBeGreaterThanOrEqual(60);
   });
 });
+
+describe("request failures that are not the visitor's error", () => {
+  it("counts server errors and the site's own unanswered requests", async () => {
+    const { isRealRequestFailure } = await import("../services/frustration/frustration-detection");
+    const page = "https://shop.test/checkout";
+    expect(isRealRequestFailure({ url: "/api/coupons/apply", status: 503 }, page)).toBe(true);
+    expect(isRealRequestFailure({ url: "https://payments.example/charge", status: 502 }, page)).toBe(true);
+    expect(isRealRequestFailure({ url: "/api/coupons/apply", status: 0, error: "TypeError: Failed to fetch" }, page)).toBe(true);
+  });
+
+  it("ignores what an ad blocker stops, cancelled requests, and other sites' unanswered requests", async () => {
+    const { isRealRequestFailure } = await import("../services/frustration/frustration-detection");
+    const page = "https://shop.test/websites/x/errors";
+    expect(isRealRequestFailure({ url: "https://www.google-analytics.com/g/collect", status: 0, error: "TypeError: Failed to fetch" }, page)).toBe(false);
+    expect(isRealRequestFailure({ url: "https://connect.facebook.net/en_US/fbevents.js", status: 0 }, page)).toBe(false);
+    expect(isRealRequestFailure({ url: "/api/v1/analytics/collect", status: 0 }, page)).toBe(false);
+    expect(isRealRequestFailure({ url: "/api/v1/dashboard", status: 0, error: "AbortError: The user aborted a request." }, page)).toBe(false);
+    expect(isRealRequestFailure({ url: "https://cdn.other.test/widget.js", status: 0 }, page)).toBe(false);
+    expect(isRealRequestFailure({ url: "/api/v1/dashboard", status: 404 }, page)).toBe(false);
+  });
+});

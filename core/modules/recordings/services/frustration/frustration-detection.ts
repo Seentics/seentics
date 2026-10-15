@@ -11,7 +11,7 @@
  * - dead_click   a click on a link or button followed by nothing at all — no DOM change,
  *                navigation, input, scroll or request — from 150 ms before it to 1 s after.
  *                Only links and buttons: clicking text or a field routinely changes nothing.
- * - error_click  a JavaScript error, or a request that failed (status 0 or 5xx), within
+ * - error_click  a JavaScript error, or a request that really failed (see isRealRequestFailure), within
  *                1 s after a click.
  * - u_turn       a page left within 10 s for the page the visitor had just come from.
  * - form_abandon 2+ fields of one form typed into, then the page left (or the session
@@ -282,8 +282,7 @@ export function detectFrustration(rows: readonly unknown[], opts: { truncated?: 
       }
     } else if (s.kind === "network_event") {
       requestTimes.push(atMs);
-      const status = num(s.data.status);
-      if (status === 0 || status >= 500) failedTimes.push(atMs);
+      if (isRealRequestFailure(s.data, s.url)) failedTimes.push(atMs);
     }
   }
   requestTimes.sort((a, b) => a - b);
@@ -471,4 +470,34 @@ export function detectFrustration(rows: readonly unknown[], opts: { truncated?: 
       ...(opts.truncated ? { truncated: true } : {}),
     },
   };
+}
+
+/** Ad, analytics and tag hosts: a privacy extension blocking them is not the visitor hitting an error. */
+const BLOCKABLE_HOST = /(^|\.)(google-analytics|googletagmanager|googleadservices|googlesyndication|doubleclick|facebook|fbcdn|connect\.facebook|hotjar|segment|mixpanel|amplitude|clarity\.ms|bing|linkedin|licdn|tiktok|twitter|ads-twitter|criteo|taboola|outbrain|intercom|hubspot|hs-scripts|sentry|newrelic|nr-data|datadoghq|fullstory|posthog|plausible|matomo|seentics)\./i;
+/** Paths that read as tracking even on the site's own domain. */
+const TRACKING_PATH = /\/(collect|track|tracking|analytics|beacon|pixel|gtag|gtm|events?\/ingest|telemetry)(\/|\?|$)/i;
+
+/**
+ * Whether a recorded request is a failure the visitor actually ran into.
+ *
+ * A 5xx always is. "No response" (status 0) is ambiguous: it is also what a browser reports for
+ * a request an ad blocker or privacy extension stopped, and for requests cancelled when the
+ * visitor clicks through to another page. So it counts only for the site's own requests that
+ * were not cancelled, and never for ad or analytics hosts or tracking paths. Exported for tests.
+ */
+export function isRealRequestFailure(data: Record<string, unknown>, pageUrl: string | undefined): boolean {
+  const status = num(data.status);
+  let target: URL | null = null;
+  try { target = new URL(String(data.url ?? ""), pageUrl || undefined); } catch { /* not a URL */ }
+  if (target && (BLOCKABLE_HOST.test(target.hostname) || TRACKING_PATH.test(target.pathname))) return false;
+  if (status >= 500) return true;
+  if (status !== 0) return false;
+  const error = String(data.error ?? "");
+  if (/abort|cancel/i.test(error)) return false;
+  if (!target || !pageUrl) return false;
+  try {
+    return target.origin === new URL(pageUrl).origin;
+  } catch {
+    return false;
+  }
 }
