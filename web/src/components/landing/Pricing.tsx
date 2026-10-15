@@ -38,14 +38,15 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="landing-section landing-band landing-band-reverse">
+    <section id="pricing" className="landing-section scroll-mt-20">
       <div className="landing-container">
-        <div className="mx-auto mb-10 max-w-4xl text-center">
-          <p className="landing-eyebrow">Pricing</p>
-          <h2 className="landing-h2 mb-4">
-            Start free. Pay only as you grow.
+        <div className="mb-12 grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-16">
+          <h2 className="lx-display text-[2rem] sm:text-5xl">
+            Start free.
+            <br />
+            <span className="lx-dim">Pay only as you grow.</span>
           </h2>
-          <p className="landing-lead">
+          <p className="lx-dim max-w-md text-[17px] leading-relaxed">
             Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
           </p>
         </div>

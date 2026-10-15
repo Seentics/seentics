@@ -59,10 +59,10 @@ test.describe('Landing header', () => {
     await expect(page).toHaveURL(`${AUTH_ORIGIN}/signin`, { timeout: 15_000 });
   });
 
-  test('"Get Started" takes a visitor to the auth app\'s sign-up', async ({ page }) => {
+  test('"Get started" takes a visitor to the auth app\'s sign-up', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('link', { name: 'Get Started', exact: true }).click();
+    await page.getByRole('link', { name: 'Get started', exact: true }).click();
 
     await expect(page).toHaveURL(`${AUTH_ORIGIN}/signup`, { timeout: 15_000 });
   });

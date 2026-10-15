@@ -99,7 +99,7 @@ function ProductsNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Products &amp; Tools
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -237,7 +237,7 @@ function UseCasesNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Use cases
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -312,7 +312,7 @@ function IntegrationsNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Integrations
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -431,7 +431,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-[15px] font-semibold text-foreground/80 hover:text-foreground transition-colors"
+                className="text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
               >
                 {link.name}
               </Link>
@@ -450,20 +450,20 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             <ThemeToggle />
             {isAuthenticated ? (
               <Link href="/websites" className="ml-2">
-                <Button className="h-9 rounded-lg px-4 text-sm font-semibold shadow-sm">
+                <Button className="h-8 rounded-full bg-foreground px-4 text-[13.5px] font-medium text-background shadow-none hover:bg-foreground/85">
                   Dashboard
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/signin" className="ml-1">
-                  <Button variant="ghost" className="h-9 rounded-lg px-3 text-sm font-medium">
+                  <Button variant="ghost" className="h-8 rounded-full px-3 text-[13.5px] font-medium text-foreground/80">
                     Sign in
                   </Button>
                 </Link>
                 <Link href="/signup" className="ml-1.5">
-                  <Button className="h-9 rounded-lg px-4 text-sm font-semibold shadow-sm">
-                    Get Started
+                  <Button className="h-8 rounded-full bg-foreground px-4 text-[13.5px] font-medium text-background shadow-none hover:bg-foreground/85">
+                    Get started
                   </Button>
                 </Link>
               </>

@@ -2,13 +2,17 @@ import { isEnterprise } from '@/lib/features';
 import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
-import ObservabilityBonus from '@/components/landing/ObservabilityBonus';
-import { FeatureGrid } from '@/components/landing/FeatureSections';
-import WhyChoose from '@/components/landing/WhyChoose';
-import AiSection from '@/components/landing/AiSection';
+import PlatformStrip from '@/components/landing/PlatformStrip';
+import Statement from '@/components/landing/Statement';
+import FeatureRows from '@/components/landing/FeatureRows';
 import Pricing from '@/components/landing/Pricing';
 import FaqCta from '@/components/landing/FaqCta';
+import ClosingCta from '@/components/landing/ClosingCta';
 import Footer from '@/components/landing/Footer';
+// The landing page's type: Inter with its optical sizes (the display cut at headline sizes),
+// and a mono for figure labels. Loaded here so the app's other pages do not carry them.
+import '@fontsource-variable/inter/opsz.css';
+import '@fontsource-variable/jetbrains-mono';
 
 export const dynamic = 'force-static';
 
@@ -18,16 +22,16 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="landing-light min-h-screen bg-background relative overflow-x-clip">
+    <div className="lx relative min-h-screen overflow-x-clip bg-background">
       <LandingHeader />
       <main>
         <Hero />
-        <FeatureGrid />
-        <AiSection />
-        <WhyChoose />
-        <ObservabilityBonus />
+        <PlatformStrip />
+        <Statement />
+        <FeatureRows />
         <Pricing />
         <FaqCta />
+        <ClosingCta />
       </main>
       <Footer />
     </div>
