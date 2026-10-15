@@ -31,7 +31,13 @@ export function useNearViewport(ref: RefObject<Element | null>, rootMargin = '30
     watching.current = { element, observer };
   });
 
-  useEffect(() => () => watching.current?.observer.disconnect(), []);
+  // Forget the element as well as disconnecting: React unmounts and remounts effects (Strict
+  // Mode in development, Fast Refresh), and a remount that still found the element recorded
+  // skipped re-attaching — the observer was dead, and the section never loaded.
+  useEffect(() => () => {
+    watching.current?.observer.disconnect();
+    watching.current = null;
+  }, []);
   useEffect(() => {
     if (near) {
       watching.current?.observer.disconnect();
