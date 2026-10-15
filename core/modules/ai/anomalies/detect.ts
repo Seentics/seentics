@@ -1,4 +1,4 @@
-import { maskText } from "../insights/privacy";
+import { baseline, count, maskText, median, round1, zScore } from "../../../platform/heuristics";
 import type { Baseline, Detection, Sensitivity, Severity, Verdict, Window } from "./types";
 
 /**
@@ -105,27 +105,12 @@ export const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 
 // ─── Robust statistics ──────────────────────────────────────────────────────────
 
-export function median(values: readonly number[]): number {
-  if (!values.length) return 0;
-  const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
-}
 
-export function baseline(values: readonly number[]): Baseline {
-  const clean = values.map((v) => (Number.isFinite(v) && v > 0 ? v : 0));
-  const m = median(clean);
-  const mad = median(clean.map((v) => Math.abs(v - m)));
-  return { values: clean, median: m, mad, scale: Math.max(1.4826 * mad, Math.sqrt(Math.max(m, 1)), 0.1 * m) };
-}
 
-export const zScore = (observed: number, b: Baseline) => (observed - b.median) / b.scale;
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
 
 // ─── Wording ────────────────────────────────────────────────────────────────────
 
-const count = (n: number) => Math.round(n).toLocaleString("en-US");
 const hhmm = (d: Date) => d.toISOString().slice(11, 16);
 const weekday = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 const dateLabel = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });

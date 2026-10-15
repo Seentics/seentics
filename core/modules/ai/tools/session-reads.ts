@@ -5,7 +5,7 @@ import {
   type SessionAnalysisReads,
   type SessionAnalysisView,
 } from "../../recordings/interfaces";
-import { maskPath } from "../insights/privacy";
+import { maskPath } from "../../../platform/heuristics";
 import { clock } from "../sessions/brief";
 import { asLinks } from "./display";
 import type { AiTool, ToolContext, ToolResult } from "./tool.types";

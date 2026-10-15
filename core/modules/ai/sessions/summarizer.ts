@@ -5,7 +5,7 @@ import type { ModelInfo } from '../insights/service';
 import { buildSessionBrief } from './brief';
 import { parseSessionSummary } from './output';
 import { SESSION_SUMMARY_SYSTEM_PROMPT } from './prompts';
-import { ruleSummary, worthModel } from './rules';
+import { ruleSummary, worthModel } from '../../../platform/heuristics';
 
 const log = baseLog.child({ category: 'ai_session_summary' });
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { SessionSummary } from '../../recordings/interfaces';
 import { numbersIn } from '../insights/brief';
 import { extractJson } from '../insights/output';
-import { looksPersonal } from '../insights/privacy';
+import { looksPersonal } from '../../../platform/heuristics';
 import type { SessionBrief } from './brief';
 
 /**

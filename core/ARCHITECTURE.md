@@ -29,6 +29,7 @@ core/
 ├── platform/                 Reusable technical capabilities; imports no module
 │   ├── cache/                In-process cache and token-bucket primitives
 │   ├── geo/                  MaxMind adapter
+│   ├── heuristics/           Statistics engine and plain-language templates (baselines, z-tests, masking, visit summaries)
 │   ├── http/                 Transport helpers and router types
 │   ├── middleware/           Cross-cutting HTTP middleware
 │   ├── observability/        Structured logging

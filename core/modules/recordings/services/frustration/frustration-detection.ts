@@ -22,7 +22,7 @@
  * Times are playback offsets — ms after the first rrweb event — which is what the player's
  * `goto` takes, so a stored signal can seek the replay directly.
  */
-import { maskPath, maskText } from "../../../ai/interfaces/privacy";
+import { maskPath, maskText } from "../../../../platform/heuristics";
 import type {
   FrustrationSignal,
   FrustrationSignalType,

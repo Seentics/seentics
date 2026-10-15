@@ -1,6 +1,6 @@
 import type { AnalyticsInsightReads } from '../../analytics/interfaces';
 import type { ErrorGroupSummary, ErrorQueries } from '../../errors/interfaces';
-import { maskPath, maskText } from './privacy';
+import { maskPath, maskText } from '../../../platform/heuristics';
 import type { InsightSnapshot, Pair } from './types';
 
 /**

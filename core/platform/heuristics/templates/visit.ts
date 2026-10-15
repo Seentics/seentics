@@ -1,6 +1,36 @@
-import type { FrustrationSignal, SessionSummary, SessionSummaryInput } from '../../recordings/interfaces';
-import { span } from './brief';
-import { maskPath, maskText } from '../insights/privacy';
+import { span } from '../format';
+import { maskPath, maskText } from '../privacy';
+
+// The shapes a recorded visit is told from. The recordings module's session analysis has the same
+// fields (it is passed straight in); declared here so this library depends on no module.
+export type FrustrationSignal = {
+  type: 'rage_click' | 'error_click' | 'form_abandon' | 'dead_click' | 'u_turn' | 'scroll_thrash';
+  atMs: number;
+  page: string;
+  label?: string;
+  count?: number;
+  detail?: string;
+};
+export type SessionSummaryInput = {
+  score: number;
+  counts: Partial<Record<FrustrationSignal['type'], number>>;
+  signals: FrustrationSignal[];
+  timeline: {
+    durationMs: number;
+    pages: Array<{ path: string; atMs: number; dwellMs: number }>;
+    clicks: Array<{ atMs: number; page: string; label: string }>;
+    errorCount: number;
+    failedRequests: number;
+    fieldsTouched: number;
+    goal: { reached: boolean; page?: string; atMs?: number };
+  };
+};
+export type SessionSummary = {
+  text: string;
+  intent: string;
+  outcome: 'succeeded' | 'struggled' | 'abandoned';
+  moments: Array<{ atMs: number; label: string }>;
+};
 
 /**
  * A summary written from the analysis alone: for calm sessions (where a model would add nothing),

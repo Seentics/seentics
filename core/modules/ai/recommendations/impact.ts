@@ -1,3 +1,4 @@
+import { count as num, formatDelta, twoProportionZ } from '../../../platform/heuristics';
 import {
   BASELINE_DAYS,
   CHECKPOINT_DAYS,
@@ -91,24 +92,8 @@ export function judge(
 }
 
 /** (p2 - p1) / pooled standard error. Null when the pooled rate is 0 or 1 (no variance to test). */
-export function twoProportionZ(x1: number, n1: number, x2: number, n2: number): number | null {
-  if (n1 <= 0 || n2 <= 0) return null;
-  const p1 = x1 / n1;
-  const p2 = x2 / n2;
-  const pooled = (x1 + x2) / (n1 + n2);
-  const se = Math.sqrt(pooled * (1 - pooled) * (1 / n1 + 1 / n2));
-  if (!(se > 0)) return null;
-  return Math.round(((p2 - p1) / se) * 100) / 100;
-}
 
 const pct = (v: number) => `${v < 10 ? (Math.round(v * 10) / 10).toString() : Math.round(v).toString()}%`;
-const num = (n: number) => Math.round(n).toLocaleString('en-US');
-/** "−6 pts", "+1.5 pts": a real minus sign, one decimal only when it says something. */
-export function formatDelta(d: number): string {
-  const abs = Math.abs(d);
-  const text = abs < 10 && !Number.isInteger(abs) ? abs.toFixed(1) : String(Math.round(abs));
-  return `${d < 0 ? '−' : '+'}${text} pts`;
-}
 
 /** How the target reads at the start of a headline. */
 export function subjectOf(rec: Pick<Recommendation, 'target' | 'resource'>): string {
@@ -232,3 +217,5 @@ export function buildReport(rec: Recommendation, now: Date): ImpactReport {
 /** Whether a report is worth showing as a one-liner on the dashboard. */
 export const isNewsworthy = (r: ImpactReport): boolean =>
   r.verdict === 'improved' || r.verdict === 'worse' || r.verdict === 'no_change';
+
+export { formatDelta, twoProportionZ };

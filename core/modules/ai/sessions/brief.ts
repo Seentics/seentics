@@ -1,6 +1,8 @@
 import type { SessionSummaryInput } from '../../recordings/interfaces';
 import { numbersIn } from '../insights/brief';
-import { maskPath, maskText } from '../insights/privacy';
+import { clock, maskPath, maskText, span } from '../../../platform/heuristics';
+
+export { clock, span };
 
 /**
  * The compact brief a session summary is written from: a few dozen short lines.
@@ -28,23 +30,7 @@ export type SessionBrief = {
   times: Map<string, number>;
 };
 
-/** Playback offset as the player shows it: `m:ss`, or `h:mm:ss` past an hour. */
-export function clock(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  const h = Math.floor(m / 60);
-  const ss = String(s % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m % 60).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
-}
 
-/** A length as people say it: `42s`, `4m 12s`, `1h 3m`. */
-export function span(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return s % 60 ? `${m}m ${s % 60}s` : `${m}m`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
-}
 
 const label = (l: string | undefined) => maskText(l ?? '', 70);
 

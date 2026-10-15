@@ -1,3 +1,4 @@
+import { capitalize as cap, count as num, direction, rateText, ratioText, relativeChange, share, signedPercent as pct } from '../../../platform/heuristics';
 import type { ActionHint, Evidence, EvidenceKind, InsightSnapshot, Pair, Signal } from './types';
 
 /**
@@ -31,12 +32,8 @@ export const isTrafficCollapse = (visitors: Pair): boolean =>
   visitors.prev >= THRESHOLDS.minVisitors && visitors.cur <= visitors.prev * (1 - THRESHOLDS.collapse);
 
 /** `(cur - prev) / prev`, or null when there was nothing before to compare with. */
-export const change = (p: Pair): number | null => (p.prev > 0 ? (p.cur - p.prev) / p.prev : null);
+export const change = (p: Pair): number | null => relativeChange(p);
 
-const num = (n: number) => Math.round(n).toLocaleString('en-US');
-const pct = (rel: number) => `${rel >= 0 ? '+' : '-'}${Math.round(Math.abs(rel) * 100)}%`;
-const share = (n: number) => `${Math.round(n)}%`;
-const direction = (rel: number) => (rel >= 0 ? 'rose' : 'fell');
 
 /** Importance: how far it moved, weighted by how many visits are behind it. */
 const scoreOf = (rel: number, volume: number, weight = 1) => Math.min(Math.abs(rel), 1.5) * Math.log10(volume + 10) * weight;
@@ -209,6 +206,3 @@ export function detectSignals(s: InsightSnapshot): Signal[] {
 /** A signal id the brief can quote and the model can repeat: lowercase letters, digits and `./_-`. */
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9./_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'x';
 
-const cap = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
-const rateText = (r: number) => `${r.toFixed(r < 10 ? 1 : 0)}%`;
-const ratioText = (r: number) => `${(Math.round(r * 10) / 10).toFixed(1)}×`;

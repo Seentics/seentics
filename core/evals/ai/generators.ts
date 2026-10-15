@@ -9,7 +9,7 @@ import type { InsightSnapshot } from "../../modules/ai/insights/types";
 import { buildSessionBrief } from "../../modules/ai/sessions/brief";
 import { parseSessionSummary } from "../../modules/ai/sessions/output";
 import { SESSION_SUMMARY_SYSTEM_PROMPT } from "../../modules/ai/sessions/prompts";
-import { ruleSummary } from "../../modules/ai/sessions/rules";
+import { ruleSummary } from "../../platform/heuristics";
 import { buildHeatmapBrief } from "../../modules/ai/heatmap-insights/brief";
 import { parseHeatmapOutput } from "../../modules/ai/heatmap-insights/output";
 import { HEATMAP_INSIGHT_SYSTEM_PROMPT } from "../../modules/ai/heatmap-insights/prompts";

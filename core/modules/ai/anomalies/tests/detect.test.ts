@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
   THRESHOLDS,
-  baseline,
   detectConversionDrop,
   detectErrorSurge,
   detectOutage,
@@ -11,9 +10,9 @@ import {
   hoursOf,
   lastDay,
   lastHours,
-  median,
   seasonalWindows,
 } from "../detect";
+import { baseline, median } from "../../../../platform/heuristics";
 
 // Wednesday 14 Oct 2026, 14:15 UTC — the run judges the hour 13:00–14:00.
 const NOW = new Date("2026-10-14T14:15:00Z");

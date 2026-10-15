@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { FrustrationSignal, SessionSummaryInput } from "../../recordings/interfaces";
-import { ruleSummary, worthModel } from "../sessions/rules";
+import type { FrustrationSignal, SessionSummaryInput } from "..";
+
+type Case = SessionSummaryInput & { sessionId: string };
+import { ruleSummary, worthModel } from "..";
 
 /**
  * The template across every combination of route, trouble, errors and ending we can build — a few
@@ -46,7 +48,7 @@ function signalSets(): FrustrationSignal[][] {
   return out;
 }
 
-function* cases(): Generator<SessionSummaryInput> {
+function* cases(): Generator<Case> {
   let i = 0;
   for (const route of ROUTES) {
     for (const signals of signalSets()) {
@@ -56,7 +58,7 @@ function* cases(): Generator<SessionSummaryInput> {
           const counts: Record<string, number> = {};
           for (const s of signals) counts[s.type] = (counts[s.type] ?? 0) + 1;
           yield {
-            websiteId: "w", sessionId: `s${i}`, device: "Mobile", browser: "Safari", os: "iOS", country: "GB",
+            sessionId: `s${i}`,
             score: Math.min(100, signals.length * 30 + errors * 5),
             counts,
             signals,
@@ -64,7 +66,6 @@ function* cases(): Generator<SessionSummaryInput> {
               durationMs: [4_000, 45_000, 3_725_000][i % 3]!,
               pages: route.map((path, k) => ({ path, atMs: k * 10_000, dwellMs: 10_000 })),
               clicks: i % 2 ? [{ atMs: 9_000, page: route[0] ?? "/", label: 'button "Add to cart"' }] : [],
-              errors: [],
               errorCount: errors,
               failedRequests: i % 4 === 0 ? errors : 0,
               fieldsTouched: i % 5,

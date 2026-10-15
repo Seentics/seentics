@@ -3,7 +3,7 @@ import type { SessionSummaryInput } from "../../recordings/interfaces";
 import type { LlmClient } from "../interfaces/llm-client.interface";
 import { buildSessionBrief, clock } from "../sessions/brief";
 import { normaliseOutcome, parseSessionSummary } from "../sessions/output";
-import { ruleOutcome, ruleSummary, stageOf, worthModel } from "../sessions/rules";
+import { ruleOutcome, ruleSummary, stageOf, worthModel } from "../../../platform/heuristics";
 import { SessionSummaryService } from "../sessions/summarizer";
 
 /** The broken-coupon session: a product page, then rage and error clicks on /cart. */

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { numbersIn } from './brief';
-import { looksPersonal } from './privacy';
+import { looksPersonal } from '../../../platform/heuristics';
 import type { InsightLine, Signal } from './types';
 
 /**

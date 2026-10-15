@@ -2,7 +2,7 @@ import { log as baseLog } from "../../../platform/observability/logger";
 import type { LlmClient } from "../interfaces/llm-client.interface";
 import { numbersIn } from "../insights/brief";
 import { extractJson } from "../insights/output";
-import { looksPersonal, maskPath, maskText } from "../insights/privacy";
+import { count, looksPersonal, maskPath, maskText } from "../../../platform/heuristics";
 import type { ExplanationRecord } from "./repository";
 import type { Detection } from "./types";
 
@@ -27,7 +27,6 @@ export type ModelInfo = { name: string; inputCostPerToken: number; outputCostPer
 const MAX_TEXT = 300;
 /** Small whole numbers that carry no claim of their own. */
 const FREE_NUMBERS = new Set(["1", "2", "3", "4", "7", "24"]);
-const count = (n: number) => Math.round(n).toLocaleString("en-US");
 
 /** The context with every page path and source name masked: what may be stored, shown or sent to a model. */
 export function maskContext(raw: ExplainContext): ExplainContext {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { looksPersonal, maskPath, maskText } from '../privacy';
+import { looksPersonal, maskPath, maskText } from '..';
 
 describe('maskPath', () => {
   it('drops the query string, the fragment and the origin', () => {

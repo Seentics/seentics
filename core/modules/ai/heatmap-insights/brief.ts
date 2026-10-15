@@ -1,6 +1,6 @@
 import type { HeatmapDeviceAnalysis, HeatmapPageAnalysis } from '../../heatmaps/interfaces';
 import { numbersIn, type Brief } from '../insights/brief';
-import { maskPath, maskText } from '../insights/privacy';
+import { maskPath, maskText } from '../../../platform/heuristics';
 
 /**
  * The brief the model words one page's heatmap from: the signals the heatmaps module found,

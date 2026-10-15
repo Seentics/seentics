@@ -1,6 +1,6 @@
 import { numbersIn } from '../insights/brief';
 import { extractJson } from '../insights/output';
-import { looksPersonal } from '../insights/privacy';
+import { looksPersonal } from '../../../platform/heuristics';
 import type { LlmClient } from '../interfaces/llm-client.interface';
 import { ruleSentence } from './impact';
 import type { Verdict } from './types';

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { HeatmapInsightFinding, HeatmapSignal } from '../../heatmaps/interfaces';
 import { numbersIn } from '../insights/brief';
 import { extractJson } from '../insights/output';
-import { looksPersonal } from '../insights/privacy';
+import { looksPersonal } from '../../../platform/heuristics';
 
 /**
  * What the model may return for a page, and what is kept.
