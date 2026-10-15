@@ -17,3 +17,13 @@ it('requests one report batch for fifty funnels and reuses it when their order c
   act(() => rerender({ ids: [...ids].reverse() }));
   expect(api.batch).toHaveBeenCalledTimes(1);
 });
+
+it('does not request the report when disabled (the funnels page past the API cap)', async () => {
+  api.batch.mockClear();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const { result } = renderHook(() => useFunnelsAnalytics(['funnel0'], 62, '11111111-1111-4111-8111-111111111111', false), { wrapper });
+  await new Promise((r) => setTimeout(r, 20));
+  expect(result.current.fetchStatus).toBe('idle');
+  expect(api.batch).not.toHaveBeenCalled();
+});

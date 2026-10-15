@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildFunnelProgressQuery, MAX_FUNNEL_STEPS, normalizeFunnelPath, type FunnelProgressStep } from "../lib/funnel-progress-sql";
+import { buildFunnelProgressBatchQuery, buildFunnelProgressQuery, MAX_FUNNEL_STEPS, normalizeFunnelPath, type FunnelProgressStep } from "../lib/funnel-progress-sql";
 
 const W = "site_123";
 const START = "2026-01-01T00:00:00.000Z";
@@ -62,5 +62,50 @@ describe("buildFunnelProgressQuery", () => {
     const withWindow = buildFunnelProgressQuery(W, [page("/"), page("/a"), page("/b")], START, END, 24);
     expect(withWindow.text.match(/make_interval/g)).toHaveLength(2);   // one per step after the first
     expect(withWindow.params).toContain(24);
+  });
+
+  it("binds no window for a one-step funnel, which has no later step to limit", () => {
+    // An unused parameter is one Postgres cannot type: the query failed, and in a batch so did
+    // every other funnel of the site.
+    const { text, params } = buildFunnelProgressQuery(W, [page("/")], START, END, 24);
+    expect(text).not.toContain("make_interval");
+    expect(params).not.toContain(24);
+  });
+
+  it("works out each event's path once, not once per step", () => {
+    const { text } = buildFunnelProgressQuery(W, [page("/"), page("/docs"), page("/apply", "regex")], START, END);
+    expect(text.match(/regexp_replace\(/g)).toHaveLength(1);
+  });
+
+  it("keeps only the events that match some step, flagged per step", () => {
+    const { text } = buildFunnelProgressQuery(W, [page("/"), page("/docs")], START, END);
+    expect(text).toContain("AS m0");
+    expect(text).toContain("AS m1");
+    expect(text).toMatch(/WHERE \(\(b\.event_type = 'pageview'.*\) OR \(b\.event_type = 'pageview'/s);
+    expect(text).toContain("WHERE b.m1");
+  });
+});
+
+describe("buildFunnelProgressBatchQuery", () => {
+  const funnels = [
+    { id: "f1", steps: [page("/"), page("/docs")], windowHours: 24 },
+    { id: "f2", steps: [page("/pricing"), { kind: "event", event: "signup" } as FunnelProgressStep], windowHours: null },
+  ];
+
+  it("reads the site's events once, only the types some funnel can match, without their properties", () => {
+    const { text, params } = buildFunnelProgressBatchQuery(W, funnels, START, END);
+    expect(text.match(/FROM analytics_events/g)).toHaveLength(1);
+    expect(text).toContain("e.event_type = ANY($4::text[])");
+    expect([...(params[3] as string[])].sort()).toEqual(["custom", "pageview", "signup"]);
+    expect(text).not.toMatch(/SELECT[^)]*\bproperties\b,/);
+  });
+
+  it("numbers every funnel's values after the shared ones, so each placeholder finds its own", () => {
+    const { text, params } = buildFunnelProgressBatchQuery(W, funnels, START, END);
+    const used = [...new Set([...text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
+    expect(used).toEqual(params.map((_, i) => i + 1));
+    expect(params).toContain(24);
+    expect(params).toContain("signup");
+    expect(params.slice(-1)).toEqual(["f2"]);
   });
 });

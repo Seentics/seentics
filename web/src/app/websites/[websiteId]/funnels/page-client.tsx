@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
-import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
+import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect, MAX_FUNNEL_DAYS } from '@/components/funnels/FunnelRangeSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ListGroups } from '@/components/ui/list-groups';
@@ -70,7 +70,9 @@ export default function FunnelsPage() {
   // has no rate yet and is left out rather than counted as 0%.
   const funnelReports = useFunnelsAnalytics(funnelIds, dateRange, websiteId);
   // Twice the period: what is left after this period's counts is the period before, for the trend.
-  const doubledReports = useFunnelsAnalytics(funnelIds, Math.min(366, dateRange * 2), websiteId);
+  // Only when the API can serve twice the period: past its cap the doubled report comes back
+  // clamped to this one's range — the same heavy query again, and a trend that is always empty.
+  const doubledReports = useFunnelsAnalytics(funnelIds, dateRange * 2, websiteId, dateRange * 2 <= MAX_FUNNEL_DAYS);
   const previousOf = (id: string): FunnelPrevious | null =>
     isDemoMode
       ? DEMO_PREVIOUS[id] ?? null

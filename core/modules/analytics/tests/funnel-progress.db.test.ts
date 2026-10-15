@@ -63,6 +63,31 @@ describe.skipIf(!url)("funnel progress, counted from events", () => {
     expect(actual.filter(row => row.funnel_id === "empty").map(row => row.cnt)).toEqual([0]);
   });
 
+  it("gives each funnel in a batch the counts it gets on its own, whatever its parameters", async () => {
+    // The batch renumbers each funnel's parameters after the shared ones; a slip there would
+    // match one funnel's steps against another's values.
+    const rows = [
+      view("a", "https://x.test/pricing?ref=1", day(2, 0)), custom("a", "signup", day(2, 5)), view("a", "/docs/intro", day(2, 9)),
+      view("b", "/pricing/", day(3, 0)), custom("b", "signup", day(5, 0)),
+      view("c", "/blog/post", day(4, 0)), view("c", "/docs/api", day(4, 1)),
+    ];
+    await counts(HOME_DOCS_APPLY, rows);
+    const funnels = [
+      { id: "windowed", steps: [page("/pricing"), { kind: "event", event: "signup" } as FunnelProgressStep], windowHours: 1 },
+      { id: "regex", steps: [page("^/(blog|pricing)", "regex"), page("/docs", "starts_with")], windowHours: null },
+      { id: "contains", steps: [page("doc", "contains")], windowHours: 48 },
+    ];
+    const batch = buildFunnelProgressBatchQuery(SITE, funnels, START, END);
+    const batched = await sql.unsafe<Array<{ funnel_id: string; step_order: number; cnt: number }>>(batch.text, batch.params as never[]);
+    for (const funnel of funnels) {
+      const single = buildFunnelProgressQuery(SITE, funnel.steps, START, END, funnel.windowHours);
+      const alone = await sql.unsafe<Array<{ step_order: number; cnt: number }>>(single.text, single.params as never[]);
+      const pick = (r: Array<{ step_order: number; cnt: number }>) => [...r].sort((x, y) => x.step_order - y.step_order).map((x) => x.cnt);
+      expect({ id: funnel.id, counts: pick(batched.filter((r) => r.funnel_id === funnel.id)) }).toEqual({ id: funnel.id, counts: pick(alone) });
+    }
+    expect(batched.filter((r) => r.funnel_id === "windowed").sort((x, y) => x.step_order - y.step_order).map((r) => r.cnt)).toEqual([2, 1]);
+  });
+
   it("counts each visitor at the furthest step they reached, in order", async () => {
     const rows = [
       view("full", "/", day(2, 0)), view("full", "/docs", day(2, 1)), view("full", "/apply", day(2, 2)),

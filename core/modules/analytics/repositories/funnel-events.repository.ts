@@ -55,9 +55,26 @@ export async function countFunnelProgress(
 ): Promise<FunnelStepCount[]> {
   if (steps.length === 0) return [];
   const { text, params } = buildFunnelProgressQuery(websiteId, steps, startIso, endIso, windowHours);
-  const rows = await pgSql.unsafe<FunnelStepCount[]>(text, params as never[]);
+  const rows = await runFunnelQuery<FunnelStepCount>(text, params);
   const last = rows.find((r) => r.step_order === steps.length - 1);
   return [...rows, { step_order: -1, cnt: last?.cnt ?? 0 }];
+}
+
+/**
+ * Run a funnel query with hash joins only.
+ *
+ * Postgres cannot see inside the query's CTEs and estimates each step at a row or two, which
+ * makes a nested loop look free. On real data that loop compares every visitor at one step
+ * with every visitor at the last — 8.6k × 27k rows took 17 s per funnel on a 1M-session site,
+ * and the 31-day report ran 413 s — where a hash join takes milliseconds. Every join here is
+ * an equality on the visitor, so a hash join is always the right plan; `SET LOCAL` keeps the
+ * setting to this one transaction.
+ */
+async function runFunnelQuery<T>(text: string, params: unknown[]): Promise<T[]> {
+  return pgSql.begin(async (tx) => {
+    await tx.unsafe("SET LOCAL enable_nestloop = off");
+    return tx.unsafe<T[]>(text, params as never[]);
+  }) as Promise<T[]>;
 }
 
 /**
@@ -87,7 +104,7 @@ export async function countFunnelsProgress(websiteId: string,
   for (let offset = 0; offset < funnels.length; offset += 50) {
     const batch = funnels.slice(offset, offset + 50);
     const query = buildFunnelProgressBatchQuery(websiteId, batch, startIso, endIso);
-    const rows = await pgSql.unsafe<Array<{ funnel_id: string; step_order: number; cnt: number }>>(query.text, query.params as never[]);
+    const rows = await runFunnelQuery<{ funnel_id: string; step_order: number; cnt: number }>(query.text, query.params);
     for (const row of rows) (result[row.funnel_id] ??= []).push({ step_order: row.step_order, cnt: row.cnt });
     for (const funnel of batch) {
       const counts = result[funnel.id] ?? [];

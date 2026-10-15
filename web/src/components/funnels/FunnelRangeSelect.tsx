@@ -19,6 +19,9 @@ export const FUNNEL_RANGES = [
 
 export const DEFAULT_FUNNEL_DAYS = 31;
 
+/** The API's cap on a funnel report (core funnel-report-calculation.service.ts MAX_REPORT_DAYS). */
+export const MAX_FUNNEL_DAYS = 31;
+
 export function funnelRangeLabel(days: number): string {
   return FUNNEL_RANGES.find((r) => r.days === days)?.label ?? `Last ${days} days`;
 }

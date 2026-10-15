@@ -55,11 +55,11 @@ export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7, webs
 };
 
 /** One list report fetch; row cells read the same response without their own requests. */
-export const useFunnelsAnalytics = (funnelIds: string[], dateRange = 7, websiteId = '') => {
+export const useFunnelsAnalytics = (funnelIds: string[], dateRange = 7, websiteId = '', enabled = true) => {
   return useQuery({
     queryKey: [...analyticsKeys.all, 'funnel-analytics', 'batch', dateRange, websiteId, [...funnelIds].sort()],
     queryFn: () => getDashboardFunnelsAnalytics(websiteId, dateRange),
-    enabled: isValidId(websiteId) && funnelIds.length > 0,
+    enabled: enabled && isValidId(websiteId) && funnelIds.length > 0,
     staleTime: 2 * 60_000,
   });
 };

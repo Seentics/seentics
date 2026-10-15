@@ -45,51 +45,60 @@ export function buildFunnelProgressQuery(
     return `$${params.length}`;
   };
 
-  const path = pagePathSql("b.page");
-  const normalizedPath = `coalesce(nullif(rtrim(${path}, '/'), ''), '/')`;
+  // `b.path` and `b.name` are worked out once per event (`eventColumns`), not once per step.
+  const normalizedPath = `coalesce(nullif(rtrim(b.path, '/'), ''), '/')`;
 
   const matches = (step: FunnelProgressStep): string => {
     if (step.kind === "event") {
       const name = param(step.event);
       // Newer data stores the event under its own name; older data as 'custom' with the name in properties.
-      return `(b.event_type = ${name} OR (b.event_type = 'custom' AND b.properties->>'name' = ${name}))`;
+      return `(b.event_type = ${name} OR (b.event_type = 'custom' AND b.name = ${name}))`;
     }
     const wanted = step.path.slice(0, MAX_PATTERN_CHARS);
     switch (step.match) {
-      case "contains":    return `(b.event_type = 'pageview' AND strpos(${path}, ${param(wanted)}) > 0)`;
-      case "starts_with": return `(b.event_type = 'pageview' AND starts_with(${path}, ${param(wanted)}))`;
-      case "regex":       return `(b.event_type = 'pageview' AND ${path} ~ ${param(wanted)})`;
+      case "contains":    return `(b.event_type = 'pageview' AND strpos(b.path, ${param(wanted)}) > 0)`;
+      case "starts_with": return `(b.event_type = 'pageview' AND starts_with(b.path, ${param(wanted)}))`;
+      case "regex":       return `(b.event_type = 'pageview' AND b.path ~ ${param(wanted)})`;
       default:            return `(b.event_type = 'pageview' AND ${normalizedPath} = ${param(normalizeFunnelPath(wanted))})`;
     }
   };
 
   // Only the kinds of event the funnel can use are read.
-  const types = new Set<string>();
-  for (const step of steps) {
-    if (step.kind === "page") types.add("pageview");
-    else { types.add("custom"); types.add(step.event); }
-  }
-  const typesParam = param([...types]);
+  const typesParam = param(stepTypes(steps));
 
   // Each step has to follow the one before within the window. Measured from the previous step,
   // not from the first, so taking the earliest match at every step stays the best choice.
-  const within = windowHours === null ? "" : ` AND b.t <= p.t + make_interval(hours => ${param(windowHours)}::int)`;
+  // A one-step funnel has no step to limit: binding the window anyway left a parameter Postgres
+  // could not type, which failed the query — and in a batch, every funnel of the site with it.
+  const within = windowHours === null || steps.length < 2 ? "" : ` AND b.t <= p.t + make_interval(hours => ${param(windowHours)}::int)`;
 
-  const ctes = steps.map((step, i) =>
+  // Each step's test runs once per event, into a flag; the steps then filter on the flag. Only
+  // events that match some step are kept, which on a busy site is a few percent of the window.
+  const stepMatches = steps.map(matches);
+  const flags = stepMatches.map((m, i) => `${m} AS m${i}`).join(",\n             ");
+
+  const ctes = steps.map((_, i) =>
     i === 0
-      ? `s0 AS (SELECT b.vkey, min(b.t) AS t FROM base b WHERE ${matches(step)} GROUP BY b.vkey)`
-      : `s${i} AS (SELECT b.vkey, min(b.t) AS t FROM base b JOIN s${i - 1} p ON p.vkey = b.vkey AND b.t > p.t${within} WHERE ${matches(step)} GROUP BY b.vkey)`,
+      ? `s0 AS (SELECT b.vkey, min(b.t) AS t FROM base b WHERE b.m0 GROUP BY b.vkey)`
+      : `s${i} AS (SELECT b.vkey, min(b.t) AS t FROM base b JOIN s${i - 1} p ON p.vkey = b.vkey AND b.t > p.t${within} WHERE b.m${i} GROUP BY b.vkey)`,
   );
 
+  const source = sharedEvents
+    ? `batch_events b WHERE b.event_type = ANY(${typesParam}::text[])`
+    : `ev b`;
   const text = `
-    WITH base AS (
-      SELECT coalesce(nullif(trim(e.visitor_id), ''), e.session_id) AS vkey,
-             e.occurred_at AS t, e.event_type, e.page, e.properties
-      FROM ${sharedEvents ? "batch_events" : "analytics_events"} e
+    WITH ${sharedEvents ? "" : `ev AS MATERIALIZED (
+      SELECT ${eventColumns("e")}
+      FROM analytics_events e
       WHERE e.website_id = $1
         AND e.occurred_at >= $2::timestamptz
         AND e.occurred_at <= $3::timestamptz
         AND e.event_type = ANY(${typesParam}::text[])
+    ),
+    `}base AS MATERIALIZED (
+      SELECT b.vkey, b.t,
+             ${flags}
+      FROM ${source}${sharedEvents ? " AND" : " WHERE"} (${stepMatches.join(" OR ")})
     ),
     ${ctes.join(",\n    ")}
     ${steps.map((_, i) => `SELECT ${i} AS step_order, count(*)::int AS cnt FROM s${i}`).join("\n    UNION ALL\n    ")}
@@ -98,21 +107,44 @@ export function buildFunnelProgressQuery(
 }
 
 
+/**
+ * What a funnel reads of each event: who (the visitor, or the session when there is none),
+ * when, its type, and the two things a step can match — the page's path and a custom event's
+ * name — each worked out once here rather than once per step.
+ */
+function eventColumns(e: string): string {
+  return `coalesce(nullif(trim(${e}.visitor_id), ''), ${e}.session_id) AS vkey, ${e}.occurred_at AS t, ${e}.event_type,
+             CASE WHEN ${e}.event_type = 'pageview' THEN ${pagePathSql(`${e}.page`)} END AS path,
+             CASE WHEN ${e}.event_type = 'custom' THEN ${e}.properties->>'name' END AS name`;
+}
+
+/** The event types any of `steps` can match. */
+function stepTypes(steps: FunnelProgressStep[]): string[] {
+  const types = new Set<string>();
+  for (const step of steps) {
+    if (step.kind === "page") types.add("pageview");
+    else { types.add("custom"); types.add(step.event); }
+  }
+  return [...types];
+}
+
 /** A bounded batch shares one materialized read of the site's events. Values stay bound. */
 export function buildFunnelProgressBatchQuery(websiteId: string,
   funnels: Array<{ id: string; steps: FunnelProgressStep[]; windowHours: number | null }>, startIso: string, endIso: string) {
   if (!funnels.length || funnels.length > 50) throw new Error('A funnel report batch must contain 1..50 funnels');
-  const params: unknown[] = [websiteId, startIso, endIso];
+  const params: unknown[] = [websiteId, startIso, endIso, [...new Set(funnels.flatMap(f => stepTypes(f.steps)))]];
   const reports = funnels.map(funnel => {
     const query = buildFunnelProgressQuery(websiteId, funnel.steps, startIso, endIso, funnel.windowHours, true);
-    const offset = params.length;
-    params.push(...query.params);
-    const text = query.text.replace(/\$(\d+)/g, (_, index: string) => `$${Number(index) + offset}`);
+    // The funnel's own $1..$3 are the batch's; everything after them is renumbered past what is here.
+    const offset = params.length - 3;
+    params.push(...query.params.slice(3));
+    const text = query.text.replace(/\$(\d+)/g, (_, index: string) => Number(index) <= 3 ? `$${index}` : `$${Number(index) + offset}`);
     params.push(funnel.id);
     return `SELECT $${params.length}::text AS funnel_id, p.* FROM (${text}) p`;
   });
   return { params, text: `WITH batch_events AS MATERIALIZED (
-    SELECT website_id, visitor_id, session_id, occurred_at, event_type, page, properties FROM analytics_events
-    WHERE website_id = $1 AND occurred_at >= $2::timestamptz AND occurred_at <= $3::timestamptz
+    SELECT ${eventColumns("e")} FROM analytics_events e
+    WHERE e.website_id = $1 AND e.occurred_at >= $2::timestamptz AND e.occurred_at <= $3::timestamptz
+      AND e.event_type = ANY($4::text[])
   ) ${reports.join(' UNION ALL ')}` };
 }
