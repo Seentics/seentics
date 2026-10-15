@@ -34,6 +34,7 @@ import { alertOps } from "../../platform/observability/ops-alert";
 import { AnomalyService, gatewayAlertSender } from "./anomalies/service";
 import { PostgresAnomalyRepository } from "./anomalies/postgres-repository";
 import { AnomalyExplainer } from "./anomalies/explain";
+import { aiInBackground } from "./interfaces/background";
 
 const log = baseLog.child({ category: "ai_insights" });
 
@@ -224,8 +225,10 @@ export function initAiModule(deps: {
         errors: deps.anomalyReads.errors,
         describeSite: (id) => deps.websitesModule.insightSites.getDigestSite(id),
         send: deps.notify ? gatewayAlertSender(deps.notify) : null,
+        // The hourly check runs for every site: its cause line comes from the data unless background
+        // model calls are on. "Ask why" on an alert asks the assistant, on demand.
         explainer: new AnomalyExplainer({
-          llm: createLlmClient(anomalyConfig),
+          llm: aiInBackground() ? createLlmClient(anomalyConfig) : null,
           model: anomalyConfig
             ? { name: anomalyConfig.model, inputCostPerToken: anomalyConfig.inputCostPerToken, outputCostPerToken: anomalyConfig.outputCostPerToken }
             : null,
@@ -248,7 +251,8 @@ export function initAiModule(deps: {
         funnelPerformance: deps.funnelPerformance,
         sessionAnalysis: deps.sessionAnalysis,
         latestInsight: (websiteId) => insights.latest(websiteId),
-        llm: insightLlm,
+        // Impact readings are taken by the daily job: worded from templates unless background calls are on.
+        llm: aiInBackground() ? insightLlm : null,
       })
     : null;
 
@@ -330,7 +334,11 @@ export function initAiModule(deps: {
           },
           describeSite: (id) => deps.websitesModule.insightSites.getDigestSite(id),
           snapshot: (id, days, end) => deps.analyticsInsights.getInsightSnapshot(id, days, end),
-          insights,
+          insights: {
+            latest: (id) => insights.latest(id),
+            // A site nobody opened this week gets template lines: the digest never calls the model by itself.
+            generate: async (id) => (aiInBackground() ? insights.generate(id) : { insight: await insights.draft(id) }),
+          },
           send: gatewayNotifySender(deps.notify),
         });
       },

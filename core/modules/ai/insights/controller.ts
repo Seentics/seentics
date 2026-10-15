@@ -27,7 +27,10 @@ function present(insight: Awaited<ReturnType<InsightService["latest"]>>) {
   };
 }
 
-/** GET /insights/:website_id — the stored insight. Reading never calls a model, so it costs nothing. */
+/**
+ * GET /insights/:website_id — today's insight, made on the first read of the day (at most one model
+ * call per site per day), so only sites someone opens cost anything.
+ */
 export function getInsight(deps: Deps) {
   return async (c: Context<{ Variables: AuthVars }>) => {
     const websiteId = c.req.param("website_id") ?? "";
@@ -35,7 +38,7 @@ export function getInsight(deps: Deps) {
     if (!userId) return c.json({ error: "unauthorized" }, 401);
     if (!UUID.test(websiteId)) return c.json({ error: "invalid website id" }, 400);
     if (!(await deps.websites.getRole(websiteId, userId))) return c.json({ error: "website not found or access denied" }, 403);
-    return c.json({ data: present(await deps.insights.latest(websiteId)) });
+    return c.json({ data: present(await deps.insights.today(websiteId)) });
   };
 }
 

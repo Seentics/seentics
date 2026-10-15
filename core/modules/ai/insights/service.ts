@@ -54,6 +54,8 @@ const dayOf = (d: Date) => d.toISOString().slice(0, 10);
 
 export class InsightService {
   private readonly now: () => Date;
+  /** Sites whose insight is being made now: two dashboards opening at once share one model call. */
+  private readonly making = new Map<string, Promise<StoredInsight | null>>();
 
   constructor(private readonly deps: InsightDeps) {
     this.now = deps.now ?? (() => new Date());
@@ -62,6 +64,34 @@ export class InsightService {
   /** What the dashboard shows: the newest insight, read from storage. Never calls a model. */
   latest(websiteId: string): Promise<StoredInsight | null> {
     return this.deps.repo.latest(websiteId);
+  }
+
+  /**
+   * What the dashboard shows, made on the first read of the day: the model is called only for sites
+   * someone looks at. Falls back to the newest stored one when today's cannot be made.
+   */
+  async today(websiteId: string): Promise<StoredInsight | null> {
+    const latest = await this.deps.repo.latest(websiteId);
+    if (latest?.insightDate === dayOf(this.now())) return latest;
+    let making = this.making.get(websiteId);
+    if (!making) {
+      making = this.generate(websiteId)
+        .then((r) => r.insight, (err: unknown) => {
+          log.warn({ msg: 'ai_insight_on_read_failed', website_id: websiteId, err: String(err) });
+          return latest;
+        })
+        .finally(() => this.making.delete(websiteId));
+      this.making.set(websiteId, making);
+    }
+    return making;
+  }
+
+  /** Today's insight worded from templates, not stored and never a model call: for the weekly digest. */
+  async draft(websiteId: string): Promise<StoredInsight> {
+    const now = this.now();
+    const snapshot = await this.deps.snapshot(websiteId, INSIGHT_DAYS);
+    const { signals: _signals, modelFailed: _failed, ...insight } = await this.build(snapshot, dayOf(now), now, false, true);
+    return insight;
   }
 
   /**
@@ -137,7 +167,7 @@ export class InsightService {
     return stats;
   }
 
-  private async build(snapshot: InsightSnapshot, date: string, now: Date, skipModel = false): Promise<StoredInsight & { signals: Signal[]; modelFailed?: boolean }> {
+  private async build(snapshot: InsightSnapshot, date: string, now: Date, skipModel = false, noModel = false): Promise<StoredInsight & { signals: Signal[]; modelFailed?: boolean }> {
     const base = {
       websiteId: snapshot.websiteId,
       insightDate: date,
@@ -166,7 +196,7 @@ export class InsightService {
     const rules = (reason: string | null, extra: Partial<typeof base> = {}) => ({
       ...base, ...extra, status: 'ready' as const, source: 'rules' as const, lines: ruleLines(signals), signals, reason,
     });
-    if (!this.deps.llm || !this.deps.model) return rules(null);
+    if (!this.deps.llm || !this.deps.model || noModel) return rules(null);
     if (skipModel) return { ...rules(MODEL_UNREACHABLE_REASON), modelFailed: true };
 
     const brief = buildBrief(snapshot, signals);

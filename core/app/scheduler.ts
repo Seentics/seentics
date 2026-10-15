@@ -1,4 +1,5 @@
 import { Cron } from "croner";
+import { aiInBackground } from "../modules/ai/interfaces/background";
 import type { AppConfig } from "../config";
 import type { RetentionRunner } from "../platform/retention";
 import type { HeatmapScreenshotMaintenance } from "../modules/heatmaps/interfaces";
@@ -109,10 +110,12 @@ export function startScheduler(
   jobs.push(timescaleJob);
   log.info({ msg: "scheduler_job_registered", job: "timescale-job-check", schedule: "hourly" });
 
-  // Daily dashboard insights — 05:00 UTC, after the day's rollups have settled. A site with too little
-  // traffic costs one cheap query and no model call; a site that already has today's is skipped.
+  // Daily dashboard insights — 05:00 UTC, after the day's rollups have settled. Only with
+  // AI_BACKGROUND=true: by default each site's insight is made when its dashboard is first opened.
   const aiInsights = deps?.aiInsights;
-  if (aiInsights && process.env.AI_INSIGHTS_ENABLED !== "false") {
+  if (aiInsights && !aiInBackground()) {
+    log.info({ msg: "scheduler_job_disabled", job: "ai-insights", reason: "made on demand (AI_BACKGROUND is not true)" });
+  } else if (aiInsights && process.env.AI_INSIGHTS_ENABLED !== "false") {
     const insightsCron = process.env.AI_INSIGHTS_CRON ?? "0 5 * * *";
     const insightsJob = new Cron(
       insightsCron,
@@ -228,7 +231,10 @@ export function startScheduler(
     jobs.push(analysisJob);
     log.info({ msg: "scheduler_job_registered", job: "recording-analysis", schedule: analysisCron });
 
-    if (process.env.AI_SESSION_SUMMARY_ENABLED === "false") {
+    if (!aiInBackground()) {
+      // Summaries are written when a recording is opened.
+      log.info({ msg: "scheduler_job_disabled", job: "ai-session-summaries", reason: "made on demand (AI_BACKGROUND is not true)" });
+    } else if (process.env.AI_SESSION_SUMMARY_ENABLED === "false") {
       log.info({ msg: "scheduler_job_disabled", job: "ai-session-summaries", reason: "AI_SESSION_SUMMARY_ENABLED=false" });
     } else if (!recordingAnalysis.summariesEnabled()) {
       log.info({ msg: "scheduler_job_disabled", job: "ai-session-summaries", reason: "AI not configured" });

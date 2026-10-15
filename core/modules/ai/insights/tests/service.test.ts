@@ -187,6 +187,40 @@ describe('InsightService.latest', () => {
   });
 });
 
+describe('InsightService.today', () => {
+  it('makes today\'s insight on the first read, once, even when two reads arrive together', async () => {
+    const model = llm(good);
+    const { service, repo } = make({ llm: model });
+    const [a, b] = await Promise.all([service.today(SITE), service.today(SITE)]);
+    expect(a).toMatchObject({ insightDate: '2026-10-13', source: 'ai' });
+    expect(b).toEqual(a);
+    expect(await service.today(SITE)).toEqual(a);
+    expect(model.calls).toHaveLength(1);
+    expect(repo.saves).toBe(1);
+  });
+
+  it('serves the newest stored insight when today\'s cannot be made', async () => {
+    const { service, repo } = make();
+    const old = { ...(await service.generate(SITE)).insight, insightDate: '2026-10-12' };
+    repo.rows.clear();
+    repo.rows.set(`${SITE}:2026-10-12`, { ...old, signals: [] });
+    repo.save = async () => { throw new Error('db down'); };
+    expect(await service.today(SITE)).toMatchObject({ insightDate: '2026-10-12' });
+  });
+});
+
+describe('InsightService.draft', () => {
+  it('words today\'s lines from templates, without the model and without storing them', async () => {
+    const model = llm(good);
+    const { service, repo } = make({ llm: model });
+    const d = await service.draft(SITE);
+    expect(d).toMatchObject({ status: 'ready', source: 'rules', costUsd: 0 });
+    expect(d.lines.length).toBeGreaterThan(0);
+    expect(model.calls).toHaveLength(0);
+    expect(repo.saves).toBe(0);
+  });
+});
+
 describe('InsightService.runDaily', () => {
   it('generates for each site, counts what it spent, and survives one site failing', async () => {
     const repo = new MemoryRepo();
