@@ -195,8 +195,16 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(refreshError);
 
-        console.error('Token refresh failed:', refreshError);
-        performLogout();
+        // Sign out only when the gateway says the session is over. Any failure used to
+        // log out: a tab left for an hour wakes with the network not yet back (or meets a
+        // deploy, or a 429), its refresh fails, and a session good for 7 days was thrown
+        // away. Otherwise the request fails and the next one refreshes again.
+        const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined;
+        if (status === 400 || status === 401 || status === 403) {
+          performLogout();
+        } else {
+          console.warn('Token refresh failed; keeping the session:', refreshError);
+        }
         return Promise.reject(refreshError);
       }
     }

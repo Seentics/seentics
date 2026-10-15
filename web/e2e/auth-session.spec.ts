@@ -1,11 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 import { injectAuthState, mockGlobalApiRoutes } from './helpers/mock-api';
-import {
-  forgotPasswordForm,
-  formError,
-  resetPasswordForm,
-  signinForm,
-} from './helpers/auth-forms';
 
 /**
  * Session and token lifecycle — the half of auth that `auth.spec.ts` does not reach.
@@ -30,6 +24,17 @@ import {
  */
 
 const AUTH_KEY = 'auth-storage';
+
+/**
+ * Sign-in and OAuth live in the auth app (auth/web); this app's /signin and callbacks only
+ * forward there. Stubbed for every test, so none follows a redirect out to the live site.
+ */
+const AUTH_ORIGIN = new URL(process.env.NEXT_PUBLIC_AUTH_URL || 'https://auth.seentics.com').origin;
+test.beforeEach(async ({ page }) => {
+  await page.route(`${AUTH_ORIGIN}/**`, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>auth app</body></html>' }),
+  );
+});
 
 /** A JWT-shaped token whose payload expires at `expSeconds`. Not signed — nothing verifies it client-side. */
 function tokenExpiring(expSeconds: number): string {
@@ -278,14 +283,16 @@ test.describe('Failed refresh', () => {
     expect(state?.isAuthenticated ?? false).toBe(false);
   });
 
-  test('does not attempt a refresh when no refresh token was stored', async ({ page }) => {
+  // A sign-in on the auth app never stores a refresh token here: the session is the
+  // gateway's httpOnly cookie, so the refresh goes with an empty body and the cookie.
+  test('refreshes from the cookie when no refresh token was stored, and signs out when that is refused', async ({ page }) => {
     await seedSession(page, { access_token: 'stale-access', refresh_token: null });
     await mockGlobalApiRoutes(page);
 
-    let refreshCount = 0;
+    const bodies: string[] = [];
     await page.route('**/auth/refresh', async (route) => {
-      refreshCount += 1;
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      bodies.push(route.request().postData() ?? '');
+      await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
     });
     await page.route('**/user/websites', async (route) => {
       await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
@@ -293,9 +300,46 @@ test.describe('Failed refresh', () => {
 
     await page.goto('/websites');
     await expect(page).toHaveURL(/\/signin/);
-
-    expect(refreshCount).toBe(0);
+    expect(bodies[0]).toBe('{}');
   });
+});
+
+/**
+ * A refresh that fails without the gateway refusing the session — no network yet after a
+ * laptop wakes, a deploy's 5xx, a 429 — used to log out a session good for 7 days. Users
+ * who left a tab for an hour came back signed out.
+ */
+test.describe('Refresh that could not reach a verdict', () => {
+  for (const [label, answer] of [
+    ['the network is down', 'abort'],
+    ['the gateway answers 503', 503],
+    ['the gateway answers 429', 429],
+  ] as const) {
+    test(`keeps the session when ${label}`, async ({ page }) => {
+      await seedSession(page, { access_token: 'stale-access', refresh_token: 'good-refresh' });
+      await mockGlobalApiRoutes(page);
+
+      let attempts = 0;
+      await page.route('**/auth/refresh', async (route) => {
+        attempts += 1;
+        if (answer === 'abort') await route.abort('internetdisconnected');
+        else await route.fulfill({ status: answer, contentType: 'application/json', body: '{}' });
+      });
+      await page.route('**/user/websites', async (route) => {
+        await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+      });
+
+      await page.goto('/websites');
+      await expect.poll(() => attempts).toBeGreaterThanOrEqual(1);
+      // Long enough for a logout redirect to have happened if one were coming.
+      await page.waitForTimeout(1_000);
+
+      expect(page.url()).not.toContain('/signin');
+      const state = await readAuth(page);
+      expect(state?.isAuthenticated).toBe(true);
+      expect(state?.refresh_token).toBe('good-refresh');
+    });
+  }
 });
 
 test.describe('Requests exempt from the 401 redirect', () => {
@@ -310,7 +354,8 @@ test.describe('Requests exempt from the 401 redirect', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
 
-    await page.goto('/signin');
+    // Any page of this app that stays put (/signin forwards to the auth app now).
+    await page.goto('/privacy');
 
     const status = await page.evaluate(async () => {
       const res = await fetch('/api/v1/analytics/dashboard?website_id=demo');
@@ -318,10 +363,10 @@ test.describe('Requests exempt from the 401 redirect', () => {
     });
 
     // The fetch above bypasses the interceptor, so this asserts the negative that
-    // matters: no refresh was triggered and we are still on /signin.
+    // matters: no refresh was triggered and we are still where we were.
     expect(status).toBeGreaterThan(0);
     expect(refreshCount).toBe(0);
-    await expect(page).toHaveURL(/\/signin/);
+    await expect(page).toHaveURL(/\/privacy/);
   });
 });
 
@@ -367,38 +412,8 @@ test.describe('Session persistence', () => {
     expect(headers[0]).toBe('Bearer persisted-access');
   });
 
-  test('signing in stores both tokens', async ({ page }) => {
-    // `mockGlobalApiRoutes` first: Playwright resolves the **last** matching route, so
-    // its `**/api/v1/**` catch-all would otherwise answer this login and the page would
-    // redirect with no tokens persisted.
-    await mockGlobalApiRoutes(page);
-    await page.route('**/user/auth/login', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: {
-            user: { id: '123', name: 'Jane Doe', email: 'jane@company.com' },
-            tokens: { access_token: 'issued-access', refresh_token: 'issued-refresh' },
-          },
-        }),
-      });
-    });
-
-    await page.goto('/signin');
-    const form = signinForm(page);
-    await form.email.fill('jane@company.com');
-    await form.password.fill('Password123!');
-    await form.submit.click();
-
-    await expect(page).toHaveURL(/\/websites/);
-
-    // Without the refresh token persisted, the session dies at the first expiry
-    // instead of renewing.
-    const state = await readAuth(page);
-    expect(state?.access_token).toBe('issued-access');
-    expect(state?.refresh_token).toBe('issued-refresh');
-  });
+  // Signing in happens on the auth app (auth/web) now: what it stores there, and the
+  // cookie session this app reads, are covered by the whole-stack suite (e2e/tests/auth.spec.ts).
 });
 
 test.describe('Route access', () => {
@@ -419,261 +434,47 @@ test.describe('Route access', () => {
     await expect(page).toHaveURL(/\/signin/);
   });
 
-  test('an authenticated user is not redirected away from signin', async ({ page }) => {
-    // `middleware.ts` intends to redirect here, reading an `auth-storage` *cookie* it
-    // says is "written by AuthInitializer.tsx". No such file exists and nothing in the
-    // app writes that cookie — `lib/api.ts` only ever clears it, calling it legacy. So
-    // the branch is unreachable and this is the real behaviour.
-    //
-    // This test asserts what happens today. If the cookie is ever written, it fails,
-    // which is the point: that would be the moment to decide the redirect is wanted.
-    await injectAuthState(page);
-    await mockGlobalApiRoutes(page);
-
-    await page.goto('/signin');
-
-    await expect(page).toHaveURL(/\/signin/);
-    await expect(signinForm(page).email).toBeVisible();
-  });
-
-  test('the signin page is reachable with the expired marker', async ({ page }) => {
+  // Sign-in is the auth app's page now; this app's /signin only forwards there.
+  test('/signin forwards to the auth app, keeping the expired marker', async ({ page }) => {
     await mockGlobalApiRoutes(page);
 
     await page.goto('/signin?expired=true');
 
-    await expect(signinForm(page).email).toBeVisible();
+    await expect(page).toHaveURL(`${AUTH_ORIGIN}/signin?expired=true`);
   });
 });
 
+/**
+ * Sign-in, OAuth included, lives in the auth app (auth/web) now; this app's
+ * `/auth/callback` and `/auth/google/callback` only forward there with their query. The
+ * session these produce is tested end to end in the whole-stack suite (e2e/tests/auth.spec.ts).
+ * The auth app is stubbed here: these tests used to follow the redirect out to the live
+ * auth.seentics.com, and asserted on what that answered.
+ */
 test.describe('OAuth callback', () => {
-  test('finalizes a session from query tokens and lands on websites', async ({ page }) => {
-    await mockGlobalApiRoutes(page);
+  for (const path of ['/auth/callback', '/auth/google/callback']) {
+    test(`${path} forwards to the auth app with its query intact`, async ({ page }) => {
+      await mockGlobalApiRoutes(page);
+      await page.goto(`${path}?code=abc&state=xyz`);
 
-    await page.route('**/user/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: { user: { id: '123', name: 'Jane Doe', email: 'jane@company.com' } },
-        }),
-      });
+      await expect(page).toHaveURL(`${AUTH_ORIGIN}${path}?code=abc&state=xyz`);
+      // Nothing is stored here: the auth app owns the exchange.
+      expect((await readAuth(page))?.access_token ?? null).toBeNull();
     });
-    await page.route('**/user/websites', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [] }),
-      });
-    });
-
-    await page.goto('/auth/callback?access_token=oauth-access&refresh_token=oauth-refresh');
-
-    await expect(page).toHaveURL(/\/websites/);
-    expect((await readAuth(page))?.access_token).toBe('oauth-access');
-  });
-
-  test('accepts the camelCase parameter aliases', async ({ page }) => {
-    // The page reads both spellings; whichever the provider sends has to work.
-    await mockGlobalApiRoutes(page);
-
-    await page.route('**/user/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: { user: { id: '1', name: 'J', email: 'j@x.test' } } }),
-      });
-    });
-    await page.route('**/user/websites', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [] }),
-      });
-    });
-
-    await page.goto('/auth/callback?accessToken=camel-access&refreshToken=camel-refresh');
-
-    await expect(page).toHaveURL(/\/websites/);
-    expect((await readAuth(page))?.access_token).toBe('camel-access');
-  });
-
-  test('sends the token it just persisted when fetching the profile', async ({ page }) => {
-    // The page writes localStorage before calling `/me` specifically because the store's
-    // persist middleware writes asynchronously. If that ordering regresses, `/me` is
-    // called unauthenticated and the sign-in silently fails.
-    await mockGlobalApiRoutes(page);
-
-    const headers: (string | null)[] = [];
-    await page.route('**/user/auth/me', async (route) => {
-      headers.push(await route.request().headerValue('authorization'));
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: { user: { id: '1', name: 'J', email: 'j@x.test' } } }),
-      });
-    });
-    await page.route('**/user/websites', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [] }),
-      });
-    });
-
-    await page.goto('/auth/callback?access_token=oauth-access&refresh_token=r');
-
-    await expect.poll(() => headers.length).toBeGreaterThanOrEqual(1);
-    expect(headers[0]).toBe('Bearer oauth-access');
-  });
-
-  test('returns to signin when the callback carries no tokens', async ({ page }) => {
-    await mockGlobalApiRoutes(page);
-
-    await page.goto('/auth/callback');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
-
-  test('returns to signin when only one of the two tokens is present', async ({ page }) => {
-    await mockGlobalApiRoutes(page);
-
-    await page.goto('/auth/callback?access_token=only-access');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
-
-  test('returns to signin when the profile fetch fails', async ({ page }) => {
-    // Tokens that cannot fetch a profile are not a usable session, so the page must
-    // not leave the user on a spinner.
-    await mockGlobalApiRoutes(page);
-
-    await page.route('**/user/auth/me', async (route) => {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'boom' }),
-      });
-    });
-
-    await page.goto('/auth/callback?access_token=a&refresh_token=b');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
-
-  test('returns to signin when the profile response has no user', async ({ page }) => {
-    await mockGlobalApiRoutes(page);
-
-    await page.route('**/user/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: {} }),
-      });
-    });
-
-    await page.goto('/auth/callback?access_token=a&refresh_token=b');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
-
-  test('returns to signin when the google callback is not configured', async ({ page }) => {
-    // The core answers 501 for every OAuth endpoint — OAuth is declared, not built.
-    // The page must treat that as a failed sign-in rather than hanging on the spinner.
-    await mockGlobalApiRoutes(page);
-
-    await page.route('**/user/auth/google/callback**', async (route) => {
-      await route.fulfill({
-        status: 501,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'OAuth not configured' }),
-      });
-    });
-
-    await page.goto('/auth/google/callback?code=abc123');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
-
-  test('returns to signin when the google callback has no code', async ({ page }) => {
-    await mockGlobalApiRoutes(page);
-
-    await page.goto('/auth/google/callback');
-
-    await expect(page).toHaveURL(/\/signin/);
-  });
+  }
 });
 
-test.describe('Password reset — declared but not implemented', () => {
-  /**
-   * The core answers 501 for both endpoints (`modules/auth/routes.ts`), while the web app
-   * ships complete UI for them. These tests pin the one thing that matters while that is
-   * true: the pages must **not** report success. A "check your email" screen for a request
-   * that was never processed is worse than an error, because the user waits for a mail
-   * that will never arrive instead of contacting support.
-   *
-   * When the endpoints are built, these tests should be replaced by the real flows —
-   * they will fail at that point, which is the intended signal.
-   */
+// Password reset is the auth app's too; these pages only forward there with their query.
+test.describe('Password reset', () => {
+  for (const path of ['/forgot-password', '/reset-password']) {
+    test(`${path} forwards to the auth app with its query intact`, async ({ page }) => {
+      await mockGlobalApiRoutes(page);
 
-  test('forgot-password surfaces the failure instead of claiming a mail was sent', async ({
-    page,
-  }) => {
-    await mockGlobalApiRoutes(page);
-    await page.route('**/auth/forgot-password', async (route) => {
-      await route.fulfill({
-        status: 501,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Not implemented' }),
-      });
+      await page.goto(`${path}?token=abc`);
+
+      await expect(page).toHaveURL(`${AUTH_ORIGIN}${path}?token=abc`);
     });
-
-    await page.goto('/forgot-password');
-    const form = forgotPasswordForm(page);
-    await form.email.fill('jane@company.com');
-    await form.submit.click();
-
-    await expect(page.getByText('Check your email')).toBeHidden();
-    await expect(formError(page)).toBeVisible();
-  });
-
-  test('forgot-password validates the address before calling the endpoint', async ({ page }) => {
-    let called = 0;
-    await mockGlobalApiRoutes(page);
-    await page.route('**/auth/forgot-password', async (route) => {
-      called += 1;
-      await route.fulfill({ status: 501, contentType: 'application/json', body: '{}' });
-    });
-
-    await page.goto('/forgot-password');
-    const form = forgotPasswordForm(page);
-    await form.email.fill('not-an-email');
-    await form.submit.click();
-
-    await expect(formError(page)).toBeVisible();
-    expect(called).toBe(0);
-  });
-
-  test('reset-password surfaces the failure instead of claiming the password changed', async ({
-    page,
-  }) => {
-    await mockGlobalApiRoutes(page);
-    await page.route('**/auth/reset-password', async (route) => {
-      await route.fulfill({
-        status: 501,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Not implemented' }),
-      });
-    });
-
-    await page.goto('/reset-password?token=some-token');
-
-    const form = resetPasswordForm(page);
-    await form.password.fill('NewPassword123!');
-    await form.confirmPassword.fill('NewPassword123!');
-    await form.submit.click();
-
-    await expect(formError(page)).toBeVisible();
-  });
+  }
 });
 
 test.describe('Token expiry helpers', () => {
@@ -686,7 +487,7 @@ test.describe('Token expiry helpers', () => {
       refresh_token: 'r',
     });
     await mockGlobalApiRoutes(page);
-    await page.goto('/signin');
+    await page.goto('/privacy');
 
     const expired = await page.evaluate((key) => {
       const raw = window.localStorage.getItem(key);
@@ -704,7 +505,7 @@ test.describe('Token expiry helpers', () => {
       refresh_token: 'r',
     });
     await mockGlobalApiRoutes(page);
-    await page.goto('/signin');
+    await page.goto('/privacy');
 
     const expired = await page.evaluate((key) => {
       const raw = window.localStorage.getItem(key);
