@@ -194,7 +194,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           <div className='flex items-center justify-between w-full'>
           <Link href="/" className="flex items-center gap-2.5 w-full">
             <Logo size="sm" className="shrink-0" />
-            <span className="flex-1 text-[16px] font-bold tracking-tight text-primary">Seentics</span>
+            <span className="flex-1 text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
           </Link>
             <button
               type="button"

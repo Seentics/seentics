@@ -82,7 +82,7 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
         <div className="flex w-full items-center justify-between">
           <div className="flex w-full items-center gap-2.5">
             <Logo size="sm" className="shrink-0" />
-            <span className="flex-1 text-[16px] font-bold tracking-tight text-primary">Seentics</span>
+            <span className="flex-1 text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
           </div>
           <span className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground">
             <PanelLeftClose className="h-4 w-4" />
