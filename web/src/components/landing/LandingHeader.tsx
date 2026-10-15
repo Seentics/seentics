@@ -1,5 +1,10 @@
 'use client';
 
+// The marketing pages' type: Inter with its optical sizes, and a mono for figure labels.
+// Loaded with the header every marketing page has, so the dashboard does not carry them.
+import '@fontsource-variable/inter/opsz.css';
+import '@fontsource-variable/jetbrains-mono';
+
 import { useRef, useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';

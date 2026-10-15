@@ -32,7 +32,7 @@ export default function UseCasesPage() {
   return (
     <div className="landing-container py-16 sm:py-20">
       <div className="max-w-2xl">
-        <p className="text-sm font-semibold text-primary">Use cases</p>
+        <p className="text-sm font-medium text-muted-foreground">Use cases</p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           What can you do with Seentics?
         </h1>

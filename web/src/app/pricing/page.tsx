@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import { useAuth } from '@/stores/useAuthStore';
 import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
+import LandingHeader from '@/components/landing/LandingHeader';
+import Footer from '@/components/landing/Footer';
 
 export default function PricingPage() {
     const router = useRouter();
@@ -42,23 +44,27 @@ export default function PricingPage() {
         }
     };
 
+    // The site's header and footer, and the landing page's ground and type: this page used
+    // to stand alone, with neither, and read as a different site.
     return (
-        <div className="min-h-screen bg-background py-20 px-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="text-center space-y-4 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                        Start free. Pay only as you grow.
-                    </h1>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                        Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
-                    </p>
-                </div>
-
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="lx flex min-h-screen flex-col bg-background">
+            <LandingHeader alwaysBordered />
+            <main className="flex-1 pt-[72px] sm:pt-20">
+                <div className="landing-container py-16 sm:py-24">
+                    <div className="mb-12 grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-16">
+                        <h1 className="lx-display text-[2.25rem] sm:text-5xl">
+                            Start free.
+                            <br />
+                            <span className="lx-dim">Pay only as you grow.</span>
+                        </h1>
+                        <p className="lx-dim max-w-md text-base leading-relaxed">
+                            Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
+                        </p>
+                    </div>
                     <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
                 </div>
-
-            </div>
+            </main>
+            <Footer />
         </div>
     );
 }

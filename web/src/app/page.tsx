@@ -9,10 +9,6 @@ import Pricing from '@/components/landing/Pricing';
 import FaqCta from '@/components/landing/FaqCta';
 import ClosingCta from '@/components/landing/ClosingCta';
 import Footer from '@/components/landing/Footer';
-// The landing page's type: Inter with its optical sizes (the display cut at headline sizes),
-// and a mono for figure labels. Loaded here so the app's other pages do not carry them.
-import '@fontsource-variable/inter/opsz.css';
-import '@fontsource-variable/jetbrains-mono';
 
 export const dynamic = 'force-static';
 

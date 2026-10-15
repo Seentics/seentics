@@ -36,7 +36,7 @@ export function DocPage({
     <article className="min-w-0">
       <header className="mb-10 border-b border-border pb-8">
         {eyebrow && (
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-primary/70">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {eyebrow}
           </p>
         )}

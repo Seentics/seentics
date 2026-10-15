@@ -299,7 +299,7 @@
        carrying four different values (mb-2, mb-3, mb-5, none), so the label sat a
        different distance from its heading in every section. 10px reads as a label
        attached to the heading; 20px read as a separate line of text. */
-    @apply mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary/70 sm:mb-2.5 sm:text-xs;
+    @apply mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:mb-2.5 sm:text-xs;
   }
 
   /* Horizontal measure — one value, everywhere.

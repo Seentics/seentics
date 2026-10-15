@@ -7,7 +7,7 @@ export default function IntegrationsPage() {
   return (
     <div className="landing-container py-16 sm:py-20">
       <div className="max-w-2xl">
-        <p className="text-sm font-semibold text-primary">Integrations</p>
+        <p className="text-sm font-medium text-muted-foreground">Integrations</p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           Works with the stack you already have
         </h1>

@@ -49,12 +49,12 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                     className={cn(
                       'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                       active
-                        ? 'bg-primary/10 font-medium text-primary'
+                        ? 'bg-accent font-medium text-foreground'
                         : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
                     )}
                   >
                     <item.icon
-                      className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground/60')}
+                      className={cn('h-4 w-4 shrink-0', active ? 'text-foreground' : 'text-muted-foreground/60')}
                     />
                     {item.title}
                   </Link>
@@ -68,7 +68,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="lx flex min-h-screen flex-col bg-background">
       <LandingHeader alwaysBordered />
 
       <div className="landing-container flex flex-1 pt-[72px] sm:pt-20">

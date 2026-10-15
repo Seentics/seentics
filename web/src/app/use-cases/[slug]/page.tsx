@@ -36,7 +36,7 @@ const ld = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c');
 function Section({ id, eyebrow, title, lead, children }: { id: string; eyebrow?: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section className="mt-20 sm:mt-24" aria-labelledby={id}>
-      {eyebrow && <p className="text-[12px] font-bold uppercase tracking-wider text-primary">{eyebrow}</p>}
+      {eyebrow && <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">{eyebrow}</p>}
       <h2 id={id} className="mt-1.5 max-w-3xl text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{title}</h2>
       {lead && <p className="mt-3 max-w-3xl text-[16px] leading-relaxed text-muted-foreground">{lead}</p>}
       <div className="mt-8">{children}</div>
