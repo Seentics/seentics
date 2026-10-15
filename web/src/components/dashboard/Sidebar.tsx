@@ -123,7 +123,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             'flex items-center gap-3 rounded-lg transition-colors',
             collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
             active
-              ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
+              ? 'bg-accent text-foreground'
               : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
           )}
         >

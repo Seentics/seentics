@@ -20,7 +20,7 @@ export function pageMenuItem(active: boolean, extra?: string) {
   return cn(
     'flex w-full shrink-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] font-medium transition-colors',
     active
-      ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
+      ? 'bg-accent text-foreground'
       : 'text-foreground/70 hover:bg-muted/60 hover:text-foreground',
     extra,
   );

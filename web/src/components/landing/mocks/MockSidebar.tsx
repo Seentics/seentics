@@ -68,7 +68,7 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
                 className={cn(
                   'flex h-10 items-center gap-3 rounded-lg px-3',
                   item.label === active
-                    ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
+                    ? 'bg-accent text-foreground'
                     : 'text-foreground/60',
                 )}
               >

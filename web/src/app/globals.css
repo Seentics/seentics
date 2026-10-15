@@ -7,46 +7,38 @@
 
 @layer base {
   :root {
-    /* Two light layers:
-         page     97%   — the recessed canvas
-         surfaces 100%  — sidebar, stat cards, tables, panels
-       The page is the only tinted layer; everything you actually read sits white
-       on top of it, with --border drawing the edges. The step needs to be small
-       enough not to read as a grey field but large enough to actually see: this
-       sat at 99.5% for a while — half a percent off the cards — which meant the
-       canvas and the surfaces on it were indistinguishable in light mode and
-       every panel lost its edge. Saturation drops with the lightness (20% → 14%)
-       because the same tint that is invisible at 99.5% reads as a blue cast at 97%.
-       Shadows stay reserved for things that genuinely float (popovers, dialogs). */
-    /* --app-* is the single source of truth for the app's own surfaces. The
-       landing page overrides --background/--border for its white canvas, and the
-       hero previews have to restore the app values; pointing both at these means
-       there is one place to change them. Every time they were duplicated the two
-       drifted, and the hero started advertising a dashboard colour that no longer
-       shipped. Never override --app-* in a scoped block. */
-    --app-page: 220 14% 97%;
-    --app-border: 220 13% 86%;
+    /* Neutral greys in the manner of Linear's app: no blue cast in the surfaces, the
+       colour left to the accent and to data. Two light layers: the page a soft grey,
+       everything you read (sidebar, cards, tables, panels) white on it, with --border
+       drawing the edges. Shadows stay reserved for things that float.
+
+       --app-* is the single source of truth for the app's own surfaces: the landing
+       page remaps the shared tokens for its own canvas, and its product shots restore
+       these. Never override --app-* in a scoped block. */
+    --app-page: 240 5% 96.5%;         /* #f5f5f6 */
+    --app-border: 240 5% 89%;         /* #e2e2e5 */
+    --app-card: 0 0% 100%;
+    --app-popover: 0 0% 100%;
+    --app-muted-foreground: 220 5% 43%; /* #686c73 */
 
     --background: var(--app-page);
-    --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
+    --foreground: 240 6% 10%;         /* #18181b */
+    --card: var(--app-card);
+    --card-foreground: 240 6% 10%;
+    --popover: var(--app-popover);
+    --popover-foreground: 240 6% 10%;
     --primary: 221 83% 53%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 14% 94%;
-    --secondary-foreground: 226 60% 30%;
-    /* Sits below the page so muted fills — table headers, hover rows, chips —
-       still register on a white card and on the page itself. Tracks --app-page
-       down: at 96% against a 97% page these were a one-percent step, which is a
-       hover state you cannot see. */
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 9% 42%;
-    --accent: 220 14% 91%;
-    --accent-foreground: 220.9 39.3% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 94%;
+    --secondary-foreground: 240 5% 22%;
+    /* Below the page, so muted fills (table headers, hover rows, chips) still read on
+       a white card and on the page itself. */
+    --muted: 240 5% 94%;
+    --muted-foreground: var(--app-muted-foreground);
+    --accent: 240 5% 92%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
     --border: var(--app-border);
     --input: var(--app-border);
     --ring: 221 83% 53%;
@@ -58,98 +50,67 @@
     --chart-4: 200 70% 55%;
     --chart-5: 340 75% 55%;
 
-    /* White, level with cards and tables. The sidebar is a surface you read, not
-       chrome to push back — so the recessed layer is the page alone, and every
-       surface on top of it is white. */
+    /* White, level with cards and tables: the sidebar is a surface you read. */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 71.4% 4.1%;
+    --sidebar-foreground: 240 6% 10%;
     --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 210 20% 98%;
-    --sidebar-accent: 220 14% 94%;
-    --sidebar-accent-foreground: 220.9 39.3% 11%;
-    --sidebar-border: 220 13% 86%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 94%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: var(--app-border);
     --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
-    /* GitHub dark-inspired — deep blue-black, not pure black */
-    --app-page: 215 28% 7%;         /* #0d1117 */
-    --app-border: 215 14% 19%;
+    /* Near-black neutral greys, as in Linear's app: the page #0f1011, panels a step
+       up, the sidebar a step down, hairline borders, and secondary text at #8a8f98. */
+    --app-page: 210 6% 6.3%;          /* #0f1011 */
+    --app-border: 228 7% 15%;         /* #232429 */
+    --app-card: 220 6% 8.5%;          /* #141517 */
+    --app-popover: 220 6% 10%;        /* #18191b */
+    --app-muted-foreground: 218 6% 57%; /* #8a8f98 */
     --background: var(--app-page);
-    --foreground: 210 14% 89%;      /* #dde1e6 */
+    --foreground: 210 9% 93%;         /* #ebedef */
 
-    --card: 215 22% 10%;            /* #13181f */
-    --card-foreground: 210 14% 89%;
+    --card: var(--app-card);
+    --card-foreground: 210 9% 93%;
 
-    --popover: 215 20% 12%;
-    --popover-foreground: 210 14% 89%;
+    --popover: var(--app-popover);
+    --popover-foreground: 210 9% 93%;
 
-    --primary: 212 92% 58%;         /* brighter blue for dark bg */
+    --primary: 214 90% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 17% 15%;
-    --secondary-foreground: 210 12% 75%;
+    --secondary: 225 6% 12%;
+    --secondary-foreground: 218 7% 75%;
 
-    --muted: 215 17% 13%;
-    --muted-foreground: 215 10% 53%; /* #7d8590 */
+    --muted: 225 6% 11%;
+    --muted-foreground: var(--app-muted-foreground);
 
-    --accent: 215 17% 16%;
-    --accent-foreground: 210 14% 89%;
+    --accent: 225 6% 13.5%;           /* hover */
+    --accent-foreground: 210 9% 93%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 68% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: var(--app-border);    /* #262c36 — subtle */
-    --input: 215 17% 15%;
-    --ring: 212 92% 58%;
+    --border: var(--app-border);
+    --input: 225 6% 15%;
+    --ring: 214 90% 60%;
 
-    --chart-1: 212 92% 58%;
+    --chart-1: 214 90% 60%;
     --chart-2: 160 64% 43%;
     --chart-3: 35 85% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    --sidebar-background: 215 25% 12%;
-    --sidebar-foreground: 210 14% 89%;
-    --sidebar-primary: 212 92% 58%;
+    --sidebar-background: 220 7% 4.7%;  /* #0b0c0d */
+    --sidebar-foreground: 218 7% 82%;
+    --sidebar-primary: 214 90% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 17% 18%;
-    --sidebar-accent-foreground: 210 14% 89%;
-    --sidebar-border: 215 14% 19%;
-    --sidebar-ring: 212 92% 58%;
-  }
-}
-
-@layer base {
-  /* The marketing page runs on a pure-white canvas in light mode. This is not the
-     app palette and should not be unified with it: the hero's whole job is to hold
-     a screenshot of the product, and a screenshot cannot read as one when the page
-     behind it is the same colour as the app it depicts. White page, tinted product
-     shot — the shot is the figure, the page is the ground.
-
-     The :not(.dark) guard keeps this out of dark mode entirely: the class sits below
-     <html>, so an unguarded override would outrank .dark. */
-  :root:not(.dark) .landing-light {
-    --background: 0 0% 100%;
-    --card: 0 0% 100%;
-    --popover: 0 0% 100%;
-
-    /* Cards no longer sit a fill-step above the page, so the border carries the
-       separation alone. --muted keeps its root value: it still has to read as a
-       fill on small controls, and the alternating bands tint with bg-muted/50
-       rather than moving the token. */
-    --border: 220 13% 89%;
-    --input: 220 13% 89%;
-  }
-
-  /* The hero previews are mocks of real app screens, so they opt back out of the
-     white canvas into the app's own surfaces. Reading --app-* rather than repeating
-     literals means the mock tracks the dashboard automatically — the values here
-     cannot fall behind :root the way duplicated ones did. */
-  :root:not(.dark) .landing-light .app-surface {
-    --background: var(--app-page);
-    --border: var(--app-border);
-    --input: var(--app-border);
+    --sidebar-accent: 225 6% 12%;
+    --sidebar-accent-foreground: 210 9% 93%;
+    --sidebar-border: 228 7% 12%;
+    --sidebar-ring: 214 90% 60%;
   }
 }
 
@@ -196,14 +157,9 @@
     --background: var(--app-page);
     --border: var(--app-border);
     --input: var(--app-border);
-    --card: 0 0% 100%;
-    --popover: 0 0% 100%;
-    --muted-foreground: 220 9% 42%;
-  }
-  .dark .lx .app-surface {
-    --card: 215 22% 10%;
-    --popover: 215 20% 12%;
-    --muted-foreground: 215 10% 53%;
+    --card: var(--app-card);
+    --popover: var(--app-popover);
+    --muted-foreground: var(--app-muted-foreground);
   }
 }
 
