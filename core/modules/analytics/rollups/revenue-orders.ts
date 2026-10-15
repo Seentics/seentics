@@ -39,13 +39,13 @@ export async function rebuildRevenueOrders(
              ELSE event_type
         END AS event_type,
         session_id, visitor_id, occurred_at, country, utm_source, utm_medium, utm_campaign,
-        COALESCE(
+        (SELECT CASE WHEN abs(v) > 1e9 THEN 0.0 ELSE v END FROM (SELECT COALESCE(
           CASE WHEN (properties->>'value')   ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (properties->>'value')::double precision   END,
           CASE WHEN (properties->>'revenue') ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (properties->>'revenue')::double precision END,
           CASE WHEN (properties->>'amount')  ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (properties->>'amount')::double precision  END,
           CASE WHEN (properties->>'total')   ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (properties->>'total')::double precision   END,
           0.0
-        ) AS raw_value,
+        ) AS v) parsed) AS raw_value,
         COALESCE(NULLIF(TRIM(UPPER(properties->>'currency')), ''), 'USD') AS currency,
         LOWER(TRIM(COALESCE(properties->>'user_type', '')))                AS user_type,
         COALESCE(NULLIF(TRIM(properties->>'product_name'), ''), NULLIF(TRIM(properties->>'product'), ''),

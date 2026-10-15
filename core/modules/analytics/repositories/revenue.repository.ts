@@ -43,6 +43,8 @@ type MainRow = {
   sessions: number | null;
   unique_visitors: number | null;
   dominant_currency: string | null;
+  /** Orders in any other currency, kept out of the totals (money in two currencies does not add up). */
+  other_currencies: Array<{ currency: string; orders: number; revenue: number }> | null;
   daily: Array<{ day: string; revenue: number; orders: number }> | null;
   by_source: Array<{ name: string; revenue: number; orders: number }> | null;
   by_medium: Array<{ name: string; revenue: number; orders: number }> | null;
@@ -175,8 +177,10 @@ async function fetchRevenueRow(
                 END) IN ('refund', 'refunded') THEN 'refund'
           ELSE 'purchase'
         END AS rev_type,
-        -- Extract numeric value from JSONB properties; try value → revenue → amount → total
-        COALESCE(
+        -- Extract numeric value from JSONB properties; try value → revenue → amount → total.
+        -- Past a billion a value is a test or a bug, not an order: read as missing (data_quality
+        -- says so) rather than letting one event make the whole dashboard meaningless.
+        (SELECT CASE WHEN abs(v) > 1e9 THEN 0.0 ELSE v END FROM (SELECT COALESCE(
           CASE WHEN (properties->>'value')   ~ '^-?[0-9]+(\.[0-9]+)?$'
                THEN (properties->>'value')::double precision   END,
           CASE WHEN (properties->>'revenue') ~ '^-?[0-9]+(\.[0-9]+)?$'
@@ -186,7 +190,7 @@ async function fetchRevenueRow(
           CASE WHEN (properties->>'total')   ~ '^-?[0-9]+(\.[0-9]+)?$'
                THEN (properties->>'total')::double precision   END,
           0.0
-        ) AS raw_value,
+        ) AS v) parsed) AS raw_value,
         COALESCE(NULLIF(TRIM(UPPER(properties->>'currency')), ''), 'USD')   AS currency,
         LOWER(TRIM(COALESCE(properties->>'user_type', '')))                  AS user_type,
         COALESCE(
@@ -360,7 +364,7 @@ async function fetchRevenueRow(
     -- (rollups/revenue-orders.ts); an order seen on two days is deduplicated here.
     orders_cur AS (
       SELECT DISTINCT ON (order_key)
-        event_id AS id, occurred_at, value AS raw_value, currency, user_type, product_name,
+        event_id AS id, occurred_at, CASE WHEN abs(value) > 1e9 THEN 0.0 ELSE value END AS raw_value, currency, user_type, product_name,
         order_id, country, visitor_key AS visitor_id, NULL::text AS session_id, items AS items_json,
         source AS final_source, medium AS final_medium, campaign AS final_campaign
       FROM analytics_revenue_orders
@@ -373,12 +377,12 @@ async function fetchRevenueRow(
         END, occurred_at DESC
     ),
     orders_refunds AS (
-      SELECT value AS raw_value FROM analytics_revenue_orders
+      SELECT CASE WHEN abs(value) > 1e9 THEN 0.0 ELSE value END AS raw_value, currency FROM analytics_revenue_orders
       WHERE ${fromOrders} AND website_id = ${websiteId} AND kind = 'refund'
         AND day BETWEEN ${w.from}::date AND ${w.to}::date
     ),
     orders_prior AS (
-      SELECT DISTINCT ON (order_key) value AS raw_value
+      SELECT DISTINCT ON (order_key) CASE WHEN abs(value) > 1e9 THEN 0.0 ELSE value END AS raw_value, currency
       FROM analytics_revenue_orders
       WHERE ${fromOrders} AND website_id = ${websiteId} AND kind = 'purchase'
         AND day BETWEEN ${w.prevFrom}::date AND ${w.prevTo}::date
@@ -389,8 +393,8 @@ async function fetchRevenueRow(
         END, occurred_at DESC
     ),
 
-    -- Whichever source is live; the other side is empty.
-    enriched AS (
+    -- Whichever source is live; the other side is empty. Every currency.
+    all_orders AS (
       SELECT id, occurred_at, raw_value, currency, user_type, product_name, order_id,
              country::text, visitor_id, session_id, items_json, final_source, final_medium, final_campaign
       FROM raw_enriched
@@ -399,19 +403,27 @@ async function fetchRevenueRow(
              country, visitor_id, session_id, items_json, final_source, final_medium, final_campaign
       FROM orders_cur
     ),
-    cur_refunds AS (
-      SELECT raw_value FROM raw_refunds UNION ALL SELECT raw_value FROM orders_refunds
-    ),
-    prior_purchases AS (
-      SELECT raw_value FROM raw_prior UNION ALL SELECT raw_value FROM orders_prior
-    ),
-
     -- ── Step 5: scalar aggregations ───────────────────────────────────────────────
+    -- Money in different currencies cannot be added up: every total, average and chart is in
+    -- the currency most orders are in, and the others are listed beside it (other_currencies).
     dom_currency AS (
       SELECT COALESCE(MAX(currency), 'USD') AS currency
       FROM (
-        SELECT currency, COUNT(*) AS n FROM enriched GROUP BY currency ORDER BY n DESC LIMIT 1
+        SELECT currency, COUNT(*) AS n FROM all_orders GROUP BY currency ORDER BY n DESC, currency LIMIT 1
       ) sub
+    ),
+    enriched AS (
+      SELECT * FROM all_orders WHERE currency = (SELECT currency FROM dom_currency)
+    ),
+    cur_refunds AS (
+      SELECT raw_value FROM (
+        SELECT raw_value, currency FROM raw_refunds UNION ALL SELECT raw_value, currency FROM orders_refunds
+      ) r WHERE currency = (SELECT currency FROM dom_currency)
+    ),
+    prior_purchases AS (
+      SELECT raw_value FROM (
+        SELECT raw_value, currency FROM raw_prior UNION ALL SELECT raw_value, currency FROM orders_prior
+      ) p WHERE currency = (SELECT currency FROM dom_currency)
     ),
     summary_agg AS (
       SELECT
@@ -476,6 +488,9 @@ async function fetchRevenueRow(
       coalesce(${siteCounts?.sessions ?? null}::int, (SELECT sessions FROM session_cnt))             AS sessions,
       coalesce(${siteCounts?.visitors ?? null}::int, (SELECT unique_visitors FROM visitor_cnt))      AS unique_visitors,
       (SELECT currency       FROM dom_currency)                                          AS dominant_currency,
+      (SELECT COALESCE(json_agg(row_to_json(oc) ORDER BY oc.orders DESC, oc.currency), '[]'::json)
+       FROM (SELECT currency, COUNT(*)::int AS orders, COALESCE(SUM(raw_value), 0)::double precision AS revenue
+             FROM all_orders WHERE currency <> (SELECT currency FROM dom_currency) GROUP BY currency) oc) AS other_currencies,
 
       (SELECT COALESCE(json_agg(row_to_json(d)), '[]'::json)
        FROM (SELECT day, revenue, orders FROM daily_series ORDER BY day ASC) d)         AS daily,
@@ -497,7 +512,7 @@ async function fetchRevenueRow(
            country,
            user_type,
            items_json   AS items
-         FROM enriched
+         FROM all_orders
          ORDER BY occurred_at DESC
          LIMIT 50
        ) t)                                                                              AS recent_transactions
@@ -614,6 +629,17 @@ const daily = (row.daily ?? []).map((d) => ({
 const toRows = (arr: typeof row.by_source) =>
   addSharePct(arr ?? [], totalRevenue);
 
+const otherCurrencies = (row.other_currencies ?? []).map((c) => ({
+  currency: String(c.currency),
+  orders: Number(c.orders),
+  revenue: Math.round(Number(c.revenue) * 100) / 100,
+}));
+const currencyNote = otherCurrencies.length
+  ? `Totals are in ${currency}, the currency most orders used. ${otherCurrencies
+      .map((c) => `${c.orders} order${c.orders === 1 ? "" : "s"} in ${c.currency}`)
+      .join(", ")} ${otherCurrencies.reduce((a, c) => a + c.orders, 0) === 1 ? "is" : "are"} listed separately, not converted.`
+  : undefined;
+
 const dataNote =
   dataQuality === "no_revenue"
     ? "No purchase events found in this period. Send seentics.track('purchase', { value, currency, ... }) from your checkout flow to populate this dashboard."
@@ -625,7 +651,8 @@ return {
   website_id: websiteId,
   days,
   data_quality: dataQuality,
-  ...(dataNote ? { data_note: dataNote } : {}),
+  ...(dataNote || currencyNote ? { data_note: [dataNote, currencyNote].filter(Boolean).join(" ") } : {}),
+  ...(otherCurrencies.length ? { other_currencies: otherCurrencies } : {}),
   summary: {
     total_revenue: Math.round(totalRevenue * 100) / 100,
     currency,
