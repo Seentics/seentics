@@ -12,7 +12,8 @@ import type { RecordingIngest } from "./interfaces";
  */
 export function recordingsLane(ingest: () => RecordingIngest): LaneSpec {
   return {
-    partitionOf: (row: { sid?: string }) => row.sid ?? "",
+    // Site and session together: a session id is only unique within its site.
+    partitionOf: (row: { sid?: string; websiteId?: string }) => `${row.websiteId ?? ""}:${row.sid ?? ""}`,
     apply: (batchId, _partitionKey, rows) =>
       ingest().processEvents(batchId, rows as TrackerEvent[]),
     threshold: (cfg: AppConfig) => cfg.ingestQueue.maxRecordingsBeforeForceFlush,

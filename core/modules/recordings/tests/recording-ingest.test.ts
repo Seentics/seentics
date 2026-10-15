@@ -108,6 +108,29 @@ describe("RecordingIngestService.processEvents", () => {
       expect(written).toEqual([]);
     });
 
+    // The session id is the client's to choose: keyed on it alone, another site's events
+    // under the same id were stored as part of this site's recording.
+    it("keeps two sites' sessions apart when they share a session id", async () => {
+      const engine = makeEngine();
+      await engine.processEvents("b1", [
+        { type: "session_error", ts: T0, sid: "s1", url: "https://a.test/", websiteId: "w1", data: { message: "a" } } as TrackerEvent,
+        { type: "session_error", ts: T0, sid: "s1", url: "https://b.test/", websiteId: "w2", data: { message: "b" } } as TrackerEvent,
+      ]);
+      const rows = written.flatMap((w) => w.rows) as unknown as { websiteId: string; sessionId: string }[];
+      expect(rows.map((r) => `${r.websiteId}/${r.sessionId}`).sort()).toEqual(["w1/s1", "w2/s1"]);
+    });
+
+    // The id becomes a storage path segment: with a `/` it reached into another session's prefix.
+    it("drops a session id that would leave its storage prefix", async () => {
+      const engine = makeEngine();
+      for (const sid of ["victim/x", "..", "../w2/s1"]) {
+        await engine.processEvents("b1", [
+          { type: "session_error", ts: T0, sid, url: "https://x.test/", websiteId: "w1", data: { message: "x" } } as TrackerEvent,
+        ]);
+      }
+      expect(written).toEqual([]);
+    });
+
     it("records a session that has only errors and network events", async () => {
       const engine = makeEngine();
       await engine.processEvents("b1", [

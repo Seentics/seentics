@@ -91,8 +91,12 @@ function replayLatestEventMsForStorage(batch: SessionBatch, fallbackEnd: number)
   return sanitizeEpochMs(fallbackEnd) ?? 0;
 }
 
+/** What a session id may hold to be stored: no path separators, no dot segments. */
+const SAFE_SESSION_ID = /^[A-Za-z0-9_-][A-Za-z0-9_.:-]*$/;
+
 type SessionBatch = {
   websiteId: string;
+  sessionId: string;
   events: Record<string, unknown>[];
   clicks: RageClick[];
   hasErrors: boolean;
@@ -174,11 +178,17 @@ export class RecordingIngestService implements RecordingIngest {
     const grouped = new Map<string, SessionBatch>();
 
     for (const ev of events) {
-      if (!ev.sid) continue;
-      let b = grouped.get(ev.sid);
+      // The id becomes a storage path segment: a `/` in it reached into another
+      // session's prefix, whose replay then played the injected chunks.
+      if (!ev.sid || !SAFE_SESSION_ID.test(ev.sid)) continue;
+      // By site and session: the session id is the client's to choose, so keyed on it
+      // alone, two sites' events under one id were stored as one site's recording.
+      const groupKey = `${ev.websiteId}\0${ev.sid}`;
+      let b = grouped.get(groupKey);
       if (!b) {
         b = {
           websiteId: ev.websiteId,
+          sessionId: ev.sid,
           events: [],
           clicks: [],
           hasErrors: false,
@@ -186,7 +196,7 @@ export class RecordingIngestService implements RecordingIngest {
           startTs: ev.ts,
           endTs: ev.ts,
         };
-        grouped.set(ev.sid, b);
+        grouped.set(groupKey, b);
       }
       if (ev.ingestMeta && !b.ingestMeta) b.ingestMeta = ev.ingestMeta;
       b.events.push({
@@ -221,7 +231,8 @@ export class RecordingIngestService implements RecordingIngest {
     }
 
     const work: SessionWork[] = [];
-    for (const [sessionId, batch] of grouped) {
+    for (const batch of grouped.values()) {
+      const sessionId = batch.sessionId;
       sortBatchEvents(batch.events);
       if (batch.clicks.length > 1) batch.clicks.sort((a, c) => a.ts - c.ts);
 
