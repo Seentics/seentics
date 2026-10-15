@@ -2,6 +2,9 @@ import { analyticsReadSql as pgSql } from "../../../db";
 import { occurredAtToIso, parseDays, windowStartIso } from "./shared";
 import { clampRawDays, RAW_EVENT_DAYS } from "../lib/raw-window";
 
+/** Rows one export returns. A bigger extract pages through `/analytics/events`. */
+export const EXPORT_MAX_ROWS = 10_000;
+
 export async function getExportAnalytics(
   websiteId: string,
   query?: Record<string, string | undefined>,
@@ -51,14 +54,22 @@ export async function getExportAnalytics(
     WHERE website_id  = ${websiteId}
       AND occurred_at >= ${startIso}
     ORDER BY occurred_at DESC
-    LIMIT 10000
+    LIMIT ${EXPORT_MAX_ROWS + 1}
   `;
+  // One row past the cap says there is more, without counting the whole window.
+  const truncated = rows.length > EXPORT_MAX_ROWS;
+  if (truncated) rows.length = EXPORT_MAX_ROWS;
 
   return {
     website_id: websiteId,
     date_range: `${days}d`,
     format:     "json",
     total:      rows.length,
+    // The newest EXPORT_MAX_ROWS events only: the window holds more. `/analytics/events` pages
+    // through all of them.
+    truncated,
+    limit:      EXPORT_MAX_ROWS,
+    ...(truncated ? { note: `Only the newest ${EXPORT_MAX_ROWS.toLocaleString("en-US")} events in this window are included. Use /analytics/events to page through every event.` } : {}),
     data: rows.map((e) => ({
       event_type:   e.event_type,
       page:         e.page,

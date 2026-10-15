@@ -103,7 +103,7 @@ const ENDPOINTS: EndpointSpec[] = [
     path: `${SITE}/analytics/export`,
     method: 'GET',
     group: 'Events',
-    summary: 'Up to 10,000 raw events with every column, for a bulk extract.',
+    summary: 'The newest 10,000 raw events with every column, for a quick extract. `truncated` is true when the window holds more; page through them with `/analytics/events`.',
     scope: 'analytics:read',
     params: [],
   },

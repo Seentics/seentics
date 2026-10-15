@@ -87,6 +87,7 @@ const zErrorEvent = z.object({
 export const trackerCollectSchema = z
   .object({
     website_id: zNonEmptyString.max(64),
+    batch_id: z.string().max(64).optional(),
     events: z.array(z.unknown()).max(2000).optional(),
     session: z.array(z.unknown()).max(5000).optional(),
     heatmaps: z.array(zHeatmapEvent).max(2000).optional(),

@@ -6,6 +6,8 @@ import { needsAnonymizing } from "../lib/anonymous-batch";
 import { visitorCountry } from "../../../platform/http/analytics-ingest-meta";
 import { requiresConsent } from "../../../platform/privacy/consent-region";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
+import { isBotUserAgent } from "../../../platform/http/bot-user-agent";
+import { alreadyStored, markStored } from "../lib/seen-batches";
 import { validationErrorResponse } from "../../../platform/validation";
 import { trackerCollectSchema } from "../validators/tracker.schema";
 import {
@@ -17,6 +19,11 @@ import type { TrackerControllerDeps } from "./tracker-controller.types";
 export function collectTracker(deps: TrackerControllerDeps) {
   return async (c: Context) => {
     const cfg = env();
+    // Crawlers, link previews, monitors and scripts that run the tracker are not visitors: nothing
+    // of theirs is stored or counted toward the site's quota. 200, so they do not retry.
+    if (isBotUserAgent(c.req.header("user-agent"), { production: cfg.isProduction })) {
+      return c.json({ status: "ok", message: "ignored" });
+    }
     let body: TrackerCollectBody;
     try {
       const parsed = trackerCollectSchema.safeParse(await readTrackerCollectBody(c.req.raw));
@@ -40,6 +47,9 @@ export function collectTracker(deps: TrackerControllerDeps) {
     if (!validateOriginDomain(origin, website.url, cfg.environment)) {
       return c.json({ error: "domain mismatch" }, 403);
     }
+    // A retry of a batch already taken (lib/seen-batches.ts): accepted, not stored again.
+    const batchId = (body as Record<string, unknown>).batch_id;
+    if (alreadyStored(website.id, batchId)) return c.json({ status: "ok", message: "duplicate" });
 
     const consentGranted = (body as Record<string, unknown>).consent === true;
     const clientIp = clientIpForIngest(c, cfg.trustProxy, cfg.isProduction);
@@ -58,6 +68,7 @@ export function collectTracker(deps: TrackerControllerDeps) {
         ? await deps.visitorSalt()
         : undefined,
     });
+    markStored(website.id, batchId);
     if (result.kind === "empty") return c.json({ status: "ok", message: "nothing to process" });
     if (result.kind === "privacy-disabled") {
       return c.json({ status: "ok", message: "tracking disabled by privacy policy" });

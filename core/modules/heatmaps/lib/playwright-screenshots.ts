@@ -131,6 +131,9 @@ async function captureWithLocalChromium(options: ScreenshotOptions): Promise<Cap
       try {
         const u = new URL(route.request().url());
         if (u.protocol !== "http:" && u.protocol !== "https:") return route.abort("blockedbyclient");
+        // The page's own Seentics tracker: a capture is not a visit, and must not count as one
+        // in the customer's analytics (nor open their popups over the screenshot).
+        if (u.pathname.includes("/api/v1/tracker/")) return route.abort("blockedbyclient");
         let allowed = hostPolicy.get(u.hostname);
         if (!allowed) {
           allowed = allowDevLocal && u.hostname === requested.hostname

@@ -536,7 +536,9 @@ const drainQueues = () => {
 
   // `anonymous`: these ids are placeholders, whatever the site's mode — the server then
   // gives the batch the day's anonymous id and keeps only what needs no consent.
-  const payload = { website_id: websiteId, domain, ua: navigator.userAgent, consent: consentGranted(), anonymous: !identified() };
+  // `batch_id`: one per drained batch, kept by every retry of it (the JSON is resent as is), so the
+  // server stores a batch once even when a send landed and only its answer was lost.
+  const payload = { website_id: websiteId, batch_id: rnd(), domain, ua: navigator.userAgent, consent: consentGranted(), anonymous: !identified() };
   if (events.length)            payload.events               = events;
   if (funnelEvts.length)        payload.funnels              = funnelEvts;
   if (autoEvts.length)          payload.automations          = autoEvts;
@@ -584,7 +586,7 @@ const flush = () => {
   if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
 
   // sendBeacon rejected or unavailable: retry acknowledged XHR failures with the
-  // exact same JSON. Stable content keeps the server's batch-id dedupe effective.
+  // exact same JSON, so its `batch_id` lets the server drop a repeat.
   dispatchWithRetry({ json, gzip: false, attempt: 0, createdAt: Date.now(), nextAt: 0 });
 };
 

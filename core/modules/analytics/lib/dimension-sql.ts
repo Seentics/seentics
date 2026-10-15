@@ -42,10 +42,13 @@ export function referrerDomain(url: string | null | undefined): string | null {
   return m ? m[1]!.toLowerCase().replace(/^www\./, "") || null : null;
 }
 
-/** Browser or OS without its trailing version: `Chrome 128.0` → `Chrome`, `macOS 14.6` → `macOS`. */
+/**
+ * Browser or OS without its trailing version: `Chrome 128.0` → `Chrome`, `macOS 14.6` → `macOS`,
+ * `Windows NT 10.0` → `Windows` (the parser keeps Windows' kernel version, "NT 10.0").
+ */
 export const withoutVersionSql = (col: string) =>
-  `nullif(trim(regexp_replace(${col}, '\\s+v?[0-9][0-9._]*$', '')), '')`;
+  `nullif(trim(regexp_replace(${col}, '\\s+(NT\\s+)?v?[0-9][0-9._]*$', '')), '')`;
 
 export function withoutVersion(value: string): string {
-  return value.replace(/\s+v?[0-9][0-9._]*$/, "").trim();
+  return value.replace(/\s+(NT\s+)?v?[0-9][0-9._]*$/, "").trim();
 }
