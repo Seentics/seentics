@@ -102,7 +102,10 @@ export async function ingestAutomationTriggersBatch(
             sessionId,
             pageUrl,
             detail: r.detail,
-            createdAt: new Date(clampClientTs(r.occurredAt.getTime())),
+            // A Date when applied in-process; an ISO string once the row has been through the
+            // durable queue's JSON. `.getTime()` on the string threw, so every queued batch
+            // of triggers was retried, then parked, and none was ever stored.
+            createdAt: new Date(clampClientTs(new Date(r.occurredAt).getTime())),
           };
         });
       if (!inserts.length) return 0;

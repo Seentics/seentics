@@ -2,7 +2,8 @@
 export type AutomationTriggerQueued = {
   websiteId: string;
   automationId: string;
-  occurredAt: Date;
+  /** A Date in-process; an ISO string after the durable queue's JSON round trip. */
+  occurredAt: Date | string;
   detail: Record<string, unknown>;
 };
 
