@@ -52,10 +52,15 @@ export function initTracker(deps: TrackerControllerDeps) {
     if (website.automation_enabled) {
       try {
         const rows = await deps.automations.activeFor(website.id);
+        // Only what the browser acts on: which triggers to listen for. The rest of a definition
+        // — its actions, conditions and above all webhook URLs, headers and bodies (API keys) —
+        // is evaluated on the server (/tracker/automations/evaluate) and must never reach a
+        // public page, nor must the automation's internal name.
         automations = rows.map((automation) => ({
           id: automation.id,
-          name: automation.name,
-          ...automation.definition,
+          triggers: Array.isArray((automation.definition as { triggers?: unknown }).triggers)
+            ? (automation.definition as { triggers: unknown[] }).triggers
+            : [],
         }));
       } catch {
         automations = [];

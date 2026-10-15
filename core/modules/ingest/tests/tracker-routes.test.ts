@@ -356,6 +356,22 @@ describe("GET /init/:website_id", () => {
     expect(body.error).toContain("domain");
   });
 
+  it("never sends a page an automation's actions, webhook secrets or name", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    mockBuildConfig.mockResolvedValue({ website_id: "w1", goals: [], replay_enabled: true });
+    automations.rows = [makeAutomationRow({
+      name: "Win back churning VIPs",
+      definition: {
+        triggers: [{ type: "exit_intent" }],
+        graph: { entry: "h", nodes: [{ id: "h", kind: "action", action: { type: "webhook", url: "https://hooks.example.com/crm", headers: { "X-Api-Key": "sk_live_secret" }, body: { token: "body-secret" } } }], edges: [] },
+      },
+    })];
+    const res = await app.request("/init/site_abc");
+    const raw = await res.text();
+    expect(JSON.parse(raw).automations).toEqual([{ id: "a1", triggers: [{ type: "exit_intent" }] }]);
+    for (const secret of ["sk_live_secret", "body-secret", "hooks.example.com", "Win back"]) expect(raw).not.toContain(secret);
+  });
+
   it("returns 200 with config, funnels, automations for a valid request", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     mockBuildConfig.mockResolvedValue({ website_id: "w1", goals: [], replay_enabled: true });
@@ -368,8 +384,8 @@ describe("GET /init/:website_id", () => {
     expect(body.config).toBeDefined();
     expect(Array.isArray(body.funnels)).toBe(true);
     expect(Array.isArray(body.automations)).toBe(true);
-    // The definition is spread onto the automation, alongside id and name only.
-    expect(body.automations).toEqual([{ id: "a1", name: "Exit popup", trigger: "exit" }]);
+    // Only the id and the triggers the browser listens for: nothing else of the definition.
+    expect(body.automations).toEqual([{ id: "a1", triggers: [] }]);
     // Both modules receive the resolved UUID, never the `site_abc` reference.
     expect(funnels.calls).toEqual([ACTIVE_WEBSITE.id]);
     expect(automations.calls).toEqual([ACTIVE_WEBSITE.id]);
