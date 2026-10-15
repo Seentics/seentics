@@ -28,14 +28,7 @@ export default function Hero() {
   });
 
   return (
-    <section className="relative overflow-hidden pt-28 sm:pt-36">
-      {/* Light falling on the shot from above. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[38%] -z-0 mx-auto h-[640px] max-w-[1100px] rounded-full blur-3xl"
-        style={{ background: 'radial-gradient(closest-side, var(--lx-glow), transparent)' }}
-      />
-
+    <section className="relative overflow-hidden pt-28 sm:pt-32">
       <div className="lx-container relative">
         <motion.div {...rise(0)}>
           <Link href="/websites/demo/ai" className="lx-pill">
@@ -48,13 +41,13 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0.08)}
-          className="lx-display mt-6 max-w-[15ch] text-[2.75rem] !font-bold sm:text-6xl lg:text-[4.75rem]"
+          className="lx-display mt-6 max-w-[16ch] text-[2.25rem] !font-bold sm:text-5xl lg:text-[3.5rem]"
         >
           Analytics that shows you why visitors leave
         </motion.h1>
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <p className="lx-dim max-w-[34rem] text-lg leading-relaxed sm:text-xl">
+          <p className="lx-dim max-w-[34rem] text-base leading-relaxed sm:text-lg">
             Product analytics, session replay, heatmaps and automations in one open-source, privacy-first
             platform. One script tag, live in two minutes.
           </p>

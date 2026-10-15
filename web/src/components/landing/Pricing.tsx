@@ -41,12 +41,12 @@ export default function Pricing() {
     <section id="pricing" className="landing-section scroll-mt-20">
       <div className="landing-container">
         <div className="mb-12 grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-16">
-          <h2 className="lx-display text-[2rem] sm:text-5xl">
+          <h2 className="lx-display text-[1.75rem] sm:text-4xl">
             Start free.
             <br />
             <span className="lx-dim">Pay only as you grow.</span>
           </h2>
-          <p className="lx-dim max-w-md text-[17px] leading-relaxed">
+          <p className="lx-dim max-w-md text-base leading-relaxed">
             Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
           </p>
         </div>

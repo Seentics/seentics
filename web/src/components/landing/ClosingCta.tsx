@@ -9,7 +9,7 @@ export default function ClosingCta() {
   return (
     <section className="lx-container py-28 sm:py-40">
       <div className="flex flex-col gap-8 border-t pt-16 lg:flex-row lg:items-end lg:justify-between" style={{ borderColor: 'var(--lx-line)' }}>
-        <h2 className="lx-display text-[2.25rem] sm:text-6xl">
+        <h2 className="lx-display text-[1.75rem] sm:text-4xl">
           Know why.
           <br />
           <span className="lx-dim">Start in two minutes.</span>

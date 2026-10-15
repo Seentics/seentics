@@ -97,13 +97,13 @@ function FeatureRow({ row }: { row: Row }) {
           {row.area}
         </p>
         <div className="mt-5 grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-16">
-          <h2 id={`${row.id}-title`} className="lx-display text-[2rem] sm:text-5xl">
+          <h2 id={`${row.id}-title`} className="lx-display text-[1.75rem] sm:text-4xl">
             {row.title[0]}
             <br />
             <span className="lx-dim">{row.title[1]}</span>
           </h2>
           <div>
-            <p className="lx-dim max-w-md text-[17px] leading-relaxed">{row.body}</p>
+            <p className="lx-dim max-w-md text-base leading-relaxed">{row.body}</p>
             <Link href={row.link.href} className="lx-link mt-4">
               {row.link.label} <ArrowRight className="h-3.5 w-3.5" />
             </Link>

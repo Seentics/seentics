@@ -42,7 +42,7 @@ export default function FaqCta() {
         <div className="landing-container">
           <div className="grid gap-10 lg:grid-cols-[minmax(240px,0.6fr)_minmax(0,1.4fr)] lg:gap-16">
             <div>
-              <h2 className="lx-display mb-4 text-[2rem] sm:text-5xl">Questions</h2>
+              <h2 className="lx-display mb-4 text-[1.75rem] sm:text-4xl">Questions</h2>
               <Link href="/docs" className="lx-link">
                 Read the docs
                 <ArrowRight className="h-4 w-4" />

@@ -78,7 +78,7 @@ const FIGURES: Array<{ fig: string; title: string; body: string; art: ReactNode 
 export default function Statement() {
   return (
     <section className="lx-container pt-28 sm:pt-40">
-      <p className="lx-heading max-w-[46rem] text-[1.6rem] sm:text-[2rem]">
+      <p className="lx-heading max-w-[44rem] text-xl sm:text-2xl">
         Most analytics stops at the number.{' '}
         <span className="lx-dim">
           Seentics shows the session behind it, the click that went nowhere and the step where people gave up, then

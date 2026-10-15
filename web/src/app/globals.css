@@ -139,7 +139,7 @@
     --lx-line-strong: rgba(15, 17, 21, 0.13);
     --lx-panel: #ffffff;
     --lx-glow: rgba(37, 99, 235, 0.12);
-    --lx-shot-shadow: 0 30px 80px -24px rgba(15, 23, 42, 0.22);
+    --lx-shot-shadow: 0 16px 40px -20px rgba(15, 23, 42, 0.16);
     font-family: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
     font-optical-sizing: auto;
     color: var(--lx-text);
@@ -158,7 +158,7 @@
     --lx-line-strong: rgba(255, 255, 255, 0.12);
     --lx-panel: #0e0f11;
     --lx-glow: rgba(88, 140, 255, 0.16);
-    --lx-shot-shadow: 0 40px 120px -24px rgba(0, 0, 0, 0.85);
+    --lx-shot-shadow: 0 20px 60px -24px rgba(0, 0, 0, 0.7);
   }
   .lx .app-surface {
     --background: var(--app-page);
@@ -193,7 +193,7 @@
 @layer components {
   .lx-container { @apply mx-auto w-full max-w-[1240px] px-6; }
   /* Headlines: Inter's display optical size, set tight. */
-  .lx-display { font-weight: 590; letter-spacing: -0.034em; line-height: 1.04; color: var(--lx-text); }
+  .lx-display { font-weight: 590; letter-spacing: -0.028em; line-height: 1.08; color: var(--lx-text); }
   .lx-heading { font-weight: 560; letter-spacing: -0.026em; line-height: 1.1; color: var(--lx-text); }
   .lx-dim { color: var(--lx-dim); }
   .lx-faint { color: var(--lx-faint); }

@@ -63,8 +63,6 @@ export function ProductWindow({
         maskImage: fade,
       }}
     >
-      {/* The light catching the top edge. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/25" />
       <div className="app-surface bg-background">
         <div ref={ref} className="relative w-full" style={{ aspectRatio: `${designWidth} / ${designHeight * visible}` }}>
           <div
