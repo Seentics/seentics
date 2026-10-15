@@ -30,13 +30,18 @@ export function previousFrom(current: FunnelAnalyticsItem | undefined, doubled: 
 
 /** The step people leave most, as "A → B" with the share lost. */
 export function biggestLeak(funnel: Funnel, a: FunnelAnalyticsItem): { from: string; to: string; rate: number } | null {
-  const steps = (a.step_metrics ?? []).slice(0, -1).filter((s) => s.count > 0);
-  if (!steps.length) return null;
-  const worst = steps.reduce((x, y) => (y.drop_off_rate > x.drop_off_rate ? y : x));
+  // Core reports each step's drop-off as the share lost on the way INTO it from the step
+  // before (funnel-report-calculation.service.ts), so the first step's is always 0. This
+  // read it as the share lost out of each step: it named "first → second" at 0.0% and
+  // never saw the last step's loss, and no funnel ever landed in the "Big leak" group.
+  const metrics = [...(a.step_metrics ?? [])].sort((x, y) => x.step - y.step);
+  const leaks = metrics.slice(1).filter((s, i) => metrics[i]!.count > 0);
+  if (!leaks.length) return null;
+  const worst = leaks.reduce((x, y) => (y.drop_off_rate > x.drop_off_rate ? y : x));
   const name = (n: number) =>
-    (a.step_metrics?.find((s) => s.step === n) as { name?: string } | undefined)?.name
+    (metrics.find((s) => s.step === n) as { name?: string } | undefined)?.name
     ?? funnel.steps?.[n - 1]?.name ?? `Step ${n}`;
-  return { from: name(worst.step), to: name(worst.step + 1), rate: worst.drop_off_rate };
+  return { from: name(worst.step - 1), to: name(worst.step), rate: worst.drop_off_rate };
 }
 
 function trend(a: FunnelAnalyticsItem, prev: FunnelPrevious | null): 'worse' | 'better' | null {

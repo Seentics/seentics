@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { funnelLine, inFunnelGroup, previousFrom } from '@/features/funnels/insights';
 
 const funnel = { id: 'f', name: 'Signup', is_active: true, steps: [{ name: 'Home' }, { name: 'Pricing' }, { name: 'Signup' }] } as never;
+// Each step's rate is the share lost on the way into it, as core reports it
+// (funnel-report-calculation.service.ts): the first step's is always 0.
 const report = (starts: number, conv: number, steps?: Array<[number, number, number]>) => ({
   total_starts: starts, total_conversions: conv, conversion_rate: (conv / starts) * 100,
   step_metrics: steps?.map(([step, count, rate]) => ({ step, count, drop_off: 0, drop_off_rate: rate })),
@@ -9,7 +11,7 @@ const report = (starts: number, conv: number, steps?: Array<[number, number, num
 
 describe('funnel lines', () => {
   it('says the rate, where most people leave, and the trend', () => {
-    const a = report(1000, 50, [[1, 1000, 40], [2, 600, 92], [3, 50, 0]]);
+    const a = report(1000, 50, [[1, 1000, 0], [2, 600, 40], [3, 50, 92]]);
     expect(funnelLine(funnel, a, { starts: 1000, conversions: 80 }))
       .toBe('Converts 5.0% (50 of 1,000) · most leave at Pricing → Signup (92%) · down from 8.0%');
   });
@@ -26,7 +28,7 @@ describe('funnel lines', () => {
   });
 
   it('flags a big leak and ignores noise in the trend', () => {
-    const a = report(1000, 50, [[1, 1000, 40], [2, 600, 92], [3, 50, 0]]);
+    const a = report(1000, 50, [[1, 1000, 0], [2, 600, 40], [3, 50, 92]]);
     expect(inFunnelGroup(funnel, a, null, 'leak')).toBe(true);
     expect(inFunnelGroup(funnel, a, { starts: 1000, conversions: 52 }, 'worse')).toBe(false);
   });
