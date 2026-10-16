@@ -105,25 +105,12 @@ const SEEK_STEP_MS = 10_000;
 export const PLAYER_MAX_HEIGHT = 'calc(100dvh - 10.5rem)';
 
 /**
- * Width / height of the viewport the recording was made in, from its first Meta event.
- *
- * The player box takes this shape instead of a fixed 16:9, so the recording fills it
- * at its true proportions: a phone session is a tall box rather than a strip down the
- * middle of a wide black one, and a 16:10 laptop gets its full height. Clamped so an
- * odd viewport (a sliver of a window) can't produce an unusable box; the replayer's
- * contain-fit handles anything outside the clamp, and later resizes.
+ * The player's shape: always 16:9, whatever window the visitor had. It used to take the
+ * recording's own shape, so the page around it changed from session to session — a square
+ * box for a squarish window, a tall one for a phone. The recording is fitted inside, centred,
+ * with the black of the box around it.
  */
-export function recordingAspect(events: RRWebEvent[]): number {
-  for (const ev of events) {
-    if (ev.type !== RRWEB_META) continue;
-    const { width, height } = ev.data as { width?: unknown; height?: unknown };
-    const w = Number(width);
-    const h = Number(height);
-    if (w > 0 && h > 0) return Math.min(2.4, Math.max(0.45, w / h));
-    break;
-  }
-  return 16 / 9;
-}
+export const PLAYER_ASPECT = 16 / 9;
 
 /** rrweb EventType.Meta */
 const RRWEB_META = 4;
@@ -713,8 +700,11 @@ function applyReplayCoverScale(
   const widthScale = containerW / fw;
   const heightScale = containerH / fh;
   const scale = Math.min(maxScale, Math.min(widthScale, heightScale));
+  // Centred both ways in the fixed 16:9 box: a recording wider than the box would otherwise
+  // sit at the top with all the spare room below it.
+  const top = Math.max(0, (containerH - fh * scale) / 2);
   replayer.wrapper.style.transformOrigin = '50% 0';
-  replayer.wrapper.style.transform = `translate(-50%, 0) scale(${scale})`;
+  replayer.wrapper.style.transform = `translate(-50%, ${top}px) scale(${scale})`;
   return { w: fw, h: fh };
 }
 
@@ -1332,19 +1322,7 @@ export function SessionReplaySurface({
   );
 
   const timelineMarkers = useMemo(() => buildReplayTimelineMarkers(events), [events]);
-  /*
-   * The box takes the shape the replay actually plays at. The first Meta event's size is only a
-   * starting guess: rrweb plays at the viewport it reads from the recording, which can differ
-   * (a resized window, browser chrome), and a box shaped by the guess left the page short of it.
-   */
-  const [liveAspect, setLiveAspect] = useState<number | null>(null);
-  useEffect(() => setLiveAspect(null), [events]);
-  const noteSize = useCallback((size: { w: number; h: number } | null) => {
-    if (!size) return;
-    const next = size.w / size.h;
-    setLiveAspect((prev) => (prev && Math.abs(prev - next) / next < 0.01 ? prev : next));
-  }, []);
-  const aspect = useMemo(() => liveAspect ?? recordingAspect(events), [liveAspect, events]);
+  const aspect = PLAYER_ASPECT;
 
   const logEntries = useMemo(
     () =>
@@ -1436,7 +1414,7 @@ export function SessionReplaySurface({
         coverRaf = 0;
         const shell = shellRef.current;
         if (!shell) return;
-        noteSize(applyReplayCoverScale(r, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE, lastResizeDims));
+        applyReplayCoverScale(r, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE, lastResizeDims);
       });
     };
 
@@ -1603,7 +1581,7 @@ export function SessionReplaySurface({
         coverRaf = 0;
         const shell = shellRef.current;
         if (!shell) return;
-        noteSize(applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE));
+        applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE);
       });
     };
     scheduleCover();

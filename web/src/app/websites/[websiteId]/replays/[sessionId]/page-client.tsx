@@ -4,7 +4,7 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import 'rrweb/dist/style.css';
 
-import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ import {
   type SessionReplayBridge,
   type SessionReplaySurfaceAPI,
   PLAYER_MAX_HEIGHT,
-  recordingAspect,
+  PLAYER_ASPECT,
 } from '@/components/replays/session-replay-surface';
 import { ReplaySessionSidebar } from '@/components/replays/replay-session-sidebar';
 
@@ -136,15 +136,12 @@ export function ReplayDetailView({
 
   const events            = isDemoMode ? demoRecording?.events ?? EMPTY_EVENTS : initialEvents;
   /**
-   * The tabs under the player share its width — the recording's shape at the tallest the
-   * window allows (the player's own limit) — so their edges line up. Never narrower than
-   * 64rem: under a phone recording that would cramp the console and network rows.
-   * 2.5rem is the padding either side, which the player's limit does not include.
+   * The tabs under the player share its width — 16:9 at the tallest the window allows (the
+   * player's own limit) — so their edges line up. Never narrower than 64rem, so the console
+   * and network rows have room. 2.5rem is the padding either side, which the player's limit
+   * does not include.
    */
-  const tabsMaxWidth = useMemo(
-    () => `calc(max(${PLAYER_MAX_HEIGHT} * ${recordingAspect(events)}, 64rem) + 2.5rem)`,
-    [events],
-  );
+  const tabsMaxWidth = `calc(max(${PLAYER_MAX_HEIGHT} * ${PLAYER_ASPECT}, 64rem) + 2.5rem)`;
   const sessionSignals    = isDemoMode ? demoRecording?.customEvents ?? EMPTY_CUSTOM_EVENTS : customEvents;
   const recordingPending  = !isDemoMode && (sessionApiResp?.recording_pending === true);
   /** Chunks that never arrived. Playback still works; it just has holes in it. */

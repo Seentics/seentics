@@ -140,7 +140,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           title={collapsed ? item.label : undefined}
           className={cn(
             'flex items-center gap-3 rounded-lg transition-colors',
-            collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
+            collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
             active
               ? 'bg-accent text-foreground'
               : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
@@ -166,7 +166,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         title={collapsed ? item.label : undefined}
         className={cn(
           'flex items-center gap-3 rounded-lg transition-colors',
-          collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
+          collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
           'text-foreground/60 hover:text-foreground hover:bg-muted/50',
         )}
       >

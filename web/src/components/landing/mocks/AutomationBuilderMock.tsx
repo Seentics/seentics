@@ -49,6 +49,8 @@ const TRIGGER = { x: 260, y: 54 };
 const BRANCH = { x: 260, y: 214 };
 const ACTION_YES = { x: 55, y: 414 };
 const ACTION_NO = { x: 465, y: 414 };
+/** The graph's own height: the same margin below the last row as above the trigger. */
+const CANVAS_H = ACTION_YES.y + H_NODE + TRIGGER.y;
 
 const centreX = (x: number) => x + NODE_W / 2;
 /** Where a branch node's outlets sit — ReactFlow spreads them at (i+1)/(n+1). */
@@ -344,9 +346,9 @@ export function AutomationBuilderMock() {
       <style>{`@keyframes seenticsMockDash { to { stroke-dashoffset: -10; } }`}</style>
 
       {/* Canvas — ReactFlow's dotted background at gap 24 */}
-      {/* The canvas takes whatever width the frame gives it; the graph keeps its own
-          CANVAS_W layout, centred in it. A fixed-width canvas left an empty strip beside the
-          palette whenever the mock was shown wider than it was drawn for. */}
+      {/* The canvas takes whatever size the frame gives it; the graph keeps its own
+          CANVAS_W × CANVAS_H layout, centred in it both ways. The canvas is as tall as the
+          palette beside it, so a graph pinned to the top left all the spare room below it. */}
       <div
         // The page colour with a faint dot grid, per theme: the solid mid-grey dots on a
         // tinted fill were the busiest thing in the frame.
@@ -356,7 +358,7 @@ export function AutomationBuilderMock() {
           backgroundSize: '24px 24px',
         }}
       >
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: CANVAS_W }}>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ width: CANVAS_W, height: CANVAS_H }}>
         <Edges />
 
         <TriggerCard />
