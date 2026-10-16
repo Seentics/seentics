@@ -5,10 +5,13 @@ import {
   validateOriginDomain,
   validateScreenshotTargetUrl,
 } from "../../../platform/http/origin";
+import { isAutomatedRequest } from "../../../platform/http/automated-request";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 export function requestTrackerScreenshot(deps: TrackerControllerDeps) {
   return async (c: Context) => {
+    // A crawler's view of a page is not captured as the heatmap's background.
+    if (isAutomatedRequest(c)) return c.json({ status: "ok", message: "ignored" });
     let body: Record<string, unknown>;
     try {
       body = (await c.req.json()) as Record<string, unknown>;

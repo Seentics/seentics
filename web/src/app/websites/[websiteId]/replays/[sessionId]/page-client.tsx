@@ -28,6 +28,7 @@ import {
 import { useReplayChunks } from '@/features/replays/use-replay-chunks';
 import { ReplayDetailHeader } from '@/components/replays/ReplayDetailHeader';
 import { DemoReplayPlayer } from '@/components/replays/DemoReplayStage';
+import { noRecordingReason } from '@/components/replays/no-recording';
 import { DEMO_REPLAY_URL, demoReplaySessionMeta } from '@/lib/demo/replay-recording';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -168,7 +169,11 @@ export function ReplayDetailView({
   const listHref = `/websites/${websiteId}/replays`;
   const hasRecording = events.length > 0;
   /** Session queue payloads without a parseable rrweb DOM stream (e.g. only client errors, or empty bundle). */
-  const hasNonRrwebSignals = !isDemoMode && !hasRecording && sessionSignals.length > 0;
+  /** What the empty state says, from how long the visit was and what was captured instead. */
+  const noRecording = noRecordingReason({
+    durationSeconds: session?.durationSeconds,
+    signalTypes: sessionSignals.map((e) => e.eventType),
+  });
 
   useEffect(() => {
     setReplayBridge(null);
@@ -318,28 +323,8 @@ export function ReplayDetailView({
                   <Video className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div className="max-w-md space-y-2">
-                  <p className="text-sm font-semibold text-foreground">No recording for this session</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {hasNonRrwebSignals ? (
-                      <>
-                        We stored client-side signals (for example JavaScript errors) for this visit, but there is no
-                        rrweb DOM recording. Usually{' '}
-                        <span className="font-medium text-foreground/90">rrweb.js failed to load</span> (wrong URL,
-                        blocked by an extension, or CSP),{' '}
-                        <span className="font-medium text-foreground/90">session recording is off</span> for the site,
-                        or the tracker never finished init before the visitor left.
-                      </>
-                    ) : (
-                      <>
-                        The replay list counts every session row we have in the database; playback only works when
-                        rrweb events were captured and uploaded. Common causes:{' '}
-                        <span className="font-medium text-foreground/90">replay disabled</span>,{' '}
-                        <span className="font-medium text-foreground/90">monthly recording cap reached</span>,{' '}
-                        <span className="font-medium text-foreground/90">object storage upload failed</span> on the
-                        analytics core, or the visit was too short for a full snapshot to flush.
-                      </>
-                    )}
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">{noRecording.title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{noRecording.body}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
                   Back to replays

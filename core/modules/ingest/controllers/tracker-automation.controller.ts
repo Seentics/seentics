@@ -2,13 +2,13 @@ import type { Context } from "hono";
 import { env } from "../../../config";
 import { log } from "../../../platform/observability/logger";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
-import { isBotUserAgent } from "../../../platform/http/bot-user-agent";
+import { isAutomatedRequest } from "../../../platform/http/automated-request";
 import type { TrackerControllerDeps } from "./tracker-controller.types";
 
 export function evaluateTrackerAutomation(deps: TrackerControllerDeps) {
   return async (c: Context) => {
     // A crawler running the page's scripts triggers nothing (no popups shown, no webhooks sent).
-    if (isBotUserAgent(c.req.header("user-agent"), { production: env().isProduction })) {
+    if (isAutomatedRequest(c)) {
       return c.json({ status: "ok", matched: 0, actions: [] });
     }
     let body: Record<string, unknown>;

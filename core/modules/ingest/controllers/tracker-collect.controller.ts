@@ -6,7 +6,7 @@ import { needsAnonymizing } from "../lib/anonymous-batch";
 import { visitorCountry } from "../../../platform/http/analytics-ingest-meta";
 import { requiresConsent } from "../../../platform/privacy/consent-region";
 import { originFromRequest, validateOriginDomain } from "../../../platform/http/origin";
-import { isBotUserAgent } from "../../../platform/http/bot-user-agent";
+import { isAutomatedRequest } from "../../../platform/http/automated-request";
 import { alreadyStored, markStored } from "../lib/seen-batches";
 import { validationErrorResponse } from "../../../platform/validation";
 import { trackerCollectSchema } from "../validators/tracker.schema";
@@ -21,7 +21,7 @@ export function collectTracker(deps: TrackerControllerDeps) {
     const cfg = env();
     // Crawlers, link previews, monitors and scripts that run the tracker are not visitors: nothing
     // of theirs is stored or counted toward the site's quota. 200, so they do not retry.
-    if (isBotUserAgent(c.req.header("user-agent"), { production: cfg.isProduction })) {
+    if (isAutomatedRequest(c)) {
       return c.json({ status: "ok", message: "ignored" });
     }
     let body: TrackerCollectBody;

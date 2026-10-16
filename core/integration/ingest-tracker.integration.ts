@@ -159,6 +159,19 @@ describe("POST /tracker/collect", () => {
     expect(await stored(s)).toHaveLength(0);
   });
 
+  it("ignores Meta's link checker, which calls itself mobile Chrome, by the network it comes from", async () => {
+    const { site: s } = await site();
+    const android = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36";
+    const fromMeta = await collect(s, { consent: true, events: [pageview({ sid: sid() })] }, { headers: { "User-Agent": android, "X-Forwarded-For": "2a03:2880:31ff:23::" } });
+    expect(fromMeta.status).toBe(200);
+    expect(fromMeta.body.message).toBe("ignored");
+    await drainAnalytics(s.id);
+    expect(await stored(s)).toHaveLength(0);
+    // The same browser on a person's own connection is a visitor.
+    const person = await collect(s, { consent: true, events: [pageview({ sid: sid() })] }, { headers: { "User-Agent": android, "X-Forwarded-For": "203.0.113.9" } });
+    expect(person.body.message).toBe("processed");
+  });
+
   it("refuses a batch from a page on another domain", async () => {
     const { site: s } = await site();
     const res = await collect(s, { consent: true, events: [pageview({ sid: sid() })] }, { headers: { Origin: "https://copycat.example" } });
