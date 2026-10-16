@@ -56,8 +56,8 @@ export default function BillingPage() {
             and everything collected so far is kept.
           </Li>
           <Li>
-            On Analytics, the same happens: it has a plain 500K-event limit and no extra usage. Upgrade
-            to Pro if you outgrow it.
+            On Starter, the same happens: its limits are plain, with no extra usage. Move to Pro if you
+            outgrow it.
           </Li>
           <Li>
             On Pro, the same happens, unless you turn on extra usage in <C>Settings → Billing</C>. Then
@@ -80,9 +80,8 @@ export default function BillingPage() {
         <Ul>
           <Li>Upgrade from <C>Settings → Billing</C>; it takes effect immediately.</Li>
           <Li>
-            Plans are billed monthly or yearly. Yearly is the plan&apos;s price for twelve months
-            ($84 for Analytics, $168 for Pro), charged once. Switch interval, or move from Analytics
-            to Pro, from <C>Settings → Billing</C>: the new subscription replaces the old one, which
+            Plans are billed monthly. Move from Starter
+            to Pro from <C>Settings → Billing</C>: the new subscription replaces the old one, which
             stops renewing and runs to the end of the period you paid for.
           </Li>
           <Li>Cancelling your plan moves you to Free at the end of the current period, and turns extra usage off.</Li>

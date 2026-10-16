@@ -20,7 +20,7 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
 import { useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
 import type { MeterState } from '@/features/billing/types';
-import { RATES_LINE } from '@/features/plans/pricing-spec';
+import { OFFER_YEARLY, RATES_LINE } from '@/features/plans/pricing-spec';
 import api from '@/lib/api';
 import { startCheckout } from '@/lib/checkout';
 import { isDemo } from '@/lib/demo';
@@ -112,7 +112,7 @@ export default function BillingSettingsPage() {
         <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold">{isPro ? 'Pro' : isAnalytics ? 'Analytics' : 'Free'}</h2>
+              <h2 className="text-xl font-semibold">{isPro ? 'Pro' : isAnalytics ? 'Starter' : 'Free'}</h2>
               {isPaid && yearly && (
                 <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium">Yearly</Badge>
               )}
@@ -130,7 +130,7 @@ export default function BillingSettingsPage() {
                 : 'Monthly limits. Collection pauses at a limit until the month resets.'}
             </p>
             {isAnalytics && (
-              <p className="mt-1 text-sm text-muted-foreground">Session replay, heatmaps, automations and lead capture are part of Pro.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Pro has five times the events, more recordings and observability, and optional extra usage.</p>
             )}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -142,7 +142,7 @@ export default function BillingSettingsPage() {
                     Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
-                {!yearly && !subscription?.cancelAtPeriodEnd && (
+                {OFFER_YEARLY && !yearly && !subscription?.cancelAtPeriodEnd && (
                   <Button variant="outline" size="sm" onClick={() => checkout(isPro ? 'pro' : 'analytics', 'year')} disabled={busy !== null}>
                     Switch to yearly and save
                   </Button>
@@ -159,7 +159,7 @@ export default function BillingSettingsPage() {
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => checkout('analytics')} disabled={busy !== null}>
                   {busy === 'analytics:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Get Analytics
+                  Get Starter
                 </Button>
                 <Button size="sm" className="gap-1.5" onClick={() => checkout('pro')} disabled={busy !== null}>
                   {busy === 'pro:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

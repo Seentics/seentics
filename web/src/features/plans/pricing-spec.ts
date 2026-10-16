@@ -45,10 +45,18 @@ export const OVERAGE_RATES = {
   observeGb: { price: 0.25, per: 1, unit: 'GB' },
 } as const;
 
+/**
+ * Yearly billing is set up end to end (gateway catalogue, checkout, webhook) and priced, but not
+ * offered yet: the pages sell monthly until the yearly variants exist in Lemon Squeezy. Turning this
+ * on brings back the Monthly / Yearly toggle on the pricing page and in Billing.
+ */
+export const OFFER_YEARLY = false;
+
+// `analytics` is Starter's tier: the plan kept its id when it became Starter (gateway db/sql/040).
 export const TIER_PITCH: Record<PricingTier, string> = {
   free: 'Everything to get started',
-  analytics: 'Simple, privacy-friendly analytics',
-  pro: 'The full toolkit, with extra usage',
+  analytics: 'The whole product for a growing site',
+  pro: 'More of everything, with extra usage',
 };
 
 // ---------------------------------------------------------------------------
@@ -116,24 +124,18 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
     // "Up to": every plan stops at these by default, so the bill is predictable.
     { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
     ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
-    // Analytics does not cover Observability: it falls back to Free's, which the Analytics card does not advertise.
-    ...(plan.tier !== 'analytics' ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' }] : []),
+    { value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' },
     { value: formatDays(core('retention_days')), label: 'analytics retention' },
     { value: formatCount(core('websites')), label: 'websites' },
     everything
       ? { value: 'Unlimited', label: 'heatmaps, funnels, automations' }
-      : plan.tier === 'analytics'
-        ? { value: '', label: funnels === -1 ? 'Goals and unlimited funnels' : `Goals and ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}` }
-        : {
-            value: '',
-            label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
-          },
+      : {
+          value: '',
+          label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
+        },
     ...(has(leads) ? [{ value: formatCount(leads), label: 'form submissions a month' }] : []),
     { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
-    // Analytics: API access only. The other plans have the whole agency kit (clients, APIs, embeds).
-    plan.tier === 'analytics'
-      ? { value: '', label: 'API access' }
-      : { value: '', label: 'Agency: clients, APIs & embeds' },
+    { value: '', label: 'Agency: clients, APIs & embeds' },
   ];
 
   // Extra usage still exists on Pro (Billing, and the docs), but is not spelled out on the card: a
@@ -141,7 +143,7 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const past: CardSection = plan.tier === 'pro'
     ? { title: 'Need more?', items: [{ value: '', label: 'Contact us for a custom plan', href: '/contact' }] }
     : plan.tier === 'analytics'
-      ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Need replay or heatmaps? Go Pro' }] }
+      ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Move to Pro any time' }] }
       : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
 
   return [{ title: 'Included every month', items: included }, past];
@@ -190,11 +192,11 @@ export const COMPARE_GROUPS: CompareGroup[] = [
   {
     title: 'Observability',
     rows: [
-      { label: 'Logs, traces & metrics / month', value: (p) => (p.tier === 'analytics' ? false : meteredCell('observe', 'storage_gb', 'GB')(p)) },
-      { label: 'Past the limit', value: (p) => (p.tier === 'analytics' ? false : isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
-      { label: 'Telemetry retention', value: (p) => (p.tier === 'analytics' ? false : formatDays(limit(p, 'observe', 'retention_days'))) },
-      { label: 'Error tracking & alerts', value: (p) => p.tier !== 'analytics' },
-      { label: 'Uptime monitoring', value: (p) => p.tier !== 'analytics' },
+      { label: 'Logs, traces & metrics / month', value: meteredCell('observe', 'storage_gb', 'GB') },
+      { label: 'Past the limit', value: (p) => (isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
+      { label: 'Telemetry retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
+      { label: 'Error tracking & alerts', value: () => true },
+      { label: 'Uptime monitoring', value: () => true },
     ],
   },
   {

@@ -5,7 +5,7 @@ import { ArrowRight, Check, ChevronDown, Loader2, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
 import type { BillingInterval, Plan } from '@/features/plans/types';
-import { COMPARE_GROUPS, TIER_PITCH, cardSectionsFor, formatMoney, maxYearlySaving, monthlyPrice, yearlySavingPercent } from '@/features/plans/pricing-spec';
+import { COMPARE_GROUPS, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, formatMoney, maxYearlySaving, monthlyPrice, yearlySavingPercent } from '@/features/plans/pricing-spec';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
@@ -25,7 +25,7 @@ interface PlanBuilderProps {
   currentInterval?: BillingInterval;
 }
 
-const CTA: Record<Plan['tier'], string> = { free: 'Start free', analytics: 'Get Analytics', pro: 'Get Pro' };
+const CTA: Record<Plan['tier'], string> = { free: 'Start free', analytics: 'Get Starter', pro: 'Get Pro' };
 
 /**
  * Free, Analytics and Pro, from gateway's GET /api/v1/plans: three cards with one short list each
@@ -38,9 +38,9 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
   const [chosen, setChosen] = React.useState<BillingInterval>('year');
-  // The toggle only means something once the catalogue has a yearly price. Against an older gateway that
-  // has none, every plan is monthly and nothing is offered that cannot be bought.
-  const hasYearly = !!plans?.some((p) => p.priceYearly != null);
+  // The toggle only means something once yearly is offered (OFFER_YEARLY) and the catalogue has a
+  // yearly price. Until then every plan is monthly and nothing is offered that cannot be bought.
+  const hasYearly = OFFER_YEARLY && !!plans?.some((p) => p.priceYearly != null);
   const interval: BillingInterval = hasYearly ? chosen : 'month';
 
   const handleSubscribe = (plan: Plan) => {

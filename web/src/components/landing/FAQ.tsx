@@ -15,7 +15,7 @@ const FAQS = [
   {
     question: 'Is there a free plan?',
     answer:
-      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, Analytics at $9 a month for simple web analytics, and Pro at $19 a month for the full toolkit and up to 1M events, with optional extra usage beyond that. Yearly billing saves up to 26%.',
+      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, Starter at $9 a month and Pro at $24 a month, each with the whole product: they differ by how many events, recordings and gigabytes of telemetry they include.',
   },
   {
     question: 'How does Seentics protect visitor privacy?',
