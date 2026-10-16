@@ -13,7 +13,6 @@ import {
   Flame,
   GitBranch,
   Globe,
-  Gauge,
   MoreVertical,
   KeyRound,
   Pencil,
@@ -382,10 +381,10 @@ export function ClientsTab({
       <StatCards
         isLoading={isLoading}
         cards={[
-          { label: 'Clients', value: clients.length, icon: Users, tone: 'info' },
-          { label: 'Active', value: active, icon: CheckCircle2, tone: 'success', toneWhen: active > 0 },
-          { label: 'Websites', value: sites, icon: Globe, tone: 'accent' },
-          { label: 'With caps', value: capped, icon: Gauge, tone: 'warning', toneWhen: capped > 0 },
+          { label: 'Clients', value: clients.length },
+          { label: 'Active', value: active },
+          { label: 'Websites', value: sites },
+          { label: 'With caps', value: capped },
         ]}
       />
 

@@ -113,14 +113,3 @@ export function TagInput({ value, onChange, disabled, id }: { value: string[]; o
     </div>
   );
 }
-
-/** A plain figure for the summary strip, as on the funnel page. */
-export function Figure({ label, value, note, className }: { label: string; value: string; note?: string; className?: string }) {
-  return (
-    <div className={cn('px-5 py-4', className)}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-foreground">{value}</p>
-      {note && <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>}
-    </div>
-  );
-}

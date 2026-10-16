@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, CalendarDays, Download, Gift, Inbox, Search, Send, Trophy } from 'lucide-react';
+import { AlertTriangle, Download, Inbox, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -92,12 +92,12 @@ export function FormSubmissions({ websiteId, automationId, form }: FormSubmissio
       <StatCards
         isLoading={summary.isLoading}
         cards={[
-          { label: 'Submissions', value: summary.data?.total ?? 0, icon: Inbox },
-          { label: 'Last 7 days', value: summary.data?.last_7_days ?? 0, icon: CalendarDays },
-          { label: 'Last 30 days', value: summary.data?.last_30_days ?? 0, icon: Send },
+          { label: 'Submissions', value: summary.data?.total ?? 0 },
+          { label: 'Last 7 days', value: summary.data?.last_7_days ?? 0 },
+          { label: 'Last 30 days', value: summary.data?.last_30_days ?? 0 },
           form.hasRewards
-            ? { label: 'Prizes won', value: summary.data?.with_prize ?? 0, icon: Gift }
-            : { label: 'Top variant', value: top ? top.label : '—', icon: Trophy, subtext: top ? `${top.count} submissions` : 'No A/B test running' },
+            ? { label: 'Prizes won', value: summary.data?.with_prize ?? 0 }
+            : { label: 'Top variant', value: top ? top.label : '—', subtext: top ? `${top.count} submissions` : 'No A/B test running' },
         ]}
       />
 

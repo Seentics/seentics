@@ -62,10 +62,7 @@ function dashboard(over: Record<string, unknown> = {}) {
 
 /** The tile whose label matches, as a queryable scope. */
 function tile(label: string): HTMLElement {
-  const heading = screen.getByText(label);
-  const card = heading.closest('div.group');
-  if (!card) throw new Error(`no tile found for "${label}"`);
-  return card as HTMLElement;
+  return screen.getByRole('group', { name: label });
 }
 
 beforeEach(() => {
@@ -76,12 +73,12 @@ describe('SummaryCards', () => {
   it('renders all six KPI tiles', () => {
     render(<SummaryCards data={dashboard()} websiteId="site_1" />);
     for (const label of [
-      'Live Visitors',
-      'Unique Visitors',
+      'Live visitors',
+      'Unique visitors',
       'Total visitors',
-      'Page Views',
-      'Session Duration',
-      'Bounce Rate',
+      'Page views',
+      'Session duration',
+      'Bounce rate',
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
@@ -89,7 +86,7 @@ describe('SummaryCards', () => {
 
   it('renders skeletons while loading and no numbers', () => {
     const { container } = render(<SummaryCards data={undefined} isLoading websiteId="site_1" />);
-    expect(screen.queryByText('Unique Visitors')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unique visitors')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
@@ -97,7 +94,7 @@ describe('SummaryCards', () => {
     // A failed query leaves `data` undefined; rendering zeroes would claim the site
     // had no traffic rather than that the read failed.
     render(<SummaryCards data={undefined} websiteId="site_1" />);
-    expect(screen.queryByText('Unique Visitors')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unique visitors')).not.toBeInTheDocument();
   });
 
   // ─── Which copy of each KPI wins ──────────────────────────────────────────
@@ -119,14 +116,14 @@ describe('SummaryCards', () => {
           })}
         />,
       );
-      expect(within(tile('Page Views')).getByText('500')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('500')).toBeInTheDocument();
     });
 
     it('falls back to the top-level field when there is no comparison block', () => {
       render(
         <SummaryCards websiteId="site_1" data={dashboard({ comparison: undefined, page_views: 777 })} />,
       );
-      expect(within(tile('Page Views')).getByText('777')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('777')).toBeInTheDocument();
     });
 
     it('falls back to metrics when neither the comparison nor the top-level field is set', () => {
@@ -144,7 +141,7 @@ describe('SummaryCards', () => {
       // put the same number in two adjacent tiles under different names.
       render(<SummaryCards websiteId="site_1" data={dashboard()} />);
       expect(within(tile('Total visitors')).getByText('200')).toBeInTheDocument();
-      expect(within(tile('Unique Visitors')).getByText('120')).toBeInTheDocument();
+      expect(within(tile('Unique visitors')).getByText('120')).toBeInTheDocument();
     });
 
     it('formats large counts with thousands separators', () => {
@@ -154,13 +151,13 @@ describe('SummaryCards', () => {
           data={dashboard({ comparison: undefined, page_views: 1_234_567 })}
         />,
       );
-      expect(within(tile('Page Views')).getByText('1,234,567')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('1,234,567')).toBeInTheDocument();
     });
 
     it('formats the session duration and bounce rate rather than printing raw numbers', () => {
       render(<SummaryCards websiteId="site_1" data={dashboard()} />);
-      expect(within(tile('Session Duration')).getByText('3m 4s')).toBeInTheDocument();
-      expect(within(tile('Bounce Rate')).getByText('42.5%')).toBeInTheDocument();
+      expect(within(tile('Session duration')).getByText('3m 4s')).toBeInTheDocument();
+      expect(within(tile('Bounce rate')).getByText('42.5%')).toBeInTheDocument();
     });
   });
 
@@ -171,25 +168,25 @@ describe('SummaryCards', () => {
       // The dashboard read is 30 seconds stale; the badge has its own faster query.
       useLiveVisitors.mockReturnValue({ data: 42 } as never);
       render(<SummaryCards websiteId="site_1" data={dashboard({ live_visitors: 5 })} />);
-      expect(within(tile('Live Visitors')).getByText('42')).toBeInTheDocument();
+      expect(within(tile('Live visitors')).getByText('42')).toBeInTheDocument();
     });
 
     it('uses the payload value in demo mode, where there is no live query', () => {
       useLiveVisitors.mockReturnValue({ data: undefined } as never);
       render(<SummaryCards websiteId="demo" isDemo data={dashboard({ live_visitors: 17 })} />);
-      expect(within(tile('Live Visitors')).getByText('17')).toBeInTheDocument();
+      expect(within(tile('Live visitors')).getByText('17')).toBeInTheDocument();
     });
 
     it('shows zero rather than blank while the live query is still pending', () => {
       useLiveVisitors.mockReturnValue({ data: undefined } as never);
       render(<SummaryCards websiteId="site_1" data={dashboard()} />);
-      expect(within(tile('Live Visitors')).getByText('0')).toBeInTheDocument();
+      expect(within(tile('Live visitors')).getByText('0')).toBeInTheDocument();
     });
 
     it('carries no growth badge — a live count has no prior period', () => {
       useLiveVisitors.mockReturnValue({ data: 42 } as never);
       render(<SummaryCards websiteId="site_1" data={dashboard()} />);
-      const live = tile('Live Visitors');
+      const live = tile('Live visitors');
       expect(within(live).queryByText(/%$/)).not.toBeInTheDocument();
       expect(within(live).queryByText('New')).not.toBeInTheDocument();
     });
@@ -214,19 +211,19 @@ describe('SummaryCards', () => {
 
     it('shows the percentage change against the prior period', () => {
       renderWithPrevious({ page_views: 400 });
-      expect(within(tile('Page Views')).getByText('25.0%')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('25.0%')).toBeInTheDocument();
     });
 
     it('shows the magnitude without a sign — direction is the arrow icon', () => {
       renderWithPrevious({ page_views: 1000 });
-      expect(within(tile('Page Views')).getByText('50.0%')).toBeInTheDocument();
-      expect(within(tile('Page Views')).queryByText('-50.0%')).not.toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('50.0%')).toBeInTheDocument();
+      expect(within(tile('Page views')).queryByText('-50.0%')).not.toBeInTheDocument();
     });
 
     it('shows "New" rather than an infinite percentage when the prior period was empty', () => {
       // 500 from 0 is undefined growth, not 0% and not Infinity%.
       renderWithPrevious({ page_views: 0 });
-      expect(within(tile('Page Views')).getByText('New')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('New')).toBeInTheDocument();
     });
 
     it('shows a dash when both periods were empty', () => {
@@ -241,17 +238,17 @@ describe('SummaryCards', () => {
           })}
         />,
       );
-      expect(within(tile('Page Views')).getByText('—')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('—')).toBeInTheDocument();
     });
 
     it('shows "No change" rather than 0.0% when the periods match', () => {
       renderWithPrevious({ page_views: 500 });
-      expect(within(tile('Page Views')).getByText('No change')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('No change')).toBeInTheDocument();
     });
 
     it('clamps runaway growth to 999+ instead of rendering six digits', () => {
       renderWithPrevious({ page_views: 1 });
-      expect(within(tile('Page Views')).getByText('999+%')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('999+%')).toBeInTheDocument();
     });
 
     it('floors a total collapse at 100%', () => {
@@ -266,32 +263,32 @@ describe('SummaryCards', () => {
           })}
         />,
       );
-      expect(within(tile('Page Views')).getByText('100.0%')).toBeInTheDocument();
+      expect(within(tile('Page views')).getByText('100.0%')).toBeInTheDocument();
     });
 
     it('treats a falling bounce rate as an improvement', () => {
       // Bounce rate is inverted: down is good. Painting it red would tell the user
       // their best week was their worst.
       renderWithPrevious({ bounce_rate: 50 });
-      const badge = within(tile('Bounce Rate')).getByText('20.0%').closest('span')!;
+      const badge = within(tile('Bounce rate')).getByText('20.0%').closest('span')!;
       expect(badge.className).toContain('emerald');
     });
 
     it('treats a rising bounce rate as a regression', () => {
       renderWithPrevious({ bounce_rate: 30 });
-      const badge = within(tile('Bounce Rate')).getByText(/33\.3%/).closest('span')!;
+      const badge = within(tile('Bounce rate')).getByText(/33\.3%/).closest('span')!;
       expect(badge.className).toContain('rose');
     });
 
     it('treats rising pageviews as an improvement', () => {
       renderWithPrevious({ page_views: 400 });
-      const badge = within(tile('Page Views')).getByText('25.0%').closest('span')!;
+      const badge = within(tile('Page views')).getByText('25.0%').closest('span')!;
       expect(badge.className).toContain('emerald');
     });
 
     it('omits the badge entirely when the prior period is absent', () => {
       render(<SummaryCards websiteId="site_1" data={dashboard({ comparison: undefined })} />);
-      const views = tile('Page Views');
+      const views = tile('Page views');
       expect(within(views).queryByText('New')).not.toBeInTheDocument();
       expect(within(views).queryByText('No change')).not.toBeInTheDocument();
     });

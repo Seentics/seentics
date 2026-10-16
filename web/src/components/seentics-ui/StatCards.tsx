@@ -5,112 +5,95 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * Semantic tones for a stat tile.
+ * The figures at the top of a dashboard page: one panel, split by hairlines.
  *
- * Call sites used to pass raw `iconColor` / `valueColor` classes, which is why the
- * tiles drifted: some pages coloured the icon but not the number, some coloured
- * neither, and the same meaning ("healthy", "failing") picked a different green or
- * red on every page. A tone names the meaning and this file owns the colour, so
- * every page renders the same thing.
+ * Every page draws its headline numbers with this, so they read the same everywhere: a
+ * sentence-case label, the figure in the text colour, and a line of context under it. Colour is
+ * kept for meaning — a failure count that is not zero is red — rather than given to each tile
+ * in turn, which is how the same blue came to mean sessions on one page and revenue on another.
  */
-export type StatTone = 'default' | 'success' | 'info' | 'warning' | 'danger' | 'accent';
-
-const TONES: Record<StatTone, { icon: string; value: string }> = {
-  default: { icon: 'text-muted-foreground', value: 'text-foreground' },
-  success: { icon: 'text-emerald-600 dark:text-emerald-400', value: 'text-emerald-600 dark:text-emerald-400' },
-  info:    { icon: 'text-blue-600 dark:text-blue-400',       value: 'text-blue-600 dark:text-blue-400' },
-  warning: { icon: 'text-amber-600 dark:text-amber-400',     value: 'text-amber-600 dark:text-amber-400' },
-  danger:  { icon: 'text-rose-600 dark:text-rose-400',       value: 'text-rose-600 dark:text-rose-400' },
-  accent:  { icon: 'text-indigo-600 dark:text-indigo-400',   value: 'text-indigo-600 dark:text-indigo-400' },
-};
-
 export interface StatCard {
-  label: string | React.ReactNode;
+  label: string;
   value: string | number;
-  icon?: React.ElementType;
-  /** Semantic meaning of the figure. Drives both icon and value colour. */
-  tone?: StatTone;
-  /**
-   * Drop to `default` tone when the figure is unremarkable — e.g. a failure count
-   * of 0 should not be shouting in red. Ignored when tone is 'default'.
-   */
+  /** `danger`: the figure is a problem (failures, errors). Red unless `toneWhen` is false. */
+  tone?: 'default' | 'danger';
+  /** Set false when the figure is unremarkable, e.g. 0 failures should not be red. */
   toneWhen?: boolean;
+  /** One line of context under the figure: the period, what it counts, a comparison. */
   subtext?: string;
+  /** A change against the previous period, beside the context line. */
+  delta?: React.ReactNode;
+  /** A pulsing dot before the label, for a figure that is live. */
+  live?: boolean;
 }
+
+const COLS = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-2 md:grid-cols-3',
+  4: 'grid-cols-2 md:grid-cols-4',
+  6: 'grid-cols-2 md:grid-cols-3 xl:grid-cols-6',
+} as const;
+
+/**
+ * Hairlines between cells: the grid's 1px gaps over the border colour, each cell on the card
+ * colour. On phones a lone last cell spans the row, so no empty gap shows.
+ */
+const GRID = 'surface grid gap-px overflow-hidden bg-border';
+const CELL = 'min-w-0 bg-card px-5 py-4 [&:last-child:nth-child(odd)]:col-span-2 md:[&:last-child:nth-child(odd)]:col-span-1';
 
 export function StatCards({
   cards,
   isLoading,
   cols = 4,
   className,
-  cardClassName,
 }: {
   cards: StatCard[];
   isLoading?: boolean;
-  cols?: 2 | 3 | 4;
-  /** Extra classes on the grid wrapper (e.g. gap, margin). */
+  cols?: keyof typeof COLS;
+  /** Extra classes on the panel (spacing). */
   className?: string;
-  /** Extra classes on each stat tile. */
-  cardClassName?: string;
 }) {
-  const gridClass = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-2 md:grid-cols-3',
-    4: 'grid-cols-2 md:grid-cols-4',
-  }[cols];
-
-  // `.surface` (globals.css) is the single definition of a flat panel — bg, border
-  // and radius. This used to hardcode `border-none`, which is why the stat tiles on
-  // automations, funnels, replays and heatmaps had no edge while the overview's
-  // SummaryCards did.
-  const tileBase = 'surface px-4 py-3.5';
-
   if (isLoading) {
     return (
-      <div className={cn('grid gap-4 mb-4', gridClass, className)}>
+      <section aria-label="Summary" aria-busy className={cn(GRID, COLS[cols], 'mb-4', className)}>
         {Array.from({ length: cols }).map((_, i) => (
-          <div key={i} className={cn(tileBase, cardClassName)}>
-            <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
-            <Skeleton className="h-7 w-16 mb-2 rounded-lg" />
-            <Skeleton className="h-3 w-10 rounded-lg" />
+          <div key={i} className={CELL}>
+            <Skeleton className="h-3 w-20 rounded" />
+            <Skeleton className="mt-2.5 h-7 w-16 rounded" />
+            <Skeleton className="mt-2 h-3 w-24 rounded" />
           </div>
         ))}
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className={cn('grid gap-4 mb-4', gridClass, className)}>
-      {cards.map((card, i) => {
-        const Icon = card.icon;
-        const tone = TONES[card.toneWhen === false ? 'default' : (card.tone ?? 'default')];
+    <section aria-label="Summary" className={cn(GRID, COLS[cols], 'mb-4', className)}>
+      {cards.map((card) => {
+        const danger = card.tone === 'danger' && card.toneWhen !== false;
         return (
-          <div key={i} className={cn(tileBase, cardClassName)}>
-            <div className="flex items-center gap-2 mb-2">
-              {Icon && (
-                <div className="w-7 h-7 rounded-lg bg-muted/70 border border-border flex items-center justify-center shrink-0">
-                  <Icon className={cn('h-3.5 w-3.5', tone.icon)} />
-                </div>
-              )}
-              {typeof card.label === 'string' ? (
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground leading-tight">
-                  {card.label}
+          <div key={card.label} role="group" aria-label={card.label} className={CELL}>
+            <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+              {card.live && (
+                <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:hidden" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 </span>
-              ) : (
-                <div className="text-xs font-medium text-muted-foreground leading-tight min-w-0">
-                  {card.label}
-                </div>
               )}
-            </div>
-            {/* One size at every breakpoint. It used to scale up to 1.75rem, which
-                made long figures dominate the tile and read differently per page. */}
-            <p className={cn('text-xl font-bold tracking-tight tabular-nums', tone.value)}>
+              {card.label}
+            </p>
+            <p className={cn('mt-1 truncate text-2xl font-semibold tracking-tight tabular-nums', danger ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
               {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
             </p>
-            {card.subtext && <p className="text-xs text-muted-foreground mt-1">{card.subtext}</p>}
+            {(card.subtext || card.delta) && (
+              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                {card.delta}
+                {card.subtext && <span className="truncate">{card.subtext}</span>}
+              </div>
+            )}
           </div>
         );
       })}
-    </div>
+    </section>
   );
 }

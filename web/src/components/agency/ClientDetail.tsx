@@ -1,7 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle2, CircleSlash, Gauge, Globe, Loader2, Pause, Pencil, Play } from 'lucide-react';
+import { ArrowLeft, Loader2, Pause, Pencil, Play } from 'lucide-react';
 import { isDemoRefusal, useAgencyClient, useUpdateClient } from '@/features/agency/queries';
 import type { AgencyClient } from '@/features/agency/types';
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -113,30 +113,20 @@ export function ClientDetail({ websiteId, clientId, onBack, onEdit }: {
           {
             label: 'Websites',
             value: client.limits.maxWebsites === null ? client.websites.length : `${client.websites.length} / ${client.limits.maxWebsites}`,
-            icon: Globe,
-            tone: 'info',
           },
           {
             label: 'Event cap',
             value: client.limits.maxMonthlyEvents === null ? 'None' : compactNumber(client.limits.maxMonthlyEvents),
             subtext: 'per month',
-            icon: Gauge,
-            tone: 'accent',
-            toneWhen: client.limits.maxMonthlyEvents !== null,
           },
           {
             label: 'Recording cap',
             value: client.limits.maxReplays === null ? 'None' : compactNumber(client.limits.maxReplays),
             subtext: 'per month',
-            icon: Gauge,
-            tone: 'accent',
-            toneWhen: client.limits.maxReplays !== null,
           },
           {
             label: off.length ? 'Features off' : 'Features',
             value: off.length ? off.length : 'All on',
-            icon: off.length ? CircleSlash : CheckCircle2,
-            tone: off.length ? 'warning' : 'success',
           },
         ]}
       />

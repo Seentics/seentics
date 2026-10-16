@@ -15,7 +15,7 @@ import { MatchQuality } from '@/components/conversions/MatchQuality';
 import { PlatformMark } from '@/components/conversions/parts';
 import { TestEventDialog } from '@/components/conversions/TestEventDialog';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Figure } from '@/components/leads/parts';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -130,17 +130,19 @@ export default function ConversionsPage() {
             ))}
           </section>
 
-          <section aria-label="Summary" className="surface grid grid-cols-2 md:grid-cols-4">
-            <Figure label="Sent" value={figure(totals?.sent)} note={RANGES.find((r) => r.days === days)?.label} />
-            <Figure
-              label="Accepted"
-              value={totals ? `${percent(totals.accepted, settled)}%` : '—'}
-              note={totals ? `${totals.accepted.toLocaleString()} conversions` : undefined}
-              className="border-l border-border"
-            />
-            <Figure label="Failed" value={figure(totals?.failed)} note="Retried for several hours first" className="border-t border-border md:border-l md:border-t-0" />
-            <Figure label="Sending" value={figure(totals?.pending)} note="Usually seconds" className="border-l border-t border-border md:border-t-0" />
-          </section>
+          <StatCards
+            className="mb-0"
+            cards={[
+              { label: 'Sent', value: figure(totals?.sent), subtext: RANGES.find((r) => r.days === days)?.label },
+              {
+                label: 'Accepted',
+                value: totals ? `${percent(totals.accepted, settled)}%` : '—',
+                subtext: totals ? `${totals.accepted.toLocaleString()} conversions` : undefined,
+              },
+              { label: 'Failed', value: figure(totals?.failed), subtext: 'Retried for several hours first', tone: 'danger', toneWhen: (totals?.failed ?? 0) > 0 },
+              { label: 'Sending', value: figure(totals?.pending), subtext: 'Usually seconds' },
+            ]}
+          />
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             <section aria-labelledby="per-day" className="surface p-4">

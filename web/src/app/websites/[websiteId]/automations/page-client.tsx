@@ -6,12 +6,10 @@ import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   Bell,
   Bot,
-  CheckCircle2,
   Clock,
   Coffee,
   Eye,
@@ -27,14 +25,12 @@ import {
   MessageSquare,
   MoreVertical,
   MousePointer,
-  Pause,
   Pencil,
   Plus,
   Search,
   Tag,
   Target,
   TrendingDown,
-  TrendingUp,
   Trash2,
   UserCheck,
   Webhook,
@@ -214,14 +210,12 @@ export default function AutomationsPage() {
       <StatCards
         isLoading={isLoading}
         cards={[
-          { label: 'Active', value: active, icon: CheckCircle2, tone: 'success', toneWhen: active > 0 },
-          { label: 'Paused', value: paused, icon: Pause, tone: 'warning', toneWhen: paused > 0 },
-          { label: 'Total runs', value: totalRuns, icon: Activity, tone: 'info' },
+          { label: 'Active', value: active },
+          { label: 'Paused', value: paused },
+          { label: 'Total runs', value: totalRuns },
           {
             label: 'Avg success',
             value: withRuns.length ? `${avgSuccess.toFixed(1)}%` : '—',
-            icon: TrendingUp,
-            tone: 'accent',
           },
         ]}
       />

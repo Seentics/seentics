@@ -15,7 +15,7 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Video, Clock, AlertTriangle, Search, Users, RefreshCw, Trash2, MousePointerClick, Flame } from 'lucide-react';
+import { Video, AlertTriangle, Search, RefreshCw, Trash2, MousePointerClick, Flame } from 'lucide-react';
 
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
@@ -307,30 +307,22 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
 
       <StatCards cards={[
         {
-          label: filtersActive ? 'Matching Sessions' : 'Total Sessions',
+          label: filtersActive ? 'Matching sessions' : 'Total sessions',
           value: stats.total,
-          icon: Users,
-          tone: 'info',
         },
         {
-          label: 'Avg Duration',
+          label: 'Avg duration',
           value: stats.avgDurationSeconds > 0 ? formatDuration(stats.avgDurationSeconds) : '—',
-          icon: Clock,
-          tone: 'accent',
         },
         {
-          label: 'With Errors',
+          label: 'With errors',
           value: stats.withErrors,
-          icon: AlertTriangle,
           tone: 'danger',
           toneWhen: stats.withErrors > 0,
         },
         {
           label: 'Rage clicks',
           value: stats.withRageClicks,
-          icon: MousePointerClick,
-          tone: 'warning',
-          toneWhen: stats.withRageClicks > 0,
         },
       ]} />
 

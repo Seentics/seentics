@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, Activity, Layers } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { useRangeDates } from '@/lib/range-dates';
@@ -105,8 +105,8 @@ export default function EventsPage() {
       {!isLoading && filteredEvents.length > 0 && (
         <StatCards
           cards={[
-            { label: 'Event Types', value: filteredEvents.length, icon: Layers, tone: 'accent' },
-            { label: 'Total Occurrences', value: totalEvents, icon: Activity, tone: 'info' },
+            { label: 'Event types', value: filteredEvents.length },
+            { label: 'Total occurrences', value: totalEvents },
           ]}
           cols={2}
         />

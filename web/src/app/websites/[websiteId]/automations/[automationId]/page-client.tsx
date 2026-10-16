@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowDown, ArrowLeft, Play, Pause, Trash2, TrendingUp, Pencil, CheckCircle2, XCircle, Activity, Zap, Webhook, MessageSquare, Bell, Megaphone, Highlighter, Info, Feather, ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX, AlertTriangle, EyeOff, UserCheck, MousePointer2, ScrollText, Clock, Settings, Braces, Save } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Play, Pause, Trash2, Pencil, Zap, Webhook, MessageSquare, Bell, Megaphone, Highlighter, Info, Feather, ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX, AlertTriangle, EyeOff, UserCheck, MousePointer2, ScrollText, Clock, Settings, Braces, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
@@ -251,10 +251,10 @@ export default function AutomationDetailPage() {
             cards={[
               // Only failures keep a tone, and only when there are any. Four
               // coloured figures in a row read as four warnings, not one summary.
-              { label: 'Total runs',   value: automation.stats?.totalExecutions ?? 0, icon: Activity },
-              { label: 'Success rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%`, icon: CheckCircle2 },
-              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0, icon: TrendingUp },
-              { label: 'Failures',     value: automation.stats?.failureCount ?? 0, icon: XCircle, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
+              { label: 'Total runs',   value: automation.stats?.totalExecutions ?? 0 },
+              { label: 'Success rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%` },
+              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0 },
+              { label: 'Failures',     value: automation.stats?.failureCount ?? 0, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
             ]}
           />
 

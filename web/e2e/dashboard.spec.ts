@@ -159,16 +159,15 @@ test.describe('Dashboard E2E Tests', () => {
 
     // Each figure asserted inside its own tile. A bare `text=980` is a page-wide
     // substring match and collides with any other element containing those digits.
-    const tile = (label: string) =>
-      page.getByText(label, { exact: true }).locator('xpath=ancestor::div[contains(@class,"group")][1]');
+    const tile = (label: string) => page.getByRole('group', { name: label, exact: true });
 
     // Thousands are comma-grouped, not abbreviated — the old assertion looked for
     // "1.2K" and would never have matched.
-    await expect(tile('Unique Visitors')).toContainText('1,250', { timeout: 10000 });
-    await expect(tile('Page Views')).toContainText('4,200');
-    await expect(tile('Bounce Rate')).toContainText('42.5%');
+    await expect(tile('Unique visitors')).toContainText('1,250', { timeout: 10000 });
+    await expect(tile('Page views')).toContainText('4,200');
+    await expect(tile('Bounce rate')).toContainText('42.5%');
     // 184 seconds, rendered.
-    await expect(tile('Session Duration')).toContainText('3m 4s');
+    await expect(tile('Session duration')).toContainText('3m 4s');
 
     // The tile labelled "Total visitors" shows the *sessions* figure (980), not a
     // visitor count — the mock sends `sessions: 980` and `total_visitors: 1250`.
@@ -178,7 +177,7 @@ test.describe('Dashboard E2E Tests', () => {
 
     // The tile also renders the period-over-period delta, which is what makes
     // `comparison.previous_period` load-bearing in the mock above: 1250 vs 1000.
-    await expect(tile('Unique Visitors')).toContainText('25.0%');
+    await expect(tile('Unique visitors')).toContainText('25.0%');
 
     // Breakdowns, from `dimensions-bulk` — a different endpoint from the summary.
     await expect(page.getByText('/pricing').first()).toBeVisible();

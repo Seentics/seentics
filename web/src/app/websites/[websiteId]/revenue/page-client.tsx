@@ -20,7 +20,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { DataTable, SortableHeader, type ColumnDef } from '@/components/ui/data-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Banknote, ShoppingCart, Scale, BarChart2, Receipt, ExternalLink, BookOpen,
+  Receipt,
+  ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 
 
@@ -53,10 +55,8 @@ export default function RevenuePage() {
     if (!summary) return [];
     return [
       {
-        label: 'Total Revenue',
+        label: 'Total revenue',
         value: formatMoney(summary.total_revenue, cur),
-        icon: Banknote,
-        tone: 'success' as const,
         subtext: prior
           ? `${prior.change_pct >= 0 ? '+' : ''}${prior.change_pct.toFixed(1)}% vs prior period`
           : undefined,
@@ -64,24 +64,18 @@ export default function RevenuePage() {
       {
         label: 'Orders',
         value: summary.orders,
-        icon: ShoppingCart,
-        tone: 'info' as const,
         subtext: orderChangePct !== undefined
           ? `${orderChangePct >= 0 ? '+' : ''}${orderChangePct.toFixed(1)}% vs prior period`
           : undefined,
       },
       {
-        label: 'Avg. Order Value',
+        label: 'Avg. order value',
         value: formatMoney(summary.aov, cur),
-        icon: Scale,
-        tone: 'warning' as const,
         subtext: `ARPU ${formatMoney(summary.arpu, cur)}`,
       },
       {
-        label: 'Revenue / Session',
+        label: 'Revenue / session',
         value: formatMoney(summary.revenue_per_session, cur),
-        icon: BarChart2,
-        tone: 'accent' as const,
         subtext: `${summary.sessions.toLocaleString()} sessions`,
       },
     ];
@@ -213,7 +207,7 @@ export default function RevenuePage() {
       </DashboardPageHeader>
 
       {/* ── 4 stat cards (same StatCards component as Funnels, Events pages) ── */}
-      <StatCards cards={topCards} cols={4} isLoading={false} cardClassName="p-3 sm:p-4" />
+      <StatCards cards={topCards} cols={4} isLoading={false} />
 
       <RevenueOrdersChart chartData={chartData} currency={cur} />
 

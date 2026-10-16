@@ -88,7 +88,7 @@ export default function WebsiteBuildersPage() {
 
       <DocSection title="Check it works">
         <Ul>
-          <Li>Publish, then open your live site in a private window. In Seentics, the Overview&apos;s Live Visitors should include you within seconds.</Li>
+          <Li>Publish, then open your live site in a private window. In Seentics, the Overview&apos;s Live visitors should include you within seconds.</Li>
           <Li>Nothing? View the page source and search for <C>seentics.min.js</C>. If it is missing, the site was not republished, or the plan does not allow custom code.</Li>
           <Li>Present but no data: see the checks in <Link href="/docs/quick-start" className="text-primary hover:underline">Quick start</Link>. A <C>403</C> on <C>/collect</C> means the website&apos;s URL in Seentics does not match your domain.</Li>
         </Ul>

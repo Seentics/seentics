@@ -60,10 +60,10 @@ test.describe('Heatmaps E2E Tests', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Heatmaps');
 
     // Stat cards, summed over the pages: views are clicks + scrolls.
-    const stat = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('..');
-    await expect(stat('Total Views')).toContainText('340');
-    await expect(stat('Total Clicks')).toContainText('200');
-    await expect(stat('Avg Scroll Depth')).toContainText('73%');
+    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
+    await expect(stat('Total views')).toContainText('340');
+    await expect(stat('Total clicks')).toContainText('200');
+    await expect(stat('Avg scroll depth')).toContainText('73%');
     await expect(page.getByText('2 pages tracked')).toBeVisible();
 
     // One row per page, with a plain-words "What happened" line instead of raw counts.

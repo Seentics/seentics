@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Target, CheckCircle2, TrendingUp, Calendar, Globe } from 'lucide-react';
+import { ArrowLeft, Target } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
@@ -99,26 +99,18 @@ export default function GoalDetailPage() {
           {
             label: 'Completions',
             value: goal.completions ?? 0,
-            icon: CheckCircle2,
-            tone: 'success',
           },
           {
-            label: 'Conversion Rate',
+            label: 'Conversion rate',
             value: `${(goal.conversion_rate || 0).toFixed(1)}%`,
-            icon: TrendingUp,
-            tone: 'accent',
           },
           {
-            label: 'Unique Visitors',
+            label: 'Unique visitors',
             value: goal.unique_visitors || Math.floor((goal.completions || 0) * 0.8),
-            icon: Globe,
-            tone: 'info',
           },
           {
             label: 'Last 30 days',
             value: goal.completions ?? 0,
-            icon: Calendar,
-            tone: 'warning',
           },
         ]}
       />

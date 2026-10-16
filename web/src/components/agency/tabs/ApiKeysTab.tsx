@@ -1,6 +1,5 @@
 'use client';
 
-import { Activity, KeyRound, ShieldCheck } from 'lucide-react';
 import { useAgencyAPIKeys } from '@/features/agency/queries';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { AccountKeysList } from '@/components/agency/AccountKeysPanel';
@@ -21,9 +20,9 @@ export function ApiKeysTab({ websiteId, onCreateAccountKey }: { websiteId: strin
         isLoading={isLoading}
         cols={3}
         cards={[
-          { label: 'API keys', value: keys.length, icon: KeyRound, tone: 'info' },
-          { label: 'Can manage', value: canManage, icon: ShieldCheck, tone: 'accent' },
-          { label: 'Used this week', value: usedRecently, icon: Activity, tone: 'success', toneWhen: usedRecently > 0 },
+          { label: 'API keys', value: keys.length },
+          { label: 'Can manage', value: canManage },
+          { label: 'Used this week', value: usedRecently },
         ]}
       />
 

@@ -15,7 +15,7 @@ import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { RangeSelect } from '@/components/ui/range-select';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Activity, Bug, ChevronLeft, Clock, Search, Sparkles } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { relativeTime } from '@/features/errors/format';
 import { ErrorGroupDetail } from '@/components/errors/error-group-detail';
@@ -149,10 +149,10 @@ export default function ErrorsPage() {
       <StatCards
         isLoading={isLoading}
         cards={[
-          { label: 'Error groups', value: list.length, icon: Bug, tone: 'danger', toneWhen: list.length > 0 },
-          { label: 'Occurrences', value: list.reduce((sum, g) => sum + g.event_count, 0), icon: Activity, tone: 'warning', toneWhen: list.length > 0 },
-          { label: 'New in this range', value: newInRange, icon: Sparkles, tone: 'info' },
-          { label: 'Last error', value: lastSeen ? relativeTime(lastSeen, now) : '—', icon: Clock },
+          { label: 'Error groups', value: list.length, tone: 'danger', toneWhen: list.length > 0 },
+          { label: 'Occurrences', value: list.reduce((sum, g) => sum + g.event_count, 0) },
+          { label: 'New in this range', value: newInRange },
+          { label: 'Last error', value: lastSeen ? relativeTime(lastSeen, now) : '—' },
         ]}
       />
 

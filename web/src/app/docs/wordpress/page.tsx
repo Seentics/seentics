@@ -34,7 +34,7 @@ export default function WordPressPage() {
       <DocSection title="Check that it works">
         <Ol>
           <Oli>Open your site in a private window. The plugin skips logged-in administrators, so your own visits in the normal window do not count.</Oli>
-          <Oli>In Seentics, open the <C>Overview</C>. Your visit should appear in Live Visitors within a few seconds.</Oli>
+          <Oli>In Seentics, open the <C>Overview</C>. Your visit should appear in Live visitors within a few seconds.</Oli>
         </Ol>
         <P>
           Nothing shows up? View the page source and search for <C>seentics-js</C>. If the tag is missing,

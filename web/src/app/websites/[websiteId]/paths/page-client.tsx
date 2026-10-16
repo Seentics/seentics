@@ -5,7 +5,6 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { PathAnalysis, usePathAnalysis } from '@/components/analytics/PathAnalysis';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Route, Clock, TrendingUp, Users } from 'lucide-react';
 import { PathsDashboardView } from '@/components/paths/PathsDashboardView';
 import { useDashboardData } from '@/features/analytics/queries';
 
@@ -38,23 +37,17 @@ export default function PathsPage() {
       }
       stats={[
           {
-            label: 'Avg Path Length',
+            label: 'Avg path length',
             value: metrics?.pages_per_session != null ? metrics.pages_per_session.toFixed(1) : loading,
-            icon: Route,
-            tone: 'accent',
           },
           {
-            label: 'Sessions Analyzed',
+            label: 'Sessions analyzed',
             value: metrics?.sessions != null ? metrics.sessions.toLocaleString() : loading,
-            icon: Users,
-            tone: 'info',
           },
-          { label: 'Top Journey', value: paths ? (paths.top_journey ?? loading) : loading, icon: TrendingUp, tone: 'success' },
+          { label: 'Top journey', value: paths ? (paths.top_journey ?? loading) : loading },
           {
-            label: 'Avg Time',
+            label: 'Avg time',
             value: metrics?.avg_session_time != null ? formatDuration(metrics.avg_session_time) : loading,
-            icon: Clock,
-            tone: 'warning',
           },
       ]}
       analysis={<PathAnalysis websiteId={websiteId} dateRange={DAYS} />}

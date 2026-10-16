@@ -10,7 +10,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, BarChart3, Search } from 'lucide-react';
+import { GitBranch, MoreVertical, Eye, Edit, Trash2, Plus, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
 import { useFunnels, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
@@ -223,21 +223,19 @@ export default function FunnelsPage() {
   const summary = useMemo(() => {
     if (isDemoMode) {
       return [
-        { label: 'Active Funnels', value: 3, icon: GitBranch, tone: 'success' as const },
-        { label: 'Avg Completion', value: '24.3%', icon: TrendingUp, tone: 'accent' as const },
-        { label: 'Total Entries', value: '48,291', icon: Users, tone: 'info' as const },
-        { label: 'Conversions', value: '11,726', icon: Target, tone: 'success' as const },
+        { label: 'Active funnels', value: 3 },
+        { label: 'Avg completion', value: '24.3%' },
+        { label: 'Total entries', value: '48,291' },
+        { label: 'Conversions', value: '11,726' },
       ];
     }
     return [
-      { label: 'Active Funnels', value: funnels.filter(f => f.is_active).length, icon: GitBranch, tone: 'success' as const },
-      { label: 'Total Funnels', value: funnels.length, icon: BarChart3, tone: 'info' as const },
-      { label: 'Total Steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0), icon: Target, tone: 'warning' as const },
+      { label: 'Active funnels', value: funnels.filter(f => f.is_active).length },
+      { label: 'Total funnels', value: funnels.length },
+      { label: 'Total steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0) },
       {
         label: 'Avg. conversion',
         value: funnelIds.length === 0 ? '—' : avgConversionStr,
-        icon:  TrendingUp,
-        tone:  'accent' as const,
       },
     ];
   }, [isDemoMode, funnels, funnelIds.length, avgConversionStr]);

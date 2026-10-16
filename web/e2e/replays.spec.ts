@@ -131,10 +131,10 @@ test.describe('Session Replays E2E Tests', () => {
 
     // The headline figures come from the response's own `summary`, not from counting the page.
     // `.first()`: the stat cards come before the session groups, which also has a "Rage clicks" row.
-    const stat = (label: string) => page.getByText(label, { exact: true }).first().locator('..').locator('..');
-    await expect(stat('Total Sessions')).toContainText('3');
-    await expect(stat('Avg Duration')).toContainText('2m 43s');
-    await expect(stat('With Errors')).toContainText('1');
+    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
+    await expect(stat('Total sessions')).toContainText('3');
+    await expect(stat('Avg duration')).toContainText('2m 43s');
+    await expect(stat('With errors')).toContainText('1');
     await expect(stat('Rage clicks')).toContainText('1');
     await expect(page.getByText('3 sessions recorded')).toBeVisible();
     await expect(page.getByText('1–3 of 3 rows')).toBeVisible();

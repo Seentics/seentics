@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -14,7 +15,6 @@ import { ContactDrawer } from '@/components/leads/ContactDrawer';
 import { ContactsTab, type ContactListFilters } from '@/components/leads/ContactsTab';
 import { ImportContactsDialog } from '@/components/leads/ImportContactsDialog';
 import { downloadBlob } from '@/components/leads/lead-format';
-import { Figure } from '@/components/leads/parts';
 import { SubmissionsTab, type SubmissionListFilters } from '@/components/leads/SubmissionsTab';
 import { leadsApi } from '@/features/leads/api';
 import { useContacts, useSiteSubmissions } from '@/features/leads/queries';
@@ -115,12 +115,15 @@ export default function LeadsPage() {
         )}
       </DashboardPageHeader>
 
-      <section aria-label="Summary" className="surface mb-5 grid grid-cols-2 md:grid-cols-4">
-        <Figure label="Submissions" value={figure(recent.data?.total)} note="Last 30 days" />
-        <Figure label="Contacts" value={figure(everyone.data?.total)} note="Kept until deleted" className="border-l border-border" />
-        <Figure label="New" value={figure(statuses?.new)} note="Not contacted yet" className="border-t border-border md:border-l md:border-t-0" />
-        <Figure label="Customers" value={figure(statuses?.customer)} className="border-l border-t border-border md:border-t-0" />
-      </section>
+      <StatCards
+        className="mb-5"
+        cards={[
+          { label: 'Submissions', value: figure(recent.data?.total), subtext: 'Last 30 days' },
+          { label: 'Contacts', value: figure(everyone.data?.total), subtext: 'Kept until deleted' },
+          { label: 'New', value: figure(statuses?.new), subtext: 'Not contacted yet' },
+          { label: 'Customers', value: figure(statuses?.customer) },
+        ]}
+      />
 
       <div role="tablist" aria-label="Leads" className="mb-4 flex gap-5 border-b border-border">
         {(['submissions', 'contacts'] as const).map((t) => (

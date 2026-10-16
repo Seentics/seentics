@@ -53,7 +53,7 @@ export default function QuickStartPage() {
 
       <DocSection title="3. Confirm it is working">
         <P>
-          Load a page on your site, then open the <C>Overview</C> in the dashboard. The Live Visitors
+          Load a page on your site, then open the <C>Overview</C> in the dashboard. The Live visitors
           count should include your own visit within a few seconds. If it does not:
         </P>
         <Ul>

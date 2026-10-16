@@ -16,7 +16,9 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Flame, Eye, MousePointer, Move, Search, Activity, Trash2,
+  Flame,
+  Search,
+  Trash2,
   RefreshCw,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -57,7 +59,7 @@ function stripWebsiteDashboardPrefix(path: string, websiteId: string): string {
  * `normalizeHeatmapPagePath`. Handles legacy rows already stored with raw IDs.
  */
 const DYNAMIC_SEGMENT_RE =
-  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16,}|[a-z0-9]{24,}|\d{6,})$/i;
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16 }|[a-z0-9]{24 }|\d{6 })$/i;
 
 function normalizeDynamicIds(path: string): string {
   return path
@@ -322,10 +324,10 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
       )}
 
       <StatCards cards={[
-        { label: 'Total Views',      value: totalViews,             icon: Eye, tone: 'info' },
-        { label: 'Total Clicks',     value: totalClicks,            icon: MousePointer, tone: 'accent' },
-        { label: 'Avg Scroll Depth', value: avgScroll > 0 ? `${avgScroll}%` : '—', icon: Move, tone: 'warning' },
-        { label: 'Active Pages',     value: activePages,            icon: Activity, tone: 'success' },
+        { label: 'Total views',      value: totalViews },
+        { label: 'Total clicks',     value: totalClicks },
+        { label: 'Avg scroll depth', value: avgScroll > 0 ? `${avgScroll}%` : '—' },
+        { label: 'Active pages',     value: activePages },
       ]} />
 
       <DataTable

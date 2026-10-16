@@ -110,8 +110,8 @@ test.describe('Funnels E2E Tests', () => {
 
     // The stat cards are derived from the list and the reports.
     await expect(page.getByText('1 funnel configured')).toBeVisible();
-    const stat = (label: string) => page.getByText(label, { exact: true }).locator('..').locator('..');
-    await expect(stat('Active Funnels')).toContainText('1');
+    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
+    await expect(stat('Active funnels')).toContainText('1');
     await expect(stat('Avg. conversion')).toContainText('25.0%');
 
     // Below the table, the funnel is grouped by trend; opening a group lists it.
