@@ -33,14 +33,16 @@ export default function Layout({ children }: LayoutProps) {
         flex flex-col + min-h-0: children can use flex-1 (e.g. session replay) and get real height.
         flex-1 + h-screen on <main> alone did not pass height into nested flex columns reliably.
       */}
-      <main
+      <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto',
-          framed && 'bg-background md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]',
+          'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+          framed && 'app-frame md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]',
         )}
       >
-        {children}
-      </main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">{children}</main>
+        {/* Above the page, so the light falls on its cards too; never takes a click. */}
+        {framed && <div aria-hidden className="app-frame-glow pointer-events-none absolute inset-0" />}
+      </div>
       {websiteId && !isAiMode && <DashboardContentOverlay websiteId={websiteId} />}
     </div>
   );

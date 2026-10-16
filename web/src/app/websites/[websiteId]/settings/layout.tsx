@@ -84,7 +84,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   if (isLoading && !demo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -95,7 +95,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className={cn(websiteWorkspaceShellClass, 'pb-12')}>
         <Link
           href={`/websites/${websiteId}`}

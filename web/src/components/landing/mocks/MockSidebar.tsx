@@ -77,7 +77,7 @@ export function useMockContentProps(): { inert?: boolean } {
  * The page's frame, as the dashboard draws it from md up (app/websites/[websiteId]/layout.tsx):
  * a rounded, hairline-edged panel inset from the window, with the sidebar on the chrome around it.
  */
-export const MOCK_FRAME = 'my-2 mr-2 overflow-hidden rounded-xl border border-border bg-background shadow-[var(--panel-edge)]';
+export const MOCK_FRAME = 'my-2 mr-2 overflow-hidden rounded-xl border border-border app-frame app-frame-lit shadow-[var(--panel-edge)]';
 
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
   const nav = useContext(MockNavContext);

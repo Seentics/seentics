@@ -15,7 +15,8 @@
        --app-* is the single source of truth for the app's own surfaces: the landing
        page remaps the shared tokens for its own canvas, and its product shots restore
        these. Never override --app-* in a scoped block. */
-    --app-page: 240 5% 96.5%;         /* #f5f5f6 */
+    /* Linear's light app: near-white page in a soft grey chrome (--sidebar-background). */
+    --app-page: 0 0% 98.8%;           /* #fcfcfc */
     /* Hairlines barely there, as in Linear's light mode: panels are told apart by a soft
        edge (see .surface / Card), not a drawn box. Inputs keep a firmer line of their own. */
     --app-border: 240 5% 92%;         /* #e9e9ec */
@@ -55,8 +56,8 @@
     --chart-4: 200 70% 55%;
     --chart-5: 340 75% 55%;
 
-    /* White, level with cards and tables: the sidebar is a surface you read. */
-    --sidebar-background: 0 0% 100%;
+    /* The chrome around the page's frame, a step below it, as in Linear's light app. */
+    --sidebar-background: 240 5% 96%;   /* #f4f4f5 */
     --sidebar-foreground: 240 6% 10%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -110,7 +111,7 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    --sidebar-background: 220 7% 4.7%;  /* #0b0c0d */
+    --sidebar-background: 220 11% 3.5%; /* #08090a, Linear's chrome under the #0f1011 page */
     --sidebar-foreground: 218 7% 82%;
     --sidebar-primary: 214 90% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -225,6 +226,17 @@
     box-shadow: var(--panel-edge);
   }
   .dark .surface { box-shadow: none; }
+  /* The dashboard page's frame. In dark mode a faint light falls across it from the
+     top-left corner, as on Linear's panels: a layer over the page (.app-frame-glow) that
+     stays put while the page scrolls under it. */
+  .app-frame { background-color: hsl(var(--background)); }
+  .dark .app-frame-glow,
+  .dark .app-frame-lit::after {
+    background-image: radial-gradient(120% 85% at 0% 0%, hsl(0 0% 100% / 0.05), hsl(0 0% 100% / 0.015) 45%, transparent 75%);
+  }
+  /* The same light on a frame that does not scroll (the landing page's product shots). */
+  .app-frame-lit { position: relative; }
+  .app-frame-lit::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
 
   /* Panel/table header. Kept white like every other surface — the rule below it
      does the separating, so headers never introduce a second surface colour. */
