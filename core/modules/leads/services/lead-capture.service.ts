@@ -6,6 +6,7 @@ import { hashEmail } from "../lib/email-hash";
 import { couponPrize, pickWheelPrize, withoutPrizeFields } from "../lib/prize";
 import { claimPrize } from "../repositories/prize.repository";
 import { insertSubmission, removeSubmissionById } from "../repositories/submission.repository";
+import { upsertFromSubmission } from "../repositories/contact.repository";
 
 /**
  * Stores a submission, settles its prize, and queues it for the form's destinations.
@@ -17,7 +18,9 @@ import { insertSubmission, removeSubmissionById } from "../repositories/submissi
  *  2. the submission is stored, which is what the form's page lists;
  *  3. it is queued for delivery, durably and before the visitor is answered. If that fails
  *     the stored row is withdrawn and the request fails, because a lead that is stored but
- *     will never be sent is worse than one the visitor is asked to resubmit.
+ *     will never be sent is worse than one the visitor is asked to resubmit;
+ *  4. the person's contact is created or refreshed. A failure there is logged, not raised:
+ *     the lead is already stored and queued, and the contact catches up on their next one.
  *
  * Nothing here talks to a third party: delivery happens later, in the integrations worker.
  */
@@ -45,6 +48,9 @@ export class LeadCaptureService implements LeadCapture {
       throw err;
     }
     this.sink.kick();
+    await upsertFromSubmission(submission, new Date()).catch((e) =>
+      log.error({ msg: "lead_contact_upsert_failed", submissionId, err: e instanceof Error ? e.message : "unknown" }),
+    );
     return { submissionId, prize, queuedFor };
   }
 

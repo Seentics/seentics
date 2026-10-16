@@ -122,3 +122,8 @@ export function demoSubmissionsCsv(automationId: string): string {
   const lines = forForm(automationId).map((s) => [s.created_at, s.email, s.name, s.phone, s.consent, s.variant ?? '', s.page_url, s.prize?.label ?? ''].join(','));
   return [header.join(','), ...lines].join('\n');
 }
+
+/** Every demo submission with the form it came from, newest first — the Leads page builds on these. */
+export function demoAllSubmissions(): ReadonlyArray<Submission & { form_id: string }> {
+  return ALL;
+}

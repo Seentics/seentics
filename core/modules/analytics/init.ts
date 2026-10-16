@@ -23,6 +23,7 @@ import { getInsightSnapshotData } from "./repositories/insight-snapshot.reposito
 import { getImpactCounts } from "./repositories/impact-reads.repository";
 import { trafficInWindows, windowBreakdown } from "./repositories/anomaly-reads.repository";
 import { getGoalDailyCompletions } from "./repositories/goals.repository";
+import { classifyTrafficChannel } from "./lib/traffic-channel";
 
 /**
  * Build the analytics module.
@@ -81,6 +82,7 @@ export function initAnalyticsModule(deps: {
     },
     rawEvents: eventFeed,
     funnelEvents: eventFeed,
+    channels: { classify: (input) => classifyTrafficChannel(input) },
     retention: new AnalyticsRetentionPurge(),
 
     usage: new AnalyticsUsageCounter(),

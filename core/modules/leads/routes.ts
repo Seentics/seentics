@@ -3,15 +3,45 @@ import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteQuery } from "../websites/interfaces";
-import type { LeadMutations, LeadQueries } from "./interfaces";
+import type { ContactMutations, LeadMutations, LeadQueries, SiteLeadQueries } from "./interfaces";
 import { submissionsToCsv } from "./lib/submission-csv";
-import { submissionListSchema } from "./validators/lead.schema";
+import { contactsToCsv, siteSubmissionsToCsv } from "./lib/contact-csv";
+import {
+  contactBulkSchema,
+  contactCreateSchema,
+  contactDeleteSchema,
+  contactImportSchema,
+  contactListSchema,
+  contactPatchSchema,
+  siteSubmissionListSchema,
+  submissionListSchema,
+} from "./validators/lead.schema";
 
 export type LeadControllerDeps = {
   queries: LeadQueries;
   mutations: LeadMutations;
+  site: SiteLeadQueries;
+  contacts: ContactMutations;
   websites: WebsiteQuery;
 };
+
+const csv = (body: string, filename: string) =>
+  new Response(body, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="${filename}"`,
+      "cache-control": "no-store",
+    },
+  });
+
+/** A JSON body, or null when it is missing or not JSON. */
+async function jsonBody(c: Context): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch {
+    return null;
+  }
+}
 
 export const EXPORT_LIMIT = 10_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,8 +63,8 @@ async function requireLeadAccess(
 }
 
 /**
- * The dashboard side of the module. There is deliberately no site-wide inbox: submissions are
- * read per form, from that form's automation page.
+ * The dashboard side of the module: each form's submissions (on its automation page), the
+ * site-wide inbox of every form's submissions, and the contacts behind them.
  */
 export function createLeadRoutes(deps: LeadControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
@@ -95,6 +125,131 @@ export function createLeadRoutes(deps: LeadControllerDeps) {
     return (await deps.mutations.deleteSubmission(websiteId, automationId, id))
       ? c.json({ data: { id } })
       : c.json({ error: "not found" }, 404);
+  });
+
+  // --- The site-wide inbox --------------------------------------------------
+
+  routes.get("/:website_id/submissions.csv", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const q = siteSubmissionListSchema.safeParse(c.req.query());
+    if (!q.success) return c.json({ error: "invalid query" }, 400);
+    return csv(siteSubmissionsToCsv(await deps.site.exportSubmissions(websiteId, q.data, EXPORT_LIMIT)), "submissions.csv");
+  });
+
+  routes.get("/:website_id/submissions", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const q = siteSubmissionListSchema.safeParse(c.req.query());
+    if (!q.success) return c.json({ error: "invalid query" }, 400);
+    return c.json({ data: await deps.site.listSubmissions(websiteId, q.data) });
+  });
+
+  routes.delete("/:website_id/submissions/:id", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
+    return (await deps.contacts.deleteSubmission(websiteId, id)) ? c.json({ data: { id } }) : c.json({ error: "not found" }, 404);
+  });
+
+  routes.get("/:website_id/forms", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    return c.json({ data: await deps.site.forms(websiteId) });
+  });
+
+  // --- Contacts --------------------------------------------------------------
+
+  routes.get("/:website_id/contacts.csv", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const q = contactListSchema.safeParse(c.req.query());
+    if (!q.success) return c.json({ error: "invalid query" }, 400);
+    return csv(contactsToCsv(await deps.site.exportContacts(websiteId, q.data, EXPORT_LIMIT)), "contacts.csv");
+  });
+
+  routes.get("/:website_id/contacts", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const q = contactListSchema.safeParse(c.req.query());
+    if (!q.success) return c.json({ error: "invalid query" }, 400);
+    return c.json({ data: await deps.site.listContacts(websiteId, q.data) });
+  });
+
+  routes.post("/:website_id/contacts", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const body = contactCreateSchema.safeParse(await jsonBody(c));
+    if (!body.success) return c.json({ error: "invalid contact", issues: body.error.issues.map((i) => i.path.join(".")) }, 400);
+    const result = await deps.contacts.create(websiteId, body.data);
+    if ("exists" in result) return c.json({ error: "exists", contact_id: result.exists }, 409);
+    return c.json({ data: result.contact }, 201);
+  });
+
+  routes.post("/:website_id/contacts/bulk", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const body = contactBulkSchema.safeParse(await jsonBody(c));
+    if (!body.success) return c.json({ error: "invalid change" }, 400);
+    const { ids, ...change } = body.data;
+    return c.json({ data: { updated: await deps.contacts.bulk(websiteId, ids, change) } });
+  });
+
+  routes.post("/:website_id/contacts/delete", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const body = contactDeleteSchema.safeParse(await jsonBody(c));
+    if (!body.success) return c.json({ error: "invalid request" }, 400);
+    return c.json({ data: { deleted: await deps.contacts.remove(websiteId, body.data.ids, body.data.with_submissions) } });
+  });
+
+  routes.post("/:website_id/contacts/import", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const body = contactImportSchema.safeParse(await jsonBody(c));
+    if (!body.success) return c.json({ error: "invalid import" }, 400);
+    return c.json({ data: await deps.contacts.import(websiteId, body.data.rows, body.data.update_existing) });
+  });
+
+  // Before `/contacts/:id`, which would otherwise take "tags" for an id.
+  routes.get("/:website_id/contacts/tags", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    return c.json({ data: await deps.site.tags(websiteId) });
+  });
+
+  routes.get("/:website_id/contacts/:id", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
+    const found = await deps.site.contact(websiteId, id);
+    return found ? c.json({ data: found }) : c.json({ error: "not found" }, 404);
+  });
+
+  routes.patch("/:website_id/contacts/:id", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: true });
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!UUID.test(id)) return c.json({ error: "not found" }, 404);
+    const body = contactPatchSchema.safeParse(await jsonBody(c));
+    if (!body.success) return c.json({ error: "invalid change" }, 400);
+    const updated = await deps.contacts.update(websiteId, id, body.data);
+    return updated ? c.json({ data: updated }) : c.json({ error: "not found" }, 404);
   });
 
   return routes;

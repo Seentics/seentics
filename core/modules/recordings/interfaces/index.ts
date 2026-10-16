@@ -18,7 +18,7 @@ export type {
 } from "./recording.interface";
 
 /** The whole module surface, as a peer receives it at composition time. */
-export type { RecordingsModule } from "./recordings.module";
+export type { RecordingPresence, RecordingsModule } from "./recordings.module";
 
 export type { RecordingRawReads } from "./recording.interface";
 

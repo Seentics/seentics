@@ -1077,8 +1077,17 @@ export const formSubmissions = pgTable(
   (t) => [
     index("ix_form_submissions_form_created").on(t.websiteId, t.automationId, t.createdAt),
     index("ix_form_submissions_website_created").on(t.websiteId, t.createdAt),
+    index("ix_form_submissions_website_email").on(t.websiteId, t.email),
   ],
 );
+
+/*
+ * `contacts` (sql/064_contacts.sql) is deliberately NOT declared here. On a fresh database the
+ * schema's tables are created before the SQL migrations run, and 050 still creates an older
+ * `contacts` (with an index on a column the new one lacks) that 053 later drops: a new-shape
+ * table made here first would make 050 fail on every new install. The leads module reads it
+ * with raw SQL only.
+ */
 
 /** The prize an email won from a popup. Keyed by a hash of the address: no address is stored. */
 export const formPrizes = pgTable(

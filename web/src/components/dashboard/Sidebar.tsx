@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, ArrowUpRight,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -53,6 +53,7 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
+    { label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Contact },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
     { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
     { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },

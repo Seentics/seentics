@@ -32,9 +32,8 @@ export interface FormSubmissionsProps {
  * The Submissions section of a form automation's page: a four-card summary, where submissions
  * are being sent, and the list itself (search, export, delete).
  *
- * There is no site-wide inbox: this is the one place submissions are listed, per form. They are
- * kept for a fixed period and forwarded to destinations; long-term contacts belong in the tool
- * the destination feeds.
+ * One form's view. Every form's submissions together, and the contacts they became, are on the
+ * Leads page, which this links to. Submissions are kept for a fixed period; contacts until deleted.
  */
 export function FormSubmissions({ websiteId, automationId, form }: FormSubmissionsProps) {
   const demo = isDemo(websiteId);
@@ -78,11 +77,16 @@ export function FormSubmissions({ websiteId, automationId, form }: FormSubmissio
   return (
     <section className="mt-8 space-y-4" aria-labelledby="submissions-heading">
       {confirmDialog}
-      <div>
-        <h2 id="submissions-heading" className="text-base font-semibold">Submissions</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Everything visitors sent through this form, kept for {RETENTION_DAYS} days and sent on to your destinations.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id="submissions-heading" className="text-base font-semibold">Submissions</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Everything visitors sent through this form, kept for {RETENTION_DAYS} days and sent on to your destinations.
+          </p>
+        </div>
+        <Link href={`/websites/${websiteId}/leads`} className="text-xs font-medium text-muted-foreground hover:text-foreground">
+          See all leads →
+        </Link>
       </div>
 
       <StatCards

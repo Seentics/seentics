@@ -139,7 +139,13 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const errorsModule = initErrorsModule({ websitesModule });
   // Integrations first: it owns the delivery outbox that leads hands every submission to.
   const integrationsModule = initIntegrationsModule({ websitesModule, cfg });
-  const leadsModule = initLeadsModule({ websitesModule, automations: automationsModule.directory, sink: integrationsModule.sink });
+  const leadsModule = initLeadsModule({
+    websitesModule,
+    automations: automationsModule.directory,
+    sink: integrationsModule.sink,
+    recordings: recordingsModule.presence,
+    channels: analyticsModule.channels,
+  });
   const aiModule = initAiModule({
     websitesModule,
     analyticsReads: analyticsModule.reads,

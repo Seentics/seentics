@@ -61,6 +61,7 @@ const TABLE_OWNER: Record<string, string> = {
   embed_links: "api-keys",
   clients: "websites",
   form_submissions: "leads",
+  contacts: "leads",
   form_prizes: "leads",
   integration_connections: "integrations",
   integration_deliveries: "integrations",
@@ -124,7 +125,7 @@ const ALLOWED: { file: string; tables: string[]; why: string }[] = [
   },
   {
     file: "app/http/privacy.ts",
-    tables: ["websites", "goals", "analytics_events", "funnels", "automations", "automation_events", "user_profiles", "session_replays", "replay_stylesheets", "heatmap_points", "heatmap_page_snapshots", "ai_queries", "api_keys", "form_submissions", "form_prizes", "integration_deliveries"],
+    tables: ["websites", "goals", "analytics_events", "funnels", "automations", "automation_events", "user_profiles", "session_replays", "replay_stylesheets", "heatmap_points", "heatmap_page_snapshots", "ai_queries", "api_keys", "form_submissions", "form_prizes", "contacts", "integration_deliveries"],
     why:
       "Data-subject export and erasure are cross-cutting legal operations. They must verify " +
       "website ownership, export a consistent data scope, remove storage objects before their " +

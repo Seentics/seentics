@@ -21,6 +21,13 @@ mock.module("../repositories/submission.repository", () => ({
   removeSubmissionById: async (id: string) => { events.push(`remove:${id}`); if (failRemove) throw new Error("db down"); },
   listSubmissions: unused, formSummary: unused, websiteSummary: unused, exportSubmissions: unused,
   deleteSubmission: unused, countSince: unused, purgeBefore: unused,
+  listSiteSubmissions: unused, exportSiteSubmissions: unused, submissionsForEmail: unused, formCounts: unused, deleteSiteSubmission: unused,
+}));
+let failContact = false;
+mock.module("../repositories/contact.repository", () => ({
+  upsertFromSubmission: async (s: LeadSubmission) => { events.push(`contact:${s.email}`); if (failContact) throw new Error("contacts down"); },
+  listContacts: unused, exportContacts: unused, getContact: unused, contactIdsByEmail: unused, insertContact: unused,
+  updateContact: unused, bulkUpdate: unused, deleteContacts: unused, importContacts: unused,
 }));
 mock.module("../repositories/prize.repository", () => ({
   claimPrize: async (_w: string, _a: string, hash: string, draw: () => Prize | null) => {
@@ -70,13 +77,21 @@ const service = () => new LeadCaptureService(directory, sink as any, () => "sub-
 beforeEach(() => {
   events.length = 0; inserted.length = 0; enqueued.length = 0; claims.length = 0;
   existingClaim = null; rewards = null; routing = { destinations: null }; queued = 2; failEnqueue = false; failRemove = false; kicks = 0;
+  failContact = false;
 });
 
 describe("LeadCaptureService", () => {
-  it("stores, queues and then wakes the worker, in that order", async () => {
+  it("keeps the lead when the contact cannot be refreshed: it catches up on their next one", async () => {
+    failContact = true;
+    const out = await service().capture(base);
+    expect(out.submissionId).toBe("sub-1");
+    expect(events).toEqual(["insert", "enqueue", "kick", "contact:a@b.co"]);
+  });
+
+  it("stores, queues, wakes the worker and then refreshes the contact, in that order", async () => {
     const out = await service().capture(base);
     expect(out).toEqual({ submissionId: "sub-1", prize: null, queuedFor: 2 });
-    expect(events).toEqual(["insert", "enqueue", "kick"]);
+    expect(events).toEqual(["insert", "enqueue", "kick", "contact:a@b.co"]);
     expect(inserted[0]).toMatchObject({ id: "sub-1", s: { automationId: KNOWN, variant: "b", email: "a@b.co" }, prize: null });
     expect(enqueued[0]!.lead).toMatchObject({ submissionId: "sub-1", prize: null, submission: { email: "a@b.co" } });
     expect(typeof enqueued[0]!.lead.submittedAt).toBe("string");

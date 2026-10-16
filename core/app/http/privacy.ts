@@ -143,6 +143,8 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
     await tx`DELETE FROM integration_deliveries WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM form_submissions WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM form_prizes WHERE website_id = ${websiteId}::uuid`;
+    // The contacts behind those submissions, and the ones the owner added or imported.
+    await tx`DELETE FROM contacts WHERE website_id = ${websiteId}::uuid`;
     // What the analysis and the AI features derived from the site's visits: each session's
     // signals and written summary (a visitor's story), and the AI's insights, alerts and
     // recommendations. None of these tables has a foreign key to the website that a delete
@@ -274,7 +276,7 @@ function visitorQuery(c: Context): { visitorId: string; userId: string } | null 
 
 async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string) {
   const { visitorIds: v, sessionIds: s } = ref;
-  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads] = await Promise.all([
+  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts] = await Promise.all([
     sql`SELECT * FROM analytics_events WHERE website_id = ${websiteId} AND visitor_id = ANY(${v}) ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT session_id, entry_page, timestamp, pages_viewed, duration_seconds, browser, device, os, country FROM session_replays WHERE website_id = ${websiteId} AND session_id = ANY(${s}) AND sequence = 0`,
     sql`SELECT * FROM user_profiles WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
@@ -286,8 +288,12 @@ async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string)
     sql`SELECT session_id, frustration_score, signal_counts, signals, summary, computed_at FROM session_analyses WHERE website_id = ${websiteId} AND session_id = ANY(${s})`,
     // What they typed into the site's popups.
     sql`SELECT * FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s})) ORDER BY created_at`,
+    // The contact those submissions made, found by the visitor id or any email they submitted.
+    sql`SELECT * FROM contacts WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR email IN (
+      SELECT email FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s}))
+    ))`,
   ]);
-  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads };
+  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts };
 }
 
 async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string): Promise<void> {
@@ -318,10 +324,13 @@ async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string):
     await tx`DELETE FROM identity_aliases WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`;
     // Their leads (email, name, phone, answers), and every copy queued or kept for an
     // integration: what is still waiting is cancelled, the payload of the rest dropped.
-    const leads = await tx<{ id: string }[]>`
+    const leads = await tx<{ id: string; email: string }[]>`
       DELETE FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s}))
-      RETURNING id::text
+      RETURNING id::text, email
     `;
+    // The contact those leads made goes with them: found by the visitor id or by the emails.
+    const emails = [...new Set(leads.map((row) => row.email))];
+    await tx`DELETE FROM contacts WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR email = ANY(${emails}::text[]))`;
     if (leads.length) {
       const ids = leads.map((row) => row.id);
       await tx`DELETE FROM integration_deliveries WHERE website_id = ${websiteId}::uuid AND submission_id = ANY(${ids}::uuid[]) AND status = 'pending'`;

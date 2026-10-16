@@ -69,6 +69,12 @@ export interface AnalyticsModule {
   /** Tracker funnel events bucketed by step, for funnels' reports. */
   funnelEvents: AnalyticsFunnelEvents;
 
+  /**
+   * The traffic channel of an arrival, by the same rules the dashboard counts with — for
+   * leads, which say where each submission and contact came from.
+   */
+  channels: TrafficChannelClassifier;
+
   /** Deletion of this module's own rows, for the retention sweep. */
   retention: RetentionPurge;
 
@@ -79,6 +85,14 @@ export interface AnalyticsModule {
   rollups: AnalyticsRollups;
 
   routes: AuthedRouter;
+}
+
+/** One of the dashboard's traffic channels. Mirrors `lib/traffic-channel.ts`. */
+export type TrafficChannelName =
+  | "paid" | "email" | "social" | "organic" | "campaign" | "internal" | "referral" | "direct";
+
+export interface TrafficChannelClassifier {
+  classify(input: { referrer: string | null; page: string | null; utmSource: string | null; utmMedium: string | null }): TrafficChannelName;
 }
 
 /**

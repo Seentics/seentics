@@ -14,6 +14,7 @@ mock.module("../repositories/submission.repository", () => ({
   countSince: async (ids: readonly string[], since: Date) => { calls.push(`count:${ids.length}:${since.toISOString()}`); return 7; },
   purgeBefore: async (w: string, cutoff: Date) => { calls.push(`purge:${w}:${cutoff.toISOString()}`); return 4; },
   insertSubmission: unused, removeSubmissionById: unused,
+  listSiteSubmissions: unused, exportSiteSubmissions: unused, submissionsForEmail: unused, formCounts: unused, deleteSiteSubmission: unused,
 }));
 
 const { SubmissionQueryService, startOfMonthUtc } = await import("../services/submission-query.service");

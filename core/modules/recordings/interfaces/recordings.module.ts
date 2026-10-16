@@ -12,6 +12,11 @@ import type {
   StylesheetArchive,
 } from "./index";
 
+/** Which of the given sessions have a recording on the website. */
+export interface RecordingPresence {
+  recorded(websiteId: string, sessionIds: readonly string[]): Promise<Set<string>>;
+}
+
 /** Everything the recordings module offers. */
 export interface RecordingsModule extends ModuleLifecycle {
   /** This module's ingest lane. Partitioned by session — see `recordingsLane`. */
@@ -41,6 +46,9 @@ export interface RecordingsModule extends ModuleLifecycle {
 
   /** Frustration signals and summaries per session, for the assistant's tools. */
   analysis: SessionAnalysisReads;
+
+  /** Which sessions were recorded, for leads to offer "watch" beside a submission. */
+  presence: RecordingPresence;
 
   /** The scheduled analysis and nightly summary jobs. */
   analysisJobs: SessionAnalysisJobs;

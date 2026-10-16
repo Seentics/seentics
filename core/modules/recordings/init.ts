@@ -1,3 +1,4 @@
+import { recordedSessions } from "./repositories/recording-presence.repository";
 import { recordingsLane } from "./ingest-lane";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { RecordingDetail, RecordingsModule, SessionSummarizer } from "./interfaces";
@@ -73,6 +74,7 @@ export function initRecordingsModule(deps: {
     }),
     analysis,
     analysisJobs: analysis,
+    presence: { recorded: recordedSessions },
     stylesheets,
 
     // Constructing the service arms the chunk flush timer and opens a storage client, so
