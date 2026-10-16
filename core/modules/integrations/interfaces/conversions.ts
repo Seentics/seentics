@@ -8,7 +8,7 @@
  * maps its kind, and the worker sends it.
  */
 
-export const CONVERSION_PLATFORMS = ["meta", "ga4"] as const;
+export const CONVERSION_PLATFORMS = ["meta", "ga4", "tiktok", "linkedin"] as const;
 export type ConversionPlatform = (typeof CONVERSION_PLATFORMS)[number];
 export type ConversionKind = "purchase" | "lead" | "sign_up" | "custom";
 export type MatchKey = "click_id" | "email" | "phone" | "ip_ua" | "browser_id";
@@ -16,8 +16,11 @@ export type MatchKey = "click_id" | "email" | "phone" | "ip_ua" | "browser_id";
 /** Click ids by URL parameter, each with when it was seen: `{ fbclid: { v, ts } }`. */
 export type ClickIds = Partial<Record<"fbclid" | "gclid" | "gbraid" | "wbraid" | "ttclid" | "li_fat_id" | "msclkid", { v: string; ts: number }>>;
 
-/** What the tracker sends for an identified visitor: click ids and the ad platforms' own browser ids. */
-export type AdContext = { clk?: ClickIds; fbp?: string; fbc?: string; ga?: string };
+/**
+ * What the tracker sends for an identified visitor: click ids and the ad platforms' own browser
+ * ids — Meta's `_fbp`/`_fbc`, Google's `_ga`, TikTok's `_ttp` and LinkedIn's `li_fat_id` cookie.
+ */
+export type AdContext = { clk?: ClickIds; fbp?: string; fbc?: string; ga?: string; ttp?: string; li?: string };
 
 /** One consented custom event from the tracker, as the `conversions` lane carries it. */
 export type ConversionTrackerRow = {
@@ -75,6 +78,11 @@ export type ConversionPayload = {
   user_agent: string | null;
   fbc: string | null;
   fbp: string | null;
+  /** TikTok's click id and `_ttp` browser id. Absent on rows queued before TikTok was added. */
+  ttclid?: string | null;
+  ttp?: string | null;
+  /** LinkedIn's first-party click id, from the ad link or the Insight Tag's cookie. */
+  li_fat_id?: string | null;
 };
 
 export type ConversionDestinationView = {

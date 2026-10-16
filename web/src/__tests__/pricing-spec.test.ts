@@ -128,7 +128,7 @@ describe('a plan with no Observability allowance (an older catalogue)', () => {
 });
 
 describe('server-side conversions on the plans', () => {
-  const cell = (plan: PricedPlan) => COMPARE_GROUPS.flatMap((g) => g.rows).find((r) => r.label === 'Server-side conversions (Meta, GA4)')!.value(plan);
+  const cell = (plan: PricedPlan) => COMPARE_GROUPS.flatMap((g) => g.rows).find((r) => r.label === 'Server-side conversions (Meta, GA4, TikTok, LinkedIn)')!.value(plan);
   it('says how many ad platforms each plan sends to', () => {
     expect(labels(FREE)).toContain('1 ad platform for server-side conversions');
     expect(labels(STARTER)).toContain('3 ad platforms for server-side conversions');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatValue, isMeasurementId, isPixelId, matchTip, percent } from '@/components/conversions/conversion-format';
+import { formatValue, isLinkedinId, isMeasurementId, isPixelId, isTiktokPixel, matchTip, percent } from '@/components/conversions/conversion-format';
 import { cleanConfig, defaultConfig } from '@/components/conversions/EventMappingFields';
 
 describe('conversion formatting', () => {
@@ -18,6 +18,10 @@ describe('conversion formatting', () => {
   it('recognises a pixel id and a GA4 measurement id', () => {
     expect(isPixelId('104851239920392')).toBe(true);
     expect(isPixelId('pixel-1')).toBe(false);
+    expect(isTiktokPixel('c4abcd1234efgh5678')).toBe(true);
+    expect(isTiktokPixel('C4-ABC')).toBe(false);
+    expect(isLinkedinId('512345678')).toBe(true);
+    expect(isLinkedinId('urn:li:1')).toBe(false);
     expect(isMeasurementId('G-7QX2LM4K9P')).toBe(true);
     expect(isMeasurementId(' g-abc123 ')).toBe(true);
     expect(isMeasurementId('UA-1234-1')).toBe(false);
@@ -43,5 +47,11 @@ describe('event mapping', () => {
     });
     expect(cleaned.events).toEqual({ purchase: 'Purchase', lead: null, sign_up: 'SignUp' });
     expect(cleaned.custom).toEqual([{ name: 'checkout_started', platform_event: 'InitiateCheckout' }]);
+  });
+
+  it('starts LinkedIn with nothing sent, and a rule switched on but left blank stays off', () => {
+    expect(defaultConfig('linkedin').events).toEqual({ purchase: null, lead: null, sign_up: null });
+    expect(cleanConfig('linkedin', { events: { purchase: ' 104000123 ', lead: '', sign_up: null }, custom: [] }).events)
+      .toEqual({ purchase: '104000123', lead: null, sign_up: null });
   });
 });

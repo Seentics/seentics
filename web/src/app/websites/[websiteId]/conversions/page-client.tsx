@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConnectDialog, type ConnectMode } from '@/components/conversions/ConnectDialog';
-import { PLATFORMS, percent } from '@/components/conversions/conversion-format';
+import { PLATFORM_ORDER, PLATFORMS, percent } from '@/components/conversions/conversion-format';
 import { DailyChart } from '@/components/conversions/DailyChart';
 import { DestinationCard, type CardAction } from '@/components/conversions/DestinationCard';
 import { EmptyState } from '@/components/conversions/EmptyState';
@@ -23,7 +23,7 @@ import { RangeSelect } from '@/components/ui/range-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDeleteDestination, useUpdateDestination } from '@/features/conversions/mutations';
 import { useConversionSummary, useDestinations } from '@/features/conversions/queries';
-import type { Destination, Platform } from '@/features/conversions/types';
+import type { Destination } from '@/features/conversions/types';
 import { usePermissions } from '@/hooks/use-permissions';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
@@ -83,16 +83,12 @@ export default function ConversionsPage() {
         <Button className="h-8 gap-1.5 px-3 text-xs" disabled={!canEdit}><Plus className="h-3.5 w-3.5" />Connect platform</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {(['meta', 'ga4', 'tiktok', 'linkedin'] as const).map((key) => {
-          const info = PLATFORMS[key];
-          return (
-            <DropdownMenuItem key={key} disabled={!info.available} onSelect={() => info.available && setMode({ kind: 'connect', platform: key as Platform })} className="gap-2.5">
-              <PlatformMark platform={key} className="h-7 w-7 text-[11px]" />
-              <span className="min-w-0 flex-1 truncate">{info.label}</span>
-              {!info.available && <span className="text-[11px] text-muted-foreground">Soon</span>}
-            </DropdownMenuItem>
-          );
-        })}
+        {PLATFORM_ORDER.map((key) => (
+          <DropdownMenuItem key={key} onSelect={() => setMode({ kind: 'connect', platform: key })} className="gap-2.5">
+            <PlatformMark platform={key} className="h-7 w-7" />
+            <span className="min-w-0 flex-1 truncate">{PLATFORMS[key].label}</span>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -110,7 +106,7 @@ export default function ConversionsPage() {
       </DashboardPageHeader>
 
       {destinations.isLoading ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Skeleton className="h-[164px] rounded-lg" />
           <Skeleton className="h-[164px] rounded-lg" />
         </div>
@@ -118,7 +114,7 @@ export default function ConversionsPage() {
         <EmptyState canEdit={canEdit} onConnect={(platform) => setMode({ kind: 'connect', platform })} />
       ) : (
         <div className="space-y-5">
-          <section aria-label="Platforms" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <section aria-label="Platforms" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {list.map((d) => (
               <DestinationCard
                 key={d.id}

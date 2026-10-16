@@ -19,7 +19,7 @@ import {
 } from "../repositories/conversion.repository";
 import { conversionCredentialContext } from "./conversion-attempt.service";
 
-const NAMES: Record<ConversionPlatform, string> = { meta: "Meta", ga4: "Google Analytics 4" };
+const NAMES: Record<ConversionPlatform, string> = { meta: "Meta", ga4: "Google Analytics 4", tiktok: "TikTok", linkedin: "LinkedIn" };
 
 function view(row: DestinationRow & { sent_7d?: number; failed_7d?: number; last_sent_at?: string | null }): ConversionDestinationView {
   return {

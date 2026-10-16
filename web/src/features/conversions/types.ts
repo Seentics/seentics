@@ -3,7 +3,7 @@
  * servers to ad platforms. Mirrors core's `/api/v1/conversions` contract.
  */
 
-export type Platform = 'meta' | 'ga4';
+export type Platform = 'meta' | 'ga4' | 'tiktok' | 'linkedin';
 export type EventKind = 'purchase' | 'lead' | 'sign_up' | 'custom';
 export type MatchKey = 'click_id' | 'email' | 'phone' | 'ip_ua' | 'browser_id';
 export type ConversionStatus = 'pending' | 'success' | 'failed' | 'skipped';
@@ -31,7 +31,9 @@ export type Destination = {
 
 export type MetaCredentials = { pixel_id: string; access_token: string };
 export type Ga4Credentials = { measurement_id: string; api_secret: string };
-export type Credentials = MetaCredentials | Ga4Credentials;
+export type TiktokCredentials = { pixel_code: string; access_token: string };
+export type LinkedinCredentials = { ad_account_id: string; access_token: string };
+export type Credentials = MetaCredentials | Ga4Credentials | TiktokCredentials | LinkedinCredentials;
 
 export type DestinationInput = {
   platform: Platform;
@@ -87,6 +89,9 @@ export type TestResult = { ok: boolean; message: string };
 export const DEFAULT_EVENTS: Record<Platform, DestinationConfig['events']> = {
   meta: { purchase: 'Purchase', lead: 'Lead', sign_up: 'CompleteRegistration' },
   ga4: { purchase: 'purchase', lead: 'generate_lead', sign_up: 'sign_up' },
+  tiktok: { purchase: 'CompletePayment', lead: 'SubmitForm', sign_up: 'CompleteRegistration' },
+  // LinkedIn has no standard names: each event goes to a conversion rule, by its id.
+  linkedin: { purchase: null, lead: null, sign_up: null },
 };
 
 export const MATCH_KEYS: readonly MatchKey[] = ['click_id', 'email', 'phone', 'ip_ua', 'browser_id'];

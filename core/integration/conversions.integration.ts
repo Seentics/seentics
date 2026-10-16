@@ -182,6 +182,54 @@ describe("sending", () => {
   });
 });
 
+describe("TikTok and LinkedIn", () => {
+  const TIKTOK_OK = () => ({ status: 200, text: '{"code":0,"message":"OK"}' });
+  const LINKEDIN_OK = (req: HttpRequest) => (req.method === "GET" ? { status: 200, text: '{"elements":[{"id":104000123}]}' } : { status: 201 });
+
+  it("each get the purchase with their own click and browser ids, and deliver it", async () => {
+    const { site } = await setup();
+    const tiktokAdmin = new ConversionAdminService(resolveVault(env()), platform(TIKTOK_OK).ctx, () => {});
+    const tiktok = await tiktokAdmin.create(site.id, { platform: "tiktok", credentials: { pixel_code: "c4abcd1234efgh5678", access_token: "t".repeat(40) } });
+    expect(tiktok).toMatchObject({ destination: { platform: "tiktok", name: "TikTok", credentials_hint: "Pixel C4AB…5678", config: { events: { purchase: "CompletePayment" } } } });
+    const linkedinAdmin = new ConversionAdminService(resolveVault(env()), platform(LINKEDIN_OK).ctx, () => {});
+    const linkedin = await linkedinAdmin.create(site.id, {
+      platform: "linkedin", credentials: { ad_account_id: "512345678", access_token: "l".repeat(40) }, config: { events: { purchase: "104000123", lead: null, sign_up: null } },
+    });
+    expect(linkedin).toMatchObject({ destination: { platform: "linkedin", credentials_hint: "Ad account 512345678" } });
+
+    const res = await collect(site, {
+      consent: true,
+      batch_id: `b-tl-${Math.random()}`,
+      ad: { clk: { ttclid: { v: "E.C.P.tiktokclick", ts: Date.now() - 60_000 }, li_fat_id: { v: "3f2c1a9e-li-click", ts: Date.now() - 60_000 } }, ttp: "2XyTtpBrowser01" },
+      events: [{ type: "custom", url: `https://${site.domain}/thanks`, sid: "s1", vid: "v-buyer", ts: Date.now(),
+        data: { name: "purchase", value: 25, currency: "eur", order_id: "TL-1", email: "Buyer@Example.com" } }],
+    }, { headers: { "X-Forwarded-For": "203.0.113.9" } });
+    expect(res.status).toBeLessThan(300);
+    await drainConversions(site.id);
+
+    const rows = await queued(site.id);
+    expect(rows.map((r) => r.platform_event).sort()).toEqual(["104000123", "CompletePayment"]);
+    const tt = rows.find((r) => r.platform_event === "CompletePayment")!;
+    expect(tt.payload).toMatchObject({ ttclid: "E.C.P.tiktokclick", ttp: "2XyTtpBrowser01", li_fat_id: null, fbc: null });
+    expect(tt.match_keys).toEqual(["click_id", "email", "ip_ua", "browser_id"]);
+    const li = rows.find((r) => r.platform_event === "104000123")!;
+    expect(li.payload).toMatchObject({ li_fat_id: "3f2c1a9e-li-click", ttclid: null });
+    expect(li.match_keys).toEqual(["click_id", "email"]);
+
+    const answers = platform((req) => (req.url.includes("tiktok") || req.url.includes("/event/track/") ? TIKTOK_OK() : LINKEDIN_OK(req)));
+    const attempts = new ConversionAttemptService(resolveVault(env()), answers.ctx);
+    for (const c of (await claimDueConversions(50)).filter((c) => c.website_id === site.id)) await attempts.run(c);
+
+    const toTiktok = JSON.parse(answers.calls.find((c) => c.url.endsWith("/event/track/"))!.body!);
+    expect(toTiktok).toMatchObject({ event_source: "web", event_source_id: "C4ABCD1234EFGH5678" });
+    expect(toTiktok.data[0]).toMatchObject({ event: "CompletePayment", event_id: "TL-1", user: { ttclid: "E.C.P.tiktokclick", ttp: "2XyTtpBrowser01" }, properties: { value: 25, currency: "EUR" } });
+    const toLinkedin = JSON.parse(answers.calls.find((c) => c.url.endsWith("/conversionEvents"))!.body!);
+    expect(toLinkedin).toMatchObject({ conversion: "urn:lla:llaPartnerConversion:104000123", eventId: "TL-1", conversionValue: { currencyCode: "EUR", amount: "25.00" } });
+    expect(toLinkedin.user.userIds).toContainEqual({ idType: "LINKEDIN_FIRST_PARTY_ADS_TRACKING_UUID", idValue: "3f2c1a9e-li-click" });
+    expect((await queued(site.id)).map((r) => r.status)).toEqual(["success", "success"]);
+  });
+});
+
 describe("a popup lead", () => {
   it("is forwarded only when the visitor ticked consent, with their email and phone hashed", async () => {
     const { site } = await setup();

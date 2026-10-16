@@ -4,12 +4,12 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { Platform } from '@/features/conversions/types';
-import { PLATFORMS } from './conversion-format';
+import { PLATFORM_ORDER, PLATFORMS } from './conversion-format';
 import { PlatformMark } from './parts';
 
 const POINTS = [
   { title: 'What is sent', body: 'Purchases, popup leads, sign-ups and any custom event you map — from Seentics’ servers, so ad blockers and Safari can’t drop them.' },
-  { title: 'How it is matched', body: 'The ad click ID (fbclid, gclid) from the landing page, the buyer’s email and phone hashed, and their IP and browser.' },
+  { title: 'How it is matched', body: 'The ad click ID (fbclid, gclid, ttclid, li_fat_id) from the landing page, the buyer’s email and phone hashed, and their IP and browser.' },
   { title: 'Only with consent', body: 'Only visitors who agreed to tracking are sent. A popup lead is sent only when its consent box was ticked.' },
 ];
 
@@ -28,7 +28,7 @@ export function EmptyState({ canEdit, onConnect }: { canEdit: boolean; onConnect
       <section aria-labelledby="connect-heading">
         <h2 id="connect-heading" className="mb-3 text-sm font-semibold text-foreground">Connect a platform</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {(['meta', 'ga4', 'tiktok', 'linkedin'] as const).map((key) => {
+          {PLATFORM_ORDER.map((key) => {
             const info = PLATFORMS[key];
             return (
               <div key={key} className="surface flex flex-col gap-3 p-4">
@@ -39,15 +39,9 @@ export function EmptyState({ canEdit, onConnect }: { canEdit: boolean; onConnect
                     <p className="truncate text-xs text-muted-foreground">{info.api}</p>
                   </div>
                 </div>
-                {info.available ? (
-                  <Button size="sm" variant="outline" className="mt-auto" onClick={() => onConnect(key as Platform)} disabled={!canEdit}>
-                    Connect
-                  </Button>
-                ) : (
-                  <span className="mt-auto inline-flex h-8 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
-                    Coming soon
-                  </span>
-                )}
+                <Button size="sm" variant="outline" className="mt-auto" onClick={() => onConnect(key)} disabled={!canEdit}>
+                  Connect
+                </Button>
               </div>
             );
           })}

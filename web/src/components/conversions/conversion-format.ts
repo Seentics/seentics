@@ -5,16 +5,26 @@ export type PlatformInfo = {
   label: string;
   /** What the platform calls the API Seentics sends through. */
   api: string;
-  monogram: string;
-  available: boolean;
+  /** Whether a test event can be sent without it counting (Meta and TikTok take a test code). */
+  testCode: boolean;
 };
 
-/** Platforms on the connect screen, in order; the last two are not built yet. */
-export const PLATFORMS: Record<Platform | 'tiktok' | 'linkedin', PlatformInfo> = {
-  meta: { label: 'Meta', api: 'Conversions API', monogram: 'M', available: true },
-  ga4: { label: 'Google Analytics 4', api: 'Measurement Protocol', monogram: 'GA', available: true },
-  tiktok: { label: 'TikTok', api: 'Events API', monogram: 'TT', available: false },
-  linkedin: { label: 'LinkedIn', api: 'Conversions API', monogram: 'in', available: false },
+/** Platforms on the connect screen, in order. */
+export const PLATFORMS: Record<Platform, PlatformInfo> = {
+  meta: { label: 'Meta', api: 'Conversions API', testCode: true },
+  ga4: { label: 'Google Analytics 4', api: 'Measurement Protocol', testCode: false },
+  tiktok: { label: 'TikTok', api: 'Events API', testCode: true },
+  linkedin: { label: 'LinkedIn', api: 'Conversions API', testCode: false },
+};
+
+export const PLATFORM_ORDER: readonly Platform[] = ['meta', 'ga4', 'tiktok', 'linkedin'];
+
+/** A custom event example in each platform's own vocabulary, for the mapping step. */
+export const CUSTOM_EXAMPLE: Record<Platform, string> = {
+  meta: 'InitiateCheckout',
+  ga4: 'begin_checkout',
+  tiktok: 'InitiateCheckout',
+  linkedin: '104000123',
 };
 
 export const KIND_LABEL: Record<EventKind, string> = {
@@ -41,11 +51,11 @@ export const MATCH_LABEL: Record<MatchKey, string> = {
 
 /** One line on what each key does for matching, for the match quality section. */
 export const MATCH_HINT: Record<MatchKey, string> = {
-  click_id: 'fbclid / gclid from the ad link — ties the sale to the exact click',
+  click_id: 'fbclid, gclid, ttclid or li_fat_id from the ad link — ties the sale to the exact click',
   email: 'Hashed before it leaves Seentics',
   phone: 'Hashed before it leaves Seentics',
   ip_ua: 'A weak hint the platforms use to back up the others',
-  browser_id: 'The _fbp / _ga browser id, when the site runs the pixel or gtag',
+  browser_id: 'The _fbp, _ga or _ttp browser id, when the site runs the pixel or gtag',
 };
 
 export const STATUS_META: Record<ConversionStatus, { label: string; dot: string }> = {
@@ -74,6 +84,10 @@ export function formatValue(value: number | null, currency: string | null): stri
 export const isMeasurementId = (v: string) => /^G-[A-Z0-9]{4,}$/i.test(v.trim());
 /** Whether a pixel id looks like Meta's (all digits, 10–20 long). */
 export const isPixelId = (v: string) => /^\d{10,20}$/.test(v.trim());
+/** Whether a pixel id looks like TikTok's (letters and digits, like C4ABCD1234EFGH5678). */
+export const isTiktokPixel = (v: string) => /^[A-Z0-9]{10,40}$/i.test(v.trim());
+/** Whether an id is a LinkedIn number: an ad account or a conversion rule. */
+export const isLinkedinId = (v: string) => /^\d{5,20}$/.test(v.trim());
 
 /** The tip under match quality: only when email is the weak link worth fixing. */
 export function matchTip(match: { total: number; email: number; click_id: number }): string | null {

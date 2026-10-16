@@ -1,5 +1,6 @@
 /**
- * The demo site's Conversions page: a connected Meta pixel and GA4 property, and a month of
+ * The demo site's Conversions page: a connected Meta pixel, GA4 property, TikTok pixel and
+ * LinkedIn ad account, and a month of
  * events sent to them. Seeded and dated against `DEMO_REFERENCE_DATE`, so the page reads the
  * same on every visit and in captures.
  *
@@ -18,6 +19,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 const META_ID = 'demo-dest-meta';
 const GA4_ID = 'demo-dest-ga4';
+const TIKTOK_ID = 'demo-dest-tiktok';
+const LINKEDIN_ID = 'demo-dest-linkedin';
 
 const DESTINATIONS: Destination[] = [
   {
@@ -47,11 +50,48 @@ const DESTINATIONS: Destination[] = [
     updated_at: iso(NOW - 33 * DAY),
     stats: { sent_7d: 0, failed_7d: 0, last_sent_at: null },
   },
+  {
+    id: TIKTOK_ID,
+    platform: 'tiktok',
+    name: 'TikTok pixel',
+    enabled: true,
+    status: 'active',
+    last_error: null,
+    credentials_hint: 'Pixel CQ7N…4KD0',
+    config: { events: { ...DEFAULT_EVENTS.tiktok }, custom: [{ name: 'checkout_started', platform_event: 'InitiateCheckout' }], test_event_code: null },
+    created_at: iso(NOW - 21 * DAY),
+    updated_at: iso(NOW - 21 * DAY),
+    stats: { sent_7d: 0, failed_7d: 0, last_sent_at: null },
+  },
+  {
+    id: LINKEDIN_ID,
+    platform: 'linkedin',
+    name: 'LinkedIn Ads',
+    enabled: true,
+    status: 'active',
+    last_error: null,
+    credentials_hint: 'Ad account 512384907',
+    // B2B: leads and sign-ups only, each to its own conversion rule.
+    config: { events: { purchase: null, lead: '18427305', sign_up: '18427306' }, custom: [], test_event_code: null },
+    created_at: iso(NOW - 14 * DAY),
+    updated_at: iso(NOW - 14 * DAY),
+    stats: { sent_7d: 0, failed_7d: 0, last_sent_at: null },
+  },
 ];
+
+/** The keys each platform matches by: LinkedIn takes only email and its own click id. */
+const TAKES: Record<Platform, readonly MatchKey[]> = {
+  meta: MATCH_KEYS,
+  ga4: ['click_id', 'email', 'phone', 'browser_id'],
+  tiktok: MATCH_KEYS,
+  linkedin: ['click_id', 'email'],
+};
 
 const ERRORS: Record<Platform, string> = {
   meta: 'Invalid OAuth access token — the token was revoked or expired. Generate a new one in Events Manager.',
   ga4: 'Measurement Protocol rejected the event: api_secret does not match this data stream.',
+  tiktok: 'Access token is incorrect or has been revoked. Generate a new one in Events Manager.',
+  linkedin: 'The token has expired. Generate a new one with the rw_conversions scope.',
 };
 
 function platformEvent(dest: Destination, kind: EventKind, name: string): string | null {
@@ -92,7 +132,7 @@ function buildEvents(): ConversionEvent[] {
         status: event === null ? 'skipped' : failed ? 'failed' : pending ? 'pending' : 'success',
         error: event === null ? 'Not mapped: this destination does not send this event.' : failed ? ERRORS[dest.platform] : null,
         attempt_count: failed ? 6 : event === null ? 0 : 1,
-        match_keys: event === null ? [] : MATCH_KEYS.filter((k) => keys.includes(k)),
+        match_keys: event === null ? [] : MATCH_KEYS.filter((k) => keys.includes(k) && TAKES[dest.platform].includes(k)),
         value,
         currency: value === null ? null : 'USD',
         order_id: order,

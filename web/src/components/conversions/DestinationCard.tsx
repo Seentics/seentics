@@ -36,7 +36,6 @@ export function DestinationCard({
           <p className="truncate text-[13px] font-semibold text-foreground">{d.name || info.label}</p>
           <p className="truncate font-mono text-[11px] text-muted-foreground">{d.credentials_hint}</p>
         </div>
-        <Switch checked={d.enabled} onCheckedChange={onToggle} disabled={!canEdit} aria-label={d.enabled ? `Pause ${info.label}` : `Resume ${info.label}`} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="-mr-1 h-7 w-7 text-muted-foreground" aria-label={`${info.label} options`}>
@@ -57,7 +56,7 @@ export function DestinationCard({
 
       <dl className="grid grid-cols-3 gap-3">
         <div>
-          <dt className="text-[11px] text-muted-foreground">Sent · 7 days</dt>
+          <dt className="whitespace-nowrap text-[11px] text-muted-foreground">Sent · 7d</dt>
           <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{d.stats.sent_7d.toLocaleString()}</dd>
         </div>
         <div>
@@ -72,12 +71,19 @@ export function DestinationCard({
         </div>
       </dl>
 
-      <footer className="flex items-start gap-2 border-t border-border pt-3 text-xs">
+      <footer className="mt-auto flex items-start gap-2 border-t border-border pt-3 text-xs">
         <span className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', healthy ? 'bg-emerald-500' : !d.enabled ? 'bg-muted-foreground/50' : 'bg-rose-500')} aria-hidden />
         <span className={cn('min-w-0', d.status === 'error' && d.enabled ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground')}>
           {stateLabel}
           {d.status === 'error' && d.last_error ? ` — ${d.last_error}` : ''}
         </span>
+        <Switch
+          checked={d.enabled}
+          onCheckedChange={onToggle}
+          disabled={!canEdit}
+          aria-label={d.enabled ? `Pause ${info.label}` : `Resume ${info.label}`}
+          className="-my-0.5 ml-auto shrink-0"
+        />
       </footer>
     </article>
   );

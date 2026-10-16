@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { ConnectError } from '@/features/conversions/api';
 import { useConnectDestination, useUpdateDestination } from '@/features/conversions/mutations';
 import type { Credentials, Destination, DestinationConfig, Platform } from '@/features/conversions/types';
-import { isMeasurementId, isPixelId, PLATFORMS } from './conversion-format';
+import { isLinkedinId, isMeasurementId, isPixelId, isTiktokPixel, PLATFORMS } from './conversion-format';
 import { cleanConfig, defaultConfig, EventMappingFields } from './EventMappingFields';
 import { PlatformMark } from './parts';
 
@@ -46,17 +46,39 @@ const FIELDS: Record<Platform, { a: string; b: string; aHint: string; bHint: str
     where: 'Admin → Data streams → your web stream → Measurement Protocol API secrets → Create.',
     secret: 'The secret is encrypted and never shown again.',
   },
+  tiktok: {
+    a: 'Pixel ID',
+    b: 'Events API access token',
+    aHint: 'Letters and digits, e.g. C4ABCD1234EFGH5678',
+    bHint: 'A long random string',
+    where: 'TikTok Ads Manager → Tools → Events → your web pixel → Settings → Events API → Generate access token.',
+    secret: 'The token is encrypted and never shown again.',
+  },
+  linkedin: {
+    a: 'Ad account ID',
+    b: 'Access token',
+    aHint: 'Digits only, e.g. 512345678',
+    bHint: 'With the rw_conversions scope',
+    where: 'Campaign Manager shows the account ID next to its name. Generate the token for a LinkedIn app with the Conversions API product (scope rw_conversions).',
+    secret: 'The token is encrypted and never shown again.',
+  },
 };
 
 function credentialsOf(platform: Platform, f: Fields): Credentials {
-  return platform === 'meta'
-    ? { pixel_id: f.a.trim(), access_token: f.b.trim() }
-    : { measurement_id: f.a.trim().toUpperCase(), api_secret: f.b.trim() };
+  const a = f.a.trim();
+  const b = f.b.trim();
+  if (platform === 'meta') return { pixel_id: a, access_token: b };
+  if (platform === 'ga4') return { measurement_id: a.toUpperCase(), api_secret: b };
+  if (platform === 'tiktok') return { pixel_code: a.toUpperCase(), access_token: b };
+  return { ad_account_id: a, access_token: b };
 }
 
+const ID_VALID: Record<Platform, (v: string) => boolean> = {
+  meta: isPixelId, ga4: isMeasurementId, tiktok: isTiktokPixel, linkedin: isLinkedinId,
+};
+
 function fieldsValid(platform: Platform, f: Fields): boolean {
-  if (!f.b.trim()) return false;
-  return platform === 'meta' ? isPixelId(f.a) : isMeasurementId(f.a);
+  return !!f.b.trim() && ID_VALID[platform](f.a);
 }
 
 export function ConnectDialog({
@@ -112,7 +134,9 @@ export function ConnectDialog({
   const title = mode.kind === 'connect' ? `Connect ${info.label}` : mode.kind === 'credentials' ? `${info.label} credentials` : `${info.label} events`;
   const description = step === 'credentials'
     ? `Seentics sends your conversions to ${info.label}'s ${info.api} from its servers. ${copy.secret}`
-    : 'Choose what to send and what to call it. The defaults are the platform’s standard event names.';
+    : platform === 'linkedin'
+      ? 'LinkedIn counts each event toward a conversion rule. Create one per event in Campaign Manager → Conversion tracking (source: Conversions API) and enter its ID.'
+      : 'Choose what to send and what to call it. The defaults are the platform’s standard event names.';
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>

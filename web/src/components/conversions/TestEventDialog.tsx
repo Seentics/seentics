@@ -15,6 +15,13 @@ import { useTestDestination } from '@/features/conversions/mutations';
 import type { Destination, TestResult } from '@/features/conversions/types';
 import { PLATFORMS } from './conversion-format';
 
+const TEST_COPY: Record<Destination['platform'], string> = {
+  meta: 'Sends a test Purchase to your pixel. With a test event code it appears under Events Manager → Test events and is not counted as a real sale.',
+  ga4: 'Checks a test purchase against Google’s validation endpoint. Nothing is added to your GA4 reports.',
+  tiktok: 'Sends a test purchase to your pixel. With a test event code it appears under Events Manager → Test events and is not counted as a real sale.',
+  linkedin: 'LinkedIn has no test mode, so nothing is sent: this checks the token and that each mapped conversion rule exists in the ad account.',
+};
+
 export function TestEventDialog({
   websiteId, destination, onClose,
 }: { websiteId: string; destination: Destination | null; onClose: () => void }) {
@@ -24,7 +31,7 @@ export function TestEventDialog({
 
   useEffect(() => { setCode(destination?.config.test_event_code ?? ''); setResult(null); }, [destination]);
   if (!destination) return null;
-  const meta = destination.platform === 'meta';
+  const { testCode } = PLATFORMS[destination.platform];
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -32,9 +39,7 @@ export function TestEventDialog({
         <DialogHeader>
           <DialogTitle>Send a test event</DialogTitle>
           <DialogDescription>
-            {meta
-              ? 'Sends a test Purchase to your pixel. With a test event code it appears under Events Manager → Test events and is not counted as a real sale.'
-              : 'Checks a test purchase against Google’s validation endpoint. Nothing is added to your GA4 reports.'}
+            {TEST_COPY[destination.platform]}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -48,7 +53,7 @@ export function TestEventDialog({
             );
           }}
         >
-          {meta && (
+          {testCode && (
             <div className="space-y-1.5">
               <Label htmlFor="test-code" className="text-xs text-muted-foreground">Test event code (optional)</Label>
               <Input id="test-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="TEST12345" className="font-mono text-sm" autoComplete="off" />
@@ -63,7 +68,7 @@ export function TestEventDialog({
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>{result?.ok ? 'Done' : 'Cancel'}</Button>
             <Button type="submit" size="sm" disabled={test.isPending}>
-              {test.isPending ? 'Sending…' : `Send to ${PLATFORMS[destination.platform].label}`}
+              {test.isPending ? (testCode || destination.platform === 'ga4' ? 'Sending…' : 'Checking…') : destination.platform === 'linkedin' ? 'Check connection' : `Send to ${PLATFORMS[destination.platform].label}`}
             </Button>
           </DialogFooter>
         </form>

@@ -12,6 +12,8 @@ test.describe('Conversions page (demo)', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Conversions' })).toBeVisible();
     await expect(page.getByRole('article', { name: /^Meta/ })).toBeVisible();
     await expect(page.getByRole('article', { name: /^Google Analytics 4/ })).toBeVisible();
+    await expect(page.getByRole('article', { name: /^TikTok/ })).toBeVisible();
+    await expect(page.getByRole('article', { name: /^LinkedIn/ })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Summary' }).getByText('Accepted')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'How they were matched' })).toBeVisible();
 
@@ -36,6 +38,22 @@ test.describe('Conversions page (demo)', () => {
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await expect(dialog.getByText('Step 2 of 2')).toBeVisible();
     await expect(dialog.getByLabel('Purchase is sent as')).toHaveValue('Purchase');
+  });
+
+  test('connects LinkedIn by ad account, with each event sent to a conversion rule', async ({ page }) => {
+    await page.goto('/websites/demo/conversions');
+    await page.getByRole('button', { name: 'Connect platform' }).click();
+    await page.getByRole('menuitem', { name: /LinkedIn/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: 'Connect LinkedIn' })).toBeVisible();
+    await dialog.getByLabel('Ad account ID').fill('512345678');
+    await dialog.getByLabel('Access token').fill('AQXtesttoken');
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    // No standard names: every kind starts off, and switching one on asks for a rule id.
+    await expect(dialog.getByRole('switch', { name: 'Send purchase events' })).not.toBeChecked();
+    await dialog.getByRole('switch', { name: 'Send purchase events' }).click();
+    await expect(dialog.getByLabel('Purchase is sent as')).toHaveAttribute('placeholder', 'Conversion rule ID');
   });
 
   test('is in the sidebar, right after Revenue', async ({ page }) => {

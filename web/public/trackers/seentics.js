@@ -269,7 +269,7 @@ const storeSet = (key, value) => (identified() ? rawSet(key, value) : false);
 // When a site forwards its conversions to ad platforms (Settings → Conversions), the
 // platform links a sale to the ad that led to it by the click id its ad link carried
 // (fbclid, gclid, ttclid, li_fat_id, msclkid) and by the browser ids its own pixel set
-// (`_fbp`, `_fbc`, `_ga`). Both are kept and sent for an identified visitor only — an
+// (`_fbp`, `_fbc`, `_ga`, TikTok's `_ttp`, LinkedIn's `li_fat_id`). Both are kept and sent for an identified visitor only — an
 // anonymous one's browser is neither read nor written, and their events are never
 // forwarded.
 
@@ -316,7 +316,7 @@ const adContext = () => {
   const clk = storedClicks();
   const ad = {};
   if (Object.keys(clk).length) ad.clk = clk;
-  for (const [key, cookie] of [['fbp', '_fbp'], ['fbc', '_fbc'], ['ga', '_ga']]) {
+  for (const [key, cookie] of [['fbp', '_fbp'], ['fbc', '_fbc'], ['ga', '_ga'], ['ttp', '_ttp'], ['li', 'li_fat_id']]) {
     const v = readCookie(cookie);
     if (v) ad[key] = v;
   }

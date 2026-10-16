@@ -4,7 +4,7 @@ import { z } from "zod";
 import { takeRateToken } from "../../platform/cache/token-bucket";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteQuery } from "../websites/interfaces";
-import type { ConversionAdmin } from "./interfaces/conversions";
+import { CONVERSION_PLATFORMS, type ConversionAdmin } from "./interfaces/conversions";
 
 export type ConversionControllerDeps = { admin: ConversionAdmin; websites: WebsiteQuery };
 
@@ -20,7 +20,7 @@ const configSchema = z.object({
 }).strict();
 const credentialsSchema = z.record(z.string().max(1000)).refine((c) => Object.keys(c).length <= 4);
 const createSchema = z.object({
-  platform: z.enum(["meta", "ga4"]),
+  platform: z.enum(CONVERSION_PLATFORMS),
   name: z.string().trim().max(80).optional(),
   credentials: credentialsSchema,
   config: configSchema.optional(),

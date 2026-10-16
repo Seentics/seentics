@@ -13,12 +13,15 @@ import {
   fbpOf,
   gaClientIdOf,
   hashEmail,
+  liFatIdOf,
   hashId,
   hashPhone,
   kindOf,
   matchKeysFor,
   orderIdOf,
   platformEventFor,
+  ttclidOf,
+  ttpOf,
   valueOf,
   withDefaults,
 } from "../lib/conversion-match";
@@ -97,6 +100,9 @@ export class ConversionRouter implements ConversionIngest {
         const fbc = fbcOf(c.ad);
         const fbp = fbpOf(c.ad);
         const gaClientId = gaClientIdOf(c.ad);
+        const ttclid = d.platform === "tiktok" ? ttclidOf(c.ad) : null;
+        const ttp = d.platform === "tiktok" ? ttpOf(c.ad) : null;
+        const liFatId = d.platform === "linkedin" ? liFatIdOf(c.ad) : null;
         const payload: ConversionPayload = {
           event_id: c.eventId,
           platform_event: platformEvent,
@@ -113,6 +119,9 @@ export class ConversionRouter implements ConversionIngest {
           user_agent: c.userAgent ? c.userAgent.slice(0, 500) : null,
           fbc: d.platform === "meta" ? fbc : null,
           fbp: d.platform === "meta" ? fbp : null,
+          ttclid,
+          ttp,
+          li_fat_id: liFatId,
         };
         queued.push({
           destinationId: d.id,
@@ -122,7 +131,7 @@ export class ConversionRouter implements ConversionIngest {
           visitorId: c.visitorId,
           occurredAt: c.occurredAt,
           payload,
-          matchKeys: matchKeysFor(d.platform, { email, phone, ip: payload.ip, ua: payload.user_agent, fbc, fbp, gaClientId, clk: c.ad?.clk }),
+          matchKeys: matchKeysFor(d.platform, { email, phone, ip: payload.ip, ua: payload.user_agent, fbc, fbp, gaClientId, clk: c.ad?.clk, ttclid, ttp, liFatId }),
         });
       }
     }

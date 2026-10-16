@@ -112,7 +112,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
         title: 'Conversions',
         href: '/docs/conversions',
         icon: Send,
-        summary: 'Send purchases and leads to Meta and Google from the server.',
+        summary: 'Send purchases and leads to Meta, Google, TikTok and LinkedIn from the server.',
       },
     ],
   },

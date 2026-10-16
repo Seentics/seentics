@@ -3,10 +3,13 @@ import type { HttpRequest, ProviderContext } from "../interfaces";
 import type { ConversionPayload } from "../interfaces/conversions";
 import { adContextOf } from "../lib/ad-context";
 import {
-  currencyOf, fbcOf, fbpOf, gaClientIdOf, hashEmail, hashPhone, kindOf, matchKeysFor, orderIdOf, platformEventFor, valueOf, withDefaults,
+  currencyOf, fbcOf, fbpOf, gaClientIdOf, hashEmail, hashPhone, kindOf, liFatIdOf, matchKeysFor, orderIdOf, platformEventFor, ttclidOf, ttpOf,
+  valueOf, withDefaults,
 } from "../lib/conversion-match";
 import { ga4Body, ga4Provider } from "../providers/conversions/ga4";
+import { linkedinEvent, linkedinProvider } from "../providers/conversions/linkedin";
 import { metaEvent, metaProvider } from "../providers/conversions/meta";
+import { tiktokEvent, tiktokProvider } from "../providers/conversions/tiktok";
 
 /** A ProviderContext that answers from a script and records what was asked. */
 function fakeCtx(answers: Array<{ status: number; text?: string }>) {
@@ -77,6 +80,19 @@ describe("matching a person", () => {
     const base = { email: "e", phone: null, ip: "1.2.3.4", ua: "UA", fbc: "fb.1.1.x", fbp: null, gaClientId: "1.2", clk: { gclid: { v: "g", ts: 1 } } };
     expect(matchKeysFor("meta", base)).toEqual(["click_id", "email", "ip_ua"]);
     expect(matchKeysFor("ga4", base)).toEqual(["click_id", "email", "browser_id"]);
+    expect(matchKeysFor("tiktok", { ...base, phone: "p", ttclid: "E.C.P", ttp: "abc12345" })).toEqual(["click_id", "email", "phone", "ip_ua", "browser_id"]);
+    expect(matchKeysFor("linkedin", { ...base, phone: "p", liFatId: "li-uuid-1234" })).toEqual(["click_id", "email"]);
+  });
+
+  it("reads TikTok's and LinkedIn's click and browser ids", () => {
+    expect(ttclidOf({ clk: { ttclid: { v: "E.C.P.abc", ts: 1 } } })).toBe("E.C.P.abc");
+    expect(ttpOf({ ttp: "2Xy_abc.123-9" })).toBe("2Xy_abc.123-9");
+    expect(ttpOf({ ttp: "<script>" })).toBeNull();
+    // The ad link's id first, then the Insight Tag's cookie.
+    expect(liFatIdOf({ clk: { li_fat_id: { v: "11111111-aaaa", ts: 1 } }, li: "22222222-bbbb" })).toBe("11111111-aaaa");
+    expect(liFatIdOf({ li: "22222222-bbbb" })).toBe("22222222-bbbb");
+    expect(liFatIdOf({})).toBeNull();
+    expect(adContextOf({ ttp: "abc12345", li: "22222222-bbbb" })).toEqual({ ttp: "abc12345", li: "22222222-bbbb" });
   });
 
   it("keeps only well-formed, recent click ids from what the browser sent", () => {
@@ -149,5 +165,84 @@ describe("contact details on an event", () => {
     expect(withoutContactDetails({ name: "purchase", value: 40, email: "a@b.co", phone: "+880" })).toEqual({ name: "purchase", value: 40 });
     const untouched = { name: "x" };
     expect(withoutContactDetails(untouched)).toBe(untouched);
+  });
+});
+
+describe("TikTok's Events API", () => {
+  const creds = { pixel_code: "C4ABCD1234EFGH5678", access_token: "t".repeat(30) };
+
+  it("sends a web event with hashed keys, the click and browser ids, and the order as event_id", async () => {
+    expect(tiktokEvent(payload({ platform_event: "CompletePayment", ttclid: "E.C.P.x", ttp: "ttp12345" }))).toEqual({
+      event: "CompletePayment", event_time: 1_792_000_000, event_id: "order:1042",
+      user: { email: "e".repeat(64), external_id: "x".repeat(64), ttclid: "E.C.P.x", ttp: "ttp12345", ip: "203.0.113.9", user_agent: "Mozilla/5.0" },
+      page: { url: "https://shop.test/thanks" },
+      properties: { value: 40, currency: "USD", order_id: "1042", content_type: "product" },
+    });
+    const { ctx, calls } = fakeCtx([{ status: 200, text: '{"code":0,"message":"OK"}' }]);
+    expect(await tiktokProvider.send(payload(), creds, withDefaults("tiktok", {}), ctx)).toEqual({ kind: "ok", httpStatus: 200 });
+    expect(calls[0]!.url).toEndWith("/event/track/");
+    expect(calls[0]!.headers!["access-token"]).toBe("t".repeat(30));
+    expect(JSON.parse(calls[0]!.body!)).toMatchObject({ event_source: "web", event_source_id: "C4ABCD1234EFGH5678" });
+  });
+
+  it("reads the verdict from the body, since TikTok answers 200 to a refusal too", async () => {
+    const bad = fakeCtx([{ status: 200, text: '{"code":40105,"message":"Access token is incorrect or has been revoked."}' }]);
+    expect(await tiktokProvider.send(payload(), creds, withDefaults("tiktok", {}), bad.ctx)).toMatchObject({ kind: "failed", auth: true, retryable: false });
+    const busy = fakeCtx([{ status: 200, text: '{"code":40100,"message":"Too many requests"}' }]);
+    expect(await tiktokProvider.send(payload(), creds, withDefaults("tiktok", {}), busy.ctx)).toMatchObject({ kind: "failed", retryable: true });
+    const shape = fakeCtx([{ status: 200, text: '{"code":40002,"message":"event is invalid"}' }]);
+    expect(await tiktokProvider.send(payload(), creds, withDefaults("tiktok", {}), shape.ctx)).toMatchObject({ kind: "failed", retryable: false, message: "event is invalid" });
+  });
+
+  it("checks credentials with an empty batch, and a test without a code sends no event", async () => {
+    const ok = fakeCtx([{ status: 200, text: '{"code":40002,"message":"data: Field must not be empty"}' }]);
+    expect(await tiktokProvider.verify(creds, ok.ctx)).toEqual({ ok: true, hint: "Pixel C4AB…5678" });
+    expect(JSON.parse(ok.calls[0]!.body!).data).toEqual([]);
+    const refused = fakeCtx([{ status: 200, text: '{"code":40001,"message":"No permission to operate pixel"}' }]);
+    expect(await tiktokProvider.verify(creds, refused.ctx)).toMatchObject({ ok: false });
+    const noCode = fakeCtx([{ status: 200, text: '{"code":40002}' }]);
+    expect((await tiktokProvider.test(creds, withDefaults("tiktok", {}), null, noCode.ctx)).ok).toBe(true);
+    expect(noCode.calls).toHaveLength(1);
+    expect(tiktokProvider.credentialSchema.safeParse({ pixel_code: "no", access_token: "t".repeat(30) }).success).toBe(false);
+  });
+});
+
+describe("LinkedIn's Conversions API", () => {
+  const creds = { ad_account_id: "512345678", access_token: "t".repeat(30) };
+
+  it("sends to the mapped conversion rule, matched by hashed email and the LinkedIn click id", async () => {
+    expect(linkedinEvent(payload({ platform_event: "104000123", li_fat_id: "li-uuid-1234" }))).toEqual({
+      conversion: "urn:lla:llaPartnerConversion:104000123", conversionHappenedAt: 1_792_000_000_000, eventId: "order:1042",
+      conversionValue: { currencyCode: "USD", amount: "40.00" },
+      user: { userIds: [{ idType: "SHA256_EMAIL", idValue: "e".repeat(64) }, { idType: "LINKEDIN_FIRST_PARTY_ADS_TRACKING_UUID", idValue: "li-uuid-1234" }] },
+    });
+    const { ctx, calls } = fakeCtx([{ status: 201 }]);
+    expect(await linkedinProvider.send(payload({ platform_event: "104000123" }), creds, withDefaults("linkedin", {}), ctx)).toEqual({ kind: "ok", httpStatus: 201 });
+    expect(calls[0]!.url).toEndWith("/conversionEvents");
+    expect(calls[0]!.headers).toMatchObject({ authorization: `Bearer ${"t".repeat(30)}`, "x-restli-protocol-version": "2.0.0" });
+  });
+
+  it("does not send what LinkedIn cannot match, or an event mapped to a name instead of a rule", async () => {
+    const { ctx, calls } = fakeCtx([]);
+    expect(await linkedinProvider.send(payload({ platform_event: "104000123", email_sha256: null }), creds, withDefaults("linkedin", {}), ctx))
+      .toEqual({ kind: "skipped", reason: "No email or LinkedIn click id to match the person by" });
+    expect(await linkedinProvider.send(payload({ platform_event: "Purchase" }), creds, withDefaults("linkedin", {}), ctx)).toMatchObject({ kind: "failed", retryable: false });
+    expect(calls).toHaveLength(0);
+    // No standard names to default to: nothing is sent until a rule is entered.
+    expect(withDefaults("linkedin", {}).events).toEqual({ purchase: null, lead: null, sign_up: null });
+  });
+
+  it("checks the token against the ad account's rules, and the test that every mapped rule exists", async () => {
+    const rules = '{"elements":[{"id":104000123},{"id":104000124}]}';
+    const ok = fakeCtx([{ status: 200, text: rules }]);
+    expect(await linkedinProvider.verify(creds, ok.ctx)).toEqual({ ok: true, hint: "Ad account 512345678" });
+    expect(ok.calls[0]!.url).toContain("account=urn%3Ali%3AsponsoredAccount%3A512345678");
+    const denied = fakeCtx([{ status: 401, text: '{"message":"Invalid access token"}' }]);
+    expect(await linkedinProvider.verify(creds, denied.ctx)).toEqual({ ok: false, message: "LinkedIn did not accept this access token: Invalid access token" });
+    const config = withDefaults("linkedin", { events: { purchase: "104000123", lead: "999", sign_up: null } });
+    const missing = fakeCtx([{ status: 200, text: rules }]);
+    expect((await linkedinProvider.test(creds, config, null, missing.ctx)).message).toContain("no conversion rule 999");
+    const all = fakeCtx([{ status: 200, text: rules }]);
+    expect((await linkedinProvider.test(creds, withDefaults("linkedin", { events: { purchase: "104000123", lead: null, sign_up: null } }), null, all.ctx)).ok).toBe(true);
   });
 });

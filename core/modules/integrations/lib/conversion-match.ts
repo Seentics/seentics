@@ -33,6 +33,10 @@ export function kindOf(name: string): ConversionKind | null {
 export const DEFAULT_EVENTS: Record<ConversionPlatform, DestinationConfig["events"]> = {
   meta: { purchase: "Purchase", lead: "Lead", sign_up: "CompleteRegistration" },
   ga4: { purchase: "purchase", lead: "generate_lead", sign_up: "sign_up" },
+  tiktok: { purchase: "CompletePayment", lead: "SubmitForm", sign_up: "CompleteRegistration" },
+  // LinkedIn sends each event to a conversion rule the owner made in Campaign Manager, by its
+  // id: there is no standard name to default to, so nothing is sent until one is entered.
+  linkedin: { purchase: null, lead: null, sign_up: null },
 };
 
 export function withDefaults(platform: ConversionPlatform, config: Partial<DestinationConfig> | undefined): DestinationConfig {
@@ -120,17 +124,39 @@ export function gaClientIdOf(ad: AdContext | null): string | null {
   return m ? m[1]! : null;
 }
 
+/** TikTok's click id, from the ad link (`ttclid`). */
+export function ttclidOf(ad: AdContext | null): string | null {
+  return ad?.clk?.ttclid?.v.slice(0, 500) ?? null;
+}
+
+/** TikTok's browser id, the `_ttp` cookie its pixel sets. */
+export function ttpOf(ad: AdContext | null): string | null {
+  return ad?.ttp && /^[\w.-]{8,200}$/.test(ad.ttp) ? ad.ttp : null;
+}
+
+/** LinkedIn's first-party click id: the ad link's `li_fat_id`, else the Insight Tag's cookie of that name. */
+export function liFatIdOf(ad: AdContext | null): string | null {
+  const v = ad?.clk?.li_fat_id?.v ?? ad?.li ?? null;
+  return v && /^[\w-]{8,200}$/.test(v) ? v : null;
+}
+
 /** Which keys a platform will match this person by — shown in the delivery log as "matched with". */
 export function matchKeysFor(
   platform: ConversionPlatform,
-  p: { email: string | null; phone: string | null; ip: string | null; ua: string | null; fbc: string | null; fbp: string | null; gaClientId: string | null; clk: ClickIds | undefined },
+  p: {
+    email: string | null; phone: string | null; ip: string | null; ua: string | null; fbc: string | null; fbp: string | null;
+    gaClientId: string | null; clk: ClickIds | undefined; ttclid?: string | null; ttp?: string | null; liFatId?: string | null;
+  },
 ): MatchKey[] {
+  const click = { meta: !!p.fbc, ga4: !!(p.clk?.gclid || p.clk?.gbraid || p.clk?.wbraid), tiktok: !!p.ttclid, linkedin: !!p.liFatId }[platform];
+  const browser = { meta: !!p.fbp, ga4: !!p.gaClientId, tiktok: !!p.ttp, linkedin: false }[platform];
   const keys: MatchKey[] = [];
-  if (platform === "meta" ? !!p.fbc : !!(p.clk?.gclid || p.clk?.gbraid || p.clk?.wbraid)) keys.push("click_id");
+  if (click) keys.push("click_id");
   if (p.email) keys.push("email");
-  if (p.phone) keys.push("phone");
-  if (platform === "meta" && p.ip && p.ua) keys.push("ip_ua");
-  if (platform === "meta" ? !!p.fbp : !!p.gaClientId) keys.push("browser_id");
+  // LinkedIn matches by email and its click id only; it takes no phone, IP or browser.
+  if (p.phone && platform !== "linkedin") keys.push("phone");
+  if ((platform === "meta" || platform === "tiktok") && p.ip && p.ua) keys.push("ip_ua");
+  if (browser) keys.push("browser_id");
   return keys;
 }
 

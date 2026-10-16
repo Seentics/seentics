@@ -216,7 +216,7 @@ export const COMPARE_GROUPS: CompareGroup[] = [
       { label: 'Automations', value: countCell('core', 'automations') },
       { label: 'Contacts & form submissions / month', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `Up to ${formatCount(v)}`; } },
       { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
-      { label: 'Server-side conversions (Meta, GA4)', value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : `${formatCount(v)} ${plural(v, 'ad platform', 'ad platforms')}`; } },
+      { label: 'Server-side conversions (Meta, GA4, TikTok, LinkedIn)', value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : `${formatCount(v)} ${plural(v, 'ad platform', 'ad platforms')}`; } },
       { label: 'Agency: client accounts, APIs & embeds', value: () => true },
       { label: 'Monthly spend cap on extra usage', value: (p) => p.tier === 'pro' },
       { label: 'Extra usage under $1 a month', value: (p) => (p.tier === 'pro' ? 'Not billed' : '—') },
