@@ -14,7 +14,7 @@ const FREE: PricedPlan = {
 const STARTER: PricedPlan = {
   tier: 'analytics', priceMonthly: 9, priceYearly: 90,
   limits: {
-    core: { monthly_events: 200_000, replays: 1_500, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 100, leads: 2_500, retention_days: 365, replay_retention_days: 30 },
+    core: { monthly_events: 200_000, replays: 1_500, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 100, leads: 5_000, retention_days: 365, replay_retention_days: 30 },
     observe: { storage_gb: 5, retention_days: 7 },
   },
 };
@@ -48,12 +48,12 @@ describe('yearly pricing (priced, not yet offered: OFFER_YEARLY)', () => {
 });
 
 describe('pricing cards', () => {
-  it('Free: 300 recordings, 3 GB of telemetry, 100 form submissions', () => {
+  it('Free: 300 recordings, 3 GB of telemetry, 100 contacts and form submissions', () => {
     const lines = labels(FREE);
     expect(lines).toContain('Up to 20K events');
     expect(lines).toContain('Up to 300 session recordings');
     expect(lines).toContain('Up to 3 GB logs, traces & metrics');
-    expect(lines).toContain('100 form submissions a month');
+    expect(lines).toContain('100 contacts & form submissions a month');
     expect(lines).toContain('3 heatmaps, 1 funnel, 3 automations');
   });
 
@@ -64,7 +64,7 @@ describe('pricing cards', () => {
     expect(lines).toContain('Up to 5 GB logs, traces & metrics');
     expect(lines).toContain('1 year analytics retention');
     expect(lines).toContain('Unlimited heatmaps, funnels, automations');
-    expect(lines).toContain('2.5K form submissions a month');
+    expect(lines).toContain('5K contacts & form submissions a month');
     expect(lines).toContain('Agency: clients, APIs & embeds');
     expect(cardSectionsFor(STARTER)[1]!.items.map((i) => i.label)).toEqual(['Collection pauses at the limit', 'Move to Pro any time']);
   });
@@ -76,7 +76,7 @@ describe('pricing cards', () => {
     expect(lines).toContain('Up to 5K session recordings');
     expect(lines).toContain('Up to 30 GB logs, traces & metrics');
     expect(lines).toContain('Unlimited heatmaps, funnels, automations');
-    expect(lines).toContain('25K form submissions a month');
+    expect(lines).toContain('25K contacts & form submissions a month');
     // Extra usage is not spelled out on the card: a bigger need is a conversation.
     expect(extra!.title).toBe('Need more?');
     expect(extra!.items).toEqual([{ value: '', label: 'Contact us for a custom plan', href: '/contact' }]);
@@ -93,8 +93,8 @@ describe('comparison table', () => {
     expect(cell('Recordings / month', PRO)).toBe('Up to 5K');
     expect(cell('Heatmaps', FREE)).toBe('3 pages');
     expect(cell('Heatmaps', STARTER)).toBe('Unlimited');
-    expect(cell('Popups & forms', STARTER)).toBe('2.5K submissions / mo');
-    expect(cell('Popups & forms', { ...STARTER, limits: { ...STARTER.limits, core: { ...STARTER.limits.core, leads: 0 } } })).toBe(false);
+    expect(cell('Contacts & form submissions / month', STARTER)).toBe('Up to 5K');
+    expect(cell('Contacts & form submissions / month', { ...STARTER, limits: { ...STARTER.limits, core: { ...STARTER.limits.core, leads: 0 } } })).toBe(false);
     expect(cell('Logs, traces & metrics / month', STARTER)).toBe('Up to 5 GB');
     expect(cell('Logs, traces & metrics / month', PRO)).toBe('Up to 30 GB');
     // Every plan has the whole product now: observability's features are on every plan.
