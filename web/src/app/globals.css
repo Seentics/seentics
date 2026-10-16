@@ -234,16 +234,6 @@
   .dark .app-frame-lit::after {
     background-image: radial-gradient(120% 85% at 0% 0%, hsl(0 0% 100% / 0.05), hsl(0 0% 100% / 0.015) 45%, transparent 75%);
   }
-  /* A funnel step's "left before it" column: faint diagonal hatching in the ink colour,
-     so it reads as absence beside the solid column in either theme. */
-  .funnel-ghost {
-    background-color: hsl(var(--foreground) / 0.04);
-    background-image: repeating-linear-gradient(135deg, hsl(var(--foreground) / 0.09) 0 1px, transparent 1px 6px);
-  }
-  /* The funnel chart's own ground: a step recessed from the panel around it, so the
-     picture and the table under it read as two places. */
-  .funnel-canvas { background-color: hsl(var(--muted) / 0.45); }
-  .dark .funnel-canvas { background-color: hsl(0 0% 0% / 0.3); }
   /* The same light on a frame that does not scroll (the landing page's product shots). */
   .app-frame-lit { position: relative; }
   .app-frame-lit::after { content: ''; position: absolute; inset: 0; pointer-events: none; }

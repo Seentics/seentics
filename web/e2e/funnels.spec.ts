@@ -202,12 +202,11 @@ test.describe('Funnels E2E Tests', () => {
     await expect(stat('Conversion rate')).toContainText('25.0%');
     await expect(stat('Drop-off rate')).toContainText('75.0%');
 
-    // The step table: each step's own count, and the loss into the second.
-    const row = (name: string) => page.getByRole('row').filter({ hasText: name });
-    await expect(row('Home')).toContainText('1,000');
-    await expect(row('Cart')).toContainText('250');
-    await expect(row('Cart')).toContainText('25.0%');
-    await expect(row('Cart')).toContainText('750');
+    // The steps: each step's own count, and between them the share that carried on.
+    const step = (name: string) => page.getByRole('listitem').filter({ hasText: name });
+    await expect(step('Home')).toContainText('1,000');
+    await expect(step('Home')).toContainText('25.0% continued · 750 left');
+    await expect(step('Cart')).toContainText('250');
   });
 
   test('should open new funnel modal builder', async ({ page }) => {
