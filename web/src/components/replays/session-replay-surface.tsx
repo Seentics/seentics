@@ -102,7 +102,7 @@ const SEEK_STEP_MS = 10_000;
  * and the padding around them. It was 68dvh, which left a fifth of the screen empty
  * under the player on a desktop.
  */
-const PLAYER_MAX_HEIGHT = 'calc(100dvh - 10.5rem)';
+export const PLAYER_MAX_HEIGHT = 'calc(100dvh - 10.5rem)';
 
 /**
  * Width / height of the viewport the recording was made in, from its first Meta event.
@@ -113,7 +113,7 @@ const PLAYER_MAX_HEIGHT = 'calc(100dvh - 10.5rem)';
  * odd viewport (a sliver of a window) can't produce an unusable box; the replayer's
  * contain-fit handles anything outside the clamp, and later resizes.
  */
-function recordingAspect(events: RRWebEvent[]): number {
+export function recordingAspect(events: RRWebEvent[]): number {
   for (const ev of events) {
     if (ev.type !== RRWEB_META) continue;
     const { width, height } = ev.data as { width?: unknown; height?: unknown };
