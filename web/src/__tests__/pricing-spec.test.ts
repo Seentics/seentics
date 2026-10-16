@@ -7,21 +7,21 @@ import {
 const FREE: PricedPlan = {
   tier: 'free', priceMonthly: 0, priceYearly: null,
   limits: {
-    core: { monthly_events: 20_000, replays: 300, heatmaps: 3, funnels: 1, automations: 3, websites: -1, ai_analyses: 30, leads: 100, retention_days: 30, replay_retention_days: 30 },
+    core: { monthly_events: 20_000, replays: 300, heatmaps: 3, funnels: 1, automations: 3, websites: -1, ai_analyses: 30, leads: 100, retention_days: 30, replay_retention_days: 30, conversion_destinations: 1 },
     observe: { storage_gb: 3, retention_days: 3 },
   },
 };
 const STARTER: PricedPlan = {
   tier: 'analytics', priceMonthly: 9, priceYearly: 90,
   limits: {
-    core: { monthly_events: 200_000, replays: 1_500, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 100, leads: 5_000, retention_days: 365, replay_retention_days: 30 },
+    core: { monthly_events: 200_000, replays: 1_500, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 100, leads: 5_000, retention_days: 365, replay_retention_days: 30, conversion_destinations: 3 },
     observe: { storage_gb: 5, retention_days: 7 },
   },
 };
 const PRO: PricedPlan = {
   tier: 'pro', priceMonthly: 24, priceYearly: 240,
   limits: {
-    core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 5_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095, replay_retention_days: 30 },
+    core: { monthly_events: -1, included_monthly_events: 1_000_000, replays: -1, included_replays: 5_000, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 300, leads: 25_000, retention_days: 1095, replay_retention_days: 30, conversion_destinations: -1 },
     observe: { storage_gb: -1, included_storage_gb: 30, retention_days: 7 },
   },
 };
@@ -124,5 +124,22 @@ describe('a plan with no Observability allowance (an older catalogue)', () => {
     expect(labels(noObserve).join('\n')).not.toMatch(/logs, traces/);
     expect(cell('Logs, traces & metrics / month')).toBe(false);
     expect(cell('Telemetry retention')).toBe(false);
+  });
+});
+
+describe('server-side conversions on the plans', () => {
+  const cell = (plan: PricedPlan) => COMPARE_GROUPS.flatMap((g) => g.rows).find((r) => r.label === 'Server-side conversions (Meta, GA4)')!.value(plan);
+  it('says how many ad platforms each plan sends to', () => {
+    expect(labels(FREE)).toContain('1 ad platform for server-side conversions');
+    expect(labels(STARTER)).toContain('3 ad platforms for server-side conversions');
+    expect(labels(PRO)).toContain('Unlimited ad platforms for server-side conversions');
+    expect(cell(STARTER)).toBe('3 ad platforms');
+    expect(cell(PRO)).toBe('Unlimited ad platforms');
+  });
+  it('leaves the line out for a catalogue that does not state it', () => {
+    const old: PricedPlan = { ...STARTER, limits: { ...STARTER.limits, core: { ...STARTER.limits.core, conversion_destinations: undefined as never } } };
+    delete (old.limits.core as Record<string, unknown>).conversion_destinations;
+    expect(labels(old).join('\n')).not.toMatch(/ad platform/);
+    expect(cell(old)).toBe(false);
   });
 });

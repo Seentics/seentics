@@ -9,11 +9,12 @@ type Props = { block: Extract<DisplayBlock, { kind: 'metrics' }>; className?: st
 export function MetricsBlock({ block, className }: Props) {
   if (!block.items.length) return null;
   return (
-    <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3', className)}>
-      {block.items.map((m) => {
+    // One strip with hairlines between the figures, like the dashboard's summaries.
+    <div className={cn('grid grid-cols-2 overflow-hidden rounded-xl border border-border sm:grid-cols-3', className)}>
+      {block.items.map((m, i) => {
         const up = (m.delta ?? 0) >= 0;
         return (
-          <div key={m.label} className="rounded-xl border border-border bg-card p-3">
+          <div key={m.label} className={cn('px-4 py-3', i > 0 && 'border-l border-border', i >= 3 && 'border-t sm:border-l')}>
             <p className="truncate text-xs text-muted-foreground">{m.label}</p>
             <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
               {formatValue(m.value, m.format)}

@@ -1,4 +1,4 @@
-import { Bot } from 'lucide-react';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/features/ai/types';
 import { ChatMessageView } from './ChatMessageView';
@@ -51,30 +51,34 @@ export function ConversationView({
 
   if (messages.length === 0) {
     return (
-      <div className={cn('mx-auto max-w-md py-10 text-center', className)}>
-        <Bot className="mx-auto h-8 w-8 text-muted-foreground/40" />
-        <p className="mt-3 font-medium text-foreground">{emptyTitle}</p>
-        {emptyBody && <p className="mt-1 text-sm text-muted-foreground">{emptyBody}</p>}
+      <div className={cn('mx-auto max-w-lg pb-6 pt-[12vh]', className)}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-primary">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <p className="mt-4 text-lg font-semibold tracking-tight text-foreground">{emptyTitle}</p>
+        {emptyBody && <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{emptyBody}</p>}
         {!!starters.length && onStarter && (
-          <div className="mt-4 flex flex-col gap-2">
+          <ul className="mt-6 divide-y divide-border overflow-hidden rounded-xl border border-border">
             {starters.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => onStarter(s)}
-                className="rounded-lg border border-border bg-card px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/50"
-              >
-                {s}
-              </button>
+              <li key={s}>
+                <button
+                  type="button"
+                  onClick={() => onStarter(s)}
+                  className="group flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted/50"
+                >
+                  {s}
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     );
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-6', className)}>
       {messages.map((m) => (
         <ChatMessageView
           key={m.id}

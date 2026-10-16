@@ -70,7 +70,8 @@ export default function AIModePage() {
   }, []);
 
   return (
-    <div className="flex h-full min-h-0 bg-background">
+    // The dashboard's shape: the conversations on the chrome, the chat in a rounded frame.
+    <div className="flex h-full min-h-0 bg-background md:bg-sidebar">
       <AiSidebar
         websiteId={websiteId}
         conversations={list.data ?? []}
@@ -86,7 +87,7 @@ export default function AIModePage() {
         <AskParamsReader onAsk={onAsk} />
       </Suspense>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="app-frame relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]">
         <AssistantChat
           // Remount on an explicit pick or "New" so the chat starts from that conversation
           // rather than merging it into whatever is already on screen — and so a reply

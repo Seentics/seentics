@@ -1,4 +1,4 @@
-import { Bot, User, Wrench } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCostUsd } from '@/features/ai/format';
 import type { ChatMessage } from '@/features/ai/types';
@@ -25,30 +25,26 @@ export interface ChatMessageViewProps {
  * interleaved — which is also what makes it impossible for a reply to place a panel
  * somewhere it chose.
  */
+/** A tool's name as a person would say it: `get_funnel_performance` → "funnel performance". */
+export function toolLabel(name: string): string {
+  return name.replace(/^(get|list|read|fetch|query|search)_/, '').replace(/_/g, ' ').trim();
+}
+
 export function ChatMessageView({
   message, showUsage, onConfirmProposal, onDismissProposal, isConfirming, viewerRole, className,
 }: ChatMessageViewProps) {
   const isUser = message.role === 'user';
 
+  // The visitor's turn is a quiet bubble on the right; the answer is plain text across the
+  // column — read like a document, not a chat app's speech bubbles.
   return (
-    <div className={cn('flex gap-3', isUser && 'flex-row-reverse', className)}>
-      <div
-        className={cn(
-          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-          isUser ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-        )}
-      >
-        {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
-      </div>
-
-      <div className={cn('min-w-0 flex-1 space-y-2', isUser && 'flex flex-col items-end')}>
+    <div className={cn('flex', isUser && 'justify-end', className)}>
+      <div className={cn('min-w-0 space-y-3', isUser ? 'flex max-w-[85%] flex-col items-end' : 'flex-1')}>
         {message.content && (
           <div
             className={cn(
-              'max-w-full whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-sm',
-              isUser
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-foreground',
+              'max-w-full whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground',
+              isUser && 'rounded-2xl bg-muted px-3.5 py-2',
             )}
           >
             {message.content}
@@ -85,9 +81,9 @@ export function ChatMessageView({
         )}
 
         {!isUser && !!message.toolsUsed?.length && (
-          <p className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-            <Wrench className="h-3 w-3" />
-            {message.toolsUsed.join(', ')}
+          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Search className="h-3 w-3" aria-hidden />
+            Looked at {message.toolsUsed.map(toolLabel).join(', ')}
           </p>
         )}
 

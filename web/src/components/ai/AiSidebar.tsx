@@ -33,7 +33,8 @@ export function AiSidebar({
   return (
     <aside
       className={cn(
-        'flex w-64 shrink-0 flex-col bg-muted/40 dark:bg-muted/20',
+        // On the chrome, like the dashboard's sidebar: the chat is the page, in its frame.
+        'flex w-64 shrink-0 flex-col bg-sidebar',
         className,
       )}
     >
@@ -45,7 +46,7 @@ export function AiSidebar({
         <Link
           href={`/websites/${websiteId}?dashboard=1`}
           title="Back to dashboard"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
         </Link>
@@ -55,7 +56,7 @@ export function AiSidebar({
         <button
           type="button"
           onClick={onNewChat}
-          className="flex h-9 w-full items-center gap-2 rounded-lg bg-background/70 px-3 text-sm font-medium text-foreground transition-colors hover:bg-background"
+          className="flex h-9 w-full items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
         >
           <Plus className="h-4 w-4" />
           New chat
@@ -84,8 +85,8 @@ export function AiSidebar({
                   className={cn(
                     'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors',
                     c.id === activeId
-                      ? 'bg-background text-foreground'
-                      : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
+                      ? 'bg-accent text-foreground'
+                      : 'text-foreground/60 hover:bg-muted/50 hover:text-foreground',
                   )}
                 >
                   <MessageSquare className="h-3.5 w-3.5 shrink-0" />

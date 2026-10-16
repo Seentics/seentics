@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Bot, Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAssistantChat } from '@/features/ai/use-assistant-chat';
@@ -86,9 +86,9 @@ export function AssistantChat({
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)}>
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2 md:invisible">
-          <Bot className="h-4 w-4 text-primary" />
+          <Sparkles className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium text-foreground">Seentics AI</span>
         </div>
         <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export function AssistantChat({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
         {/*
           Bounded and centred. A conversation read edge-to-edge on a wide screen is hard
           to follow, and the panels inside sit better in a column than stretched.

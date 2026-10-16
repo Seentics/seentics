@@ -138,6 +138,13 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
         },
     ...(has(leads) ? [{ value: formatCount(leads), label: 'contacts & form submissions a month' }] : []),
     { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
+    // Server-side conversions: only where the catalogue states the limit (gateway db/sql/042).
+    ...(core('conversion_destinations') !== undefined && core('conversion_destinations') !== 0
+      ? [{
+          value: formatCount(core('conversion_destinations')),
+          label: `${plural(core('conversion_destinations')!, 'ad platform', 'ad platforms')} for server-side conversions`,
+        }]
+      : []),
     { value: '', label: 'Agency: clients, APIs & embeds' },
   ];
 
@@ -209,6 +216,7 @@ export const COMPARE_GROUPS: CompareGroup[] = [
       { label: 'Automations', value: countCell('core', 'automations') },
       { label: 'Contacts & form submissions / month', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `Up to ${formatCount(v)}`; } },
       { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
+      { label: 'Server-side conversions (Meta, GA4)', value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : `${formatCount(v)} ${plural(v, 'ad platform', 'ad platforms')}`; } },
       { label: 'Agency: client accounts, APIs & embeds', value: () => true },
       { label: 'Monthly spend cap on extra usage', value: (p) => p.tier === 'pro' },
       { label: 'Extra usage under $1 a month', value: (p) => (p.tier === 'pro' ? 'Not billed' : '—') },

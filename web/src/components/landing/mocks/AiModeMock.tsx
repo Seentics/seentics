@@ -1,6 +1,8 @@
 'use client';
 
 import { MessageSquare, Plus, Sparkles } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
+import { MOCK_FRAME } from './MockSidebar';
 import { ConversationView } from '@/components/ai/ConversationView';
 import { AI_DEMO_MESSAGES, AI_DEMO_THREADS } from '@/features/ai/demo-data';
 
@@ -17,17 +19,17 @@ import { AI_DEMO_MESSAGES, AI_DEMO_THREADS } from '@/features/ai/demo-data';
  * belongs in a static shot. They carry no logic, so there is nothing to drift.
  */
 export function AiModeMock() {
+  // The AI page's shape (app/websites/[websiteId]/ai): conversations on the chrome, the
+  // chat in the dashboard's rounded frame.
   return (
-    <div className="flex h-full w-full bg-background">
-      <aside className="flex w-52 shrink-0 flex-col bg-muted/40 dark:bg-muted/20">
-        <div className="flex items-center gap-2 px-3 py-3">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/15 text-primary">
-            <Sparkles className="h-3 w-3" />
-          </span>
+    <div className="flex h-full w-full bg-sidebar text-foreground">
+      <aside className="flex w-56 shrink-0 flex-col">
+        <div className="flex items-center gap-2 px-4 py-3.5">
+          <Logo size="sm" className="shrink-0" />
           <span className="text-sm font-semibold text-foreground">Seentics AI</span>
         </div>
         <div className="px-3 pb-2">
-          <div className="flex h-8 items-center gap-2 rounded-lg bg-background/70 px-3 text-[13px] font-medium text-foreground">
+          <div className="flex h-8 items-center gap-2 rounded-lg border border-border px-3 text-[13px] font-medium text-foreground">
             <Plus className="h-3.5 w-3.5" />
             New chat
           </div>
@@ -38,7 +40,7 @@ export function AiModeMock() {
               key={t.id}
               className={
                 'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] ' +
-                (i === 0 ? 'bg-background text-foreground' : 'text-muted-foreground')
+                (i === 0 ? 'bg-accent text-foreground' : 'text-foreground/60')
               }
             >
               <MessageSquare className="h-3.5 w-3.5 shrink-0" />
@@ -48,15 +50,19 @@ export function AiModeMock() {
         </ul>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${MOCK_FRAME}`}>
+        <div className="flex shrink-0 items-center justify-end gap-3 border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> Default</span>
+          <span>Dashboard</span>
+        </div>
         <div className="flex-1 overflow-hidden px-6 py-6">
           <div className="mx-auto w-full max-w-2xl">
             <ConversationView messages={AI_DEMO_MESSAGES} />
           </div>
         </div>
-        <div className="px-6 pb-6">
-          <div className="mx-auto w-full max-w-2xl">
-            <div className="flex h-[60px] items-start rounded-xl border border-border bg-card px-3 py-3 text-sm text-muted-foreground shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_28px_-10px_rgba(0,0,0,0.6)]">
+        <div className="px-6 pb-5">
+          <div className="mx-auto w-full max-w-3xl">
+            <div className="flex h-[64px] items-start rounded-xl border border-border bg-card px-4 py-3.5 text-sm text-muted-foreground">
               Ask about traffic, funnels, errors… or ask me to set something up
             </div>
           </div>
