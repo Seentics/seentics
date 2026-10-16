@@ -129,7 +129,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const saving = plans ? maxYearlySaving(plans) : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[70rem]">
+    <div className="w-full">
       {isLoading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
