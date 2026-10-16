@@ -9,7 +9,7 @@ import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { demoAnalyticsData } from '@/lib/demo';
-import { MockSidebar, useInMockExplorer, useMockContentProps } from './MockSidebar';
+import { MOCK_FRAME, MockSidebar, useInMockExplorer, useMockContentProps } from './MockSidebar';
 
 /**
  * The analytics overview, whole: sidebar, page chrome, and the real charts.
@@ -76,7 +76,7 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
      * frame's own width.
      */
     <div
-      className="flex bg-background text-foreground"
+      className="flex bg-sidebar text-foreground"
       style={{
         transform: `scale(${zoom})`,
         transformOrigin: 'top left',
@@ -86,7 +86,7 @@ export function DashboardMock({ flush = false }: { flush?: boolean }) {
     >
       <MockSidebar active="Overview" />
 
-      <main {...contentProps} className="min-w-0 flex-1 overflow-hidden bg-background">
+      <main {...contentProps} className={`min-w-0 flex-1 overflow-hidden ${MOCK_FRAME}`}>
         {/*
           Capped, but wider than the real page's 1200.
 

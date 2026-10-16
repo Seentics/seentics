@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { cn } from '@/lib/utils';
 import { demoFunnelAnalytics, demoFunnels } from '@/lib/demo';
-import { MockSidebar, useMockContentProps } from './MockSidebar';
+import { MOCK_FRAME, MockSidebar, useMockContentProps } from './MockSidebar';
 
 /**
  * A funnel's analytics page.
@@ -33,10 +33,10 @@ export function FunnelMock() {
     analytics.step_metrics;
 
   return (
-    <div className="flex h-full w-full bg-background text-foreground">
+    <div className="flex h-full w-full bg-sidebar text-foreground">
       <MockSidebar active="Funnels" />
 
-      <main {...contentProps} className="min-w-0 flex-1 overflow-hidden">
+      <main {...contentProps} className={`min-w-0 flex-1 overflow-hidden ${MOCK_FRAME}`}>
         <div className="mx-auto w-full max-w-[1200px] p-8">
           <div className="mb-6 flex items-center gap-3">
             <span className="flex h-8 items-center gap-1.5 px-2 text-sm font-medium text-muted-foreground">

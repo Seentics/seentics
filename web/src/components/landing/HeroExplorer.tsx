@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { AppRouterContext, type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { PathOverrideProvider } from '@/lib/path-segment';
 import { DashboardMock } from './mocks/DashboardMock';
-import { MockNavContext, MockSidebar, useMockContentProps, type MockNavLabel } from './mocks/MockSidebar';
+import { MOCK_FRAME, MockNavContext, MockSidebar, useMockContentProps, type MockNavLabel } from './mocks/MockSidebar';
 import { LazyAutomationBuilderMock, LazyFunnelMock, LazyHeatmapMock, LazyReplayMock } from './mocks/lazy';
 import { ProductWindow } from './ProductWindow';
 
@@ -13,9 +13,9 @@ import { ProductWindow } from './ProductWindow';
 function AutomationsScreen() {
   const contentProps = useMockContentProps();
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-full w-full overflow-hidden bg-sidebar text-foreground">
       <MockSidebar active="Automations" />
-      <div {...contentProps} className="min-w-0 flex-1">
+      <div {...contentProps} className={`min-w-0 flex-1 ${MOCK_FRAME}`}>
         <LazyAutomationBuilderMock />
       </div>
     </div>
@@ -51,9 +51,9 @@ const STAY: AppRouterInstance = {
 function RealPage({ label, path, children }: { label: MockNavLabel; path: string; children: ReactNode }) {
   const contentProps = useMockContentProps();
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-full w-full overflow-hidden bg-sidebar text-foreground">
       <MockSidebar active={label} />
-      <div {...contentProps} className="min-w-0 flex-1 overflow-hidden bg-background">
+      <div {...contentProps} className={`min-w-0 flex-1 ${MOCK_FRAME}`}>
         <AppRouterContext.Provider value={STAY}>
           <PathOverrideProvider path={path}>{children}</PathOverrideProvider>
         </AppRouterContext.Provider>

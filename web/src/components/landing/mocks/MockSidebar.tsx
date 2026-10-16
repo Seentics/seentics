@@ -73,10 +73,16 @@ export function useMockContentProps(): { inert?: boolean } {
   return useContext(MockNavContext) ? { inert: true } : {};
 }
 
+/**
+ * The page's frame, as the dashboard draws it from md up (app/websites/[websiteId]/layout.tsx):
+ * a rounded, hairline-edged panel inset from the window, with the sidebar on the chrome around it.
+ */
+export const MOCK_FRAME = 'my-2 mr-2 overflow-hidden rounded-xl border border-border bg-background shadow-[var(--panel-edge)]';
+
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
   const nav = useContext(MockNavContext);
   return (
-    <aside className="flex h-full w-[216px] shrink-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border dark:border-none">
+    <aside className="flex h-full w-[216px] shrink-0 flex-col overflow-hidden bg-sidebar">
       {/* Header — logo, wordmark, collapse control */}
       <div className="flex h-[60px] shrink-0 items-center gap-2 px-4">
         <div className="flex w-full items-center justify-between">

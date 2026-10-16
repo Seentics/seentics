@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { DemoHeatmapPage } from '@/components/heatmaps/DemoHeatmapPage';
 import { cn } from '@/lib/utils';
-import { MockSidebar, useMockContentProps } from './MockSidebar';
+import { MOCK_FRAME, MockSidebar, useMockContentProps } from './MockSidebar';
 
 /**
  * A click heatmap over a page.
@@ -84,10 +84,10 @@ function SegmentedControl({
 export function HeatmapMock() {
   const contentProps = useMockContentProps();
   return (
-    <div className="flex h-full w-full bg-background text-foreground">
+    <div className="flex h-full w-full bg-sidebar text-foreground">
       <MockSidebar active="Heatmaps" />
 
-      <main {...contentProps} className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main {...contentProps} className={`flex min-w-0 flex-1 flex-col overflow-hidden ${MOCK_FRAME}`}>
         <header className="shrink-0 border-b border-border px-5 py-2.5">
           <div className="flex items-center gap-2">
             <span className="flex h-8 shrink-0 items-center gap-1.5 text-sm font-medium text-muted-foreground">
