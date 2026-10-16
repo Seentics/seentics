@@ -19,6 +19,7 @@ import { IntegrationIcon } from '@/components/integrations/IntegrationIcon';
 import { INTEGRATIONS } from '@/lib/integrations';
 import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
 import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
+import { HashLinks } from './HashLinks';
 
 /**
  * Each sibling product is shown with its own mark and its own brand colour —
@@ -409,6 +410,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   ];
 
   return (
+    <>
+    <HashLinks />
     <header
       className={`fixed left-0 right-0 top-0 z-[100] h-[72px] transition-colors duration-300 ${
         scrolled || alwaysBordered
@@ -499,7 +502,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
+            className="absolute top-full left-0 right-0 max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
           >
             <div className="landing-container py-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
@@ -606,5 +609,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
         )}
       </AnimatePresence>
     </header>
+    </>
   );
 }
