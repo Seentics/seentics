@@ -130,16 +130,15 @@ seentics/
 │   ├── app/         Composition root, where the graph is wired
 │   ├── modules/     Domain modules, one table each
 │   ├── platform/    Cross-cutting; owns no table
-│   ├── infrastructure/  Event bus, transactional outbox
 │   └── db/          Drizzle schema and migrations
 ├── web/             Next.js dashboard, plus public/trackers/seentics.js
 └── ui/blocks/       @seentics/ui — embeddable React blocks (MIT)
 ```
 
-Modules talk to each other through explicit interfaces for synchronous calls and
-typed domain events for asynchronous ones. **Read
-[core/ARCHITECTURE.md](core/ARCHITECTURE.md) before changing `core/`** — it covers the
-module boundaries, the event bus guarantees, and the known gaps.
+Modules talk to each other through explicit interfaces, injected at startup; there is no
+event bus. **Read [core/ARCHITECTURE.md](core/ARCHITECTURE.md) before changing `core/`** —
+it covers the module boundaries, why the event bus and outbox were removed, and the known
+gaps.
 
 ## Architecture
 
