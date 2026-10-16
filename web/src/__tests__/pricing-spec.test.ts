@@ -114,3 +114,15 @@ describe('comparison table', () => {
     expect(cell('Past the limit', STARTER)).toBe('Collection pauses');
   });
 });
+
+describe('a plan with no Observability allowance (an older catalogue)', () => {
+  const noObserve: PricedPlan = { ...STARTER, limits: { core: STARTER.limits.core } };
+  const cell = (label: string) => COMPARE_GROUPS.flatMap((g) => g.rows).find((r) => r.label === label)!.value(noObserve);
+
+  it('leaves the telemetry line off the card and dashes the table, never "undefined"', () => {
+    expect(JSON.stringify(cardSectionsFor(noObserve))).not.toContain('undefined');
+    expect(labels(noObserve).join('\n')).not.toMatch(/logs, traces/);
+    expect(cell('Logs, traces & metrics / month')).toBe(false);
+    expect(cell('Telemetry retention')).toBe(false);
+  });
+});

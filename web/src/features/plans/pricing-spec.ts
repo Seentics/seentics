@@ -124,7 +124,10 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
     // "Up to": every plan stops at these by default, so the bill is predictable.
     { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
     ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
-    { value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' },
+    // Only where the plan has an Observability allowance of its own.
+    ...(allowance(plan, 'observe', 'storage_gb') !== undefined
+      ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' }]
+      : []),
     { value: formatDays(core('retention_days')), label: 'analytics retention' },
     { value: formatCount(core('websites')), label: 'websites' },
     everything
@@ -158,7 +161,7 @@ export type CompareGroup = { title: string; rows: CompareRow[] };
 /** "Up to 300", or a dash for a plan that has none of it (a limit of 0). */
 const meteredCell = (product: string, key: string, unit = '') => (p: PricedPlan): string | boolean => {
   const value = allowance(p, product, key);
-  if (value === 0) return false;
+  if (value === 0 || value === undefined) return false;
   return `Up to ${unit ? `${value} ${unit}` : formatCount(value)}`;
 };
 
@@ -193,8 +196,8 @@ export const COMPARE_GROUPS: CompareGroup[] = [
     title: 'Observability',
     rows: [
       { label: 'Logs, traces & metrics / month', value: meteredCell('observe', 'storage_gb', 'GB') },
-      { label: 'Past the limit', value: (p) => (isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
-      { label: 'Telemetry retention', value: (p) => formatDays(limit(p, 'observe', 'retention_days')) },
+      { label: 'Past the limit', value: (p) => (allowance(p, 'observe', 'storage_gb') === undefined ? false : isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
+      { label: 'Telemetry retention', value: (p) => (limit(p, 'observe', 'retention_days') === undefined ? false : formatDays(limit(p, 'observe', 'retention_days'))) },
       { label: 'Error tracking & alerts', value: () => true },
       { label: 'Uptime monitoring', value: () => true },
     ],
