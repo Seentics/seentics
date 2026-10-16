@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact, Send,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact, Send, SlidersHorizontal,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +19,8 @@ import { useAuth } from '@/stores/useAuthStore';
 import { useEntitlements } from '@/features/suite/queries';
 import { workspaceIncludes } from '@/features/suite/workspace';
 import { config } from '@/lib/config';
+import { useHiddenNav, visibleItems, type NavId } from '@/features/sidebar/nav-prefs';
+import { SidebarCustomizeDialog } from './SidebarCustomizeDialog';
 
 interface SuiteNavItem {
   label: string;
@@ -38,35 +40,38 @@ function buildSuiteProducts(websiteId: string): SuiteNavItem[] {
 }
 
 interface NavItem {
+  id:    NavId;
   label: string;
   href:  string;
   icon:  React.ElementType;
+  /** What the page is for, in the customize dialog. */
+  hint:  string;
 }
 
 function buildMainNav(websiteId: string): NavItem[] {
   return [
     // `?dashboard=1`: picking Overview means the dashboard, even where AI mode is the default.
-    { label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard },
+    { id: 'overview',    label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard, hint: 'Visitors, pages, sources and goals' },
     // What a visitor did, where they clicked and where they dropped out, then what to do
     // about it; errors last, beside the developer tools that follow.
-    { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
-    { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
-    { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
-    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
-    { label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Contact },
-    { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
+    { id: 'recording',   label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video,     hint: 'Replays of visitor sessions' },
+    { id: 'heatmaps',    label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame,     hint: 'Clicks and scroll depth on each page' },
+    { id: 'funnels',     label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch, hint: 'Where visitors drop out of a flow' },
+    { id: 'automations', label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot,       hint: 'Popups, emails and webhooks on triggers' },
+    { id: 'leads',       label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Contact,   hint: 'Form submissions and contacts' },
+    { id: 'revenue',     label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote,  hint: 'Sales and where they came from' },
     // Where those sales and leads are sent: the ad platforms, from Seentics' servers.
-    { label: 'Conversions', href: `/websites/${websiteId}/conversions`, icon: Send },
-    { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
-    { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },
+    { id: 'conversions', label: 'Conversions', href: `/websites/${websiteId}/conversions`, icon: Send,      hint: 'Sales and leads sent to ad platforms' },
+    { id: 'ai-reports',  label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles,  hint: 'Written reports on your traffic' },
+    { id: 'errors',      label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug,       hint: 'JavaScript errors your visitors hit' },
   ];
 }
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
     // Account-wide, not this site's: clients, and the management and data APIs.
-    { label: 'Developers', href: `/websites/${websiteId}/agency`, icon: Code2 },
-    { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
+    { id: 'developers', label: 'Developers', href: `/websites/${websiteId}/agency`, icon: Code2, hint: 'Clients, and the management and data APIs' },
+    { id: 'settings', label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings, hint: 'Website, tracking and team' },
   ];
 }
 
@@ -85,6 +90,11 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const mainNav = buildMainNav(websiteId);
   const secondNav = buildSecondaryNav(websiteId);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [customizing, setCustomizing] = useState(false);
+  const [hidden, setHidden] = useHiddenNav(user?.id);
+  const allNav = [...mainNav, ...secondNav];
+  const activeId = allNav.find((item) => isNavActive(item.href, pathname))?.id ?? null;
+  const shownNav = visibleItems(allNav, hidden, activeId);
   const { data: entitlements } = useEntitlements();
   // Suite plans only, free included (features/suite/workspace.ts): a customer
   // who bought Analytics alone is not offered the other apps.
@@ -223,8 +233,27 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
         <ul className="space-y-0.5">
-          {mainNav.map((item) => renderItem(item, collapsed))}
-          {secondNav.map((item) => renderItem(item, collapsed))}
+          {shownNav.map((item) => renderItem(item, collapsed))}
+          <li>
+            <button
+              type="button"
+              onClick={() => setCustomizing(true)}
+              title={collapsed ? (hidden.length ? `Customize sidebar · ${hidden.length} hidden` : 'Customize sidebar') : undefined}
+              aria-label={collapsed ? 'Customize sidebar' : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-lg text-foreground/45 transition-colors hover:bg-muted/50 hover:text-foreground',
+                collapsed ? 'mx-auto h-9 w-10 justify-center' : 'h-9 w-full px-3',
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4 shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left text-[13px] font-medium">Customize</span>
+                  {hidden.length > 0 && <span className="text-[11.5px] tabular-nums text-foreground/40">{hidden.length} hidden</span>}
+                </>
+              )}
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -368,6 +397,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         </Link>
       </div>
       {panel(collapsedPref, false)}
+      <SidebarCustomizeDialog open={customizing} onOpenChange={setCustomizing} items={allNav} hidden={hidden} onChange={setHidden} />
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="left" className="w-[264px] max-w-[85vw] border-sidebar-border bg-sidebar p-0 md:hidden">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
