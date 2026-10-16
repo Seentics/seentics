@@ -141,9 +141,11 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           className={cn(
             'flex items-center gap-3 rounded-lg transition-colors',
             collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
+            // Light: a white pill with a hairline edge — the grey accent sat a shade off the
+            // grey sidebar and barely showed. Dark keeps the accent fill.
             active
-              ? 'bg-accent text-foreground'
-              : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+              ? 'bg-card text-foreground shadow-[0_0_0_1px_rgb(15_15_20/0.07),0_1px_2px_rgb(15_15_20/0.06)] dark:bg-accent dark:shadow-none'
+              : 'text-foreground/60 hover:text-foreground hover:bg-black/[0.045] dark:hover:bg-muted/50',
           )}
         >
           <item.icon className="h-[17px] w-[17px] shrink-0" />
