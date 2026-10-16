@@ -42,12 +42,12 @@ export default function Pricing() {
       <div className="landing-container">
         <div className="mb-12 grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-16">
           <h2 className="lx-display text-[1.75rem] sm:text-4xl">
-            Start free.
+            Every plan has everything.
             <br />
-            <span className="lx-dim">Pay only as you grow.</span>
+            <span className="lx-dim">Only the amounts differ.</span>
           </h2>
           <p className="lx-dim max-w-md text-base leading-relaxed">
-            Analytics, replay, heatmaps, funnels, popups and observability in one place, with plans from $0.
+            Analytics, replay, heatmaps, funnels, popups and observability on Free, Starter and Pro alike. The plans differ only in how many events, recordings and gigabytes they include.
           </p>
         </div>
 
