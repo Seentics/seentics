@@ -468,7 +468,7 @@ export function ReplaySessionSidebar({
   websiteId?: string;
   /** Show the frustration and AI summary panel for this session. Left out on the demo and embeds. */
   analysisSessionId?: string;
-  /** Sizing from the page: full width when stacked under the player, a fixed column beside it. */
+  /** Extra sizing from the page. */
   className?: string;
 }) {
   const [activeTab, setActiveTab] = useState<SidebarTab>('summary');
@@ -506,9 +506,9 @@ export function ReplaySessionSidebar({
   ];
 
   return (
-    <section className={cn('flex min-h-0 shrink-0 flex-col border-t border-border bg-background/60', className)}>
-      {/* Tab bar */}
-      <div className="shrink-0 border-b border-border bg-background/80 px-3 sm:px-4">
+    <section className={cn('flex shrink-0 flex-col', className)}>
+      {/* Tab bar, lined up with the player's edges */}
+      <div className="sticky top-0 z-10 shrink-0 border-b border-border bg-background/90 px-3 backdrop-blur sm:px-5">
         <div className="flex w-full items-center gap-0 overflow-x-auto">
             {tabs.map(tab => (
               <button
@@ -533,17 +533,19 @@ export function ReplaySessionSidebar({
         </div>
       </div>
 
-      {/* Tab panels — scroll inside the panel so the player never moves */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+      {/* Tab panels, under the player; the page scrolls to them */}
+      <div className="px-3 pb-8 pt-4 sm:px-5">
         <div className="w-full">
-        {activeTab === 'summary' && analysisSessionId && (
-          <SessionAnalysisPanel
-            websiteId={websiteId}
-            sessionId={analysisSessionId}
-            replayBridge={replayBridge}
-          />
-        )}
+        {/* Summary: what happened beside who the visitor was, from lg up. */}
         {activeTab === 'summary' && (
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+            {analysisSessionId && (
+              <SessionAnalysisPanel
+                websiteId={websiteId}
+                sessionId={analysisSessionId}
+                replayBridge={replayBridge}
+              />
+            )}
           <SessionSummaryCard
             session={session}
             websiteId={websiteId}
@@ -554,6 +556,7 @@ export function ReplaySessionSidebar({
                 : undefined
             }
           />
+          </div>
         )}
 
         {activeTab === 'timeline' && (

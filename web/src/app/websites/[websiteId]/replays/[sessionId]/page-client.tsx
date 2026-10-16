@@ -219,11 +219,11 @@ export function ReplayDetailView({
 
       <ReplayPlaybackProvider bridge={replayBridge}>
         {/*
-          Below `xl` the player stacks over the session panel. From `xl` they sit side by
-          side — player on the left, a fixed-width panel on the right — so the summary,
-          errors and console are in view while a recording plays instead of a screen below it.
+          The player on top at every width, the session's tabs under it. Side by side, the
+          tab column took ~360px from the player, which is width-bound on most screens, so
+          the recording played smaller than the window allowed.
         */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden 2xl:flex-row 2xl:overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden">
           {/* Player must stay first in the column; avoid flex-1 on this row when a recording exists — it can reorder/stack oddly with overflow + min-height. */}
           <div
             className={cn(
@@ -231,7 +231,7 @@ export function ReplayDetailView({
               // Demo counts as having a recording for layout: it renders a player, so
               // it wants the player's padding rather than the empty state's centring.
               hasRecording || isDemoMode
-                ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4 2xl:min-h-0 2xl:flex-1 2xl:shrink 2xl:overflow-y-auto 2xl:pb-4'
+                ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4'
                 : 'min-h-0 flex-1 basis-0 px-3 pb-3 pt-2 sm:px-4',
             )}
           >
@@ -398,7 +398,6 @@ export function ReplayDetailView({
               a player floating on an empty page. */}
           {hasRecording || isDemoMode ? (
             <ReplaySessionSidebar
-              className="2xl:w-[360px] 2xl:border-l 2xl:border-t-0"
               replayBridge={replayBridge}
               session={session ?? null}
               websiteId={websiteId}
