@@ -217,7 +217,7 @@ export default function FunnelDetailPage() {
           <p className="py-14 text-center text-sm text-muted-foreground">This funnel has no steps yet.</p>
         ) : (
           <>
-            <div className="overflow-x-auto px-5 pb-5 pt-6">
+            <div className="funnel-canvas overflow-x-auto px-5 pb-5 pt-6">
               <div className="flex items-stretch" style={{ minWidth: rows.length * 132 }}>
                 {rows.map((row, i) => {
                   const prev = rows[i - 1];
@@ -269,6 +269,7 @@ export default function FunnelDetailPage() {
             </div>
 
             <div className="overflow-x-auto border-t border-border">
+              <p className="px-5 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Step details</p>
               <table className="w-full min-w-[620px] text-sm">
                 <thead>
                   <tr className="text-left text-[11px] font-medium text-muted-foreground">
