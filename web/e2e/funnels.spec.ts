@@ -178,8 +178,9 @@ test.describe('Funnels E2E Tests', () => {
           completions: 250,
           conversionRate: 25,
           stepBreakdown: [
-            { stepOrder: 1, count: 1000, dropoffCount: 750, dropoffRate: 75 },
-            { stepOrder: 2, count: 250, dropoffCount: 0, dropoffRate: 0 },
+            // 0-based, as core reports it; dropoff is the loss on the way into a step.
+            { stepOrder: 0, count: 1000, dropoffCount: 0, dropoffRate: 0 },
+            { stepOrder: 1, count: 250, dropoffCount: 750, dropoffRate: 75 },
           ],
         }),
       });
@@ -193,25 +194,20 @@ test.describe('Funnels E2E Tests', () => {
     // Each headline figure is asserted next to its own label. A bare `text=250` is a
     // substring match across the whole page, which is a strict-mode violation the
     // moment any other element contains those digits.
-    // Two levels up from the label: the label sits in its own icon+text row, and the
-    // card above that is what also holds the value.
+    // One level up from the label: the figure that holds the label and its value.
     const stat = (label: string) =>
-      page.getByText(label, { exact: true }).locator('..').locator('..');
+      page.getByText(label, { exact: true }).locator('..');
     await expect(stat('Entered funnel')).toContainText('1,000');
     await expect(stat('Completed')).toContainText('250');
     await expect(stat('Conversion rate')).toContainText('25.0%');
     await expect(stat('Drop-off rate')).toContainText('75.0%');
 
-    // The step list renders both steps, in definition order.
-    const steps = page.getByRole('listitem');
-    await expect(steps.filter({ hasText: 'Home' })).toBeVisible();
-    await expect(steps.filter({ hasText: 'Cart' })).toBeVisible();
-
-    // Deliberately not asserting per-step counts. With `stepBreakdown` starting at
-    // `stepOrder: 1`, the page renders 0 against step 1 (Home) and 1,000 against step 2
-    // (Cart) — the entry count lands one step late. That looks like an off-by-one in the
-    // step-order mapping, and pinning it here would freeze it as correct. The headline
-    // figures above come from `totalEntries`/`completions` and are right.
+    // The step table: each step's own count, and the loss into the second.
+    const row = (name: string) => page.getByRole('row').filter({ hasText: name });
+    await expect(row('Home')).toContainText('1,000');
+    await expect(row('Cart')).toContainText('250');
+    await expect(row('Cart')).toContainText('25.0%');
+    await expect(row('Cart')).toContainText('750');
   });
 
   test('should open new funnel modal builder', async ({ page }) => {

@@ -4,41 +4,30 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  ArrowDownRight,
-  GitBranch,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
-import { isDemo } from '@/lib/demo';
-import { StatCards } from '@/components/seentics-ui/StatCards';
-import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect } from '@/components/funnels/FunnelRangeSelect';
+import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect, funnelRangeLabel } from '@/components/funnels/FunnelRangeSelect';
 import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
 import { cn } from '@/lib/utils';
 
 /**
- * A funnel's analytics.
+ * A funnel's analytics, read top to bottom as three answers:
  *
- * The previous version showed each step as an isolated progress bar, then repeated
- * the same percentages in a "Step Conversion" card beside it, then dumped each step's
- * condition as `JSON.stringify(..., null, 2)` in a third card. Three panels, two of
- * them saying the same thing and one of them unreadable.
+ *   1. How did it do? Four plain figures, no icons or tints.
+ *   2. Where do people leave? One sentence naming the worst transition — the only colour
+ *      on the page, because it is the one thing worth pulling the eye to.
+ *   3. What happened at each step? A column per step in one colour, the faint striped
+ *      column behind it being everyone who reached the step before, so the loss is the
+ *      gap you see rather than a second bar. The share that carried on sits between each
+ *      pair. Then a table with the exact numbers.
  *
- * This is one funnel instead. Every step carries its own numbers inline, and the two
- * figures that actually matter are both present: what share of *entrants* reached this
- * step, and what share of the *previous* step continued. The second one was never
- * shown, and it is the one that tells you which transition is broken — a step can look
- * healthy against total entries while losing most of the people who reached it.
+ * Losses are worked out from the step counts (previous minus this), not read from each
+ * step's `drop_off`: the API reports that as the loss *into* a step while the demo data
+ * reports the loss *out of* it, and the counts mean the same thing in both.
  */
 
 /** A step's condition, as something readable rather than a JSON blob. */
@@ -80,26 +69,31 @@ export default function FunnelDetailPage() {
         count,
         entryRate: totalStarts > 0 ? (count / totalStarts) * 100 : 0,
         stepRate: prev == null ? undefined : prev > 0 ? (count / prev) * 100 : 0,
-        dropOff: metric?.drop_off ?? 0,
-        dropOffRate: metric?.drop_off_rate ?? 0,
+        // Lost on the way in from the step before.
+        dropOff: prev == null ? 0 : Math.max(prev - count, 0),
+        dropOffRate: prev == null || prev <= 0 ? 0 : (Math.max(prev - count, 0) / prev) * 100,
       };
     });
   }, [funnel, analytics, totalStarts]);
 
-  /** The transition that loses the most people — the reason you opened this page. */
+  /**
+   * The transition that loses the largest share of the people who reached it — the
+   * reason you opened this page. By share, not head count: the first transition always
+   * loses the most people simply because the most people are there.
+   */
   const worst = useMemo(() => {
-    const candidates = rows.slice(0, -1).filter(r => r.dropOff > 0);
+    const candidates = rows.slice(1).filter(r => r.dropOff > 0);
     if (!candidates.length) return null;
-    const step = candidates.reduce((a, b) => (b.dropOff > a.dropOff ? b : a));
-    const next = rows[rows.indexOf(step) + 1];
-    return next ? { step, next } : null;
+    const to = candidates.reduce((a, b) => (b.dropOffRate > a.dropOffRate ? b : a));
+    const from = rows[rows.indexOf(to) - 1];
+    return from ? { from, to } : null;
   }, [rows]);
 
   if (funnelsLoading) {
     return (
       <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 md:p-5 lg:px-6 lg:py-5">
         <Skeleton className="h-8 w-48 rounded-lg" />
-        <StatCards cards={[]} isLoading />
+        <Skeleton className="h-20 rounded-lg" />
         <Skeleton className="h-96 rounded-lg" />
       </div>
     );
@@ -130,8 +124,16 @@ export default function FunnelDetailPage() {
     );
   }
 
+  const conversions = analytics?.total_conversions || 0;
+  const dropped = Math.max(totalStarts - conversions, 0);
+  const windowText = funnel.conversion_window_hours
+    ? funnel.conversion_window_hours >= 24 && funnel.conversion_window_hours % 24 === 0
+      ? `${funnel.conversion_window_hours / 24} day${funnel.conversion_window_hours === 24 ? '' : 's'}`
+      : `${funnel.conversion_window_hours} hour${funnel.conversion_window_hours === 1 ? '' : 's'}`
+    : null;
+
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
+    <div className="mx-auto w-full max-w-[1200px] p-4 md:p-5 lg:px-6 lg:py-5">
       <button
         type="button"
         onClick={() => router.push(`/websites/${websiteId}/funnels`)}
@@ -155,149 +157,198 @@ export default function FunnelDetailPage() {
         </ul>
       )}
 
-      <StatCards
-        isLoading={analyticsLoading}
-        cards={[
-          { label: 'Entered funnel', value: totalStarts, icon: Users },
-          {
-            label: 'Completed',
-            value: analytics?.total_conversions || 0,
-            icon: Target,
-            subtext: analytics?.avg_time_to_convert
-              ? `${formatDuration(analytics.avg_time_to_convert)} to convert on average`
-              : undefined,
-          },
-          {
-            label: 'Conversion rate',
-            value: `${(analytics?.conversion_rate || 0).toFixed(1)}%`,
-            icon: TrendingUp,
-            tone: 'accent',
-          },
-          {
-            label: 'Drop-off rate',
-            value: `${(analytics?.drop_off_rate || 0).toFixed(1)}%`,
-            icon: TrendingDown,
-          },
-        ]}
-      />
+      {/* 1. How did it do. */}
+      <section aria-label="Summary" className="surface grid grid-cols-2 md:grid-cols-4">
+        <Figure label="Entered funnel" value={totalStarts.toLocaleString()} loading={analyticsLoading} />
+        <Figure
+          label="Completed"
+          value={conversions.toLocaleString()}
+          note={analytics?.avg_time_to_convert ? `${formatDuration(analytics.avg_time_to_convert)} on average` : undefined}
+          loading={analyticsLoading}
+          className="border-l border-border"
+        />
+        <Figure
+          label="Conversion rate"
+          value={`${(analytics?.conversion_rate || 0).toFixed(1)}%`}
+          note={funnelRangeLabel(days)}
+          loading={analyticsLoading}
+          className="border-t border-border md:border-l md:border-t-0"
+        />
+        <Figure
+          label="Drop-off rate"
+          value={`${(analytics?.drop_off_rate || 0).toFixed(1)}%`}
+          note={dropped > 0 ? `${dropped.toLocaleString()} people` : undefined}
+          loading={analyticsLoading}
+          className="border-l border-t border-border md:border-t-0"
+        />
+      </section>
 
-      <p className="mb-6 text-xs text-muted-foreground">
-        Counted from page views and events. Visitors who have not agreed to tracking are followed within a single day only, so a journey that crosses midnight counts them at the step they reached before it.
-        {funnel.conversion_window_hours ? ` Each step has to follow the one before within ${funnel.conversion_window_hours >= 24 && funnel.conversion_window_hours % 24 === 0 ? `${funnel.conversion_window_hours / 24} day${funnel.conversion_window_hours === 24 ? '' : 's'}` : `${funnel.conversion_window_hours} hour${funnel.conversion_window_hours === 1 ? '' : 's'}`}.` : ''}
-      </p>
-
-      {/*
-        The single worst transition, called out rather than left to be spotted — and
-        the one place colour is left on this page, because it is the one thing worth
-        pulling the eye to. Amber rather than orange, and only here.
-      */}
-      {worst && (
-        <div className="surface mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 px-5 py-3.5 text-sm">
-          <ArrowDownRight className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span className="font-semibold text-foreground">Biggest drop-off</span>
-          <span className="text-muted-foreground">
-            between <span className="font-medium text-foreground">{worst.step.name}</span> and{' '}
-            <span className="font-medium text-foreground">{worst.next.name}</span> —
+      {/* 2. Where do people leave. */}
+      {worst && !analyticsLoading && (
+        <p className="mt-5 flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
+          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+          <span>
+            Most people leave between{' '}
+            <span className="font-medium text-foreground">{worst.from.name}</span> and{' '}
+            <span className="font-medium text-foreground">{worst.to.name}</span>:{' '}
+            <span className="font-medium text-amber-700 dark:text-amber-400">
+              {worst.to.dropOffRate.toFixed(1)}% of them ({worst.to.dropOff.toLocaleString()})
+            </span>{' '}
+            do not carry on.
           </span>
-          <span className="font-semibold text-amber-700 dark:text-amber-400">
-            {worst.step.dropOff.toLocaleString()} people ({worst.step.dropOffRate.toFixed(1)}%)
-          </span>
-        </div>
+        </p>
       )}
 
-      {/*
-        The funnel.
-
-        Rebuilt around the transition rather than the step. Every funnel view — ours
-        included, and every competitor's — draws a row per step with a bar that gets
-        shorter, and files the loss away as a line of text underneath. But nobody
-        loses visitors *at* a step; they lose them *between* two. So the band between
-        each pair of steps is now the loudest element on the page: one bar split into
-        the people who carried on and the people who did not, both labelled.
-
-        The step rows keep a share-of-entries bar, which is the absolute view and the
-        thing a decreasing-bar chart is actually good at. Two views, each doing the
-        job it is suited to, instead of one doing both badly.
-      */}
-      <Card className="overflow-hidden border border-border bg-card shadow-sm">
-        <CardHeader className="border-b border-border px-5 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm font-semibold">Funnel steps</CardTitle>
-            <p className="text-[11px] text-muted-foreground">Bar width is the share of all entries</p>
+      {/* 3. Each step. */}
+      <section aria-labelledby="funnel-steps" className="surface mt-5 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-5 py-3">
+          <h2 id="funnel-steps" className="text-sm font-semibold text-foreground">Conversion by step</h2>
+          <div className="flex items-center gap-4 text-[11px] text-muted-foreground" aria-hidden>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-primary" /> Reached the step
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="funnel-ghost h-2.5 w-2.5 rounded-[3px]" /> Left before it
+            </span>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="p-5">
-          {rows.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">This funnel has no steps yet.</p>
-          ) : (
-            <ol className="mx-auto max-w-3xl">
-              {rows.map((row, i) => {
-                const isLast = i === rows.length - 1;
-                const next = rows[i + 1];
-                const width = Math.max(row.entryRate, 2);
-                const continued = next && row.count > 0 ? (next.count / row.count) * 100 : 0;
-                const isWorst = worst?.step.id === row.id;
-
-                return (
-                  <li key={row.id}>
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                          <div className="flex min-w-0 items-baseline gap-2">
-                            <span className="truncate text-[13px] font-semibold text-foreground">{row.name}</span>
-                            {row.condition && (
-                              <code className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{row.condition}</code>
-                            )}
-                          </div>
-                          <div className="flex shrink-0 items-baseline gap-1.5">
-                            <span className="text-sm font-bold tabular-nums text-foreground">{row.count.toLocaleString()}</span>
-                            <span className="w-12 text-right text-[11px] tabular-nums text-muted-foreground">
-                              {row.entryRate.toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="h-7 overflow-hidden rounded-md bg-muted/60">
-                          <div
+        {rows.length === 0 ? (
+          <p className="py-14 text-center text-sm text-muted-foreground">This funnel has no steps yet.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto px-5 pb-5 pt-6">
+              <div className="flex items-stretch" style={{ minWidth: rows.length * 132 }}>
+                {rows.map((row, i) => {
+                  const prev = rows[i - 1];
+                  const isWorst = worst?.to.id === row.id;
+                  return (
+                    <div key={row.id} className="contents">
+                      {prev && (
+                        <div className="flex w-14 shrink-0 flex-col items-center justify-center pt-8 sm:w-16">
+                          <span
                             className={cn(
-                              'h-full rounded-md transition-[width] duration-500',
-                              isLast ? 'bg-primary/80' : 'bg-primary/50',
+                              'text-[12px] font-semibold tabular-nums',
+                              isWorst ? 'text-amber-700 dark:text-amber-400' : 'text-foreground',
                             )}
-                            style={{ width: `${width}%` }}
+                          >
+                            {(row.stepRate ?? 0).toFixed(1)}%
+                          </span>
+                          <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-muted-foreground/70" aria-hidden />
+                        </div>
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[15px] font-semibold tabular-nums text-foreground">
+                            {analyticsLoading ? '—' : row.count.toLocaleString()}
+                          </span>
+                          <span className="text-[11px] tabular-nums text-muted-foreground">{row.entryRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="relative mt-2 h-48 border-b border-border" aria-hidden>
+                          {prev && (
+                            <div
+                              className="funnel-ghost absolute inset-x-0 bottom-0 rounded-t-[4px]"
+                              style={{ height: `${Math.max(prev.entryRate, 1)}%` }}
+                            />
+                          )}
+                          <div
+                            className="absolute inset-x-0 bottom-0 rounded-t-[4px] bg-primary transition-[height] duration-500"
+                            style={{ height: `${Math.max(row.entryRate, 1)}%` }}
                           />
                         </div>
+                        <p className="mt-3 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">Step {i + 1}</p>
+                        <p className="mt-0.5 truncate text-[13px] font-medium text-foreground" title={row.name}>{row.name}</p>
+                        {row.condition && (
+                          <p className="truncate font-mono text-[11px] text-muted-foreground" title={row.condition}>{row.condition}</p>
+                        )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                    {next && (
-                      <div className="flex items-center gap-3 py-2">
-                        <span className="flex w-6 shrink-0 justify-center">
-                          <span className="h-5 w-px bg-border" />
-                        </span>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] tabular-nums',
-                            isWorst
-                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                              : 'border-border bg-muted/40 text-muted-foreground',
+            <div className="overflow-x-auto border-t border-border">
+              <table className="w-full min-w-[620px] text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] font-medium text-muted-foreground">
+                    <th scope="col" className="px-5 py-2.5 font-medium">Step</th>
+                    <th scope="col" className="px-3 py-2.5 text-right font-medium">Visitors</th>
+                    <th scope="col" className="px-3 py-2.5 text-right font-medium">From previous</th>
+                    <th scope="col" className="px-3 py-2.5 text-right font-medium">From start</th>
+                    <th scope="col" className="px-5 py-2.5 text-right font-medium">Left before this step</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => {
+                    const isWorst = worst?.to.id === row.id;
+                    return (
+                      <tr key={row.id} className="border-t border-border">
+                        <td className="px-5 py-3">
+                          <div className="flex min-w-0 items-baseline gap-2.5">
+                            <span className="w-4 shrink-0 text-[11px] tabular-nums text-muted-foreground">{i + 1}</span>
+                            <span className="truncate font-medium text-foreground">{row.name}</span>
+                            {row.condition && (
+                              <code className="hidden truncate font-mono text-[11px] text-muted-foreground lg:inline">{row.condition}</code>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-right font-medium tabular-nums text-foreground">{row.count.toLocaleString()}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
+                          {row.stepRate == null ? '—' : `${row.stepRate.toFixed(1)}%`}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">{row.entryRate.toFixed(1)}%</td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {i === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={isWorst ? 'font-medium text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+                              {row.dropOff.toLocaleString()}
+                              <span className="ml-1.5 text-[11px]">({row.dropOffRate.toFixed(1)}%)</span>
+                            </span>
                           )}
-                        >
-                          <TrendingDown className="h-3 w-3" aria-hidden />
-                          <span className="font-semibold">{continued.toFixed(1)}%</span> continued
-                          {row.dropOff > 0 && <> · {row.dropOff.toLocaleString()} dropped</>}
-                        </span>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </CardContent>
-      </Card>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      <details className="group mt-4 text-xs text-muted-foreground">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 font-medium transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" aria-hidden />
+          How this is counted
+        </summary>
+        <p className="mt-2 max-w-3xl pl-[18px] leading-relaxed">
+          Counted from page views and events. Visitors who have not agreed to tracking are followed within a single day only, so a journey that crosses midnight counts them at the step they reached before it.
+          {windowText ? ` Each step has to follow the one before within ${windowText}.` : ''}
+        </p>
+      </details>
+    </div>
+  );
+}
+
+/** One of the summary's figures: a label, the number, and at most one quiet line under it. */
+function Figure({ label, value, note, loading, className }: {
+  label: string;
+  value: string;
+  note?: string;
+  loading?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn('px-5 py-4', className)}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      {loading ? (
+        <Skeleton className="mt-2 h-7 w-24 rounded-md" />
+      ) : (
+        <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-foreground">{value}</p>
+      )}
+      {note && !loading && <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>}
     </div>
   );
 }
