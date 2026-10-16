@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
+import { useIsPathOverridden } from '@/lib/path-segment';
 import type { ReactNode } from 'react';
 
 export interface DashboardPageTitleProps {
@@ -20,17 +23,20 @@ export function DashboardPageTitle({
   className,
   uppercase = false,
 }: DashboardPageTitleProps) {
+  // Inside the landing page's preview the page title is a section heading: the landing
+  // page has its own h1, and a dozen more told search engines the page was about each.
+  const Heading = useIsPathOverridden() ? 'h2' : 'h1';
   return (
     <div className={cn('mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-center', className)}>
       <div className="space-y-0.5">
-        <h1
+        <Heading
           className={cn(
             'text-lg font-semibold tracking-tight text-foreground sm:text-xl',
             uppercase ? 'uppercase' : 'capitalize',
           )}
         >
           {title}
-        </h1>
+        </Heading>
         {description && (
           <p className="max-w-3xl text-[13px] text-muted-foreground">
             {description}

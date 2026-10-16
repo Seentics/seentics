@@ -65,6 +65,7 @@ function registry(over: Partial<LaneRegistry> = {}): LaneRegistry {
     automations: lane("maxAutomationsBeforeForceFlush"),
     profiles: lane("maxProfilesBeforeForceFlush"),
     errors: lane("maxErrorsBeforeForceFlush"),
+    conversions: lane("maxErrorsBeforeForceFlush"),
     // The one lane whose key is load-bearing: chunk sequences are per session.
     recordings: lane("maxRecordingsBeforeForceFlush", {
       partitionOf: (row: { sid?: string }) => row.sid ?? "",

@@ -4,7 +4,7 @@ import React from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { usePathSegment } from '@/lib/path-segment';
+import { usePathSegment, useIsPathOverridden } from '@/lib/path-segment';
 import { useEffect, useMemo } from 'react';
 import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers, Plug, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // useParams is the build-time placeholder, so every settings tab linked to a
   // website that does not exist.
   const segment = usePathSegment(1);
+  // A section heading inside the landing page's preview, which has its own h1.
+  const SettingsHeading = useIsPathOverridden() ? 'h2' : 'h1';
   const websiteId = segment ?? '';
   const { user, isLoading } = useAuth();
   const { subscription } = useSubscription();
@@ -105,7 +107,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           Back to Analytics
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+          <SettingsHeading className="text-xl font-semibold tracking-tight">Settings</SettingsHeading>
           {showBilling && (
             // Always in view, on every settings page: the plan, and the way to change it or see invoices.
             <Link

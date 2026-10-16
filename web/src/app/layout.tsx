@@ -27,11 +27,11 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'Seentics | See everything happening on your website',
-  description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
+  title: 'Seentics | See why visitors leave, then win them back',
+  description: 'Analytics, session replay, heatmaps and funnels that show where visitors get stuck, and popups, automations and server-side conversions that turn more of them into customers. Open source and privacy-first.',
   openGraph: {
-    title: 'Seentics | See everything happening on your website',
-    description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
+    title: 'Seentics | See why visitors leave, then win them back',
+    description: 'Analytics, session replay, heatmaps and funnels that show where visitors get stuck, and popups, automations and server-side conversions that turn more of them into customers. Open source and privacy-first.',
     url: 'https://seentics.com',
     siteName: 'Seentics',
     images: [
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Seentics | See everything happening on your website',
-    description: 'Product analytics, session replay, heatmaps and automations in one privacy-first platform. Observability for SaaS teams.',
+    title: 'Seentics | See why visitors leave, then win them back',
+    description: 'Analytics, session replay, heatmaps and funnels that show where visitors get stuck, and popups, automations and server-side conversions that turn more of them into customers. Open source and privacy-first.',
     images: ['https://seentics.com/images/app/photo-1.png'],
   },
 };

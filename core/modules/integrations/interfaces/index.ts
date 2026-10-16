@@ -1,3 +1,5 @@
+import type { LaneSpec } from "../../ingest/interfaces";
+import type { ConversionAdmin } from "./conversions";
 import type { z } from "zod";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { AuthedRouter } from "../../../platform/http/router";
@@ -182,7 +184,12 @@ export type IntegrationsModule = ModuleLifecycle & {
   mutations: IntegrationMutations;
   /** Where the leads module hands over a captured submission. */
   sink: LeadSink;
+  /** Server-side conversions: the ingest lane for consented tracker events, and the dashboard's admin. */
+  conversions: { lane: LaneSpec; admin: ConversionAdmin; routes: AuthedRouter };
   /** Ages out the delivery history and clears payloads that were never delivered. */
   retention: RetentionPurge;
   routes: AuthedRouter;
 };
+
+export type * from "./conversions";
+export { CONVERSION_PLATFORMS } from "./conversions";

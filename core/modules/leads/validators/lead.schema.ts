@@ -23,6 +23,8 @@ export const leadSubmitSchema = z.object({
   variant: z.string().max(64).optional(),
   page_url: z.string().max(2048).optional(),
   referrer: z.string().max(2048).optional(),
+  // Click and pixel ids for server-side conversions; shape-checked where it is used.
+  ad: z.record(z.unknown()).nullable().optional(),
   hp: z.string().optional(),
 });
 export type LeadSubmitBody = z.infer<typeof leadSubmitSchema>;

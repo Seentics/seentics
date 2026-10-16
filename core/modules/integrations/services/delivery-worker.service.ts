@@ -8,7 +8,7 @@ export const MAX_CONCURRENT_ATTEMPTS = 8;
 /** A burst is worked through in rounds; this stops one tick from monopolising the process. */
 const MAX_ROUNDS_PER_TICK = 25;
 
-type Attempts = { run(delivery: ClaimedDelivery): Promise<void> };
+type Attempts<T> = { run(item: T): Promise<void> };
 
 /**
  * Works the delivery outbox: claims what is due and attempts it.
@@ -19,7 +19,7 @@ type Attempts = { run(delivery: ClaimedDelivery): Promise<void> };
  * attempt is isolated: one slow or failing destination neither delays nor fails the others,
  * and nothing here can affect a visitor's form, which has long since been answered.
  */
-export class DeliveryWorker {
+export class DeliveryWorker<T extends { id: string } = ClaimedDelivery> {
   private timer: ReturnType<typeof setInterval> | null = null;
   private current: Promise<void> | null = null;
   private again = false;
@@ -27,8 +27,8 @@ export class DeliveryWorker {
   private stopping = false;
 
   constructor(
-    private readonly attempts: Attempts,
-    private readonly claim: (limit: number) => Promise<ClaimedDelivery[]> = claimDue,
+    private readonly attempts: Attempts<T>,
+    private readonly claim: (limit: number) => Promise<T[]> = claimDue as unknown as (limit: number) => Promise<T[]>,
     private readonly pollMs: number = POLL_INTERVAL_MS,
   ) {}
 
@@ -78,7 +78,7 @@ export class DeliveryWorker {
     }
   }
 
-  private async runAll(due: readonly ClaimedDelivery[]): Promise<void> {
+  private async runAll(due: readonly T[]): Promise<void> {
     let next = 0;
     const lane = async () => {
       while (next < due.length) {

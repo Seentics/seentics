@@ -25,6 +25,13 @@ export type LeadSubmission = {
   variant: string | null;
   pageUrl: string;
   referrer: string;
+  /**
+   * For server-side conversions only, never stored with the submission: the request's IP
+   * and browser, and the click and pixel ids the tracker sent (null for an anonymous visitor).
+   */
+  clientIp?: string;
+  userAgent?: string;
+  ad?: Record<string, unknown> | null;
 };
 
 /**

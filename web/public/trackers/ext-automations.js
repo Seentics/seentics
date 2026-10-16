@@ -97,6 +97,8 @@ registerExtension((core) => {
             variant:       action.variant,
             page_url:      location.href,
             referrer:      document.referrer,
+            // Click and pixel ids, for a consented lead the site forwards to its ad platforms.
+            ad:            core.adContext ? core.adContext() : null,
             ...payload,
           }),
         });

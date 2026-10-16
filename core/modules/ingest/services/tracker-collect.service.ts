@@ -15,6 +15,7 @@ import { routeFunnelEvents } from "./funnel-event-routing.service";
 import { routeHeatmapEvents } from "./heatmap-event-routing.service";
 import { routeRecordingEvents } from "./recording-event-routing.service";
 import { routeVisitorProfile } from "./visitor-profile-routing.service";
+import { routeConversionEvents } from "./conversion-event-routing.service";
 
 export function createTrackerCollectService(queue: IngestQueue): TrackerCollectService {
   return {
@@ -85,6 +86,8 @@ function processTrackerCollect(
   // A visitor profile is a record of one person across visits: only with consent.
   const analyticsRouted = routeAnalyticsEvents(context);
   if (!anonymous) routeVisitorProfile(context, analyticsRouted);
+  // Forwarded to the site's ad platforms: only an identified (consented) visitor's events.
+  if (!anonymous) routeConversionEvents({ ...context, clientIp: input.clientIp });
   routeFunnelEvents(context);
   routeAutomationTriggers(context);
   routeRecordingEvents(context);

@@ -264,6 +264,65 @@ const rawSet = (key, value) => { try { localStorage.setItem(key, value); return 
 const storeGet = (key) => (identified() ? rawGet(key) : null);
 const storeSet = (key, value) => (identified() ? rawSet(key, value) : false);
 
+// ─── Ad attribution, for server-side conversions ──────────────────────────────
+//
+// When a site forwards its conversions to ad platforms (Settings → Conversions), the
+// platform links a sale to the ad that led to it by the click id its ad link carried
+// (fbclid, gclid, ttclid, li_fat_id, msclkid) and by the browser ids its own pixel set
+// (`_fbp`, `_fbc`, `_ga`). Both are kept and sent for an identified visitor only — an
+// anonymous one's browser is neither read nor written, and their events are never
+// forwarded.
+
+const CLICK_KEY = 'snc_clk';
+const CLICK_PARAMS = ['fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid', 'li_fat_id', 'msclkid'];
+/** How long a click id is kept: the longest window an ad platform credits a click for. */
+const CLICK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+/** The click ids still in their window, by parameter: `{ fbclid: { v, ts } }`. */
+const storedClicks = () => {
+  let clicks = {};
+  try { clicks = JSON.parse(storeGet(CLICK_KEY) || '{}') || {}; } catch { clicks = {}; }
+  const now = Date.now();
+  for (const [k, c] of Object.entries(clicks)) {
+    if (!c || typeof c.v !== 'string' || typeof c.ts !== 'number' || now - c.ts > CLICK_TTL_MS) delete clicks[k];
+  }
+  return clicks;
+};
+
+/** Keep any click id on this page's URL. The newest click wins, per platform. */
+const captureClickIds = () => {
+  if (!identified()) return;
+  let params;
+  try { params = new URLSearchParams(location.search); } catch { return; }
+  const clicks = storedClicks();
+  let changed = false;
+  for (const name of CLICK_PARAMS) {
+    const v = params.get(name);
+    if (v && v.length <= 500) { clicks[name] = { v, ts: Date.now() }; changed = true; }
+  }
+  if (changed) storeSet(CLICK_KEY, JSON.stringify(clicks));
+};
+
+const readCookie = (name) => {
+  try {
+    const hit = document.cookie.split('; ').find((c) => c.startsWith(name + '='));
+    return hit ? decodeURIComponent(hit.slice(name.length + 1)).slice(0, 300) : null;
+  } catch { return null; }
+};
+
+/** What an ad platform matches a conversion by, or null — always null for an anonymous visitor. */
+const adContext = () => {
+  if (!identified()) return null;
+  const clk = storedClicks();
+  const ad = {};
+  if (Object.keys(clk).length) ad.clk = clk;
+  for (const [key, cookie] of [['fbp', '_fbp'], ['fbc', '_fbc'], ['ga', '_ga']]) {
+    const v = readCookie(cookie);
+    if (v) ad[key] = v;
+  }
+  return Object.keys(ad).length ? ad : null;
+};
+
 /** Cryptographically random token; falls back to Math.random if the crypto API is unavailable. */
 const rnd = () => {
   try {
@@ -546,6 +605,9 @@ const drainQueues = () => {
   if (heatmapEvts.length)       payload.heatmaps             = heatmapEvts;
   if (domSnapshotEvts.length)   payload.heatmap_dom_snapshot = domSnapshotEvts;
   if (errorEvts.length)         payload.errors               = errorEvts;
+  // Only with events: a conversion is an event, and nothing else needs it.
+  const ad = events.length ? adContext() : null;
+  if (ad)                       payload.ad                   = ad;
 
   return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, domSnapshotEvts };
 };
@@ -709,6 +771,8 @@ const extensionApi = {
   get automationTriggerTypes() { return automationTriggerTypes; },
   get pageEnterMs() { return pageEnterMs; },
   get visitorId() { return getVisitorId(); },
+  /** Click ids and pixel ids for a conversion, or null for an anonymous visitor. */
+  adContext: () => adContext(),
   /** Whether this visitor may be identified; extensions stand down when not. */
   get identified() { return identified(); },
   /**
@@ -1587,6 +1651,7 @@ let identifiedFeaturesOn = false;
 const enableIdentifiedFeatures = () => {
   if (identifiedFeaturesOn || !trackingBegun || !identified()) return;
   identifiedFeaturesOn = true;
+  safely(captureClickIds);
   // Cached for the next page, which can then start recording without waiting for
   // /tracker/init. Written only now — for an identified visitor.
   storeSet(CONFIG_CACHE_KEY, JSON.stringify(cfg));
@@ -1614,7 +1679,7 @@ const enableIdentifiedFeatures = () => {
 };
 
 /** Every key this tracker keeps in the browser for an identified visitor. */
-const isTrackerKey = (key) => /^snc_(vid|sid|se|ss|rd|cfg:|fs:|hmshot:)/.test(key);
+const isTrackerKey = (key) => /^snc_(vid|sid|se|ss|rd|clk|cfg:|fs:|hmshot:)/.test(key);
 
 /**
  * Consent withdrawn: stop everything that identifies the visitor, and remove every id

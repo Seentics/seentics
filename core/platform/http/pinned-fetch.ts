@@ -57,6 +57,11 @@ export async function pinnedFetch(
 
   const headers: Record<string, string> = {};
   new Headers(init.headers ?? {}).forEach((value, key) => { headers[key] = value; });
+  // The request goes to the checked address, so the name has to travel separately: in Host
+  // for the server, and as SNI (`servername`) for TLS, which also checks the certificate
+  // against it. Bun's https ignores `lookup` and verified the certificate against the bare
+  // IP instead — every HTTPS destination failed with ERR_TLS_CERT_ALTNAME_INVALID.
+  if (headers.host === undefined) headers.host = url.host;
   const body = init.body == null ? undefined
     : typeof init.body === "string" || init.body instanceof Uint8Array ? init.body
     : init.body instanceof ArrayBuffer ? new Uint8Array(init.body)
@@ -72,7 +77,7 @@ export async function pinnedFetch(
     const req = (url.protocol === "https:" ? https : http).request(
       {
         protocol: url.protocol,
-        hostname: host,
+        hostname: ip,
         servername: net.isIP(host) ? undefined : host,
         port: url.port || undefined,
         path: `${url.pathname}${url.search}`,

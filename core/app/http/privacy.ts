@@ -141,6 +141,8 @@ export async function eraseWebsiteAnalytics(websiteId: string): Promise<void> {
     // Leads: what visitors typed into the site's popups (email, name, phone, answers), the
     // copies queued or kept for delivery to integrations, and the prizes tied to an address.
     await tx`DELETE FROM integration_deliveries WHERE website_id = ${websiteId}::uuid`;
+    // Conversions queued or sent to the site's ad platforms: hashed emails, IPs, click ids.
+    await tx`DELETE FROM conversion_events WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM form_submissions WHERE website_id = ${websiteId}::uuid`;
     await tx`DELETE FROM form_prizes WHERE website_id = ${websiteId}::uuid`;
     // The contacts behind those submissions, and the ones the owner added or imported.
@@ -276,7 +278,7 @@ function visitorQuery(c: Context): { visitorId: string; userId: string } | null 
 
 async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string) {
   const { visitorIds: v, sessionIds: s } = ref;
-  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts] = await Promise.all([
+  const [events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts, conversions] = await Promise.all([
     sql`SELECT * FROM analytics_events WHERE website_id = ${websiteId} AND visitor_id = ANY(${v}) ORDER BY occurred_at LIMIT ${EXPORT_ROW_LIMIT + 1}`,
     sql`SELECT session_id, entry_page, timestamp, pages_viewed, duration_seconds, browser, device, os, country FROM session_replays WHERE website_id = ${websiteId} AND session_id = ANY(${s}) AND sequence = 0`,
     sql`SELECT * FROM user_profiles WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR (${userId} <> '' AND user_id = ${userId}))`,
@@ -292,8 +294,11 @@ async function exportVisitor(websiteId: string, ref: VisitorRef, userId: string)
     sql`SELECT * FROM contacts WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR email IN (
       SELECT email FROM form_submissions WHERE website_id = ${websiteId}::uuid AND (anonymous_id = ANY(${v}) OR session_id = ANY(${s}))
     ))`,
+    // What was forwarded to the site's ad platforms on their behalf (the payload is hashed).
+    sql`SELECT kind, event_name, platform_event, value, currency, order_id, match_keys, status, occurred_at, completed_at
+        FROM conversion_events WHERE website_id = ${websiteId}::uuid AND visitor_id = ANY(${v}) ORDER BY occurred_at`,
   ]);
-  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts };
+  return { visitorIds: v, events, recordings, profiles, aliases, errors, automationRuns, impressions, analyses, leads, contacts, conversions };
 }
 
 async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string): Promise<void> {
@@ -342,6 +347,9 @@ async function eraseVisitor(websiteId: string, ref: VisitorRef, userId: string):
     if (rollups?.ok) {
       await tx`DELETE FROM analytics_rollup_sessions WHERE website_id = ${websiteId} AND (session_id = ANY(${s}) OR visitor_key = ANY(${v}))`;
     }
+    // Conversions queued for the site's ad platforms: what has not been sent never will be.
+    // What was already sent is with the platform; the request to erase it is the owner's to make there.
+    await tx`DELETE FROM conversion_events WHERE website_id = ${websiteId}::uuid AND visitor_id = ANY(${v})`;
     // Their orders (db/sql/039), kept for the revenue dashboard past the raw window.
     await tx`DELETE FROM analytics_revenue_orders WHERE website_id = ${websiteId} AND visitor_key = ANY(${v})`;
   });

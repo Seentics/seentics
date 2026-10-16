@@ -14,6 +14,9 @@ export type TrackerCollectBody = {
   errors?: unknown[];
   funnels?: unknown[];
   automations?: unknown[];
+  /** Click and pixel ids, for an identified visitor's server-side conversions. */
+  ad?: unknown;
+  batch_id?: unknown;
 };
 
 /** Normalized event envelope shared with the ingest lane consumers. */

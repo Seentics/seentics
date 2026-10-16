@@ -27,7 +27,7 @@ let failContact = false;
 mock.module("../repositories/contact.repository", () => ({
   upsertFromSubmission: async (s: LeadSubmission) => { events.push(`contact:${s.email}`); if (failContact) throw new Error("contacts down"); },
   listContacts: unused, exportContacts: unused, getContact: unused, contactIdsByEmail: unused, insertContact: unused,
-  updateContact: unused, bulkUpdate: unused, deleteContacts: unused, importContacts: unused,
+  updateContact: unused, bulkUpdate: unused, deleteContacts: unused, importContacts: unused, tagCounts: unused,
 }));
 mock.module("../repositories/prize.repository", () => ({
   claimPrize: async (_w: string, _a: string, hash: string, draw: () => Prize | null) => {

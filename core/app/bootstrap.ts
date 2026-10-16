@@ -73,6 +73,7 @@ export type Application = {
     leads: LeadsModule["routes"];
     leadsTracker: LeadsModule["trackerRoutes"];
     integrations: IntegrationsModule["routes"];
+    conversions: IntegrationsModule["conversions"]["routes"];
     ai: AiModule["routes"];
     internal: ReturnType<typeof createInternalRoutes>;
   };
@@ -181,6 +182,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       recordings: recordingsModule.lane,
       heatmaps: heatmapsModule.lane,
       errors: errorsModule.lane,
+      conversions: integrationsModule.conversions.lane,
     },
     automationsModule,
     funnelsModule,
@@ -268,6 +270,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       leads: leadsModule.routes,
       leadsTracker: leadsModule.trackerRoutes,
       integrations: integrationsModule.routes,
+      conversions: integrationsModule.conversions.routes,
       ai: aiModule.routes,
       // Reuses ingest's buffer: the internal collectors carry the same data over a
       // server-to-server API, so they get the same batching and exactly-once handling.

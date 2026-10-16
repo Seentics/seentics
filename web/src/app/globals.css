@@ -16,7 +16,7 @@
        page remaps the shared tokens for its own canvas, and its product shots restore
        these. Never override --app-* in a scoped block. */
     /* Linear's light app: near-white page in a soft grey chrome (--sidebar-background). */
-    --app-page: 0 0% 98.8%;           /* #fcfcfc */
+    --app-page: 240 6% 96.5%;         /* #f5f5f7: white panels stand clear of it */
     /* Hairlines barely there, as in Linear's light mode: panels are told apart by a soft
        edge (see .surface / Card), not a drawn box. Inputs keep a firmer line of their own. */
     --app-border: 240 5% 92%;         /* #e9e9ec */
@@ -57,7 +57,7 @@
     --chart-5: 340 75% 55%;
 
     /* The chrome around the page's frame, a step below it, as in Linear's light app. */
-    --sidebar-background: 240 5% 96%;   /* #f4f4f5 */
+    --sidebar-background: 240 5% 93.5%; /* #eeeef0: the chrome a step below the page */
     --sidebar-foreground: 240 6% 10%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -71,9 +71,9 @@
     /* Near-black neutral greys, as in Linear's app: the page #0f1011, panels a step
        up, the sidebar a step down, hairline borders, and secondary text at #8a8f98. */
     --app-page: 210 6% 6.3%;          /* #0f1011 */
-    --app-border: 228 7% 15%;         /* #232429 */
-    --app-card: 220 6% 8.5%;          /* #141517 */
-    --app-popover: 220 6% 10%;        /* #18191b */
+    --app-border: 228 6% 16.5%;       /* #26272b */
+    --app-card: 220 6% 10.5%;         /* #191a1c: a clear step above the page */
+    --app-popover: 220 6% 12%;        /* #1d1e20 */
     --app-input: 225 6% 15%;
     --app-muted-foreground: 218 6% 57%; /* #8a8f98 */
     --background: var(--app-page);

@@ -32,7 +32,7 @@ export function FunnelMock() {
             All funnels
           </span>
           <div className="mb-4">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{funnel.name}</h1>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">{funnel.name}</h2>
             <p className="mt-0.5 text-[13px] text-muted-foreground">{funnel.description}</p>
           </div>
           <FunnelReport

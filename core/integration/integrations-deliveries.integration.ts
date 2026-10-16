@@ -358,7 +358,7 @@ describe("retention", () => {
       { batchSize: 1000 } as never,
     );
 
-    expect(counts).toEqual({ integrationDeliveryRows: 1, integrationDeliveriesExpired: 1, integrationPayloadsCleared: 1 });
+    expect(counts).toEqual({ integrationDeliveryRows: 1, integrationDeliveriesExpired: 1, integrationPayloadsCleared: 1, conversionEventRows: 0 });
     const rows = new Map((await deliveriesOf(site.id)).map((r) => [r.id, r]));
     expect(rows.has(ancient!.id)).toBe(false);
     expect(rows.get(stale!.id)).toMatchObject({ status: "failed", payload: null });

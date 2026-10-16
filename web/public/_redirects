@@ -76,6 +76,8 @@
 /websites/:websiteId/ai-reports                   /websites/w-leaf/ai-reports                       200
 /websites/:websiteId/leads.txt                    /websites/w-leaf/leads.txt                        200
 /websites/:websiteId/leads                        /websites/w-leaf/leads                            200
+/websites/:websiteId/conversions.txt              /websites/w-leaf/conversions.txt                  200
+/websites/:websiteId/conversions                  /websites/w-leaf/conversions                      200
 /websites/:websiteId/errors.txt                   /websites/w-leaf/errors.txt                       200
 /websites/:websiteId/errors                       /websites/w-leaf/errors                           200
 /websites/:websiteId/events.txt                   /websites/w-leaf/events.txt                       200

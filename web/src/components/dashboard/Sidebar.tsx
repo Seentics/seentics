@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact,
+  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact, Send,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -55,6 +55,8 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Contact },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
+    // Where those sales and leads are sent: the ad platforms, from Seentics' servers.
+    { label: 'Conversions', href: `/websites/${websiteId}/conversions`, icon: Send },
     { label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles },
     { label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug },
   ];

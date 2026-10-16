@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathSegment } from '@/lib/path-segment';
+import { usePathSegment, useIsPathOverridden } from '@/lib/path-segment';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Plus, Upload } from 'lucide-react';
@@ -46,6 +46,8 @@ function writeUrl(tab: Tab, contact: string | null) {
 
 export default function LeadsPage() {
   const websiteId = usePathSegment(1) ?? '';
+  // In the landing page's preview the URL is the landing page's: tab and contact stay in memory.
+  const embedded = useIsPathOverridden();
   const demo = isDemo(websiteId);
   const now = demo ? DEMO_REFERENCE_DATE.getTime() : undefined;
   const { canEdit: canEditRole } = usePermissions(websiteId);
@@ -61,17 +63,18 @@ export default function LeadsPage() {
   const [contactFilters, setContactFilters] = useState<ContactListFilters | null>(null);
 
   useEffect(() => {
+    if (embedded) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'contacts') setTab('contacts');
     const contact = params.get('contact');
     if (contact) setContactId(contact);
-  }, []);
+  }, [embedded]);
 
-  const go = (next: Tab) => { setTab(next); writeUrl(next, contactId); };
+  const go = (next: Tab) => { setTab(next); if (!embedded) writeUrl(next, contactId); };
   const openContact = useCallback((id: string | null) => {
     setContactId(id);
-    writeUrl(new URLSearchParams(window.location.search).get('tab') === 'contacts' ? 'contacts' : 'submissions', id);
-  }, []);
+    if (!embedded) writeUrl(new URLSearchParams(window.location.search).get('tab') === 'contacts' ? 'contacts' : 'submissions', id);
+  }, [embedded]);
 
   // The summary: plain counts, from the same endpoints the tabs use (one row each, just the totals).
   const monthAgo = useMemo(() => new Date((now ?? Date.now()) - 30 * DAY).toISOString(), [now]);

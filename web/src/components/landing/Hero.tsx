@@ -33,15 +33,14 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0.08)}
-          className="lx-display max-w-[16ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
+          className="lx-display max-w-[26ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
         >
-          Know what visitors do, and why
+          See why visitors<br className="hidden sm:block" /> leave, then win them back
         </motion.h1>
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <p className="lx-dim max-w-[34rem] text-base leading-relaxed sm:text-lg">
-            Product analytics, session replay, heatmaps and automations in one open-source, privacy-first
-            platform. One script tag, live in two minutes.
+          <p className="lx-dim max-w-[46rem] text-base leading-relaxed sm:text-lg">
+            Replay, heatmaps and funnels show where people get stuck. Popups and automations win them back.
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <Link href={isAuthenticated ? '/websites' : '/signup'} className="lx-btn lx-btn-primary">

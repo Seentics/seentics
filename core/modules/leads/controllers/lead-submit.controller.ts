@@ -74,6 +74,9 @@ export function submitLead(deps: LeadSubmitDeps) {
         variant: cleanText(body.variant, 64) || null,
         pageUrl: cleanText(body.page_url, 2048),
         referrer: cleanText(body.referrer, 2048),
+        clientIp: ip,
+        userAgent: (c.req.header("user-agent") ?? "").slice(0, 500),
+        ad: body.ad ?? null,
       });
       // The prize is the one thing the visitor is told: a wheel animates to it and a coupon
       // shows its code. Nothing else about the stored contact is ever returned.

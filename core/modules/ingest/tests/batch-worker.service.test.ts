@@ -185,6 +185,7 @@ class FakeRegistry {
       heatmaps: this.lane("heatmaps", (_id, _key, rows) => void this.heatmaps.push([...rows])),
       profiles: this.lane("profiles", (_id, _key, rows) => void this.profiles.push([...rows])),
       errors: this.lane("errors", (_id, _key, rows) => void this.errors.push([...rows])),
+      conversions: this.lane("conversions", () => undefined),
     };
   }
 }

@@ -2,6 +2,7 @@
 
 import {
   Banknote,
+  Send,
   Bot,
   Bug,
   Code2,
@@ -38,6 +39,7 @@ const NAV = [
   { label: 'Automations', icon: Bot },
   { label: 'Leads', icon: Contact },
   { label: 'Revenue', icon: Banknote },
+  { label: 'Conversions', icon: Send },
   { label: 'AI Reports', icon: Sparkles },
   { label: 'Errors', icon: Bug },
   { label: 'Developers', icon: Code2 },

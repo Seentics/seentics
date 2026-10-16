@@ -33,6 +33,19 @@ function capStr(v: string | null | undefined, max: number): string | null {
   return v.length > max ? v.slice(0, max) : v;
 }
 
+/**
+ * Contact details a site passes with an event — `track('purchase', { email })`, for its
+ * server-side conversions to match the buyer by — are never stored with the analytics:
+ * the conversions lane hashes its own copy, and the event log keeps everything else.
+ */
+const CONTACT_KEYS = ["email", "phone", "email_address", "phone_number"] as const;
+export function withoutContactDetails(dm: Record<string, unknown>): Record<string, unknown> {
+  if (!CONTACT_KEYS.some((k) => k in dm)) return dm;
+  const out = { ...dm };
+  for (const k of CONTACT_KEYS) delete out[k];
+  return out;
+}
+
 function capProperties(dm: Record<string, unknown>): Record<string, unknown> {
   try {
     if (JSON.stringify(dm).length <= MAX_PROPERTIES_JSON_CHARS) return dm;
@@ -86,7 +99,7 @@ export async function ingestAnalyticsBatch(
       page,
       visitorId: capStr(e.vid || e.sid || null, MAX_ID_LEN),
       sessionId: capStr(e.sid || null, MAX_ID_LEN),
-      properties: capProperties(dm),
+      properties: capProperties(rawType === "custom" ? withoutContactDetails(dm) : dm),
       referrer,
       country: meta?.country ?? null,
       region: meta?.region ?? null,

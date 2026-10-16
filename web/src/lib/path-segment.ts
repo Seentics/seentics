@@ -32,6 +32,11 @@ export function PathOverrideProvider({ path, children }: { path: string; childre
   return createElement(PathOverride.Provider, { value: path }, children);
 }
 
+/** True inside a `PathOverrideProvider`: a page shown somewhere it does not live (the landing preview). */
+export function useIsPathOverridden(): boolean {
+  return useContext(PathOverride) !== null;
+}
+
 export function usePathSegment(indexFromStart: number): string | null {
   const override = useContext(PathOverride);
   const [value, setValue] = useState<string | null>(null);

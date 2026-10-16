@@ -101,6 +101,7 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
   app.route("/api/v1/automations", application.routes.automations);
   app.route("/api/v1/leads", application.routes.leads);
   app.route("/api/v1/integrations", application.routes.integrations);
+  app.route("/api/v1/conversions", application.routes.conversions);
 
   app.route("/api/v1/replays", application.routes.recordings);
   app.route("/api/v1/heatmaps", application.routes.heatmaps);

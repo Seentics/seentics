@@ -25,7 +25,8 @@ export type IngestLane =
   | "recordings"
   | "heatmaps"
   | "profiles"
-  | "errors";
+  | "errors"
+  | "conversions";
 
 /**
  * One feature's ingest, declared by the module that owns the data.
