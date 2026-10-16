@@ -175,7 +175,8 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       // bg-sidebar, not bg-card: the sidebar is app chrome and belongs on the
       // deepest layer. On bg-card it sat level with the panels it frames, which
       // collapsed sidebar, page and cards into one flat surface.
-      'bg-sidebar border-r border-sidebar-border dark:border-none',
+      // No edge of its own on desktop: the page's frame draws the line between them.
+      'bg-sidebar',
       'transition-[width] duration-200 ease-in-out',
       !inDrawer && (collapsed ? 'w-[64px]' : 'w-[216px]'),
     )}>
