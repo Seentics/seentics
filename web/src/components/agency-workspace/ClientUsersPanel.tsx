@@ -9,13 +9,25 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { errorMessage, inviteClientUser, removeClientUser, sendClientUserLink, updateClientUser } from '@/features/agency/api';
-import { useAgencyMutation, useBranding, useClientUsers } from '@/features/agency/queries';
-import type { ClientUser, ClientUserStatus } from '@/features/agency/types';
+import { useAgencyMutation, useBranding, useClientUsers, useDomain } from '@/features/agency/queries';
+import type { ClientUser, ClientUserStatus, Domain } from '@/features/agency/types';
 import { CopyButton, EmptyState, ErrorNote, LoadingRow, Panel, Pill, type Tone } from './ui';
 
-/** Where a client signs in: seentics.com, under the agency's sign-in name. */
+/** Where a client signs in without a domain of the agency's own: seentics.com, under its sign-in name. */
 export const CLIENT_SIGNIN_BASE = 'https://seentics.com/signin';
-export const clientSigninUrl = (slug: string) => `${CLIENT_SIGNIN_BASE}?agency=${encodeURIComponent(slug)}`;
+
+/** The client dashboard on the agency's own domain (the gateway's `dashboard_url`). */
+export const clientDashboardUrl = (domain: Pick<Domain, 'hostname' | 'dashboard_url'>): string =>
+  (domain.dashboard_url || `https://${domain.hostname}`).replace(/\/+$/, '');
+
+/**
+ * Where a client signs in: `/signin` on the agency's own domain once it is active (the domain
+ * names the agency), else seentics.com under the agency's sign-in name; `null` with neither.
+ */
+export function clientSigninUrl(slug: string | null | undefined, domain?: Domain | null): string | null {
+  if (domain?.state === 'active') return `${clientDashboardUrl(domain)}/signin`;
+  return slug ? `${CLIENT_SIGNIN_BASE}?agency=${encodeURIComponent(slug)}` : null;
+}
 
 const STATUS: Record<ClientUserStatus, [Tone, string]> = {
   invited: ['amber', 'Invited'],
@@ -38,6 +50,7 @@ function lastSeen(user: ClientUser): string {
 export function ClientUsersPanel({ clientId }: { clientId: string }) {
   const users = useClientUsers(clientId);
   const branding = useBranding();
+  const domain = useDomain();
   const invite = useAgencyMutation((body: { email: string; name?: string }) => inviteClientUser(clientId, body));
   const resend = useAgencyMutation((userId: string) => sendClientUserLink(clientId, userId));
   const update = useAgencyMutation(({ userId, status }: { userId: string; status: ClientUserStatus }) => updateClientUser(clientId, userId, { status }));
@@ -81,6 +94,7 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
   };
 
   const slug = branding.data?.slug ?? null;
+  const signinUrl = clientSigninUrl(slug, domain.data);
   const list = users.data ?? [];
 
   return (
@@ -93,12 +107,12 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
 
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-foreground">Sign-in link</p>
-        {branding.isLoading ? (
+        {branding.isLoading || domain.isLoading ? (
           <p className="text-xs text-muted-foreground">Loading…</p>
-        ) : slug ? (
+        ) : signinUrl ? (
           <div className="flex items-center gap-2">
-            <Input readOnly value={clientSigninUrl(slug)} aria-label="Client sign-in link" className="h-8 font-mono text-xs" />
-            <CopyButton text={clientSigninUrl(slug)} label="Copy sign-in link" />
+            <Input readOnly value={signinUrl} aria-label="Client sign-in link" className="h-8 font-mono text-xs" />
+            <CopyButton text={signinUrl} label="Copy sign-in link" />
           </div>
         ) : (
           <p data-testid="signin-slug-missing" className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">

@@ -13,6 +13,7 @@ import { firstAllowedPath } from '@/features/client-mode/routes';
 import { clientSignInHref, rememberClientAgency, rememberedClientAgency } from '@/features/client-mode/session';
 import type { ClientBrand, ClientMe } from '@/features/client-mode/types';
 import { forgetWebsite } from '@/lib/last-website';
+import { onCustomHost } from '@/lib/seentics-host';
 import { useAuth } from '@/stores/useAuthStore';
 
 /**
@@ -20,6 +21,8 @@ import { useAuth } from '@/stores/useAuthStore';
  * fragment so it never reaches a server log or a Referer; it is read here, taken off the address,
  * and traded once (`POST /client-auth/verify`) for a session stored exactly as an account's
  * (`useAuth().setAuth`, the API client's bearer token). Then on to the client's first website.
+ * On an agency's own domain the tokens come in the body only (no cookies), so that stored session
+ * is the only one.
  */
 
 /** The first page the client may open, on the first website that has one. */
@@ -89,9 +92,11 @@ export default function VerifyClientLinkPage() {
     token.current = readToken();
     // Off the address bar and out of history: the link works once anyway.
     window.history.replaceState(null, '', window.location.pathname);
-    const remembered = rememberedClientAgency();
+    // On an agency's own domain the domain names the agency: its brand is asked with no slug.
+    const custom = onCustomHost();
+    const remembered = custom ? null : rememberedClientAgency();
     setSlug(remembered);
-    if (remembered) getClientBrand(remembered).then(setBrand).catch(() => undefined);
+    if (remembered || custom) getClientBrand(remembered).then(setBrand).catch(() => undefined);
     void verify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

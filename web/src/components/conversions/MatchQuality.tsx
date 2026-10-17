@@ -5,6 +5,7 @@
  * an email or phone helps when there is none.
  */
 import Link from 'next/link';
+import { SeenticsOnly } from '@/components/seentics-only';
 import { MATCH_KEYS, type ConversionSummary } from '@/features/conversions/types';
 import { MATCH_HINT, MATCH_LABEL, matchTip, percent } from './conversion-format';
 
@@ -34,7 +35,7 @@ export function MatchQuality({ match }: { match: ConversionSummary['match'] }) {
       {tip && (
         <p className="flex items-start gap-2 text-xs text-foreground/80">
           <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-          <span>{tip} <Link href="/docs/conversions#email" className="font-medium text-primary hover:underline">How</Link></span>
+          <span>{tip}<SeenticsOnly> <Link href="/docs/conversions#email" className="font-medium text-primary hover:underline">How</Link></SeenticsOnly></span>
         </p>
       )}
     </div>

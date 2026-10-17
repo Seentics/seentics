@@ -14,6 +14,7 @@ import { DOMAIN_STATES } from '@/features/agency/constants';
 import { agencyKeys, useAgencyMutation, useDomain } from '@/features/agency/queries';
 import type { Domain, DomainState } from '@/features/agency/types';
 import { cn } from '@/lib/utils';
+import { clientDashboardUrl } from './ClientUsersPanel';
 import { CopyButton, ErrorNote, LoadingRow, Panel, Pill, type Tone } from './ui';
 
 const STATE_LOOK: Record<DomainState, { tone: Tone; icon: typeof Clock }> = {
@@ -141,6 +142,15 @@ export function DomainSection() {
           {DOMAIN_STATES[d.state].hint}
           {d.last_checked_at && ` Last checked ${formatDistanceToNow(new Date(d.last_checked_at), { addSuffix: true })}.`}
         </p>
+        {d.state === 'active' && (
+          <div data-testid="client-dashboard-url" className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Client dashboard:</span>{' '}
+            <a href={clientDashboardUrl(d)} target="_blank" rel="noreferrer" className="min-w-0 truncate font-mono font-medium text-primary hover:underline">
+              {clientDashboardUrl(d)}
+            </a>
+            <CopyButton text={clientDashboardUrl(d)} label="Copy client dashboard address" className="h-7 w-7" />
+          </div>
+        )}
         {d.reason && d.state !== 'active' && (
           <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{d.reason}</p>
         )}

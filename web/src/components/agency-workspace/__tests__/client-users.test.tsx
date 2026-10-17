@@ -46,6 +46,18 @@ describe('client users panel', () => {
     expect(sentTo('GET', '/agency/clients/c1/users')[0]!.params).toMatchObject({ limit: 100 });
   });
 
+  it('hands out /signin on the agency’s own domain once it is active', async () => {
+    route('GET', '/agency/domain', { data: { hostname: 'reports.meridian.test', state: 'active', dashboard_url: 'https://reports.meridian.test' } });
+    const el = await panel();
+    await waitFor(() => expect((within(el).getByLabelText('Client sign-in link') as HTMLInputElement).value).toBe('https://reports.meridian.test/signin'));
+  });
+
+  it('keeps the seentics.com address while the domain is not active', async () => {
+    route('GET', '/agency/domain', { data: { hostname: 'reports.meridian.test', state: 'pending_dns', dashboard_url: null } });
+    const el = await panel();
+    expect((within(el).getByLabelText('Client sign-in link') as HTMLInputElement).value).toBe('https://seentics.com/signin?agency=meridian');
+  });
+
   it('asks for a sign-in name in Branding & domain when there is none', async () => {
     route('GET', '/agency/branding', { data: { ...BRANDING, slug: null } });
     const el = await panel();

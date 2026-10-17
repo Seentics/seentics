@@ -198,6 +198,8 @@ export interface Domain {
   created_at: string;
   updated_at: string;
   last_checked_at: string | null;
+  /** `https://<hostname>` once the domain is active (the client dashboard there); else null. */
+  dashboard_url?: string | null;
 }
 
 // ─── Embeds ───────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { getApiUrl } from '@/lib/config';
 import { useAuth } from '@/stores/useAuthStore';
 import { isSessionlessPath } from '@/lib/sessionless';
+import { onCustomHost } from '@/lib/seentics-host';
 
 /**
  * Wait for persisted auth to rehydrate before clearing `isLoading`, so layouts and API calls
@@ -24,7 +25,9 @@ export default function AuthInitializer() {
     const finish = async () => {
       // An embed has no use for a session and should not probe the visitor's:
       // it reads through its own link.
-      const embedded = isSessionlessPath(window.location.pathname);
+      // Nor does an agency's own domain: sessions there are client users' bearer tokens, never a
+      // Seentics cookie.
+      const embedded = isSessionlessPath(window.location.pathname) || onCustomHost();
       if (!embedded && !useAuth.getState().user) {
         try {
           const res = await fetch(getApiUrl('/user/auth/me'), { credentials: 'include' });

@@ -10,6 +10,7 @@ import { rememberClientAgency } from '@/features/client-mode/session';
 import type { ClientBrand } from '@/features/client-mode/types';
 import { config } from '@/lib/config';
 import { hardRedirect } from '@/lib/hard-redirect';
+import { onCustomHost } from '@/lib/seentics-host';
 
 /**
  * Two sign-ins share this address.
@@ -20,6 +21,10 @@ import { hardRedirect } from '@/lib/hard-redirect';
  * - Anything else (no `agency`, or no agency by that name): account sign-in, which lives in the
  *   auth app (auth.seentics.com) so every product in the suite shares one login UI. The query
  *   string goes along, so bookmarks and old links still land somewhere real.
+ *
+ * On an agency's own domain (reports.agency.com) only the first exists, and needs no `agency`:
+ * the brand is asked with no slug and the gateway answers for the agency owning the domain.
+ * Account sign-in is never offered there.
  *
  * Static export has no server to read the query per request, so the page reads it in the browser.
  */
@@ -46,19 +51,22 @@ export default function SignInPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const agency = params.get('agency')?.trim().toLowerCase() ?? '';
-    if (!agency) {
+    const custom = onCustomHost();
+    const agency = custom ? '' : params.get('agency')?.trim().toLowerCase() ?? '';
+    if (!agency && !custom) {
       toAccountSignIn();
       return;
     }
     let cancelled = false;
     setSlug(agency);
     setExpired(params.get('expired') === 'true');
-    getClientBrand(agency)
+    getClientBrand(agency || null)
       .then((found) => {
         if (cancelled) return;
         if (!found) {
-          toAccountSignIn();
+          // On the agency's own domain there is no account sign-in to fall back to.
+          if (custom) setPhase('form');
+          else toAccountSignIn();
           return;
         }
         setBrand(found);
@@ -83,9 +91,9 @@ export default function SignInPage() {
     setError(null);
     setSending(true);
     try {
-      await requestMagicLink(address, slug);
+      await requestMagicLink(address, slug || null);
       // The link opens /signin/verify, which sends an expired one back to this agency's page.
-      rememberClientAgency(slug);
+      if (slug) rememberClientAgency(slug);
       setPhase('sent');
     } catch (err) {
       setError(err instanceof RequestError ? err.message : 'We could not send a link just now. Please try again.');

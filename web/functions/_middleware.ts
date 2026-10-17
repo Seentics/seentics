@@ -10,15 +10,18 @@
 // paths have their own Functions and don't need this logic or its JWT
 // verify on every request.
 //
-// Before all that, a request to a host that is not ours is an agency's custom domain: see
-// functions/lib/custom-host.ts. Nothing is served there until phase 3 (the full dashboard).
+// Before all that, a request to a host that is not ours is an agency's custom domain, which
+// serves the client dashboard only: see functions/lib/custom-host.ts.
 
 import { jwtVerify } from 'jose';
-import { decideCustomHostRequest, isSeenticsHost } from './lib/custom-host';
+import { effectiveHost, isSeenticsHost, serveCustomHost, type CacheLike, type RewriterLike } from './lib/custom-host';
 
 interface Env {
   JWT_SECRET?: string;
   NEXT_PUBLIC_IS_ENTERPRISE?: string;
+  GATEWAY_URL?: string;
+  /** Proves `X-Seentics-Original-Host` came from the custom-domain Worker; sent to the gateway. */
+  EDGE_PROXY_SECRET?: string;
 }
 
 interface RequestContext {
@@ -61,9 +64,13 @@ export const onRequest = async (context: RequestContext): Promise<Response> => {
   const url = new URL(request.url);
   const { pathname } = url;
 
-  // An agency's custom domain: every path is a 404 until phase 3 serves the dashboard there.
-  if (!isSeenticsHost(url.hostname) && decideCustomHostRequest(pathname) === 'not-found') {
-    return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
+  // An agency's custom domain: only the client dashboard, sign-in, embeds and the API proxy.
+  const host = effectiveHost(request, env);
+  if (!isSeenticsHost(host)) {
+    const cache = (globalThis as unknown as { caches?: { default?: CacheLike } }).caches?.default;
+    const Rewriter = (globalThis as unknown as { HTMLRewriter?: new () => RewriterLike }).HTMLRewriter;
+    const rewriter = Rewriter ? () => new Rewriter() : undefined;
+    return serveCustomHost(request, env, next, { fetch, cache, rewriter }, host);
   }
 
   if (pathname.startsWith('/api')) return next();

@@ -10,6 +10,7 @@ import './globals.css';
 import AuthInitializer from '@/components/auth-initializer';
 import TrackerScript from '@/components/tracker-script';
 import CrispChat from '@/components/crisp-chat';
+import { CustomHostBrand } from '@/features/client-mode/CustomHostBrand';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
@@ -79,6 +80,8 @@ export default function RootLayout({
               <div className="relative z-10">
                 {children}
               </div>
+              {/* An agency's own domain wears its brand on every page. */}
+              <CustomHostBrand />
 
             </div>
             </ThemeCustomizationProvider>

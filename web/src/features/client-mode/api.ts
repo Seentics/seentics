@@ -23,11 +23,15 @@ export class ClientAuthError extends Error {
   }
 }
 
-/** Asks for a sign-in link. The gateway answers 202 whether or not the email is a member. */
-export async function requestMagicLink(email: string, agency: string): Promise<void> {
+/**
+ * Asks for a sign-in link. The gateway answers 202 whether or not the email is a member. On an
+ * agency's own domain `agency` is left out: the domain names the agency.
+ */
+export async function requestMagicLink(email: string, agency?: string | null): Promise<void> {
   let res: Response;
   try {
-    res = await send('/client-auth/magic-link', { method: 'POST', body: JSON.stringify({ email, agency }) });
+    const body = agency ? { email, agency } : { email };
+    res = await send('/client-auth/magic-link', { method: 'POST', body: JSON.stringify(body) });
   } catch {
     throw new ClientAuthError('unavailable', 'We could not reach the server. Check your connection and try again.');
   }
@@ -74,9 +78,13 @@ export async function verifyMagicLink(token: string): Promise<VerifiedSession> {
   return { user: { ...data.user, kind: 'client', agency }, access_token: access, refresh_token: refresh, agency };
 }
 
-/** The agency's brand for its sign-in page; `null` when there is no agency by that name. */
-export async function getClientBrand(slug: string): Promise<ClientBrand | null> {
-  const res = await send(`/client-auth/brand?agency=${encodeURIComponent(slug)}`, { method: 'GET' });
+/**
+ * The agency's brand for its sign-in page; `null` when there is no agency by that name. Without a
+ * slug (on an agency's own domain) the gateway answers for the agency owning the domain.
+ */
+export async function getClientBrand(slug?: string | null): Promise<ClientBrand | null> {
+  const query = slug ? `?agency=${encodeURIComponent(slug)}` : '';
+  const res = await send(`/client-auth/brand${query}`, { method: 'GET' });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`brand ${res.status}`);
   const body = (await res.json()) as { data?: ClientBrand };

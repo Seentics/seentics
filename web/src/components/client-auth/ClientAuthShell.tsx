@@ -6,11 +6,13 @@ import { Logo } from '@/components/ui/logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { brandColorVars, brandLogo } from '@/features/client-mode/brand';
 import type { ClientBrand } from '@/features/client-mode/types';
+import { useOnCustomHost } from '@/lib/seentics-host';
 
 /**
  * The frame of the client sign-in pages: the auth app's single narrow column (auth/web
  * `AuthShell`), wearing the agency's brand — its logo or initial, its name and its colour as the
- * page's primary. With `hide_seentics`, no Seentics mark anywhere; without a brand, ours.
+ * page's primary. With `hide_seentics`, no Seentics mark anywhere; without a brand, ours — except
+ * on an agency's own domain, which never shows our mark (only "Powered by Seentics", as text).
  */
 export function ClientAuthShell({ brand, title, subtitle, children, footer }: {
   brand: ClientBrand | null;
@@ -21,6 +23,7 @@ export function ClientAuthShell({ brand, title, subtitle, children, footer }: {
 }) {
   const logo = brandLogo(brand);
   const style = brandColorVars(brand?.primary_color) as CSSProperties;
+  const customHost = useOnCustomHost();
 
   return (
     <main
@@ -42,10 +45,12 @@ export function ClientAuthShell({ brand, title, subtitle, children, footer }: {
                 {(brand.brand_name || '?').slice(0, 1).toUpperCase()}
               </span>
             )
-          ) : (
+          ) : customHost ? null : (
             <Logo size="md" />
           )}
-          <span className="text-lg font-semibold tracking-tight text-foreground">{brand?.brand_name || 'Seentics'}</span>
+          {(brand || !customHost) && (
+            <span className="text-lg font-semibold tracking-tight text-foreground">{brand?.brand_name || 'Seentics'}</span>
+          )}
         </div>
 
         <div className="rounded-2xl bg-card p-6 shadow-[var(--panel-edge)] sm:p-8">

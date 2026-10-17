@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { getApiUrl } from './config';
+import { onCustomHost } from './seentics-host';
 
 // Read persisted auth state from localStorage (Zustand store)
 function getPersistedAuth(): { isAuthenticated: boolean; access_token: string | null; refresh_token: string | null } {
@@ -33,8 +34,8 @@ function persistedClientSlug(): string | null {
   }
 }
 
-// Helper function to logout user and clear auth state
-function performLogout() {
+// Helper function to logout user and clear auth state (exported for tests)
+export function performLogout() {
   // A client user signs in again on their agency's page, not the account sign-in.
   const clientSlug = persistedClientSlug();
   localStorage.removeItem('auth-storage');
@@ -43,7 +44,8 @@ function performLogout() {
   document.cookie = 'auth-storage=; path=/; max-age=0; samesite=lax';
 
   if (typeof window !== 'undefined') {
-    window.location.href = clientSlug
+    // On an agency's own domain its sign-in is plain /signin (the domain names the agency).
+    window.location.href = clientSlug && !onCustomHost()
       ? `/signin?agency=${encodeURIComponent(clientSlug)}&expired=true`
       : '/signin?expired=true';
   }

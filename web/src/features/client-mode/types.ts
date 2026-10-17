@@ -19,6 +19,8 @@ export interface ClientBrand {
   support_email: string;
   footer_text: string;
   hide_seentics: boolean;
+  /** The agency's active own domain, when the brand was asked on it (`GET /client-auth/brand` with no slug). */
+  custom_domain?: string | null;
 }
 
 export interface ClientWebsite {

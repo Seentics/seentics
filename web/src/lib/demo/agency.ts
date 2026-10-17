@@ -323,6 +323,7 @@ export function demoAgencyDomain(state: DemoDomainState = 'active'): Domain | nu
     created_at: ago((done ? 64 : 0) * DAY + 40 * 60_000),
     updated_at: ago(done ? 63 * DAY : 20 * 60_000),
     last_checked_at: ago(done ? 2 * HOUR : 2 * 60_000),
+    dashboard_url: done ? `https://${DEMO_AGENCY_DOMAIN}` : null,
   };
 }
 

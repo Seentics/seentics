@@ -8,6 +8,7 @@
  * with the platform's own message, rather than as failed deliveries later.
  */
 import Link from 'next/link';
+import { SeenticsOnly } from '@/components/seentics-only';
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -203,7 +204,7 @@ export function ConnectDialog({
             <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {problem.message}
               {problem.reason === 'limit' && (
-                <> <Link href="/pricing" className="font-medium underline">See plans</Link> or disconnect another platform first.</>
+                <SeenticsOnly><> <Link href="/pricing" className="font-medium underline">See plans</Link> or disconnect another platform first.</></SeenticsOnly>
               )}
             </p>
           )}

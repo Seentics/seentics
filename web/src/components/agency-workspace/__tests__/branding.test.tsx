@@ -109,6 +109,21 @@ describe('custom domain', () => {
     expect(screen.getByTestId('brand-preview')).toHaveTextContent('https://reports.meridian.test');
   });
 
+  it('shows the client dashboard address once the domain is active', async () => {
+    route('GET', '/agency/domain', { data: domain({ state: 'active', ownership_verification: null, dashboard_url: 'https://reports.meridian.test' }) });
+    renderWithClient(<BrandingView />);
+    const line = await screen.findByTestId('client-dashboard-url');
+    expect(line).toHaveTextContent('Client dashboard: https://reports.meridian.test');
+    expect(within(line).getByRole('link')).toHaveAttribute('href', 'https://reports.meridian.test');
+  });
+
+  it('shows no dashboard address while the domain is pending', async () => {
+    route('GET', '/agency/domain', { data: domain() });
+    renderWithClient(<BrandingView />);
+    await screen.findByTestId('domain-state');
+    expect(screen.queryByTestId('client-dashboard-url')).toBeNull();
+  });
+
   it('shows why a domain failed', async () => {
     route('GET', '/agency/domain', { data: domain({ state: 'failed', reason: 'The CNAME points somewhere else.' }) });
     renderWithClient(<BrandingView />);

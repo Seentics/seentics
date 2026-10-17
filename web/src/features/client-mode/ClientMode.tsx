@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { brandColorVars, brandLogo } from './brand';
 import { featureForPath } from './routes';
 import { useClientAccess, type ClientAccess } from './useClientAccess';
+import { useOnCustomHost } from '@/lib/seentics-host';
 import type { ClientBrand, FeatureId } from './types';
 
 /**
@@ -31,9 +32,11 @@ export function ClientModeProvider({ websiteId, children }: { websiteId: string;
   const feature = featureForPath(pathname, websiteId);
   const readOnly = access.isClient && !(feature && access.canEdit(feature));
   const brand = access.isClient ? access.me?.brand ?? null : null;
+  // On an agency's own domain `CustomHostBrand` (root layout) already wears the brand everywhere.
+  const customHost = useOnCustomHost();
   return (
     <ClientModeContext.Provider value={{ access, websiteId, feature, readOnly, brand }}>
-      {brand && <BrandEffects brand={brand} />}
+      {brand && !customHost && <BrandEffects brand={brand} />}
       {children}
     </ClientModeContext.Provider>
   );
@@ -95,7 +98,7 @@ export function ReadOnlyNote({ feature, className }: { feature: FeatureId; class
  * The agency's look on the dashboard: its colour as `--primary`, its name as the tab title and its
  * logo as the favicon. Everything is put back when the client signs out (the provider unmounts).
  */
-function BrandEffects({ brand }: { brand: ClientBrand }) {
+export function BrandEffects({ brand }: { brand: ClientBrand }) {
   const pathname = usePathname();
 
   useEffect(() => {

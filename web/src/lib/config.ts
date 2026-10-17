@@ -1,3 +1,5 @@
+import { onCustomHost } from './seentics-host';
+
 // Centralized configuration for the Seentics frontend
 // All environment-specific values should be configured here
 
@@ -78,6 +80,9 @@ export const getApiUrl = (endpoint: string = '') => {
   const ep = normalizeApiEndpoint(endpoint);
 
   if (typeof window !== 'undefined') {
+    // An agency's own domain reaches the gateway only through its same-origin proxy
+    // (functions/api/v1/[[path]].ts), which tells the gateway which domain this is.
+    if (onCustomHost()) return `/api/${config.apiVersion}${ep}`;
     // When NEXT_PUBLIC_API_URL is absolute (e.g. http://localhost:8000/api/v1 in Docker),
     // call the gateway directly. Same-origin /api/v1 only works if Next rewrites proxy correctly.
     const publicUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();

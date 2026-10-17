@@ -7,10 +7,15 @@
 // api/v1/tracker/collect.ts and api/v1/tracker/[[path]].ts both take this
 // request before it ever reaches here for anything under /api/v1/tracker/*.
 // This only ever sees the rest: auth, entitlements, websites, funnels, etc.
+//
+// On an agency's own domain this is how the client dashboard reaches the gateway (getApiUrl
+// returns `/api/v1` there): see functions/lib/api-proxy.ts.
+
+import { proxyApiRequest } from '../../lib/api-proxy';
 
 interface Env {
   GATEWAY_URL?: string;
-  /** Shared with the gateway: proves the visitor address below came from this Function. */
+  /** Shared with the gateway and the custom-domain Worker (see functions/lib/custom-host.ts). */
   EDGE_PROXY_SECRET?: string;
 }
 
@@ -23,18 +28,5 @@ interface RequestContext {
 export const onRequest = async (context: RequestContext): Promise<Response> => {
   const { request, env, params } = context;
   const segments = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
-
-  const upstreamUrl = new URL(`/api/v1/${segments.join('/')}`, env.GATEWAY_URL ?? 'https://api.seentics.com');
-  upstreamUrl.search = new URL(request.url).search;
-
-  // On this second hop Cloudflare reports this Function as the client, so every user would
-  // share one address at the gateway. The visitor's own address goes along, with the
-  // secret that lets the gateway believe it (gateway/lib/client-ip.ts).
-  const forwarded = new Request(upstreamUrl, request);
-  const visitor = request.headers.get('CF-Connecting-IP');
-  if (env.EDGE_PROXY_SECRET && visitor) {
-    forwarded.headers.set('X-Seentics-Edge-Client-IP', visitor);
-    forwarded.headers.set('X-Seentics-Edge-Secret', env.EDGE_PROXY_SECRET);
-  }
-  return fetch(forwarded);
+  return proxyApiRequest(request, env, segments);
 };

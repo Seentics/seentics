@@ -2,6 +2,7 @@
 
 /** No platform connected yet: what this does, in three lines, and where to start. */
 import Link from 'next/link';
+import { SeenticsOnly } from '@/components/seentics-only';
 import { Button } from '@/components/ui/button';
 import type { Platform } from '@/features/conversions/types';
 import { PLATFORM_ORDER, PLATFORMS } from './conversion-format';
@@ -46,9 +47,11 @@ export function EmptyState({ canEdit, onConnect }: { canEdit: boolean; onConnect
             );
           })}
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          New to server-side tracking? <Link href="/docs/conversions" className="font-medium text-primary hover:underline">How Conversions work</Link>
-        </p>
+        <SeenticsOnly>
+          <p className="mt-4 text-xs text-muted-foreground">
+            New to server-side tracking? <Link href="/docs/conversions" className="font-medium text-primary hover:underline">How Conversions work</Link>
+          </p>
+        </SeenticsOnly>
       </section>
     </div>
   );

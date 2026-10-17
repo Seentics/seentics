@@ -97,7 +97,7 @@ describe('agency demo: pages', () => {
     const users = screen.getByTestId('client-users-panel');
     expect(await within(users).findByText('jess@acmeoutdoor.com')).toBeTruthy();
     expect(within(users).getByText('Invited')).toBeTruthy();
-    expect((within(users).getByLabelText('Client sign-in link') as HTMLInputElement).value).toBe('https://seentics.com/signin?agency=northwind');
+    expect((within(users).getByLabelText('Client sign-in link') as HTMLInputElement).value).toBe('https://reports.northwind.agency/signin');
     expectNoNetwork();
   });
 

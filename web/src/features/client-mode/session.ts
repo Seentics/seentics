@@ -1,5 +1,6 @@
 import type { User } from '@/types';
 import { useAuth } from '@/stores/useAuthStore';
+import { onCustomHost } from '@/lib/seentics-host';
 
 /**
  * Whether the signed-in person is an agency's client user. The user stored at sign-in carries
@@ -57,6 +58,6 @@ export function rememberedClientAgency(): string | null {
   }
 }
 
-/** The agency's client sign-in page. */
+/** The agency's client sign-in page: plain `/signin` on its own domain, which names the agency. */
 export const clientSignInHref = (slug: string | null | undefined): string =>
-  slug ? `/signin?agency=${encodeURIComponent(slug)}` : '/signin';
+  slug && !onCustomHost() ? `/signin?agency=${encodeURIComponent(slug)}` : '/signin';
