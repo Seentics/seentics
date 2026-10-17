@@ -184,7 +184,7 @@ export function EndpointReference({ docs, baseUrl, intro }: {
       </div>
 
       <div className="grid min-h-0 grid-cols-1 lg:flex-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <nav className="border-b border-border p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <nav aria-label="Endpoints" className="border-b border-border p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
