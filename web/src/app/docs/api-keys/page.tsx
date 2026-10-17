@@ -40,6 +40,10 @@ export default function ApiKeysPage() {
             <strong>Manage only</strong> — create, update and delete websites. Cannot read data.
           </Li>
           <Li>
+            <strong>AI assistant (MCP)</strong> — read analytics, recordings and heatmaps from Claude,
+            Cursor or another assistant. Cannot change anything. See <C>/docs/mcp</C>.
+          </Li>
+          <Li>
             <strong>Agency API</strong> (Agency accounts) — run the agency workspace from your backend:
             clients, websites, install checks, branding, embeds and usage. See <C>/docs/agency</C>.
           </Li>

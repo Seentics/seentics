@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BookOpen,
+  Bot,
   Building2,
   Code2,
   CreditCard,
@@ -153,6 +154,12 @@ export const DOCS_NAV: DocsNavGroup[] = [
         href: '/docs/api-keys',
         icon: KeyRound,
         summary: 'Create keys, pick scopes, keep them safe.',
+      },
+      {
+        title: 'AI assistants (MCP)',
+        href: '/docs/mcp',
+        icon: Bot,
+        summary: 'Ask Claude, Cursor or VS Code about your websites.',
       },
       {
         title: 'WordPress',

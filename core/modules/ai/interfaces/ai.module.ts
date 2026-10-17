@@ -59,4 +59,30 @@ export interface AiModule {
    * stores it. `null` when no model is configured: analyses then carry signals only.
    */
   sessionSummarizer: SessionSummarizer | null;
+
+  /**
+   * The assistant's read tools, for surfaces outside the dashboard that answer from the same
+   * reads (the MCP server, `app/http/mcp`). Reads only: the propose tools draft changes for a
+   * person to confirm in the dashboard, which has no meaning outside it.
+   */
+  readTools: AssistantReadTools;
+}
+
+/** One read tool as an outside caller sees it: a name, what it answers, and its arguments. */
+export type AssistantReadToolInfo = {
+  name: string;
+  description: string;
+  /** JSON Schema of the arguments; the website is never one of them. */
+  parameters: Record<string, unknown>;
+};
+
+export type AssistantReadToolResult = { ok: true; data: unknown } | { ok: false; error: string };
+
+export interface AssistantReadTools {
+  list(): AssistantReadToolInfo[];
+  /**
+   * Run one tool for a website the caller has already proven it may read: arguments are
+   * validated against the tool's schema, and failures come back as `ok: false`, never thrown.
+   */
+  run(name: string, args: unknown, ctx: { websiteId: string; userId: string }): Promise<AssistantReadToolResult>;
 }

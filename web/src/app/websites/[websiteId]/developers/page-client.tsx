@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BarChart3, BookOpen, FileCode2, KeyRound, Plus, Webhook, Wrench } from 'lucide-react';
+import { BarChart3, BookOpen, Bot, FileCode2, KeyRound, Plus, Webhook, Wrench } from 'lucide-react';
 import { usePathSegment } from '@/lib/path-segment';
 import { cn } from '@/lib/utils';
 import { useAPIKeys } from '@/components/developers/api-keys';
@@ -12,6 +12,7 @@ import { PAGE_MENU_LABEL, PAGE_MENU_PANEL, pageMenuItem } from '@/components/ui/
 import { CreateAccountKeyDialog, type AccessPreset } from '@/components/developers/AccountKeysPanel';
 import { DeveloperApiKeysTab, IntegrationsTab, SetupTab, WebsitesApiTab } from '@/components/developers/DeveloperTabs';
 import { DataApiTab } from '@/components/developers/DataApiTab';
+import { McpTab } from '@/components/developers/McpTab';
 
 /**
  * Developer-only: keys, the two API references, install guides and where data goes out.
@@ -21,6 +22,7 @@ export const DEVELOPER_TABS = [
   { id: 'api-keys', label: 'API keys', icon: KeyRound },
   { id: 'data-api', label: 'Data API', icon: BarChart3 },
   { id: 'management-api', label: 'Management API', icon: FileCode2 },
+  { id: 'ai-assistants', label: 'AI assistants (MCP)', icon: Bot },
   { id: 'setup', label: 'Tracker & SDK setup', icon: Wrench },
   { id: 'integrations', label: 'Webhooks & integrations', icon: Webhook },
 ] as const;
@@ -32,6 +34,7 @@ const DESCRIPTIONS: Record<TabId, string> = {
   'api-keys': 'Account keys for the Data API, the Management API and the Agency API.',
   'data-api': "Read any website's analytics, recordings and heatmaps, with an account key.",
   'management-api': 'Create, update and delete websites from your own backend, with an account key.',
+  'ai-assistants': 'Ask Claude, Cursor or any MCP assistant about your websites, with a read-only account key.',
   setup: "This website's tracking snippet, and guides for every way to install it.",
   integrations: "Where this website's data goes out: webhooks, integrations and ad platforms.",
 };
@@ -66,6 +69,11 @@ export default function DevelopersPage() {
     }
   }, []);
 
+  const openNewKey = (on?: AccessPreset) => {
+    setPreset(on);
+    setNewKey(true);
+  };
+
   const go = (next: TabId) => {
     setTab(next);
     writeUrl(next);
@@ -81,7 +89,7 @@ export default function DevelopersPage() {
           </Link>
         </Button>
         {tab === 'api-keys' && (
-          <Button size="sm" className="gap-1.5" onClick={() => setNewKey(true)}>
+          <Button size="sm" className="gap-1.5" onClick={() => openNewKey()}>
             <Plus className="h-3.5 w-3.5" />
             New account key
           </Button>
@@ -116,9 +124,10 @@ export default function DevelopersPage() {
         </nav>
 
         <div className="min-w-0">
-          {tab === 'api-keys' && <DeveloperApiKeysTab websiteId={websiteId} onCreate={() => setNewKey(true)} />}
+          {tab === 'api-keys' && <DeveloperApiKeysTab websiteId={websiteId} onCreate={() => openNewKey()} />}
           {tab === 'data-api' && <DataApiTab />}
           {tab === 'management-api' && <WebsitesApiTab />}
+          {tab === 'ai-assistants' && <McpTab onCreateKey={() => openNewKey('assistant')} />}
           {tab === 'setup' && websiteId && <SetupTab websiteId={websiteId} />}
           {tab === 'integrations' && websiteId && <IntegrationsTab websiteId={websiteId} />}
         </div>

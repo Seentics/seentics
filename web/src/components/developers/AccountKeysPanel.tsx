@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 const DATA_SCOPES: AccountScope[] = ['analytics:read', 'replays:read', 'heatmaps:read'];
 const AGENCY_SCOPES: AccountScope[] = ['agency:read', 'agency:write'];
 
-export type AccessPreset = 'full' | 'read' | 'manage' | 'agency' | 'custom';
+export type AccessPreset = 'full' | 'read' | 'manage' | 'assistant' | 'agency' | 'custom';
 
 const PRESETS: Array<{ id: Exclude<AccessPreset, 'custom'>; label: string; description: string; scopes: AccountScope[]; agencyOnly?: boolean }> = [
   {
@@ -39,6 +39,12 @@ const PRESETS: Array<{ id: Exclude<AccessPreset, 'custom'>; label: string; descr
     label: 'Manage only',
     description: 'Create, update and delete websites. Cannot read analytics.',
     scopes: ['websites:read', 'websites:write'],
+  },
+  {
+    id: 'assistant',
+    label: 'AI assistant (MCP)',
+    description: 'Ask Claude, Cursor or another assistant about your websites. Reads data only, never changes anything.',
+    scopes: DATA_SCOPES,
   },
   {
     id: 'agency',
@@ -61,7 +67,7 @@ function accessLabel(scopes: AccountScope[]): { text: string; strong: boolean } 
 
 /**
  * A new account key: a preset, or any of Core's scopes picked one by one. `preset` opens it on one
- * (the agency workspace's API page links here with `agency`).
+ * (the agency workspace's API page links here with `agency`, the AI assistants tab with `assistant`).
  */
 export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }: {
   websiteId: string;

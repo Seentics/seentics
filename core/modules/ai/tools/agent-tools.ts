@@ -16,7 +16,8 @@ import { siteSettingsTools } from "./propose-site-settings.tool";
 import { alertTools, errorTriageTool, recommendationTriageTool, type AlertPorts } from "./propose-triage.tool";
 import { readTools, type ReadPorts } from "./read-tools";
 import { recommendationTools, type RecommendationReadPorts } from "./recommendation-reads";
-import { ToolRegistry } from "./registry";
+import { ToolRegistry, toJsonSchema } from "./registry";
+import type { AssistantReadTools } from "../interfaces";
 import { sessionTools } from "./session-reads";
 
 /**
@@ -94,4 +95,27 @@ export function buildAgentRegistry(deps: AgentToolDeps): ToolRegistry {
     ...(deps.recommendations ? [recommendationTriageTool({ get: deps.recommendations.get })] : []),
     ...(deps.recommendations ? recommendationTools(deps.recommendations) : []),
   ]);
+}
+
+/**
+ * The registry's read tools for callers outside the dashboard (`AiModule.readTools`).
+ *
+ * The propose tools are left out: a draft is confirmed on the dashboard's card, so outside it
+ * one is a dead end. `display` is how the dashboard draws a result and is dropped; what is
+ * returned is the data the dashboard's model reads.
+ */
+export function assistantReadTools(registry: ToolRegistry): AssistantReadTools {
+  const reads = new Map(registry.list().filter((t) => t.kind === "read").map((t) => [t.name, t]));
+  return {
+    list: () => [...reads.values()].map((t) => ({ name: t.name, description: t.description, parameters: toJsonSchema(t.schema) })),
+    run: async (name, args, ctx) => {
+      if (!reads.has(name)) return { ok: false, error: `Unknown tool: ${name}` };
+      const result = await registry.run(name, args, ctx);
+      if (!result.ok) return result;
+      const payload = result.data as { data?: unknown; display?: unknown } | null;
+      const wrapped = payload !== null && typeof payload === "object" && "data" in payload
+        && Object.keys(payload).every((k) => k === "data" || k === "display");
+      return { ok: true, data: wrapped ? payload.data : result.data };
+    },
+  };
 }

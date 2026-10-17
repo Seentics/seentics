@@ -16,7 +16,7 @@ import { AgentService } from "./services/agent/agent.service";
 import { ProposalApplier } from "./services/agent/proposal-applier";
 import { proposalWriters } from "./services/agent/proposal-writers";
 import { sqlBackedReads } from "./tools/sql-backed-reads";
-import { buildAgentRegistry } from "./tools/agent-tools";
+import { assistantReadTools, buildAgentRegistry } from "./tools/agent-tools";
 import { composeRecommendations } from "./recommendations/compose";
 import { SessionSummaryService } from "./sessions/summarizer";
 import { HeatmapInsightService } from "./heatmap-insights/service";
@@ -276,6 +276,7 @@ export function initAiModule(deps: {
   return {
     heatmapNarrator,
     sessionSummarizer,
+    readTools: assistantReadTools(registry),
     usage: new AiUsageCounter(repo),
     retention: new AiRetentionPurge(),
     routes: createAiRoutes({

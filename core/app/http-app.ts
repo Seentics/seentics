@@ -11,6 +11,7 @@ import { privacyRoutes } from "./http/privacy";
 import { createRawDataRoutes } from "./http/public-api/routes";
 import { createManagementRoutes } from "./http/management-api/routes";
 import { createEmbedRoutes } from "./http/embed/routes";
+import { createMcpRoutes } from "./http/mcp/routes";
 import { createUserBranchRoutes } from "./http/user-branch";
 
 /**
@@ -70,6 +71,27 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
     createManagementRoutes({
       accountKeys: application.modules.apiKeys.accountVerifier,
       websites: application.modules.websites.managementRoutes,
+    }),
+  );
+  // The MCP server: the same reads, for an outside assistant (Claude, Cursor…) holding an
+  // account key. See app/http/mcp/routes.ts.
+  app.route(
+    "/api/v1/mcp",
+    createMcpRoutes({
+      accountKeys: application.modules.apiKeys.accountVerifier,
+      websites: application.modules.websites.ownedWebsites,
+      clients: application.modules.websites.clients,
+      analytics: application.modules.analytics.reads,
+      insights: application.modules.analytics.insightReads,
+      impact: application.modules.analytics.impactReads,
+      goals: application.modules.analytics.anomalyReads,
+      metrics: [
+        application.modules.analytics.agencyMetrics,
+        application.modules.recordings.agencyMetrics,
+        application.modules.leads.agencyMetrics,
+        application.modules.integrations.agencyMetrics,
+      ],
+      assistant: application.modules.ai.readTools,
     }),
   );
   // The agency workspace's public API. Only the gateway reaches it: it authenticates the

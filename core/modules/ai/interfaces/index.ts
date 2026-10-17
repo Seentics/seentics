@@ -15,4 +15,4 @@ export type {
 export { AIDailyLimitError } from "./ai.interface";
 
 /** The whole module surface, as a peer receives it at composition time. */
-export type { AiModule } from "./ai.module";
+export type { AiModule, AssistantReadToolInfo, AssistantReadToolResult, AssistantReadTools } from "./ai.module";
