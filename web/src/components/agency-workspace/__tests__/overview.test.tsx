@@ -78,7 +78,8 @@ describe('agency overview', () => {
     expect(screen.getByTestId('setup-step-first_client')).toHaveAttribute('data-done', 'false');
     expect(within(screen.getByTestId('setup-step-first_client')).getByRole('link', { name: /Add a client/ })).toHaveAttribute('href', '/agency/clients?new=1');
     expect(within(screen.getByTestId('setup-step-website_installed')).getByRole('link')).toHaveAttribute('href', '/agency/websites');
-    expect(within(screen.getByTestId('setup-step-client_user')).getByText(/next update/)).toBeTruthy();
+    expect(within(screen.getByTestId('setup-step-client_user')).queryByText(/next update/)).toBeNull();
+    expect(within(screen.getByTestId('setup-step-client_user')).getByRole('link')).toHaveAttribute('href', '/agency/clients');
     expect(within(screen.getByTestId('setup-step-features_limits')).getByRole('link')).toHaveAttribute('href', '/agency/clients');
     expect(within(screen.getByTestId('setup-step-branding')).queryByRole('link')).toBeNull();
   });

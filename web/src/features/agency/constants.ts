@@ -53,7 +53,7 @@ export const SETUP_STEPS: Array<{ id: SetupStepId; title: string; description: s
   { id: 'branding', title: 'Add your brand and domain', description: 'Your name, logo and colour, and a domain such as reports.youragency.com.', href: '/agency/branding', cta: 'Open branding' },
   { id: 'first_client', title: 'Add your first client', description: 'A client groups the websites you run for one customer.', href: '/agency/clients?new=1', cta: 'Add a client' },
   { id: 'website_installed', title: 'Add a website and install the snippet', description: 'Add the client’s site, paste the snippet, and check that events arrive.', href: '/agency/websites', cta: 'Add a website' },
-  { id: 'client_user', title: 'Invite a client user', description: 'Let your client sign in to their own dashboard.', href: '/agency/clients', cta: 'Open clients', later: 'Client sign-in arrives in the next update.' },
+  { id: 'client_user', title: 'Invite a client user', description: 'Let your client sign in to their own dashboard with an email link.', href: '/agency/clients', cta: 'Open clients' },
   { id: 'features_limits', title: 'Choose features and limits', description: 'Pick which dashboard pages each client sees. Limits arrive in a later update.', href: '/agency/clients', cta: 'Open clients' },
 ];
 

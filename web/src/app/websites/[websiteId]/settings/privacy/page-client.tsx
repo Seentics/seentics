@@ -5,6 +5,7 @@ import { usePathSegment } from '@/lib/path-segment';
 
 
 import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
+import { EditGuard, ReadOnlyNote } from '@/features/client-mode/ClientMode';
 
 export default function PrivacySettingsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -12,7 +13,10 @@ export default function PrivacySettingsPage() {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <PrivacySettingsComponent websiteId={websiteId} />
+      <ReadOnlyNote feature="privacy" />
+            <EditGuard feature="privacy" mode="disable">
+                <PrivacySettingsComponent websiteId={websiteId} />
+            </EditGuard>
     </div>
   );
 }

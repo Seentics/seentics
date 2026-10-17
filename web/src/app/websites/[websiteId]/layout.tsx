@@ -6,6 +6,8 @@ import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardContentOverlay } from '@/components/content-demo/DashboardContentOverlay';
 import { usePathSegment } from '@/lib/path-segment';
 import { cn } from '@/lib/utils';
+import { ClientModeProvider } from '@/features/client-mode/ClientMode';
+import { FeatureGate } from '@/features/client-mode/FeatureGate';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,7 +23,10 @@ export default function Layout({ children }: LayoutProps) {
   // chrome around it, as in Linear's app. Phones stay edge to edge.
   const framed = Boolean(websiteId) && !isAiMode;
 
+  // Client mode (an agency's client user): the brand, the pages they may open, and which of
+  // them they may only view. An account passes through unchanged.
   return (
+    <ClientModeProvider websiteId={websiteId}>
     <div
       className={cn(
         'flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground supports-[height:100dvh]:h-[100dvh] md:flex-row',
@@ -39,11 +44,12 @@ export default function Layout({ children }: LayoutProps) {
           framed && 'app-frame md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]',
         )}
       >
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">{children}</main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"><FeatureGate>{children}</FeatureGate></main>
         {/* Above the page, so the light falls on its cards too; never takes a click. */}
         {framed && <div aria-hidden className="app-frame-glow pointer-events-none absolute inset-0" />}
       </div>
       {websiteId && !isAiMode && <DashboardContentOverlay websiteId={websiteId} />}
     </div>
+    </ClientModeProvider>
   );
 }

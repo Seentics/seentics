@@ -19,7 +19,7 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import Footer from '@/components/landing/Footer';
 import { FoundingLine } from '@/components/landing/agencies/FoundingLine';
 import { AgencyPrice } from '@/components/landing/agencies/AgencyPrice';
-import { AgencyOverviewMock } from '@/components/landing/agencies/AgencyOverviewMock';
+import { AgencyOverviewShot } from '@/components/landing/agencies/AgencyOverviewShot';
 import { AgencyFaq } from '@/components/landing/agencies/AgencyFaq';
 
 export const dynamic = 'force-static';
@@ -48,7 +48,7 @@ const FEATURES: Feature[] = [
   { icon: Braces, name: 'Agency API', text: 'Manage clients, sites and usage from code.' },
   { icon: Gauge, name: 'A shared usage pool', text: '15M events and 30K recordings a month. Overage instead of pausing.' },
   { icon: Globe, name: 'Client dashboards on your own domain', text: 'Connect your domain now; serving on it comes next.', soon: true },
-  { icon: LogIn, name: 'Client sign-in with pages you choose', text: 'Clients log in and see only what you share.', soon: true },
+  { icon: LogIn, name: 'Client sign-in with pages you choose', text: 'Clients sign in with an email link and see only the pages you share.' },
 ];
 
 const INCLUDED = ['15M events & 30K recordings a month', 'Every Seentics feature', 'Client workspaces, branding & embeds', 'Agency API'];
@@ -121,9 +121,9 @@ export default function AgenciesPage() {
             <FoundingLine className="mt-8" />
 
             <div className="mt-12 sm:mt-16">
-              <AgencyOverviewMock />
+              <AgencyOverviewShot href={DEMO_HREF} />
               <p className="lx-faint mt-5 text-center text-sm">
-                The agency overview, with demo data.{' '}
+                The real agency overview, with demo data.{' '}
                 <Link
                   href={DEMO_HREF}
                   className="underline decoration-[color:var(--lx-line-strong)] underline-offset-4 hover:text-[color:var(--lx-text)]"

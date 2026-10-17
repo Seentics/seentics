@@ -122,6 +122,16 @@ const ALLOWED: { file: string; tables: string[]; why: string }[] = [
       "rows whenever a consumer fails — a durability regression, not a refactor.",
   },
   {
+    file: "modules/websites/repositories/postgres-website.repository.ts",
+    tables: ["client_members"],
+    why:
+      "Role resolution. `findRole` runs on nearly every authenticated request and answers " +
+      "owner, website member and client member in one round trip; the client arm is a " +
+      "subquery on client_members. Asking the agency module through a port would add a " +
+      "second query to every request and a websites → agency dependency the agency module " +
+      "already has the other way round. The client-site list reads the same rows.",
+  },
+  {
     file: "modules/analytics/repositories/goals.repository.ts",
     tables: ["goals"],
     why:

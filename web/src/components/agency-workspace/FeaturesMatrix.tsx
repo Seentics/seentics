@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Info, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { errorMessage, setClientFeatures } from '@/features/agency/api';
@@ -27,7 +27,7 @@ export function FeaturesMatrix({ clientId }: { clientId: string }) {
     <Panel
       data-testid="features-matrix"
       title="Features"
-      description="Which dashboard pages this client sees, and whether they can change anything there."
+      description="Which dashboard pages this client’s users see, and whether they can change anything there. Off hides a page; View shows it read-only; Edit lets them make changes."
       actions={
         <>
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setAll('view')} disabled={!draft}>All view</Button>
@@ -44,13 +44,6 @@ export function FeaturesMatrix({ clientId }: { clientId: string }) {
       }
       bodyClassName="p-0"
     >
-      <div className="flex items-start gap-2 border-b border-border bg-blue-50 px-4 py-2.5 text-xs text-muted-foreground dark:bg-blue-950/30">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
-        <span>
-          These choices are saved now and take effect when client sign-in arrives in the next update: clients will see only the pages
-          set to View or Edit, and change settings only on pages set to Edit.
-        </span>
-      </div>
       {query.isLoading || !draft ? (
         query.isError ? <div className="p-4"><ErrorNote>{errorMessage(query.error)}</ErrorNote></div> : <LoadingRow />
       ) : (

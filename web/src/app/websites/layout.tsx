@@ -21,11 +21,15 @@ export default function WebsitesLayout({
   const isDemoMode = websiteId === 'demo';
 
   useEffect(() => {
-    // Only redirect if we're not loading, there's no user, AND we're not in demo mode
-    if (!isLoading && !user && !isDemoMode) {
+    // Only redirect if we're not loading, there's no user, AND we're not in demo mode. Demo is read
+    // from the URL here, not from `websiteId`: that is null until the URL has been read (first tick),
+    // and after a client-side navigation the auth store has already settled, so deciding on it sent
+    // a visitor heading to /websites/demo (from the agency demo, say) to sign-in.
+    const onDemo = window.location.pathname.split('/').filter(Boolean)[1] === 'demo';
+    if (!isLoading && !user && !onDemo) {
       router.push('/signin');
     }
-  }, [user, isLoading, router, isDemoMode]);
+  }, [user, isLoading, router, websiteId]);
 
   if (isLoading) {
     return (

@@ -30,12 +30,22 @@ export async function signRefreshToken(userId: string, passwordStamp?: string): 
     .sign(secret());
 }
 
-export async function verifyAccessToken(token: string): Promise<{ userId: string }> {
+/**
+ * `clientAgency` is set for a client user's token (`kind: "client"`, signed by the gateway's
+ * client sign-in): the owner id of the agency they signed in to. A client token without one
+ * is refused rather than read as an account's.
+ */
+export async function verifyAccessToken(token: string): Promise<{ userId: string; clientAgency?: string }> {
   const { payload } = await jose.jwtVerify(token, secret(), { algorithms: ["HS256"] });
   if (payload.typ === "refresh") throw new Error("wrong token type");
   const uid = payload.user_id;
   const userId = typeof uid === "string" ? uid : typeof uid === "number" ? String(Math.floor(uid)) : "";
   if (!userId) throw new Error("invalid token");
+  if (payload.kind === "client") {
+    const agency = typeof payload.agency === "string" ? payload.agency : "";
+    if (!agency) throw new Error("invalid token");
+    return { userId, clientAgency: agency };
+  }
   return { userId };
 }
 

@@ -17,6 +17,7 @@ export const agencyKeys = {
   clients: (filters: ClientListFilters) => ['agency', 'clients', filters] as const,
   client: (id: string) => ['agency', 'client', id] as const,
   clientWebsites: (id: string) => ['agency', 'client-websites', id] as const,
+  clientUsers: (id: string) => ['agency', 'client-users', id] as const,
   features: (id: string) => ['agency', 'features', id] as const,
   websites: (filters: WebsiteListFilters) => ['agency', 'websites', filters] as const,
   install: (id: string) => ['agency', 'install', id] as const,
@@ -57,6 +58,9 @@ export const useClientWebsites = (id: string) =>
 
 export const useClientFeatures = (id: string) =>
   useQuery({ queryKey: agencyKeys.features(id), queryFn: () => agencyApi.getClientFeatures(id), enabled: !!id });
+
+export const useClientUsers = (id: string) =>
+  useQuery({ queryKey: agencyKeys.clientUsers(id), queryFn: async () => (await agencyApi.listClientUsers(id)).data, enabled: !!id });
 
 export const useWebsites = (filters: WebsiteListFilters = {}) =>
   useCursorList(agencyKeys.websites(filters), cursor => agencyApi.listWebsites(filters, cursor));

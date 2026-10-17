@@ -10,6 +10,9 @@ import type {
   ClientFeatures,
   ClientDetail,
   ClientInput,
+  ClientUser,
+  ClientUserInput,
+  ClientUserPatch,
   ClientListFilters,
   CreatedWebsite,
   Domain,
@@ -194,6 +197,25 @@ export const getClientFeatures = (id: string) =>
 export const setClientFeatures = (id: string, features: ClientFeatures) =>
   one(call<{ data: { features: ClientFeatures } }>('PUT', '/agency/clients/:id/features', { params: { id }, body: { features } }))
     .then(d => d.features);
+
+// ─── Client users ─────────────────────────────────────────────────────────────
+
+export const listClientUsers = (id: string) =>
+  call<ListResponse<ClientUser>>('GET', '/agency/clients/:id/users', { params: { id }, query: { limit: 100 } });
+
+/** Adds the person and emails them a sign-in link (201). */
+export const inviteClientUser = (id: string, body: ClientUserInput) =>
+  one(call<{ data: ClientUser }>('POST', '/agency/clients/:id/users', { params: { id }, body }));
+
+export const updateClientUser = (id: string, userId: string, body: ClientUserPatch) =>
+  one(call<{ data: ClientUser }>('PATCH', '/agency/clients/:id/users/:userId', { params: { id, userId }, body }));
+
+export const removeClientUser = (id: string, userId: string) =>
+  call<unknown>('DELETE', '/agency/clients/:id/users/:userId', { params: { id, userId } }).then(() => undefined);
+
+/** Emails a fresh sign-in link (202). */
+export const sendClientUserLink = (id: string, userId: string) =>
+  call<unknown>('POST', '/agency/clients/:id/users/:userId/send-link', { params: { id, userId } }).then(() => undefined);
 
 // ─── Websites ─────────────────────────────────────────────────────────────────
 

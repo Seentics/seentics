@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 import { getApiUrl } from './config';
 
 // Read persisted auth state from localStorage (Zustand store)
@@ -22,15 +23,29 @@ function hasActiveSession(): boolean {
   return getPersistedAuth().isAuthenticated;
 }
 
+/** A client user's agency sign-in name, read before the session is cleared. */
+function persistedClientSlug(): string | null {
+  try {
+    const user = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user;
+    return user?.kind === 'client' ? user?.agency?.slug ?? '' : null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to logout user and clear auth state
 function performLogout() {
+  // A client user signs in again on their agency's page, not the account sign-in.
+  const clientSlug = persistedClientSlug();
   localStorage.removeItem('auth-storage');
 
   // Clear legacy cookies
   document.cookie = 'auth-storage=; path=/; max-age=0; samesite=lax';
 
   if (typeof window !== 'undefined') {
-    window.location.href = '/signin?expired=true';
+    window.location.href = clientSlug
+      ? `/signin?agency=${encodeURIComponent(clientSlug)}&expired=true`
+      : '/signin?expired=true';
   }
 }
 
@@ -209,6 +224,16 @@ api.interceptors.response.use(
       }
     }
 
+    // Client mode: the agency has not allowed this page or action for the client user. One toast,
+    // however many requests were refused at once.
+    if (error.response?.status === 403 && isFeatureNotAllowed(error.response?.data)) {
+      toast.error('Not available', {
+        id: 'feature-not-allowed',
+        description: 'Your agency has not given you access to this. Ask them if you need it.',
+      });
+      return Promise.reject(Object.assign(new Error('feature_not_allowed'), { response: error.response, status: 403 }));
+    }
+
     // Handle other error messages (API uses `message` or `error`)
     const data = error.response?.data as { message?: string; error?: string } | undefined;
     const apiMsg =
@@ -224,5 +249,12 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/** `{ error: 'feature_not_allowed' }`, or the agency envelope's `{ error: { code } }`. */
+export function isFeatureNotAllowed(data: unknown): boolean {
+  const err = (data as { error?: unknown } | null | undefined)?.error;
+  if (err === 'feature_not_allowed') return true;
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'feature_not_allowed';
+}
 
 export default api;

@@ -71,7 +71,8 @@ describe('agency demo: pages', () => {
     expect(within(screen.getByTestId('movers')).getByRole('link', { name: 'Nova app' })).toBeTruthy();
     expect(within(screen.getByTestId('movers')).getAllByText('Lumen Law').length).toBeGreaterThan(0);
     expect(screen.getByText('6.2M')).toBeTruthy();
-    expect(screen.getByText('Setup: 4 of 5 steps done.')).toBeTruthy();
+    // Every setup step is done in the demo, so there is nothing left to finish.
+    expect(screen.queryByText(/Setup: \d of 5 steps done/)).toBeNull();
     expect(screen.getAllByTestId('agency-demo-badge').length).toBeGreaterThan(0);
     // Site links open the website demo, which needs no sign-in.
     expect(screen.getByRole('link', { name: 'Open site' }).getAttribute('href')).toBe('/websites/demo');
@@ -93,6 +94,10 @@ describe('agency demo: pages', () => {
     expect(await screen.findByText('Acme Outdoor shop')).toBeTruthy();
     expect(screen.getByText('Trail finder')).toBeTruthy();
     expect(((await screen.findByLabelText('Embed link')) as HTMLInputElement).value).toContain('reports.northwind.agency/embed/cl_acme');
+    const users = screen.getByTestId('client-users-panel');
+    expect(await within(users).findByText('jess@acmeoutdoor.com')).toBeTruthy();
+    expect(within(users).getByText('Invited')).toBeTruthy();
+    expect((within(users).getByLabelText('Client sign-in link') as HTMLInputElement).value).toBe('https://seentics.com/signin?agency=northwind');
     expectNoNetwork();
   });
 
@@ -165,6 +170,22 @@ describe('agency demo: writes are refused', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save branding' }));
     expectDemoToast();
     expect(toasts.success).not.toHaveBeenCalled();
+    expectNoNetwork();
+  });
+
+  it('inviting, resending, disabling and removing client users shows the demo toast', async () => {
+    visit('/agency/clients/cl_acme');
+    inWorkspace(<ClientDetailView clientId="cl_acme" />);
+    const users = await screen.findByTestId('client-users-panel');
+    await within(users).findByText('jess@acmeoutdoor.com');
+    fireEvent.change(within(users).getByLabelText('Email'), { target: { value: 'new@acme.test' } });
+    fireEvent.click(within(users).getByRole('button', { name: 'Invite' }));
+    expectDemoToast();
+    fireEvent.click(within(users).getByRole('button', { name: 'Resend link to jess@acmeoutdoor.com' }));
+    fireEvent.click(within(users).getByRole('button', { name: 'Disable jess@acmeoutdoor.com' }));
+    expect(toasts.info).toHaveBeenCalledTimes(3);
+    expect(toasts.success).not.toHaveBeenCalled();
+    expect(within(users).queryByText(/Invite sent/)).toBeNull();
     expectNoNetwork();
   });
 

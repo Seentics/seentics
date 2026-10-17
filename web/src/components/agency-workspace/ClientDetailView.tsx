@@ -12,6 +12,7 @@ import type { AgencyWebsite } from '@/features/agency/types';
 import { agencySiteHref } from '@/lib/demo/agency-mode';
 import { AddWebsiteDialog } from './AddWebsiteDialog';
 import { ClientFormDialog } from './ClientFormDialog';
+import { ClientUsersPanel } from './ClientUsersPanel';
 import { EmbedsPanel } from './EmbedsPanel';
 import { FeaturesMatrix } from './FeaturesMatrix';
 import { InstallDrawer } from './InstallDrawer';
@@ -89,7 +90,7 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
                   {sites.map(w => (
                     <TableRow key={w.id}>
                       <TableCell>
-                        <p className="font-medium text-foreground">{w.name}</p>
+                        <Link href={agencySiteHref(w.id)} className="font-medium text-foreground hover:underline" title="Open this website's dashboard">{w.name}</Link>
                         <p className="text-xs text-muted-foreground">{w.url}</p>
                       </TableCell>
                       <TableCell>{w.is_verified ? <Pill tone="green">Verified</Pill> : <Pill tone="amber">Not installed</Pill>}</TableCell>
@@ -128,6 +129,7 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
               ))}
             </dl>
           </Panel>
+          <ClientUsersPanel clientId={c.id} />
           <EmbedsPanel scope="client" targetId={c.id} targetName={c.name} />
         </div>
       </div>

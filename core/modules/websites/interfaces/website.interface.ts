@@ -230,8 +230,14 @@ export type WebsiteWithTraffic = Website & { traffic: TrafficSummary };
  * routes are the sole caller.
  */
 export interface WebsiteTrafficReads {
-  /** Every website the user owns, each with its summary. Batched, not N+1. */
-  listOwnedWithTraffic(ownerId: string): Promise<WebsiteWithTraffic[]>;
+  /**
+   * The websites the user's dashboard lists, each with its summary. Batched, not N+1.
+   *
+   * An account sees what it owns, what it was invited to, and the client sites of any agency
+   * it is a client member of. A client user (`clientAgency` set) sees only the client sites of
+   * that agency it is a member of — never an account's own sites or another agency's.
+   */
+  listForUserWithTraffic(userId: string, clientAgency: string | null): Promise<WebsiteWithTraffic[]>;
 
   /** One website with traffic. The HTTP controller performs access checks first. */
   getWithTraffic(websiteId: string): Promise<WebsiteWithTraffic | null>;

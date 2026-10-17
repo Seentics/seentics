@@ -26,6 +26,8 @@ beforeEach(() => {
   route('GET', '/agency/clients', list([CLIENT]));
   route('GET', '/agency/embeds', () => list(embeds));
   route('GET', '/agency/websites/w1/install', { data: INSTALL });
+  route('GET', '/agency/clients/c1/users', list([]));
+  route('GET', '/agency/branding', { data: { brand_name: 'Meridian', logo_url: '', primary_color: '#7c3aed', support_email: '', footer_text: '', hide_seentics: false, slug: 'meridian' } });
 });
 
 describe('client detail', () => {
@@ -36,7 +38,7 @@ describe('client detail', () => {
     expect(await screen.findByText('Acme site')).toBeTruthy();
     expect(screen.getByText('Not installed')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveAttribute('href', '/websites/w1');
-    expect(screen.queryByText(/Client sign-in —/)).toBeNull();
+    expect(await screen.findByTestId('client-users-panel')).toHaveTextContent('Client sign-in');
   });
 
   it('edits the details', async () => {
@@ -82,11 +84,12 @@ describe('client detail', () => {
     expect(within(panel).getByText('ST-1')).toBeTruthy();
   });
 
-  it('saves the features matrix and explains enforcement comes with client sign-in', async () => {
+  it('saves the features matrix, with no note that enforcement is still to come', async () => {
     route('PUT', '/agency/clients/c1/features', req => ({ data: req.data }));
     renderWithClient(<ClientDetailView clientId="c1" />);
     const matrix = await screen.findByTestId('features-matrix');
-    expect(matrix).toHaveTextContent(/take effect when client sign-in arrives/);
+    expect(matrix).not.toHaveTextContent(/client sign-in arrives/);
+    expect(matrix).not.toHaveTextContent(/next update/);
     const save = within(matrix).getByRole('button', { name: 'Save features' });
     await waitFor(() => expect(within(matrix).getByRole('radio', { name: 'Overview: View' })).toHaveAttribute('aria-checked', 'true'));
     expect(save).toBeDisabled();

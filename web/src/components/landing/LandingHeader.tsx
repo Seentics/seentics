@@ -22,184 +22,8 @@ import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
 import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 import { HashLinks } from './HashLinks';
 
-/**
- * Each sibling product is shown with its own mark and its own brand colour —
- * Observability's stepped-signal glyph in purple, the same one that site uses. They are separate products, and a menu that
- * renders them in this app's blue with two interchangeable lucide icons tells
- * the reader they are features of the analytics app rather than places to go.
- *
- * The identity stops at the mark. Layout, type and surfaces stay in this app's
- * tokens: an earlier attempt gave each product a tinted card, and a panel that
- * changes palette and shape mid-header reads as though you have already left.
- *
- * The glyphs are inlined rather than imported because each lives in its own
- * repo — observability/web is a separate deployment, and this
- * app cannot reach across to it. It is small and changes rarely; the
- * comment is the reminder to update both when it does.
- */
-export function ObserveGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path
-        d="M4 15.5h3.2V12h3.2V6.5h3.2V17h3.2v-4.5H20"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-type SuiteProduct = { name: string; description: string; href: string; glyph: typeof ObserveGlyph; tint: string };
-
-/**
- * Sibling products in the menu. Observability is not marketed for now (it stays in the dashboard
- * and in Billing), so the list is empty and the menu shows only the free tools. To bring it back:
- * { name: 'Observability', description: 'Logs, traces, metrics and grouped errors for every service
- * behind your product.', href: config.observeUrl, glyph: ObserveGlyph, tint: 'bg-[hsl(267_60%_47%)]' }.
- */
-const SUITE_PRODUCTS: SuiteProduct[] = [];
-
-const FREE_TOOLS = [
-  {
-    name: 'Speed Test',
-    description: 'Paste a URL, get a Core Web Vitals report. No account needed.',
-    href: '/tools/page-speed-test',
-    icon: Gauge,
-  },
-];
-
-/**
- * Hover-triggered mega menu, Stripe/Linear-style. A plain `group-hover` CSS
- * approach was tried first and rejected: moving the cursor from the nav link
- * down into the panel crosses a gap, and CSS-only hover closes the panel the
- * instant the cursor leaves the link — before it reaches the cards. A short
- * close delay, cancelled on re-entry, is what every site that does this
- * actually ships.
- */
-function ProductsNavItem() {
-  const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelClose = () => {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  };
-  const scheduleClose = () => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => setOpen(false), 150);
-  };
-
-  useEffect(() => () => cancelClose(), []);
-
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => { cancelClose(); setOpen(true); }}
-      onMouseLeave={scheduleClose}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
-      >
-        Products &amp; Tools
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.12 }}
-            /* Anchored to the trigger's left edge, not centred on it: the
-               trigger sits near the left of a wide header, so a centred panel
-               is pushed half its own width further left and runs off screen. */
-            className="absolute left-0 top-full z-50 mt-3 w-[440px] max-w-[calc(100vw-3rem)] rounded-xl border border-border bg-card p-3 shadow-lg"
-          >
-            {SUITE_PRODUCTS.length > 0 && (
-            <>
-            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
-              Products
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {SUITE_PRODUCTS.map((product) => (
-                <a
-                  key={product.name}
-                  href={product.href}
-                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
-                >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${product.tint}`}
-                  >
-                    <product.glyph className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[14.5px] font-semibold text-foreground">{product.name}</span>
-                    <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
-                      {product.description}
-                    </span>
-                  </span>
-                </a>
-              ))}
-            </div>
-
-            <div className="my-2 border-t border-border/60" />
-            </>
-            )}
-
-            <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
-              Free tools
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {FREE_TOOLS.map((tool) => (
-                <Link
-                  key={tool.name}
-                  href={tool.href}
-                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/70">
-                    <tool.icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[14.5px] font-semibold text-foreground">{tool.name}</span>
-                    <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
-                      {tool.description}
-                    </span>
-                  </span>
-                </Link>
-              ))}
-
-              <Link
-                href="/websites/demo"
-                className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  </span>
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[14.5px] font-semibold text-foreground">Live demo</span>
-                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
-                    A real Seentics dashboard with real data. No signup.
-                  </span>
-                </span>
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+// The Products & Tools menu was removed: the header keeps Use cases, Integrations, Docs, For agencies
+// and Pricing. The free Speed Test is linked from the footer.
 
 /**
  * "Use cases": outcomes grouped in three columns. Each entry opens its own page, which is
@@ -438,7 +262,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             with it. */}
         <div className="hidden lg:flex items-center gap-5 xl:gap-7">
           <nav className="flex items-center gap-5 xl:gap-6">
-            <ProductsNavItem />
             <UseCasesNavItem />
             <IntegrationsNavItem />
             {navLinks.map((link) => (
@@ -511,33 +334,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             className="absolute top-full left-0 right-0 max-h-[calc(100dvh-72px)] overflow-y-auto overscroll-contain border-b border-border bg-background/95 backdrop-blur-xl lg:hidden"
           >
             <div className="landing-container py-6 flex flex-col gap-4">
-              <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
-                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Products &amp; Tools</p>
-                {SUITE_PRODUCTS.map((item) => (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    className="flex items-center gap-2.5 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white ${item.tint}`}>
-                      <item.glyph className="h-3.5 w-3.5" />
-                    </span>
-                    {item.name}
-                  </a>
-                ))}
-                {FREE_TOOLS.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="flex items-center gap-2.5 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                  >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-foreground/70">
-                      <item.icon className="h-3.5 w-3.5" />
-                    </span>
-                    {item.name}
-                  </Link>
-                ))}
-              </div>
               <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
                 <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Use cases</p>
                 {USE_CASES.map((u) => (

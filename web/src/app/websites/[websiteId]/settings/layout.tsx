@@ -13,6 +13,8 @@ import { isEnterprise } from '@/lib/features';
 import { isDemo } from '@/lib/demo';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PAGE_MENU_LABEL, pageMenuItem } from '@/components/ui/page-menu';
+import { Target } from 'lucide-react';
+import { useClientMode } from '@/features/client-mode/ClientMode';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,7 +28,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const websiteId = segment ?? '';
   const { user, isLoading } = useAuth();
   const { subscription } = useSubscription();
-  const showBilling = isEnterprise || isDemo(websiteId);
+  // Client mode: a client's settings are Goals and Privacy, each only when the agency allows it.
+  const clientMode = useClientMode();
+  const client = clientMode?.access.isClient ? clientMode.access : null;
+  const showBilling = !client && (isEnterprise || isDemo(websiteId));
 
   // Grouped by what the customer is doing, not by how the app is built: their websites, their account,
   // and getting help. The hint shows on hover.
@@ -59,7 +64,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   );
 
   const visibleGroups = useMemo(
-    () =>
+    () => client ? [{
+      label: 'Your website',
+      items: [
+        ...(client.canSee('goals') ? [{ href: `/websites/${websiteId}/settings/goals`, label: 'Goals', hint: 'Conversions the site counts', icon: Target }] : []),
+        ...(client.canSee('privacy') ? [{ href: `/websites/${websiteId}/settings/privacy`, label: 'Privacy', hint: 'What visitor data is collected', icon: Shield }] : []),
+      ],
+    }].filter((group) => group.items.length > 0) :
       groups
         .map((group) => ({
           ...group,
@@ -70,7 +81,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           }),
         }))
         .filter((group) => group.items.length > 0),
-    [groups, websiteId],
+    [groups, websiteId, client],
   );
 
   const demo = isDemo(websiteId);

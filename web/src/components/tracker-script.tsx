@@ -4,7 +4,8 @@ import Script from 'next/script';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { normalizeTrackerApiHost } from '@/lib/config';
-import { isSessionlessPath } from '@/lib/sessionless';
+import { isClientAudience } from '@/lib/sessionless';
+import { useAuth } from '@/stores/useAuthStore';
 
 /**
  * Self-tracking (dogfood): **only** `NEXT_PUBLIC_*` env — never the URL `/websites/[id]`.
@@ -38,7 +39,9 @@ export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
   // An embed runs inside a customer's product: tracking it would record their visitors in our
   // analytics.
-  const embedded = isSessionlessPath(usePathname());
+  // An agency's client user (or its sign-in page) is the agency's audience: not ours to record.
+  const user = useAuth((state) => state.user);
+  const embedded = isClientAudience(usePathname(), user);
 
   useEffect(() => {
     setMounted(true);

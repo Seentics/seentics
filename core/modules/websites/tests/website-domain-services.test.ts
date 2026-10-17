@@ -75,6 +75,8 @@ function makeWebsite(overrides: Partial<Website> = {}): Website {
 class FakeWebsiteRepository implements WebsiteRepository {
   websites = new Map<string, Website>();
   roles = new Map<string, WebsiteRole>();
+  /** `${websiteId}:${userId}` → the agency (site owner) whose client the user is a member of. */
+  clientSites = new Map<string, string>();
   deleted: string[] = [];
   updates: { websiteId: string; input: UpdateWebsiteInput }[] = [];
 
@@ -101,6 +103,15 @@ class FakeWebsiteRepository implements WebsiteRepository {
   async listMemberOf(userId: string): Promise<Website[]> {
     return [...this.websites.values()]
       .filter((w) => w.ownerId !== userId && this.roles.has(`${w.id}:${userId}`))
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async listClientSitesOf(userId: string, agencyId: string | null): Promise<Website[]> {
+    return [...this.websites.values()]
+      .filter((w) => {
+        const agency = this.clientSites.get(`${w.id}:${userId}`);
+        return agency !== undefined && (agencyId === null || agency === agencyId);
+      })
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
@@ -202,7 +213,7 @@ describe("website domain services", () => {
       getById: query.getById.bind(query),
       listOwnedBy: query.listOwnedBy.bind(query),
       getRole: query.getRole.bind(query),
-      listOwnedWithTraffic: trafficReads.listOwnedWithTraffic.bind(trafficReads),
+      listForUserWithTraffic: trafficReads.listForUserWithTraffic.bind(trafficReads),
       getWithTraffic: trafficReads.getWithTraffic.bind(trafficReads),
       create: mutations.create.bind(mutations),
       update: mutations.update.bind(mutations),
@@ -258,9 +269,9 @@ describe("website domain services", () => {
     });
   });
 
-  describe("listOwnedWithTraffic", () => {
+  describe("listForUserWithTraffic", () => {
     it("returns an empty list without asking for traffic", async () => {
-      expect(await service.listOwnedWithTraffic("owner_1")).toEqual([]);
+      expect(await service.listForUserWithTraffic("owner_1", null)).toEqual([]);
       expect(traffic.calls).toEqual([]);
     });
 
@@ -270,7 +281,7 @@ describe("website domain services", () => {
       repo.seed(makeWebsite({ id: "b", ownerId: "owner_1" }));
       repo.seed(makeWebsite({ id: "c", ownerId: "owner_1" }));
 
-      await service.listOwnedWithTraffic("owner_1");
+      await service.listForUserWithTraffic("owner_1", null);
 
       expect(traffic.calls).toHaveLength(1);
       expect(traffic.calls[0]).toEqual(["a", "b", "c"]);
@@ -285,7 +296,7 @@ describe("website domain services", () => {
         bounceRate: 0,
       });
 
-      const [first] = await service.listOwnedWithTraffic("owner_1");
+      const [first] = await service.listForUserWithTraffic("owner_1", null);
       expect(first?.traffic.totalPageviews).toBe(42);
       expect(first?.traffic.uniqueVisitors).toBe(7);
     });
@@ -294,7 +305,7 @@ describe("website domain services", () => {
     it("falls back to zeros for a site with no traffic", async () => {
       repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
 
-      const [first] = await service.listOwnedWithTraffic("owner_1");
+      const [first] = await service.listForUserWithTraffic("owner_1", null);
       expect(first?.traffic).toEqual({
         totalPageviews: 0,
         uniqueVisitors: 0,
@@ -307,8 +318,33 @@ describe("website domain services", () => {
       repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
       repo.seed(makeWebsite({ id: "b", ownerId: "owner_2" }));
 
-      const result = await service.listOwnedWithTraffic("owner_1");
+      const result = await service.listForUserWithTraffic("owner_1", null);
       expect(result.map((w) => w.id)).toEqual(["a"]);
+    });
+
+    it("lists an account's owned, invited and client sites once each", async () => {
+      repo.seed(makeWebsite({ id: "a", ownerId: "owner_1", createdAt: new Date("2026-01-01") }));
+      repo.seed(makeWebsite({ id: "b", ownerId: "agency_1", createdAt: new Date("2026-01-02") }));
+      repo.seed(makeWebsite({ id: "c", ownerId: "agency_1", createdAt: new Date("2026-01-03") }));
+      repo.grant("b", "owner_1", "viewer");
+      repo.clientSites.set("b:owner_1", "agency_1");
+      repo.clientSites.set("c:owner_1", "agency_1");
+
+      const result = await service.listForUserWithTraffic("owner_1", null);
+      expect(result.map((w) => w.id)).toEqual(["a", "b", "c"]);
+    });
+
+    it("lists only the signed-in agency's client sites for a client user", async () => {
+      repo.seed(makeWebsite({ id: "own", ownerId: "client_1" }));
+      repo.seed(makeWebsite({ id: "invited", ownerId: "owner_2" }));
+      repo.seed(makeWebsite({ id: "mine", ownerId: "agency_1" }));
+      repo.seed(makeWebsite({ id: "other-agency", ownerId: "agency_2" }));
+      repo.grant("invited", "client_1", "admin");
+      repo.clientSites.set("mine:client_1", "agency_1");
+      repo.clientSites.set("other-agency:client_1", "agency_2");
+
+      const result = await service.listForUserWithTraffic("client_1", "agency_1");
+      expect(result.map((w) => w.id)).toEqual(["mine"]);
     });
   });
 

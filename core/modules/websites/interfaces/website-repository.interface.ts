@@ -25,7 +25,18 @@ export interface WebsiteRepository {
   /** Websites the user was invited to (a website_members row), not owns; oldest first. */
   listMemberOf(userId: string): Promise<Website[]>;
 
-  /** The user's role, or `null` when they have neither ownership nor membership. */
+  /**
+   * Websites the user reaches as a client member (client_members, not disabled) of an active
+   * client, oldest first. `agencyId` keeps it to that agency's clients; `null` takes every
+   * agency the user is a client of.
+   */
+  listClientSitesOf(userId: string, agencyId: string | null): Promise<Website[]>;
+
+  /**
+   * The user's role, or `null` when they have neither ownership nor membership. A client
+   * member resolves to `member` or `viewer`, never higher; the higher of that and a
+   * website_members role wins.
+   */
   findRole(websiteId: string, userId: string): Promise<WebsiteRole | null>;
 
   /**

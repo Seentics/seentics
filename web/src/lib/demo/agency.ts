@@ -20,6 +20,8 @@ import type {
   Client,
   ClientDetail,
   ClientFeatures,
+  ClientUser,
+  ClientUserStatus,
   ClientStatus,
   CollectFeature,
   Domain,
@@ -272,6 +274,37 @@ export function demoAgencyBranding(): Branding {
   };
 }
 
+// ─── Client users ─────────────────────────────────────────────────────────────
+
+/** Per client: [name, email local part, status, invited days ago, last seen hours ago or null]. */
+const USERS: Record<string, Array<[string, string, ClientUserStatus, number, number | null]>> = {
+  cl_acme: [['Jess Morgan', 'jess', 'active', 120, 3], ['Sam Patel', 'sam', 'active', 90, 50], ['Finance team', 'finance', 'invited', 2, null]],
+  cl_bloom: [['Dr. Amy Chen', 'amy', 'active', 80, 20], ['Reception', 'reception', 'active', 80, 6]],
+  cl_nova: [['Leo Grant', 'leo', 'active', 60, 1], ['Mia Torres', 'mia', 'active', 45, 30], ['Old contractor', 'contractor', 'disabled', 200, 2_000]],
+  cl_harbor: [['Tom Reyes', 'tom', 'invited', 5, null]],
+  cl_peak: [['Nina Brooks', 'nina', 'active', 40, 12], ['Marketing', 'marketing', 'invited', 1, null]],
+  cl_lumen: [['Grace Hall', 'grace', 'active', 30, 70]],
+  cl_verde: [['Oscar Diaz', 'oscar', 'invited', 3, null]],
+};
+
+const domainOf = (clientId: string) => {
+  const site = sitesOf(clientId)[0];
+  return site ? site.host.replace(/^www\./, '') : 'example.test';
+};
+
+/** The people who sign in to a client's dashboard; `null` for a client not in the demo. */
+export function demoAgencyClientUsers(clientId: string): ClientUser[] | null {
+  if (!CLIENTS.some(c => c.id === clientId)) return null;
+  return (USERS[clientId] ?? []).map(([name, local, status, invitedDays, seenHours], i) => ({
+    id: `${clientId}_u${i + 1}`,
+    email: `${local}@${domainOf(clientId)}`,
+    name,
+    status,
+    invited_at: ago(invitedDays * DAY),
+    last_seen_at: seenHours === null ? null : ago(seenHours * HOUR),
+  }));
+}
+
 export type DemoDomainState = DomainState | 'none';
 
 /**
@@ -449,13 +482,13 @@ export function demoAgencyOverview(period: string = '30d'): Overview {
   };
 }
 
-/** Four of five done: the only step left is client sign-in, which arrives in a later update. */
+/** Every step done: the demo agency has clients signing in already. */
 export function demoAgencySetup(): SetupStep[] {
   return [
     { id: 'branding', done: true },
     { id: 'first_client', done: true },
     { id: 'website_installed', done: true },
-    { id: 'client_user', done: false },
+    { id: 'client_user', done: true },
     { id: 'features_limits', done: true },
   ];
 }
@@ -504,6 +537,11 @@ export function demoAgencyResponse(path: string, req: DemoAgencyRequest = {}): u
     }
     case '/agency/clients/:id/websites':
       return page(demoAgencyWebsites().filter(w => w.client_id === id));
+    case '/agency/clients/:id/users': {
+      const users = demoAgencyClientUsers(id);
+      if (!users) throw new DemoAgencyNotFound('client');
+      return page(users);
+    }
     case '/agency/clients/:id/features': {
       const features = demoAgencyFeatures(id);
       if (!features) throw new DemoAgencyNotFound('client');

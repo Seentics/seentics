@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCanSeeFeature } from '@/features/client-mode/ClientMode';
 
 export interface AiModeButtonProps {
   websiteId: string;
@@ -20,6 +23,9 @@ export interface AiModeButtonProps {
  */
 export function AiModeButton({ websiteId, size = 'sm', label = 'AI Mode', className }: AiModeButtonProps) {
   const md = size === 'md';
+  // A client user (client mode) gets AI mode only where their agency allows AI.
+  const aiAllowed = useCanSeeFeature('ai');
+  if (!aiAllowed) return null;
   return (
     <Link
       href={`/websites/${websiteId}/ai`}

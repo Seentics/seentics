@@ -1,10 +1,10 @@
-import { DocPage, DocSection, Li, P, Ul } from '@/components/docs/DocsKit';
-import { A, B, ComingSoon } from '@/components/docs/agency/AgencyDocs';
+import { C, Callout, DocPage, DocSection, Li, Ol, Oli, P, RefTable, Ul } from '@/components/docs/DocsKit';
+import { A, B } from '@/components/docs/agency/AgencyDocs';
 
 export const metadata = {
-  title: 'Client sign-in (coming soon) · Seentics docs',
+  title: 'Client sign-in · Seentics docs',
   description:
-    'Coming soon to Seentics Agency: clients sign in to their own dashboard with an email link, and see only the pages you choose.',
+    'Invite client users to Seentics Agency: they sign in to their own dashboard with an email link, and see only their websites and the pages you choose.',
 };
 
 export default function AgencyClientSignInPage() {
@@ -12,56 +12,124 @@ export default function AgencyClientSignInPage() {
     <DocPage
       eyebrow="Agency"
       title="Client sign-in"
-      lead="Let each client sign in to their own dashboard, showing only their websites and only the pages you pick."
+      lead="Let each client sign in to their own dashboard, showing only their websites and only the pages you pick, under your brand."
     >
-      <DocSection>
-        <ComingSoon>
-          Client sign-in is not available yet. It arrives in the next update. This page describes what is
-          planned, and what you can set up today so it works from day one.
-        </ComingSoon>
-      </DocSection>
-
-      <DocSection title="What’s planned">
-        <Ul>
-          <Li>
-            <B>Invite client users</B> from a client&apos;s page, by email.
-          </Li>
-          <Li>
-            <B>Sign-in by email link</B> — no password to remember. Your client enters their email and gets
-            a link that signs them in.
-          </Li>
-          <Li>
-            <B>Only their websites</B> — a client user sees the websites under their client, nothing else in
-            your account.
-          </Li>
-          <Li>
-            <B>Only the pages you choose</B> — each dashboard page is Off, View or Edit, per client, from
-            the <B>Features</B> table.
-          </Li>
-          <Li>
-            <B>Your branding</B> on the sign-in page and the dashboard.
-          </Li>
-        </Ul>
-      </DocSection>
-
-      <DocSection title="Get ready now">
-        <Ul>
-          <Li>
-            Set each client&apos;s <B>Features</B> on its page — saved now, applied when sign-in ships. See{' '}
-            <A href="/docs/agency/clients-and-websites">Clients &amp; websites</A>.
-          </Li>
-          <Li>
-            Save your brand and a sign-in name, and connect your domain — see{' '}
-            <A href="/docs/agency/branding-and-domain">Branding &amp; domain</A>.
-          </Li>
-        </Ul>
-      </DocSection>
-
-      <DocSection title="Until then">
+      <DocSection title="1. Set a sign-in name">
         <P>
-          Share a read-only dashboard with an <A href="/docs/agency/embeds">embed link</A>. It needs no
-          account, so treat the link like a password.
+          In <A href="/docs/agency/branding-and-domain">Branding &amp; domain</A>, save your brand and a{' '}
+          <B>Sign-in name</B>, such as <C>meridian</C>. It makes your sign-in page:
         </P>
+        <P>
+          <C>https://seentics.com/signin?agency=meridian</C>
+        </P>
+        <P>
+          That page shows your brand name, logo and colour. With <B>Hide Seentics branding</B> on, it
+          shows no Seentics marks.
+        </P>
+      </DocSection>
+
+      <DocSection title="2. Invite a client user">
+        <Ol>
+          <Oli>
+            Open the client from <B>Clients</B> in the Agency workspace.
+          </Oli>
+          <Oli>
+            In <B>Client sign-in</B>, choose <B>Invite</B>, enter their email and, if you like, their
+            name.
+          </Oli>
+          <Oli>
+            They get an email in your brand with a sign-in link. The link works once and lasts 15
+            minutes.
+          </Oli>
+        </Ol>
+        <P>
+          The user shows as <B>Invited</B> until they first sign in, then <B>Active</B>. The panel also
+          shows your sign-in link, ready to copy.
+        </P>
+      </DocSection>
+
+      <DocSection title="3. Share the sign-in link">
+        <P>
+          Give clients your sign-in link to bookmark. They enter their email and get a new link each
+          time. No passwords. The page never says whether an email belongs to a client user, so it
+          cannot be used to check who your clients are.
+        </P>
+        <Callout kind="tip" title="Link expired?">
+          A used or expired link shows a page to ask for a new one. You can also choose{' '}
+          <B>Resend link</B> next to the user.
+        </Callout>
+      </DocSection>
+
+      <DocSection title="What clients see">
+        <Ul>
+          <Li>
+            <B>Only their websites</B>: the websites under their client, nothing else in your account.
+          </Li>
+          <Li>
+            <B>Only the pages you choose</B>: pages set to View or Edit in the client&apos;s{' '}
+            <B>Features</B> table. Pages set to Off are hidden from the sidebar and closed if opened by
+            address.
+          </Li>
+          <Li>
+            <B>Settings: Goals and Privacy only</B>, when you allow them. Never billing, team,
+            developers, tracking code or deleting a site.
+          </Li>
+          <Li>
+            <B>Your brand</B>: name, logo and colour on the dashboard. With <B>Hide Seentics branding</B>{' '}
+            on, no Seentics links, chat or logo.
+          </Li>
+        </Ul>
+      </DocSection>
+
+      <DocSection title="View or Edit">
+        <RefTable
+          columns={['Setting', 'What the client can do']}
+          rows={[
+            [<B key="off">Off</B>, 'The page is hidden.'],
+            [<B key="view">View</B>, 'Reads the page. Buttons that create, change or delete are hidden or disabled.'],
+            [<B key="edit">Edit</B>, 'Reads the page and can create, change and delete there, such as funnels, goals or lead status.'],
+          ]}
+        />
+        <P>
+          The server enforces these, not just the dashboard: a request for a page that is off, or a
+          change on a page set to View, is refused with <C>403 feature_not_allowed</C>. Changes in the
+          Features table apply on the client&apos;s next page load.
+        </P>
+      </DocSection>
+
+      <DocSection title="Revoking access">
+        <RefTable
+          columns={['Action', 'Effect']}
+          rows={[
+            [<B key="d">Disable</B>, 'Keeps the user but blocks sign-in and ends their sessions.'],
+            [<B key="e">Enable</B>, 'Lets a disabled user sign in again.'],
+            [<B key="r">Remove</B>, 'Deletes their access to this client.'],
+            [<B key="s">Resend link</B>, 'Emails a fresh sign-in link.'],
+          ]}
+        />
+        <P>
+          To share a dashboard without a sign-in, use an <A href="/docs/agency/embeds">embed link</A>{' '}
+          instead.
+        </P>
+      </DocSection>
+
+      <DocSection title="With the API">
+        <P>
+          The same actions are in the <A href="/docs/agency/api/reference">Agency API</A>:
+        </P>
+        <Ul>
+          <Li>
+            <C>GET /agency/clients/:id/users</C> and <C>POST /agency/clients/:id/users</C> (
+            <C>{'{ email, name? }'}</C>, sends the invite)
+          </Li>
+          <Li>
+            <C>PATCH /agency/clients/:id/users/:userId</C> (<C>status</C>, <C>name</C>) and{' '}
+            <C>DELETE /agency/clients/:id/users/:userId</C>
+          </Li>
+          <Li>
+            <C>POST /agency/clients/:id/users/:userId/send-link</C>
+          </Li>
+        </Ul>
       </DocSection>
     </DocPage>
   );

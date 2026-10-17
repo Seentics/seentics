@@ -148,7 +148,7 @@ export function WebsitesView() {
                 {websites.items.map(w => (
                   <TableRow key={w.id}>
                     <TableCell>
-                      <p className="font-medium text-foreground">{w.name}</p>
+                      <Link href={agencySiteHref(w.id)} className="font-medium text-foreground hover:underline" title="Open this website's dashboard">{w.name}</Link>
                       <p className="text-xs text-muted-foreground">{w.url}</p>
                     </TableCell>
                     <TableCell className="text-xs">

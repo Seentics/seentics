@@ -16,6 +16,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useClientAccess } from '@/features/client-mode/useClientAccess';
+import { firstAllowedPath } from '@/features/client-mode/routes';
+import { clientSignInHref } from '@/features/client-mode/session';
 
 /**
  * First-time entry: users with no websites add their first property here.
@@ -36,8 +39,28 @@ export default function WebsitesOnboardingPage() {
   const [copied, setCopied] = useState(false);
   // Agency accounts may start in the Agency workspace rather than with a site of their own.
   const hasAgency = useHasAgencyWorkspace();
+  // A client user (client mode) has no websites of their own to add: straight to the first page
+  // of a website their agency shared.
+  const clientAccess = useClientAccess();
+  const isClient = clientAccess.isClient;
+  const clientTarget = (() => {
+    if (!isClient || clientAccess.isLoading) return null;
+    const sites = clientAccess.websites;
+    const last = rememberedWebsite();
+    const ordered = [...sites.filter((w) => w.id === last), ...sites.filter((w) => w.id !== last)];
+    for (const w of ordered) {
+      const path = firstAllowedPath(w.id, w.features);
+      if (path) return path;
+    }
+    return 'none';
+  })();
 
   useEffect(() => {
+    if (clientTarget && clientTarget !== 'none') router.replace(clientTarget);
+  }, [clientTarget, router]);
+
+  useEffect(() => {
+    if (isClient) return;
     // The site opened last time: straight there, without waiting for the session check and
     // the websites list. The dashboard confirms it and comes back here if it is gone.
     const last = rememberedWebsite();
@@ -75,7 +98,7 @@ export default function WebsitesOnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, router, toast]);
+  }, [user, router, toast, isClient]);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -132,7 +155,23 @@ export default function WebsitesOnboardingPage() {
     }
   };
 
-  if (phase === 'loading') {
+  if (isClient && clientTarget === 'none') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-sm text-center" data-testid="client-no-websites">
+          <p className="text-sm font-semibold text-foreground">No websites shared with you yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your agency has not shared a website with you. Ask them to add you to your client&apos;s websites.
+          </p>
+          <Button variant="outline" size="sm" className="mt-5 gap-1.5" onClick={() => { const href = clientSignInHref(user?.agency?.slug); logout(); router.push(href); }}>
+            <LogOut className="h-3.5 w-3.5" />Log out
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'loading' || isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center">

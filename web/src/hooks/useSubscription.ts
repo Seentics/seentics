@@ -69,6 +69,12 @@ export const useSubscription = (): UseSubscriptionReturn => {
       setLoading(false);
       return;
     }
+    // A client user (client mode) has no plan of their own: the agency's billing is not theirs.
+    if (user?.kind === 'client') {
+      setSubscription(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await api.get('/user/billing/usage');
@@ -80,7 +86,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, userId, user?.kind]);
 
   useEffect(() => {
     fetchSubscription();

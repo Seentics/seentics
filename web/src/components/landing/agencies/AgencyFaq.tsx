@@ -7,11 +7,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 export const AGENCY_FAQS = [
   {
     q: 'Can my clients log in?',
-    a: 'Not yet. Client sign-in, with the pages you choose, is coming soon. Today you can share an embedded dashboard or a report.',
+    a: 'Yes. Invite them from a client’s page and they sign in with an email link at seentics.com/signin?agency=your-name. They see only their own websites and only the pages you choose, set to view or edit page by page.',
   },
   {
     q: 'Can I use my own domain?',
-    a: 'You can connect it now from Branding & domain. Serving client dashboards on it is coming soon.',
+    a: 'You can connect it now from Branding & domain. Serving client dashboards and sign-in on it is coming soon; until then clients sign in on seentics.com with your brand.',
   },
   {
     q: 'What counts as an event?',

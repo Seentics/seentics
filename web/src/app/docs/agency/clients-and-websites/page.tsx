@@ -97,8 +97,8 @@ export default function AgencyClientsPage() {
       <DocSection title="Features per client">
         <P>
           The <B>Features</B> table on a client&apos;s page sets each dashboard page to <B>Off</B>,{' '}
-          <B>View</B> or <B>Edit</B> for that client. It is saved now and applied once{' '}
-          <A href="/docs/agency/client-sign-in">client sign-in</A> arrives.
+          <B>View</B> or <B>Edit</B> for that client. It applies to that client&apos;s users as soon as you
+          save: see <A href="/docs/agency/client-sign-in">Client sign-in</A>.
         </P>
       </DocSection>
     </DocPage>

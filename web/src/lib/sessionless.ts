@@ -4,3 +4,11 @@
  */
 export const isSessionlessPath = (path: string | null | undefined): boolean =>
   Boolean(path && /^\/embed\//.test(path));
+
+/**
+ * An agency's audience rather than ours: a client user signed in to their agency's dashboard
+ * (client mode), or the client sign-in pages. Like an embed, they load no chat (they talk to the
+ * agency, not to us) and are not self-tracked (they are the agency's clients, not our visitors).
+ */
+export const isClientAudience = (path: string | null | undefined, user?: { kind?: string } | null): boolean =>
+  isSessionlessPath(path) || Boolean(path && /^\/signin(\/|$)/.test(path)) || user?.kind === 'client';

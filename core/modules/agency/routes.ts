@@ -69,7 +69,9 @@ export function createAgencyRoutes(deps: AgencyControllerDeps & { config?: () =>
   routes.patch("/embeds/:id", updateEmbed(deps));
   routes.delete("/embeds/:id", deleteEmbed(deps));
 
-  // Unknown paths answer in the same envelope as everything else here.
+  // Unknown paths answer in the same envelope as everything else here. A catch-all route, not
+  // only notFound(): Hono uses the mounting app's notFound for a sub-app's unknown paths.
+  routes.all("*", (c) => notFound(c, "Route"));
   routes.notFound((c) => notFound(c, "Route"));
   return routes;
 }

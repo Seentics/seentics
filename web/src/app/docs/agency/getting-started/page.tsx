@@ -1,5 +1,5 @@
 import { C, Callout, DocPage, DocSection, Ol, Oli, P } from '@/components/docs/DocsKit';
-import { A, B, ComingSoon } from '@/components/docs/agency/AgencyDocs';
+import { A, B } from '@/components/docs/agency/AgencyDocs';
 
 export const metadata = {
   title: 'Getting started with Agency · Seentics docs',
@@ -57,11 +57,15 @@ export default function AgencyGettingStartedPage() {
       </DocSection>
 
       <DocSection title="4. Invite a client user">
-        <ComingSoon>
-          Clients signing in to their own dashboard arrives in the next update. Until then, share a
-          read-only dashboard with an <A href="/docs/agency/embeds">embed link</A>. See{' '}
-          <A href="/docs/agency/client-sign-in">Client sign-in</A> for what is planned.
-        </ComingSoon>
+        <P>
+          On the client&apos;s page, in <B>Client sign-in</B>, choose <B>Invite</B> and enter your
+          client&apos;s email. They get an email in your brand with a link that signs them in to their
+          own dashboard. The step is done once a client user is invited.
+        </P>
+        <P>
+          Afterwards they sign in at your sign-in link, <C>https://seentics.com/signin?agency=your-name</C>{' '}
+          (the sign-in name from step 1). More in <A href="/docs/agency/client-sign-in">Client sign-in</A>.
+        </P>
       </DocSection>
 
       <DocSection title="5. Choose features and limits">
@@ -71,10 +75,10 @@ export default function AgencyGettingStartedPage() {
           <B>Edit</B> and choose <B>Save features</B>. The step is done once any client has a page set to
           View or Edit.
         </P>
-        <Callout kind="note" title="Saved now, applied with client sign-in">
-          Your choices are kept, and take effect when client sign-in arrives: clients will see only pages
-          set to View or Edit, and change settings only on pages set to Edit. Usage limits per client
-          are coming soon too; until then every client draws on your plan&apos;s shared pool.
+        <Callout kind="note" title="Enforced for client users">
+          Client users see only pages set to View or Edit, and change things only on pages set to Edit;
+          the server refuses anything else. Usage limits per client are coming soon; until then every
+          client draws on your plan&apos;s shared pool.
         </Callout>
       </DocSection>
 

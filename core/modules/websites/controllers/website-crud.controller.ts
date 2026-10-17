@@ -9,11 +9,16 @@ import type { WebsiteControllerDeps } from "./website-controller.types";
 
 type WebContext<Path extends string> = Context<{ Variables: AuthVars }, Path>;
 
+/** The agency a client user signed in to, or `null` for an account. */
+function clientAgencyOf(c: Context<{ Variables: AuthVars }>): string | null {
+  return c.get("clientAgency") ?? null;
+}
+
 export function listWebsites(deps: WebsiteControllerDeps) {
   return async (c: WebContext<"/">) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
-    return c.json({ data: presentWebsites(await deps.traffic.listOwnedWithTraffic(userId)) });
+    return c.json({ data: presentWebsites(await deps.traffic.listForUserWithTraffic(userId, clientAgencyOf(c))) });
   };
 }
 
@@ -21,6 +26,8 @@ export function createWebsite(deps: WebsiteControllerDeps) {
   return async (c: WebContext<"/">) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
+    // A client user works inside an agency's sites; they own none and create none.
+    if (clientAgencyOf(c)) return c.json({ error: "forbidden" }, 403);
     const parsed = await parseJson(c, websiteCreateSchema);
     if (!parsed.ok) return parsed.res;
     try {

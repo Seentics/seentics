@@ -92,7 +92,7 @@ describe('the Agency card', () => {
     expect(screen.getByText('For agencies managing multiple client sites')).toBeTruthy();
     expect(screen.getByText('White-label branding: your logo, colours and name').parentElement!.textContent).not.toContain('Soon');
     expect(screen.getByText('Client dashboards on your own domain').parentElement!.textContent).toContain('Soon');
-    expect(screen.getByText('Client sign-in with pages you choose').parentElement!.textContent).toContain('Soon');
+    expect(screen.getByText('Client sign-in with pages you choose').parentElement!.textContent).not.toContain('Soon');
   });
 });
 

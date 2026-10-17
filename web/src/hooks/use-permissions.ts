@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getMyRole, WebsiteRole } from '@/lib/websites-api';
 import { isValidId } from '@/lib/utils';
+import { useReadOnly } from '@/features/client-mode/ClientMode';
 
 /** Least privilege first, as the server orders them (core websites/interfaces roleAtLeast). */
 const ROLE_ORDER = ['viewer', 'member', 'admin', 'owner'] as const;
@@ -18,8 +19,12 @@ const atLeast = (role: WebsiteRole, minimum: (typeof ROLE_ORDER)[number]) =>
  * - member: creates, changes and deletes the site's data (automations, funnels, goals,
  *   heatmaps, recordings, error status)
  * - viewer: reads everything, changes nothing
+ *
+ * A client user (client mode) on a page their agency set to View gets `canEdit: false` here, so
+ * every page that already hides its writes for a viewer hides them for that client too.
  */
 export function usePermissions(websiteId: string) {
+  const readOnly = useReadOnly();
   const { data: role = '', isLoading } = useQuery<WebsiteRole>({
     queryKey: ['my-role', websiteId],
     queryFn: () => getMyRole(websiteId),
@@ -33,10 +38,10 @@ export function usePermissions(websiteId: string) {
     isLoading,
     isOwner: role === 'owner',
     isAdmin: role === 'admin',
-    isViewer: role === 'viewer',
+    isViewer: role === 'viewer' || readOnly,
     isMember: role !== '',
     // Until the role is known, offer nothing that changes data.
-    canEdit: atLeast(role, 'member'),
+    canEdit: !readOnly && atLeast(role, 'member'),
     canManageMembers: atLeast(role, 'admin'),
     canChangeRoles: role === 'owner',
     canDeleteWebsite: role === 'owner',

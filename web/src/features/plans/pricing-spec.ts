@@ -215,15 +215,15 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
       : { value: formatDays(core('retention_days')), label: 'analytics retention' },
   ];
 
-  // What only Agency has, after its numbers. Client sign-in (phase 2) and serving the dashboard on
-  // the agency's own domain (phase 3) are not live yet: marked soon until they are.
+  // What only Agency has, after its numbers. Serving the dashboard on the agency's own domain
+  // (phase 3) is not live yet: marked soon until it is. Client sign-in (phase 2) is live.
   const agencyFeatures: CardSection = {
     title: 'Agency features',
     items: [
       { value: formatCount(core('websites')), label: 'client workspaces' },
       { value: '', label: 'White-label branding: your logo, colours and name' },
       { value: '', label: 'Client dashboards on your own domain', soon: true },
-      { value: '', label: 'Client sign-in with pages you choose', soon: true },
+      { value: '', label: 'Client sign-in with pages you choose' },
       { value: '', label: 'Embeddable client dashboards' },
       { value: '', label: 'Agency API for clients, sites and usage' },
       { value: '', label: 'Priority support and personal onboarding' },
@@ -323,7 +323,7 @@ export const COMPARE_GROUPS: CompareGroup[] = [
       { label: 'Client management API', value: hasAgencyFeatures },
       { label: 'White-label branding', value: hasAgencyFeatures },
       { label: 'Client dashboards on your own domain (soon)', value: (p) => (hasAgencyFeatures(p) ? 'Soon' : false) },
-      { label: 'Client sign-in (soon)', value: (p) => (hasAgencyFeatures(p) ? 'Soon' : false) },
+      { label: 'Client sign-in', value: hasAgencyFeatures },
     ],
   },
 ];

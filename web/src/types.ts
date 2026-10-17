@@ -11,6 +11,10 @@ export type User = {
   createdAt: string
   updatedAt: string
   role?: string
+  /** `client` for an agency's client user (magic-link sign-in); accounts are `account` or absent. */
+  kind?: 'account' | 'client'
+  /** A client user's agency: its owner account and its sign-in name. */
+  agency?: { owner_id: string; slug: string | null }
   // OAuth fields
   googleId?: string
   githubId?: string

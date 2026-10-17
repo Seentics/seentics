@@ -3,7 +3,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { log } from "../../../platform/observability/logger";
 import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
-import { permissionDenied, type Permission } from "../../../platform/permissions";
+import { permissionDenied, roleAllows, type Permission } from "../../../platform/permissions";
 import type { FunnelControllerDeps } from "./funnel-controller.types";
 
 const funnelLog = log.child({ category: "funnels" });
@@ -30,6 +30,9 @@ export async function requireFunnelAccess(
     return { denied: c.json({ error: "forbidden" }, 403 as ContentfulStatusCode) };
   }
   const permission: Permission = minimum === "viewer" ? "analytics:funnels.view" : "analytics:funnels.manage";
+  if (!roleAllows(role, permission)) {
+    return { denied: c.json({ error: "forbidden" }, 403 as ContentfulStatusCode) };
+  }
   const denied = permissionDenied(c, permission);
   if (denied) return { denied };
   return { userId };

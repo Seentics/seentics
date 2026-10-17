@@ -88,7 +88,8 @@ export default function AgencyOverviewPage() {
             what happens when you go past it.
           </Li>
           <Li>
-            <A href="/docs/agency/client-sign-in">Client sign-in</A> — coming soon.
+            <A href="/docs/agency/client-sign-in">Client sign-in</A> — invite client users, who sign in by
+            email link and see only the pages you choose.
           </Li>
         </Ul>
       </DocSection>
@@ -110,12 +111,12 @@ export default function AgencyOverviewPage() {
         <Ul>
           <Li>
             <B>Live now:</B> clients and websites, install checks, the overview, white-label settings,
-            connecting and verifying your own domain, embed links, usage and the agency API.
+            connecting and verifying your own domain, embed links, client sign-in by email link with the
+            page choices you make per client, usage and the agency API.
           </Li>
           <Li>
-            <B>Coming soon:</B> client sign-in to their own dashboard (by email link), with the page
-            choices you make per client; serving client dashboards on your own domain; and usage limits
-            per client with alerts.
+            <B>Coming soon:</B> serving client dashboards and sign-in on your own domain, and usage
+            limits per client with alerts.
           </Li>
         </Ul>
       </DocSection>

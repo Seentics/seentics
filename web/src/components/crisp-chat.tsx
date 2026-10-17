@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/stores/useAuthStore';
-import { isSessionlessPath } from '@/lib/sessionless';
+import { isClientAudience, isSessionlessPath } from '@/lib/sessionless';
 
 /**
  * Crisp live chat: customers message us from any dashboard. Loaded only when
@@ -45,7 +45,9 @@ const isPublicPage = (path: string | null) => isSessionlessPath(path) || Boolean
 
 export default function CrispChat() {
   const user = useAuth((state) => state.user);
-  const publicPage = isPublicPage(usePathname());
+  const path = usePathname();
+  // An agency's client (client mode, or its sign-in page) talks to the agency, not to us.
+  const publicPage = isPublicPage(path) || isClientAudience(path, user);
   useEffect(() => {
     if (!publicPage && loadCrisp()) identify(user);
   }, [user, publicPage]);

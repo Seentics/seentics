@@ -2,6 +2,8 @@ import { and, asc, eq, or, sql } from "drizzle-orm";
 import {
   analyticsEvents,
   automations,
+  clientMembers,
+  clients,
   db,
   funnels,
   goals,
@@ -10,7 +12,7 @@ import {
   websites,
 } from "../../../db";
 import { newTrackingId, newVerificationToken } from "../lib/ids";
-import { normalizeWebsiteRole } from "../interfaces/website.interface";
+import { normalizeWebsiteRole, roleAtLeast } from "../interfaces/website.interface";
 import type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
@@ -98,14 +100,54 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
     return rows.map((row) => toDomain(row.website));
   }
 
+  async listClientSitesOf(userId: string, agencyId: string | null): Promise<Website[]> {
+    const rows = await db
+      .select({ website: websites })
+      .from(websites)
+      .innerJoin(clients, and(eq(clients.id, websites.clientId), eq(clients.userId, websites.userId)))
+      .innerJoin(
+        clientMembers,
+        and(eq(clientMembers.clientId, clients.id), eq(clientMembers.ownerId, websites.userId)),
+      )
+      .where(
+        and(
+          eq(clientMembers.userId, userId),
+          sql`${clientMembers.status} <> 'disabled'`,
+          eq(clients.status, "active"),
+          agencyId === null ? undefined : eq(websites.userId, agencyId),
+        ),
+      )
+      .orderBy(asc(websites.createdAt));
+    return rows.map((row) => toDomain(row.website));
+  }
+
   async findRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
-    // Owner and membership in one round trip. This runs on nearly every
-    // authenticated request, so the join is worth it over two sequential reads.
+    // Owner, membership and client membership in one round trip. This runs on nearly every
+    // authenticated request, so the join is worth it over sequential reads.
+    //
+    // The client arm: a member (not disabled) of the active client the site belongs to, in
+    // the agency that owns it, is a `member` when the client may edit any page and a
+    // `viewer` otherwise. Never more — the owner and admin routes (deleting the site, its
+    // members, sharing, keys, tracking settings) stay closed to a client whatever the
+    // gateway forwards.
     const [row] = await db
       .select({
         isOwner: sql<boolean>`${websites.userId} = ${userId}`,
         memberId: websiteMembers.id,
         memberRole: websiteMembers.role,
+        clientRole: sql<WebsiteRole | null>`(
+          SELECT CASE
+            WHEN EXISTS (SELECT 1 FROM jsonb_each_text(c.dashboard_features) f WHERE f.value = 'edit')
+            THEN 'member' ELSE 'viewer' END
+          FROM client_members cm
+          INNER JOIN clients c ON c.id = cm.client_id
+          WHERE cm.client_id = ${websites.clientId}
+            AND cm.user_id = ${userId}
+            AND cm.owner_id = ${websites.userId}
+            AND cm.status <> 'disabled'
+            AND c.user_id = ${websites.userId}
+            AND c.status = 'active'
+        )`,
       })
       .from(websites)
       .leftJoin(
@@ -117,10 +159,12 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
     if (!row) return null;
     if (row.isOwner) return "owner";
-    if (!row.memberId) return null;
     // The stored role, not a flat "member". Collapsing it here is what let a viewer
     // through every route that only checked for access at all.
-    return normalizeWebsiteRole(row.memberRole);
+    const memberRole = row.memberId ? normalizeWebsiteRole(row.memberRole) : null;
+    const clientRole = row.clientRole === "member" || row.clientRole === "viewer" ? row.clientRole : null;
+    if (memberRole && clientRole) return roleAtLeast(memberRole, clientRole) ? memberRole : clientRole;
+    return memberRole ?? clientRole;
   }
 
   async findByPublicShareId(

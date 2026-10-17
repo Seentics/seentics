@@ -39,6 +39,7 @@ export const AGENCY_API_BASE = 'https://api.seentics.com/api/v1';
 const CLIENT_ID = '5bbeaa88-b089-4923-ad54-8fdcbbcdba94';
 const SITE_ID = '2f60eb30-722c-4fbf-8afa-99fe0e67f6d9';
 const EMBED_ID = '9a1f3c52-0d6e-4c1b-8b7e-2c4b3f0e1d77';
+const USER_ID = '6d2c8e14-3b5a-4f7e-a1c9-0e8b7d6f5a42';
 const ALERT_ID = 'c0b5d1e2-7a44-4f0e-9b1a-3d2e6f8a9b10';
 const SCRIPT = 'https://seentics.com/trackers/seentics.min.js';
 const SNIPPET = `<script defer data-website-id="${SITE_ID}" src="${SCRIPT}"></script>`;
@@ -136,6 +137,20 @@ const usage = {
 
 const noCaps = { events: null, recordings: null, leads: null, ai_analyses: null };
 const usageRow = { id: CLIENT_ID, name: 'Acme Bakery', used: counts(412_000, 2_100, 88, 12), cap: noCaps, pct: noCaps };
+
+const clientUser = {
+  id: USER_ID,
+  email: 'jess@acmebakery.test',
+  name: 'Jess Baker',
+  status: 'active',
+  invited_at: '2026-10-12T10:00:00.000Z',
+  last_seen_at: '2026-10-16T08:12:44.000Z',
+};
+
+const userParams: SpecField[] = [
+  { name: 'id', type: 'uuid', required: true, description: 'The client’s ID.' },
+  { name: 'userId', type: 'uuid', required: true, description: 'The client user’s ID.' },
+];
 
 const clientFields: SpecField[] = [
   { name: 'name', type: 'string', required: true, description: 'Client name, 1–120 characters.' },
@@ -290,12 +305,55 @@ export const AGENCY_API: AgencyEndpoint[] = [
   {
     id: 'set-client-features', group: 'Clients', method: 'PUT', path: '/agency/clients/:id/features', 'x-scope': 'agency:write',
     summary: 'Set which dashboard pages the client can see',
-    description: 'Each feature is `off`, `view` or `edit`; a feature left out is `off`. Enforced once client sign-in is available.',
+    description: 'Each feature is `off`, `view` or `edit`; a feature left out is `off`. Client users see only pages set to `view` or `edit`, and change things only on `edit`; any other request answers 403 `feature_not_allowed`.',
     pathParams: idParam('client'),
     body: [{ name: 'features', type: 'Record<feature, "off" | "view" | "edit">', required: true, description: 'Every feature id.' }],
     example: { params: { id: CLIENT_ID } },
     requestExample: { features },
     responseExample: { data: { features } },
+  },
+
+  {
+    id: 'list-client-users', group: 'Clients', method: 'GET', path: '/agency/clients/:id/users', 'x-scope': 'agency:read',
+    summary: 'List a client’s users', description: 'The people who sign in to the client’s dashboard with an email link.',
+    pathParams: idParam('client'), query: pagination, example: { params: { id: CLIENT_ID } },
+    responseExample: { data: [clientUser], page: page() },
+  },
+  {
+    id: 'invite-client-user', group: 'Clients', method: 'POST', path: '/agency/clients/:id/users', 'x-scope': 'agency:write',
+    summary: 'Invite a client user', description: 'Adds the person and emails them a sign-in link, branded with your branding.', status: 201,
+    pathParams: idParam('client'),
+    body: [
+      { name: 'email', type: 'string', required: true, description: 'Where the sign-in link goes.' },
+      { name: 'name', type: 'string', description: 'Their name, up to 120 characters.' },
+    ],
+    example: { params: { id: CLIENT_ID } },
+    requestExample: { email: 'jess@acmebakery.test', name: 'Jess Baker' },
+    responseExample: { data: { ...clientUser, status: 'invited', last_seen_at: null } },
+  },
+  {
+    id: 'update-client-user', group: 'Clients', method: 'PATCH', path: '/agency/clients/:id/users/:userId', 'x-scope': 'agency:write',
+    summary: 'Rename, disable or enable a client user', description: 'Disabling signs the person out at once.',
+    pathParams: userParams,
+    body: [
+      { name: 'status', type: '"active" | "disabled"', description: '`disabled` stops their sign-in.' },
+      { name: 'name', type: 'string', description: 'Their name.' },
+    ],
+    example: { params: { id: CLIENT_ID, userId: USER_ID } },
+    requestExample: { status: 'disabled' },
+    responseExample: { data: { ...clientUser, status: 'disabled' } },
+  },
+  {
+    id: 'remove-client-user', group: 'Clients', method: 'DELETE', path: '/agency/clients/:id/users/:userId', 'x-scope': 'agency:write',
+    summary: 'Remove a client user', description: 'They lose access at once.',
+    pathParams: userParams, example: { params: { id: CLIENT_ID, userId: USER_ID } },
+    status: 204, responseExample: null,
+  },
+  {
+    id: 'send-client-user-link', group: 'Clients', method: 'POST', path: '/agency/clients/:id/users/:userId/send-link', 'x-scope': 'agency:write',
+    summary: 'Email a new sign-in link', description: 'The link works once, for 15 minutes.',
+    pathParams: userParams, example: { params: { id: CLIENT_ID, userId: USER_ID } },
+    status: 202, responseExample: { data: { sent: true } },
   },
 
   // ─── Websites ─────────────────────────────────────────────────────────────

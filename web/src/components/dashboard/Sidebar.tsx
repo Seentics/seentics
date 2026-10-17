@@ -21,6 +21,10 @@ import { workspaceIncludes } from '@/features/suite/workspace';
 import { isEnterprise } from '@/lib/features';
 import { useHiddenNav, visibleItems, type NavId } from '@/features/sidebar/nav-prefs';
 import { SidebarCustomizeDialog } from './SidebarCustomizeDialog';
+import { useClientMode } from '@/features/client-mode/ClientMode';
+import { brandLogo } from '@/features/client-mode/brand';
+import { clientSettingsHref, firstAllowedPath, navAllowed } from '@/features/client-mode/routes';
+import { clientSignInHref, useIsClientSession } from '@/features/client-mode/session';
 
 interface SuiteNavItem {
   label: string;
@@ -81,6 +85,9 @@ function buildSecondaryNav(websiteId: string): NavItem[] {
  */
 export function useHasAgencyWorkspace(): boolean {
   const { data: entitlements } = useEntitlements();
+  // A client user works in their agency's dashboard, never in a workspace of their own.
+  const client = useIsClientSession();
+  if (client) return false;
   if (!isEnterprise) return true;
   return (entitlements?.products?.core?.limits?.agency_features ?? 0) > 0;
 }
@@ -99,18 +106,28 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const mainNav = buildMainNav(websiteId);
-  const secondNav = buildSecondaryNav(websiteId);
+  // Client mode: only the pages the agency allowed on this website, its brand in the header,
+  // and nothing of the account's (Developers, billing, the Agency workspace, other apps).
+  const clientMode = useClientMode();
+  const client = clientMode?.access.isClient ? clientMode : null;
+  const clientFeatures = client?.access.features;
+  const brand = client?.brand ?? null;
+  const brandMark = brandLogo(brand);
+  const homeHref = client ? firstAllowedPath(websiteId, clientFeatures) ?? `/websites/${websiteId}` : '/';
+  const mainNav = buildMainNav(websiteId).filter((item) => !client || navAllowed(item.id, clientFeatures));
+  const secondNav = buildSecondaryNav(websiteId)
+    .filter((item) => !client || navAllowed(item.id, clientFeatures))
+    .map((item) => (client && item.id === 'settings' ? { ...item, href: clientSettingsHref(websiteId, clientFeatures), hint: 'Goals and privacy' } : item));
   const [accountOpen, setAccountOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [hidden, setHidden] = useHiddenNav(user?.id);
   const allNav = [...mainNav, ...secondNav];
   const activeId = allNav.find((item) => isNavActive(item.href, pathname))?.id ?? null;
-  const shownNav = visibleItems(allNav, hidden, activeId);
+  const shownNav = visibleItems(allNav, client ? [] : hidden, activeId);
   const { data: entitlements } = useEntitlements();
   // Suite plans only, free included (features/suite/workspace.ts): a customer
   // who bought Analytics alone is not offered the other apps.
-  const suiteNav = entitlements
+  const suiteNav = entitlements && !client
     ? buildSuiteProducts(websiteId).filter((item) => workspaceIncludes(entitlements, item.product))
     : [];
   const hasAgency = useHasAgencyWorkspace();
@@ -143,6 +160,20 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   // has taken them somewhere.
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => setDrawerOpen(false), [pathname]);
+
+  // The agency's logo for a client (its initial on the brand colour when there is none), else ours.
+  const renderMark = () =>
+    brand ? (
+      brandMark ? (
+        <img src={brandMark} alt="" className="h-5 w-5 shrink-0 rounded object-contain" />
+      ) : (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary text-[11px] font-bold text-primary-foreground">
+          {(brand.brand_name || '?').slice(0, 1).toUpperCase()}
+        </span>
+      )
+    ) : (
+      <Logo size="sm" className="shrink-0" />
+    );
 
   const renderItem = (item: NavItem, collapsed: boolean) => {
     const active = isNavActive(item.href, pathname);
@@ -224,13 +255,13 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             aria-label="Expand sidebar"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
-            <Logo size="sm" className="shrink-0" />
+            {renderMark()}
           </button>
         ) : (
           <div className='flex items-center justify-between w-full'>
-          <Link href="/" className="flex items-center gap-2.5 w-full">
-            <Logo size="sm" className="shrink-0" />
-            <span className="flex-1 text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
+          <Link href={homeHref} className="flex min-w-0 items-center gap-2.5 w-full">
+            {renderMark()}
+            <span className="flex-1 truncate text-[16px] font-bold tracking-tight text-foreground">{brand?.brand_name || 'Seentics'}</span>
           </Link>
             {!inDrawer && <button
               type="button"
@@ -249,7 +280,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
         <ul className="space-y-0.5">
           {shownNav.map((item) => renderItem(item, collapsed))}
-          <li>
+          {!client && <li>
             <button
               type="button"
               onClick={() => setCustomizing(true)}
@@ -268,7 +299,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 </>
               )}
             </button>
-          </li>
+          </li>}
         </ul>
       </nav>
 
@@ -351,6 +382,25 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
               ) : null}
             </div>
+            {client ? (
+              (brand?.support_email || brand?.footer_text || !brand?.hide_seentics) && (
+                <div className="flex flex-col gap-1 p-1.5" data-testid="client-account-menu">
+                  {brand?.support_email && (
+                    <a
+                      href={`mailto:${brand.support_email}`}
+                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-foreground/80 hover:bg-muted/80 hover:text-foreground"
+                    >
+                      <LifeBuoy className="h-4 w-4 shrink-0 opacity-70" />
+                      Contact {brand.brand_name || 'your agency'}
+                    </a>
+                  )}
+                  {brand?.footer_text && <p className="px-2.5 py-1 text-[11.5px] text-muted-foreground">{brand.footer_text}</p>}
+                  {!brand?.hide_seentics && (
+                    <p className="px-2.5 py-1 text-[11.5px] text-muted-foreground">Powered by Seentics</p>
+                  )}
+                </div>
+              )
+            ) : (
             <nav className="flex flex-col p-1.5">
               <Link
                 href={`/websites/${websiteId}/settings/profile`}
@@ -386,14 +436,17 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 Support
               </Link>
             </nav>
+            )}
             <Separator className="bg-border/60" />
             <div className="p-1.5">
               <button
                 type="button"
                 onClick={() => {
                   setAccountOpen(false);
+                  // A client signs in again on their agency's page, not the account sign-in.
+                  const signIn = client ? clientSignInHref(user?.agency?.slug ?? client.access.me?.agency.slug) : '/signin';
                   logout();
-                  router.push('/signin');
+                  router.push(signIn);
                 }}
                 className={cn(
                   'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium',
@@ -421,9 +474,9 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link href="/" className="flex items-center gap-2">
-          <Logo size="sm" className="shrink-0" />
-          <span className="text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
+        <Link href={homeHref} className="flex min-w-0 items-center gap-2">
+          {renderMark()}
+          <span className="truncate text-[16px] font-bold tracking-tight text-foreground">{brand?.brand_name || 'Seentics'}</span>
         </Link>
       </div>
       {panel(collapsedPref, false)}

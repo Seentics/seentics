@@ -21,6 +21,7 @@ import { ActiveFilterPills } from '@/components/analytics/ActiveFilterPills';
 import { WebsiteSwitcher } from '@/components/analytics/WebsiteSwitcher';
 import { AudienceSection } from '@/components/analytics/AudienceSection';
 import { AiModeButton } from '@/components/ai/AiModeButton';
+import { useClientMode } from '@/features/client-mode/ClientMode';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import {
@@ -60,10 +61,15 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
    * While the answer is pending the dashboard is held back, so it does not flash first.
    */
   const searchParamsForMode = useSearchParams();
+  // Client mode: the switcher lists the client's websites, and AI shows only where it is allowed.
+  const clientMode = useClientMode();
+  const client = !embed && clientMode?.access.isClient ? clientMode.access : null;
+  const isClientMode = Boolean(client);
+  const clientAi = client ? client.canSee('ai') : true;
   const landing = useDefaultModeRedirect(
     websiteId,
     router.replace,
-    embed || sample || websiteId === 'demo' || searchParamsForMode.get('dashboard') === '1',
+    embed || sample || websiteId === 'demo' || searchParamsForMode.get('dashboard') === '1' || !clientAi,
   );
   const { user } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
@@ -181,14 +187,14 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   const isDemoMode = websiteId === 'demo' || sample;
   // AI entry points need a real, signed-in website: not an embed, not the demo.
   // The demo shows the AI too, from fixtures (lib/demo/ai); only embeds leave it out.
-  const showAi = !embed;
+  const showAi = !embed && clientAi;
   const ask = (about: { question: string; context: string }) => (
     showAi ? <AskAiButton websiteId={websiteId} question={about.question} context={about.context} /> : undefined
   );
 
   // Fetch websites for switcher
   useEffect(() => {
-    if (embed) return;
+    if (embed || isClientMode) return;
     const loadWebsites = async () => {
       if (user) {
         try {
@@ -219,7 +225,7 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
       }
     };
     loadWebsites();
-  }, [user, isDemoMode, websiteId, router, embed]);
+  }, [user, isDemoMode, websiteId, router, embed, isClientMode]);
 
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
@@ -325,17 +331,17 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
 
           {embed ? headerLeft : (
             <WebsiteSwitcher
-              websites={websites}
+              websites={client ? client.websites : websites}
               value={websiteId}
               onChange={(id) => router.push(`/websites/${id}`)}
-              onAddWebsite={() => setShowAddWebsiteModal(true)}
+              onAddWebsite={client ? undefined : () => setShowAddWebsiteModal(true)}
             />
           )}
 
           {/* Spacer pushes controls to the right */}
           <div className="flex-1" />
 
-          {!embed && <AiModeButton websiteId={websiteId} />}
+          {!embed && clientAi && <AiModeButton websiteId={websiteId} />}
 
           {/* Date range — shows the real dates; the Filters dialog edits the same state */}
           <DateRangeButton

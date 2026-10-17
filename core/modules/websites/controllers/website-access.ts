@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteRole } from "../interfaces";
-import { permissionDenied, type Permission } from "../../../platform/permissions";
+import { permissionDenied, roleAllows, type Permission } from "../../../platform/permissions";
 import type { WebsiteControllerDeps } from "./website-controller.types";
 
 export type WebsiteContext<Path extends string = string> = Context<{ Variables: AuthVars }, Path>;
@@ -26,6 +26,8 @@ export function websiteDenied(c: Context, error: unknown): Response {
  *
  * `permission` is optional so a route that predates the team model keeps
  * working unchanged; passing one is what opts a route into being narrowable.
+ * The header can narrow the role and never widen it: a key the role does not
+ * carry (`roleAllows`) is refused whatever the gateway sent.
  */
 export async function requireWebsiteAccess(
   c: WebsiteContext,
@@ -41,6 +43,7 @@ export async function requireWebsiteAccess(
     return { denied: c.json({ error: "forbidden" }, 403) };
   }
   if (permission) {
+    if (!roleAllows(role, permission)) return { denied: c.json({ error: "forbidden" }, 403) };
     const denied = permissionDenied(c, permission);
     if (denied) return { denied };
   }

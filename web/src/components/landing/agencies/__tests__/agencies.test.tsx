@@ -69,8 +69,8 @@ describe('/agencies', () => {
   it('marks what is not live as Soon, and only that', () => {
     const { container } = render(<AgenciesPage />);
     const soon = [...container.querySelectorAll('[data-soon="true"]')].map((el) => el.querySelector('h3')?.textContent);
-    expect(soon).toEqual(['Client dashboards on your own domain', 'Client sign-in with pages you choose']);
-    expect(screen.getAllByTestId('soon')).toHaveLength(2);
+    expect(soon).toEqual(['Client dashboards on your own domain']);
+    expect(screen.getAllByTestId('soon')).toHaveLength(1);
     expect(container.textContent).not.toMatch(/observability/i);
   });
 

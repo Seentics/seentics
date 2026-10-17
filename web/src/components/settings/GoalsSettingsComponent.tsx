@@ -11,6 +11,7 @@ import { analyticsKeys } from '@/features/analytics/queries';
 import { getGoals, deleteGoal, Goal } from '@/lib/websites-api';
 import { AddGoalModal } from '../websites/modals/AddGoalModal';
 import { toast } from 'sonner';
+import { EditGuard } from '@/features/client-mode/ClientMode';
 
 interface GoalsSettingsComponentProps {
   websiteId: string;
@@ -59,6 +60,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           <h2 className="text-xl font-bold tracking-tight">Goal Conversions</h2>
           <p className="text-muted-foreground text-sm">Define what success looks like for your website.</p>
         </div>
+        <EditGuard feature="goals">
         <Button 
           onClick={() => setIsAddModalOpen(true)}
           className="h-10 px-5 font-bold rounded-lg gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
@@ -66,6 +68,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           <Plus className="h-4 w-4" />
           Create New Goal
         </Button>
+        </EditGuard>
       </div>
 
       {/* Goals List */}
@@ -114,16 +117,19 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
                   <p className="text-sm font-bold text-emerald-500">Active</p>
                 </div>
                 <div className="h-10 w-px bg-border/40 hidden sm:block mx-2" />
+                <EditGuard feature="goals">
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="ghost" 
                     size="icon" 
+                    aria-label="Delete goal"
                     onClick={() => handleDelete(goal.id)}
                     className="h-9 w-9 rounded-lg hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
+                </EditGuard>
               </div>
             </div>
           )

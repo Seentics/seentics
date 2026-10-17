@@ -5,6 +5,7 @@ import { usePathSegment } from '@/lib/path-segment';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
+import { EditGuard, ReadOnlyNote } from '@/features/client-mode/ClientMode';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isEnterprise } from '@/lib/features';
 
@@ -29,7 +30,10 @@ export default function PrivacyPage() {
                 description="Configure data protection and GDPR compliance for your website."
             />
 
-            <PrivacySettingsComponent websiteId={websiteId} />
+            <ReadOnlyNote feature="privacy" />
+            <EditGuard feature="privacy" mode="disable">
+                <PrivacySettingsComponent websiteId={websiteId} />
+            </EditGuard>
         </div>
     );
 }

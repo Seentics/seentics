@@ -84,7 +84,11 @@ export const onRequest = async (context: RequestContext): Promise<Response> => {
 
   if (isAuthenticated) {
     const isPublicOnlyRoute = PUBLIC_ONLY_ROUTES.some((route) => pathname === route || pathname.startsWith(route));
-    if (isPublicOnlyRoute) {
+    // An agency's client sign-in (`/signin?agency=…`) and its email link (`/signin/verify`) must
+    // open even with an account signed in in this browser: an agency trying its own invite would
+    // otherwise be sent to /websites and the link never used.
+    const isClientSignIn = pathname.startsWith('/signin/verify') || (pathname.startsWith('/signin') && url.searchParams.has('agency'));
+    if (isPublicOnlyRoute && !isClientSignIn) {
       return Response.redirect(new URL('/websites', url), 307);
     }
     if (pathname === '/signup' && !url.searchParams.has('step')) {

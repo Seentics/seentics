@@ -34,11 +34,12 @@ export default function AgencyBrandingPage() {
         <P>
           Choose <B>Save branding</B> when you&apos;re done.
         </P>
-        <ComingSoon title="Where clients see it">
-          Your branding is saved now. Clients see it once{' '}
-          <A href="/docs/agency/client-sign-in">client sign-in</A> and dashboards on your own domain go
-          live. The sign-in name is for that sign-in page.
-        </ComingSoon>
+        <Callout kind="note" title="Where clients see it">
+          Client users see your brand on your sign-in page, <C>https://seentics.com/signin?agency=</C>
+          followed by your sign-in name, in their sign-in emails and on their dashboard. See{' '}
+          <A href="/docs/agency/client-sign-in">Client sign-in</A>. Dashboards on your own domain are
+          coming soon.
+        </Callout>
       </DocSection>
 
       <DocSection id="custom-domain" title="Custom domain">

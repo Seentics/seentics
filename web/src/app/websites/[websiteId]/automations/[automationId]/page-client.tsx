@@ -29,6 +29,7 @@ import {
 } from '@/features/automations/catalog';
 import { FormSubmissions } from '@/components/automations/submissions/FormSubmissions';
 import { formInfoOf } from '@/lib/form-routing';
+import { EditGuard } from '@/features/client-mode/ClientMode';
 
 export default function AutomationDetailPage() {
   const params = { websiteId: usePathSegment(1) ?? '', automationId: usePathSegment(3) ?? '' };
@@ -200,7 +201,7 @@ export default function AutomationDetailPage() {
           )}
 
           {!editMode && (
-            <>
+            <EditGuard feature="automations">
               <Button
                 variant="outline"
                 size="sm"
@@ -227,7 +228,7 @@ export default function AutomationDetailPage() {
               >
                 <Trash2 className="h-3.5 w-3.5" />Delete
               </Button>
-            </>
+            </EditGuard>
           )}
         </div>
       </div>

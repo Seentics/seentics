@@ -131,8 +131,8 @@ describe('pricing cards', () => {
       'Agency API for clients, sites and usage',
       'Priority support and personal onboarding',
     ]);
-    // Not live yet: marked soon until client sign-in and own-domain serving ship.
-    expect(features!.items.filter((i) => i.soon).map((i) => i.label)).toEqual(['Client dashboards on your own domain', 'Client sign-in with pages you choose']);
+    // Not live yet: own-domain serving is marked soon until it ships; client sign-in is live.
+    expect(features!.items.filter((i) => i.soon).map((i) => i.label)).toEqual(['Client dashboards on your own domain']);
     expect(past!.items.map((i) => i.label)).toEqual(['Overage instead of pausing, with Extra usage', 'An alert at 80% of each allowance']);
   });
 
@@ -210,13 +210,13 @@ describe('comparison table', () => {
       expect(cell('Client workspaces', plan)).toBe(false);
       expect(cell('Embedded client dashboards', plan)).toBe(false);
       expect(cell('White-label branding', plan)).toBe(false);
-      expect(cell('Client sign-in (soon)', plan)).toBe(false);
+      expect(cell('Client sign-in', plan)).toBe(false);
     }
     expect(cell('Client workspaces', AGENCY)).toBe('Unlimited');
     expect(cell('Embedded client dashboards', AGENCY)).toBe(true);
     expect(cell('White-label branding', AGENCY)).toBe(true);
     expect(cell('Client dashboards on your own domain (soon)', AGENCY)).toBe('Soon');
-    expect(cell('Client sign-in (soon)', AGENCY)).toBe('Soon');
+    expect(cell('Client sign-in', AGENCY)).toBe(true);
     // Account keys stay on every plan.
     expect(cell('API access with account keys', FREE)).toBe(true);
     expect(cell('Support', AGENCY)).toBe('Priority, with onboarding');

@@ -147,6 +147,30 @@ export type FeatureId =
 export type FeatureAccess = 'off' | 'view' | 'edit';
 export type ClientFeatures = Record<FeatureId, FeatureAccess>;
 
+// ─── Client users ─────────────────────────────────────────────────────────────
+
+export type ClientUserStatus = 'invited' | 'active' | 'disabled';
+
+/** A person who signs in to the client's dashboard with an email link. */
+export interface ClientUser {
+  id: string;
+  email: string;
+  name: string;
+  status: ClientUserStatus;
+  invited_at: string;
+  last_seen_at: string | null;
+}
+
+export interface ClientUserInput {
+  email: string;
+  name?: string;
+}
+
+export interface ClientUserPatch {
+  status?: ClientUserStatus;
+  name?: string;
+}
+
 // ─── Branding & domain ────────────────────────────────────────────────────────
 
 export interface Branding {
