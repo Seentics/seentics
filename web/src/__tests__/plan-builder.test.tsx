@@ -31,8 +31,11 @@ describe('PlanBuilder', () => {
     expect(screen.getByText('$7.50')).toBeTruthy();
     expect(screen.getByText('$20')).toBeTruthy();
     expect(screen.getByText('$82.50')).toBeTruthy();
-    expect(screen.getByText('Billed $990 yearly · 2 months free')).toBeTruthy();
-    expect(screen.getByText('Billed $90 yearly · 2 months free')).toBeTruthy();
+    // One short line per card; the saving is said once, on the toggle, and no price is struck out.
+    expect(screen.getByText('$990 billed yearly')).toBeTruthy();
+    expect(screen.getByText('$90 billed yearly')).toBeTruthy();
+    expect(screen.queryByText(/months free/, { selector: 'p' })).toBeNull();
+    expect(screen.queryByText('$9')).toBeNull();
   });
 
   it('switches to monthly prices with the toggle', () => {
@@ -87,20 +90,25 @@ describe('the Agency card', () => {
 });
 
 describe('the founding offer', () => {
-  const offers = () => screen.getAllByTestId('founding-offer').map((o) => o.textContent);
+  const banner = () => screen.getByTestId('founding-offer');
+  const claim = (name: RegExp) => screen.getByRole('button', { name });
 
-  it('is on Pro and Agency, at the selected interval\'s price', () => {
-    render(<PlanBuilder />);
-    const [pro, agency] = offers();
-    expect(offers()).toHaveLength(2);
-    expect(pro).toContain('Founding price: $168/year, locked in');
-    expect(agency).toContain('Founding price: $693/year, locked in');
-    expect(agency).toContain('30% off for life.');
-    expect(agency).toContain('Limited to the first 50 customers');
-    expect(agency).toContain('Use code FOUNDING30 at checkout.');
+  it('is one banner above the cards, for Pro and Agency, not inside any card', () => {
+    render(<PlanBuilder onSubscribe={vi.fn()} />);
+    expect(screen.getAllByTestId('founding-offer')).toHaveLength(1);
+    expect(banner().textContent).toContain('Founding offer: 30% off Pro and Agency, for life');
+    expect(banner().textContent).toContain('Use code FOUNDING30 at checkout.');
+    expect(banner().textContent).toContain('Limited to the first 50 customers');
+    // No card carries it.
+    for (const heading of screen.getAllByRole('heading', { level: 3 })) {
+      expect(heading.closest('.rounded-2xl')?.textContent ?? '').not.toContain('FOUNDING30');
+    }
+    // Claim buttons show the founding price for the selected interval.
+    expect(claim(/Claim Pro · \$168\/yr/)).toBeTruthy();
+    expect(claim(/Claim Agency · \$693\/yr/)).toBeTruthy();
     monthly();
-    expect(offers()[0]).toContain('Founding price: $16.80/month, locked in');
-    expect(offers()[1]).toContain('Founding price: $69.30/month, locked in');
+    expect(claim(/Claim Pro · \$16\.80\/mo/)).toBeTruthy();
+    expect(claim(/Claim Agency · \$69\.30\/mo/)).toBeTruthy();
   });
 
   it('sends the code only when the price is claimed, on the selected interval', () => {
@@ -108,24 +116,23 @@ describe('the founding offer', () => {
     render(<PlanBuilder onSubscribe={onSubscribe} />);
     fireEvent.click(screen.getByRole('button', { name: /Get Agency/ }));
     expect(onSubscribe.mock.calls[0]![0]).not.toHaveProperty('discount');
-    const [pro, agency] = screen.getAllByRole('button', { name: 'Claim founding price' });
-    fireEvent.click(agency!);
+    fireEvent.click(claim(/Claim Agency/));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'agency', price: 57.75, interval: 'year', discount: 'FOUNDING30' });
-    fireEvent.click(pro!);
+    fireEvent.click(claim(/Claim Pro/));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 14, interval: 'year', discount: 'FOUNDING30' });
     monthly();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Claim founding price' })[0]!);
+    fireEvent.click(claim(/Claim Pro/));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 16.8, interval: 'month', discount: 'FOUNDING30' });
   });
 
   const spots = (claimed: number | null, status: 'open' | 'closed' = 'open') =>
     ({ code: 'FOUNDING30', total: 50, claimed, left: claimed === null ? null : Math.max(0, 50 - claimed), status });
-  const note = () => screen.getAllByTestId('founding-spots');
+  const note = () => screen.getByTestId('founding-spots');
 
   it('with an unknown or small count, says only that it is limited', () => {
     for (const founding of [undefined, spots(null), spots(9)]) {
       const { unmount } = render(<PlanBuilder founding={founding} />);
-      expect(note().map((n) => n.textContent)).toEqual(['Limited to the first 50 customers', 'Limited to the first 50 customers']);
+      expect(note().textContent).toBe('Limited to the first 50 customers');
       expect(screen.queryByText(/spots left/)).toBeNull();
       unmount();
     }
@@ -133,26 +140,26 @@ describe('the founding offer', () => {
 
   it('from 10 claims, says how many spots are left', () => {
     render(<PlanBuilder founding={spots(30)} />);
-    expect(note()[0]!.textContent).toBe('Only 20 of 50 founding spots left');
-    expect(note()[0]!.dataset.emphasised).toBeUndefined();
+    expect(note().textContent).toBe('Only 20 of 50 founding spots left');
+    expect(note().dataset.emphasised).toBeUndefined();
   });
 
   it('emphasises the last 5 spots', () => {
     render(<PlanBuilder founding={spots(46)} />);
-    expect(note()[1]!.textContent).toBe('Only 4 of 50 founding spots left');
-    expect(note()[1]!.dataset.emphasised).toBe('true');
+    expect(note().textContent).toBe('Only 4 of 50 founding spots left');
+    expect(note().dataset.emphasised).toBe('true');
   });
 
-  it('is gone, Claim button and all, once every spot is taken', () => {
+  it('is gone, Claim buttons and all, once every spot is taken', () => {
     render(<PlanBuilder onSubscribe={vi.fn()} founding={spots(50, 'closed')} />);
     expect(screen.queryByTestId('founding-offer')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Claim founding price' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Claim/ })).toBeNull();
   });
 
-  it('is not offered on the plan the account is already on', () => {
-    render(<PlanBuilder currentPlan="agency" currentInterval="year" />);
-    expect(screen.getAllByTestId('founding-offer')).toHaveLength(1);
-    expect(screen.getByTestId('founding-offer').textContent).toContain('$168/year');
+  it('offers no Claim for the plan the account is already on', () => {
+    render(<PlanBuilder onSubscribe={vi.fn()} currentPlan="agency" currentInterval="year" />);
+    expect(screen.queryByRole('button', { name: /Claim Agency/ })).toBeNull();
+    expect(claim(/Claim Pro · \$168\/yr/)).toBeTruthy();
   });
 });
 
