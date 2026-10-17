@@ -25,6 +25,7 @@ core/
 │   ├── automations/
 │   ├── ai/                   Natural-language querying (owns ai_queries)
 │   ├── api-keys/             Machine credentials (owns api_keys)
+│   ├── agency/               White label, client users and client-portal links
 │   └── auth/                 Identity (owns users)
 ├── platform/                 Reusable technical capabilities; imports no module
 │   ├── cache/                In-process cache and token-bucket primitives

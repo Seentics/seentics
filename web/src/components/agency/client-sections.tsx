@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -17,12 +17,36 @@ import {
   Loader2,
   Plus,
   Trash2,
+  UserPlus,
   Video,
 } from 'lucide-react';
-import { generatePortalToken, type AgencyClient, type AgencyClientFeatures, type ClientLimits, type PortalToken } from '@/features/agency';
-import { isDemoRefusal, useAssignWebsite, useUnassignWebsite, useUpdateClient } from '@/features/agency/queries';
+import {
+  createPortalLink,
+  revokePortalLink,
+  type AgencyClient,
+  type AgencyClientFeatures,
+  type ClientLimits,
+  type PortalLink,
+} from '@/features/agency';
+import {
+  isDemoRefusal,
+  useAgencyMutation,
+  useAssignWebsite,
+  useClientUsers,
+  useCustomDomain,
+  useUnassignWebsite,
+  useUpdateClient,
+} from '@/features/agency/queries';
 import { getWebsites } from '@/features/websites/api';
 import { demoMutationGuard } from '@/lib/demo';
+import { isAgencyPlanRequired, useAgencyPlan } from '@/features/agency/plan';
+import { AgencyPlanPrompt } from '@/components/agency/AgencyPlanPrompt';
+import {
+  ClientUserList,
+  InviteClientUserDialog,
+  PortalLinkReveal,
+  useClientAccessError,
+} from '@/components/agency/client-user-dialogs';
 import { CopyButton } from '@/components/agency/CopyButton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -169,7 +193,9 @@ export function ClientWebsitesPanel({ websiteId, client }: { websiteId: string; 
                   onSuccess: () => { toast.success('Website added'); setAssigning(false); setSelected(''); },
                   onError: (e: any) => e?.response?.data?.error === 'website_limit_reached'
                     ? toast.error(`${client.name} is at its website limit.`)
-                    : reportError(e),
+                    : isAgencyPlanRequired(e)
+                      ? toast.error('Adding websites to clients is part of the Agency plan.')
+                      : reportError(e),
                 })
               }
             >
@@ -289,39 +315,85 @@ export function ClientLimitsPanel({ websiteId, client }: { websiteId: string; cl
   );
 }
 
-// ─── Portal access (Cloud) ───────────────────────────────────────────────────
+// ─── Client access (Cloud, Agency plan) ──────────────────────────────────────
 
+/**
+ * Who at this client can open its read-only portal: its client users, each with their own magic
+ * link, and one anonymous link for the whole client. Without the Agency plan, the prompt instead.
+ */
 export function ClientPortalPanel({ websiteId, client }: { websiteId: string; client: AgencyClient }) {
-  const [token, setToken] = useState<PortalToken | null>(null);
-  const generate = useMutation({
-    mutationFn: () => generatePortalToken(client.id),
-    onSuccess: setToken,
-    onError: reportError,
-  });
-  const url = token?.token ? `${window.location.origin}/client-portal/${token.token}` : '';
+  const { allowed } = useAgencyPlan(websiteId);
+  const { data: users = [], isLoading } = useClientUsers(websiteId, { clientId: client.id, enabled: allowed });
+  const { data: domain } = useCustomDomain(websiteId, { enabled: allowed });
+  const [inviting, setInviting] = useState(false);
+  const [link, setLink] = useState<PortalLink | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
+  const onError = useClientAccessError(websiteId);
+  const generate = useAgencyMutation(websiteId, createPortalLink);
+  const stop = useAgencyMutation(websiteId, revokePortalLink);
+
+  if (!allowed) return <AgencyPlanPrompt websiteId={websiteId} feature="client-access" />;
 
   return (
     <Panel
-      title="Portal link"
-      description={`A link that shows ${client.name} their own dashboard, no account needed. Expires in 7 days.`}
+      title="Client access"
+      description={`People at ${client.name} who can open a read-only portal of its websites, by magic link. No account needed.`}
       action={
-        <Button
-          size="sm" variant="outline" className="h-8 gap-1.5" disabled={generate.isPending}
-          onClick={() => { if (!demoMutationGuard(websiteId)) generate.mutate(); }}
-        >
-          {generate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-          Generate link
+        <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setInviting(true)}>
+          <UserPlus className="h-3.5 w-3.5" />
+          Invite
         </Button>
       }
     >
-      {url ? (
-        <div className="flex items-center gap-2 p-5">
-          <code className="min-w-0 flex-1 truncate rounded-md border border-border/60 bg-muted/50 px-2.5 py-2 font-mono text-xs">{url}</code>
-          <CopyButton text={url} />
-        </div>
+      {confirmDialog}
+      <InviteClientUserDialog
+        websiteId={websiteId}
+        client={inviting ? client : null}
+        domain={domain}
+        onOpenChange={o => { if (!o) setInviting(false); }}
+      />
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+      ) : users.length === 0 ? (
+        <p className="px-5 py-4 text-xs text-muted-foreground">Nobody invited yet.</p>
       ) : (
-        <p className="px-5 py-4 text-xs text-muted-foreground">No active link. Generating one replaces any previous link.</p>
+        <ClientUserList websiteId={websiteId} users={users} domain={domain} />
       )}
+
+      <div className="space-y-3 border-t border-border/60 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">Anonymous link</p>
+            <p className="text-xs text-muted-foreground">
+              One link for anyone at {client.name}, valid 7 days. A new one stops the last.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1.5">
+            <Button
+              size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" disabled={stop.isPending}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Stop the anonymous link?',
+                  description: 'Anyone holding it loses access at once. Client users keep their own links.',
+                  confirmLabel: 'Stop link',
+                  destructive: true,
+                });
+                if (ok) stop.mutate(client.id, { onSuccess: () => { setLink(null); toast.success('Link stopped'); }, onError });
+              }}
+            >
+              Stop link
+            </Button>
+            <Button
+              size="sm" variant="outline" className="h-8 gap-1.5" disabled={generate.isPending}
+              onClick={() => generate.mutate(client.id, { onSuccess: setLink, onError })}
+            >
+              {generate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+              Generate link
+            </Button>
+          </div>
+        </div>
+        {link && <PortalLinkReveal link={link} domain={domain} />}
+      </div>
     </Panel>
   );
 }

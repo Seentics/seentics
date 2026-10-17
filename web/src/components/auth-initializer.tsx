@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { getApiUrl } from '@/lib/config';
 import { useAuth } from '@/stores/useAuthStore';
+import { isSessionlessPath } from '@/lib/sessionless';
 
 /**
  * Wait for persisted auth to rehydrate before clearing `isLoading`, so layouts and API calls
@@ -21,9 +22,9 @@ export default function AuthInitializer() {
     let cancelled = false;
 
     const finish = async () => {
-      // An embed (`/embed/…`, inside someone else's page) has no use for a session and should not
-      // probe the visitor's: it reads through its own link.
-      const embedded = window.location.pathname.startsWith('/embed/');
+      // An embed or a client portal has no use for a session and should not probe the visitor's:
+      // it reads through its own link.
+      const embedded = isSessionlessPath(window.location.pathname);
       if (!embedded && !useAuth.getState().user) {
         try {
           const res = await fetch(getApiUrl('/user/auth/me'), { credentials: 'include' });

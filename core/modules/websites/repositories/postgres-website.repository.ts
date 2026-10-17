@@ -88,6 +88,16 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
     return rows.map(toDomain);
   }
 
+  async listMemberOf(userId: string): Promise<Website[]> {
+    const rows = await db
+      .select({ website: websites })
+      .from(websiteMembers)
+      .innerJoin(websites, eq(websites.id, websiteMembers.websiteId))
+      .where(and(eq(websiteMembers.userId, userId), sql`${websites.userId} <> ${userId}`))
+      .orderBy(asc(websites.createdAt));
+    return rows.map((row) => toDomain(row.website));
+  }
+
   async findRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
     // Owner and membership in one round trip. This runs on nearly every
     // authenticated request, so the join is worth it over two sequential reads.

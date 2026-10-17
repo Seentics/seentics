@@ -5,7 +5,7 @@
  * client with recordings switched off, uncapped and capped clients, and one with
  * several sites.
  */
-import type { AgencyAPIKey, AgencyClient, ClientUser, EmbedLink, WhiteLabelSettings, AgencyClientFeatures, ClientLimits, ClientWebsite } from '@/features/agency/types';
+import type { AgencyAPIKey, AgencyClient, ClientUser, CustomDomain, EmbedLink, WhiteLabelSettings, AgencyClientFeatures, ClientLimits, ClientWebsite } from '@/features/agency/types';
 import { createDemoRandom, demoDate } from './fixture-utils';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -139,38 +139,48 @@ export const demoAgencyKeys = (): AgencyAPIKey[] => [
   },
 ];
 
-/** Client logins: people at the demo clients who can see only their own dashboard. */
+/** Client users: people at the demo clients with a magic link to their own portal. */
 export const demoClientUsers = (): ClientUser[] => {
   const user = (
-    n: number, name: string, email: string, company: string, status: ClientUser['status'],
-    daysAgo: number, off: Array<keyof ClientUser['featuresEnabled']> = [],
+    n: number, clientId: string, name: string, email: string, status: ClientUser['status'], daysAgo: number,
   ): ClientUser => ({
     id: `demo-client-user-${n}`,
-    userId: `demo-user-${n}`,
-    name, email, company, status,
-    featuresEnabled: {
-      analytics: true, heatmaps: true, replays: true, funnels: true, automations: true,
-      ...Object.fromEntries(off.map(k => [k, false])),
-    },
+    clientId,
+    name, email, status,
     createdAt: demoDate(-daysAgo * DAY).toISOString(),
+    updatedAt: demoDate(-Math.min(daysAgo, 2) * DAY).toISOString(),
+    lastSeenAt: status === 'active' ? demoDate(-1 * DAY).toISOString() : null,
+    linkExpiresAt: status === 'revoked' ? null : demoDate((30 - Math.min(daysAgo, 29)) * DAY).toISOString(),
   });
   return [
-    user(1, 'Maya Chen', 'ops@northwind.coffee', 'Northwind Coffee', 'active', 96),
-    user(2, 'Priya Nair', 'hello@bloomandco.com', 'Bloom & Co', 'active', 61, ['replays']),
-    user(3, 'Tom Becker', 'digital@atlasfitness.io', 'Atlas Fitness', 'active', 34),
-    user(4, 'Sara Lindqvist', 'admin@harbordental.co', 'Harbor Dental', 'suspended', 22, ['funnels', 'automations']),
+    user(1, 'northwind', 'Maya Chen', 'ops@northwind.coffee', 'active', 26),
+    user(2, 'bloom', 'Priya Nair', 'hello@bloomandco.com', 'active', 12),
+    user(3, 'atlas', 'Tom Becker', 'digital@atlasfitness.io', 'invited', 3),
+    user(4, 'harbor', 'Sara Lindqvist', 'admin@harbordental.co', 'revoked', 22),
   ];
 };
 
 /** The agency's own branding, as its clients see it. */
 export const demoWhiteLabel = (): WhiteLabelSettings => ({
-  userId: 'demo-user',
   brandName: 'Meridian Digital',
   logoUrl: '',
   primaryColor: '#7c3aed',
   supportEmail: 'support@meridian.agency',
-  customDomain: 'analytics.meridian.agency',
+  footerText: 'Reports by Meridian Digital',
   hideSeentics: true,
+  updatedAt: demoDate(-5 * DAY).toISOString(),
+});
+
+/** The agency's portal domain, live. */
+export const demoCustomDomain = (): CustomDomain => ({
+  hostname: 'reports.meridian.agency',
+  state: 'active',
+  reason: null,
+  cnameTarget: 'portal.seentics.com',
+  ownershipVerification: null,
+  createdAt: demoDate(-30 * DAY).toISOString(),
+  updatedAt: demoDate(-29 * DAY).toISOString(),
+  lastCheckedAt: demoDate(-1 * DAY).toISOString(),
 });
 
 /**

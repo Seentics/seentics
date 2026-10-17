@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { AgencyClient, AgencyClientFeatures } from '@/features/agency';
-import { isDemoRefusal, useCreateClient, useUpdateClient } from '@/features/agency/queries';
+import { isDemoRefusal, useCreateClient, useCustomDomain, useUpdateClient } from '@/features/agency/queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,9 +18,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Check, Code2, Copy, KeyRound, Loader2 } from 'lucide-react';
-import { createClientUser } from '@/features/agency';
+import { createClientUser, type PortalLink } from '@/features/agency';
 import { isEnterprise } from '@/lib/features';
 import { CLIENT_FEATURE_LABELS, DEFAULT_CLIENT_FEATURES } from '@/features/agency/constants';
+import { isAgencyPlanRequired, useAgencyPlan } from '@/features/agency/plan';
+import { PortalLinkReveal } from '@/components/agency/client-user-dialogs';
 
 /**
  * Create-and-edit dialog for an agency client.
@@ -46,8 +48,8 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
   const [note, setNote]             = useState(initial?.note ?? '');
   const [status, setStatus]         = useState<AgencyClient['status']>(initial?.status ?? 'active');
   const [withLogin, setWithLogin]     = useState(false);
-  const [done, setDone]               = useState<{ client: AgencyClient; tempPassword?: string; loginError?: string } | null>(null);
-  const [copied, setCopied]           = useState<'code' | 'password' | null>(null);
+  const [done, setDone]               = useState<{ client: AgencyClient; link?: PortalLink; loginError?: string } | null>(null);
+  const [copied, setCopied]           = useState(false);
   const [features, setFeatures]     = useState<AgencyClientFeatures>(
     initial?.featuresEnabled ? { ...initial.featuresEnabled } : { ...DEFAULT_CLIENT_FEATURES },
   );
@@ -75,8 +77,19 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
 
   const createMutation = useCreateClient(websiteId);
   const updateMutation = useUpdateClient(websiteId);
+  const { allowed: agencyPlan, markRefused } = useAgencyPlan(websiteId);
+  // Inviting the client's contact to its portal, in the same step: Cloud and the Agency plan only.
+  const canInvite = isEnterprise && agencyPlan && !isEdit;
+  const { data: domain } = useCustomDomain(websiteId, { enabled: open && canInvite });
   const onError = (err: any) => {
     if (isDemoRefusal(err)) return;
+    // Creating a client takes the Agency plan: close the form, and the Clients tab shows the upgrade prompt.
+    if (isAgencyPlanRequired(err)) {
+      markRefused();
+      toast.error('Client workspaces are part of the Agency plan.');
+      onOpenChange(false);
+      return;
+    }
     toast.error(err.response?.data?.error === 'external_id_taken'
       ? 'Another client already has that ID.'
       : err.message || 'Failed to save client');
@@ -108,36 +121,27 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
       { ...req, ...(websiteUrl.trim() ? { website: { name: name.trim(), url: websiteUrl.trim() } } : {}) },
       {
         onSuccess: async (client) => {
-          let tempPassword: string | undefined;
+          let link: PortalLink | undefined;
           let loginError: string | undefined;
-          if (withLogin && email.trim()) {
+          if (canInvite && withLogin && email.trim()) {
             try {
-              const res = await createClientUser({
-                name: name.trim(),
-                email: email.trim(),
-                company: company.trim() || undefined,
-                features: {
-                  analytics: features.analytics, heatmaps: features.heatmaps, replays: features.replays,
-                  funnels: features.funnels, automations: features.automations,
-                },
-              });
-              tempPassword = res.tempPassword;
+              link = (await createClientUser({ clientId: client.id, email: email.trim(), name: name.trim() })).link;
             } catch (e: any) {
-              loginError = e?.message || 'The login could not be created.';
+              loginError = e?.response?.data?.message || e?.message || 'The invitation could not be created.';
             }
           }
-          setDone({ client, tempPassword, loginError });
+          setDone({ client, link, loginError });
         },
         onError,
       },
     );
   };
 
-  const copy = async (text: string, what: 'code' | 'password') => {
+  const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(what);
-      setTimeout(() => setCopied(null), 1500);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch {
       toast.error('Could not copy');
     }
@@ -169,31 +173,25 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
                   <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                     <Code2 className="h-3 w-3" /> {site.url}
                   </span>
-                  <button type="button" onClick={() => copy(site.snippet, 'code')} className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-100">
-                    {copied === 'code' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                    {copied === 'code' ? 'Copied' : 'Copy code'}
+                  <button type="button" onClick={() => copy(site.snippet)} className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-100">
+                    {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copied ? 'Copied' : 'Copy code'}
                   </button>
                 </div>
                 <pre className="overflow-x-auto p-3.5 font-mono text-xs leading-relaxed text-zinc-200">{site.snippet}</pre>
               </div>
             )}
-            {done.tempPassword && (
+            {done.link && (
               <div className="space-y-2 rounded-lg border bg-card p-3.5 shadow-sm">
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  <KeyRound className="h-3.5 w-3.5 text-muted-foreground" /> Login for {done.client.email}
+                  <KeyRound className="h-3.5 w-3.5 text-muted-foreground" /> Portal link for {done.client.email}
                 </p>
-                <div className="flex items-center gap-2">
-                  <code className="min-w-0 flex-1 select-all truncate rounded-md border bg-muted/40 px-2.5 py-1.5 font-mono text-xs">{done.tempPassword}</code>
-                  <Button variant="outline" size="icon" className="h-8 w-8 shrink-0 bg-card" aria-label="Copy password" onClick={() => copy(done.tempPassword!, 'password')}>
-                    {copied === 'password' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  </Button>
-                </div>
-                <p className="text-[11px] text-amber-600 dark:text-amber-400">Share this temporary password with your client. It won&apos;t be shown again.</p>
+                <PortalLinkReveal link={done.link} domain={domain} />
               </div>
             )}
             {done.loginError && (
               <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
-                The client was created, but its login was not: {done.loginError}
+                The client was created, but the portal invitation was not: {done.loginError}
               </p>
             )}
           </div>
@@ -279,12 +277,12 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
             </ul>
           </div>
 
-          {isEnterprise && !isEdit && (
+          {canInvite && (
             <div className={`${box} flex flex-row items-center justify-between gap-4 space-y-0`}>
               <div>
-                <h4 className="text-sm font-semibold text-foreground">Give this client a login</h4>
+                <h4 className="text-sm font-semibold text-foreground">Invite them to the client portal</h4>
                 <p className="text-[11px] text-muted-foreground">
-                  {email.trim() ? `They sign in with ${email.trim()} and see only their own dashboard.` : 'Add an email above first.'}
+                  {email.trim() ? `A magic link for ${email.trim()} to a read-only view of this client's websites.` : 'Add an email above first.'}
                 </p>
               </div>
               <Switch
@@ -292,7 +290,7 @@ export function ClientFormDialog({ websiteId, open, onOpenChange, initial }: Cli
                 checked={withLogin && !!email.trim()}
                 disabled={!email.trim()}
                 onCheckedChange={setWithLogin}
-                aria-label="Give this client a login"
+                aria-label="Invite them to the client portal"
               />
             </div>
           )}

@@ -67,6 +67,9 @@ const TABLE_OWNER: Record<string, string> = {
   integration_deliveries: "integrations",
   conversion_destinations: "integrations",
   conversion_events: "integrations",
+  agency_white_label: "agency",
+  agency_client_users: "agency",
+  agency_portal_tokens: "agency",
 };
 
 /** Drizzle identifier → table name, for the builder form. */
@@ -97,6 +100,9 @@ const DRIZZLE_IDENT: Record<string, string> = {
   accountApiKeys: "account_api_keys",
   embedLinks: "embed_links",
   clients: "clients",
+  agencyWhiteLabel: "agency_white_label",
+  agencyClientUsers: "agency_client_users",
+  agencyPortalTokens: "agency_portal_tokens",
 };
 
 /**

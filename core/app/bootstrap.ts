@@ -10,6 +10,8 @@ import { startScheduler, stopScheduler } from "./scheduler";
 import type { ModuleLifecycle } from "./module";
 import { initErrorsModule } from "../modules/errors/init";
 import type { ErrorsModule } from "../modules/errors/interfaces";
+import { initAgencyModule } from "../modules/agency/init";
+import type { AgencyModule } from "../modules/agency/interfaces";
 import { initAiModule } from "../modules/ai/init";
 import { initApiKeysModule } from "../modules/api-keys/init";
 import { initAnalyticsModule } from "../modules/analytics/init";
@@ -49,6 +51,7 @@ export type Application = {
   modules: {
     auth: AuthModule;
     apiKeys: ApiKeysModule;
+    agency: AgencyModule;
     websites: WebsitesModule;
     analytics: AnalyticsModule;
     recordings: RecordingsModule;
@@ -120,6 +123,12 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   });
 
   const apiKeysModule = initApiKeysModule({ websitesModule, accountActive: (userId) => authModule.users.isActive(userId) });
+  // White label and the client portal. Portal links read through the embed API, so they take
+  // the same "is the owner's account still active" check as account keys.
+  const agencyModule = initAgencyModule({
+    clients: websitesModule.clients,
+    accountActive: (userId) => authModule.users.isActive(userId),
+  });
 
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
   // Session summaries are worded by the AI module, composed below: a getter, read per request.
@@ -226,6 +235,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   const modules = {
     auth: authModule,
     apiKeys: apiKeysModule,
+    agency: agencyModule,
     websites: websitesModule,
     analytics: analyticsModule,
     recordings: recordingsModule,

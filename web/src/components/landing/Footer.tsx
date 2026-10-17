@@ -24,7 +24,7 @@ export default function Footer() {
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Product analytics, session replay and automations in one privacy-first platform, with observability for SaaS teams.
+              Product analytics, session replay and automations in one privacy-first platform.
             </p>
           </div>
 

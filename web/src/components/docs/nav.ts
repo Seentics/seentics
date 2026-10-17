@@ -1,5 +1,4 @@
 import {
-  Activity,
   BarChart3,
   BookOpen,
   Building2,
@@ -20,8 +19,6 @@ import {
   Route,
   Send,
   Plug,
-  Server,
-  Terminal,
   ShieldCheck,
   Video,
   Workflow,
@@ -116,41 +113,9 @@ export const DOCS_NAV: DocsNavGroup[] = [
       },
     ],
   },
-  {
-    title: 'Products',
-    items: [
-      {
-        title: 'Observability',
-        href: '/docs/observability',
-        icon: Activity,
-        summary: 'Logs, traces, metrics, errors and alerts for your services.',
-      },
-      {
-        title: 'Observability: Node.js',
-        href: '/docs/observability/node',
-        icon: Terminal,
-        summary: 'Install, configure and use @seentics/observe.',
-      },
-      {
-        title: 'Observability: Go',
-        href: '/docs/observability/go',
-        icon: Terminal,
-        summary: 'observe-go with net/http middleware and slog.',
-      },
-      {
-        title: 'Observability: Python',
-        href: '/docs/observability/python',
-        icon: Terminal,
-        summary: 'Install and use seentics-observe.',
-      },
-      {
-        title: 'Observability: deployment',
-        href: '/docs/observability/deploy',
-        icon: Server,
-        summary: 'Name services and servers on a VM, Docker, Compose or Kubernetes.',
-      },
-    ],
-  },
+  // Observability's docs (/docs/observability/*) stay reachable by URL, for the links in the
+  // product, but are not listed while Observability isn't marketed: not in the nav, the
+  // previous / next walk or the sitemap (DOCS_PAGES).
   {
     title: 'Frameworks',
     items: [

@@ -12,8 +12,13 @@ export class WebsiteTrafficService implements WebsiteTrafficReads {
     private readonly analyticsModule: () => AnalyticsModule,
   ) {}
 
+  /**
+   * The user's own websites, then the ones they were invited to. An invitee whose list held
+   * only owned sites had the role but no way to find the site in the dashboard.
+   */
   async listOwnedWithTraffic(ownerId: string): Promise<WebsiteWithTraffic[]> {
-    const websites = await this.repository.listOwnedBy(ownerId);
+    const [owned, shared] = await Promise.all([this.repository.listOwnedBy(ownerId), this.repository.listMemberOf(ownerId)]);
+    const websites = [...owned, ...shared];
     if (websites.length === 0) return [];
     const summaries = await this.analyticsModule().getTrafficSummary(websites.map((website) => website.id));
     return websites.map((website) => ({

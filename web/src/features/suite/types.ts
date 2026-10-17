@@ -1,8 +1,9 @@
 export type ProductEntitlement = {
   plan: string;
-  tier: 'free' | 'pro';
-  /** The granting plan's id: `free` or `pro`. */
+  tier: 'free' | 'starter' | 'pro' | 'agency';
+  /** The granting plan's id: `free`, `starter`, `pro` or `agency`. */
   planId?: string;
+  /** e.g. limits.monthly_events; core's `agency_features` (1) is the Agency plan's client workspaces and embeds. */
   limits: Record<string, number>;
 };
 

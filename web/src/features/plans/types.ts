@@ -1,11 +1,14 @@
 export type Plan = {
   id: string;
   name: string;
-  /** `free`, `analytics` ($9 a month) or `pro` ($19 a month; past its included amounts with Extra usage, an add-on). */
-  tier: 'free' | 'analytics' | 'pro';
+  /**
+   * `free`, `starter` ($9 a month), `pro` ($24) or `agency` ($99; client workspaces and
+   * embeds). Pro and Agency go past their included amounts with Extra usage, an add-on.
+   */
+  tier: 'free' | 'starter' | 'pro' | 'agency';
   description: string | null;
   priceMonthly: number;
-  /** The price of a year, billed at once ($84, $168); null when the plan is not sold yearly. */
+  /** The price of a year, billed at once ($90, $240, $990); null when the plan is not sold yearly. */
   priceYearly: number | null;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];

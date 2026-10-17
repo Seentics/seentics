@@ -12,7 +12,7 @@ import type { AgencyClient, AgencyClientFeatures, ClientUser } from './types';
  * explanation, and clients and client-users do not share a status set.
  */
 
-/** Clients can be archived; client-users cannot, which is why these are two maps. */
+/** Clients are archived; client users are invited, then revoked: two status sets, two maps. */
 export const CLIENT_STATUS_STYLES: Record<AgencyClient['status'], string> = {
   active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
   suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
@@ -20,8 +20,9 @@ export const CLIENT_STATUS_STYLES: Record<AgencyClient['status'], string> = {
 };
 
 export const USER_STATUS_STYLES: Record<ClientUser['status'], string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+  invited: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+  active:  'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
+  revoked: 'bg-muted text-muted-foreground border-border',
 };
 
 export const CLIENT_FEATURE_LABELS: Array<{ key: keyof AgencyClientFeatures; label: string }> = [

@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CopyButton } from '@/components/agency/CopyButton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
+import { AgencyPlanPrompt } from '@/components/agency/AgencyPlanPrompt';
+import { isAgencyPlanRequired, useAgencyPlan } from '@/features/agency/plan';
 
 function Segmented<T extends string | number>({ value, options, onChange }: {
   value: T;
@@ -82,6 +84,8 @@ export function EmbedsTab({ websiteId }: { websiteId: string }) {
   const revoke = useRevokeEmbedLink(websiteId);
   const update = useUpdateEmbedLink(websiteId);
   const [confirm, confirmDialog] = useConfirm();
+  // Embed links take the Agency plan, every action on them: without it the prompt replaces the create button.
+  const { allowed: agencyPlan, markRefused } = useAgencyPlan(websiteId);
 
   const [scope, setScope] = useState<'website' | 'client'>('website');
   const [targetId, setTargetId] = useState(websiteId);
@@ -108,6 +112,7 @@ export function EmbedsTab({ websiteId }: { websiteId: string }) {
 
   const onError = (e: unknown) => {
     if (isDemoRefusal(e)) return;
+    if (isAgencyPlanRequired(e)) return markRefused();
     const status = (e as { response?: { status?: number } })?.response?.status;
     toast.error(status === 403 ? 'Only admins and owners of this website can embed it.' : 'Something went wrong. Please try again.');
   };
@@ -303,10 +308,14 @@ export function EmbedsTab({ websiteId }: { websiteId: string }) {
                   One permanent link per {scope}. Open it in a browser to see the dashboard, or put it in an iframe in your own
                   product, for example behind an &quot;Analytics&quot; menu item.
                 </p>
-                <Button className="w-full gap-1.5" size="sm" disabled={!targetId || create.isPending} onClick={makeLink}>
-                  {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-                  Create embed link
-                </Button>
+                {agencyPlan ? (
+                  <Button className="w-full gap-1.5" size="sm" disabled={!targetId || create.isPending} onClick={makeLink}>
+                    {create.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                    Create embed link
+                  </Button>
+                ) : (
+                  <AgencyPlanPrompt websiteId={websiteId} className="sm:flex-col sm:items-start" />
+                )}
               </>
             )}
           </div>

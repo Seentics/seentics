@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { normalizeTrackerApiHost } from '@/lib/config';
+import { isSessionlessPath } from '@/lib/sessionless';
 
 /**
  * Self-tracking (dogfood): **only** `NEXT_PUBLIC_*` env — never the URL `/websites/[id]`.
@@ -35,9 +36,9 @@ function resolveTrackerScriptSrc(): string {
 
 export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
-  // An embed runs inside a customer's product, in front of their users: tracking it would
-  // record their visitors in our analytics.
-  const embedded = usePathname()?.startsWith('/embed/') ?? false;
+  // An embed runs inside a customer's product, and a client portal in front of an agency's
+  // clients: tracking either would record their visitors in our analytics.
+  const embedded = isSessionlessPath(usePathname());
 
   useEffect(() => {
     setMounted(true);

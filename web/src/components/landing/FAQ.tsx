@@ -10,12 +10,12 @@ const FAQS = [
   {
     question: 'Can I self-host Seentics?',
     answer:
-      'Yes, the analytics core: web analytics, funnels, session replay, heatmaps and automations are open source (AGPL-3.0) and run on your own infrastructure with Docker, Kubernetes or your preferred cloud provider. Observability and Uptime monitoring are managed products on Seentics Cloud.',
+      'Yes, the analytics core: web analytics, funnels, session replay, heatmaps and automations are open source (AGPL-3.0) and run on your own infrastructure with Docker, Kubernetes or your preferred cloud provider.',
   },
   {
     question: 'Is there a free plan?',
     answer:
-      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, Starter at $9 a month and Pro at $24 a month, each with the whole product: they differ by how many events, recordings and gigabytes of telemetry they include.',
+      'Yes. Self-hosting the analytics core is free with no artificial usage limits. Seentics Cloud has a Free plan, Starter at $9 a month, Pro at $24 a month and Agency at $99 a month, each with the whole product: they differ by how many events and recordings they include, and Agency adds client workspaces for agencies.',
   },
   {
     question: 'How does Seentics protect visitor privacy?',
@@ -35,7 +35,7 @@ const FAQS = [
   {
     question: 'How is this different from GA4, Plausible or Hotjar?',
     answer:
-      'Those products specialize in individual parts of the journey. Seentics combines analytics, funnels, recordings, heatmaps, AI insights, automations, observability and uptime monitoring in one platform, and the analytics core is self-hostable.',
+      'Those products specialize in individual parts of the journey. Seentics combines analytics, funnels, recordings, heatmaps, AI insights, and automations in one platform, and the analytics core is self-hostable.',
   },
   {
     question: 'Does AI Mode make changes automatically?',

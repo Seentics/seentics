@@ -34,4 +34,4 @@ export { demoMeter, demoSubscription } from './billing';
 export { demoPathAnalysis } from './paths';
 export { demoSupportTickets } from './support';
 export { demoRevenueDashboard } from './revenue';
-export { demoAgencyClients, demoClientUsers, demoEmbedLinks, demoWhiteLabel, demoAgencyKeys } from './agency';
+export { demoAgencyClients, demoClientUsers, demoCustomDomain, demoEmbedLinks, demoWhiteLabel, demoAgencyKeys } from './agency';

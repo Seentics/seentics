@@ -19,10 +19,13 @@ import { EmbedsTab } from '@/components/agency/tabs/EmbedsTab';
 import { WhiteLabelTab } from '@/components/agency/tabs/WhiteLabelTab';
 import { ClientFormDialog } from '@/components/agency/ClientFormDialog';
 import { CreateAccountKeyDialog } from '@/components/agency/AccountKeysPanel';
+import { useAgencyPlan } from '@/features/agency/plan';
 
 /**
- * Clients and both APIs are open source and on every plan. Client logins and white-label
- * are Cloud features, served by the gateway, so their tabs show only there.
+ * Clients, embeds and both APIs are open source. On Cloud, creating new clients and embed links
+ * takes the Agency plan (useAgencyPlan); API keys stay on every plan. Client access (magic links to
+ * a read-only portal), white label and the portal's custom domain are Cloud's, and the Agency plan's
+ * for every action, so their screens show only on Cloud, and the upgrade prompt without the plan.
  */
 const TAB_GROUPS = [
   {
@@ -60,12 +63,14 @@ function writeUrl(tab: TabId) {
 }
 
 const DESCRIPTIONS: Record<TabId, string> = {
-  clients: 'One record per client: their websites and tracking code, what each collects, usage caps, and an optional login.',
+  clients: isEnterprise
+    ? 'One record per client: their websites and tracking code, what each collects, usage caps, and who can open their portal.'
+    : 'One record per client: their websites and tracking code, what each collects, and usage caps.',
   'api-keys': 'Account keys for the management and analytics APIs.',
   'management-api': 'Create and manage clients and websites from your own backend, with an account key.',
   'analytics-api': "Read any website's analytics, recordings and heatmaps, with an account key.",
   embeds: "Put a read-only dashboard of a website inside your own product or a client's portal.",
-  'white-label': 'Your brand on everything your clients see.',
+  'white-label': 'Your brand, and your own domain, on the portal your clients see.',
 };
 
 export default function AgencyPage() {
@@ -77,6 +82,7 @@ export default function AgencyPage() {
 
   const { data: clients } = useAgencyClients(websiteId);
   const { data: keys } = useAgencyAPIKeys(websiteId);
+  const { allowed: agencyPlan } = useAgencyPlan(websiteId);
   const counts: Partial<Record<TabId, number | undefined>> = { clients: clients?.length, 'api-keys': keys?.length };
 
   useEffect(() => {
@@ -101,7 +107,8 @@ export default function AgencyPage() {
             Docs
           </Link>
         </Button>
-        {tab === 'clients' && (
+        {/* Without the Agency plan the Clients tab shows the upgrade prompt in its place. */}
+        {tab === 'clients' && agencyPlan && (
           <Button size="sm" className="gap-1.5" onClick={() => editClient(null)}>
             <Plus className="h-3.5 w-3.5" />
             Add client

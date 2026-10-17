@@ -22,6 +22,9 @@ export interface WebsiteRepository {
 
   listOwnedBy(ownerId: string): Promise<Website[]>;
 
+  /** Websites the user was invited to (a website_members row), not owns; oldest first. */
+  listMemberOf(userId: string): Promise<Website[]>;
+
   /** The user's role, or `null` when they have neither ownership nor membership. */
   findRole(websiteId: string, userId: string): Promise<WebsiteRole | null>;
 

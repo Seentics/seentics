@@ -50,16 +50,15 @@ export function ObserveGlyph({ className }: { className?: string }) {
   );
 }
 
-const SUITE_PRODUCTS = [
-  {
-    name: 'Observability',
-    description: 'Logs, traces, metrics and grouped errors for every service behind your product.',
-    href: config.observeUrl,
-    glyph: ObserveGlyph,
-    // observability/web --accent-solid
-    tint: 'bg-[hsl(267_60%_47%)]',
-  },
-];
+type SuiteProduct = { name: string; description: string; href: string; glyph: typeof ObserveGlyph; tint: string };
+
+/**
+ * Sibling products in the menu. Observability is not marketed for now (it stays in the dashboard
+ * and in Billing), so the list is empty and the menu shows only the free tools. To bring it back:
+ * { name: 'Observability', description: 'Logs, traces, metrics and grouped errors for every service
+ * behind your product.', href: config.observeUrl, glyph: ObserveGlyph, tint: 'bg-[hsl(267_60%_47%)]' }.
+ */
+const SUITE_PRODUCTS: SuiteProduct[] = [];
 
 const FREE_TOOLS = [
   {
@@ -123,6 +122,8 @@ function ProductsNavItem() {
                is pushed half its own width further left and runs off screen. */
             className="absolute left-0 top-full z-50 mt-3 w-[440px] max-w-[calc(100vw-3rem)] rounded-xl border border-border bg-card p-3 shadow-lg"
           >
+            {SUITE_PRODUCTS.length > 0 && (
+            <>
             <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
               Products
             </p>
@@ -149,6 +150,8 @@ function ProductsNavItem() {
             </div>
 
             <div className="my-2 border-t border-border/60" />
+            </>
+            )}
 
             <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
               Free tools

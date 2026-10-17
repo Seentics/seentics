@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -22,7 +21,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useAgencyClients, useDeleteClient, useUpdateClient, isDemoRefusal } from '@/features/agency/queries';
+import { useAgencyClients, useClientUsers, useCustomDomain, useDeleteClient, useUpdateClient, isDemoRefusal } from '@/features/agency/queries';
 import type { AgencyClient } from '@/features/agency/types';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { ColumnDef, DataTable, SortableHeader } from '@/components/ui/data-table';
@@ -39,10 +38,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { isEnterprise } from '@/lib/features';
-import { deleteClientUser, listClientUsers, type ClientUser } from '@/features/agency';
-import { demoClientUsers, demoMutationGuard, isDemo } from '@/lib/demo';
-import { CreateClientUserDialog, DeleteConfirmDialog, ResetPasswordDialog } from '@/components/agency/client-user-dialogs';
+import { demoMutationGuard, isDemo } from '@/lib/demo';
+import { InviteClientUserDialog } from '@/components/agency/client-user-dialogs';
 import { FEATURE_NAMES, compactNumber, initials, limitPhrases } from '@/components/agency/format';
+import { AgencyPlanPrompt } from '@/components/agency/AgencyPlanPrompt';
+import { useAgencyPlan } from '@/features/agency/plan';
 
 type Filter = 'all' | AgencyClient['status'];
 
@@ -123,27 +123,16 @@ export function ClientsTab({
   const update = useUpdateClient(websiteId);
   const remove = useDeleteClient(websiteId);
 
-  // A client's login is the login with its email. Cloud only; the demo site shows samples.
+  const { allowed: agencyPlan } = useAgencyPlan(websiteId);
+
+  // Who can open each client's portal. Cloud only, and the Agency plan's alone: without it there is
+  // no request and no column. The demo site shows samples.
   const demo = isDemo(websiteId);
-  const showLogins = isEnterprise || demo;
-  const queryClient = useQueryClient();
-  const { data: logins = [] } = useQuery({
-    queryKey: ['agency-client-users', demo],
-    queryFn: () => (demo ? Promise.resolve(demoClientUsers()) : listClientUsers()),
-    enabled: showLogins,
-  });
-  const loginFor = (c: AgencyClient): ClientUser | undefined =>
-    c.email ? logins.find(u => u.email.toLowerCase() === c.email.toLowerCase()) : undefined;
-  const refreshLogins = () => queryClient.invalidateQueries({ queryKey: ['agency-client-users'] });
-  const [newLoginFor, setNewLoginFor] = useState<AgencyClient | null>(null);
-  const [resetTarget, setResetTarget] = useState<ClientUser | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ClientUser | null>(null);
-  const deleteLogin = (userId: string) => {
-    if (demoMutationGuard(websiteId)) return;
-    deleteClientUser(userId)
-      .then(() => { toast.success('Login removed'); setDeleteTarget(null); refreshLogins(); })
-      .catch((e: Error) => toast.error(e.message || 'Could not remove the login'));
-  };
+  const showAccess = (isEnterprise || demo) && agencyPlan;
+  const { data: clientUsers = [] } = useClientUsers(websiteId, { enabled: showAccess });
+  const { data: domain } = useCustomDomain(websiteId, { enabled: showAccess });
+  const withAccess = (c: AgencyClient) => clientUsers.filter(u => u.clientId === c.id && u.status !== 'revoked');
+  const [inviteTo, setInviteTo] = useState<AgencyClient | null>(null);
 
   const onError = (e: unknown) => { if (!isDemoRefusal(e)) toast.error((e as Error).message || 'Something went wrong'); };
   const setStatus = (c: AgencyClient, status: AgencyClient['status']) =>
@@ -255,17 +244,18 @@ export function ClientsTab({
       size: 84,
       cell: ({ row }) => <CapCell value={row.original.limits.maxReplays} />,
     },
-    ...(showLogins ? [{
-      id: 'login',
-      header: 'Login',
+    ...(showAccess ? [{
+      id: 'access',
+      header: 'Portal',
       enableSorting: false,
-      size: 50,
+      size: 60,
       cell: ({ row }: { row: { original: AgencyClient } }) => {
-        const u = loginFor(row.original);
-        return u ? (
-          <span className="inline-flex" title={`Login: ${u.email}`}>
-            <KeyRound className="h-4 w-4 text-emerald-600" aria-hidden />
-            <span className="sr-only">Has login</span>
+        const n = withAccess(row.original).length;
+        return n ? (
+          <span className="inline-flex items-center gap-1 text-sm tabular-nums text-foreground" title={`${n} ${n === 1 ? 'person' : 'people'} with portal access`}>
+            <KeyRound className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+            {n}
+            <span className="sr-only">with portal access</span>
           </span>
         ) : (
           <span className="text-muted-foreground/60">—</span>
@@ -322,26 +312,11 @@ export function ClientsTab({
                     <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Restore
                   </DropdownMenuItem>
                 )}
-                {showLogins && (() => {
-                  const u = loginFor(c);
-                  if (u) {
-                    return (
-                      <>
-                        <DropdownMenuItem onClick={() => setResetTarget(u)}>
-                          <KeyRound className="mr-2 h-3.5 w-3.5" /> Reset login password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setDeleteTarget(u)}>
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove login
-                        </DropdownMenuItem>
-                      </>
-                    );
-                  }
-                  return c.email ? (
-                    <DropdownMenuItem onClick={() => { if (!demoMutationGuard(websiteId)) setNewLoginFor(c); }}>
-                      <UserPlus className="mr-2 h-3.5 w-3.5" /> Create login
-                    </DropdownMenuItem>
-                  ) : null;
-                })()}
+                {showAccess && c.status !== 'archived' && (
+                  <DropdownMenuItem onClick={() => { if (!demoMutationGuard(websiteId)) setInviteTo(c); }}>
+                    <UserPlus className="mr-2 h-3.5 w-3.5" /> Invite to portal
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
@@ -369,15 +344,8 @@ export function ClientsTab({
   return (
     <>
       {confirmDialog}
-      <CreateClientUserDialog
-        websiteId={websiteId}
-        open={!!newLoginFor}
-        onOpenChange={o => !o && setNewLoginFor(null)}
-        initial={newLoginFor ? { name: newLoginFor.name, email: newLoginFor.email, company: newLoginFor.company } : null}
-        onDone={refreshLogins}
-      />
-      <ResetPasswordDialog user={resetTarget} onClose={() => setResetTarget(null)} />
-      <DeleteConfirmDialog user={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={deleteLogin} isDeleting={false} />
+      <InviteClientUserDialog websiteId={websiteId} client={inviteTo} domain={domain} onOpenChange={o => { if (!o) setInviteTo(null); }} />
+      {!agencyPlan && <AgencyPlanPrompt websiteId={websiteId} className="mb-4" />}
       <StatCards
         isLoading={isLoading}
         cards={[
@@ -433,7 +401,9 @@ export function ClientsTab({
         emptyDescription={
           search || filter !== 'all'
             ? 'No client matches that search or status.'
-            : 'Add a client to group its websites, switch features off and set monthly caps — or create them from your backend with the management API.'
+            : !agencyPlan
+              ? 'Clients you add on the Agency plan show here.'
+              : 'Add a client to group its websites, switch features off and set monthly caps — or create them from your backend with the management API.'
         }
         pageSize={10}
       />

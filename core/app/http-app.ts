@@ -50,6 +50,7 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
         clients: application.modules.websites.agencyRoutes,
         apiKeys: application.modules.apiKeys.accountRoutes,
         embedLinks: application.modules.apiKeys.embedRoutes,
+        dashboard: application.modules.agency.dashboardRoutes,
       },
     }),
   );
@@ -79,11 +80,17 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
       routers: application.modules.websites.managementRoutes,
     }),
   );
-  // Iframed dashboards, read with a permanent, revocable embed link's token. See app/http/embed/routes.ts.
+  // The client portal's entry: a portal link's token answers its client, websites and brand.
+  // The portal then reads through the embed API below with that same token.
+  app.route("/api/v1/agency/portal", application.modules.agency.portalRoutes);
+  // Iframed dashboards, read with a permanent, revocable embed link's token (or a client
+  // portal link's). See app/http/embed/routes.ts.
   app.route(
     "/api/v1/embed",
     createEmbedRoutes({
       embedLinks: application.modules.apiKeys.embedLinks,
+      portal: application.modules.agency.portal,
+      branding: application.modules.agency.whiteLabel,
       clients: application.modules.websites.clients,
       analytics: application.modules.analytics.reads,
       websites: application.modules.websites.query,

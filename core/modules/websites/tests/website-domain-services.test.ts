@@ -98,6 +98,12 @@ class FakeWebsiteRepository implements WebsiteRepository {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
+  async listMemberOf(userId: string): Promise<Website[]> {
+    return [...this.websites.values()]
+      .filter((w) => w.ownerId !== userId && this.roles.has(`${w.id}:${userId}`))
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
   async findRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
     return this.roles.get(`${websiteId}:${userId}`) ?? null;
   }

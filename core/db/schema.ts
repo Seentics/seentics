@@ -474,6 +474,81 @@ export const embedLinks = pgTable(
   ],
 );
 
+/** An agency's brand, shown to its clients on the portal and on embeds (068, 069). No row = defaults. */
+export const agencyWhiteLabel = pgTable(
+  "agency_white_label",
+  {
+    ownerId: uuid("owner_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    brandName: varchar("brand_name", { length: 80 }).notNull().default(""),
+    logoUrl: varchar("logo_url", { length: 1024 }).notNull().default(""),
+    primaryColor: varchar("primary_color", { length: 7 }).notNull().default("#6366f1"),
+    supportEmail: varchar("support_email", { length: 320 }).notNull().default(""),
+    footerText: varchar("footer_text", { length: 200 }).notNull().default(""),
+    hideSeentics: boolean("hide_seentics").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("ck_agency_white_label_color", sql`${t.primaryColor} ~ '^#[0-9a-f]{6}$'`),
+    check("ck_agency_white_label_logo", sql`${t.logoUrl} = '' OR ${t.logoUrl} LIKE 'https://%'`),
+  ],
+);
+
+/** A client's contact with read-only portal access to that one client (068). No password. */
+export const agencyClientUsers = pgTable(
+  "agency_client_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    /** Lower-cased on write, so the unique index is case-insensitive. */
+    email: varchar("email", { length: 320 }).notNull(),
+    name: varchar("name", { length: 120 }).notNull().default(""),
+    /** invited | active | revoked */
+    status: varchar("status", { length: 16 }).notNull().default("invited"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("ux_agency_client_users_client_email").on(t.clientId, t.email),
+    index("ix_agency_client_users_owner").on(t.ownerId, t.createdAt),
+    check("ck_agency_client_users_status", sql`${t.status} IN ('invited', 'active', 'revoked')`),
+  ],
+);
+
+/** Client portal links (068). Only the token's SHA-256 is stored; the token is shown once. */
+export const agencyPortalTokens = pgTable(
+  "agency_portal_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    /** `null` for the anonymous whole-client link the dashboard's "Generate link" makes. */
+    clientUserId: uuid("client_user_id").references(() => agencyClientUsers.id, { onDelete: "cascade" }),
+    tokenHash: char("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ux_agency_portal_tokens_hash").on(t.tokenHash),
+    index("ix_agency_portal_tokens_client_live").on(t.clientId).where(sql`${t.revokedAt} IS NULL`),
+    index("ix_agency_portal_tokens_client_user").on(t.clientUserId).where(sql`${t.clientUserId} IS NOT NULL`),
+  ],
+);
+
 /** Session replay metadata (chunks / bundles may live in S3). */
 export const sessionReplays = pgTable(
   "session_replays",

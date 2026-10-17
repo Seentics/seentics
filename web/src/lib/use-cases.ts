@@ -428,7 +428,7 @@ export const USE_CASES: UseCase[] = [
     automation: { trigger: 'JS Error on checkout or sign-up pages', action: 'Webhook to your team channel', why: 'A script error on a conversion page loses visitors silently; this makes it loud.' },
     metrics: ['Errors per page', 'Sessions with rage clicks', 'Failing network requests', 'Errors by browser and device'],
     faqs: [
-      { q: 'Does it replace an error tracker?', a: 'It covers errors in visitors\' browsers with the session for context. For server-side errors, see Seentics Observability.' },
+      { q: 'Does it replace an error tracker?', a: 'It covers errors in visitors\' browsers, with the session for context. Server-side errors are better left to your backend error tracker.' },
       { q: 'Can it alert my team?', a: 'Yes, with a Webhook action to any endpoint such as Slack.' },
       { q: 'Could errors contain sensitive data?', a: 'It scrubs sensitive-looking values, but cannot know your own conventions. Exclude pages that handle sensitive data.' },
     ],

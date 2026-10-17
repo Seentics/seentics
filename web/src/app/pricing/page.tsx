@@ -30,13 +30,13 @@ export default function PricingPage() {
         }
         if (!isAuthenticated) {
             // Sign up first; the dashboard then takes them straight to this plan's checkout.
-            rememberCheckoutIntent(selection.plan, selection.interval);
+            rememberCheckoutIntent(selection.plan, selection.interval, selection.discount);
             router.push('/signup');
             return;
         }
         try {
             setLoading(true);
-            await startCheckout(selection.plan, selection.interval);
+            await startCheckout(selection.plan, selection.interval, selection.discount);
         } catch (error: any) {
             toast.error(error.response?.data?.error || error.response?.data?.message || 'Failed to create checkout. Please try again.');
         } finally {
@@ -58,7 +58,7 @@ export default function PricingPage() {
                             <span className="lx-dim">Only the amounts differ.</span>
                         </h1>
                         <p className="lx-dim max-w-md text-base leading-relaxed">
-                            Analytics, replay, heatmaps, funnels, popups and observability on Free, Starter and Pro alike. The plans differ only in how many events, recordings and gigabytes they include.
+                            Analytics, replay, heatmaps, funnels and popups on every plan. Free, Starter and Pro differ only in how many events and recordings they include; Agency adds client workspaces for the sites you run for clients.
                         </p>
                     </div>
                     <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />

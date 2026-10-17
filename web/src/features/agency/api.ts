@@ -8,11 +8,13 @@ import type {
   ClientWebsite,
   CreateClientRequest,
   CreateClientUserRequest,
-  CreateClientUserResponse,
+  CustomDomain,
   EmbedLink,
   EmbedSection,
-  PortalToken,
+  IssuedClientUserLink,
+  PortalLink,
   UpdateClientRequest,
+  WhiteLabelPatch,
   WhiteLabelSettings,
 } from './types';
 
@@ -261,86 +263,180 @@ export async function revokeEmbedLink(id: string): Promise<void> {
   await api.delete(`/user/agency/embed-links/${id}`);
 }
 
-// ─── Cloud only ───────────────────────────────────────────────────────────────
-// Portal links, white-label and client logins are proprietary and served by the
-// gateway, not Core; their screens show only when `isEnterprise`.
+// ─── Client access (Agency plan) ──────────────────────────────────────────────
+// Core's agency module (modules/agency): white label, client users with magic links, and each
+// client's anonymous portal link. The custom domain is the gateway's. All of it takes the Agency
+// plan; without it every call answers 403 AGENCY_PLAN_REQUIRED.
 
-export async function generatePortalToken(clientId: string): Promise<PortalToken> {
-  const response = await api.post(`/user/agency/clients/${clientId}/portal-token`);
-  const raw = response.data.data;
-  return { id: raw.id, clientId: raw.client_id, token: raw.token, expiresAt: raw.expires_at, createdAt: raw.created_at };
-}
+type WireClientUser = {
+  id: string;
+  client_id: string;
+  email: string;
+  name: string;
+  status: ClientUser['status'];
+  created_at: string;
+  updated_at: string;
+  last_seen_at: string | null;
+  link_expires_at: string | null;
+};
 
-export async function getWhiteLabel(): Promise<WhiteLabelSettings> {
-  const response = await api.get('/user/agency/white-label');
-  return mapWhiteLabel(response.data.data);
-}
+type WirePortalLink = {
+  id: string;
+  client_id: string;
+  token: string;
+  portal_url: string;
+  expires_at: string;
+  created_at: string;
+};
 
-export async function updateWhiteLabel(req: Partial<WhiteLabelSettings>): Promise<WhiteLabelSettings> {
-  const payload: Record<string, unknown> = {};
-  if (req.brandName !== undefined) payload.brand_name = req.brandName;
-  if (req.logoUrl !== undefined) payload.logo_url = req.logoUrl;
-  if (req.primaryColor !== undefined) payload.primary_color = req.primaryColor;
-  if (req.supportEmail !== undefined) payload.support_email = req.supportEmail;
-  if (req.customDomain !== undefined) payload.custom_domain = req.customDomain;
-  if (req.hideSeentics !== undefined) payload.hide_seentics = req.hideSeentics;
-  const response = await api.patch('/user/agency/white-label', payload);
-  return mapWhiteLabel(response.data.data);
-}
+type WireIssued = { client_user: WireClientUser; link: WirePortalLink };
 
-function mapWhiteLabel(raw: any): WhiteLabelSettings {
+type WireWhiteLabel = {
+  brand_name: string;
+  logo_url: string;
+  primary_color: string;
+  support_email: string;
+  footer_text: string;
+  hide_seentics: boolean;
+  updated_at: string | null;
+};
+
+type WireCustomDomain = {
+  hostname: string;
+  state: CustomDomain['state'];
+  reason: string | null;
+  cname_target: string;
+  ownership_verification: CustomDomain['ownershipVerification'];
+  created_at: string;
+  updated_at: string;
+  last_checked_at: string | null;
+};
+
+function mapClientUser(u: WireClientUser): ClientUser {
   return {
-    userId: raw.user_id,
-    brandName: raw.brand_name ?? '',
-    logoUrl: raw.logo_url ?? '',
-    primaryColor: raw.primary_color ?? '#6366f1',
-    supportEmail: raw.support_email ?? '',
-    customDomain: raw.custom_domain ?? '',
-    hideSeentics: raw.hide_seentics ?? false,
+    id: u.id, clientId: u.client_id, email: u.email, name: u.name, status: u.status,
+    createdAt: u.created_at, updatedAt: u.updated_at, lastSeenAt: u.last_seen_at, linkExpiresAt: u.link_expires_at,
   };
 }
 
-function mapClientUser(raw: any): ClientUser {
+function mapPortalLink(l: WirePortalLink): PortalLink {
+  return { id: l.id, clientId: l.client_id, token: l.token, portalUrl: l.portal_url, expiresAt: l.expires_at, createdAt: l.created_at };
+}
+
+const mapIssued = (r: WireIssued): IssuedClientUserLink => ({ clientUser: mapClientUser(r.client_user), link: mapPortalLink(r.link) });
+
+function mapWhiteLabel(w: WireWhiteLabel): WhiteLabelSettings {
   return {
-    id: raw.id,
-    userId: raw.user_id,
-    name: raw.name ?? '',
-    email: raw.email ?? '',
-    company: raw.company || undefined,
-    status: raw.status ?? 'active',
-    featuresEnabled: {
-      analytics: raw.features_enabled?.analytics ?? true,
-      heatmaps: raw.features_enabled?.heatmaps ?? true,
-      replays: raw.features_enabled?.replays ?? true,
-      funnels: raw.features_enabled?.funnels ?? true,
-      automations: raw.features_enabled?.automations ?? true,
-    },
-    limits: raw.limits || undefined,
-    createdAt: raw.created_at ?? '',
+    brandName: w.brand_name, logoUrl: w.logo_url, primaryColor: w.primary_color, supportEmail: w.support_email,
+    footerText: w.footer_text, hideSeentics: w.hide_seentics, updatedAt: w.updated_at,
   };
 }
 
-export async function listClientUsers(): Promise<ClientUser[]> {
-  const response = await api.get('/user/agency/client-users');
-  return (response.data.data ?? []).map(mapClientUser);
+function mapCustomDomain(d: WireCustomDomain): CustomDomain {
+  return {
+    hostname: d.hostname, state: d.state, reason: d.reason, cnameTarget: d.cname_target,
+    ownershipVerification: d.ownership_verification, createdAt: d.created_at, updatedAt: d.updated_at,
+    lastCheckedAt: d.last_checked_at,
+  };
 }
 
-export async function createClientUser(req: CreateClientUserRequest): Promise<CreateClientUserResponse> {
-  const response = await api.post('/user/agency/client-users', req);
-  const raw = response.data.data;
-  return { client: mapClientUser(raw.client), user: raw.user, tempPassword: raw.temp_password };
+/** Newest first; `clientId` narrows to one client's. */
+export async function listClientUsers(clientId?: string): Promise<ClientUser[]> {
+  const response = await api.get<{ data: WireClientUser[] }>('/user/agency/client-users', {
+    params: clientId ? { client_id: clientId } : {},
+  });
+  return response.data.data.map(mapClientUser);
 }
 
-export async function getClientUser(userId: string): Promise<ClientUser> {
-  const response = await api.get(`/user/agency/client-users/${userId}`);
+/** Invites the person and returns their first magic link: the only time it can be shown. */
+export async function createClientUser(req: CreateClientUserRequest): Promise<IssuedClientUserLink> {
+  const body = { client_id: req.clientId, email: req.email, ...(req.name ? { name: req.name } : {}) };
+  const response = await api.post<{ data: WireIssued }>('/user/agency/client-users', body);
+  return mapIssued(response.data.data);
+}
+
+/** A fresh magic link; every earlier one stops working. Refused (409) for a revoked user. */
+export async function resendClientUserLink(id: string): Promise<IssuedClientUserLink> {
+  const response = await api.post<{ data: WireIssued }>(`/user/agency/client-users/${id}/resend`);
+  return mapIssued(response.data.data);
+}
+
+/** Stops every link the user has, at once. */
+export async function revokeClientUser(id: string): Promise<ClientUser> {
+  const response = await api.post<{ data: WireClientUser }>(`/user/agency/client-users/${id}/revoke`);
   return mapClientUser(response.data.data);
 }
 
-export async function deleteClientUser(userId: string): Promise<void> {
-  await api.delete(`/user/agency/client-users/${userId}`);
+export async function deleteClientUser(id: string): Promise<void> {
+  await api.delete(`/user/agency/client-users/${id}`);
 }
 
-export async function resetClientUserPassword(userId: string): Promise<{ tempPassword: string }> {
-  const response = await api.post(`/user/agency/client-users/${userId}/reset-password`);
-  return { tempPassword: response.data.data.temp_password };
+/** The client's anonymous 7-day link. Making one stops any earlier one. */
+export async function createPortalLink(clientId: string): Promise<PortalLink> {
+  const response = await api.post<{ data: WirePortalLink }>(`/user/agency/clients/${clientId}/portal-token`);
+  return mapPortalLink(response.data.data);
+}
+
+export async function revokePortalLink(clientId: string): Promise<void> {
+  await api.delete(`/user/agency/clients/${clientId}/portal-token`);
+}
+
+export async function getWhiteLabel(): Promise<WhiteLabelSettings> {
+  const response = await api.get<{ data: WireWhiteLabel }>('/user/agency/white-label');
+  return mapWhiteLabel(response.data.data);
+}
+
+/** Partial: absent fields keep their value, `''` clears a text field. */
+export async function updateWhiteLabel(req: WhiteLabelPatch): Promise<WhiteLabelSettings> {
+  const body: Record<string, unknown> = {};
+  if (req.brandName !== undefined) body.brand_name = req.brandName;
+  if (req.logoUrl !== undefined) body.logo_url = req.logoUrl;
+  if (req.primaryColor !== undefined) body.primary_color = req.primaryColor;
+  if (req.supportEmail !== undefined) body.support_email = req.supportEmail;
+  if (req.footerText !== undefined) body.footer_text = req.footerText;
+  if (req.hideSeentics !== undefined) body.hide_seentics = req.hideSeentics;
+  const response = await api.patch<{ data: WireWhiteLabel }>('/user/agency/white-label', body);
+  return mapWhiteLabel(response.data.data);
+}
+
+export async function getCustomDomain(): Promise<CustomDomain | null> {
+  const response = await api.get<{ data: WireCustomDomain | null }>('/user/agency/custom-domain');
+  return response.data.data ? mapCustomDomain(response.data.data) : null;
+}
+
+/** Claims `hostname` for the portal, replacing any earlier one. */
+export async function setCustomDomain(hostname: string): Promise<CustomDomain> {
+  const response = await api.put<{ data: WireCustomDomain }>('/user/agency/custom-domain', { hostname });
+  return mapCustomDomain(response.data.data);
+}
+
+/** Asks Cloudflare again now, rather than waiting for the gateway's own next check. */
+export async function refreshCustomDomain(): Promise<CustomDomain> {
+  const response = await api.post<{ data: WireCustomDomain }>('/user/agency/custom-domain/refresh');
+  return mapCustomDomain(response.data.data);
+}
+
+export async function removeCustomDomain(): Promise<void> {
+  await api.delete('/user/agency/custom-domain');
+}
+
+/**
+ * The link to hand a client: on the agency's own domain once it serves, else on Seentics' host as
+ * Core built it. A pending domain would be a dead link, so it is never used early.
+ */
+export function portalLinkUrl(link: Pick<PortalLink, 'token' | 'portalUrl'>, domain: CustomDomain | null | undefined): string {
+  return domain?.state === 'active' ? `https://${domain.hostname}/client-portal/${link.token}` : link.portalUrl;
+}
+
+/** Why the custom domain could not be saved, in words, from the gateway's error codes. */
+export function customDomainError(e: unknown): string {
+  const response = (e as { response?: { status?: number; data?: { error?: string; message?: string } } })?.response;
+  const code = response?.data?.error;
+  if (code === 'invalid_hostname') return response?.data?.message || 'That is not a hostname you can use. Try one like reports.youragency.com.';
+  if (code === 'hostname_taken') return 'That hostname is already in use by another account.';
+  if (code === 'custom_domains_unavailable' || response?.status === 503) return 'Custom domains are unavailable right now. Please try again later.';
+  if (code === 'custom_domain_provider_error' || response?.status === 502) return 'Our certificate provider could not take the domain just now. Please try again in a few minutes.';
+  if (response?.status === 429) return 'Too many domain changes in the last hour. Please wait a while and try again.';
+  if (response?.status === 404) return 'There is no custom domain to check. Add one first.';
+  return response?.data?.message || (e as Error)?.message || 'Something went wrong';
 }

@@ -1,363 +1,292 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { format, formatDistanceToNow } from 'date-fns';
+import { Check, Loader2, MailPlus, MoreVertical, RefreshCw, Ban, Trash2 } from 'lucide-react';
 import {
-  listClientUsers,
   createClientUser,
   deleteClientUser,
-  resetClientUserPassword,
-  ClientUser,
-  CreateClientUserRequest,
-  CreateClientUserResponse,
+  portalLinkUrl,
+  resendClientUserLink,
+  revokeClientUser,
+  type AgencyClient,
+  type ClientUser,
+  type CustomDomain,
+  type IssuedClientUserLink,
+  type PortalLink,
 } from '@/features/agency';
-import { Card, CardContent } from '@/components/ui/card';
+import { isDemoRefusal, useAgencyMutation } from '@/features/agency/queries';
+import { isAgencyPlanRequired, useAgencyPlan } from '@/features/agency/plan';
+import { USER_STATUS_STYLES } from '@/features/agency/constants';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
-import { Switch } from '@/components/ui/switch';
-import { demoMutationGuard } from '@/lib/demo';
-import Link from 'next/link';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  UserPlus,
-  Users,
-  Trash2,
-  KeyRound,
-  Copy,
-  Check,
-  Eye,
-  Loader2,
-  Mail,
-  Building2,
-  Calendar,
-  RefreshCw,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { USER_STATUS_STYLES } from '@/features/agency/constants';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { CopyButton } from '@/components/agency/CopyButton';
-
-type FeatureKey = keyof ClientUser['featuresEnabled'];
-
-const DEFAULT_FEATURES: ClientUser['featuresEnabled'] = {
-  analytics: true, heatmaps: true, replays: true, funnels: true, automations: true,
-};
-
-const FEATURE_LABELS: Array<{ key: FeatureKey; label: string }> = [
-  { key: 'analytics',   label: 'Analytics' },
-  { key: 'heatmaps',    label: 'Heatmaps' },
-  { key: 'replays',     label: 'Replays' },
-  { key: 'funnels',     label: 'Funnels' },
-  { key: 'automations', label: 'Automations' },
-];
+import { cn } from '@/lib/utils';
 
 /**
- * The create, reset-password and delete dialogs for client users.
- *
- * Three modals and the temporary-password panel, 280 lines in the route file. Each takes
- * the user it acts on and a callback, so the same dialog can be opened from the list, the
- * detail page, or anywhere else that manages a client user.
+ * Client users: a client's contacts, each with a magic link to that client's read-only portal.
+ * There is no password. A link's token is in the response that made it and nowhere else, so the
+ * link is shown once, right then; "Resend link" makes a fresh one (and kills the old ones).
+ * Seentics sends no email: the agency passes the link on.
  */
-export function TempPasswordDisplay({ password }: { password: string }) {
+
+const CLIENT_USER_ERRORS: Record<string, string> = {
+  client_user_exists: 'That person already has access to this client.',
+  client_user_revoked: 'Their access was revoked. Delete them, then invite them again.',
+  client_user_not_found: 'That person no longer exists.',
+  client_not_found: 'That client no longer exists.',
+};
+
+/** Handles a failed client-access call: the plan prompt for 403 AGENCY_PLAN_REQUIRED, else a toast. */
+export function useClientAccessError(websiteId: string) {
+  const { markRefused } = useAgencyPlan(websiteId);
+  return (e: unknown) => {
+    if (isDemoRefusal(e)) return;
+    if (isAgencyPlanRequired(e)) {
+      markRefused();
+      toast.error('Client access is part of the Agency plan.');
+      return;
+    }
+    const code = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+    toast.error((code && CLIENT_USER_ERRORS[code]) || (e as Error)?.message || 'Something went wrong');
+  };
+}
+
+/** A portal link, the one time it can be shown, with its copy button. */
+export function PortalLinkReveal({ link, domain, label }: { link: PortalLink; domain: CustomDomain | null | undefined; label?: string }) {
+  const url = portalLinkUrl(link, domain);
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid="portal-link">
+      {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-lg px-3 py-2 select-all break-all">
-          {password}
+        <code className="min-w-0 flex-1 select-all break-all rounded-md border border-border/60 bg-muted/50 px-2.5 py-2 font-mono text-xs">
+          {url}
         </code>
-        <CopyButton text={password} />
+        <CopyButton text={url} />
       </div>
       <p className="text-[11px] text-amber-600 dark:text-amber-400">
-        Share this password with your client. It won't be shown again.
+        Copy it now and send it yourself: it won&apos;t be shown again. Works until {format(new Date(link.expiresAt), 'MMM d, yyyy')}.
       </p>
     </div>
   );
 }
 
-// ─── Create Client User Dialog ────────────────────────────────────────────────
+// ─── Invite ──────────────────────────────────────────────────────────────────
 
-export interface CreateClientUserDialogProps {
-  /** The website the page was reached under; the demo website refuses the write. */
-  websiteId?: string;
-  /** Prefill from a client, when the login is for one that already exists. */
-  initial?: { name: string; email: string; company?: string } | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onDone: () => void;
+export interface InviteClientUserDialogProps {
+  websiteId: string;
+  client: Pick<AgencyClient, 'id' | 'name' | 'email'> | null;
+  domain: CustomDomain | null | undefined;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateClientUserDialog({ websiteId, initial, open, onOpenChange, onDone }: CreateClientUserDialogProps) {
-  const [name, setName]         = useState('');
-  const [email, setEmail]       = useState('');
-  const [company, setCompany]   = useState('');
-  const [password, setPassword] = useState('');
-  const [features, setFeatures] = useState<ClientUser['featuresEnabled']>({ ...DEFAULT_FEATURES });
-  const [result, setResult]     = useState<CreateClientUserResponse | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: (req: CreateClientUserRequest) => createClientUser(req),
-    onSuccess: (data) => {
-      setResult(data);
-      onDone();
-    },
-    onError: (err: any) => toast.error(err.message || 'Failed to create client account'),
-  });
+export function InviteClientUserDialog({ websiteId, client, domain, onOpenChange }: InviteClientUserDialogProps) {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [issued, setIssued] = useState<IssuedClientUserLink | null>(null);
+  const onError = useClientAccessError(websiteId);
+  const invite = useAgencyMutation(websiteId, createClientUser);
+  const open = !!client;
 
   useEffect(() => {
-    if (open && initial) {
-      setName(initial.name);
-      setEmail(initial.email);
-      setCompany(initial.company ?? '');
-    }
-  }, [open, initial]);
+    if (!client) return;
+    setEmail(client.email ?? '');
+    setName('');
+    setIssued(null);
+  }, [client]);
 
-  const resetForm = () => {
-    setName(''); setEmail(''); setCompany(''); setPassword('');
-    setFeatures({ ...DEFAULT_FEATURES });
-    setResult(null);
+  const submit = () => {
+    if (!client || !email.trim()) return;
+    invite.mutate(
+      { clientId: client.id, email: email.trim(), name: name.trim() || undefined },
+      {
+        onSuccess: setIssued,
+        onError: (e) => {
+          onError(e);
+          if (isAgencyPlanRequired(e)) onOpenChange(false);
+        },
+      },
+    );
   };
 
-  const handleClose = (v: boolean) => {
-    onOpenChange(v);
-    if (!v) resetForm();
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim() || !email.trim()) return;
-    if (websiteId && demoMutationGuard(websiteId)) return;
-    const req: CreateClientUserRequest = {
-      name: name.trim(),
-      email: email.trim(),
-      company: company.trim() || undefined,
-      password: password.trim() || undefined,
-      features,
-    };
-    mutation.mutate(req);
-  };
-
-  const toggleFeature = (key: FeatureKey) =>
-    setFeatures(prev => ({ ...prev, [key]: !prev[key] }));
-
-  // ── Success state ──────────────────────────────────────────────────────────
-  if (result) {
-    return (
-      <Sheet open={open} onOpenChange={handleClose}>
-        <SheetContent className="sm:max-w-md">
-          <SheetHeader className="bg-card">
-            <SheetTitle>Account created</SheetTitle>
-            <SheetDescription>Send these details to your client.</SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+  const field = 'h-8 !bg-card text-xs';
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader className="bg-card">
+          <SheetTitle>{issued ? 'Invitation ready' : `Invite to ${client?.name ?? ''}'s portal`}</SheetTitle>
+          <SheetDescription>
+            {issued
+              ? `Send this link to ${issued.clientUser.email}. It opens a read-only view of ${client?.name}'s websites.`
+              : 'They get a magic link to a read-only view of this client’s websites. No password, no Seentics account.'}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
+          {issued ? (
             <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
                   <Check className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{result.user.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{result.user.email}</p>
+                  <p className="text-sm font-semibold text-foreground">{issued.clientUser.name || issued.clientUser.email}</p>
+                  <p className="truncate text-xs text-muted-foreground">{issued.clientUser.email}</p>
                 </div>
               </div>
-              {result.tempPassword && (
-                <div className="space-y-2 border-t pt-3">
-                  <p className="text-xs font-medium text-muted-foreground">Temporary password</p>
-                  <TempPasswordDisplay password={result.tempPassword} />
-                </div>
-              )}
+              <PortalLinkReveal link={issued.link} domain={domain} />
             </div>
-          </div>
-          <SheetFooter className="bg-card pr-20">
-            <Button size="sm" onClick={() => handleClose(false)}>Done</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  // ── Create form ────────────────────────────────────────────────────────────
-  const field = 'h-8 !bg-card text-xs';
-  const box = 'space-y-3 rounded-lg border bg-card p-3.5 shadow-sm';
-  return (
-    <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent className="sm:max-w-lg">
-        <SheetHeader className="bg-card">
-          <SheetTitle>Create client account</SheetTitle>
-          <SheetDescription>A login that lets a client see only their own dashboard.</SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
-          <div className={box}>
-            <div className="grid grid-cols-2 gap-3">
+          ) : (
+            <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
               <div className="space-y-1">
-                <Label className="text-xs">Full name <span className="text-destructive">*</span></Label>
-                <Input placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} className={field} />
+                <Label htmlFor="client-user-email" className="text-xs">Email <span className="text-destructive">*</span></Label>
+                <Input id="client-user-email" type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className={field} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Company</Label>
-                <Input placeholder="Acme Corp" value={company} onChange={e => setCompany(e.target.value)} className={field} />
+                <Label htmlFor="client-user-name" className="text-xs">Name</Label>
+                <Input id="client-user-name" placeholder="Jane Smith" value={name} onChange={e => setName(e.target.value)} className={field} />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Email <span className="text-destructive">*</span></Label>
-              <Input type="email" placeholder="jane@acme.com" value={email} onChange={e => setEmail(e.target.value)} className={field} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Password</Label>
-              <Input
-                type="password"
-                placeholder="Leave empty to generate one"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className={field}
-              />
-            </div>
-          </div>
-
-          <div className={box}>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Access</h4>
-              <p className="text-[11px] text-muted-foreground">What this person can open.</p>
-            </div>
-            <ul className="divide-y divide-border rounded-md border bg-muted/20">
-              {FEATURE_LABELS.map(({ key, label }) => (
-                <li key={key} className="flex items-center justify-between px-3 py-2">
-                  <span className="text-[13px] text-foreground">{label}</span>
-                  <Switch
-                    className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-                    checked={features[key]}
-                    onCheckedChange={() => toggleFeature(key)}
-                    aria-label={label}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
+          )}
         </div>
-
         <SheetFooter className="bg-card pr-20">
-          <Button variant="outline" size="sm" onClick={() => handleClose(false)}>Cancel</Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || !email.trim() || mutation.isPending}>
-            {mutation.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Create account
-          </Button>
+          {issued ? (
+            <Button size="sm" onClick={() => onOpenChange(false)}>Done</Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button size="sm" onClick={submit} disabled={!email.trim() || invite.isPending}>
+                {invite.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <MailPlus className="mr-1 h-3.5 w-3.5" />}
+                Create link
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
   );
 }
 
-// ─── Reset Password Dialog ────────────────────────────────────────────────────
+// ─── A fresh link, after "Resend link" ───────────────────────────────────────
 
-export interface ResetPasswordDialogProps {
-  user: ClientUser | null;
-  onClose: () => void;
+export function ResentLinkDialog({ issued, domain, onClose }: { issued: IssuedClientUserLink | null; domain: CustomDomain | null | undefined; onClose: () => void }) {
+  return (
+    <Sheet open={!!issued} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader className="bg-card">
+          <SheetTitle>New link for {issued?.clientUser.name || issued?.clientUser.email}</SheetTitle>
+          <SheetDescription>Their earlier links have stopped working.</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto bg-muted/40 p-4">
+          {issued && (
+            <div className="rounded-lg border bg-card p-3.5 shadow-sm">
+              <PortalLinkReveal link={issued.link} domain={domain} />
+            </div>
+          )}
+        </div>
+        <SheetFooter className="bg-card pr-20">
+          <Button size="sm" onClick={onClose}>Done</Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
 }
 
-export function ResetPasswordDialog({ user, onClose }: ResetPasswordDialogProps) {
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
+// ─── The list ────────────────────────────────────────────────────────────────
 
-  const mutation = useMutation({
-    mutationFn: (userId: string) => resetClientUserPassword(userId),
-    onSuccess: (data) => setTempPassword(data.tempPassword),
-    onError: (err: any) => toast.error(err.message || 'Failed to reset password'),
-  });
+const STATUS_LABEL: Record<ClientUser['status'], string> = { invited: 'Invited', active: 'Active', revoked: 'Revoked' };
 
-  const handleClose = () => {
-    setTempPassword(null);
-    onClose();
-  };
+function lastSeen(u: ClientUser): string {
+  if (u.status === 'revoked') return 'Access revoked';
+  if (u.lastSeenAt) return `Last opened ${formatDistanceToNow(new Date(u.lastSeenAt), { addSuffix: true })}`;
+  if (u.linkExpiresAt) return `Link not opened yet · expires ${format(new Date(u.linkExpiresAt), 'MMM d')}`;
+  return 'No live link';
+}
 
-  if (!user) return null;
+/** A client's users, each with Resend link, Revoke and Delete. */
+export function ClientUserList({ websiteId, users, domain }: { websiteId: string; users: ClientUser[]; domain: CustomDomain | null | undefined }) {
+  const [resent, setResent] = useState<IssuedClientUserLink | null>(null);
+  const [confirm, confirmDialog] = useConfirm();
+  const onError = useClientAccessError(websiteId);
+  const resend = useAgencyMutation(websiteId, resendClientUserLink);
+  const revoke = useAgencyMutation(websiteId, revokeClientUser);
+  const remove = useAgencyMutation(websiteId, deleteClientUser);
 
   return (
-    <Dialog open={!!user} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
-        <DialogHeader className="px-6 py-5 border-b border-border">
-          <DialogTitle className="text-base font-semibold">Reset Password</DialogTitle>
-        </DialogHeader>
-        <div className="p-6 space-y-4">
-          {tempPassword ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                New temporary password for <strong>{user.name}</strong>:
+    <>
+      {confirmDialog}
+      <ResentLinkDialog issued={resent} domain={domain} onClose={() => setResent(null)} />
+      <ul className="divide-y divide-border/60">
+        {users.map(u => (
+          <li key={u.id} className="flex items-center gap-3 px-5 py-3" data-testid="client-user">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                <span className="truncate">{u.name || u.email}</span>
+                <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold', USER_STATUS_STYLES[u.status])}>
+                  {STATUS_LABEL[u.status]}
+                </span>
               </p>
-              <TempPasswordDisplay password={tempPassword} />
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Generate a new temporary password for <strong>{user.name}</strong>?
-              Their current password will be invalidated.
-            </p>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button variant="outline" size="sm" onClick={handleClose}>
-            {tempPassword ? 'Close' : 'Cancel'}
-          </Button>
-          {!tempPassword && (
-            <Button
-              size="sm"
-              onClick={() => mutation.mutate(user.userId)}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-              Generate Password
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              <p className="truncate text-xs text-muted-foreground">
+                {u.name ? `${u.email} · ` : ''}{lastSeen(u)}
+              </p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" aria-label={`Actions for ${u.email}`}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {u.status !== 'revoked' && (
+                  <DropdownMenuItem onClick={() => resend.mutate(u.id, { onSuccess: setResent, onError })}>
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" /> Resend link
+                  </DropdownMenuItem>
+                )}
+                {u.status !== 'revoked' && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Revoke ${u.email}'s access?`,
+                        description: 'Every link they have stops working at once. You can delete them afterwards and invite them again.',
+                        confirmLabel: 'Revoke access',
+                        destructive: true,
+                      });
+                      if (ok) revoke.mutate(u.id, { onSuccess: () => toast.success('Access revoked'), onError });
+                    }}
+                  >
+                    <Ban className="mr-2 h-3.5 w-3.5" /> Revoke access
+                  </DropdownMenuItem>
+                )}
+                {u.status !== 'revoked' && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Delete ${u.email}?`,
+                      description: 'They are removed from this client, and their links stop working.',
+                      confirmLabel: 'Delete',
+                      destructive: true,
+                    });
+                    if (ok) remove.mutate(u.id, { onSuccess: () => toast.success('Removed'), onError });
+                  }}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </li>
+        ))}
+      </ul>
+    </>
   );
-}
-
-// ─── Delete Confirm Dialog ────────────────────────────────────────────────────
-
-export interface DeleteConfirmDialogProps {
-  user: ClientUser | null;
-  onClose: () => void;
-  onConfirm: (userId: string) => void;
-  isDeleting: boolean;
-}
-
-export function DeleteConfirmDialog({ user, onClose, onConfirm, isDeleting }: DeleteConfirmDialogProps) {
-  if (!user) return null;
-  return (
-    <Dialog open={!!user} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
-        <DialogHeader className="px-6 py-5 border-b border-border">
-          <DialogTitle className="text-base font-semibold">Delete Account</DialogTitle>
-        </DialogHeader>
-        <div className="p-6">
-          <p className="text-sm text-muted-foreground">
-            Delete <strong>{user.name}</strong>'s account? This will permanently delete their user
-            account and all associated data. This action cannot be undone.
-          </p>
-        </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onConfirm(user.userId)}
-            disabled={isDeleting}
-          >
-            {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
-            Delete Account
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Client User Row ──────────────────────────────────────────────────────────
-
-export interface ClientUserRowProps {
-  user: ClientUser;
-  onResetPassword: (user: ClientUser) => void;
-  onDelete: (user: ClientUser) => void;
 }

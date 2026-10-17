@@ -87,6 +87,15 @@ beforeAll(async () => {
   stylesheetArchive = await makeArchive();
 });
 
+/** The owner's white label as the embed responses carry it. */
+const BRAND = {
+  brand_name: "Northwind Agency", logo_url: "https://northwind.example/logo.png", primary_color: "#112233",
+  support_email: "help@northwind.example", footer_text: "", hide_seentics: true,
+};
+const branding = { brandFor: async (ownerId: string) => (ownerId === OWNER ? BRAND : { ...BRAND, brand_name: "someone else" }) };
+/** Portal tokens have their own suite (embed-portal.test.ts); here none is ever valid. */
+const noPortal = { verify: async () => null };
+
 async function setup(clientStatus = "active") {
   const embedLinks = await memoryEmbedLinks();
   const calls: string[] = [];
@@ -100,6 +109,8 @@ async function setup(clientStatus = "active") {
   };
   const routes = createEmbedRoutes({
     embedLinks,
+    portal: noPortal,
+    branding,
     analytics: facadeOver(new Proxy({}, { get: (_t, name) => read(String(name)) })),
     websites: { getById: async (id: string) => SITES.find((s) => s.id === id) ?? null } as never,
     clients: {
@@ -205,6 +216,8 @@ describe("GET /:websiteId/analytics/:name", () => {
     const embedLinks = await memoryEmbedLinks();
     const routes = createEmbedRoutes({
       embedLinks,
+      portal: noPortal,
+      branding,
       analytics: facadeOver({ getPages: async (_id: string, q: unknown) => (seen.push(q), []) }),
       websites: { getById: async (id: string) => SITES.find((s) => s.id === id) ?? null } as never,
       clients: {} as never,
@@ -297,7 +310,7 @@ describe("GET /:websiteId/info", () => {
     const res = await routes.request(`/${SITE}/info`, H(await tokenFor({ websiteId: SITE })));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("private, max-age=60");
-    expect(await res.json()).toEqual({ data: { website: { name: "Acme", url: "acme.app" }, sections: ["analytics"] } });
+    expect(await res.json()).toEqual({ data: { website: { name: "Acme", url: "acme.app" }, sections: ["analytics"], brand: BRAND } });
     const other = await routes.request(`/${SITE}/info`, H(await tokenFor({ websiteId: OTHER })));
     expect(other.status).toBe(401);
     expect((await other.json()).code).toBe("invalid_embed_token");
@@ -323,6 +336,7 @@ describe("GET /client/:clientId/websites", () => {
       client: { name: "Client A" },
       sections: ["analytics"],
       websites: [{ id: IN_A, name: "A shop", url: "a.shop" }],
+      brand: BRAND,
     });
   });
 

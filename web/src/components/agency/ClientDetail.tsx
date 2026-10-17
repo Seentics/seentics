@@ -23,7 +23,7 @@ const STATUS_PILL: Record<AgencyClient['status'], string> = {
   archived: 'border-border bg-muted text-muted-foreground',
 };
 
-/** One client, in place of the list: what it is, what it gets, and its sites. */
+/** One client, in place of the list: what it is, what it gets, its sites and who can see them. */
 export function ClientDetail({ websiteId, clientId, onBack, onEdit }: {
   websiteId: string;
   clientId: string;
@@ -142,6 +142,7 @@ export function ClientDetail({ websiteId, clientId, onBack, onEdit }: {
         </div>
         <div className="space-y-4 xl:col-span-2">
           <ClientFeaturesPanel websiteId={websiteId} client={client} />
+          {/* Cloud only: client access is served by Seentics Cloud's own portal. */}
           {isEnterprise && <ClientPortalPanel websiteId={websiteId} client={client} />}
         </div>
       </div>

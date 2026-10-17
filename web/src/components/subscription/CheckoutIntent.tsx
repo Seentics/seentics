@@ -21,7 +21,7 @@ export default function CheckoutIntent() {
     if (!intent) return;
     started.current = true;
     setBusy(true);
-    startCheckout(intent.plan, intent.interval).catch(() => {
+    startCheckout(intent.plan, intent.interval, intent.discount).catch(() => {
       toast.error('Could not open the checkout. Choose your plan again from Billing.');
       setBusy(false);
     });

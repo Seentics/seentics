@@ -3,16 +3,20 @@
  * plans' numeric limits (gateway/db/sql/030, 035) rather than their marketing
  * copy, so the page can't advertise a number the product doesn't enforce.
  *
- * Three plans: Free, Analytics ($9 a month, $84 a year) and Pro ($19 a month, $168 a year), each
- * stopping at its limits. Pro can go past its included amounts with Extra usage, turned on from
- * Billing and billed at OVERAGE_RATES. Pro stores each such limit as -1 with its included amount
- * beside it as `included_<key>`; Analytics and Free store a plain cap.
+ * Four plans: Free, Starter ($9 a month, $90 a year), Pro ($24, $240) and
+ * Agency ($99, $990). Free and Starter stop at their limits. Pro and Agency can go past their
+ * included amounts with Extra usage, turned on from Billing and billed at OVERAGE_RATES; they store
+ * each such limit as -1 with its included amount beside it as `included_<key>`. Agency alone has
+ * `core.agency_features`: client workspaces, embeds, client access, white label and a custom domain.
+ *
+ * Observability is not marketed here any more: its allowance stays in the catalogue and in Billing,
+ * but the cards and the table leave it out.
  *
  * Kept in sync by hand with observability/web/src/components/landing/pricing-spec.ts; the apps
  * share no code.
  */
 
-export type PricingTier = 'free' | 'analytics' | 'pro';
+export type PricingTier = 'free' | 'starter' | 'pro' | 'agency';
 
 /** The slice of a gateway plan this module reads. */
 export type PricedPlan = {
@@ -32,8 +36,22 @@ export const monthlyPrice = (plan: PricedPlan, interval: BillingInterval): numbe
 export const yearlySavingPercent = (plan: PricedPlan): number =>
   plan.priceYearly && plan.priceMonthly > 0 ? Math.round((1 - plan.priceYearly / (plan.priceMonthly * 12)) * 100) : 0;
 
-/** The biggest saving across the plans, for the toggle: "Yearly (save up to 26%)". */
+/** The biggest saving across the plans, as a percentage. */
 export const maxYearlySaving = (plans: PricedPlan[]): number => Math.max(0, ...plans.map(yearlySavingPercent));
+
+/** How many months of the year paying yearly leaves free: $90 against $9 a month is 2. */
+export const freeMonths = (plan: PricedPlan): number =>
+  plan.priceYearly && plan.priceMonthly > 0 ? Math.max(0, Math.round(12 - plan.priceYearly / plan.priceMonthly)) : 0;
+
+/** The yearly saving in words, for the toggle and the cards: "2 months free", or "save 17%" when it isn't whole months. */
+export function yearlySavingLabel(plans: PricedPlan | PricedPlan[]): string {
+  const list = Array.isArray(plans) ? plans : [plans];
+  const months = Math.max(0, ...list.map(freeMonths));
+  const exact = months > 0 && list.every((p) => !p.priceYearly || Math.abs(p.priceYearly - p.priceMonthly * (12 - months)) < 0.01);
+  if (exact) return `${months} ${months === 1 ? 'month' : 'months'} free`;
+  const saving = maxYearlySaving(list);
+  return saving > 0 ? `save ${saving}%` : '';
+}
 
 /**
  * Past the included amounts. Must match the gateway's billing (gateway/billing/metering.ts RATES):
@@ -46,17 +64,26 @@ export const OVERAGE_RATES = {
 } as const;
 
 /**
- * Yearly billing is set up end to end (gateway catalogue, checkout, webhook) and priced, but not
- * offered yet: the pages sell monthly until the yearly variants exist in Lemon Squeezy. Turning this
- * on brings back the Monthly / Yearly toggle on the pricing page and in Billing.
+ * Yearly billing on every paid plan, two months free: the Monthly / Yearly toggle on the pricing
+ * page, and "Switch to yearly" in Billing. Off, the pages sell monthly only.
  */
-export const OFFER_YEARLY = false;
+export const OFFER_YEARLY = true;
 
-// `analytics` is Starter's tier: the plan kept its id when it became Starter (gateway db/sql/040).
+/**
+ * The founding price for the first agencies: Agency at $49 a month instead of $99, locked in, with
+ * a Lemon Squeezy discount code. Sent to checkout (as `discount`) only when the visitor claims it.
+ */
+export const FOUNDING_OFFER = {
+  code: 'FOUNDING49',
+  priceMonthly: 49,
+  seats: 10,
+} as const;
+
 export const TIER_PITCH: Record<PricingTier, string> = {
   free: 'Everything to get started',
-  analytics: 'The whole product for a growing site',
+  starter: 'The whole product for a growing site',
   pro: 'More of everything, with extra usage',
+  agency: 'For agencies managing multiple client sites',
 };
 
 // ---------------------------------------------------------------------------
@@ -106,6 +133,10 @@ export const RATES_LINE = Object.values(OVERAGE_RATES)
   .map((r) => `${formatMoney(r.price)} / ${r.per === 1 ? r.unit : `${formatCount(r.per)} ${r.unit}`}`)
   .join(' · ');
 
+/** Whether a plan has the agency features (client workspaces, embeds): Agency only. */
+export const hasAgencyFeatures = (plan: PricedPlan) =>
+  plan.tier === 'agency' || (limit(plan, 'core', 'agency_features') ?? 0) > 0;
+
 /**
  * A card's two sections: what the plan includes each month, then what happens past it. Each line is
  * short enough to sit on one line in a card, so the lists scan; the section title carries "every month".
@@ -119,17 +150,21 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const leads = core('leads');
   const has = (value: number | undefined) => value !== undefined && value !== 0;
   const everything = heatmaps === -1 && funnels === -1 && automations === -1;
+  const agency = hasAgencyFeatures(plan);
+  const replayRetention = core('replay_retention_days');
 
   const included: Highlight[] = [
     // "Up to": every plan stops at these by default, so the bill is predictable.
     { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
     ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
-    // Only where the plan has an Observability allowance of its own.
-    ...(allowance(plan, 'observe', 'storage_gb') !== undefined
-      ? [{ value: `Up to ${allowance(plan, 'observe', 'storage_gb')} GB`, label: 'logs, traces & metrics' }]
-      : []),
-    { value: formatDays(core('retention_days')), label: 'analytics retention' },
-    { value: formatCount(core('websites')), label: 'websites' },
+    // Agency: one line for both retentions, as the card's copy reads.
+    agency && has(replays) && replayRetention !== undefined
+      ? { value: formatDays(core('retention_days')), label: `analytics retention, ${formatDays(replayRetention)} replay retention` }
+      : { value: formatDays(core('retention_days')), label: 'analytics retention' },
+    agency
+      ? { value: formatCount(core('websites')), label: 'client workspaces and websites' }
+      : { value: formatCount(core('websites')), label: 'websites' },
+    ...(agency ? [{ value: '', label: 'Client access and white-label reports on your own domain' }] : []),
     everything
       ? { value: 'Unlimited', label: 'heatmaps, funnels, automations' }
       : {
@@ -145,16 +180,18 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
           label: `${plural(core('conversion_destinations')!, 'ad platform', 'ad platforms')} for server-side conversions`,
         }]
       : []),
-    { value: '', label: 'Agency: clients, APIs & embeds' },
+    ...(agency ? [{ value: '', label: 'Priority support and personal onboarding' }] : []),
   ];
 
-  // Extra usage still exists on Pro (Billing, and the docs), but is not spelled out on the card: a
-  // bigger need is a conversation.
-  const past: CardSection = plan.tier === 'pro'
-    ? { title: 'Need more?', items: [{ value: '', label: 'Contact us for a custom plan', href: '/contact' }] }
-    : plan.tier === 'analytics'
-      ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Move to Pro any time' }] }
-      : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
+  // Free and Starter stop at a limit. Pro can turn on Extra usage from Billing; Agency is sold on
+  // going past its amounts as overage instead of pausing, with an alert at 80% before it does.
+  const past: CardSection = agency
+    ? { title: 'At the limit', items: [{ value: '', label: 'Overage instead of pausing, with Extra usage' }, { value: '', label: 'An alert at 80% of each allowance' }] }
+    : plan.tier === 'pro'
+      ? { title: 'At a limit', items: [{ value: '', label: 'Pauses, or keep going with Extra usage' }, { value: '', label: 'Move to Agency any time' }] }
+      : plan.tier === 'starter'
+        ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Move to Pro any time' }] }
+        : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
 
   return [{ title: 'Included every month', items: included }, past];
 }
@@ -178,12 +215,20 @@ const countCell = (product: string, key: string) => (p: PricedPlan): string | bo
   return value === 0 ? false : formatCount(value);
 };
 
+/** Pro and Agency can go past their included amounts with Extra usage. */
+const extraUsage = (p: PricedPlan) => p.tier === 'pro' || p.tier === 'agency';
+
 export const COMPARE_GROUPS: CompareGroup[] = [
   {
     title: 'Product analytics',
     rows: [
       { label: 'Events / month', value: meteredCell('core', 'monthly_events') },
-      { label: 'Past the limit', value: (p) => (isMetered(p, 'core', 'monthly_events') ? 'Pauses, or extra usage at $0.01 / 1K' : 'Collection pauses') },
+      {
+        label: 'Past the limit',
+        value: (p) => (!isMetered(p, 'core', 'monthly_events')
+          ? 'Collection pauses'
+          : hasAgencyFeatures(p) ? 'Extra usage at $0.01 / 1K, alert at 80%' : 'Pauses, or extra usage at $0.01 / 1K'),
+      },
       { label: 'Data retention', value: (p) => formatDays(limit(p, 'core', 'retention_days')) },
       { label: 'Websites', value: (p) => formatCount(limit(p, 'core', 'websites')) },
       { label: 'Revenue & attribution', value: () => true },
@@ -194,19 +239,16 @@ export const COMPARE_GROUPS: CompareGroup[] = [
     title: 'Session replay',
     rows: [
       { label: 'Recordings / month', value: meteredCell('core', 'replays') },
-      { label: 'Past the limit', value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : isMetered(p, 'core', 'replays') ? 'Pauses, or extra usage at $2 / 1K' : 'Recording pauses') },
+      {
+        label: 'Past the limit',
+        value: (p) => (allowance(p, 'core', 'replays') === 0
+          ? false
+          : !isMetered(p, 'core', 'replays')
+            ? 'Recording pauses'
+            : hasAgencyFeatures(p) ? 'Extra usage at $2 / 1K, alert at 80%' : 'Pauses, or extra usage at $2 / 1K'),
+      },
       { label: 'Replay retention', value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : formatDays(limit(p, 'core', 'replay_retention_days'))) },
       { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === 0 ? false : v === -1 ? 'Unlimited' : `${v} pages`; } },
-    ],
-  },
-  {
-    title: 'Observability',
-    rows: [
-      { label: 'Logs, traces & metrics / month', value: meteredCell('observe', 'storage_gb', 'GB') },
-      { label: 'Past the limit', value: (p) => (allowance(p, 'observe', 'storage_gb') === undefined ? false : isMetered(p, 'observe', 'storage_gb') ? 'Pauses, or extra usage at $0.25 / GB' : 'Ingestion pauses') },
-      { label: 'Telemetry retention', value: (p) => (limit(p, 'observe', 'retention_days') === undefined ? false : formatDays(limit(p, 'observe', 'retention_days'))) },
-      { label: 'Error tracking & alerts', value: () => true },
-      { label: 'Uptime monitoring', value: () => true },
     ],
   },
   {
@@ -217,10 +259,20 @@ export const COMPARE_GROUPS: CompareGroup[] = [
       { label: 'Contacts & form submissions / month', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `Up to ${formatCount(v)}`; } },
       { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
       { label: 'Server-side conversions (Meta, GA4, TikTok, LinkedIn)', value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : `${formatCount(v)} ${plural(v, 'ad platform', 'ad platforms')}`; } },
-      { label: 'Agency: client accounts, APIs & embeds', value: () => true },
-      { label: 'Monthly spend cap on extra usage', value: (p) => p.tier === 'pro' },
-      { label: 'Extra usage under $1 a month', value: (p) => (p.tier === 'pro' ? 'Not billed' : '—') },
-      { label: 'Support', value: (p) => (p.tier === 'pro' ? 'Email' : 'Community') },
+      { label: 'API access with account keys', value: () => true },
+      { label: 'Monthly spend cap on extra usage', value: extraUsage },
+      { label: 'Extra usage under $1 a month', value: (p) => (extraUsage(p) ? 'Not billed' : '—') },
+      { label: 'Support', value: (p) => (hasAgencyFeatures(p) ? 'Priority, with onboarding' : p.tier === 'pro' ? 'Email' : 'Community') },
+    ],
+  },
+  {
+    // Free, Starter and Pro are for one business; these are Agency's.
+    title: 'Agency',
+    rows: [
+      { label: 'Client workspaces', value: (p) => (hasAgencyFeatures(p) ? 'Unlimited' : false) },
+      { label: 'Embedded client dashboards', value: hasAgencyFeatures },
+      { label: 'Client management API', value: hasAgencyFeatures },
+      { label: 'Client access & white-label reports', value: hasAgencyFeatures },
     ],
   },
 ];

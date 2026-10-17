@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COMPARE_GROUPS, cardSectionsFor, maxYearlySaving, monthlyPrice, yearlySavingPercent, type PricedPlan,
+  COMPARE_GROUPS, FOUNDING_OFFER, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, freeMonths, maxYearlySaving, monthlyPrice,
+  yearlySavingLabel, yearlySavingPercent, type PricedPlan,
 } from '@/features/plans/pricing-spec';
 
-/** The plans as gateway/db/sql/040_starter_plan_and_pro_24.sql leaves them. Starter keeps the `analytics` tier. */
+/** The plans as gateway/db/sql/040_starter_plan_and_pro_24.sql leaves them. Starter's id and tier are `starter`. */
 const FREE: PricedPlan = {
   tier: 'free', priceMonthly: 0, priceYearly: null,
   limits: {
@@ -12,7 +13,7 @@ const FREE: PricedPlan = {
   },
 };
 const STARTER: PricedPlan = {
-  tier: 'analytics', priceMonthly: 9, priceYearly: 90,
+  tier: 'starter', priceMonthly: 9, priceYearly: 90,
   limits: {
     core: { monthly_events: 200_000, replays: 1_500, heatmaps: -1, funnels: -1, automations: -1, websites: -1, ai_analyses: 100, leads: 5_000, retention_days: 365, replay_retention_days: 30, conversion_destinations: 3 },
     observe: { storage_gb: 5, retention_days: 7 },
@@ -25,10 +26,34 @@ const PRO: PricedPlan = {
     observe: { storage_gb: -1, included_storage_gb: 30, retention_days: 7 },
   },
 };
+/** Agency (gateway agent's catalogue): the top tier, metered like Pro, with the agency entitlement. */
+const AGENCY: PricedPlan = {
+  tier: 'agency', priceMonthly: 99, priceYearly: 990,
+  limits: {
+    core: {
+      monthly_events: -1, included_monthly_events: 15_000_000, replays: -1, included_replays: 30_000, heatmaps: -1, funnels: -1, automations: -1,
+      websites: -1, ai_analyses: 1000, leads: 200_000, retention_days: 1095, replay_retention_days: 90, conversion_destinations: -1, agency_features: 1,
+    },
+  },
+};
 
 const labels = (plan: PricedPlan) => cardSectionsFor(plan)[0]!.items.map((i) => `${i.value} ${i.label}`.trim());
 
-describe('yearly pricing (priced, not yet offered: OFFER_YEARLY)', () => {
+describe('yearly pricing, offered on every paid plan', () => {
+  it('is on', () => expect(OFFER_YEARLY).toBe(true));
+
+  it('says "2 months free": $90, $240 and $990 against $9, $24 and $99 a month', () => {
+    expect(freeMonths(STARTER)).toBe(2);
+    expect(freeMonths(AGENCY)).toBe(2);
+    expect(freeMonths(FREE)).toBe(0);
+    expect(yearlySavingLabel([FREE, STARTER, PRO, AGENCY])).toBe('2 months free');
+    expect(yearlySavingLabel(AGENCY)).toBe('2 months free');
+    expect(monthlyPrice(AGENCY, 'year')).toBe(82.5);
+    // A yearly price that isn't whole months falls back to the percentage.
+    expect(yearlySavingLabel({ ...STARTER, priceYearly: 84 })).toBe('save 22%');
+    expect(yearlySavingLabel(FREE)).toBe('');
+  });
+
   it('shows the year\'s price as a monthly figure: $7.50 and $20', () => {
     expect(monthlyPrice(STARTER, 'month')).toBe(9);
     expect(monthlyPrice(STARTER, 'year')).toBe(7.5);
@@ -48,11 +73,11 @@ describe('yearly pricing (priced, not yet offered: OFFER_YEARLY)', () => {
 });
 
 describe('pricing cards', () => {
-  it('Free: 300 recordings, 3 GB of telemetry, 100 contacts and form submissions', () => {
+  it('Free: 300 recordings, 100 contacts and form submissions, and no Observability line', () => {
     const lines = labels(FREE);
     expect(lines).toContain('Up to 20K events');
     expect(lines).toContain('Up to 300 session recordings');
-    expect(lines).toContain('Up to 3 GB logs, traces & metrics');
+    expect(lines.join('\n')).not.toMatch(/logs, traces|GB/);
     expect(lines).toContain('100 contacts & form submissions a month');
     expect(lines).toContain('3 heatmaps, 1 funnel, 3 automations');
   });
@@ -61,26 +86,46 @@ describe('pricing cards', () => {
     const lines = labels(STARTER);
     expect(lines).toContain('Up to 200K events');
     expect(lines).toContain('Up to 1.5K session recordings');
-    expect(lines).toContain('Up to 5 GB logs, traces & metrics');
     expect(lines).toContain('1 year analytics retention');
     expect(lines).toContain('Unlimited heatmaps, funnels, automations');
     expect(lines).toContain('5K contacts & form submissions a month');
-    expect(lines).toContain('Agency: clients, APIs & embeds');
+    // A single-business plan: nothing of Agency's.
+    expect(lines.join('\n')).not.toMatch(/Agency|client/i);
     expect(cardSectionsFor(STARTER)[1]!.items.map((i) => i.label)).toEqual(['Collection pauses at the limit', 'Move to Pro any time']);
   });
 
-  it('Pro: the included amounts, and the extra usage rates', () => {
+  it('Pro: the included amounts, and extra usage at a limit', () => {
     const [included, extra] = cardSectionsFor(PRO);
     const lines = included!.items.map((i) => `${i.value} ${i.label}`.trim());
     expect(lines).toContain('Up to 1M events');
     expect(lines).toContain('Up to 5K session recordings');
-    expect(lines).toContain('Up to 30 GB logs, traces & metrics');
     expect(lines).toContain('Unlimited heatmaps, funnels, automations');
     expect(lines).toContain('25K contacts & form submissions a month');
-    // Extra usage is not spelled out on the card: a bigger need is a conversation.
-    expect(extra!.title).toBe('Need more?');
-    expect(extra!.items).toEqual([{ value: '', label: 'Contact us for a custom plan', href: '/contact' }]);
+    expect(lines.join('\n')).not.toMatch(/logs, traces|client/i);
+    expect(extra!.items.map((i) => i.label)).toEqual(['Pauses, or keep going with Extra usage', 'Move to Agency any time']);
     expect(JSON.stringify(cardSectionsFor(PRO))).not.toMatch(/per 1K|per GB|spend cap/);
+  });
+
+  it('Agency: the agency copy, client access on your own domain, and overage at the limit', () => {
+    expect(TIER_PITCH.agency).toBe('For agencies managing multiple client sites');
+    const [included, past] = cardSectionsFor(AGENCY);
+    const lines = labels(AGENCY);
+    expect(lines).toContain('Up to 15M events');
+    expect(lines).toContain('Up to 30K session recordings');
+    expect(lines).toContain('Unlimited client workspaces and websites');
+    expect(lines).toContain('Unlimited heatmaps, funnels, automations');
+    expect(lines).toContain('Unlimited ad platforms for server-side conversions');
+    expect(lines).toContain('200K contacts & form submissions a month');
+    expect(lines).toContain('1K AI analyses');
+    expect(lines).toContain('3 years analytics retention, 90 days replay retention');
+    expect(lines).toContain('Priority support and personal onboarding');
+    expect(included!.items.map((i) => i.label)).toContain('Client access and white-label reports on your own domain');
+    expect(JSON.stringify(cardSectionsFor(AGENCY))).not.toMatch(/soon/i);
+    expect(past!.items.map((i) => i.label)).toEqual(['Overage instead of pausing, with Extra usage', 'An alert at 80% of each allowance']);
+  });
+
+  it('keeps the founding code in one place', () => {
+    expect(FOUNDING_OFFER).toEqual({ code: 'FOUNDING49', priceMonthly: 49, seats: 10 });
   });
 });
 
@@ -95,10 +140,27 @@ describe('comparison table', () => {
     expect(cell('Heatmaps', STARTER)).toBe('Unlimited');
     expect(cell('Contacts & form submissions / month', STARTER)).toBe('Up to 5K');
     expect(cell('Contacts & form submissions / month', { ...STARTER, limits: { ...STARTER.limits, core: { ...STARTER.limits.core, leads: 0 } } })).toBe(false);
-    expect(cell('Logs, traces & metrics / month', STARTER)).toBe('Up to 5 GB');
-    expect(cell('Logs, traces & metrics / month', PRO)).toBe('Up to 30 GB');
-    // Every plan has the whole product now: observability's features are on every plan.
-    expect(cell('Error tracking & alerts', STARTER)).toBe(true);
+  });
+
+  it('has no Observability section (not marketed), and no uptime row', () => {
+    expect(COMPARE_GROUPS.map((g) => g.title)).not.toContain('Observability');
+    const rows = COMPARE_GROUPS.flatMap((g) => g.rows).map((r) => r.label).join('\n');
+    expect(rows).not.toMatch(/Uptime|Logs, traces|Telemetry/);
+  });
+
+  it('shows the agency features as Agency only', () => {
+    for (const plan of [FREE, STARTER, PRO]) {
+      expect(cell('Client workspaces', plan)).toBe(false);
+      expect(cell('Embedded client dashboards', plan)).toBe(false);
+      expect(cell('Client access & white-label reports', plan)).toBe(false);
+    }
+    expect(cell('Client workspaces', AGENCY)).toBe('Unlimited');
+    expect(cell('Embedded client dashboards', AGENCY)).toBe(true);
+    expect(cell('Client access & white-label reports', AGENCY)).toBe(true);
+    // Account keys stay on every plan.
+    expect(cell('API access with account keys', FREE)).toBe(true);
+    expect(cell('Support', AGENCY)).toBe('Priority, with onboarding');
+    expect(cell('Support', PRO)).toBe('Email');
   });
 
   it('states events and retention for every plan', () => {
@@ -108,10 +170,13 @@ describe('comparison table', () => {
     expect(cell('Data retention', PRO)).toBe('3 years');
   });
 
-  it('extra usage is a Pro option only', () => {
+  it('extra usage is a Pro and Agency option', () => {
     expect(cell('Monthly spend cap on extra usage', PRO)).toBe(true);
+    expect(cell('Monthly spend cap on extra usage', AGENCY)).toBe(true);
     expect(cell('Monthly spend cap on extra usage', STARTER)).toBe(false);
     expect(cell('Past the limit', STARTER)).toBe('Collection pauses');
+    expect(cell('Past the limit', PRO)).toBe('Pauses, or extra usage at $0.01 / 1K');
+    expect(cell('Past the limit', AGENCY)).toBe('Extra usage at $0.01 / 1K, alert at 80%');
   });
 });
 
@@ -119,11 +184,10 @@ describe('a plan with no Observability allowance (an older catalogue)', () => {
   const noObserve: PricedPlan = { ...STARTER, limits: { core: STARTER.limits.core } };
   const cell = (label: string) => COMPARE_GROUPS.flatMap((g) => g.rows).find((r) => r.label === label)!.value(noObserve);
 
-  it('leaves the telemetry line off the card and dashes the table, never "undefined"', () => {
+  it('renders the same card and table, never "undefined"', () => {
     expect(JSON.stringify(cardSectionsFor(noObserve))).not.toContain('undefined');
-    expect(labels(noObserve).join('\n')).not.toMatch(/logs, traces/);
-    expect(cell('Logs, traces & metrics / month')).toBe(false);
-    expect(cell('Telemetry retention')).toBe(false);
+    expect(labels(noObserve)).toEqual(labels(STARTER));
+    expect(cell('Events / month')).toBe('Up to 200K');
   });
 });
 

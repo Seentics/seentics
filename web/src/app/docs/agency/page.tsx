@@ -38,8 +38,10 @@ export default function AgencyPage() {
           </Li>
         </Ul>
         <P>
-          Agency features are included on every plan. Your plan&apos;s limits still apply across all
-          clients together; a client&apos;s limits divide that up.
+          Self-hosted, agency features come with everything else. On Seentics Cloud, creating clients,
+          adding websites to them and making embed links take the Agency plan; clients and links made
+          before stay usable on any plan, and account keys for the APIs are on every plan. Your
+          plan&apos;s limits still apply across all clients together; a client&apos;s limits divide that up.
         </P>
       </DocSection>
 
@@ -111,8 +113,11 @@ export default function AgencyPage() {
 
       <DocSection title="In Seentics Cloud">
         <P>
-          Cloud adds client logins, portal links that show one client their own dashboard, and
-          white-label — your name, colours and domain on what clients see.
+          The Agency plan adds client access: a magic link per client contact, or one anonymous link per
+          client, that opens a read-only portal of that client&apos;s websites — no account needed. Under{' '}
+          <C>Agency → White label</C> you set the brand name, logo, colour, support email and footer the portal
+          shows, can hide Seentics from it, and can serve it from your own domain (a subdomain such as{' '}
+          <C>reports.youragency.com</C>, pointed at Seentics with a CNAME record).
         </P>
       </DocSection>
     </DocPage>

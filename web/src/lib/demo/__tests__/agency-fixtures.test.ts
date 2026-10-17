@@ -5,9 +5,12 @@ const SCOPES = ['websites:read', 'websites:write', 'analytics:read', 'replays:re
 const SECTIONS = ['analytics', 'recordings', 'heatmaps'];
 
 describe('agency demo fixtures', () => {
-  it('every client login matches a client by email (the Login column joins on it)', () => {
-    const emails = new Set(demoAgencyClients().map(c => c.email.toLowerCase()));
-    for (const u of demoClientUsers()) expect(emails.has(u.email.toLowerCase())).toBe(true);
+  it('every client user belongs to a demo client, with a known status', () => {
+    const clients = new Set(demoAgencyClients().map(c => c.id));
+    for (const u of demoClientUsers()) {
+      expect(clients.has(u.clientId)).toBe(true);
+      expect(['invited', 'active', 'revoked']).toContain(u.status);
+    }
   });
 
   it('embed links point at real demo targets with valid, non-empty sections', () => {

@@ -6,28 +6,20 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 
 const FAQS = [
   {
-    q: 'Do I need Observability?',
-    a: 'No. Analytics is the product, and it works on its own. Observability is there for SaaS teams that also want logs, metrics and traces from their backend, and it comes with every plan at no extra price.',
-  },
-  {
     q: 'How much does it cost?',
-    a: 'Every plan has the whole product, and they differ by how much. Free is $0 with up to 20K events and 300 session recordings a month. Starter is $9 a month for up to 200K events, 1,500 recordings and 5 GB of logs, traces and metrics. Pro is $24 a month for up to 1M events, 5K recordings and 30 GB. Need more on Pro? Turn on extra usage from Billing: $0.01 per 1K events, $2 per 1K recordings and $0.25 per GB, with a monthly spend cap you set.',
+    a: 'Every plan has the whole product, and they differ by how much. Free is $0 with up to 20K events and 300 session recordings a month. Starter is $9 a month for up to 200K events and 1,500 recordings. Pro is $24 a month for up to 1M events and 5K recordings. Agency is $99 a month for up to 15M events and 30K recordings, with client workspaces and embeds for the sites you run for clients. Paying yearly gets two months free. Need more on Pro or Agency? Turn on extra usage from Billing: $0.01 per 1K events and $2 per 1K recordings, with a monthly spend cap you set.',
   },
   {
     q: 'Is there a free plan?',
-    a: 'Yes: unlimited websites, 20K events and 300 session recordings a month, and 3 GB of logs, traces and metrics. At a limit, collection pauses until the next month. No card needed.',
+    a: 'Yes: unlimited websites, 20K events and 300 session recordings a month. At a limit, collection pauses until the next month. No card needed.',
   },
   {
     q: 'Can I self-host Seentics?',
-    a: 'The analytics core, yes. It is open source under AGPL-3.0 and runs on your own servers with no usage limits. Observability runs on Seentics Cloud.',
+    a: 'The analytics core, yes. It is open source under AGPL-3.0 and runs on your own servers with no usage limits.',
   },
   {
     q: 'Does it use cookies?',
     a: 'No cookies and no fingerprinting. The tracker keeps one anonymous visitor ID in the browser, and IP addresses are used to find the country and are not stored.',
-  },
-  {
-    q: 'What do I install for Observability?',
-    a: 'Send logs, metrics and traces to Seentics over OpenTelemetry. Your analytics tracker is a separate one-line script tag.',
   },
   {
     q: 'Will the tracker slow my site down?',
