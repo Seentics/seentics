@@ -36,8 +36,8 @@ function resolveTrackerScriptSrc(): string {
 
 export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
-  // An embed runs inside a customer's product, and a client portal in front of an agency's
-  // clients: tracking either would record their visitors in our analytics.
+  // An embed runs inside a customer's product: tracking it would record their visitors in our
+  // analytics.
   const embedded = isSessionlessPath(usePathname());
 
   useEffect(() => {

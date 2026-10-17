@@ -7,11 +7,6 @@
  * id is in the path as well, so the gateway can refuse a suspended owner's embeds before
  * they reach here.
  *
- * A client portal link's token (`scp_…`, modules/agency) is accepted in the same places and
- * reads as a client-scope link to its client, its sections following the client's feature
- * switches. It is checked against its row on every request, so revoking one, or a client
- * user, takes effect on the next read.
- *
  * `info` and the client website list also carry the owner's white-label `brand`.
  *
  * Each link chooses the sections it exposes (`embed_links.sections`, read from the row on
@@ -37,7 +32,7 @@ import type { EmbedSection } from "../../../modules/api-keys/interfaces";
 import type { EmbedClaim, EmbedLinks } from "../../../modules/api-keys/interfaces";
 import type { AnalyticsReads } from "../../../modules/analytics/interfaces";
 import type { ClientDirectory, WebsiteQuery } from "../../../modules/websites/interfaces";
-import { PORTAL_TOKEN_PREFIX, type AgencyBranding, type PortalAccess } from "../../../modules/agency/interfaces";
+import type { AgencyBranding } from "../../../modules/agency/interfaces";
 import type { RecordingsModule, StylesheetServing } from "../../../modules/recordings/interfaces";
 import type { HeatmapsModule } from "../../../modules/heatmaps/interfaces";
 import { replayListQuerySchema } from "../../../modules/recordings/interfaces";
@@ -59,8 +54,6 @@ const sectionDisabled = () => ({ error: "section not enabled for this link", cod
 
 export function createEmbedRoutes(deps: {
   embedLinks: EmbedLinks;
-  /** Client portal links, accepted wherever an embed link's token is. */
-  portal: PortalAccess;
   /** The owner's white label, for `info` and the client website list. */
   branding: AgencyBranding;
   clients: ClientDirectory;
@@ -111,23 +104,7 @@ export function createEmbedRoutes(deps: {
     }
   });
 
-  /**
-   * The claim a token carries: an embed link's, or a portal link's as the client-scope
-   * claim it is equivalent to. Told apart by prefix — an embed token is a JWT and never
-   * starts with it — so each token meets exactly one verifier.
-   */
-  const verifyToken = async (token: string | undefined): Promise<EmbedClaim | null> => {
-    if (!token?.startsWith(PORTAL_TOKEN_PREFIX)) return deps.embedLinks.verify(token);
-    const portal = await deps.portal.verify(token);
-    return portal && {
-      id: portal.tokenId,
-      ownerId: portal.ownerId,
-      scope: "client",
-      targetId: portal.clientId,
-      sections: portal.sections,
-      createdAt: portal.createdAt,
-    };
-  };
+  const verifyToken = (token: string | undefined): Promise<EmbedClaim | null> => deps.embedLinks.verify(token);
 
   /** The client, when it is still the link owner's and in service. */
   const liveClient = async (claim: EmbedClaim, clientId: string) => {

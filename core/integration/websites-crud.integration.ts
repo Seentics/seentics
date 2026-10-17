@@ -83,11 +83,11 @@ describe("listing websites", () => {
     expect(res.body.data[0].stats).toEqual(expect.objectContaining({ totalPageviews: 0, uniqueVisitors: 0 }));
   });
 
-  it("does not list a site the caller is only a member of (current behaviour: owned sites only)", async () => {
+  it("lists a site the caller is only a member of, beside the ones they own", async () => {
     const t = await seedTeam();
     const res = await api("GET", W, { token: t.admin.token });
     expect(res.status).toBe(200);
-    expect(res.body.data.map((s: { id: string }) => s.id)).not.toContain(t.site.id);
+    expect(res.body.data.map((s: { id: string }) => s.id)).toContain(t.site.id);
   });
 
   it("needs a session", async () => {

@@ -1,6 +1,7 @@
 import type { LaneSpec } from "../../ingest/interfaces";
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
+import type { SiteMetricSource } from "../../agency/interfaces";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { RetentionPurge } from "../../../platform/retention";
 import type {
@@ -37,6 +38,9 @@ export interface RecordingsModule extends ModuleLifecycle {
 
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;
+
+  /** Recorded sessions per site, for the agency overview. */
+  agencyMetrics: SiteMetricSource;
 
   /** Reads for the raw API — unmerged projections, not the dashboard's. */
   rawReads: RecordingRawReads;

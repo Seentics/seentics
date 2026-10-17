@@ -1,175 +1,96 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  demoAgencyClients, demoAgencyKeys, demoClientUsers, demoCustomDomain, demoEmbedLinks, demoMutationGuard, demoWhiteLabel, isDemo,
-} from '@/lib/demo';
-import {
-  assignWebsite,
-  createAgencyAPIKey,
-  createClient,
-  createEmbedLink,
-  deleteAgencyAPIKey,
-  deleteClient,
-  getClient,
-  getCustomDomain,
-  getWhiteLabel,
-  listAgencyAPIKeys,
-  listClientUsers,
-  listClients,
-  listEmbedLinks,
-  revokeEmbedLink,
-  updateEmbedLinkSections,
-  unassignWebsite,
-  updateClient,
-} from './api';
-import type { AccountScope, AgencyClient, CustomDomain, CreateClientRequest, EmbedSection, UpdateClientRequest } from './types';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as agencyApi from './api';
+import { DOMAIN_POLL_MS } from './constants';
+import type { ClientListFilters, Domain, ListResponse, WebsiteListFilters } from './types';
 
 /**
- * Agency data is account-wide, but the page is reached under a website, and on the demo
- * website every read comes from fixtures and every write is refused with the usual demo
- * notice — the same contract as the rest of the dashboard (`lib/demo`).
+ * React Query over `api.ts`. Every key starts with `agency`, so a write can refresh the whole
+ * workspace with one invalidation: the figures on the overview, the setup progress and the lists
+ * all move together when a client or a site changes.
  */
 
 export const agencyKeys = {
-  clients: ['agency-clients'] as const,
-  client: (id: string) => ['agency-client', id] as const,
-  apiKeys: ['agency-api-keys'] as const,
-  embedLinks: ['agency-embed-links'] as const,
-  clientUsers: ['agency-client-users'] as const,
-  whiteLabel: ['agency-white-label'] as const,
-  customDomain: ['agency-custom-domain'] as const,
+  all: ['agency'] as const,
+  overview: (period: string) => ['agency', 'overview', period] as const,
+  setup: ['agency', 'setup'] as const,
+  clients: (filters: ClientListFilters) => ['agency', 'clients', filters] as const,
+  client: (id: string) => ['agency', 'client', id] as const,
+  clientWebsites: (id: string) => ['agency', 'client-websites', id] as const,
+  features: (id: string) => ['agency', 'features', id] as const,
+  websites: (filters: WebsiteListFilters) => ['agency', 'websites', filters] as const,
+  install: (id: string) => ['agency', 'install', id] as const,
+  branding: ['agency', 'branding'] as const,
+  domain: ['agency', 'domain'] as const,
+  embeds: (filters: object) => ['agency', 'embeds', filters] as const,
+  usage: ['agency', 'usage'] as const,
+  clientUsage: ['agency', 'usage', 'clients'] as const,
+  websiteUsage: (clientId?: string) => ['agency', 'usage', 'websites', clientId ?? 'all'] as const,
 };
 
-export function useAgencyClients(websiteId: string) {
-  return useQuery({
-    queryKey: [...agencyKeys.clients, isDemo(websiteId)],
-    queryFn: () => (isDemo(websiteId) ? demoAgencyClients() : listClients()),
-    enabled: !!websiteId,
+/** A list as one array, with "load more" while the API says there is more. */
+function useCursorList<T>(key: readonly unknown[], fetch: (cursor: string | null) => Promise<ListResponse<T>>, enabled = true) {
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ pageParam }) => fetch(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => (last.page?.has_more ? last.page.next_cursor : undefined),
+    enabled,
   });
+  const items = query.data?.pages.flatMap(p => p.data) ?? [];
+  return { ...query, items };
 }
 
-export function useAgencyClient(websiteId: string, clientId: string) {
-  return useQuery({
-    queryKey: [...agencyKeys.client(clientId), isDemo(websiteId)],
-    queryFn: async (): Promise<AgencyClient> => {
-      if (!isDemo(websiteId)) return getClient(clientId);
-      const found = demoAgencyClients().find(c => c.id === clientId);
-      if (!found) throw new Error('not found');
-      return found;
-    },
-    enabled: !!websiteId && !!clientId,
+export const useOverview = (period = '30d') =>
+  useQuery({ queryKey: agencyKeys.overview(period), queryFn: () => agencyApi.getOverview(period) });
+
+export const useSetup = () => useQuery({ queryKey: agencyKeys.setup, queryFn: agencyApi.getSetup });
+
+export const useClients = (filters: ClientListFilters = {}) =>
+  useCursorList(agencyKeys.clients(filters), cursor => agencyApi.listClients(filters, cursor));
+
+export const useClient = (id: string) =>
+  useQuery({ queryKey: agencyKeys.client(id), queryFn: () => agencyApi.getClient(id), enabled: !!id });
+
+export const useClientWebsites = (id: string) =>
+  useQuery({ queryKey: agencyKeys.clientWebsites(id), queryFn: async () => (await agencyApi.listClientWebsites(id)).data, enabled: !!id });
+
+export const useClientFeatures = (id: string) =>
+  useQuery({ queryKey: agencyKeys.features(id), queryFn: () => agencyApi.getClientFeatures(id), enabled: !!id });
+
+export const useWebsites = (filters: WebsiteListFilters = {}) =>
+  useCursorList(agencyKeys.websites(filters), cursor => agencyApi.listWebsites(filters, cursor));
+
+export const useInstall = (websiteId: string | null) =>
+  useQuery({ queryKey: agencyKeys.install(websiteId ?? ''), queryFn: () => agencyApi.getInstall(websiteId!), enabled: !!websiteId });
+
+export const useBranding = () => useQuery({ queryKey: agencyKeys.branding, queryFn: agencyApi.getBranding });
+
+export const isDomainPending = (d: Domain | null | undefined) => d?.state === 'pending_dns' || d?.state === 'pending_certificate';
+
+/** The custom domain, `null` when there is none; polled while DNS or the certificate is pending. */
+export const useDomain = () =>
+  useQuery({
+    queryKey: agencyKeys.domain,
+    queryFn: agencyApi.getDomain,
+    retry: false,
+    refetchInterval: query => (isDomainPending(query.state.data) ? DOMAIN_POLL_MS : false),
   });
-}
 
-export function useAgencyAPIKeys(websiteId: string) {
-  return useQuery({
-    queryKey: [...agencyKeys.apiKeys, isDemo(websiteId)],
-    queryFn: () => (isDemo(websiteId) ? demoAgencyKeys() : listAgencyAPIKeys()),
-    enabled: !!websiteId,
-  });
-}
+export const useEmbeds = (filters: { scope?: 'website' | 'client'; target_id?: string } = {}) =>
+  useQuery({ queryKey: agencyKeys.embeds(filters), queryFn: async () => (await agencyApi.listEmbeds(filters)).data });
 
-export function useEmbedLinks(websiteId: string) {
-  return useQuery({
-    queryKey: [...agencyKeys.embedLinks, isDemo(websiteId)],
-    queryFn: () => (isDemo(websiteId) ? demoEmbedLinks() : listEmbedLinks()),
-    enabled: !!websiteId,
-  });
-}
+export const useUsage = () => useQuery({ queryKey: agencyKeys.usage, queryFn: agencyApi.getUsage });
 
-// Client access, white label and the custom domain take the Agency plan for every call, so each
-// read is `enabled` only where the caller has it (`useAgencyPlan`).
+export const useClientUsage = () => useCursorList(agencyKeys.clientUsage, cursor => agencyApi.listClientUsage(cursor));
 
-export function useClientUsers(websiteId: string, opts: { clientId?: string; enabled: boolean }) {
-  return useQuery({
-    queryKey: [...agencyKeys.clientUsers, opts.clientId ?? 'all', isDemo(websiteId)],
-    queryFn: async () => {
-      if (!isDemo(websiteId)) return listClientUsers(opts.clientId);
-      return demoClientUsers().filter(u => !opts.clientId || u.clientId === opts.clientId);
-    },
-    enabled: !!websiteId && opts.enabled,
-  });
-}
+export const useWebsiteUsage = (clientId?: string) =>
+  useCursorList(agencyKeys.websiteUsage(clientId), cursor => agencyApi.listWebsiteUsage(clientId, cursor));
 
-export function useWhiteLabel(websiteId: string, opts: { enabled: boolean }) {
-  return useQuery({
-    queryKey: [...agencyKeys.whiteLabel, isDemo(websiteId)],
-    queryFn: () => (isDemo(websiteId) ? demoWhiteLabel() : getWhiteLabel()),
-    enabled: !!websiteId && opts.enabled,
-  });
-}
-
-/** How often a domain still being set up is asked about: DNS and certificates take minutes. */
-export const CUSTOM_DOMAIN_POLL_MS = 15_000;
-
-export const isDomainPending = (d: CustomDomain | null | undefined) =>
-  d?.state === 'pending_dns' || d?.state === 'pending_certificate';
-
-/** The agency's portal domain, `null` when it has none; polled while it is being set up. */
-export function useCustomDomain(websiteId: string, opts: { enabled: boolean }) {
-  return useQuery({
-    queryKey: [...agencyKeys.customDomain, isDemo(websiteId)],
-    queryFn: () => (isDemo(websiteId) ? demoCustomDomain() : getCustomDomain()),
-    enabled: !!websiteId && opts.enabled,
-    refetchInterval: (query) => (isDomainPending(query.state.data) ? CUSTOM_DOMAIN_POLL_MS : false),
-  });
-}
-
-/** Throws a quiet marker in demo mode, so callers' onError can tell it from a real failure. */
-class DemoRefused extends Error {}
-export const isDemoRefusal = (e: unknown) => e instanceof DemoRefused;
-
-function guard(websiteId: string) {
-  if (demoMutationGuard(websiteId)) throw new DemoRefused('demo');
-}
-
-export function useAgencyMutation<V, R>(websiteId: string, fn: (v: V) => Promise<R>) {
+/** Any workspace write: refreshes every agency query once it lands. */
+export function useAgencyMutation<V, R>(fn: (v: V) => Promise<R>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (v: V) => {
-      guard(websiteId);
-      return fn(v);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: agencyKeys.clients });
-      queryClient.invalidateQueries({ queryKey: agencyKeys.embedLinks });
-      queryClient.invalidateQueries({ queryKey: ['agency-client'] });
-      queryClient.invalidateQueries({ queryKey: agencyKeys.apiKeys });
-      queryClient.invalidateQueries({ queryKey: agencyKeys.clientUsers });
-    },
+    mutationFn: fn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: agencyKeys.all }),
   });
 }
-
-export const useCreateClient = (websiteId: string) =>
-  useAgencyMutation(websiteId, (req: CreateClientRequest) => createClient(req));
-
-export const useUpdateClient = (websiteId: string) =>
-  useAgencyMutation(websiteId, ({ id, req }: { id: string; req: UpdateClientRequest }) => updateClient(id, req));
-
-export const useDeleteClient = (websiteId: string) =>
-  useAgencyMutation(websiteId, (id: string) => deleteClient(id));
-
-export const useAssignWebsite = (websiteId: string) =>
-  useAgencyMutation(websiteId, ({ clientId, siteId }: { clientId: string; siteId: string }) => assignWebsite(clientId, siteId));
-
-export const useUnassignWebsite = (websiteId: string) =>
-  useAgencyMutation(websiteId, ({ clientId, siteId }: { clientId: string; siteId: string }) => unassignWebsite(clientId, siteId));
-
-export const useCreateAPIKey = (websiteId: string) =>
-  useAgencyMutation(websiteId, ({ name, scopes }: { name: string; scopes: AccountScope[] }) => createAgencyAPIKey(name, scopes));
-
-export const useCreateEmbedLink = (websiteId: string) =>
-  useAgencyMutation(
-    websiteId,
-    ({ target, sections }: { target: { websiteId: string } | { clientId: string }; sections?: EmbedSection[] }) =>
-      createEmbedLink(target, sections),
-  );
-
-export const useUpdateEmbedLink = (websiteId: string) =>
-  useAgencyMutation(websiteId, ({ id, sections }: { id: string; sections: EmbedSection[] }) =>
-    updateEmbedLinkSections(id, sections));
-
-export const useRevokeEmbedLink = (websiteId: string) =>
-  useAgencyMutation(websiteId, (id: string) => revokeEmbedLink(id));
-
-export const useDeleteAPIKey = (websiteId: string) =>
-  useAgencyMutation(websiteId, (id: string) => deleteAgencyAPIKey(id));

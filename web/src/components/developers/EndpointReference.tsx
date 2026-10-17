@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { CopyButton } from '@/components/agency/CopyButton';
+import { CopyButton } from '@/components/developers/CopyButton';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 

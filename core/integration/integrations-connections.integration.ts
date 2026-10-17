@@ -118,7 +118,8 @@ describe("connecting a destination", () => {
 
     for (const url of [`https://${PRIVATE_HOST}/hooks/a`, "https://localhost/hooks/a", "https://127.0.0.1/hooks/a", "https://nowhere.receiver.example/x"]) {
       const res = await api("POST", path, { token: owner.token, body: { provider: "zapier", credentials: { webhook_url: url } } });
-      expect({ url, status: res.status }).toEqual({ url, status: 502 });
+      // An unsafe address is the caller's mistake (connection.service.ts): 400 invalid, not a provider failure.
+      expect({ url, status: res.status, error: res.body.error }).toEqual({ url, status: 400, error: "invalid" });
     }
     expect(receiver.requests.some((r) => r.url.includes(PRIVATE_HOST) || r.url.includes("localhost") || r.url.includes("127.0.0.1"))).toBe(false);
     expect(await sql`SELECT 1 FROM integration_connections WHERE website_id = ${site.id}::uuid`).toHaveLength(0);
@@ -220,7 +221,7 @@ describe("changing a destination", () => {
       token: owner.token, body: { credentials: { webhook_url: `https://${PRIVATE_HOST}/x` } },
     });
 
-    expect(res.status).toBe(502);
+    expect([res.status, res.body.error]).toEqual([400, "invalid"]);
     const [after] = await sql<{ credentials: string }[]>`SELECT credentials FROM integration_connections WHERE id = ${id}::uuid`;
     expect(after!.credentials).toBe(before!.credentials);
   });

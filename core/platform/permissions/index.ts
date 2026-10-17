@@ -22,6 +22,9 @@ export const PERMISSIONS = [
   "analytics:privacy.manage",
   "analytics:apikeys.manage",
   "analytics:settings.manage",
+  // The agency workspace (/api/v1/agency). Checked by the gateway before it forwards; listed
+  // here so both sides name the same key.
+  "team:agency.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

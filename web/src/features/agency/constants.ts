@@ -1,62 +1,68 @@
-import type { AgencyClient, AgencyClientFeatures, ClientUser } from './types';
+import type { DomainState, EmbedSection, FeatureAccess, FeatureId, InstallMethod, Resource, SetupStepId } from './types';
 
-/**
- * Shared vocabulary for the agency screens.
- *
- * Five pages each declared their own copies of these. `STATUS_STYLES` was byte-identical
- * across the three client pages and `FEATURE_LABELS` across two of them — the sort of
- * duplication that stays correct right up until someone edits one of them.
- *
- * The variants that genuinely differ are kept apart and named for how they differ, rather
- * than merged behind a flag: a list row wants a label, a detail page wants a label and an
- * explanation, and clients and client-users do not share a status set.
- */
-
-/** Clients are archived; client users are invited, then revoked: two status sets, two maps. */
-export const CLIENT_STATUS_STYLES: Record<AgencyClient['status'], string> = {
-  active:    'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  suspended: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
-  archived:  'bg-muted text-muted-foreground border-border',
-};
-
-export const USER_STATUS_STYLES: Record<ClientUser['status'], string> = {
-  invited: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
-  active:  'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-  revoked: 'bg-muted text-muted-foreground border-border',
-};
-
-export const CLIENT_FEATURE_LABELS: Array<{ key: keyof AgencyClientFeatures; label: string }> = [
-  { key: 'analytics',   label: 'Analytics' },
-  { key: 'heatmaps',    label: 'Heatmaps' },
-  { key: 'replays',     label: 'Replays' },
-  { key: 'funnels',     label: 'Funnels' },
-  { key: 'automations', label: 'Automations' },
-  { key: 'errors',      label: 'Errors' },
+/** The dashboard pages a client can be shown, in sidebar order, with what each one holds. */
+export const FEATURES: Array<{ id: FeatureId; label: string; description: string }> = [
+  { id: 'overview', label: 'Overview', description: 'Visitors, pages, sources and countries' },
+  { id: 'events', label: 'Events', description: 'Custom events and their properties' },
+  { id: 'paths', label: 'Paths', description: 'How visitors move between pages' },
+  { id: 'revenue', label: 'Revenue', description: 'Sales and where they came from' },
+  { id: 'recordings', label: 'Recordings', description: 'Replays of real visitor sessions' },
+  { id: 'heatmaps', label: 'Heatmaps', description: 'Clicks and scroll depth on each page' },
+  { id: 'funnels', label: 'Funnels', description: 'Where visitors drop out of a flow' },
+  { id: 'goals', label: 'Goals', description: 'Conversions the site counts' },
+  { id: 'automations', label: 'Automations', description: 'Popups, emails and webhooks' },
+  { id: 'leads', label: 'Leads', description: 'Form submissions and contacts' },
+  { id: 'conversions', label: 'Conversions', description: 'Sales and leads sent to ad platforms' },
+  { id: 'ai', label: 'AI', description: 'Questions and written reports' },
+  { id: 'errors', label: 'Errors', description: 'JavaScript errors visitors hit' },
+  { id: 'privacy', label: 'Privacy', description: 'Consent and data settings' },
 ];
 
-export const DEFAULT_CLIENT_FEATURES: AgencyClientFeatures = {
-  analytics: true,
-  heatmaps: true,
-  replays: true,
-  funnels: true,
-  automations: true,
-  errors: true,
-};
+export const FEATURE_IDS: FeatureId[] = FEATURES.map(f => f.id);
 
-/** The sections an embed link can show, in display order, with what each one exposes. */
-export const EMBED_SECTIONS: Array<{
-  id: import('./types').EmbedSection;
-  label: string;
-  description: string;
-  /** Shown under the switch when it is on: what the person with the link will be able to see. */
-  caution?: string;
-}> = [
-  { id: 'analytics', label: 'Analytics', description: 'Traffic, pages, sources, countries and devices.' },
-  {
-    id: 'recordings', label: 'Session recordings', description: 'Replays of real visitor sessions.',
-    caution: 'Recordings show what real visitors did. Turn this on only for people who may see that.',
-  },
-  { id: 'heatmaps', label: 'Heatmaps', description: 'Where visitors click, move and scroll on each page.' },
+export const FEATURE_ACCESS: Array<{ id: FeatureAccess; label: string }> = [
+  { id: 'off', label: 'Off' },
+  { id: 'view', label: 'View' },
+  { id: 'edit', label: 'Edit' },
 ];
 
-export const DEFAULT_EMBED_SECTIONS: Array<import('./types').EmbedSection> = ['analytics'];
+export const RESOURCES: Array<{ id: Resource; label: string }> = [
+  { id: 'events', label: 'Events' },
+  { id: 'recordings', label: 'Recordings' },
+  { id: 'leads', label: 'Leads' },
+  { id: 'ai_analyses', label: 'AI analyses' },
+];
+
+export const INSTALL_METHODS: Array<{ id: InstallMethod; label: string }> = [
+  { id: 'html', label: 'HTML' },
+  { id: 'gtm', label: 'Google Tag Manager' },
+  { id: 'nextjs', label: 'Next.js' },
+  { id: 'wordpress', label: 'WordPress' },
+  { id: 'shopify', label: 'Shopify' },
+  { id: 'npm', label: 'npm' },
+];
+
+export const EMBED_SECTIONS: Array<{ id: EmbedSection; label: string; description: string }> = [
+  { id: 'analytics', label: 'Analytics', description: 'Traffic, pages, sources, countries and devices' },
+  { id: 'recordings', label: 'Session recordings', description: 'Replays of real visitor sessions' },
+  { id: 'heatmaps', label: 'Heatmaps', description: 'Clicks, movement and scroll on each page' },
+];
+
+/** The setup guide, in order: what each step is and where it is done. */
+export const SETUP_STEPS: Array<{ id: SetupStepId; title: string; description: string; href: string; cta: string; later?: string }> = [
+  { id: 'branding', title: 'Add your brand and domain', description: 'Your name, logo and colour, and a domain such as reports.youragency.com.', href: '/agency/branding', cta: 'Open branding' },
+  { id: 'first_client', title: 'Add your first client', description: 'A client groups the websites you run for one customer.', href: '/agency/clients?new=1', cta: 'Add a client' },
+  { id: 'website_installed', title: 'Add a website and install the snippet', description: 'Add the client’s site, paste the snippet, and check that events arrive.', href: '/agency/websites', cta: 'Add a website' },
+  { id: 'client_user', title: 'Invite a client user', description: 'Let your client sign in to their own dashboard.', href: '/agency/clients', cta: 'Open clients', later: 'Client sign-in arrives in the next update.' },
+  { id: 'features_limits', title: 'Choose features and limits', description: 'Pick which dashboard pages each client sees. Limits arrive in a later update.', href: '/agency/clients', cta: 'Open clients' },
+];
+
+export const DOMAIN_STATES: Record<DomainState, { label: string; hint: string }> = {
+  pending_dns: { label: 'Waiting for DNS', hint: 'Add the records below at your DNS provider. This page checks again every 15 seconds.' },
+  pending_certificate: { label: 'Issuing certificate', hint: 'DNS is set. The HTTPS certificate usually takes a few minutes.' },
+  active: { label: 'Active', hint: 'Your domain is live.' },
+  failed: { label: 'Failed', hint: 'Check the records below, then check again, or remove the domain and start over.' },
+};
+
+/** How often a domain still being set up is asked about: DNS and certificates take minutes. */
+export const DOMAIN_POLL_MS = 15_000;

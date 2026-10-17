@@ -17,6 +17,7 @@ import { PublicDashboardService } from "./services/public-dashboard-analytics.se
 import { AnalyticsRetentionPurge } from "./services/retention-purge.service";
 import { AnalyticsTrafficSummaryService } from "./services/website-traffic-summary.service";
 import { AnalyticsUsageCounter } from "./services/usage-count.service";
+import { AnalyticsSiteMetrics, AnalyticsTrackingActivity } from "./services/agency-site-metrics.service";
 import { buildStaleRollups } from "./rollups/builder";
 import { detectRollups } from "./rollups/reads";
 import { getInsightSnapshotData } from "./repositories/insight-snapshot.repository";
@@ -86,6 +87,8 @@ export function initAnalyticsModule(deps: {
     retention: new AnalyticsRetentionPurge(),
 
     usage: new AnalyticsUsageCounter(),
+    agencyMetrics: new AnalyticsSiteMetrics(),
+    trackingActivity: new AnalyticsTrackingActivity(),
     rollups: { buildStale: () => buildStaleRollups(), detect: () => detectRollups() },
     routes: createAnalyticsRoutes({
       dashboard,

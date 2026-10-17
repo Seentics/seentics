@@ -2,6 +2,7 @@ import type { AuthedRouter, PublicRouter } from "../../../platform/http/router";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { RetentionPurge } from "../../../platform/retention";
 import type { UsageCounter } from "../../../platform/usage";
+import type { SiteMetricSource } from "../../agency/interfaces";
 
 /** A form's extra answers, after sanitising: short string/number/boolean values only. */
 export type LeadFields = Record<string, string | number | boolean>;
@@ -162,6 +163,8 @@ export type LeadsModule = ModuleLifecycle & {
   contacts: ContactMutations;
   /** Form submissions this calendar month, per account — the `leads` plan limit's count. */
   usage: UsageCounter;
+  /** Form submissions per site, for the agency overview. */
+  agencyMetrics: SiteMetricSource;
   /** Ages out stored submissions after `SUBMISSION_RETENTION_DAYS`. */
   retention: RetentionPurge;
   /** Each form's submissions, the site-wide inbox and contacts, behind the session middleware. */

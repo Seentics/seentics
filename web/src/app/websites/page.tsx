@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { getWebsites, addWebsite } from '@/lib/websites-api';
 import { rememberedWebsite, rememberWebsite } from '@/lib/last-website';
 import { useAuth } from '@/stores/useAuthStore';
-import { Loader2, ArrowRight, CheckCircle, LogOut } from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle, LogOut, Briefcase } from 'lucide-react';
+import { AGENCY_WORKSPACE_HREF, useHasAgencyWorkspace } from '@/components/dashboard/Sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/ui/logo';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,8 @@ export default function WebsitesOnboardingPage() {
   const [newlyAddedSiteId, setNewlyAddedSiteId] = useState<string | null>(null);
   const [trackingCode, setTrackingCode] = useState('');
   const [copied, setCopied] = useState(false);
+  // Agency accounts may start in the Agency workspace rather than with a site of their own.
+  const hasAgency = useHasAgencyWorkspace();
 
   useEffect(() => {
     // The site opened last time: straight there, without waiting for the session check and
@@ -166,6 +169,15 @@ export default function WebsitesOnboardingPage() {
             <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">Seentics</span>
           </Link>
           {user && (
+            <div className="flex items-center gap-1">
+            {hasAgency && (
+              <Button variant="outline" size="sm" className="shrink-0 gap-2" asChild>
+                <Link href={AGENCY_WORKSPACE_HREF}>
+                  <Briefcase className="h-4 w-4" />
+                  <span>Agency workspace</span>
+                </Link>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -178,6 +190,7 @@ export default function WebsitesOnboardingPage() {
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Log out</span>
             </Button>
+            </div>
           )}
         </header>
 

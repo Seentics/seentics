@@ -16,7 +16,7 @@ import { viewFromHref, resolveActiveSection, type View } from '@/features/embed/
 import { EmbedTokenError, fetchEmbedClientSites, fetchEmbedInfo, isSampleToken } from '@/features/embed/api';
 
 /**
- * The read-only dashboard behind an embed link and the client portal: a website's, or a client's
+ * The read-only dashboard behind an embed link: a website's, or a client's
  * (`clientMode`) with a switcher between its websites, showing only the sections the token allows.
  *
  * It is the real dashboard pages — the same components the signed-in app renders — with no

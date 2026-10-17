@@ -11,12 +11,12 @@ export default function ApiKeysPage() {
     <DocPage
       eyebrow="Integration"
       title="API keys"
-      lead="One account key, scoped to what each integration needs. It manages your clients and websites and reads their data, by id."
+      lead="One account key, scoped to what each integration needs. It manages your websites (and, on Agency, your clients) and reads their data, by id."
     >
       <DocSection title="Creating a key">
         <Ul>
           <Li>
-            Open <C>Agency → API keys</C> and choose <C>New API key</C>.
+            Open any website&apos;s <C>Developers → API keys</C> tab and choose <C>New account key</C>.
           </Li>
           <Li>Give the key a name that says where it will be used — you will thank yourself later.</Li>
           <Li>Pick its access, and only as much as the integration needs.</Li>
@@ -30,20 +30,28 @@ export default function ApiKeysPage() {
       <DocSection title="Access">
         <Ul>
           <Li>
-            <strong>Full access</strong> — create and manage clients and websites, and read their analytics,
+            <strong>Full access</strong> — create and manage websites, and read their analytics,
             recordings and heatmaps.
           </Li>
           <Li>
-            <strong>Read only</strong> — list clients and websites and read their data. Cannot change anything.
+            <strong>Read only</strong> — list websites and read their data. Cannot change anything.
           </Li>
           <Li>
-            <strong>Manage only</strong> — create, update and delete clients and websites. Cannot read data.
+            <strong>Manage only</strong> — create, update and delete websites. Cannot read data.
+          </Li>
+          <Li>
+            <strong>Agency API</strong> (Agency accounts) — run the agency workspace from your backend:
+            clients, websites, install checks, branding, embeds and usage. See <C>/docs/agency</C>.
+          </Li>
+          <Li>
+            <strong>Custom</strong> — pick the scopes one by one.
           </Li>
         </Ul>
         <P>
           Under the hood a key holds scopes: <C>websites:read</C> and <C>websites:write</C> for the{' '}
           Management API, and <C>analytics:read</C>, <C>replays:read</C> and <C>heatmaps:read</C> for
-          the data API. Each endpoint requires one, and a key without it gets <C>403</C>. A key can only
+          the data API, and <C>agency:read</C> and <C>agency:write</C> for the agency API
+          (<C>/api/v1/agency</C>). Each endpoint requires one, and a key without it gets <C>403</C>. A key can only
           reach websites in its own account.
         </P>
       </DocSection>
@@ -68,7 +76,7 @@ const res = await fetch(
 );`}
         />
         <P>
-          The API reference in <C>Agency → Analytics API</C> shows the required scope beside every
+          The API reference on the <C>Developers → Data API</C> tab shows the required scope beside every
           endpoint.
         </P>
       </DocSection>

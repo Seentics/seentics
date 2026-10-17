@@ -11,8 +11,11 @@ import { isEnterprise } from '@/lib/features';
 export const AGENCY_PLAN_REQUIRED = 'AGENCY_PLAN_REQUIRED';
 
 export const isAgencyPlanRequired = (e: unknown): boolean => {
-  const response = (e as { response?: { status?: number; data?: { error?: string } } })?.response;
-  return response?.status === 403 && response.data?.error === AGENCY_PLAN_REQUIRED;
+  const response = (e as { response?: { status?: number; data?: { error?: string | { code?: string } } } })?.response;
+  if (response?.status !== 403) return false;
+  const error = response.data?.error;
+  // The agency API's envelope (`{error: {code: 'agency_plan_required'}}`), or the older routes' string.
+  return typeof error === 'object' ? error?.code === 'agency_plan_required' : error === AGENCY_PLAN_REQUIRED;
 };
 
 const refusedKey = ['agency-plan-refused'] as const;
@@ -25,7 +28,7 @@ const refusedKey = ['agency-plan-refused'] as const;
  * no plans, so everything is allowed there; until the entitlements load, nothing is hidden, and a
  * 403 AGENCY_PLAN_REQUIRED from the API (`markRefused`) shows the prompt all the same.
  */
-export function useAgencyPlan(websiteId: string) {
+export function useAgencyPlan(websiteId = '') {
   const queryClient = useQueryClient();
   const { data: entitlements } = useEntitlements();
   const { data: refused } = useQuery({

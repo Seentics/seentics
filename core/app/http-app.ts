@@ -46,12 +46,7 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
       websites: application.routes.websites,
       invitations: application.modules.websites.invitations,
       authModule: application.modules.auth,
-      agency: {
-        clients: application.modules.websites.agencyRoutes,
-        apiKeys: application.modules.apiKeys.accountRoutes,
-        embedLinks: application.modules.apiKeys.embedRoutes,
-        dashboard: application.modules.agency.dashboardRoutes,
-      },
+      agency: { apiKeys: application.modules.apiKeys.accountRoutes },
     }),
   );
   app.route("/api/v1/ai", application.routes.ai);
@@ -68,28 +63,25 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
       },
     }),
   );
-  // Provisioning clients and websites with an account API key — what a multi-tenant
-  // platform calls from its own signup handler. See app/http/management-api/routes.ts.
+  // Provisioning websites with an account API key — what a multi-tenant platform calls from
+  // its own signup handler. See app/http/management-api/routes.ts.
   app.route(
     "/api/v1/manage",
     createManagementRoutes({
       accountKeys: application.modules.apiKeys.accountVerifier,
-      embedLinks: application.modules.apiKeys.embedLinks,
-      clients: application.modules.websites.clients,
-      ownedWebsites: application.modules.websites.ownedWebsites,
-      routers: application.modules.websites.managementRoutes,
+      websites: application.modules.websites.managementRoutes,
     }),
   );
-  // The client portal's entry: a portal link's token answers its client, websites and brand.
-  // The portal then reads through the embed API below with that same token.
-  app.route("/api/v1/agency/portal", application.modules.agency.portalRoutes);
-  // Iframed dashboards, read with a permanent, revocable embed link's token (or a client
-  // portal link's). See app/http/embed/routes.ts.
+  // The agency workspace's public API. Only the gateway reaches it: it authenticates the
+  // caller, checks the Agency plan, and names the agency in X-Agency-* headers, which the
+  // router trusts only alongside the gateway's own key. See modules/agency/routes.ts.
+  app.route("/api/v1/agency", application.modules.agency.routes);
+  // Iframed dashboards, read with a permanent, revocable embed link's token.
+  // See app/http/embed/routes.ts.
   app.route(
     "/api/v1/embed",
     createEmbedRoutes({
       embedLinks: application.modules.apiKeys.embedLinks,
-      portal: application.modules.agency.portal,
       branding: application.modules.agency.whiteLabel,
       clients: application.modules.websites.clients,
       analytics: application.modules.analytics.reads,

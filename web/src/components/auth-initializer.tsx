@@ -22,7 +22,7 @@ export default function AuthInitializer() {
     let cancelled = false;
 
     const finish = async () => {
-      // An embed or a client portal has no use for a session and should not probe the visitor's:
+      // An embed has no use for a session and should not probe the visitor's:
       // it reads through its own link.
       const embedded = isSessionlessPath(window.location.pathname);
       if (!embedded && !useAuth.getState().user) {

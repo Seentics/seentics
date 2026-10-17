@@ -163,10 +163,10 @@ export function buildBlocks(websiteId: string): Block[] {
         </div>
       ),
       available: true,
-      setup: { label: 'Create embed link', href: `/websites/${websiteId}/agency?tab=embeds` },
-      code: `<!-- Create the link on Agency → Embeds: it carries the token the embed needs. -->
+      setup: { label: 'Create embed link', href: '/agency/websites' },
+      code: `<!-- Create the link in the Agency workspace: it carries the token the embed needs. -->
 <iframe
-  src="EMBED_LINK_FROM_AGENCY_EMBEDS"
+  src="EMBED_LINK_FROM_AGENCY_WORKSPACE"
   width="100%"
   height="600"
   frameborder="0"

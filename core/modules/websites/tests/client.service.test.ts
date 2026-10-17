@@ -1,14 +1,17 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import type { CreateWebsiteInput, UpdateWebsiteInput, Website } from "../interfaces";
 import {
-  CLIENT_FEATURES,
-  CLIENT_LIMITS,
+  COLLECT_FEATURES,
+  DASHBOARD_FEATURES,
   ClientOperationError,
   type Client,
+  type ClientListFilter,
   type ClientRepository,
   type CreateClientInput,
+  type CursorPage,
   type Page,
   type UpdateClientInput,
+  type WebsiteListFilter,
 } from "../interfaces/client.interface";
 import { ClientService } from "../services/client.service";
 
@@ -29,35 +32,35 @@ function site(ownerId: string, clientId: string | null = null): Website {
   };
 }
 
+/** Newest first, then id descending — the repository's order — and strictly after a cursor. */
+function byCursor<T extends { createdAt: Date; id: string }>(rows: T[], page: CursorPage): T[] {
+  return rows
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
+    .filter((r) => !page.after || r.createdAt < page.after.createdAt || (r.createdAt.getTime() === page.after.createdAt.getTime() && r.id < page.after.id))
+    .slice(0, page.limit);
+}
+
 /** In-memory clients and sites, sharing one site map with the website writes below. */
 class FakeClients implements ClientRepository {
   clients = new Map<string, Client>();
+  verified: string[] = [];
   constructor(readonly sites: Map<string, Website>) {}
-  /** Simulates the race where another request inserted the same external id first. */
-  raceOnNextCreate: Client | null = null;
 
   async create(ownerId: string, input: CreateClientInput): Promise<Client> {
-    if (this.raceOnNextCreate) {
-      this.clients.set(this.raceOnNextCreate.id, this.raceOnNextCreate);
-      this.raceOnNextCreate = null;
-      throw Object.assign(new Error("duplicate"), { code: "23505" });
-    }
-    const features = Object.fromEntries(CLIENT_FEATURES.map((f) => [f, input.featuresEnabled?.[f] !== false]));
-    const limits = Object.fromEntries(CLIENT_LIMITS.map((l) => [l, input.limits?.[l] ?? null]));
     const c: Client = {
-      id: nextId(), ownerId, name: input.name, externalId: input.externalId ?? null, company: "", email: "",
-      websiteUrl: "", note: "", status: input.status ?? "active", featuresEnabled: features as Client["featuresEnabled"],
-      limits: limits as Client["limits"], metadata: {}, createdAt: new Date(), updatedAt: new Date(),
+      id: nextId(), ownerId, name: input.name, company: input.company ?? "", notes: input.notes ?? "",
+      status: input.status ?? "active",
+      collectFeatures: Object.fromEntries(COLLECT_FEATURES.map((f) => [f, input.collectFeatures?.[f] !== false])) as Client["collectFeatures"],
+      dashboardFeatures: Object.fromEntries(DASHBOARD_FEATURES.map((f) => [f, "off"])) as Client["dashboardFeatures"],
+      createdAt: new Date(++seq * 1000), updatedAt: new Date(),
     };
     this.clients.set(c.id, c);
     return c;
   }
   async findById(id: string) { return this.clients.get(id) ?? null; }
-  async findByExternalId(ownerId: string, ext: string) {
-    return [...this.clients.values()].find((c) => c.ownerId === ownerId && c.externalId === ext) ?? null;
-  }
-  async list(ownerId: string, page: Page) {
-    return [...this.clients.values()].filter((c) => c.ownerId === ownerId).slice(page.offset, page.offset + page.limit);
+  async list(ownerId: string, filter: ClientListFilter, page: CursorPage) {
+    return byCursor([...this.clients.values()].filter((c) =>
+      c.ownerId === ownerId && (!filter.status || c.status === filter.status) && (!filter.q || c.name.includes(filter.q))), page);
   }
   async update(id: string, input: UpdateClientInput) {
     const c = this.clients.get(id);
@@ -66,14 +69,16 @@ class FakeClients implements ClientRepository {
       ...c,
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
-      featuresEnabled: { ...c.featuresEnabled, ...(input.featuresEnabled ?? {}) } as Client["featuresEnabled"],
-      limits: { ...c.limits, ...(input.limits ?? {}) } as Client["limits"],
+      collectFeatures: { ...c.collectFeatures, ...(input.collectFeatures ?? {}) } as Client["collectFeatures"],
+      dashboardFeatures: input.dashboardFeatures
+        ? ({ ...Object.fromEntries(DASHBOARD_FEATURES.map((f) => [f, "off"])), ...input.dashboardFeatures } as Client["dashboardFeatures"])
+        : c.dashboardFeatures,
     };
     this.clients.set(id, next);
     return next;
   }
   async delete(id: string) {
-    for (const s of this.sites.values()) if (s.clientId === id) s.clientId = null; // ON DELETE SET NULL
+    for (const s of this.sites.values()) if (s.clientId === id) s.clientId = null;
     return this.clients.delete(id);
   }
   async listWebsites(ownerId: string, f: { clientId?: string } & Page) {
@@ -81,8 +86,19 @@ class FakeClients implements ClientRepository {
       .filter((s) => s.ownerId === ownerId && (!f.clientId || s.clientId === f.clientId))
       .slice(f.offset, f.offset + f.limit);
   }
+  async pageWebsites(ownerId: string, f: WebsiteListFilter, page: CursorPage) {
+    return byCursor([...this.sites.values()].filter((s) =>
+      s.ownerId === ownerId && (f.unassigned ? s.clientId === null : !f.clientId || s.clientId === f.clientId)), page);
+  }
+  async allWebsites(ownerId: string) { return [...this.sites.values()].filter((s) => s.ownerId === ownerId); }
   async websitesOfClients(ids: string[]) { return [...this.sites.values()].filter((s) => s.clientId && ids.includes(s.clientId)); }
-  async countWebsites(id: string) { return [...this.sites.values()].filter((s) => s.clientId === id).length; }
+  async markVerified(id: string) {
+    const s = this.sites.get(id);
+    if (!s || s.isVerified) return false;
+    s.isVerified = true;
+    this.verified.push(id);
+    return true;
+  }
 }
 
 let sites: Map<string, Website>;
@@ -120,41 +136,9 @@ beforeEach(() => {
   );
 });
 
-describe("ClientService.createClient", () => {
-  it("creates the client and its first site, filed under it", async () => {
-    const { client, created } = await service.createClient(OWNER, { name: "Acme", externalId: "t-1" }, { name: "Acme", url: "acme.app.com" });
-    expect(created).toBe(true);
-    expect(client.websites).toHaveLength(1);
-    expect(client.websites[0]!.clientId).toBe(client.id);
-  });
-
-  it("is idempotent on external_id: a retry returns the same client and writes nothing", async () => {
-    const first = await service.createClient(OWNER, { name: "Acme", externalId: "t-1" }, { name: "Acme", url: "acme.app.com" });
-    const again = await service.createClient(OWNER, { name: "Acme", externalId: "t-1" }, { name: "Acme", url: "acme.app.com" });
-    expect(again.created).toBe(false);
-    expect(again.client.id).toBe(first.client.id);
-    expect(sites.size).toBe(1);
-  });
-
-  it("returns the winner's client when two retries race on the unique index", async () => {
-    const winner = await repo.create(OWNER, { name: "Acme", externalId: "t-race" });
-    repo.clients.delete(winner.id);
-    repo.raceOnNextCreate = winner;
-    const result = await service.createClient(OWNER, { name: "Acme", externalId: "t-race" });
-    expect(result.created).toBe(false);
-    expect(result.client.id).toBe(winner.id);
-  });
-
-  it("scopes external_id to the owner", async () => {
-    await service.createClient(OWNER, { name: "A", externalId: "same" });
-    const b = await service.createClient(OTHER, { name: "B", externalId: "same" });
-    expect(b.created).toBe(true);
-  });
-});
-
 describe("ownership", () => {
   it("treats another owner's client exactly like a missing one", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" });
+    const client = await service.createClient(OWNER, { name: "A" });
     expect(await service.getClient(OTHER, client.id)).toBeNull();
     expect(await service.updateClient(OTHER, client.id, { name: "x" })).toBeNull();
     expect(await service.deleteClient(OTHER, client.id)).toBe(false);
@@ -162,65 +146,65 @@ describe("ownership", () => {
   });
 
   it("will not move another owner's site, nor file one under another owner's client", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" });
+    const client = await service.createClient(OWNER, { name: "A" });
     const foreign = site(OTHER);
     sites.set(foreign.id, foreign);
     expect(await service.updateWebsite(OWNER, foreign.id, { clientId: client.id })).toBeNull();
     expect(foreign.clientId).toBeNull();
     const mine = site(OWNER);
     sites.set(mine.id, mine);
-    const { client: theirs } = await service.createClient(OTHER, { name: "B" });
+    const theirs = await service.createClient(OTHER, { name: "B" });
     await expect(service.updateWebsite(OWNER, mine.id, { clientId: theirs.id })).rejects.toEqual(
       new ClientOperationError("not_found"),
     );
   });
 
-  it("moves a site into a client and back out with updateWebsite", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" });
+  it("moves a site into a client, to another, and back out with updateWebsite", async () => {
+    const a = await service.createClient(OWNER, { name: "A" });
+    const b = await service.createClient(OWNER, { name: "B" });
     const loose = site(OWNER);
     sites.set(loose.id, loose);
-    expect((await service.updateWebsite(OWNER, loose.id, { clientId: client.id }))!.clientId).toBe(client.id);
+    expect((await service.updateWebsite(OWNER, loose.id, { clientId: a.id }))!.clientId).toBe(a.id);
+    expect((await service.updateWebsite(OWNER, loose.id, { clientId: b.id }))!.clientId).toBe(b.id);
     expect((await service.updateWebsite(OWNER, loose.id, { clientId: null }))!.clientId).toBeNull();
   });
 
-  it("will not create a site under another owner's client", async () => {
-    const { client } = await service.createClient(OTHER, { name: "B" });
-    await expect(service.createWebsite(OWNER, { name: "s", url: "s.example", clientId: client.id })).rejects.toEqual(
+  it("will not create a site under another owner's client, and creates any number under its own", async () => {
+    const theirs = await service.createClient(OTHER, { name: "B" });
+    await expect(service.createWebsite(OWNER, { name: "s", url: "s.example", clientId: theirs.id })).rejects.toEqual(
       new ClientOperationError("not_found"),
     );
-  });
-});
-
-describe("max_websites", () => {
-  it("refuses a site past the client's cap, through every way of adding one", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A", limits: { max_websites: 1 } }, { name: "1", url: "one.example" });
-    await expect(service.createWebsite(OWNER, { name: "2", url: "two.example", clientId: client.id })).rejects.toEqual(
-      new ClientOperationError("website_limit_reached"),
-    );
-    const loose = site(OWNER);
-    sites.set(loose.id, loose);
-    await expect(service.updateWebsite(OWNER, loose.id, { clientId: client.id })).rejects.toEqual(
-      new ClientOperationError("website_limit_reached"),
-    );
+    // No per-client site cap in Core any more: plan limits are the gateway's.
+    const mine = await service.createClient(OWNER, { name: "A" });
+    for (let i = 0; i < 3; i++) await service.createWebsite(OWNER, { name: `s${i}`, url: `s${i}.example`, clientId: mine.id });
+    expect((await service.getClient(OWNER, mine.id))!.websites).toHaveLength(3);
   });
 
-  it("does not count a site already filed under the client against it", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A", limits: { max_websites: 1 } }, { name: "1", url: "one.example" });
-    const filed = await service.updateWebsite(OWNER, client.websites[0]!.id, { clientId: client.id });
-    expect(filed!.clientId).toBe(client.id);
+  it("marks only the owner's site verified, once, and clears caches when it does", async () => {
+    const mine = site(OWNER);
+    const theirs = site(OTHER);
+    sites.set(mine.id, mine);
+    sites.set(theirs.id, theirs);
+    await service.markVerified(OWNER, theirs.id);
+    expect(theirs.isVerified).toBe(false);
+    await service.markVerified(OWNER, mine.id);
+    await service.markVerified(OWNER, mine.id);
+    expect(repo.verified).toEqual([mine.id]);
+    expect(changes).toBe(1);
   });
 });
 
 describe("tracker cache invalidation", () => {
-  it("fires when a client's switches change, since the tracker row carries them", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" });
+  it("fires when a client's switches or status change, since the tracker row carries them", async () => {
+    const client = await service.createClient(OWNER, { name: "A" });
     changes = 0;
-    await service.updateClient(OWNER, client.id, { featuresEnabled: { replays: false } });
-    expect(changes).toBe(1);
+    await service.updateClient(OWNER, client.id, { collectFeatures: { replays: false } });
+    await service.updateClient(OWNER, client.id, { status: "archived" });
+    expect(changes).toBe(2);
   });
 
   it("fires when a site moves between clients, and not for an unrelated edit", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" });
+    const client = await service.createClient(OWNER, { name: "A" });
     const loose = site(OWNER);
     sites.set(loose.id, loose);
     changes = 0;
@@ -232,29 +216,32 @@ describe("tracker cache invalidation", () => {
 });
 
 describe("deleteClient", () => {
-  it("keeps the sites, ungrouped, by default", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" }, { name: "1", url: "one.example" });
-    await service.deleteClient(OWNER, client.id);
+  it("keeps the sites, ungrouped", async () => {
+    const client = await service.createClient(OWNER, { name: "A" });
+    await service.createWebsite(OWNER, { name: "1", url: "one.example", clientId: client.id });
+    expect(await service.deleteClient(OWNER, client.id)).toBe(true);
     expect(deletedSites).toEqual([]);
     expect([...sites.values()][0]!.clientId).toBeNull();
-  });
-
-  it("deletes the sites through the normal delete when asked", async () => {
-    const { client } = await service.createClient(OWNER, { name: "A" }, { name: "1", url: "one.example" });
-    await service.deleteClient(OWNER, client.id, { deleteWebsites: true });
-    expect(deletedSites).toHaveLength(1);
-    expect(sites.size).toBe(0);
   });
 });
 
 describe("listing", () => {
-  it("reports has_more from one extra row, without a count query", async () => {
+  it("pages clients newest first by cursor, has_more from one extra row", async () => {
     for (let i = 0; i < 3; i++) await service.createClient(OWNER, { name: `c${i}` });
-    const first = await service.listClients(OWNER, { limit: 2, offset: 0 });
-    expect(first.items).toHaveLength(2);
+    const first = await service.listClients(OWNER, {}, { limit: 2 });
+    expect(first.items.map((c) => c.name)).toEqual(["c2", "c1"]);
     expect(first.hasMore).toBe(true);
-    const last = await service.listClients(OWNER, { limit: 2, offset: 2 });
-    expect(last.items).toHaveLength(1);
-    expect(last.hasMore).toBe(false);
+    const last = first.items[1]!;
+    const rest = await service.listClients(OWNER, {}, { limit: 2, after: { createdAt: last.createdAt, id: last.id } });
+    expect(rest.items.map((c) => c.name)).toEqual(["c0"]);
+    expect(rest.hasMore).toBe(false);
+  });
+
+  it("filters websites to one client or to those in none", async () => {
+    const client = await service.createClient(OWNER, { name: "A" });
+    await service.createWebsite(OWNER, { name: "in", url: "in.example", clientId: client.id });
+    await service.createWebsite(OWNER, { name: "out", url: "out.example" });
+    expect((await service.pageWebsites(OWNER, { clientId: client.id }, { limit: 10 })).items.map((s) => s.name)).toEqual(["in"]);
+    expect((await service.pageWebsites(OWNER, { unassigned: true }, { limit: 10 })).items.map((s) => s.name)).toEqual(["out"]);
   });
 });

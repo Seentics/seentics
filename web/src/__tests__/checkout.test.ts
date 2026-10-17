@@ -18,13 +18,15 @@ describe('checkout with the founding code', () => {
   it('sends `discount` only when one was claimed', async () => {
     await startCheckout('agency', 'year');
     expect(post).toHaveBeenLastCalledWith('/user/billing/checkout', { plan: 'agency', interval: 'year' });
-    await startCheckout('agency', 'month', 'FOUNDING49');
-    expect(post).toHaveBeenLastCalledWith('/user/billing/checkout', { plan: 'agency', interval: 'month', discount: 'FOUNDING49' });
+    await startCheckout('agency', 'month', 'FOUNDING30');
+    expect(post).toHaveBeenLastCalledWith('/user/billing/checkout', { plan: 'agency', interval: 'month', discount: 'FOUNDING30' });
+    await startCheckout('pro', 'year', 'FOUNDING30');
+    expect(post).toHaveBeenLastCalledWith('/user/billing/checkout', { plan: 'pro', interval: 'year', discount: 'FOUNDING30' });
   });
 
   it('carries the claimed code across sign-up', () => {
-    rememberCheckoutIntent('agency', 'month', 'FOUNDING49');
-    expect(takeCheckoutIntent()).toEqual({ plan: 'agency', interval: 'month', discount: 'FOUNDING49' });
+    rememberCheckoutIntent('agency', 'year', 'FOUNDING30');
+    expect(takeCheckoutIntent()).toEqual({ plan: 'agency', interval: 'year', discount: 'FOUNDING30' });
     rememberCheckoutIntent('pro', 'year');
     expect(takeCheckoutIntent()).toEqual({ plan: 'pro', interval: 'year' });
   });

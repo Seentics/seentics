@@ -11,6 +11,7 @@ import { DeliveryAttemptService } from "./services/delivery-attempt.service";
 import { DeliveryWorker } from "./services/delivery-worker.service";
 import { OutboxService } from "./services/outbox.service";
 import { IntegrationsRetentionPurge } from "./services/retention-purge.service";
+import { ConversionSiteMetrics } from "./services/agency-site-metrics.service";
 import { conversionsLane } from "./conversion-lane";
 import { createConversionRoutes } from "./conversion-routes";
 import { claimDueConversions, type ClaimedConversion } from "./repositories/conversion.repository";
@@ -46,6 +47,7 @@ export function initIntegrationsModule(deps: { websitesModule: WebsitesModule; c
       routes: createConversionRoutes({ admin: conversionAdmin, websites: deps.websitesModule.accessChecks }),
     },
     retention: new IntegrationsRetentionPurge(),
+    agencyMetrics: new ConversionSiteMetrics(),
     routes: createIntegrationRoutes({ queries: connections, mutations: connections, websites: deps.websitesModule.accessChecks }),
 
     async start() {

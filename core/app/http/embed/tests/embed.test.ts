@@ -93,8 +93,6 @@ const BRAND = {
   support_email: "help@northwind.example", footer_text: "", hide_seentics: true,
 };
 const branding = { brandFor: async (ownerId: string) => (ownerId === OWNER ? BRAND : { ...BRAND, brand_name: "someone else" }) };
-/** Portal tokens have their own suite (embed-portal.test.ts); here none is ever valid. */
-const noPortal = { verify: async () => null };
 
 async function setup(clientStatus = "active") {
   const embedLinks = await memoryEmbedLinks();
@@ -109,7 +107,6 @@ async function setup(clientStatus = "active") {
   };
   const routes = createEmbedRoutes({
     embedLinks,
-    portal: noPortal,
     branding,
     analytics: facadeOver(new Proxy({}, { get: (_t, name) => read(String(name)) })),
     websites: { getById: async (id: string) => SITES.find((s) => s.id === id) ?? null } as never,
@@ -216,8 +213,7 @@ describe("GET /:websiteId/analytics/:name", () => {
     const embedLinks = await memoryEmbedLinks();
     const routes = createEmbedRoutes({
       embedLinks,
-      portal: noPortal,
-      branding,
+        branding,
       analytics: facadeOver({ getPages: async (_id: string, q: unknown) => (seen.push(q), []) }),
       websites: { getById: async (id: string) => SITES.find((s) => s.id === id) ?? null } as never,
       clients: {} as never,

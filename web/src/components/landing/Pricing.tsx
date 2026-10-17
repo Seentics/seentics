@@ -3,6 +3,7 @@
 import { useAuth } from '@/stores/useAuthStore';
 import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
+import { useFoundingSpots } from '@/features/plans/queries';
 import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -15,6 +16,7 @@ export default function Pricing() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
+  const { data: founding } = useFoundingSpots();
 
   const handleSubscribe = async (selection: PlanSelection) => {
     if (selection.price === 0) {
@@ -52,7 +54,7 @@ export default function Pricing() {
         </div>
 
         <div>
-          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} founding={founding} />
         </div>
 
       </div>

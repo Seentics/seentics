@@ -9,7 +9,7 @@ import {
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
-  Code2, Bug, Sparkles, Radio, ArrowUpRight, Contact, Send, SlidersHorizontal,
+  Code2, Bug, Sparkles, ArrowUpRight, Contact, Send, SlidersHorizontal, Briefcase,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,7 +18,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/stores/useAuthStore';
 import { useEntitlements } from '@/features/suite/queries';
 import { workspaceIncludes } from '@/features/suite/workspace';
-import { config } from '@/lib/config';
+import { isEnterprise } from '@/lib/features';
 import { useHiddenNav, visibleItems, type NavId } from '@/features/sidebar/nav-prefs';
 import { SidebarCustomizeDialog } from './SidebarCustomizeDialog';
 
@@ -30,13 +30,13 @@ interface SuiteNavItem {
   product: string;
 }
 
-// Each app's console, not its root: observe.seentics.com/
-// is a public landing page with a "Sign in" button, which read as being signed out.
-// Every website is also an Observe project, so Observability opens this site's own.
-function buildSuiteProducts(websiteId: string): SuiteNavItem[] {
-  return [
-    { label: 'Observability', href: `${config.observeUrl}/projects/${websiteId}`, icon: Radio, product: 'observe' },
-  ];
+// The suite's other apps, each linking to its console. Observability is not offered for now: it
+// keeps running for anyone already sending to it (observe.seentics.com), but the dashboard no
+// longer points people at it. To bring it back, return
+//   { label: 'Observability', href: `${config.observeUrl}/projects/${websiteId}`, icon: Radio, product: 'observe' }
+// (each website is also an Observe project, so that opens this site's own).
+function buildSuiteProducts(_websiteId: string): SuiteNavItem[] {
+  return [];
 }
 
 interface NavItem {
@@ -69,11 +69,23 @@ function buildMainNav(websiteId: string): NavItem[] {
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
-    // Account-wide, not this site's: clients, and the management and data APIs.
-    { id: 'developers', label: 'Developers', href: `/websites/${websiteId}/agency`, icon: Code2, hint: 'Clients, and the management and data APIs' },
+    { id: 'developers', label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2, hint: 'API keys, API reference and setup guides' },
     { id: 'settings', label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings, hint: 'Website, tracking and team' },
   ];
 }
+
+/**
+ * Whether to offer the Agency workspace (`/agency`): on Cloud, only once the entitlements say
+ * the account has the Agency plan (`core.agency_features`) — nothing while they load, so a
+ * non-agency account never sees it flash. Self-hosted has no plans and gets everything.
+ */
+export function useHasAgencyWorkspace(): boolean {
+  const { data: entitlements } = useEntitlements();
+  if (!isEnterprise) return true;
+  return (entitlements?.products?.core?.limits?.agency_features ?? 0) > 0;
+}
+
+export const AGENCY_WORKSPACE_HREF = '/agency';
 
 function isNavActive(hrefWithQuery: string, pathname: string): boolean {
   const href = hrefWithQuery.split('?')[0];
@@ -101,6 +113,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const suiteNav = entitlements
     ? buildSuiteProducts(websiteId).filter((item) => workspaceIncludes(entitlements, item.product))
     : [];
+  const hasAgency = useHasAgencyWorkspace();
 
   const initials = useMemo(() => {
     if (!user) return '?';
@@ -259,15 +272,30 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         </ul>
       </nav>
 
-      {/* Workspace — the suite's other apps, each on its own subdomain.
-          Rendered only when another app is offered (enterprise mode, a Suite
-          plan or free), so OSS and Analytics-only accounts never see it. */}
-      {suiteNav.length > 0 && (
+      {/* Workspace — the Agency workspace for Agency accounts, then the suite's other apps,
+          each on its own subdomain. Rendered only when one of them is offered. */}
+      {(suiteNav.length > 0 || hasAgency) && (
         <div className={cn('shrink-0 border-t border-sidebar-border pt-3 pb-2 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
           )}
           <ul className="space-y-0.5">
+            {hasAgency && (
+              <li>
+                <Link
+                  href={AGENCY_WORKSPACE_HREF}
+                  title={collapsed ? 'Agency workspace' : undefined}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg transition-colors',
+                    collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
+                    'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+                  )}
+                >
+                  <Briefcase className="h-[17px] w-[17px] shrink-0" />
+                  {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Agency workspace</span>}
+                </Link>
+              </li>
+            )}
             {suiteNav.map((item) => renderSuiteItem(item, collapsed))}
           </ul>
         </div>

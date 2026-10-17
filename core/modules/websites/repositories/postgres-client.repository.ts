@@ -1,16 +1,21 @@
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { clients, db, websites } from "../../../db";
 import {
-  CLIENT_FEATURES,
-  CLIENT_LIMITS,
+  COLLECT_FEATURES,
+  DASHBOARD_FEATURES,
+  FEATURE_ACCESS,
   type Client,
-  type ClientFeature,
-  type ClientLimit,
+  type ClientListFilter,
   type ClientRepository,
   type ClientStatus,
+  type CollectFeature,
   type CreateClientInput,
+  type CursorPage,
+  type DashboardFeature,
+  type FeatureAccess,
   type Page,
   type UpdateClientInput,
+  type WebsiteListFilter,
 } from "../interfaces/client.interface";
 import type { Website } from "../interfaces";
 import { toDomain as websiteToDomain } from "./postgres-website.repository";
@@ -18,16 +23,19 @@ import { toDomain as websiteToDomain } from "./postgres-website.repository";
 type ClientRow = typeof clients.$inferSelect;
 
 /** Stored switches → every switch; one never stored is on. */
-function resolveFeatures(stored: Record<string, boolean> | null): Record<ClientFeature, boolean> {
-  const out = {} as Record<ClientFeature, boolean>;
-  for (const f of CLIENT_FEATURES) out[f] = stored?.[f] !== false;
+function resolveCollect(stored: Record<string, boolean> | null): Record<CollectFeature, boolean> {
+  const out = {} as Record<CollectFeature, boolean>;
+  for (const f of COLLECT_FEATURES) out[f] = stored?.[f] !== false;
   return out;
 }
 
-/** Stored caps → every cap; one never stored is uncapped. */
-function resolveLimits(stored: Record<string, number | null> | null): Record<ClientLimit, number | null> {
-  const out = {} as Record<ClientLimit, number | null>;
-  for (const l of CLIENT_LIMITS) out[l] = typeof stored?.[l] === "number" ? stored[l]! : null;
+/** Stored access → every page; one never stored (or stored as nonsense) is `off`. */
+function resolveDashboard(stored: Record<string, string> | null): Record<DashboardFeature, FeatureAccess> {
+  const out = {} as Record<DashboardFeature, FeatureAccess>;
+  for (const f of DASHBOARD_FEATURES) {
+    const v = stored?.[f];
+    out[f] = FEATURE_ACCESS.includes(v as FeatureAccess) ? (v as FeatureAccess) : "off";
+  }
   return out;
 }
 
@@ -36,19 +44,39 @@ function toDomain(row: ClientRow): Client {
     id: row.id,
     ownerId: row.userId,
     name: row.name,
-    externalId: row.externalId,
     company: row.company,
-    email: row.email,
-    websiteUrl: row.websiteUrl,
-    note: row.note,
+    notes: row.note,
     status: row.status as ClientStatus,
-    featuresEnabled: resolveFeatures(row.featuresEnabled),
-    limits: resolveLimits(row.limits),
-    metadata: row.metadata ?? {},
+    collectFeatures: resolveCollect(row.collectFeatures),
+    dashboardFeatures: resolveDashboard(row.dashboardFeatures),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
+
+/** `%term%` with the LIKE wildcards in the term escaped, so `50%` searches for "50%". */
+function containing(q: string): string {
+  return `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+}
+
+type CreatedAt = typeof clients.createdAt | typeof websites.createdAt;
+type Id = typeof clients.id | typeof websites.id;
+
+/**
+ * `created_at` to the millisecond — what a cursor can carry, since it round-trips through a
+ * JS `Date`. Ordering and the cursor comparison both use it, so two rows created in the same
+ * millisecond are told apart by id alone and neither is skipped at a page boundary.
+ */
+const ms = (createdAt: CreatedAt) => sql`date_trunc('milliseconds', ${createdAt})`;
+
+/** Rows strictly after the cursor in (created_at DESC, id DESC) order. */
+function afterCursor(createdAt: CreatedAt, id: Id, page: CursorPage): SQL | undefined {
+  if (!page.after) return undefined;
+  const at = page.after.createdAt.toISOString();
+  return sql`(${ms(createdAt)} < ${at}::timestamptz OR (${ms(createdAt)} = ${at}::timestamptz AND ${id} < ${page.after.id}::uuid))`;
+}
+
+const newestFirst = (createdAt: CreatedAt, id: Id) => [sql`${ms(createdAt)} DESC`, desc(id)];
 
 export class PostgresClientRepository implements ClientRepository {
   async create(ownerId: string, input: CreateClientInput): Promise<Client> {
@@ -57,15 +85,10 @@ export class PostgresClientRepository implements ClientRepository {
       .values({
         userId: ownerId,
         name: input.name.trim(),
-        externalId: input.externalId ?? null,
         company: input.company ?? "",
-        email: input.email ?? "",
-        websiteUrl: input.websiteUrl ?? "",
-        note: input.note ?? "",
+        note: input.notes ?? "",
         status: input.status ?? "active",
-        featuresEnabled: compact(input.featuresEnabled ?? {}),
-        limits: input.limits ?? {},
-        metadata: input.metadata ?? {},
+        collectFeatures: compact(input.collectFeatures ?? {}),
       })
       .returning();
     return toDomain(row!);
@@ -76,23 +99,21 @@ export class PostgresClientRepository implements ClientRepository {
     return row ? toDomain(row) : null;
   }
 
-  async findByExternalId(ownerId: string, externalId: string): Promise<Client | null> {
-    const [row] = await db
-      .select()
-      .from(clients)
-      .where(and(eq(clients.userId, ownerId), eq(clients.externalId, externalId)))
-      .limit(1);
-    return row ? toDomain(row) : null;
-  }
-
-  async list(ownerId: string, page: Page): Promise<Client[]> {
+  async list(ownerId: string, filter: ClientListFilter, page: CursorPage): Promise<Client[]> {
+    const q = filter.q?.trim();
     const rows = await db
       .select()
       .from(clients)
-      .where(eq(clients.userId, ownerId))
-      .orderBy(asc(clients.createdAt), asc(clients.id))
-      .limit(page.limit)
-      .offset(page.offset);
+      .where(
+        and(
+          eq(clients.userId, ownerId),
+          filter.status ? eq(clients.status, filter.status) : undefined,
+          q ? or(ilike(clients.name, containing(q)), ilike(clients.company, containing(q))) : undefined,
+          afterCursor(clients.createdAt, clients.id, page),
+        ),
+      )
+      .orderBy(...newestFirst(clients.createdAt, clients.id))
+      .limit(page.limit);
     return rows.map(toDomain);
   }
 
@@ -102,18 +123,19 @@ export class PostgresClientRepository implements ClientRepository {
 
     const patch: Partial<typeof clients.$inferInsert> = {};
     if (input.name !== undefined) patch.name = input.name.trim();
-    if (input.externalId !== undefined) patch.externalId = input.externalId;
     if (input.company !== undefined) patch.company = input.company;
-    if (input.email !== undefined) patch.email = input.email;
-    if (input.websiteUrl !== undefined) patch.websiteUrl = input.websiteUrl;
-    if (input.note !== undefined) patch.note = input.note;
+    if (input.notes !== undefined) patch.note = input.notes;
     if (input.status !== undefined) patch.status = input.status;
-    if (input.metadata !== undefined) patch.metadata = input.metadata;
     // Merged rather than replaced, so switching one feature off is a one-key request.
-    if (input.featuresEnabled !== undefined) {
-      patch.featuresEnabled = compact({ ...current.featuresEnabled, ...input.featuresEnabled });
+    if (input.collectFeatures !== undefined) {
+      patch.collectFeatures = compact({ ...current.collectFeatures, ...input.collectFeatures });
     }
-    if (input.limits !== undefined) patch.limits = { ...current.limits, ...input.limits };
+    // Replaced, minus the `off`s: absent already reads as off.
+    if (input.dashboardFeatures !== undefined) {
+      patch.dashboardFeatures = Object.fromEntries(
+        Object.entries(input.dashboardFeatures).filter(([, v]) => v && v !== "off"),
+      ) as Record<string, string>;
+    }
     if (Object.keys(patch).length === 0) return current;
 
     const [row] = await db
@@ -124,7 +146,7 @@ export class PostgresClientRepository implements ClientRepository {
     return row ? toDomain(row) : null;
   }
 
-  /** The client's sites stay, ungrouped — cleared here, as the schema has no foreign keys to do it. */
+  /** The client's sites stay, ungrouped — cleared here, as `websites.client_id` has no foreign key. */
   async delete(clientId: string): Promise<boolean> {
     return db.transaction(async (tx) => {
       await tx.update(websites).set({ clientId: null, updatedAt: new Date() }).where(eq(websites.clientId, clientId));
@@ -147,6 +169,33 @@ export class PostgresClientRepository implements ClientRepository {
     return rows.map(websiteToDomain);
   }
 
+  async pageWebsites(ownerId: string, filter: WebsiteListFilter, page: CursorPage): Promise<Website[]> {
+    const q = filter.q?.trim();
+    const rows = await db
+      .select()
+      .from(websites)
+      .where(
+        and(
+          eq(websites.userId, ownerId),
+          filter.unassigned ? isNull(websites.clientId) : filter.clientId ? eq(websites.clientId, filter.clientId) : undefined,
+          q ? or(ilike(websites.name, containing(q)), ilike(websites.url, containing(q))) : undefined,
+          afterCursor(websites.createdAt, websites.id, page),
+        ),
+      )
+      .orderBy(...newestFirst(websites.createdAt, websites.id))
+      .limit(page.limit);
+    return rows.map(websiteToDomain);
+  }
+
+  async allWebsites(ownerId: string): Promise<Website[]> {
+    const rows = await db
+      .select()
+      .from(websites)
+      .where(eq(websites.userId, ownerId))
+      .orderBy(asc(websites.createdAt), asc(websites.id));
+    return rows.map(websiteToDomain);
+  }
+
   async websitesOfClients(clientIds: string[]): Promise<Website[]> {
     if (clientIds.length === 0) return [];
     const rows = await db
@@ -157,14 +206,18 @@ export class PostgresClientRepository implements ClientRepository {
     return rows.map(websiteToDomain);
   }
 
-  async countWebsites(clientId: string): Promise<number> {
-    const [row] = await db.select({ n: count() }).from(websites).where(eq(websites.clientId, clientId));
-    return Number(row?.n ?? 0);
+  async markVerified(websiteId: string): Promise<boolean> {
+    const rows = await db
+      .update(websites)
+      .set({ isVerified: true, updatedAt: new Date() })
+      .where(and(eq(websites.id, websiteId), eq(websites.isVerified, false)))
+      .returning({ id: websites.id });
+    return rows.length > 0;
   }
 }
 
 /** Store only the switches that are off: "absent is on" keeps old rows right as features are added. */
-function compact(features: Partial<Record<ClientFeature, boolean>>): Record<string, boolean> {
+function compact(features: Partial<Record<CollectFeature, boolean>>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(features)) if (v === false) out[k] = false;
   return out;

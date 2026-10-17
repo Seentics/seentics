@@ -54,25 +54,25 @@ export async function resolveWebsiteForTracker(
           websites.url,
           websites.is_active
             AND COALESCE(client.status, 'active') = 'active'
-            AND COALESCE((client.features_enabled->>'analytics')::boolean, true) AS is_active,
+            AND COALESCE((client.collect_features->>'analytics')::boolean, true) AS is_active,
           websites.funnel_enabled
-            AND COALESCE((client.features_enabled->>'funnels')::boolean, true) AS funnel_enabled,
+            AND COALESCE((client.collect_features->>'funnels')::boolean, true) AS funnel_enabled,
           websites.heatmap_enabled
-            AND COALESCE((client.features_enabled->>'heatmaps')::boolean, true) AS heatmap_enabled,
+            AND COALESCE((client.collect_features->>'heatmaps')::boolean, true) AS heatmap_enabled,
           websites.heatmap_include_patterns,
           websites.heatmap_exclude_patterns,
           websites.heatmap_layout_enabled,
           websites.replay_enabled
-            AND COALESCE((client.features_enabled->>'replays')::boolean, true) AS replay_enabled,
+            AND COALESCE((client.collect_features->>'replays')::boolean, true) AS replay_enabled,
           websites.replay_sampling_rate,
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.mask_all_text,
           websites.mask_text_patterns,
           websites.automation_enabled
-            AND COALESCE((client.features_enabled->>'automations')::boolean, true) AS automation_enabled,
+            AND COALESCE((client.collect_features->>'automations')::boolean, true) AS automation_enabled,
           websites.errors_enabled
-            AND COALESCE((client.features_enabled->>'errors')::boolean, true) AS errors_enabled,
+            AND COALESCE((client.collect_features->>'errors')::boolean, true) AS errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites
@@ -88,25 +88,25 @@ export async function resolveWebsiteForTracker(
           websites.url,
           websites.is_active
             AND COALESCE(client.status, 'active') = 'active'
-            AND COALESCE((client.features_enabled->>'analytics')::boolean, true) AS is_active,
+            AND COALESCE((client.collect_features->>'analytics')::boolean, true) AS is_active,
           websites.funnel_enabled
-            AND COALESCE((client.features_enabled->>'funnels')::boolean, true) AS funnel_enabled,
+            AND COALESCE((client.collect_features->>'funnels')::boolean, true) AS funnel_enabled,
           websites.heatmap_enabled
-            AND COALESCE((client.features_enabled->>'heatmaps')::boolean, true) AS heatmap_enabled,
+            AND COALESCE((client.collect_features->>'heatmaps')::boolean, true) AS heatmap_enabled,
           websites.heatmap_include_patterns,
           websites.heatmap_exclude_patterns,
           websites.heatmap_layout_enabled,
           websites.replay_enabled
-            AND COALESCE((client.features_enabled->>'replays')::boolean, true) AS replay_enabled,
+            AND COALESCE((client.collect_features->>'replays')::boolean, true) AS replay_enabled,
           websites.replay_sampling_rate,
           websites.replay_include_patterns,
           websites.replay_exclude_patterns,
           websites.mask_all_text,
           websites.mask_text_patterns,
           websites.automation_enabled
-            AND COALESCE((client.features_enabled->>'automations')::boolean, true) AS automation_enabled,
+            AND COALESCE((client.collect_features->>'automations')::boolean, true) AS automation_enabled,
           websites.errors_enabled
-            AND COALESCE((client.features_enabled->>'errors')::boolean, true) AS errors_enabled,
+            AND COALESCE((client.collect_features->>'errors')::boolean, true) AS errors_enabled,
           COALESCE(privacy.respect_dnt, false) AS respect_dnt,
           COALESCE(privacy.consent_mode, 'cookieless') AS consent_mode
         FROM websites

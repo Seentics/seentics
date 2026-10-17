@@ -20,7 +20,7 @@ import { PostgresWebsitePrivacyService } from "./services/postgres-website-priva
 import { env } from "../../config";
 import { PostgresClientRepository } from "./repositories/postgres-client.repository";
 import { ClientService } from "./services/client.service";
-import { createAgencyRoutes, createClientRoutes, createOwnedWebsiteRoutes } from "./routes";
+import { createOwnedWebsiteRoutes } from "./routes";
 
 /**
  * Build the websites module.
@@ -64,8 +64,6 @@ export function initWebsitesModule(deps: {
 
   // Read per request, so the snippet follows config without the module holding it.
   const scriptUrl = () => env().trackerScriptUrl;
-  const clientRoutes = createClientRoutes({ clients, scriptUrl });
-  const ownedWebsiteRoutes = createOwnedWebsiteRoutes({ websites: clients, scriptUrl });
 
   return {
     query: cached,
@@ -79,11 +77,7 @@ export function initWebsitesModule(deps: {
     // and it must read its own writes.
     clients,
     ownedWebsites: clients,
-    agencyRoutes: createAgencyRoutes(clientRoutes, ownedWebsiteRoutes),
-    managementRoutes: {
-      clients: clientRoutes,
-      websites: ownedWebsiteRoutes,
-    },
+    managementRoutes: createOwnedWebsiteRoutes({ websites: clients, scriptUrl }),
     usage: new WebsiteUsageCounter(),
     retentionSites: new WebsiteRetentionSiteSource(),
     insightSites: { listInsightCandidateSites, getDigestSite },

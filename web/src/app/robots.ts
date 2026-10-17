@@ -9,9 +9,9 @@ export const dynamic = 'force-static';
  * There was no robots.txt at all, so crawlers had no guidance and no pointer to a
  * sitemap.
  *
- * The disallow list is the app itself. Everything under `/websites` is a signed-in
- * dashboard (the agency pages included), and the token-bearing
- * routes (`/share`, `/client-portal`, `/accept-invite`, `/reset-password`) must never
+ * The disallow list is the app itself. Everything under `/websites` and `/agency` is a signed-in
+ * dashboard, and the token-bearing
+ * routes (`/share`, `/accept-invite`, `/reset-password`) must never
  * be indexed — a crawled reset link is a leaked reset link.
  */
 export default function robots(): MetadataRoute.Robots {
@@ -23,7 +23,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/websites/',
-          '/client-portal/',
+          '/agency/',
           '/share/',
           '/accept-invite/',
           '/preview/',

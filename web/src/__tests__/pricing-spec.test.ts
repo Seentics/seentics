@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COMPARE_GROUPS, FOUNDING_OFFER, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, freeMonths, maxYearlySaving, monthlyPrice,
+  COMPARE_GROUPS, FOUNDING_COUNT_SHOWN_FROM, FOUNDING_EMPHASIS_LEFT, FOUNDING_OFFER, OFFER_YEARLY, foundingNote, foundingPrice, TIER_PITCH, cardSectionsFor, freeMonths, maxYearlySaving, monthlyPrice,
   yearlySavingLabel, yearlySavingPercent, type PricedPlan,
 } from '@/features/plans/pricing-spec';
 
@@ -125,7 +125,52 @@ describe('pricing cards', () => {
   });
 
   it('keeps the founding code in one place', () => {
-    expect(FOUNDING_OFFER).toEqual({ code: 'FOUNDING49', priceMonthly: 49, seats: 10 });
+    expect(FOUNDING_OFFER).toEqual({ code: 'FOUNDING30', percentOff: 30, plans: ['pro', 'agency'], seats: 50 });
+  });
+
+  it('takes 30% off the plan prices for the founding price, to the cent', () => {
+    expect(foundingPrice(PRO, 'month')).toBe(16.8);
+    expect(foundingPrice(PRO, 'year')).toBe(168);
+    expect(foundingPrice(AGENCY, 'month')).toBe(69.3);
+    expect(foundingPrice(AGENCY, 'year')).toBe(693);
+  });
+});
+
+describe('founding spots left', () => {
+  const spots = (claimed: number | null, total = 50, status: 'open' | 'closed' = 'open') =>
+    ({ total, claimed, left: claimed === null ? null : Math.max(0, total - claimed), status });
+
+  it('shows the count only from 10 claims, and emphasises it at 5 left or fewer', () => {
+    expect(FOUNDING_COUNT_SHOWN_FROM).toBe(10);
+    expect(FOUNDING_EMPHASIS_LEFT).toBe(5);
+  });
+
+  it('an unknown count, or no answer at all, shows only the limit', () => {
+    const limitOnly = { show: true, text: 'Limited to the first 50 customers', emphasised: false };
+    expect(foundingNote(spots(null))).toEqual(limitOnly);
+    expect(foundingNote(undefined)).toEqual(limitOnly);
+    expect(foundingNote(null)).toEqual(limitOnly);
+  });
+
+  it('fewer than 10 claims shows only the limit, from the discount\'s total', () => {
+    expect(foundingNote(spots(0))).toEqual({ show: true, text: 'Limited to the first 50 customers', emphasised: false });
+    expect(foundingNote(spots(9, 40))).toEqual({ show: true, text: 'Limited to the first 40 customers', emphasised: false });
+  });
+
+  it('from 10 claims, the spots left', () => {
+    expect(foundingNote(spots(10))).toEqual({ show: true, text: 'Only 40 of 50 founding spots left', emphasised: false });
+    expect(foundingNote(spots(44))).toEqual({ show: true, text: 'Only 6 of 50 founding spots left', emphasised: false });
+  });
+
+  it('5 spots left or fewer is emphasised', () => {
+    expect(foundingNote(spots(45))).toEqual({ show: true, text: 'Only 5 of 50 founding spots left', emphasised: true });
+    expect(foundingNote(spots(49))).toEqual({ show: true, text: 'Only 1 of 50 founding spots left', emphasised: true });
+  });
+
+  it('a closed offer, or none left, hides the box', () => {
+    expect(foundingNote(spots(50, 50, 'closed'))).toEqual({ show: false });
+    expect(foundingNote(spots(3, 50, 'closed'))).toEqual({ show: false });
+    expect(foundingNote(spots(50))).toEqual({ show: false });
   });
 });
 

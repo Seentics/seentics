@@ -6,16 +6,27 @@ import type { EmbedSection } from './embed-sections';
  * links). The other three govern the public data API for the account's own websites, one
  * per kind of data it exposes — the granularity people reason about, not one per endpoint.
  */
-export const ACCOUNT_SCOPES = ['websites:read', 'websites:write', 'analytics:read', 'replays:read', 'heatmaps:read'] as const;
+export const ACCOUNT_SCOPES = [
+  'websites:read',
+  'websites:write',
+  'analytics:read',
+  'replays:read',
+  'heatmaps:read',
+  'agency:read',
+  'agency:write',
+] as const;
 
 export type AccountScope = (typeof ACCOUNT_SCOPES)[number];
 
 export const ACCOUNT_SCOPE_DESCRIPTIONS: Record<AccountScope, string> = {
-  'websites:read': 'List and fetch clients, websites and tracking snippets',
-  'websites:write': 'Create, update and delete clients and websites; manage embed links',
+  'websites:read': 'List and fetch websites and tracking snippets (management API)',
+  'websites:write': 'Create, update and delete websites (management API)',
   'analytics:read': 'Read traffic, pages, sources, events, goals and exports of your websites',
   'replays:read': 'Read session replay listings and metadata of your websites',
   'heatmaps:read': 'Read heatmap pages and interaction points of your websites',
+  // Enforced by the gateway on /api/v1/agency: GET needs agency:read, every other method agency:write.
+  'agency:read': 'Read the agency workspace: overview, clients, websites, install status, branding, embeds',
+  'agency:write': 'Change the agency workspace: clients, websites, branding, feature visibility, embeds',
 };
 
 /** The scopes the public data API checks (`requireScope`); the rest are management-API only. */

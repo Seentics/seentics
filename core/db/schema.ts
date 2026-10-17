@@ -43,12 +43,10 @@ export const users = pgTable(
 );
 
 /**
- * An account's own customers — an agency's clients, or a platform's tenants — each
- * grouping some of that account's websites (047).
+ * An agency's own customers, each grouping some of that account's websites (047, 070).
  *
- * `external_id` is the caller's identifier for the tenant. It is unique per owner so a
- * signup handler that retries `POST /manage/clients` gets the client it already made
- * rather than a second one.
+ * `external_id`, `email`, `website_url` and `metadata` are from the management API's client
+ * endpoints, which are gone; the columns stay until a migration needs the room.
  */
 export const clients = pgTable(
   "clients",
@@ -61,15 +59,18 @@ export const clients = pgTable(
     email: text("email").notNull().default(""),
     websiteUrl: text("website_url").notNull().default(""),
     note: text("note").notNull().default(""),
+    /** `active`, `suspended` or `archived`; anything but `active` stops its sites collecting. */
     status: varchar("status", { length: 16 }).notNull().default("active"),
     /**
-     * Per-feature switches, `{ replays: false, … }`. A key that is absent is on. Applied on
-     * top of each site's own flags when the tracker resolves the site.
+     * What the tracker may collect, `{ replays: false, … }`. A key that is absent is on.
+     * Applied on top of each site's own flags when the tracker resolves the site.
      */
-    featuresEnabled: jsonb("features_enabled").$type<Record<string, boolean>>().notNull().default({}),
+    collectFeatures: jsonb("collect_features").$type<Record<string, boolean>>().notNull().default({}),
+    /** Dashboard pages a client user may open, `{ revenue: "view", … }`; absent is `off` (070). */
+    dashboardFeatures: jsonb("dashboard_features").$type<Record<string, string>>().notNull().default({}),
     /**
-     * Per-client caps, `{ max_monthly_events: 10000, … }`; absent or null is uncapped.
-     * `max_websites` is enforced here; the usage caps by the gateway's ingest quota.
+     * Per-client caps, read by the gateway's ingest quota (gateway/lib/client-quota.ts). Core no
+     * longer writes it; the agency caps (`cap_*`) replace it in phase 4 of the workspace.
      */
     limits: jsonb("limits").$type<Record<string, number | null>>().notNull().default({}),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
@@ -78,6 +79,7 @@ export const clients = pgTable(
   },
   (t) => [
     index("ix_clients_user_id").on(t.userId),
+    check("ck_clients_status", sql`${t.status} IN ('active', 'suspended', 'archived')`),
     uniqueIndex("ux_clients_user_external_id")
       .on(t.userId, t.externalId)
       .where(sql`${t.externalId} IS NOT NULL`),
@@ -474,7 +476,11 @@ export const embedLinks = pgTable(
   ],
 );
 
-/** An agency's brand, shown to its clients on the portal and on embeds (068, 069). No row = defaults. */
+/**
+ * An agency's brand, shown to its clients on embeds and (phase 2) their sign-in (068, 069, 070).
+ * No row = defaults. `slug` names the agency on seentics.com's client sign-in when it has no
+ * custom domain.
+ */
 export const agencyWhiteLabel = pgTable(
   "agency_white_label",
   {
@@ -487,65 +493,76 @@ export const agencyWhiteLabel = pgTable(
     supportEmail: varchar("support_email", { length: 320 }).notNull().default(""),
     footerText: varchar("footer_text", { length: 200 }).notNull().default(""),
     hideSeentics: boolean("hide_seentics").notNull().default(false),
+    slug: varchar("slug", { length: 40 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    uniqueIndex("ux_agency_white_label_slug").on(t.slug),
+    check("ck_agency_white_label_slug", sql`${t.slug} IS NULL OR ${t.slug} ~ '^[a-z0-9-]{3,40}$'`),
     check("ck_agency_white_label_color", sql`${t.primaryColor} ~ '^#[0-9a-f]{6}$'`),
     check("ck_agency_white_label_logo", sql`${t.logoUrl} = '' OR ${t.logoUrl} LIKE 'https://%'`),
   ],
 );
 
-/** A client's contact with read-only portal access to that one client (068). No password. */
-export const agencyClientUsers = pgTable(
-  "agency_client_users",
+/**
+ * A client user's membership of one client (070). Written by the gateway when the agency
+ * invites someone (client sign-in, phase 2); Core reads it. `user_id` is a gateway `users`
+ * row with `kind = 'client'`, or an ordinary account invited by email.
+ */
+export const clientMembers = pgTable(
+  "client_members",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
-    /** Lower-cased on write, so the unique index is case-insensitive. */
-    email: varchar("email", { length: 320 }).notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 120 }).notNull().default(""),
-    /** invited | active | revoked */
+    /** invited | active | disabled */
     status: varchar("status", { length: 16 }).notNull().default("invited"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    invitedAt: timestamp("invited_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("ux_agency_client_users_client_email").on(t.clientId, t.email),
-    index("ix_agency_client_users_owner").on(t.ownerId, t.createdAt),
-    check("ck_agency_client_users_status", sql`${t.status} IN ('invited', 'active', 'revoked')`),
+    primaryKey({ columns: [t.clientId, t.userId] }),
+    index("ix_client_members_user").on(t.userId),
+    index("ix_client_members_owner").on(t.ownerId),
+    check("ck_client_members_status", sql`${t.status} IN ('invited', 'active', 'disabled')`),
   ],
 );
 
-/** Client portal links (068). Only the token's SHA-256 is stored; the token is shown once. */
-export const agencyPortalTokens = pgTable(
-  "agency_portal_tokens",
+/**
+ * The agency overview's alerts (070): a client or site at 80% / 100% of its cap, or a site
+ * whose tracking stopped. Raised by phase 4's cap counting and the daily tracking check;
+ * one per (owner, client, website, kind, resource, period), so raising is idempotent.
+ */
+export const agencyAlerts = pgTable(
+  "agency_alerts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    clientId: uuid("client_id")
-      .notNull()
-      .references(() => clients.id, { onDelete: "cascade" }),
-    /** `null` for the anonymous whole-client link the dashboard's "Generate link" makes. */
-    clientUserId: uuid("client_user_id").references(() => agencyClientUsers.id, { onDelete: "cascade" }),
-    tokenHash: char("token_hash", { length: 64 }).notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "cascade" }),
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "cascade" }),
+    /** cap_80 | cap_100 | tracking_stopped */
+    kind: varchar("kind", { length: 24 }).notNull(),
+    /** events | recordings | leads | ai_analyses, or '' for tracking_stopped. */
+    resource: varchar("resource", { length: 24 }).notNull().default(""),
+    /** The UTC month (first day) a cap alert is for; the day for tracking_stopped. */
+    period: date("period", { mode: "string" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("ux_agency_portal_tokens_hash").on(t.tokenHash),
-    index("ix_agency_portal_tokens_client_live").on(t.clientId).where(sql`${t.revokedAt} IS NULL`),
-    index("ix_agency_portal_tokens_client_user").on(t.clientUserId).where(sql`${t.clientUserId} IS NOT NULL`),
+    unique("ux_agency_alerts_once").on(t.ownerId, t.clientId, t.websiteId, t.kind, t.resource, t.period).nullsNotDistinct(),
+    index("ix_agency_alerts_owner_open").on(t.ownerId, t.createdAt).where(sql`${t.dismissedAt} IS NULL`),
+    check("ck_agency_alerts_kind", sql`${t.kind} IN ('cap_80', 'cap_100', 'tracking_stopped')`),
   ],
 );
 

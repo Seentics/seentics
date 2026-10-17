@@ -1,11 +1,13 @@
 /**
  * An agency's white label: read with defaults, patched by merge.
  *
- * The owner is the authenticated user acting on their own agency; there is no way to name
- * another owner here, so there is nothing to check beyond who is asking.
+ * The owner is the agency the gateway named; there is no way to name another owner here, so
+ * there is nothing to check beyond who is asking. The slug is the one field that can collide
+ * with another agency's, and the unique index decides — no read-then-write race.
  */
 
 import {
+  AgencyOperationError,
   DEFAULT_PRIMARY_COLOR,
   type BrandView,
   type WhiteLabel,
@@ -24,6 +26,7 @@ export function defaultWhiteLabel(ownerId: string): WhiteLabelSettings {
     supportEmail: "",
     footerText: "",
     hideSeentics: false,
+    slug: null,
     updatedAt: null,
   };
 }
@@ -42,7 +45,9 @@ export class WhiteLabelService implements WhiteLabel {
   async update(ownerId: string, patch: WhiteLabelPatch): Promise<WhiteLabelSettings> {
     const current = await this.get(ownerId);
     const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as WhiteLabelPatch;
-    return this.repo.upsert({ ...current, ...defined, ownerId });
+    const saved = await this.repo.upsert({ ...current, ...defined, ownerId });
+    if (saved === "slug_taken") throw new AgencyOperationError("slug_taken");
+    return saved;
   }
 
   async brandFor(ownerId: string): Promise<BrandView> {

@@ -32,7 +32,7 @@ const LeadsPage = dynamic(() => import('@/app/websites/[websiteId]/leads/page-cl
 const ConversionsPage = dynamic(() => import('@/app/websites/[websiteId]/conversions/page-client'), { ssr: false, loading: loadingPage });
 const RevenuePage = dynamic(() => import('@/app/websites/[websiteId]/revenue/page-client'), { ssr: false, loading: loadingPage });
 const AiReportsPage = dynamic(() => import('@/app/websites/[websiteId]/ai-reports/page-client'), { ssr: false, loading: loadingPage });
-const DevelopersPage = dynamic(() => import('@/app/websites/[websiteId]/agency/page-client'), { ssr: false, loading: loadingPage });
+const DevelopersPage = dynamic(() => import('@/app/websites/[websiteId]/developers/page-client'), { ssr: false, loading: loadingPage });
 const SettingsLayout = dynamic(() => import('@/app/websites/[websiteId]/settings/layout'), { ssr: false, loading: loadingPage });
 const SettingsPage = dynamic(() => import('@/app/websites/[websiteId]/settings/websites/page-client'), { ssr: false, loading: loadingPage });
 
@@ -75,7 +75,7 @@ const SCREENS: Record<string, ComponentType> = {
   Conversions: () => <RealPage label="Conversions" path="/websites/demo/conversions"><ConversionsPage /></RealPage>,
   'AI Reports': () => <RealPage label="AI Reports" path="/websites/demo/ai-reports"><AiReportsPage /></RealPage>,
   Errors: () => <RealPage label="Errors" path="/websites/demo/errors"><ErrorsPage /></RealPage>,
-  Developers: () => <RealPage label="Developers" path="/websites/demo/agency"><DevelopersPage /></RealPage>,
+  Developers: () => <RealPage label="Developers" path="/websites/demo/developers"><DevelopersPage /></RealPage>,
   Settings: () => (
     <RealPage label="Settings" path="/websites/demo/settings/websites">
       <SettingsLayout><SettingsPage /></SettingsLayout>

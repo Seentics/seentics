@@ -30,6 +30,10 @@ export class MemoryCache<V = unknown> {
     this.store.set(key, { value, exp: now + ttlMs, lastTouch: now });
   }
 
+  delete(key: string): void {
+    this.store.delete(key);
+  }
+
   /** Drop every entry after a mutation invalidates aliases we cannot enumerate safely. */
   clear(): void {
     this.store.clear();

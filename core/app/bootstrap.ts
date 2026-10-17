@@ -123,12 +123,6 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
   });
 
   const apiKeysModule = initApiKeysModule({ websitesModule, accountActive: (userId) => authModule.users.isActive(userId) });
-  // White label and the client portal. Portal links read through the embed API, so they take
-  // the same "is the owner's account still active" check as account keys.
-  const agencyModule = initAgencyModule({
-    clients: websitesModule.clients,
-    accountActive: (userId) => authModule.users.isActive(userId),
-  });
 
   const analyticsModule = initAnalyticsModule({ websitesModule, cfg });
   // Session summaries are worded by the AI module, composed below: a getter, read per request.
@@ -177,6 +171,16 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     // write surface an approved AI proposal can reach (see modules/ai/services/agent/proposal-writers.ts).
     automationProposals: automationsModule.draftWriter,
     errorMutations: errorsModule.mutations,
+  });
+
+  // The agency workspace reads across every module that counts something per site — each
+  // contributes its own figures, as with usage below — so it is composed after all of them.
+  const agencyModule = initAgencyModule({
+    clients: websitesModule.clients,
+    websites: websitesModule.ownedWebsites,
+    embedLinks: apiKeysModule.embedLinks,
+    metrics: [analyticsModule.agencyMetrics, recordingsModule.agencyMetrics, leadsModule.agencyMetrics, integrationsModule.agencyMetrics],
+    activity: analyticsModule.trackingActivity,
   });
 
   // The lane registry is the composition: each module contributes the ingest for the data

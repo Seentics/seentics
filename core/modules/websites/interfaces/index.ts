@@ -50,15 +50,31 @@ export type {
 export type {
   Client,
   ClientDirectory,
-  ClientFeature,
-  ClientLimit,
+  ClientListFilter,
+  ClientRepository,
   ClientStatus,
   ClientWithWebsites,
+  CollectFeature,
   CreateClientInput,
+  CursorPage,
+  CursorPosition,
+  DashboardFeature,
+  FeatureAccess,
   OwnedWebsites,
+  Page,
+  PageOf,
   UpdateClientInput,
+  WebsiteListFilter,
 } from "./client.interface";
-export { CLIENT_FEATURES, CLIENT_LIMITS, CLIENT_STATUSES, ClientOperationError } from "./client.interface";
+export {
+  CLIENT_STATUSES,
+  COLLECT_FEATURES,
+  DASHBOARD_FEATURES,
+  FEATURE_ACCESS,
+  ClientOperationError,
+  isSiteAddress,
+  trackingSnippet,
+} from "./client.interface";
 
 export type {
   TrackerGoal,

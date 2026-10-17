@@ -68,3 +68,9 @@ export const invitationCreateSchema = z.object({
 export const memberRoleSchema = z.object({
   role: websiteRoleSchema,
 });
+
+/** Offset paging for the management API's website list. */
+export const pageQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});

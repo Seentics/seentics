@@ -2,122 +2,113 @@ import { C, Callout, DocPage, DocSection, Endpoint, Li, P, Ul } from '@/componen
 
 export const metadata = {
   title: 'Agency · Seentics docs',
-  description: 'Group sites under clients, control what each client gets, and provision them by API.',
+  description: 'Run every client from one workspace, and do the same from your own backend with the agency API.',
 };
 
 /**
- * The management API is Core's `app/http/management-api/routes.ts`; the client routes it
- * mounts are the websites module's, the same ones the dashboard's Agency screens call.
+ * The agency API is the gateway's `routes/agency.ts` in front of Core's `modules/agency`; the full
+ * reference (generated from `features/agency/agency-api-spec.ts`) is the workspace's API page.
  */
 export default function AgencyPage() {
   return (
     <DocPage
       eyebrow="Platform"
       title="Agency"
-      lead="Run many client sites from one account — or give every tenant of your own product its own tracking — and decide what each one gets."
+      lead="Run many client sites from one account — or give every tenant of your own product its own tracking — from one workspace and one API."
     >
-      <DocSection title="What it adds">
+      <DocSection title="The agency workspace">
+        <P>
+          Agency accounts get a workspace at <C>/agency</C>, next to the per-website dashboard:
+        </P>
         <Ul>
           <Li>
-            <strong className="font-medium text-foreground">Clients</strong> — group websites under a
-            client: an agency&apos;s customer, or one tenant of a multi-tenant product.
+            <strong className="font-medium text-foreground">Overview</strong> — totals across every
+            client, per-client trends and the sites moving most, or a setup guide while it is empty.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">Feature switches</strong> — turn
-            recordings, heatmaps, funnels, automations or error tracking off for one client. The
-            tracker stops collecting them on that client&apos;s sites.
+            <strong className="font-medium text-foreground">Clients and websites</strong> — group
+            websites under a client, add a site and get its install snippet, and check that events are
+            arriving. Archiving a client stops its sites collecting until it is restored.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">Limits</strong> — cap a client&apos;s
-            websites, and its events, recordings and heatmap pages per month. Tenant one can get 10k
-            events and 100 recordings, tenant two 150 recordings.
+            <strong className="font-medium text-foreground">Feature visibility</strong> — choose, per
+            client, which dashboard pages its people will see: <C>off</C>, <C>view</C> or <C>edit</C>.
+            Stored now; enforced once client sign-in arrives.
           </Li>
           <Li>
-            <strong className="font-medium text-foreground">Management API</strong> — do all of the
-            above from your own backend with an account key.
+            <strong className="font-medium text-foreground">Branding</strong> — brand name, logo,
+            colour, support email and footer, and your own domain (a subdomain such as{' '}
+            <C>reports.youragency.com</C>, pointed at Seentics with a CNAME record).
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">Usage</strong> — this month&apos;s use of
+            your plan&apos;s pool, per client and per website.
+          </Li>
+          <Li>
+            <strong className="font-medium text-foreground">Embeds</strong> — a read-only dashboard of
+            one website, or of all of a client&apos;s, for an iframe in your own app.
           </Li>
         </Ul>
-        <P>
-          Self-hosted, agency features come with everything else. On Seentics Cloud, creating clients,
-          adding websites to them and making embed links take the Agency plan; clients and links made
-          before stay usable on any plan, and account keys for the APIs are on every plan. Your
-          plan&apos;s limits still apply across all clients together; a client&apos;s limits divide that up.
-        </P>
+        <Callout kind="tip" title="Coming next">
+          Client sign-in to the real dashboard (by email magic link), the dashboard on your own domain,
+          and per-client limits with alerts follow in later releases.
+        </Callout>
       </DocSection>
 
-      <DocSection title="Provision a tenant at signup">
+      <DocSection title="The agency API">
         <P>
-          Create an account key under <C>Agency → API keys</C>, keep it on your server, and call
-          this from your signup handler. It creates the client and its website and returns the
-          snippet to install on the tenant&apos;s pages.
+          Everything the workspace does is available under <C>/api/v1/agency</C>. Create an account
+          key on any website&apos;s <C>Developers → API keys</C> tab with the <C>Agency API</C> preset
+          (scopes <C>agency:read</C> and <C>agency:write</C>), keep it on your server, and send it in{' '}
+          <C>X-API-Key</C>. <C>GET</C> needs <C>agency:read</C>; everything else <C>agency:write</C>.
         </P>
-        <Endpoint method="POST" path="/api/v1/manage/clients">
-          Body: <C>external_id</C> (your id for the tenant), <C>name</C>, and optionally{' '}
-          <C>website.url</C>, <C>features_enabled</C> and <C>limits</C>. Send the same{' '}
-          <C>external_id</C> again and you get the same client back with <C>created: false</C> —
-          retries never make a second tenant.
+        <Ul>
+          <Li>Success is <C>{'{ data }'}</C>; lists add <C>{'page: { next_cursor, has_more }'}</C> (<C>?limit=</C> up to 100, <C>?cursor=</C>).</Li>
+          <Li>Errors are <C>{'{ error: { code, message, details?, request_id } }'}</C>.</Li>
+          <Li>
+            Send an <C>Idempotency-Key</C> on every <C>POST</C>: a retry with the same key gets the first
+            answer for 24 hours; the same key with a different body is <C>409 idempotency_conflict</C>.
+          </Li>
+        </Ul>
+      </DocSection>
+
+      <DocSection title="Onboard a client">
+        <Endpoint method="POST" path="/api/v1/agency/clients">
+          Body: <C>name</C>, and optionally <C>company</C> and <C>notes</C>. Answers the client.
+        </Endpoint>
+        <Endpoint method="POST" path="/api/v1/agency/clients/:id/websites">
+          Body: <C>name</C> and <C>url</C>. Answers <C>{'{ website, install }'}</C>: the snippet to put
+          on the site&apos;s pages, and per-platform instructions.
+        </Endpoint>
+        <Endpoint method="GET" path="/api/v1/agency/websites/:id/install">
+          The snippet again, with whether events are arriving (<C>receiving</C>, <C>stale</C> or{' '}
+          <C>not_seen</C>). <C>POST …/verify</C> checks again now.
+        </Endpoint>
+        <Endpoint method="PATCH" path="/api/v1/agency/websites/:id">
+          Rename a site, or move it between clients with <C>client_id</C> (<C>null</C> takes it out of any client).
         </Endpoint>
         <Callout kind="tip" title="One site per subdomain">
           Each website only accepts data from its own hostname, so <C>a.yourapp.com</C> and{' '}
           <C>b.yourapp.com</C> stay separate when each tenant gets its own website.
         </Callout>
-      </DocSection>
-
-      <DocSection title="Endpoints">
         <P>
-          Under <C>/api/v1/manage</C>, authenticated with an account key in <C>X-API-Key</C>.{' '}
-          <C>GET</C> needs a read key; everything else a read &amp; write key.
-        </P>
-        <Endpoint method="GET" path="/api/v1/manage/clients">
-          Your clients with their websites; <C>?external_id=</C> looks one up by your id.
-        </Endpoint>
-        <Endpoint method="PATCH" path="/api/v1/manage/clients/:id">
-          Status, feature switches and limits. Each merges into what is set, so one key changes one
-          thing; a limit of <C>null</C> removes the cap. A suspended client&apos;s sites stop collecting.
-        </Endpoint>
-        <Endpoint method="DELETE" path="/api/v1/manage/clients/:id">
-          Removes the client and keeps its websites, ungrouped — or deletes them too with{' '}
-          <C>?delete_websites=true</C>.
-        </Endpoint>
-        <Endpoint method="POST" path="/api/v1/manage/websites">
-          A website on its own, or under a client with <C>client_id</C>.
-        </Endpoint>
-        <Endpoint method="PATCH" path="/api/v1/manage/websites/:id">
-          Change a website, or move it between clients with <C>client_id</C> (<C>null</C> ungroups it).
-        </Endpoint>
-        <Endpoint method="POST" path="/api/v1/manage/websites/:id/embed-link">
-          A permanent link to a read-only dashboard of one website, for an iframe in your own app. Calling it
-          again returns the same link; <C>DELETE</C> on the same path revokes it.
-        </Endpoint>
-        <Endpoint method="POST" path="/api/v1/manage/clients/:id/embed-link">
-          The same for a whole client: the embed gets a switcher across all of that client&apos;s websites.
-        </Endpoint>
-        <Endpoint method="PATCH" path="/api/v1/manage/websites/:id/embed-link">
-          Change which sections the link shows (<C>{'{ "sections": [...] }'}</C>). The URL stays the same and
-          the change applies at once. <C>/clients/:id/embed-link</C> works the same way.
-        </Endpoint>
-        <P>
-          A link chooses its sections: <C>analytics</C> (on by default), <C>recordings</C> and{' '}
-          <C>heatmaps</C> (both off by default). Send <C>sections</C> in the <C>POST</C> body to pick them when
-          the link is made. Recordings show real visitor sessions, so enable them deliberately.
+          Branding (<C>/agency/branding</C>), the custom domain (<C>/agency/domain</C>), feature visibility
+          (<C>/agency/clients/:id/features</C>), embeds (<C>/agency/embeds</C>) and usage (<C>/agency/usage</C>)
+          work the same way. Every endpoint, with its body, an example response and curl and Node
+          examples, is on the workspace&apos;s <C>API</C> page.
         </P>
         <Callout kind="tip" title="Treat an embed link like a secret">
           It never expires, and anyone who holds the URL can see those analytics. Keep it behind your own
           login, and revoke it if it leaks.
         </Callout>
-        <P>
-          Every endpoint, with its body and an example response, is under <C>Agency → Management API</C> in the
-          dashboard.
-        </P>
       </DocSection>
 
-      <DocSection title="In Seentics Cloud">
+      <DocSection title="Plans">
         <P>
-          The Agency plan adds client access: a magic link per client contact, or one anonymous link per
-          client, that opens a read-only portal of that client&apos;s websites — no account needed. Under{' '}
-          <C>Agency → White label</C> you set the brand name, logo, colour, support email and footer the portal
-          shows, can hide Seentics from it, and can serve it from your own domain (a subdomain such as{' '}
-          <C>reports.youragency.com</C>, pointed at Seentics with a CNAME record).
+          On Seentics Cloud the workspace, the agency API and the Management API&apos;s websites
+          endpoints (<C>/api/v1/manage/websites</C>) take the Agency plan (the agency API answers other
+          accounts <C>403 agency_plan_required</C>); account keys and the Data API are on every plan. Your
+          plan&apos;s limits apply across all clients together.
         </P>
       </DocSection>
     </DocPage>

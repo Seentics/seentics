@@ -16,7 +16,7 @@ export type CheckoutIntent = { plan: string; interval: BillingInterval; discount
 
 /**
  * A visitor who picks a paid plan before they have an account: remember the plan, and whether they
- * chose monthly or yearly, and any discount code they claimed (the founding price), across sign-up
+ * chose monthly or yearly, and any discount code they claimed (the founding code), across sign-up
  * (and the verification email, which may open in another tab), so the first thing they see after
  * signing up is that plan's checkout, not an empty dashboard.
  */
@@ -44,7 +44,7 @@ export function takeCheckoutIntent(): CheckoutIntent | null {
 
 /**
  * Buy `plan`, billed every month or year: send the customer to Lemon Squeezy's checkout. Throws with
- * the gateway's message. `discount` (the founding code) is sent only when given; a gateway that does
+ * the gateway's message. `discount` (the founding code, FOUNDING30) is sent only when given; a gateway that does
  * not know the field ignores it.
  */
 export async function startCheckout(plan: string, interval: BillingInterval = 'month', discount?: string): Promise<void> {

@@ -10,43 +10,21 @@
 // paths have their own Functions and don't need this logic or its JWT
 // verify on every request.
 //
-// Before all that, a request to a host that is not ours is an agency's custom portal domain:
-// see functions/lib/custom-host.ts. It serves the client portal and nothing else.
+// Before all that, a request to a host that is not ours is an agency's custom domain: see
+// functions/lib/custom-host.ts. Nothing is served there until phase 3 (the full dashboard).
 
 import { jwtVerify } from 'jose';
-import { PORTAL_INVALID_PATH, decideCustomHostRequest, edgeClientHeaders, isActivePortalHost, isSeenticsHost } from './lib/custom-host';
+import { decideCustomHostRequest, isSeenticsHost } from './lib/custom-host';
 
 interface Env {
   JWT_SECRET?: string;
   NEXT_PUBLIC_IS_ENTERPRISE?: string;
-  GATEWAY_URL?: string;
-  /** Shared with the gateway: proves the visitor address sent with the host lookup came from here. */
-  EDGE_PROXY_SECRET?: string;
 }
 
 interface RequestContext {
   request: Request;
   env: Env;
   next: () => Promise<Response>;
-}
-
-/** The Workers runtime's default cache; absent under a test runner or `next dev`. */
-const edgeCache = (): Cache | undefined => (globalThis as { caches?: CacheStorage & { default?: Cache } }).caches?.default;
-
-async function serveCustomHost(context: RequestContext, url: URL): Promise<Response> {
-  const active = await isActivePortalHost(url.hostname, context.env.GATEWAY_URL ?? 'https://api.seentics.com', {
-    fetch,
-    cache: edgeCache(),
-    headers: edgeClientHeaders(context.request, context.env.EDGE_PROXY_SECRET),
-  });
-  switch (decideCustomHostRequest(url.pathname, active)) {
-    case 'allow':
-      return context.next();
-    case 'redirect-invalid':
-      return Response.redirect(new URL(PORTAL_INVALID_PATH, url).toString(), 302);
-    default:
-      return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
-  }
 }
 
 const PUBLIC_ONLY_ROUTES = ['/signin', '/forgot-password', '/reset-password'];
@@ -83,7 +61,10 @@ export const onRequest = async (context: RequestContext): Promise<Response> => {
   const url = new URL(request.url);
   const { pathname } = url;
 
-  if (!isSeenticsHost(url.hostname)) return serveCustomHost(context, url);
+  // An agency's custom domain: every path is a 404 until phase 3 serves the dashboard there.
+  if (!isSeenticsHost(url.hostname) && decideCustomHostRequest(pathname) === 'not-found') {
+    return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
+  }
 
   if (pathname.startsWith('/api')) return next();
 

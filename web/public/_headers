@@ -18,13 +18,6 @@
   Cache-Control: private, no-store
   Content-Security-Policy: frame-ancestors *
 
-# The client portal carries its token in the URL: never cached, never sent on as a Referer.
-/client-portal/*
-  ! Cache-Control
-  ! Referrer-Policy
-  Cache-Control: private, no-store
-  Referrer-Policy: no-referrer
-
 # The analytics demo is embedded in the landing page's product showcase.
 /websites/demo*
   ! X-Frame-Options

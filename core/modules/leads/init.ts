@@ -10,6 +10,7 @@ import { LeadsRetentionPurge } from "./services/retention-purge.service";
 import { SubmissionMutationService } from "./services/submission-mutation.service";
 import { SubmissionQueryService } from "./services/submission-query.service";
 import { LeadUsageCounter } from "./services/usage-count.service";
+import { LeadSiteMetrics } from "./services/agency-site-metrics.service";
 import { SiteLeadService } from "./services/site-lead.service";
 import { ContactMutationService } from "./services/contact-mutation.service";
 
@@ -44,6 +45,7 @@ export function initLeadsModule(deps: {
     site,
     contacts,
     usage: new LeadUsageCounter(),
+    agencyMetrics: new LeadSiteMetrics(),
     retention: new LeadsRetentionPurge(),
     routes: createLeadRoutes({ queries, mutations, site, contacts, websites: deps.websitesModule.accessChecks }),
     trackerRoutes: createLeadTrackerRoutes({ capture, trackerWebsites: deps.websitesModule.trackerWebsites }),

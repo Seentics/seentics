@@ -25,27 +25,17 @@ export function createUserBranchRoutes(deps: {
   /** Auth's two contributions here: its session router and the user lookup. */
   authModule: AuthModule;
   /**
-   * The agency dashboard: clients (websites module), account API keys and embed links
-   * (api-keys module), and white label, client users and portal links (agency module).
+   * Account API keys (api-keys module), session-only: a key cannot mint keys. Everything else
+   * an agency manages is the agency workspace's, at `/api/v1/agency` through the gateway.
    */
-  agency: {
-    clients: Hono<{ Variables: AuthVars }>;
-    apiKeys: Hono<{ Variables: AuthVars }>;
-    embedLinks: Hono<{ Variables: AuthVars }>;
-    dashboard: Hono<{ Variables: AuthVars }>;
-  };
+  agency: { apiKeys: Hono<{ Variables: AuthVars }> };
 }) {
   const user = new Hono<{ Variables: AuthVars }>();
 
   user.route("/auth", deps.authModule.userRoutes);
   user.route("/websites", deps.websites);
   user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords }));
-  user.route("/agency", deps.agency.clients);
   user.route("/agency/api-keys", deps.agency.apiKeys);
-  user.route("/agency/embed-links", deps.agency.embedLinks);
-  // Claims only its own paths (`/white-label`, `/client-users`, `/clients/:id/portal-token`),
-  // so it sits beside the clients router at the same mount.
-  user.route("/agency", deps.agency.dashboard);
 
   /**
    * Accepting an invitation is deliberately outside the websites router: the caller

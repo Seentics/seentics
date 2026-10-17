@@ -1,49 +1,75 @@
 import { Hono } from "hono";
-import { authMiddleware, type AuthVars } from "../../platform/middleware/auth";
-import { getWhiteLabel, updateWhiteLabel, type WhiteLabelControllerDeps } from "./controllers/white-label.controller";
+import type { AppConfig } from "../../config";
+import { notFound } from "./lib/envelope";
+import { gatewayContext, type AgencyVars } from "./lib/gateway-context";
+import type { AgencyControllerDeps } from "./controllers/agency-controller.types";
+import { dismissAlert, getOverview, getSetup } from "./controllers/overview.controller";
 import {
-  createClientUser,
-  createPortalToken,
-  deleteClientUser,
-  getClientUser,
-  listClientUsers,
-  resendClientUserLink,
-  revokeClientUser,
-  revokePortalToken,
-  type ClientUserControllerDeps,
-} from "./controllers/client-user.controller";
-import { validatePortalToken, type PortalControllerDeps } from "./controllers/portal.controller";
+  archiveClient,
+  createClient,
+  createClientWebsite,
+  deleteClient,
+  getClient,
+  getClientFeatures,
+  listClients,
+  listClientWebsites,
+  putClientFeatures,
+  updateClient,
+} from "./controllers/clients.controller";
+import {
+  createWebsite,
+  deleteWebsite,
+  getInstall,
+  getWebsite,
+  listWebsites,
+  updateWebsite,
+  verifyWebsite,
+} from "./controllers/websites.controller";
+import { getBranding, putBranding } from "./controllers/branding.controller";
+import { createEmbed, deleteEmbed, listEmbeds, updateEmbed } from "./controllers/embeds.controller";
 
 /**
- * The agency dashboard's white label, client users and portal links. Mounted at
- * `/user/agency` next to the websites module's `/clients` routes, so it claims only its
- * own paths — `/clients/:clientId/portal-token` and nothing else under `/clients`.
+ * The agency workspace's API, mounted at `/api/v1/agency`. Every route sits behind
+ * `gatewayContext`: the gateway's key, and the agency it names in `X-Agency-Owner`. The
+ * per-route comments live with each controller.
  */
-export function createAgencyDashboardRoutes(deps: WhiteLabelControllerDeps & ClientUserControllerDeps) {
-  const routes = new Hono<{ Variables: AuthVars }>();
-  routes.use("/white-label", authMiddleware);
-  routes.use("/client-users", authMiddleware);
-  routes.use("/client-users/*", authMiddleware);
-  routes.use("/clients/:clientId/portal-token", authMiddleware);
+export function createAgencyRoutes(deps: AgencyControllerDeps & { config?: () => Pick<AppConfig, "globalApiKey"> }) {
+  const routes = new Hono<{ Variables: AgencyVars }>();
+  routes.use("*", gatewayContext(deps.config));
 
-  routes.get("/white-label", getWhiteLabel(deps));
-  routes.patch("/white-label", updateWhiteLabel(deps));
+  routes.get("/overview", getOverview(deps));
+  routes.post("/alerts/:id/dismiss", dismissAlert(deps));
+  routes.get("/setup", getSetup(deps));
 
-  routes.get("/client-users", listClientUsers(deps));
-  routes.post("/client-users", createClientUser(deps));
-  routes.get("/client-users/:id", getClientUser(deps));
-  routes.delete("/client-users/:id", deleteClientUser(deps));
-  routes.post("/client-users/:id/revoke", revokeClientUser(deps));
-  routes.post("/client-users/:id/resend", resendClientUserLink(deps));
+  routes.get("/clients", listClients(deps));
+  routes.post("/clients", createClient(deps));
+  routes.get("/clients/:id", getClient(deps));
+  routes.patch("/clients/:id", updateClient(deps));
+  routes.delete("/clients/:id", deleteClient(deps));
+  routes.post("/clients/:id/archive", archiveClient(deps, "archived"));
+  routes.post("/clients/:id/unarchive", archiveClient(deps, "active"));
+  routes.get("/clients/:id/websites", listClientWebsites(deps));
+  routes.post("/clients/:id/websites", createClientWebsite(deps));
+  routes.get("/clients/:id/features", getClientFeatures(deps));
+  routes.put("/clients/:id/features", putClientFeatures(deps));
 
-  routes.post("/clients/:clientId/portal-token", createPortalToken(deps));
-  routes.delete("/clients/:clientId/portal-token", revokePortalToken(deps));
-  return routes;
-}
+  routes.get("/websites", listWebsites(deps));
+  routes.post("/websites", createWebsite(deps));
+  routes.get("/websites/:id", getWebsite(deps));
+  routes.patch("/websites/:id", updateWebsite(deps));
+  routes.delete("/websites/:id", deleteWebsite(deps));
+  routes.get("/websites/:id/install", getInstall(deps));
+  routes.post("/websites/:id/verify", verifyWebsite(deps));
 
-/** The client portal's public entry. Mounted at `/agency/portal`. */
-export function createPortalRoutes(deps: PortalControllerDeps) {
-  const routes = new Hono();
-  routes.post("/validate", validatePortalToken(deps));
+  routes.get("/branding", getBranding(deps));
+  routes.put("/branding", putBranding(deps));
+
+  routes.get("/embeds", listEmbeds(deps));
+  routes.post("/embeds", createEmbed(deps));
+  routes.patch("/embeds/:id", updateEmbed(deps));
+  routes.delete("/embeds/:id", deleteEmbed(deps));
+
+  // Unknown paths answer in the same envelope as everything else here.
+  routes.notFound((c) => notFound(c, "Route"));
   return routes;
 }

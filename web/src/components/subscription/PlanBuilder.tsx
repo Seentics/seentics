@@ -4,9 +4,9 @@ import React from 'react';
 import { ArrowRight, Check, ChevronDown, Loader2, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
-import type { BillingInterval, Plan } from '@/features/plans/types';
+import type { BillingInterval, FoundingSpots, Plan } from '@/features/plans/types';
 import {
-  COMPARE_GROUPS, FOUNDING_OFFER, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, formatMoney, monthlyPrice, yearlySavingLabel, yearlySavingPercent,
+  COMPARE_GROUPS, FOUNDING_OFFER, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, formatMoney, foundingNote, foundingPrice, monthlyPrice, yearlySavingLabel, yearlySavingPercent,
 } from '@/features/plans/pricing-spec';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +16,7 @@ export interface PlanSelection {
   /** What the customer will pay each month on this interval ($0 for Free). */
   price: number;
   interval: BillingInterval;
-  /** A discount code the visitor claimed: the founding price (FOUNDING_OFFER), on Agency only. */
+  /** A discount code the visitor claimed: the founding code (FOUNDING_OFFER), on Pro or Agency. */
   discount?: string;
 }
 
@@ -27,6 +27,8 @@ interface PlanBuilderProps {
   currentPlan?: string;
   /** How the signed-in account is billed; the matching card reads "Current plan". */
   currentInterval?: BillingInterval;
+  /** The founding offer's spots left (useFoundingSpots); without them the box shows the limit only. */
+  founding?: FoundingSpots | null;
 }
 
 const CTA: Record<Plan['tier'], string> = { free: 'Start free', starter: 'Get Starter', pro: 'Get Pro', agency: 'Get Agency' };
@@ -38,13 +40,15 @@ const CTA: Record<Plan['tier'], string> = { free: 'Start free', starter: 'Get St
  * Yearly is the default: it is the plan's price for the year, shown as a monthly figure with the
  * yearly total beside it.
  */
-export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval }: PlanBuilderProps) {
+export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval, founding: spots }: PlanBuilderProps) {
   const { data: plans, isLoading, isError } = usePlans();
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
   const [chosen, setChosen] = React.useState<BillingInterval>('year');
   // The toggle only means something once yearly is offered (OFFER_YEARLY) and the catalogue has a
   // yearly price. Until then every plan is monthly and nothing is offered that cannot be bought.
+  // Once every founding spot is taken the box goes, Claim button and all.
+  const note = foundingNote(spots);
   const hasYearly = OFFER_YEARLY && !!plans?.some((p) => p.priceYearly != null);
   const interval: BillingInterval = hasYearly ? chosen : 'month';
 
@@ -54,21 +58,27 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
     onSubscribe({ plan: plan.id, price: monthlyPrice(plan, interval), interval });
   };
 
-  /** The founding price is a monthly price: claiming it buys Agency monthly, with the code. */
-  const claimFounding = (plan: Plan) => {
+  /**
+   * Claiming the founding price buys the plan on the selected interval, with the code. `price` is a
+   * month's worth, as for any selection: a year's founding price over twelve.
+   */
+  const claimFounding = (plan: Plan, on: BillingInterval) => {
     if (!onSubscribe) return;
     setLoadingPlan(`${plan.id}:founding`);
-    onSubscribe({ plan: plan.id, price: FOUNDING_OFFER.priceMonthly, interval: 'month', discount: FOUNDING_OFFER.code });
+    const price = foundingPrice(plan, on);
+    onSubscribe({ plan: plan.id, price: on === 'year' ? price / 12 : price, interval: on, discount: FOUNDING_OFFER.code });
   };
 
   const renderCard = (plan: Plan) => {
     const featured = plan.tier === 'pro';
     const agency = plan.tier === 'agency';
+    const founding = note.show && FOUNDING_OFFER.plans.includes(plan.tier);
     const paid = plan.priceMonthly > 0;
     // A card is the current plan when it is the plan, and for the paid ones the interval too: the
     // other interval is a switch the customer can make.
     const isCurrent = !!currentPlan && currentPlan === plan.id && (!paid || !currentInterval || currentInterval === interval);
     const yearly = paid && interval === 'year' && plan.priceYearly != null;
+    const foundingOn: BillingInterval = yearly ? 'year' : 'month';
     const saving = yearlySavingPercent(plan);
     const savingLabel = yearlySavingLabel(plan);
     return (
@@ -119,16 +129,25 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
           )}
         </Button>
 
-        {agency && !isCurrent && (
+        {founding && !isCurrent && (
           <div data-testid="founding-offer" className="mt-3 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 text-[13px] leading-snug">
             <p>
-              <span className="font-semibold text-foreground">Founding price: {formatMoney(FOUNDING_OFFER.priceMonthly)}/month, locked in</span>
-              <span className="text-muted-foreground"> — first {FOUNDING_OFFER.seats} agencies. Use code </span>
+              <span className="font-semibold text-foreground">Founding price: {formatMoney(foundingPrice(plan, foundingOn))}/{foundingOn}, locked in</span>
+              <span className="text-muted-foreground">. {FOUNDING_OFFER.percentOff}% off for life. Use code </span>
               <code className="rounded bg-muted px-1 font-mono text-[12px] font-semibold text-foreground">{FOUNDING_OFFER.code}</code>
               <span className="text-muted-foreground"> at checkout.</span>
             </p>
+            {note.show && (
+              <p
+                data-testid="founding-spots"
+                data-emphasised={note.emphasised || undefined}
+                className={cn('mt-1', note.emphasised ? 'font-semibold text-destructive' : 'text-muted-foreground')}
+              >
+                {note.text}
+              </p>
+            )}
             {onSubscribe && (
-              <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-[13px]" disabled={loading} onClick={() => claimFounding(plan)}>
+              <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-[13px]" disabled={loading} onClick={() => claimFounding(plan, foundingOn)}>
                 {loading && loadingPlan === `${plan.id}:founding` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Claim founding price'}
               </Button>
             )}

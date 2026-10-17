@@ -22,3 +22,15 @@ export type Plan = {
 
 /** How a plan is billed. */
 export type BillingInterval = 'month' | 'year';
+
+/**
+ * The founding offer's spots, from gateway's GET /api/v1/billing/founding: Lemon Squeezy's redemption
+ * count of the founding code. `claimed` and `left` are null when the count is unknown.
+ */
+export type FoundingSpots = {
+  code: string;
+  total: number;
+  claimed: number | null;
+  left: number | null;
+  status: 'open' | 'closed';
+};

@@ -5,6 +5,7 @@ import type { ModuleLifecycle } from "../../../app/module";
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { LeadSink } from "../../leads/interfaces";
 import type { RetentionPurge } from "../../../platform/retention";
+import type { SiteMetricSource } from "../../agency/interfaces";
 
 export const PROVIDER_IDS = ["zapier", "mailchimp", "klaviyo", "hubspot"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
@@ -188,6 +189,8 @@ export type IntegrationsModule = ModuleLifecycle & {
   conversions: { lane: LaneSpec; admin: ConversionAdmin; routes: AuthedRouter };
   /** Ages out the delivery history and clears payloads that were never delivered. */
   retention: RetentionPurge;
+  /** Conversions sent per site, for the agency overview. */
+  agencyMetrics: SiteMetricSource;
   routes: AuthedRouter;
 };
 

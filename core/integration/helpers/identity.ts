@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { expect } from "bun:test";
 import { api, sql, type SeededUser } from "../harness";
 
-export const ALL_SCOPES = ["websites:read", "websites:write", "analytics:read", "replays:read", "heatmaps:read"];
+export const ALL_SCOPES = ["websites:read", "websites:write", "analytics:read", "replays:read", "heatmaps:read", "agency:read", "agency:write"];
 
 /** An account key minted the way the dashboard does it; returns the plaintext and its id. */
 export async function mintAccountKey(user: SeededUser, scopes?: string[], name = "it key"): Promise<{ id: string; key: string }> {
@@ -16,6 +16,28 @@ export async function mintAccountKey(user: SeededUser, scopes?: string[], name =
 }
 
 export const keyHeader = (key: string) => ({ "X-API-Key": key });
+
+const GATEWAY_KEY = "integration-gateway-key";
+
+/**
+ * Call the agency API (`/api/v1/agency`) as the gateway does for `ownerId`: its own key and
+ * the X-Agency-* headers. The suite runs without a gateway key, so one is set for the call
+ * alone — set for the whole file, every session route would read its absent
+ * X-Team-Permissions as "no permissions".
+ */
+export async function agencyApi(method: string, path: string, ownerId: string, body?: unknown, extra: Record<string, string> = {}) {
+  const before = process.env.GLOBAL_API_KEY;
+  process.env.GLOBAL_API_KEY = GATEWAY_KEY;
+  try {
+    return await api(method, `/api/v1/agency${path}`, {
+      headers: { "X-API-Key": GATEWAY_KEY, "X-Agency-Owner": ownerId, "X-Agency-Actor": ownerId, ...extra },
+      body,
+    });
+  } finally {
+    if (before === undefined) delete process.env.GLOBAL_API_KEY;
+    else process.env.GLOBAL_API_KEY = before;
+  }
+}
 
 /** A client row owned by `ownerId`, straight in the table. */
 export async function seedClient(ownerId: string, opts: { name?: string; status?: string; externalId?: string } = {}) {

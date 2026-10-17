@@ -1,40 +1,57 @@
-import type { ClientDirectory } from "../websites/interfaces";
-import type { AgencyModule } from "./interfaces";
-import { PostgresClientUserRepository } from "./repositories/client-user.repository";
-import { PostgresPortalTokenRepository } from "./repositories/portal-token.repository";
+import { env } from "../../config";
+import type { EmbedLinks } from "../api-keys/interfaces";
+import type { ClientDirectory, OwnedWebsites } from "../websites/interfaces";
+import type { AgencyModule, SiteMetricSource, TrackingActivityReader } from "./interfaces";
+import { PostgresAlertRepository } from "./repositories/alert.repository";
+import { PostgresSetupSignalRepository } from "./repositories/setup-signal.repository";
 import { PostgresWhiteLabelRepository } from "./repositories/white-label.repository";
-import { ClientUserService } from "./services/client-user.service";
-import { PortalAccessService } from "./services/portal-access.service";
+import { AgencyOverviewService } from "./services/overview.service";
+import { AgencySetupService } from "./services/setup.service";
+import { WebsiteVerificationService } from "./services/verification.service";
 import { WhiteLabelService } from "./services/white-label.service";
-import { createAgencyDashboardRoutes, createPortalRoutes } from "./routes";
+import { createAgencyRoutes } from "./routes";
 
 /**
- * Build the agency module: white label, client users, portal links.
+ * Build the agency module: the workspace API and the white label.
  *
- * Plan gating is not here: in managed Cloud the gateway decides who has agency features,
- * as it does for the rest of `/user/agency`.
+ * Authentication and plan gating are not here: in managed Cloud the gateway decides who
+ * may call the agency API and names the agency in headers (see `lib/gateway-context.ts`).
  */
 export function initAgencyModule(deps: {
   clients: ClientDirectory;
-  /** A disabled owner's portal links stop with their sessions, like their account keys. */
-  accountActive: (userId: string) => Promise<boolean>;
+  websites: OwnedWebsites;
+  embedLinks: EmbedLinks;
+  /** Each module's per-site figures for the overview. */
+  metrics: readonly SiteMetricSource[];
+  activity: TrackingActivityReader;
 }): AgencyModule {
   const whiteLabel = new WhiteLabelService(new PostgresWhiteLabelRepository());
-  const clientUserRepository = new PostgresClientUserRepository();
-  const portal = new PortalAccessService({
-    tokens: new PostgresPortalTokenRepository(),
+  const overview = new AgencyOverviewService({
     clients: deps.clients,
-    branding: whiteLabel,
-    clientUsers: clientUserRepository,
-    accountActive: deps.accountActive,
+    websites: deps.websites,
+    sources: deps.metrics,
+    alerts: new PostgresAlertRepository(),
   });
-  const clientUsers = new ClientUserService(clientUserRepository, deps.clients, portal);
+  const setup = new AgencySetupService({
+    whiteLabel,
+    clients: deps.clients,
+    websites: deps.websites,
+    activity: deps.activity,
+    signals: new PostgresSetupSignalRepository(),
+  });
+  const verification = new WebsiteVerificationService({ websites: deps.websites, activity: deps.activity });
 
   return {
     whiteLabel,
-    portal,
-    clientUsers,
-    dashboardRoutes: createAgencyDashboardRoutes({ whiteLabel, clientUsers, portal }),
-    portalRoutes: createPortalRoutes({ portal }),
+    routes: createAgencyRoutes({
+      clients: deps.clients,
+      websites: deps.websites,
+      whiteLabel,
+      overview,
+      setup,
+      verification,
+      embedLinks: deps.embedLinks,
+      urls: () => ({ scriptUrl: env().trackerScriptUrl, frontendUrl: env().frontendUrl }),
+    }),
   };
 }

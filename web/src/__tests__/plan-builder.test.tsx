@@ -76,31 +76,83 @@ describe('PlanBuilder', () => {
 });
 
 describe('the Agency card', () => {
-  it('has its badge, pitch, client access on your own domain and the founding offer', () => {
+  it('has its badge, pitch and client access on your own domain', () => {
     render(<PlanBuilder />);
     expect(screen.getByText('For agencies')).toBeTruthy();
     expect(screen.getByText('Most popular')).toBeTruthy();
     expect(screen.getByText('For agencies managing multiple client sites')).toBeTruthy();
     const access = screen.getByText('Client access and white-label reports on your own domain');
     expect(access.parentElement!.textContent).not.toContain('Coming soon');
-    const offer = screen.getByTestId('founding-offer');
-    expect(offer.textContent).toContain('Founding price: $49/month, locked in');
-    expect(offer.textContent).toContain('first 10 agencies');
-    expect(offer.textContent).toContain('Use code FOUNDING49 at checkout.');
+  });
+});
+
+describe('the founding offer', () => {
+  const offers = () => screen.getAllByTestId('founding-offer').map((o) => o.textContent);
+
+  it('is on Pro and Agency, at the selected interval\'s price', () => {
+    render(<PlanBuilder />);
+    const [pro, agency] = offers();
+    expect(offers()).toHaveLength(2);
+    expect(pro).toContain('Founding price: $168/year, locked in');
+    expect(agency).toContain('Founding price: $693/year, locked in');
+    expect(agency).toContain('30% off for life.');
+    expect(agency).toContain('Limited to the first 50 customers');
+    expect(agency).toContain('Use code FOUNDING30 at checkout.');
+    monthly();
+    expect(offers()[0]).toContain('Founding price: $16.80/month, locked in');
+    expect(offers()[1]).toContain('Founding price: $69.30/month, locked in');
   });
 
-  it('sends the founding code only when the price is claimed, monthly at $49', () => {
+  it('sends the code only when the price is claimed, on the selected interval', () => {
     const onSubscribe = vi.fn();
     render(<PlanBuilder onSubscribe={onSubscribe} />);
     fireEvent.click(screen.getByRole('button', { name: /Get Agency/ }));
     expect(onSubscribe.mock.calls[0]![0]).not.toHaveProperty('discount');
-    fireEvent.click(screen.getByRole('button', { name: 'Claim founding price' }));
-    expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'agency', price: 49, interval: 'month', discount: 'FOUNDING49' });
+    const [pro, agency] = screen.getAllByRole('button', { name: 'Claim founding price' });
+    fireEvent.click(agency!);
+    expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'agency', price: 57.75, interval: 'year', discount: 'FOUNDING30' });
+    fireEvent.click(pro!);
+    expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 14, interval: 'year', discount: 'FOUNDING30' });
+    monthly();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Claim founding price' })[0]!);
+    expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 16.8, interval: 'month', discount: 'FOUNDING30' });
   });
 
-  it('is not offered to an account already on Agency', () => {
-    render(<PlanBuilder currentPlan="agency" currentInterval="year" />);
+  const spots = (claimed: number | null, status: 'open' | 'closed' = 'open') =>
+    ({ code: 'FOUNDING30', total: 50, claimed, left: claimed === null ? null : Math.max(0, 50 - claimed), status });
+  const note = () => screen.getAllByTestId('founding-spots');
+
+  it('with an unknown or small count, says only that it is limited', () => {
+    for (const founding of [undefined, spots(null), spots(9)]) {
+      const { unmount } = render(<PlanBuilder founding={founding} />);
+      expect(note().map((n) => n.textContent)).toEqual(['Limited to the first 50 customers', 'Limited to the first 50 customers']);
+      expect(screen.queryByText(/spots left/)).toBeNull();
+      unmount();
+    }
+  });
+
+  it('from 10 claims, says how many spots are left', () => {
+    render(<PlanBuilder founding={spots(30)} />);
+    expect(note()[0]!.textContent).toBe('Only 20 of 50 founding spots left');
+    expect(note()[0]!.dataset.emphasised).toBeUndefined();
+  });
+
+  it('emphasises the last 5 spots', () => {
+    render(<PlanBuilder founding={spots(46)} />);
+    expect(note()[1]!.textContent).toBe('Only 4 of 50 founding spots left');
+    expect(note()[1]!.dataset.emphasised).toBe('true');
+  });
+
+  it('is gone, Claim button and all, once every spot is taken', () => {
+    render(<PlanBuilder onSubscribe={vi.fn()} founding={spots(50, 'closed')} />);
     expect(screen.queryByTestId('founding-offer')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Claim founding price' })).toBeNull();
+  });
+
+  it('is not offered on the plan the account is already on', () => {
+    render(<PlanBuilder currentPlan="agency" currentInterval="year" />);
+    expect(screen.getAllByTestId('founding-offer')).toHaveLength(1);
+    expect(screen.getByTestId('founding-offer').textContent).toContain('$168/year');
   });
 });
 
@@ -110,7 +162,7 @@ describe('an older catalogue without Agency', () => {
     const { container } = render(<PlanBuilder />);
     expect(screen.queryByRole('heading', { name: 'Agency' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Pro' })).toBeTruthy();
-    expect(screen.queryByTestId('founding-offer')).toBeNull();
+    expect(screen.getAllByTestId('founding-offer')).toHaveLength(1);
     expect(container.querySelector('.lg\\:grid-cols-3')).toBeTruthy();
     expect(container.querySelector('.lg\\:grid-cols-4')).toBeNull();
   });

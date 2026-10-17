@@ -16,6 +16,8 @@
  * share no code.
  */
 
+import type { FoundingSpots } from './types';
+
 export type PricingTier = 'free' | 'starter' | 'pro' | 'agency';
 
 /** The slice of a gateway plan this module reads. */
@@ -70,14 +72,44 @@ export const OVERAGE_RATES = {
 export const OFFER_YEARLY = true;
 
 /**
- * The founding price for the first agencies: Agency at $49 a month instead of $99, locked in, with
- * a Lemon Squeezy discount code. Sent to checkout (as `discount`) only when the visitor claims it.
+ * The founding offer for the first customers: 30% off Pro or Agency, monthly or yearly, on every
+ * renewal, with a Lemon Squeezy discount code limited to `seats` redemptions in all. Sent to
+ * checkout (as `discount`) only when the visitor claims it.
  */
 export const FOUNDING_OFFER = {
-  code: 'FOUNDING49',
-  priceMonthly: 49,
-  seats: 10,
+  code: 'FOUNDING30',
+  percentOff: 30,
+  plans: ['pro', 'agency'] as readonly PricingTier[],
+  seats: 50,
 } as const;
+
+/** Below this many claims the count is not shown, only the limit: "Limited to the first 50 customers". */
+export const FOUNDING_COUNT_SHOWN_FROM = 10;
+/** At or below this many spots left, the count is emphasised. */
+export const FOUNDING_EMPHASIS_LEFT = 5;
+
+export type FoundingNote = { show: false } | { show: true; text: string; emphasised: boolean };
+
+/**
+ * What the founding box says about availability, from Lemon Squeezy's count (gateway's
+ * /billing/founding). Never made up: an unknown or small count shows only the limit, a closed offer
+ * hides the box, and without an answer the limit is FOUNDING_OFFER.seats.
+ */
+export function foundingNote(spots?: Pick<FoundingSpots, 'total' | 'claimed' | 'left' | 'status'> | null): FoundingNote {
+  if (spots?.status === 'closed') return { show: false };
+  const total = spots?.total ?? FOUNDING_OFFER.seats;
+  const claimed = spots?.claimed ?? null;
+  if (claimed === null || claimed < FOUNDING_COUNT_SHOWN_FROM) return { show: true, text: `Limited to the first ${total} customers`, emphasised: false };
+  const left = spots?.left ?? Math.max(0, total - claimed);
+  if (left <= 0) return { show: false };
+  return { show: true, text: `Only ${left} of ${total} founding spots left`, emphasised: left <= FOUNDING_EMPHASIS_LEFT };
+}
+
+/** What a plan costs with the founding code, per interval: the month's or the year's price, to the cent. */
+export const foundingPrice = (plan: PricedPlan, interval: BillingInterval): number => {
+  const price = interval === 'year' && plan.priceYearly ? plan.priceYearly : plan.priceMonthly;
+  return Math.round(price * (100 - FOUNDING_OFFER.percentOff)) / 100;
+};
 
 export const TIER_PITCH: Record<PricingTier, string> = {
   free: 'Everything to get started',

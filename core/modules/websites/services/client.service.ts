@@ -3,28 +3,24 @@ import {
   ClientOperationError,
   type Client,
   type ClientDirectory,
+  type ClientListFilter,
   type ClientRepository,
   type ClientWithWebsites,
   type CreateClientInput,
+  type CursorPage,
   type OwnedWebsites,
   type Page,
   type PageOf,
   type UpdateClientInput,
+  type WebsiteListFilter,
 } from "../interfaces/client.interface";
 import { log } from "../../../platform/observability/logger";
 
 const client_log = log.child({ category: "clients" });
 
-/** Postgres unique_violation. */
-const UNIQUE_VIOLATION = "23505";
-
-function isUniqueViolation(e: unknown): boolean {
-  return (e as { code?: unknown })?.code === UNIQUE_VIOLATION;
-}
-
 /** One extra row tells us whether there is a next page without a second COUNT query. */
-function pageOf<T>(rows: T[], page: Page): PageOf<T> {
-  return { items: rows.slice(0, page.limit), hasMore: rows.length > page.limit };
+function pageOf<T>(rows: T[], limit: number): PageOf<T> {
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
 }
 
 type SiteWrites = Pick<WebsiteMutations, "create" | "update" | "delete">;
@@ -38,7 +34,8 @@ type SiteReads = { findById(websiteId: string): Promise<Website | null> };
  *
  * `onChanged` runs after anything that alters what the tracker resolves for a site — a
  * client's status or switches, or a site moving between clients — because the tracker's
- * cached row carries the client's switches already applied.
+ * cached row carries the client's switches already applied. It also clears the cached
+ * website reads, which is why marking a site verified calls it.
  */
 export class ClientService implements ClientDirectory, OwnedWebsites {
   constructor(
@@ -50,9 +47,9 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
 
   // ─── Clients ──────────────────────────────────────────────────────────────
 
-  async listClients(ownerId: string, page: Page): Promise<PageOf<ClientWithWebsites>> {
-    const rows = await this.clients.list(ownerId, { limit: page.limit + 1, offset: page.offset });
-    const { items, hasMore } = pageOf(rows, page);
+  async listClients(ownerId: string, filter: ClientListFilter, page: CursorPage): Promise<PageOf<ClientWithWebsites>> {
+    const rows = await this.clients.list(ownerId, filter, { ...page, limit: page.limit + 1 });
+    const { items, hasMore } = pageOf(rows, page.limit);
     return { items: await this.withWebsites(items), hasMore };
   }
 
@@ -61,75 +58,27 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
     return client ? (await this.withWebsites([client]))[0]! : null;
   }
 
-  async getClientByExternalId(ownerId: string, externalId: string): Promise<ClientWithWebsites | null> {
-    const client = await this.clients.findByExternalId(ownerId, externalId);
-    return client ? (await this.withWebsites([client]))[0]! : null;
-  }
-
-  async createClient(
-    ownerId: string,
-    input: CreateClientInput,
-    website?: Omit<CreateWebsiteInput, "clientId">,
-  ): Promise<{ client: ClientWithWebsites; created: boolean }> {
-    if (input.externalId) {
-      const existing = await this.getClientByExternalId(ownerId, input.externalId);
-      if (existing) return { client: existing, created: false };
-    }
-
-    let client: Client;
-    try {
-      client = await this.clients.create(ownerId, input);
-    } catch (e) {
-      // Two retries of the same signup racing: the loser returns the winner's client.
-      if (isUniqueViolation(e) && input.externalId) {
-        const existing = await this.getClientByExternalId(ownerId, input.externalId);
-        if (existing) return { client: existing, created: false };
-      }
-      throw e;
-    }
+  async createClient(ownerId: string, input: CreateClientInput): Promise<ClientWithWebsites> {
+    const client = await this.clients.create(ownerId, input);
     client_log.info({ msg: "client_created", client_id: client.id, owner_id: ownerId });
-
-    if (website) {
-      // The client and its first site are one request: when the site cannot be made (the
-      // account's site cap, an unusable address) the client goes too. It was left behind,
-      // and the caller, told the request failed, had a client it did not know about.
-      try {
-        await this.createWebsite(ownerId, { ...website, clientId: client.id });
-      } catch (e) {
-        await this.clients.delete(client.id);
-        throw e;
-      }
-    }
-    return { client: (await this.withWebsites([client]))[0]!, created: true };
+    return { ...client, websites: [] };
   }
 
   async updateClient(ownerId: string, clientId: string, input: UpdateClientInput): Promise<ClientWithWebsites | null> {
     if (!(await this.ownedClient(ownerId, clientId))) return null;
-    let updated: Client | null;
-    try {
-      updated = await this.clients.update(clientId, input);
-    } catch (e) {
-      if (isUniqueViolation(e)) throw new ClientOperationError("external_id_taken");
-      throw e;
-    }
+    const updated = await this.clients.update(clientId, input);
     if (!updated) return null;
     this.onChanged();
     client_log.info({ msg: "client_updated", client_id: clientId, fields: Object.keys(input) });
     return (await this.withWebsites([updated]))[0]!;
   }
 
-  async deleteClient(ownerId: string, clientId: string, opts: { deleteWebsites?: boolean } = {}): Promise<boolean> {
+  async deleteClient(ownerId: string, clientId: string): Promise<boolean> {
     if (!(await this.ownedClient(ownerId, clientId))) return false;
-    if (opts.deleteWebsites) {
-      // One at a time through the normal delete, which erases each site's collected data.
-      for (const site of await this.clients.websitesOfClients([clientId])) {
-        await this.siteWrites.delete(site.id);
-      }
-    }
     const deleted = await this.clients.delete(clientId);
     if (deleted) {
       this.onChanged();
-      client_log.info({ msg: "client_deleted", client_id: clientId, websites_deleted: !!opts.deleteWebsites });
+      client_log.info({ msg: "client_deleted", client_id: clientId });
     }
     return deleted;
   }
@@ -138,7 +87,16 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
 
   async listWebsites(ownerId: string, filter: { clientId?: string } & Page): Promise<PageOf<Website>> {
     const rows = await this.clients.listWebsites(ownerId, { ...filter, limit: filter.limit + 1 });
-    return pageOf(rows, filter);
+    return pageOf(rows, filter.limit);
+  }
+
+  async pageWebsites(ownerId: string, filter: WebsiteListFilter, page: CursorPage): Promise<PageOf<Website>> {
+    const rows = await this.clients.pageWebsites(ownerId, filter, { ...page, limit: page.limit + 1 });
+    return pageOf(rows, page.limit);
+  }
+
+  allWebsites(ownerId: string): Promise<Website[]> {
+    return this.clients.allWebsites(ownerId);
   }
 
   async getWebsite(ownerId: string, websiteId: string): Promise<Website | null> {
@@ -147,10 +105,8 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
   }
 
   async createWebsite(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
-    if (input.clientId) {
-      const client = await this.ownedClient(ownerId, input.clientId);
-      if (!client) throw new ClientOperationError("not_found");
-      await this.assertRoomFor(client);
+    if (input.clientId && !(await this.ownedClient(ownerId, input.clientId))) {
+      throw new ClientOperationError("not_found");
     }
     return this.siteWrites.create(ownerId, input);
   }
@@ -159,13 +115,14 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
     const site = await this.getWebsite(ownerId, websiteId);
     if (!site) return null;
     const movesClient = input.clientId !== undefined && input.clientId !== site.clientId;
-    if (movesClient && input.clientId) {
-      const client = await this.ownedClient(ownerId, input.clientId);
-      if (!client) throw new ClientOperationError("not_found");
-      await this.assertRoomFor(client);
+    if (movesClient && input.clientId && !(await this.ownedClient(ownerId, input.clientId))) {
+      throw new ClientOperationError("not_found");
     }
     const updated = await this.siteWrites.update(websiteId, input);
-    if (movesClient) this.onChanged();
+    if (movesClient) {
+      this.onChanged();
+      client_log.info({ msg: "website_moved", website_id: websiteId, client_id: input.clientId ?? null });
+    }
     return updated;
   }
 
@@ -174,19 +131,16 @@ export class ClientService implements ClientDirectory, OwnedWebsites {
     return this.siteWrites.delete(websiteId);
   }
 
+  async markVerified(ownerId: string, websiteId: string): Promise<void> {
+    if (!(await this.getWebsite(ownerId, websiteId))) return;
+    if (await this.clients.markVerified(websiteId)) this.onChanged();
+  }
+
   // ─── Internals ────────────────────────────────────────────────────────────
 
   private async ownedClient(ownerId: string, clientId: string): Promise<Client | null> {
     const client = await this.clients.findById(clientId);
     return client && client.ownerId === ownerId ? client : null;
-  }
-
-  private async assertRoomFor(client: Client): Promise<void> {
-    const max = client.limits.max_websites;
-    if (max === null) return;
-    if ((await this.clients.countWebsites(client.id)) >= max) {
-      throw new ClientOperationError("website_limit_reached");
-    }
   }
 
   private async withWebsites(list: Client[]): Promise<ClientWithWebsites[]> {

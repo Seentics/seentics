@@ -32,37 +32,13 @@ import {
 } from "./controllers/website-privacy.controller";
 import { updateWebsiteSharing } from "./controllers/website-sharing.controller";
 import {
-  createClient,
   createOwnedWebsite,
-  deleteClient,
   deleteOwnedWebsite,
-  getClient,
-  getClientAnalytics,
   getOwnedWebsite,
-  listClients,
-  listClientWebsites,
   listOwnedWebsites,
-  updateClient,
   updateOwnedWebsite,
-  type ClientControllerDeps,
   type OwnedWebsiteControllerDeps,
-} from "./controllers/client.controller";
-
-/**
- * Clients, with no auth of their own — see `client.controller.ts`. The agency dashboard
- * mounts this behind `createAgencyRoutes`; the management API behind account-key auth.
- */
-export function createClientRoutes(deps: ClientControllerDeps) {
-  const routes = new Hono<{ Variables: AuthVars }>();
-  routes.get("/", listClients(deps));
-  routes.post("/", createClient(deps));
-  routes.get("/:clientId", getClient(deps));
-  routes.patch("/:clientId", updateClient(deps));
-  routes.delete("/:clientId", deleteClient(deps));
-  routes.get("/:clientId/websites", listClientWebsites(deps));
-  routes.get("/:clientId/analytics", getClientAnalytics(deps));
-  return routes;
-}
+} from "./controllers/owned-website.controller";
 
 /** An owner's websites for the management API — owner-only, no auth of its own. */
 export function createOwnedWebsiteRoutes(deps: OwnedWebsiteControllerDeps) {
@@ -72,21 +48,6 @@ export function createOwnedWebsiteRoutes(deps: OwnedWebsiteControllerDeps) {
   routes.get("/:websiteId", getOwnedWebsite(deps));
   routes.patch("/:websiteId", updateOwnedWebsite(deps));
   routes.delete("/:websiteId", deleteOwnedWebsite(deps));
-  return routes;
-}
-
-/** `/user/agency/clients` and `/user/agency/websites`, for the signed-in dashboard. */
-export function createAgencyRoutes(
-  clientRoutes: Hono<{ Variables: AuthVars }>,
-  ownedWebsiteRoutes: Hono<{ Variables: AuthVars }>,
-) {
-  const routes = new Hono<{ Variables: AuthVars }>();
-  routes.use("/clients/*", authMiddleware);
-  routes.use("/clients", authMiddleware);
-  routes.use("/websites/*", authMiddleware);
-  routes.use("/websites", authMiddleware);
-  routes.route("/clients", clientRoutes);
-  routes.route("/websites", ownedWebsiteRoutes);
   return routes;
 }
 

@@ -2,6 +2,7 @@ import type { LaneSpec } from "../../ingest/interfaces";
 import type { AuthedRouter } from "../../../platform/http/router";
 import type { UsageCounter } from "../../../platform/usage";
 import type { RetentionPurge } from "../../../platform/retention";
+import type { SiteMetricSource, TrackingActivityReader } from "../../agency/interfaces";
 import type {
   AnalyticsIngestWriter,
   AnalyticsFunnelEvents,
@@ -80,6 +81,12 @@ export interface AnalyticsModule {
 
   /** This module's contribution to the per-user usage report. */
   usage: UsageCounter;
+
+  /** Visitors, pageviews, events and revenue per site, for the agency overview. */
+  agencyMetrics: SiteMetricSource;
+
+  /** Whether sites' trackers are sending: the agency install screen's verification. */
+  trackingActivity: TrackingActivityReader;
 
   /** The dashboard rollups' builder, for the scheduler to run. */
   rollups: AnalyticsRollups;

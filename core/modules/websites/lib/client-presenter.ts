@@ -1,14 +1,11 @@
-import type { Website } from "../interfaces";
-import type { ClientWithWebsites } from "../interfaces/client.interface";
+import { trackingSnippet, type Website } from "../interfaces";
 
 /**
- * Clients and their sites on the wire: snake_case, ISO timestamps, and each site with the
- * snippet that installs it — a caller provisioning a tenant needs that and nothing else.
+ * A site on the wire with the snippet that installs it — what a caller provisioning a
+ * tenant's site needs and nothing else.
  */
 
-export function trackingSnippet(scriptUrl: string, websiteId: string): string {
-  return `<script defer data-website-id="${websiteId}" src="${scriptUrl}"></script>`;
-}
+export { trackingSnippet };
 
 export type ClientWebsiteResponse = {
   id: string;
@@ -33,24 +30,5 @@ export function presentClientWebsite(site: Website, scriptUrl: string): ClientWe
     script_url: scriptUrl,
     snippet: trackingSnippet(scriptUrl, site.id),
     created_at: site.createdAt.toISOString(),
-  };
-}
-
-export function presentClient(client: ClientWithWebsites, scriptUrl: string) {
-  return {
-    id: client.id,
-    external_id: client.externalId,
-    name: client.name,
-    company: client.company,
-    email: client.email,
-    website_url: client.websiteUrl,
-    note: client.note,
-    status: client.status,
-    features_enabled: client.featuresEnabled,
-    limits: client.limits,
-    metadata: client.metadata,
-    websites: client.websites.map((s) => presentClientWebsite(s, scriptUrl)),
-    created_at: client.createdAt.toISOString(),
-    updated_at: client.updatedAt.toISOString(),
   };
 }

@@ -1,24 +1,31 @@
-/** The agency module on the wire: snake_case, ISO timestamps. */
+/** The agency API on the wire: snake_case, ISO timestamps. */
 
-import type { BrandView, ClientUser, IssuedPortalLink, PortalSession, WhiteLabelSettings } from "../interfaces";
-import type { EmbedSection } from "../../api-keys/interfaces";
+import { trackingSnippet, type Client, type ClientWithWebsites, type Website } from "../../websites/interfaces";
+import type {
+  AgencyAlert,
+  AgencyOverview,
+  BrandView,
+  MetricTotals,
+  Verification,
+  WhiteLabelSettings,
+} from "../interfaces";
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function presentWhiteLabel(s: WhiteLabelSettings) {
   return {
-    user_id: s.ownerId,
     brand_name: s.brandName,
     logo_url: s.logoUrl,
     primary_color: s.primaryColor,
     support_email: s.supportEmail,
     footer_text: s.footerText,
     hide_seentics: s.hideSeentics,
+    slug: s.slug,
     updated_at: iso(s.updatedAt),
   };
 }
 
-/** What a client may see of the agency's settings: no owner id. */
+/** What a client may see of the agency's settings: no slug, no owner. */
 export function presentBrand(s: WhiteLabelSettings): BrandView {
   return {
     brand_name: s.brandName,
@@ -30,54 +37,140 @@ export function presentBrand(s: WhiteLabelSettings): BrandView {
   };
 }
 
-export function presentClientUser(u: ClientUser) {
+export function presentWebsite(site: Website) {
   return {
-    id: u.id,
-    client_id: u.clientId,
-    email: u.email,
-    name: u.name,
-    status: u.status,
-    created_at: u.createdAt.toISOString(),
-    updated_at: u.updatedAt.toISOString(),
-    last_seen_at: iso(u.lastSeenAt),
-    link_expires_at: iso(u.linkExpiresAt),
+    id: site.id,
+    client_id: site.clientId,
+    name: site.name,
+    url: site.url,
+    tracking_id: site.trackingId,
+    is_active: site.isActive,
+    is_verified: site.isVerified,
+    created_at: site.createdAt.toISOString(),
+    updated_at: site.updatedAt.toISOString(),
   };
 }
 
-export function portalUrl(frontendUrl: string, token: string): string {
-  return `${frontendUrl}/client-portal/${token}`;
+/** A list row: the count of sites, not the sites. */
+export function presentClient(client: Client & { websites?: Website[] }) {
+  return {
+    id: client.id,
+    name: client.name,
+    company: client.company,
+    notes: client.notes,
+    status: client.status,
+    website_count: client.websites?.length ?? 0,
+    collect_features: client.collectFeatures,
+    created_at: client.createdAt.toISOString(),
+    updated_at: client.updatedAt.toISOString(),
+  };
 }
 
-/** A link just made — the one response that carries its token. */
-export function presentIssuedLink(link: IssuedPortalLink, frontendUrl: string) {
+/** The detail view: the client and its sites. */
+export function presentClientDetail(client: ClientWithWebsites) {
+  return { ...presentClient(client), websites: client.websites.map(presentWebsite) };
+}
+
+export function presentVerification(v: Verification) {
   return {
-    id: link.record.id,
-    client_id: link.record.clientId,
-    token: link.token,
-    portal_url: portalUrl(frontendUrl, link.token),
-    expires_at: link.record.expiresAt.toISOString(),
-    created_at: link.record.createdAt.toISOString(),
+    status: v.status,
+    is_verified: v.isVerified,
+    last_event_at: iso(v.lastEventAt),
+    events_24h: v.events24h,
   };
 }
 
 /**
- * The portal page's data. `embed_url` is the existing client embed page, which reads the
- * websites below with this same token as its `X-Embed-Token`.
+ * How to install the tracker on each kind of site: one line each, and the docs page that has
+ * the rest. The web app renders these; the docs links are absolute so an API caller can too.
  */
-export function presentPortalSession(s: PortalSession, token: string, frontendUrl: string) {
+function instructions(snippet: string, websiteId: string, docs: (path: string) => string) {
   return {
-    client: {
-      id: s.client.id,
-      name: s.client.name,
-      company: s.client.company,
-      status: s.client.status,
-      features_enabled: s.client.featuresEnabled,
+    html: {
+      summary: `Paste this tag into the <head> of every page: ${snippet}`,
+      docs_url: docs("/docs/tracker"),
     },
-    websites: s.websites,
-    sections: s.claim.sections satisfies EmbedSection[],
-    brand: s.brand,
-    client_user: s.clientUser,
-    expires_at: s.claim.expiresAt.toISOString(),
-    embed_url: `${frontendUrl}/embed/${s.client.id}?token=${token}&client=1`,
+    gtm: {
+      summary: "In Google Tag Manager, add a Custom HTML tag with the snippet, fired on All Pages, then publish the container.",
+      docs_url: docs("/docs/google-tag-manager"),
+    },
+    nextjs: {
+      summary: `npm i @seentics/next, then render <Seentics websiteId="${websiteId}" /> in the root layout (app/layout.tsx or pages/_app.tsx).`,
+      docs_url: docs("/docs/frameworks#nextjs"),
+    },
+    wordpress: {
+      summary: `Install the Seentics plugin and paste the website ID ${websiteId} into its settings; no code to edit.`,
+      docs_url: docs("/docs/wordpress"),
+    },
+    shopify: {
+      summary: "Paste the snippet into theme.liquid before </head> for the storefront, and add the Seentics custom pixel for purchases.",
+      docs_url: docs("/docs/shopify"),
+    },
+    npm: {
+      summary: `npm i @seentics/react (or vue, nuxt, astro, svelte) and pass websiteId "${websiteId}" to its component.`,
+      docs_url: docs("/docs/frameworks"),
+    },
+  };
+}
+
+export function presentInstall(site: Website, verification: Verification, urls: { scriptUrl: string; frontendUrl: string }) {
+  const snippet = trackingSnippet(urls.scriptUrl, site.id);
+  const docs = (path: string) => `${urls.frontendUrl}${path}`;
+  return {
+    website_id: site.id,
+    tracking_id: site.trackingId,
+    script_url: urls.scriptUrl,
+    snippet_html: snippet,
+    instructions: instructions(snippet, site.id, docs),
+    verification: presentVerification(verification),
+  };
+}
+
+export function presentAlert(a: AgencyAlert) {
+  return {
+    id: a.id,
+    kind: a.kind,
+    client_id: a.clientId,
+    website_id: a.websiteId,
+    resource: a.resource,
+    period: a.period,
+    created_at: a.createdAt.toISOString(),
+    dismissed_at: iso(a.dismissedAt),
+  };
+}
+
+/** Rounded once here so every row and the totals agree on two decimals for money. */
+const totals = (t: MetricTotals) => ({ ...t, ...(t.revenue !== undefined ? { revenue: Math.round(t.revenue * 100) / 100 } : {}) });
+
+export function presentOverview(o: AgencyOverview) {
+  return {
+    period: {
+      key: o.period,
+      start: o.window.from,
+      end: o.window.to,
+      previous_start: o.previousWindow.from,
+      previous_end: o.previousWindow.to,
+    },
+    totals: totals(o.totals),
+    previous_totals: totals(o.previous),
+    clients: o.clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      website_count: c.websiteCount,
+      totals: totals(c.totals),
+      previous_totals: totals(c.previous),
+    })),
+    top_movers: o.movers.map((m) => ({
+      website_id: m.websiteId,
+      website_name: m.websiteName,
+      client_id: m.clientId,
+      metric: m.metric,
+      current: m.current,
+      previous: m.previous,
+      change_pct: m.changePct,
+    })),
+    alerts: o.alerts.map(presentAlert),
+    generated_at: o.generatedAt.toISOString(),
   };
 }

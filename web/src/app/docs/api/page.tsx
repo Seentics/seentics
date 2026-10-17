@@ -14,7 +14,7 @@ export const metadata = {
  * `X-API-Key`, so every example in those docs returned 401 — and the endpoint list had
  * drifted from the router besides.
  *
- * The dashboard's Agency → Analytics API tab already solves this: it renders the
+ * The dashboard's Developers → Data API tab already solves this: it renders the
  * catalogue the server publishes at `GET /api/v1/raw/v1/catalogue`, example responses
  * included, so it cannot document an endpoint that does not exist or miss one that does.
  * This page documents only what is stable and sends you there for the list, rather than
@@ -70,7 +70,7 @@ export default function ApiPage() {
         </Endpoint>
         <P>
           The dashboard renders the same catalogue for you, already filled in with your website ID.
-          Open <C>Agency → Analytics API</C> in the dashboard — that is the authoritative list, and
+          Open <C>Developers → Data API</C> in the dashboard — that is the authoritative list, and
           it cannot describe an endpoint that no longer exists.
         </P>
         <Callout kind="tip" title="Why it lives there and not here">

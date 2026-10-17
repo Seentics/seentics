@@ -7,7 +7,6 @@ export interface ApiKeysModule {
   /** The dashboard's account-key screens (`/user/agency/api-keys`), behind the session. */
   accountRoutes: AuthedRouter;
   accountVerifier: AccountKeyVerifier;
+  /** Embed links' lifecycle and verification; managed through the agency workspace's `/agency/embeds`. */
   embedLinks: EmbedLinks;
-  /** The dashboard's embed screen (`/user/agency/embed-links`), behind the session. */
-  embedRoutes: AuthedRouter;
 }

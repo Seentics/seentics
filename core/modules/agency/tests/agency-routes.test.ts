@@ -1,282 +1,545 @@
-import { Hono, type Context, type Next } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { fakeDbModule, fakeLogger } from "../../../app/tests/helpers/fake-db";
+import { memoryEmbedLinks } from "../../../app/tests/helpers/memory-embed-links";
 import { testConfig } from "../../../app/tests/helpers/test-config";
-import { MemoryClientPortal, MemoryWhiteLabel, fakeClientDirectory, type FakeClient } from "./support/memory-agency";
+import type { Website } from "../../websites/interfaces";
+import {
+  FixedActivity,
+  FixedMetrics,
+  MemoryAlerts,
+  MemoryClients,
+  MemorySignals,
+  MemoryWhiteLabel,
+  makeSite,
+  memorySiteWrites,
+} from "./support/memory-workspace";
 
 mock.module("../../../db", fakeDbModule);
 mock.module("../../../platform/observability/logger", fakeLogger);
 mock.module("../../../config", () => ({ env: () => testConfig() }));
-// The session check has its own tests; here a header names the signed-in user.
-mock.module("../../../platform/middleware/auth", () => ({
-  authMiddleware: async (c: Context<{ Variables: { userId: string } }>, next: Next) => {
-    const userId = c.req.header("X-Test-User");
-    if (!userId) return c.json({ error: "Authorization required" }, 401);
-    c.set("userId", userId);
-    return next();
-  },
-  requireUser: (c: Context<{ Variables: { userId: string } }>) => c.get("userId") ?? null,
-}));
 
-let routesMod: typeof import("../routes");
-let services: {
-  PortalAccessService: typeof import("../services/portal-access.service").PortalAccessService;
-  ClientUserService: typeof import("../services/client-user.service").ClientUserService;
+let mods: {
+  createAgencyRoutes: typeof import("../routes").createAgencyRoutes;
+  ClientService: typeof import("../../websites/services/client.service").ClientService;
   WhiteLabelService: typeof import("../services/white-label.service").WhiteLabelService;
+  AgencyOverviewService: typeof import("../services/overview.service").AgencyOverviewService;
+  AgencySetupService: typeof import("../services/setup.service").AgencySetupService;
+  WebsiteVerificationService: typeof import("../services/verification.service").WebsiteVerificationService;
+  periodWindows: typeof import("../services/overview.service").periodWindows;
 };
 
 beforeAll(async () => {
-  routesMod = await import("../routes");
-  services = {
-    PortalAccessService: (await import("../services/portal-access.service")).PortalAccessService,
-    ClientUserService: (await import("../services/client-user.service")).ClientUserService,
+  const overview = await import("../services/overview.service");
+  mods = {
+    createAgencyRoutes: (await import("../routes")).createAgencyRoutes,
+    ClientService: (await import("../../websites/services/client.service")).ClientService,
     WhiteLabelService: (await import("../services/white-label.service")).WhiteLabelService,
+    AgencyOverviewService: overview.AgencyOverviewService,
+    AgencySetupService: (await import("../services/setup.service")).AgencySetupService,
+    WebsiteVerificationService: (await import("../services/verification.service")).WebsiteVerificationService,
+    periodWindows: overview.periodWindows,
   };
 });
 
+const GATEWAY_KEY = "gw-global-key";
 const OWNER = "99999999-9999-4999-8999-999999999999";
-const OTHER_OWNER = "88888888-8888-4888-8888-888888888888";
-const CLIENT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const FOREIGN = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-const FRONTEND = "https://app.seentics.test";
+const OTHER = "88888888-8888-4888-8888-888888888888";
+const MISSING = "77777777-7777-4777-8777-777777777777";
+const NOW = Date.parse("2026-10-17T12:00:00Z");
 
-let dashboard: ReturnType<typeof import("../routes").createAgencyDashboardRoutes>;
-let portalRoutes: ReturnType<typeof import("../routes").createPortalRoutes>;
-let rateLimited = false;
+let w: {
+  routes: ReturnType<typeof import("../routes").createAgencyRoutes>;
+  sites: Map<string, Website>;
+  deleted: string[];
+  alerts: MemoryAlerts;
+  traffic: FixedMetrics;
+  leads: FixedMetrics;
+  activity: FixedActivity;
+  signals: MemorySignals;
+};
 
-beforeEach(() => {
-  const clients: FakeClient[] = [
-    { id: CLIENT_A, ownerId: OWNER, name: "Client A", company: "A Co", status: "active",
-      featuresEnabled: { analytics: true, heatmaps: false, replays: true, funnels: true, automations: true, errors: true },
-      websites: [{ id: "11111111-1111-4111-8111-111111111111", ownerId: OWNER, clientId: CLIENT_A, name: "A shop", url: "a.shop" }] },
-    { id: FOREIGN, ownerId: OTHER_OWNER, name: "Theirs", company: "", status: "active", featuresEnabled: {}, websites: [] },
-  ];
-  const store = new MemoryClientPortal();
-  const whiteLabel = new services.WhiteLabelService(new MemoryWhiteLabel());
-  const portal = new services.PortalAccessService({
-    tokens: store.portalTokens,
-    clients: fakeClientDirectory(clients),
-    branding: whiteLabel,
-    clientUsers: store.clientUsers,
-    accountActive: async () => true,
+beforeEach(async () => {
+  const sites = new Map<string, Website>();
+  const deleted: string[] = [];
+  const { reads, writes } = memorySiteWrites(sites, deleted);
+  const clientService = new mods.ClientService(new MemoryClients(sites), reads, writes, () => {});
+  const whiteLabel = new mods.WhiteLabelService(new MemoryWhiteLabel());
+  const alerts = new MemoryAlerts();
+  const traffic = new FixedMetrics(["visitors", "pageviews"]);
+  const leads = new FixedMetrics(["leads"]);
+  const activity = new FixedActivity();
+  const signals = new MemorySignals();
+  const routes = mods.createAgencyRoutes({
+    clients: clientService,
+    websites: clientService,
+    whiteLabel,
+    overview: new mods.AgencyOverviewService({ clients: clientService, websites: clientService, sources: [traffic, leads], alerts, now: () => NOW }),
+    setup: new mods.AgencySetupService({ whiteLabel, clients: clientService, websites: clientService, activity, signals }),
+    verification: new mods.WebsiteVerificationService({ websites: clientService, activity }),
+    embedLinks: await memoryEmbedLinks(),
+    urls: () => ({ scriptUrl: "https://cdn.seentics.test/t.js", frontendUrl: "https://app.seentics.test" }),
+    config: () => ({ globalApiKey: GATEWAY_KEY }),
   });
-  const clientUsers = new services.ClientUserService(store.clientUsers, fakeClientDirectory(clients), portal);
-  dashboard = routesMod.createAgencyDashboardRoutes({ whiteLabel, clientUsers, portal });
-  rateLimited = false;
-  portalRoutes = routesMod.createPortalRoutes({
-    portal,
-    config: () => ({
-      frontendUrl: FRONTEND,
-      trustProxy: false,
-      rateLimit: { ...testConfig().rateLimit, enabled: rateLimited },
-    }),
+  w = { routes, sites, deleted, alerts, traffic, leads, activity, signals };
+});
+
+type Json = Record<string, any>;
+
+async function call(method: string, path: string, body?: unknown, opts: { owner?: string; headers?: Record<string, string> } = {}) {
+  const headers: Record<string, string> = {
+    "X-API-Key": GATEWAY_KEY,
+    "X-Agency-Owner": opts.owner ?? OWNER,
+    "X-Agency-Actor": opts.owner ?? OWNER,
+    "X-Agency-Pool": "events=1000000,recordings=5000,leads=1000,ai_analyses=100",
+    "Content-Type": "application/json",
+    ...opts.headers,
+  };
+  const res = await w.routes.request(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await res.text();
+  return { status: res.status, body: (text ? JSON.parse(text) : null) as Json, headers: res.headers };
+}
+
+const newClient = async (name = "Acme", owner = OWNER) => (await call("POST", "/clients", { name, company: `${name} Inc` }, { owner })).body.data;
+const addSite = (owner: string, over: Partial<Website> = {}) => {
+  const s = makeSite(owner, over);
+  w.sites.set(s.id, s);
+  return s;
+};
+
+function expectError(r: { status: number; body: Json }, status: number, code: string) {
+  expect(r.status).toBe(status);
+  expect(r.body.error.code).toBe(code);
+  expect(typeof r.body.error.message).toBe("string");
+  expect(typeof r.body.error.request_id).toBe("string");
+}
+
+describe("gateway trust", () => {
+  it("refuses a request without the gateway's key, whatever X-Agency-Owner says", async () => {
+    expectError(await call("GET", "/clients", undefined, { headers: { "X-API-Key": "" } }), 401, "unauthorized");
+    expectError(await call("GET", "/clients", undefined, { headers: { "X-API-Key": "not-the-key" } }), 401, "unauthorized");
+  });
+
+  it("refuses a gateway request that names no agency, or names it badly", async () => {
+    expectError(await call("GET", "/clients", undefined, { headers: { "X-Agency-Owner": "" } }), 401, "unauthorized");
+    expectError(await call("GET", "/clients", undefined, { headers: { "X-Agency-Owner": "owner-1" } }), 401, "unauthorized");
+    expectError(await call("GET", "/clients", undefined, { headers: { "X-Agency-Actor": "key:bad id!" } }), 401, "unauthorized");
+  });
+
+  it("accepts an account key as the actor", async () => {
+    expect((await call("GET", "/clients", undefined, { headers: { "X-Agency-Actor": "key:3f2a" } })).status).toBe(200);
+  });
+
+  it("refuses when the deployment has no gateway key at all", async () => {
+    const routes = mods.createAgencyRoutes({ ...({} as Parameters<typeof mods.createAgencyRoutes>[0]), config: () => ({ globalApiKey: "" }) });
+    const res = await routes.request("/clients", { headers: { "X-API-Key": "", "X-Agency-Owner": OWNER } });
+    expect(res.status).toBe(401);
+  });
+
+  it("echoes the gateway's X-Request-ID in errors and headers, and makes one up otherwise", async () => {
+    const r = await call("GET", `/clients/${MISSING}`, undefined, { headers: { "X-Request-ID": "req-123" } });
+    expect(r.body.error.request_id).toBe("req-123");
+    expect(r.headers.get("X-Request-ID")).toBe("req-123");
+    const fresh = await call("GET", `/clients/${MISSING}`);
+    expect(fresh.body.error.request_id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("answers unknown paths in the envelope", async () => {
+    expectError(await call("GET", "/portal/validate"), 404, "not_found");
   });
 });
 
-const as = (userId: string) => ({ "X-Test-User": userId, "Content-Type": "application/json" });
-const call = (method: string, path: string, body?: unknown, userId = OWNER) =>
-  dashboard.request(path, { method, headers: as(userId), body: body === undefined ? undefined : JSON.stringify(body) });
-const validate = (body: unknown, ip = "203.0.113.9") =>
-  portalRoutes.request("/validate", { method: "POST", headers: { "Content-Type": "application/json", "x-seentics-peer-ip": ip }, body: JSON.stringify(body) });
+describe("clients", () => {
+  it("creates a client in the envelope, with its fields", async () => {
+    const r = await call("POST", "/clients", { name: "Acme", company: "Acme Inc", notes: "Retainer" });
+    expect(r.status).toBe(201);
+    expect(r.body.data).toMatchObject({ name: "Acme", company: "Acme Inc", notes: "Retainer", status: "active", website_count: 0, websites: [] });
+    expect(r.body.data.id).toMatch(/^[0-9a-f-]{36}$/);
+  });
 
-describe("auth", () => {
-  it("every dashboard route needs a session", async () => {
-    for (const [method, path] of [
-      ["GET", "/white-label"], ["PATCH", "/white-label"], ["GET", "/client-users"], ["POST", "/client-users"],
-      ["GET", `/client-users/${CLIENT_A}`], ["DELETE", `/client-users/${CLIENT_A}`],
-      ["POST", `/client-users/${CLIENT_A}/revoke`], ["POST", `/client-users/${CLIENT_A}/resend`],
-      ["POST", `/clients/${CLIENT_A}/portal-token`], ["DELETE", `/clients/${CLIENT_A}/portal-token`],
-    ] as const) {
-      expect((await dashboard.request(path, { method })).status).toBe(401);
+  it("refuses a nameless client with validation_failed and details", async () => {
+    const r = await call("POST", "/clients", { name: "  " });
+    expectError(r, 422, "validation_failed");
+    expect(r.body.error.details.issues[0].path).toBe("name");
+    expectError(await call("POST", "/clients", "{not json" as never), 422, "validation_failed");
+  });
+
+  it("pages newest first by cursor, with has_more and next_cursor", async () => {
+    for (const n of ["one", "two", "three"]) await newClient(n);
+    const first = await call("GET", "/clients?limit=2");
+    expect(first.body.data.map((c: Json) => c.name)).toEqual(["three", "two"]);
+    expect(first.body.page.has_more).toBe(true);
+    expect(typeof first.body.page.next_cursor).toBe("string");
+    const rest = await call("GET", `/clients?limit=2&cursor=${first.body.page.next_cursor}`);
+    expect(rest.body.data.map((c: Json) => c.name)).toEqual(["one"]);
+    expect(rest.body.page).toEqual({ next_cursor: null, has_more: false });
+  });
+
+  it("refuses a cursor it never issued, and a limit past 100", async () => {
+    expectError(await call("GET", "/clients?cursor=bm9wZQ"), 422, "validation_failed");
+    expectError(await call("GET", "/clients?limit=101"), 422, "validation_failed");
+  });
+
+  it("defaults to 25 per page", async () => {
+    for (let i = 0; i < 26; i++) await newClient(`c${i}`);
+    const r = await call("GET", "/clients");
+    expect(r.body.data).toHaveLength(25);
+    expect(r.body.page.has_more).toBe(true);
+  });
+
+  it("filters by status and search", async () => {
+    const a = await newClient("Alpha");
+    await newClient("Beta");
+    await call("POST", `/clients/${a.id}/archive`);
+    expect((await call("GET", "/clients?status=archived")).body.data.map((c: Json) => c.name)).toEqual(["Alpha"]);
+    expect((await call("GET", "/clients?status=active")).body.data.map((c: Json) => c.name)).toEqual(["Beta"]);
+    expect((await call("GET", "/clients?q=bet")).body.data.map((c: Json) => c.name)).toEqual(["Beta"]);
+  });
+
+  it("never shows or changes another agency's client", async () => {
+    const theirs = await newClient("Theirs", OTHER);
+    expect((await call("GET", "/clients")).body.data).toEqual([]);
+    expectError(await call("GET", `/clients/${theirs.id}`), 404, "not_found");
+    expectError(await call("PATCH", `/clients/${theirs.id}`, { name: "x" }), 404, "not_found");
+    expectError(await call("POST", `/clients/${theirs.id}/archive`), 404, "not_found");
+    expectError(await call("DELETE", `/clients/${theirs.id}?confirm=true`), 404, "not_found");
+    expectError(await call("GET", `/clients/${theirs.id}/websites`), 404, "not_found");
+    expectError(await call("POST", `/clients/${theirs.id}/websites`, { name: "s", url: "s.example" }), 404, "not_found");
+    expectError(await call("GET", `/clients/${theirs.id}/features`), 404, "not_found");
+    expectError(await call("GET", "/clients/not-a-uuid"), 404, "not_found");
+    expect((await call("GET", `/clients/${theirs.id}`, undefined, { owner: OTHER })).status).toBe(200);
+  });
+
+  it("edits, archives and unarchives", async () => {
+    const c = await newClient();
+    const patched = await call("PATCH", `/clients/${c.id}`, { name: "Acme 2", notes: "n", collect_features: { replays: false } });
+    expect(patched.body.data).toMatchObject({ name: "Acme 2", notes: "n" });
+    expect(patched.body.data.collect_features.replays).toBe(false);
+    expectError(await call("PATCH", `/clients/${c.id}`, { status: "deleted" }), 422, "validation_failed");
+    expectError(await call("PATCH", `/clients/${c.id}`, { collect_features: { nope: true } }), 422, "validation_failed");
+    expect((await call("POST", `/clients/${c.id}/archive`)).body.data.status).toBe("archived");
+    expect((await call("POST", `/clients/${c.id}/unarchive`)).body.data.status).toBe("active");
+  });
+
+  it("deletes only with confirm=true, keeping its websites in no client", async () => {
+    const c = await newClient();
+    const site = (await call("POST", `/clients/${c.id}/websites`, { name: "Shop", url: "shop.example" })).body.data.website;
+    expectError(await call("DELETE", `/clients/${c.id}`), 422, "validation_failed");
+    expectError(await call("DELETE", `/clients/${c.id}?confirm=yes`), 422, "validation_failed");
+    expect((await call("GET", `/clients/${c.id}`)).status).toBe(200);
+
+    expect((await call("DELETE", `/clients/${c.id}?confirm=true`)).status).toBe(204);
+    expectError(await call("GET", `/clients/${c.id}`), 404, "not_found");
+    const kept = await call("GET", `/websites/${site.id}`);
+    expect(kept.body.data.client_id).toBeNull();
+    expect(w.deleted).toEqual([]);
+  });
+
+  it("adds a website to a client and returns it with its install", async () => {
+    const c = await newClient();
+    const r = await call("POST", `/clients/${c.id}/websites`, { name: "Shop", url: "https://shop.example" });
+    expect(r.status).toBe(201);
+    expect(r.body.data.website).toMatchObject({ name: "Shop", client_id: c.id, is_verified: false });
+    expect(r.body.data.install.website_id).toBe(r.body.data.website.id);
+    expect(r.body.data.install.verification).toEqual({ status: "not_seen", is_verified: false, last_event_at: null, events_24h: 0 });
+    expectError(await call("POST", `/clients/${c.id}/websites`, { name: "Bad", url: "http://" }), 422, "validation_failed");
+
+    const list = await call("GET", `/clients/${c.id}/websites`);
+    expect(list.body.data.map((s: Json) => s.name)).toEqual(["Shop"]);
+    expect(list.body.page).toEqual({ next_cursor: null, has_more: false });
+    expect((await call("GET", `/clients/${c.id}`)).body.data.website_count).toBe(1);
+  });
+});
+
+describe("feature visibility", () => {
+  it("starts with every page off and stores a valid matrix", async () => {
+    const c = await newClient();
+    const initial = await call("GET", `/clients/${c.id}/features`);
+    expect(Object.keys(initial.body.data.features)).toHaveLength(14);
+    expect(new Set(Object.values(initial.body.data.features))).toEqual(new Set(["off"]));
+
+    const put = await call("PUT", `/clients/${c.id}/features`, { features: { overview: "view", goals: "edit", privacy: "view" } });
+    expect(put.status).toBe(200);
+    expect(put.body.data.features).toMatchObject({ overview: "view", goals: "edit", privacy: "view", revenue: "off" });
+    // Replaced, not merged: a page left out goes back to off.
+    const again = await call("PUT", `/clients/${c.id}/features`, { features: { revenue: "view" } });
+    expect(again.body.data.features).toMatchObject({ overview: "off", goals: "off", revenue: "view" });
+  });
+
+  it("refuses unknown pages and access levels", async () => {
+    const c = await newClient();
+    expectError(await call("PUT", `/clients/${c.id}/features`, { features: { billing: "view" } }), 422, "validation_failed");
+    expectError(await call("PUT", `/clients/${c.id}/features`, { features: { overview: "admin" } }), 422, "validation_failed");
+    expectError(await call("PUT", `/clients/${c.id}/features`, {}), 422, "validation_failed");
+  });
+});
+
+describe("websites", () => {
+  it("creates, filters by client and unassigned, and searches", async () => {
+    const c = await newClient();
+    const inClient = await call("POST", "/websites", { name: "In", url: "in.example", client_id: c.id });
+    expect(inClient.status).toBe(201);
+    await call("POST", "/websites", { name: "Loose", url: "loose.example" });
+    addSite(OTHER, { name: "Theirs" });
+    expect((await call("GET", "/websites")).body.data.map((s: Json) => s.name)).toEqual(["Loose", "In"]);
+    expect((await call("GET", `/websites?client_id=${c.id}`)).body.data.map((s: Json) => s.name)).toEqual(["In"]);
+    expect((await call("GET", "/websites?unassigned=true")).body.data.map((s: Json) => s.name)).toEqual(["Loose"]);
+    expect((await call("GET", "/websites?q=Loo")).body.data.map((s: Json) => s.name)).toEqual(["Loose"]);
+  });
+
+  it("refuses another agency's client as the home of a new site", async () => {
+    const theirs = await newClient("Theirs", OTHER);
+    expectError(await call("POST", "/websites", { name: "x", url: "x.example", client_id: theirs.id }), 404, "not_found");
+    expectError(await call("POST", "/websites", { name: "x", url: "" }), 422, "validation_failed");
+  });
+
+  it("moves a website between clients and out of any", async () => {
+    const a = await newClient("A");
+    const b = await newClient("B");
+    const site = (await call("POST", "/websites", { name: "S", url: "s.example", client_id: a.id })).body.data;
+    expect((await call("PATCH", `/websites/${site.id}`, { client_id: b.id })).body.data.client_id).toBe(b.id);
+    expect((await call("GET", `/clients/${b.id}/websites`)).body.data.map((s: Json) => s.id)).toEqual([site.id]);
+    expect((await call("GET", `/clients/${a.id}/websites`)).body.data).toEqual([]);
+    const out = await call("PATCH", `/websites/${site.id}`, { client_id: null, name: "Renamed" });
+    expect(out.body.data).toMatchObject({ client_id: null, name: "Renamed" });
+    const theirs = await newClient("Theirs", OTHER);
+    expectError(await call("PATCH", `/websites/${site.id}`, { client_id: theirs.id }), 404, "not_found");
+  });
+
+  it("never shows, changes or deletes another agency's site", async () => {
+    const theirs = addSite(OTHER);
+    expectError(await call("GET", `/websites/${theirs.id}`), 404, "not_found");
+    expectError(await call("PATCH", `/websites/${theirs.id}`, { name: "x" }), 404, "not_found");
+    expectError(await call("DELETE", `/websites/${theirs.id}`), 404, "not_found");
+    expectError(await call("GET", `/websites/${theirs.id}/install`), 404, "not_found");
+    expectError(await call("POST", `/websites/${theirs.id}/verify`), 404, "not_found");
+    expect(w.sites.has(theirs.id)).toBe(true);
+  });
+
+  it("deletes the agency's own site", async () => {
+    const mine = addSite(OWNER);
+    expect((await call("DELETE", `/websites/${mine.id}`)).status).toBe(204);
+    expect(w.deleted).toEqual([mine.id]);
+    expectError(await call("GET", `/websites/${mine.id}`), 404, "not_found");
+  });
+});
+
+describe("install and verification", () => {
+  it("hands out the snippet, per-platform steps with docs links, and not_seen for a silent site", async () => {
+    const site = addSite(OWNER, { trackingId: "trk-1" });
+    const r = await call("GET", `/websites/${site.id}/install`);
+    expect(r.status).toBe(200);
+    expect(r.body.data).toMatchObject({
+      website_id: site.id,
+      tracking_id: "trk-1",
+      script_url: "https://cdn.seentics.test/t.js",
+      snippet_html: `<script defer data-website-id="${site.id}" src="https://cdn.seentics.test/t.js"></script>`,
+      verification: { status: "not_seen", is_verified: false, last_event_at: null, events_24h: 0 },
+    });
+    expect(Object.keys(r.body.data.instructions).sort()).toEqual(["gtm", "html", "nextjs", "npm", "shopify", "wordpress"]);
+    expect(r.body.data.instructions.gtm.docs_url).toBe("https://app.seentics.test/docs/google-tag-manager");
+    expect(r.body.data.instructions.wordpress.docs_url).toBe("https://app.seentics.test/docs/wordpress");
+    expect(r.body.data.instructions.shopify.docs_url).toBe("https://app.seentics.test/docs/shopify");
+    expect(r.body.data.instructions.npm.docs_url).toBe("https://app.seentics.test/docs/frameworks");
+  });
+
+  it("reads receiving and stale from tracker activity", async () => {
+    const live = addSite(OWNER);
+    const quiet = addSite(OWNER);
+    w.activity.bySite.set(live.id, { lastEventAt: new Date("2026-10-17T11:59:00Z"), events24h: 42 });
+    w.activity.bySite.set(quiet.id, { lastEventAt: new Date("2026-10-01T08:00:00Z"), events24h: 0 });
+    expect((await call("GET", `/websites/${live.id}/install`)).body.data.verification).toEqual({
+      status: "receiving", is_verified: true, last_event_at: "2026-10-17T11:59:00.000Z", events_24h: 42,
+    });
+    expect((await call("GET", `/websites/${quiet.id}/install`)).body.data.verification).toMatchObject({ status: "stale", is_verified: true, events_24h: 0 });
+  });
+
+  it("records the first sighting on the website when re-checked", async () => {
+    const site = addSite(OWNER);
+    expect((await call("POST", `/websites/${site.id}/verify`)).body.data.status).toBe("not_seen");
+    expect(w.sites.get(site.id)!.isVerified).toBe(false);
+    w.activity.bySite.set(site.id, { lastEventAt: new Date(NOW), events24h: 1 });
+    const r = await call("POST", `/websites/${site.id}/verify`);
+    expect(r.body.data).toMatchObject({ status: "receiving", is_verified: true, events_24h: 1 });
+    expect(w.sites.get(site.id)!.isVerified).toBe(true);
+    expect((await call("GET", `/websites/${site.id}`)).body.data.is_verified).toBe(true);
+  });
+});
+
+describe("branding", () => {
+  it("reads the defaults, then saves a partial update with a slug", async () => {
+    const first = await call("GET", "/branding");
+    expect(first.body.data).toMatchObject({ brand_name: "", primary_color: "#6366f1", slug: null, updated_at: null });
+    const r = await call("PUT", "/branding", { brand_name: "North West", primary_color: "#ABC", slug: "North-West" });
+    expect(r.status).toBe(200);
+    expect(r.body.data).toMatchObject({ brand_name: "North West", primary_color: "#aabbcc", slug: "north-west" });
+    expect((await call("PUT", "/branding", { footer_text: "Hi" })).body.data).toMatchObject({ brand_name: "North West", footer_text: "Hi", slug: "north-west" });
+    expect((await call("PUT", "/branding", { slug: null })).body.data.slug).toBeNull();
+  });
+
+  it("answers a slug another agency holds with 409 conflict, and keeps its own", async () => {
+    await call("PUT", "/branding", { slug: "taken-one" }, { owner: OTHER });
+    expectError(await call("PUT", "/branding", { slug: "taken-one" }), 409, "conflict");
+    expect((await call("GET", "/branding")).body.data.slug).toBeNull();
+    expect((await call("PUT", "/branding", { slug: "taken-one" }, { owner: OTHER })).status).toBe(200);
+  });
+
+  it("refuses a malformed slug, logo or colour", async () => {
+    for (const body of [{ slug: "ab" }, { slug: "has space" }, { slug: "x".repeat(41) }, { logo_url: "http://x.test/l.png" }, { primary_color: "red" }]) {
+      expectError(await call("PUT", "/branding", body), 422, "validation_failed");
     }
   });
+});
 
-  it("claims nothing else under /clients", async () => {
-    expect((await call("GET", `/clients/${CLIENT_A}`)).status).toBe(404);
+describe("embeds", () => {
+  it("makes a link for the agency's own site or client, idempotently", async () => {
+    const site = addSite(OWNER, { name: "Shop" });
+    const first = await call("POST", "/embeds", { scope: "website", target_id: site.id, sections: ["analytics", "heatmaps"] });
+    expect(first.status).toBe(201);
+    expect(first.body.data).toMatchObject({ scope: "website", target_id: site.id, target_name: "Shop", sections: ["analytics", "heatmaps"] });
+    expect((await call("POST", "/embeds", { scope: "website", target_id: site.id })).status).toBe(200);
+
+    const c = await newClient();
+    expect((await call("POST", "/embeds", { scope: "client", target_id: c.id })).status).toBe(201);
+    const listed = await call("GET", "/embeds");
+    expect(listed.body.data).toHaveLength(2);
+    expect(listed.body.page).toEqual({ next_cursor: null, has_more: false });
+    expect((await call("GET", "/embeds?scope=client")).body.data.map((e: Json) => e.target_id)).toEqual([c.id]);
   });
 
-  it("shares the /user/agency mount with the clients router without shadowing either", async () => {
-    // As user-branch.ts mounts them: the websites module's agency router first, then this one.
-    const clientsRouter = new Hono();
-    clientsRouter.get("/clients/:clientId", (c) => c.json({ from: "clients" }));
-    clientsRouter.post("/clients", (c) => c.json({ from: "clients" }, 201));
-    const user = new Hono();
-    user.route("/agency", clientsRouter);
-    user.route("/agency", dashboard);
-    const req = (method: string, path: string) => user.request(path, { method, headers: as(OWNER) });
-    expect(await (await req("GET", `/agency/clients/${CLIENT_A}`)).json()).toEqual({ from: "clients" });
-    expect((await req("POST", "/agency/clients")).status).toBe(201);
-    expect((await req("POST", `/agency/clients/${CLIENT_A}/portal-token`)).status).toBe(201);
-    expect((await req("GET", "/agency/white-label")).status).toBe(200);
+  it("refuses another agency's targets and links", async () => {
+    const theirSite = addSite(OTHER);
+    expectError(await call("POST", "/embeds", { scope: "website", target_id: theirSite.id }), 404, "not_found");
+    expectError(await call("POST", "/embeds", { scope: "page", target_id: theirSite.id }), 422, "validation_failed");
+    const theirLink = (await call("POST", "/embeds", { scope: "website", target_id: theirSite.id }, { owner: OTHER })).body.data;
+    expect((await call("GET", "/embeds")).body.data).toEqual([]);
+    expectError(await call("PATCH", `/embeds/${theirLink.id}`, { sections: ["analytics"] }), 404, "not_found");
+    expectError(await call("DELETE", `/embeds/${theirLink.id}`), 404, "not_found");
+  });
+
+  it("changes sections in place and revokes", async () => {
+    const site = addSite(OWNER);
+    const link = (await call("POST", "/embeds", { scope: "website", target_id: site.id })).body.data;
+    const patched = await call("PATCH", `/embeds/${link.id}`, { sections: ["recordings"] });
+    expect(patched.body.data).toMatchObject({ id: link.id, sections: ["recordings"], embed_url: link.embed_url });
+    expectError(await call("PATCH", `/embeds/${link.id}`, { sections: [] }), 422, "validation_failed");
+    expect((await call("DELETE", `/embeds/${link.id}`)).status).toBe(204);
+    expectError(await call("DELETE", `/embeds/${link.id}`), 404, "not_found");
+    expect((await call("GET", "/embeds")).body.data).toEqual([]);
+  });
+
+  it("pages links by cursor", async () => {
+    for (let i = 0; i < 3; i++) await call("POST", "/embeds", { scope: "website", target_id: addSite(OWNER).id });
+    const first = await call("GET", "/embeds?limit=2");
+    expect(first.body.data).toHaveLength(2);
+    expect(first.body.page.has_more).toBe(true);
+    const rest = await call("GET", `/embeds?limit=2&cursor=${first.body.page.next_cursor}`);
+    expect(rest.body.data).toHaveLength(1);
+    expect(new Set([...first.body.data, ...rest.body.data].map((e: Json) => e.id)).size).toBe(3);
   });
 });
 
-describe("/white-label", () => {
-  it("GET returns the defaults until saved, in the shape the dashboard reads", async () => {
-    const res = await call("GET", "/white-label");
-    expect(res.status).toBe(200);
-    expect((await res.json()).data).toEqual({
-      user_id: OWNER, brand_name: "", logo_url: "", primary_color: "#6366f1", support_email: "",
-      footer_text: "", hide_seentics: false, updated_at: null,
-    });
+describe("overview", () => {
+  it("totals every site per client and overall, against the previous period", async () => {
+    const { current, previous } = mods.periodWindows("30d", NOW);
+    const a = await newClient("A");
+    const b = await newClient("B");
+    const a1 = addSite(OWNER, { clientId: a.id, name: "a1" });
+    const a2 = addSite(OWNER, { clientId: a.id, name: "a2" });
+    const loose = addSite(OWNER, { name: "loose" });
+    const theirs = addSite(OTHER, { name: "theirs" });
+    w.traffic.set(current, a1.id, { visitors: 100, pageviews: 300 });
+    w.traffic.set(current, a2.id, { visitors: 50, pageviews: 80 });
+    w.traffic.set(current, loose.id, { visitors: 5, pageviews: 5 });
+    w.traffic.set(current, theirs.id, { visitors: 9999, pageviews: 9999 });
+    w.traffic.set(previous, a1.id, { visitors: 20, pageviews: 40 });
+    w.traffic.set(previous, a2.id, { visitors: 50, pageviews: 50 });
+    w.leads.set(current, a1.id, { leads: 3 });
+
+    const r = await call("GET", "/overview?period=30d");
+    expect(r.status).toBe(200);
+    const o = r.body.data;
+    expect(o.period).toEqual({ key: "30d", start: current.from, end: current.to, previous_start: previous.from, previous_end: previous.to });
+    expect(o.period.end).toBe("2026-10-17");
+    expect(o.totals).toEqual({ visitors: 155, pageviews: 385, leads: 3 });
+    expect(o.previous_totals).toEqual({ visitors: 70, pageviews: 90, leads: 0 });
+    // Only the owner's sites were asked about.
+    expect(w.traffic.calls.every((call) => !call.ids.includes(theirs.id))).toBe(true);
+
+    const byName = Object.fromEntries(o.clients.map((c: Json) => [c.name, c]));
+    expect(byName.A).toMatchObject({ id: a.id, website_count: 2, totals: { visitors: 150, pageviews: 380, leads: 3 } });
+    expect(byName.B).toMatchObject({ id: b.id, website_count: 0, totals: { visitors: 0, pageviews: 0, leads: 0 } });
+    expect(byName.Unassigned).toMatchObject({ id: null, website_count: 1, totals: { visitors: 5 } });
+
+    expect(o.top_movers.map((m: Json) => [m.website_name, m.current, m.previous, m.change_pct])).toEqual([
+      ["a1", 100, 20, 400],
+      ["loose", 5, 0, null],
+    ]);
   });
 
-  it("PATCH saves, normalises, merges, and is per owner", async () => {
-    const res = await call("PATCH", "/white-label", {
-      brand_name: "  Northwind ", logo_url: "https://cdn.nw.example/logo.png", primary_color: "#ABC",
-      support_email: "Help@NW.example", hide_seentics: true,
-    });
-    expect(res.status).toBe(200);
-    expect((await res.json()).data).toMatchObject({
-      brand_name: "Northwind", logo_url: "https://cdn.nw.example/logo.png", primary_color: "#aabbcc",
-      support_email: "Help@NW.example", hide_seentics: true,
-    });
-    const merged = (await (await call("PATCH", "/white-label", { footer_text: "Made by Northwind", logo_url: null })).json()).data;
-    expect(merged).toMatchObject({ brand_name: "Northwind", footer_text: "Made by Northwind", logo_url: "" });
-    expect((await (await call("GET", "/white-label", undefined, OTHER_OWNER)).json()).data.brand_name).toBe("");
+  it("lists open alerts, and dismissing one removes it at once", async () => {
+    const mine = w.alerts.add(OWNER, { kind: "cap_80", resource: "events", period: "2026-10-01" });
+    const theirs = w.alerts.add(OTHER);
+    const o = (await call("GET", "/overview")).body.data;
+    expect(o.alerts.map((a: Json) => a.id)).toEqual([mine.id]);
+    expect(o.alerts[0]).toMatchObject({ kind: "cap_80", resource: "events", period: "2026-10-01", dismissed_at: null });
+
+    const dismissed = await call("POST", `/alerts/${mine.id}/dismiss`);
+    expect(dismissed.status).toBe(200);
+    expect(dismissed.body.data.dismissed_at).not.toBeNull();
+    expect((await call("GET", "/overview")).body.data.alerts).toEqual([]);
+    expectError(await call("POST", `/alerts/${theirs.id}/dismiss`), 404, "not_found");
+    expectError(await call("POST", "/alerts/nope/dismiss"), 404, "not_found");
   });
 
-  it("PATCH refuses unsafe or malformed values", async () => {
-    for (const body of [
-      { logo_url: "http://cdn.example/logo.png" },
-      { logo_url: "javascript:alert(1)" },
-      { logo_url: "data:image/png;base64,AAAA" },
-      { logo_url: "https://user:pass@cdn.example/logo.png" },
-      { logo_url: `https://cdn.example/${"a".repeat(1100)}.png` },
-      { primary_color: "red" },
-      { primary_color: "#12345" },
-      { primary_color: "#1234567" },
-      { brand_name: "x".repeat(81) },
-      { brand_name: "evil\u0000name" },
-      { footer_text: "y".repeat(201) },
-      { support_email: "not-an-email" },
-      { custom_domain: "stats.example" },
-      { hide_seentics: "yes" },
-      { user_id: OTHER_OWNER },
-    ]) {
-      const res = await call("PATCH", "/white-label", body);
-      expect([res.status, body]).toEqual([400, body]);
-      expect((await res.json()).error).toBe("validation_error");
-    }
-    expect((await call("GET", "/white-label")).status).toBe(200);
-    expect((await (await call("GET", "/white-label")).json()).data.updated_at).toBeNull();
-  });
-});
-
-describe("/client-users", () => {
-  it("POST invites and shows the link once; list, get, revoke, resend, delete", async () => {
-    const created = await call("POST", "/client-users", { client_id: CLIENT_A, email: "Jane@A.co", name: "Jane" });
-    expect(created.status).toBe(201);
-    const { client_user, link } = (await created.json()).data;
-    expect(Object.keys(client_user).sort()).toEqual(["client_id", "created_at", "email", "id", "last_seen_at", "link_expires_at", "name", "status", "updated_at"]);
-    expect(client_user).toMatchObject({ client_id: CLIENT_A, email: "jane@a.co", name: "Jane", status: "invited", last_seen_at: null });
-    expect(Object.keys(link).sort()).toEqual(["client_id", "created_at", "expires_at", "id", "portal_url", "token"]);
-    expect(link.portal_url).toBe(`${testConfig().frontendUrl}/client-portal/${link.token}`);
-    expect(client_user.link_expires_at).toBe(link.expires_at);
-
-    const listed = (await (await call("GET", `/client-users?client_id=${CLIENT_A}`)).json()).data;
-    expect(listed.map((u: { id: string }) => u.id)).toEqual([client_user.id]);
-    // A token is never listed again.
-    expect(JSON.stringify(listed)).not.toContain(link.token);
-    expect((await (await call("GET", "/client-users", undefined, OTHER_OWNER)).json()).data).toEqual([]);
-    expect((await call("GET", `/client-users/${client_user.id}`)).status).toBe(200);
-    expect((await call("GET", `/client-users/${client_user.id}`, undefined, OTHER_OWNER)).status).toBe(404);
-    expect((await call("GET", "/client-users/not-a-uuid")).status).toBe(404);
-
-    const resent = await call("POST", `/client-users/${client_user.id}/resend`);
-    expect(resent.status).toBe(200);
-    const fresh = (await resent.json()).data.link.token;
-    expect(fresh).not.toBe(link.token);
-    expect((await validate({ token: link.token })).status).toBe(401);
-    expect((await validate({ token: fresh })).status).toBe(200);
-
-    const revoked = await call("POST", `/client-users/${client_user.id}/revoke`);
-    expect(revoked.status).toBe(200);
-    expect((await revoked.json()).data).toMatchObject({ status: "revoked", link_expires_at: null });
-    expect((await validate({ token: fresh })).status).toBe(401);
-    expect(await (await call("POST", `/client-users/${client_user.id}/resend`)).json()).toEqual({ error: "client_user_revoked" });
-
-    expect((await call("DELETE", `/client-users/${client_user.id}`, undefined, OTHER_OWNER)).status).toBe(404);
-    expect((await call("DELETE", `/client-users/${client_user.id}`)).status).toBe(204);
-    expect((await call("DELETE", `/client-users/${client_user.id}`)).status).toBe(404);
+  it("caches a minute per owner and period", async () => {
+    addSite(OWNER);
+    await call("GET", "/overview?period=7d");
+    const calls = w.traffic.calls.length;
+    await call("GET", "/overview?period=7d");
+    expect(w.traffic.calls.length).toBe(calls);
+    await call("GET", "/overview?period=90d");
+    expect(w.traffic.calls.length).toBeGreaterThan(calls);
   });
 
-  it("refuses another owner's client, a duplicate, and bad bodies", async () => {
-    const foreign = await call("POST", "/client-users", { client_id: FOREIGN, email: "x@y.co" });
-    expect([foreign.status, await foreign.json()]).toEqual([404, { error: "client_not_found" }]);
-    expect((await call("POST", "/client-users", { client_id: CLIENT_A, email: "x@y.co" })).status).toBe(201);
-    const dup = await call("POST", "/client-users", { client_id: CLIENT_A, email: "X@Y.co" });
-    expect([dup.status, await dup.json()]).toEqual([409, { error: "client_user_exists" }]);
-    for (const body of [{ email: "x@y.co" }, { client_id: CLIENT_A }, { client_id: CLIENT_A, email: "nope" }, { client_id: "abc", email: "x@y.co" }, { client_id: CLIENT_A, email: "z@y.co", password: "hunter2" }]) {
-      expect((await call("POST", "/client-users", body)).status).toBe(400);
-    }
-    expect((await call("GET", "/client-users?client_id=nope")).status).toBe(400);
-    expect((await call("POST", `/client-users/${CLIENT_A}/revoke`)).status).toBe(404);
+  it("leaves out a failing source's metrics rather than failing the page", async () => {
+    addSite(OWNER);
+    w.leads.fail = true;
+    const o = (await call("GET", "/overview")).body.data;
+    expect(o.totals).toEqual({ visitors: 0, pageviews: 0 });
+  });
+
+  it("refuses an unknown period", async () => {
+    expectError(await call("GET", "/overview?period=1y"), 422, "validation_failed");
   });
 });
 
-describe("/clients/:clientId/portal-token", () => {
-  it("makes the anonymous link in the shape the dashboard reads, replacing the last", async () => {
-    const res = await call("POST", `/clients/${CLIENT_A}/portal-token`);
-    expect(res.status).toBe(201);
-    const first = (await res.json()).data;
-    expect(first).toMatchObject({ client_id: CLIENT_A });
-    for (const k of ["id", "client_id", "token", "expires_at", "created_at"]) expect(typeof first[k]).toBe("string");
-    const second = (await (await call("POST", `/clients/${CLIENT_A}/portal-token`)).json()).data;
-    expect((await validate({ token: first.token })).status).toBe(401);
-    expect((await validate({ token: second.token })).status).toBe(200);
-    expect((await call("DELETE", `/clients/${CLIENT_A}/portal-token`)).status).toBe(204);
-    expect((await validate({ token: second.token })).status).toBe(401);
+describe("setup", () => {
+  const steps = async () => Object.fromEntries((await call("GET", "/setup")).body.data.steps.map((s: Json) => [s.id, s.done]));
+
+  it("lists the five steps in order, none done for a new agency", async () => {
+    const r = await call("GET", "/setup");
+    expect(r.body.data.steps).toEqual([
+      { id: "branding", done: false },
+      { id: "first_client", done: false },
+      { id: "website_installed", done: false },
+      { id: "client_user", done: false },
+      { id: "features_limits", done: false },
+    ]);
   });
 
-  it("is not found for another owner's or a malformed client", async () => {
-    expect((await call("POST", `/clients/${FOREIGN}/portal-token`)).status).toBe(404);
-    expect((await call("POST", "/clients/nope/portal-token")).status).toBe(404);
-    expect((await call("DELETE", `/clients/${FOREIGN}/portal-token`)).status).toBe(404);
-  });
-});
-
-describe("POST /agency/portal/validate", () => {
-  it("answers the client, its websites, its sections and the brand — never cached", async () => {
-    await call("PATCH", "/white-label", { brand_name: "Northwind", hide_seentics: true });
-    const { link } = (await (await call("POST", "/client-users", { client_id: CLIENT_A, email: "jane@a.co", name: "Jane" })).json()).data;
-    const res = await validate({ token: link.token });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("no-store");
-    const data = (await res.json()).data;
-    expect(data).toEqual({
-      client: { id: CLIENT_A, name: "Client A", company: "A Co", status: "active", features_enabled: expect.any(Object) },
-      websites: [{ id: "11111111-1111-4111-8111-111111111111", name: "A shop", url: "a.shop" }],
-      sections: ["analytics", "recordings"],
-      brand: { brand_name: "Northwind", logo_url: "", primary_color: "#6366f1", support_email: "", footer_text: "", hide_seentics: true },
-      client_user: { name: "Jane", email: "jane@a.co" },
-      expires_at: link.expires_at,
-      embed_url: `${FRONTEND}/embed/${CLIENT_A}?token=${link.token}&client=1`,
-    });
-    // First use activates the user.
-    const users = (await (await call("GET", "/client-users")).json()).data;
-    expect(users[0]).toMatchObject({ status: "active" });
-    expect(users[0].last_seen_at).not.toBeNull();
+  it("marks each step from the agency's data", async () => {
+    await call("PUT", "/branding", { brand_name: "NW" });
+    const c = await newClient();
+    const site = addSite(OWNER, { clientId: c.id });
+    w.activity.bySite.set(site.id, { lastEventAt: new Date(NOW), events24h: 3 });
+    w.signals.members.add(OWNER);
+    await call("PUT", `/clients/${c.id}/features`, { features: { overview: "view" } });
+    expect(await steps()).toEqual({ branding: true, first_client: true, website_installed: true, client_user: true, features_limits: true });
   });
 
-  it("gives every bad token the same 401", async () => {
-    const { token } = (await (await call("POST", `/clients/${CLIENT_A}/portal-token`)).json()).data;
-    const bodies = [{ token: "scp_" + "A".repeat(43) }, { token: token.slice(0, -2) }, { token: "nope" }, { token: token.replace("scp_", "") }];
-    for (const body of bodies) {
-      const res = await validate(body);
-      expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({ error: "This portal link is invalid or has expired.", code: "invalid_portal_token" });
-    }
-    expect((await validate({})).status).toBe(400);
-    expect((await validate({ token: "x".repeat(300) })).status).toBe(400);
-  });
-
-  it("is rate limited per IP when limiting is on", async () => {
-    rateLimited = true;
-    const ip = `198.51.100.${Math.floor(Math.random() * 250)}`;
-    const statuses: number[] = [];
-    for (let i = 0; i < 22; i++) statuses.push((await validate({ token: "nope" }, ip)).status);
-    expect(statuses.slice(0, 20).every((s) => s === 401)).toBe(true);
-    expect(statuses.at(-1)).toBe(429);
+  it("counts a live custom domain as branding, and a verified site as installed", async () => {
+    w.signals.domains.set(OWNER, { hostname: "reports.agency.com", state: "active" });
+    addSite(OWNER, { isVerified: true });
+    expect(await steps()).toMatchObject({ branding: true, website_installed: true, first_client: false });
   });
 });

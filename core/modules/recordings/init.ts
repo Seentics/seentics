@@ -3,6 +3,7 @@ import { recordingsLane } from "./ingest-lane";
 import type { WebsitesModule } from "../websites/interfaces";
 import type { RecordingDetail, RecordingsModule, SessionSummarizer } from "./interfaces";
 import { RecordingUsageCounter } from "./services/usage-count.service";
+import { RecordingSiteMetrics } from "./services/agency-site-metrics.service";
 import { createRecordingRoutes } from "./routes";
 import { RecordingRawReadService } from "./services/recording-raw-read.service";
 import {
@@ -63,6 +64,7 @@ export function initRecordingsModule(deps: {
     ingest: () => recordingIngestService(),
     retention: new RecordingRetentionPurge(stylesheets),
     usage: new RecordingUsageCounter(),
+    agencyMetrics: new RecordingSiteMetrics(),
     rawReads: new RecordingRawReadService(),
     reads: { listSessions: listReplaySessions, getSessionDetail },
     routes: createRecordingRoutes({

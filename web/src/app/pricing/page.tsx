@@ -6,6 +6,7 @@ import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import { useAuth } from '@/stores/useAuthStore';
+import { useFoundingSpots } from '@/features/plans/queries';
 import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Footer from '@/components/landing/Footer';
@@ -14,6 +15,7 @@ export default function PricingPage() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
+    const { data: founding } = useFoundingSpots();
 
     useEffect(() => {
         if (!isEnterprise) {
@@ -61,7 +63,7 @@ export default function PricingPage() {
                             Analytics, replay, heatmaps, funnels and popups on every plan. Free, Starter and Pro differ only in how many events and recordings they include; Agency adds client workspaces for the sites you run for clients.
                         </p>
                     </div>
-                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} />
+                    <PlanBuilder onSubscribe={handleSubscribe} loading={loading} founding={founding} />
                 </div>
             </main>
             <Footer />

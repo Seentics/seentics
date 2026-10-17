@@ -38,9 +38,8 @@ function identify(user: { email?: string | null; name?: string | null } | null |
 }
 
 /**
- * Shared and embedded dashboards and client portals are read by the site owner's (or agency's)
- * audience, not our customers: no chat there — it would put our support bubble inside someone
- * else's app, or on an agency's white-labelled portal.
+ * Shared and embedded dashboards are read by the site owner's (or agency's) audience, not our
+ * customers: no chat there — it would put our support bubble inside someone else's app.
  */
 const isPublicPage = (path: string | null) => isSessionlessPath(path) || Boolean(path && /^\/(public|share)\//.test(path));
 
