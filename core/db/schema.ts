@@ -182,6 +182,14 @@ export const ingestBatches = pgTable(
      * it so a retry does not wait out the lease.
      */
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    /**
+     * Not-before time for the next claim, written by `markBatchFailed`. Grows
+     * exponentially with `attempts`, so a short outage does not burn every retry in a
+     * second. Null for a batch that has never failed. See `db/sql/067_ingest_batch_backoff.sql`.
+     */
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    /** Times the health sweep has given this parked batch a fresh set of attempts. Capped. */
+    requeues: integer("requeues").notNull().default(0),
     /** Null while pending. Set once a worker has applied it. */
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

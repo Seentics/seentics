@@ -122,10 +122,30 @@ mock.module("../lib/playwright-screenshots", () => ({
   shutdownScreenshotBrowser: async () => {},
 }));
 
+/** Version-table answers and calls. `versionBudget` is what `layoutVersionBudget` reports. */
+let versionBudget = { known: false, newToday: 0 };
+const versionUpserts: string[] = [];
+const versionPrunes: { pagePath: string; keep: number }[] = [];
+/** Keys `pruneLayoutVersions` reports as orphaned. */
+let prunedKeys: string[] = [];
+
+mock.module("../repositories/heatmap-versions.repository", () => ({
+  upsertLayoutVersion: async (_w: string, _p: string, _d: string, fingerprint: string) => {
+    versionUpserts.push(fingerprint);
+  },
+  layoutVersionBudget: async () => versionBudget,
+  pruneLayoutVersions: async (_w: string, pagePath: string, _d: string, keep: number) => {
+    versionPrunes.push({ pagePath, keep });
+    return prunedKeys;
+  },
+}));
+
 /** JPEG uploads, in order. The count is how every dedup assertion below is made. */
 const jpegPuts: { key: string; bytes: number }[] = [];
 /** HTML uploads, in order. */
 const htmlPuts: { key: string; body: string }[] = [];
+/** Objects deleted, in order. */
+const deletedObjects: string[] = [];
 /** Set to make the upload fail, so a test can check the row is not written regardless. */
 let putThrows = false;
 
@@ -139,7 +159,9 @@ mock.module("../../../platform/storage/s3", () => ({
     if (putThrows) throw new Error("s3 unreachable");
     htmlPuts.push({ key, body });
   },
-  deleteS3Objects: async () => {},
+  deleteS3Objects: async (_bucket: string, keys: string[]) => {
+    deletedObjects.push(...keys);
+  },
   getNextReplayChunkSequence: async () => 0,
   uploadSessionChunkGzip: async () => {},
   uploadSessionBatchChunkGzip: async () => {},
@@ -267,6 +289,11 @@ beforeEach(() => {
   layoutReadThrows = false;
   playwrightThrows = false;
   putThrows = false;
+  versionBudget = { known: false, newToday: 0 };
+  versionUpserts.length = 0;
+  versionPrunes.length = 0;
+  prunedKeys = [];
+  deletedObjects.length = 0;
 });
 
 describe("SnapshotIngestService.storeScreenshot", () => {
@@ -973,3 +1000,62 @@ describe("SnapshotIngestService.storeDomSnapshot", () => {
     });
   });
 });
+
+/**
+ * Regression: a snapshot carrying `page_version` minted a new object and version row for
+ * every fingerprint a client named, from an unauthenticated endpoint, forever.
+ */
+describe("SnapshotIngestService version and rate caps", () => {
+  const LIMITS = { maxVersionsPerPage: 3, maxNewVersionsPerDay: 5, domWritesPerMinute: 1_000, autoCapturesPerHour: 1_000 };
+  const versioned = (fingerprint: string, html = "<html>".padEnd(200, "v") + fingerprint) =>
+    domEvent({ data: { html, page_version: fingerprint } });
+
+  it("records a new version and prunes the page to its cap, deleting the orphaned objects", async () => {
+    prunedKeys = ["old-a.html", "old-b.html"];
+    await new SnapshotIngestService(BUCKET, null, null, LIMITS).storeDomSnapshot(versioned("fp-new"));
+
+    expect(versionUpserts).toEqual(["fp-new"]);
+    expect(versionPrunes).toEqual([{ pagePath: "/pricing", keep: 3 }]);
+    expect(deletedObjects).toEqual(["old-a.html", "old-b.html"]);
+  });
+
+  it("refuses a new fingerprint once the site's daily budget is spent, leaving the background alone", async () => {
+    versionBudget = { known: false, newToday: 5 };
+    await new SnapshotIngestService(BUCKET, null, null, LIMITS).storeDomSnapshot(versioned("fp-6"));
+
+    expect(htmlPuts).toEqual([]);
+    expect(htmlUpserts).toEqual([]);
+    expect(versionUpserts).toEqual([]);
+  });
+
+  it("still refreshes a fingerprint already on record past the daily budget, without pruning", async () => {
+    // Legitimate version tracking: a known variant whose content changed is not new.
+    versionBudget = { known: true, newToday: 5 };
+    await new SnapshotIngestService(BUCKET, null, null, LIMITS).storeDomSnapshot(versioned("fp-known"));
+
+    expect(htmlPuts).toHaveLength(1);
+    expect(versionUpserts).toEqual(["fp-known"]);
+    expect(versionPrunes).toEqual([]);
+  });
+
+  it("rate-limits one site's snapshot writes", async () => {
+    const site = "22222222-2222-4222-8222-222222222222";
+    const svc = new SnapshotIngestService(BUCKET, null, null, { ...LIMITS, domWritesPerMinute: 2 });
+    for (let i = 0; i < 4; i++) {
+      await svc.storeDomSnapshot(domEvent({ websiteId: site, data: { html: "<html>".padEnd(200, "r") + i } }));
+    }
+    expect(htmlPuts).toHaveLength(2);
+  });
+
+  it("bounds the Playwright trigger per site per hour", async () => {
+    const site = "33333333-3333-4333-8333-333333333333";
+    const resolver: TrackerWebsites = { ...resolverFor("https://shop.test"), async resolve() { return { id: site, url: "https://shop.test" } as WebsiteTrackerRow; } };
+    const svc = new SnapshotIngestService(BUCKET, resolver, null, { ...LIMITS, autoCapturesPerHour: 2 });
+    for (const path of ["/a", "/b", "/c", "/d"]) {
+      await svc.storeScreenshot(job({ websiteId: site, url: `https://shop.test${path}` }));
+    }
+    await settle();
+    expect(playwrightCaptures.map((c) => c.norm)).toEqual(["/a", "/b"]);
+  });
+});
+

@@ -678,7 +678,7 @@ describe("POST /request-screenshot", () => {
   it("returns 400 for invalid JSON", async () => {
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: "bad json",
     });
     expect(res.status).toBe(400);
@@ -687,7 +687,7 @@ describe("POST /request-screenshot", () => {
   it("returns 400 when website_id is missing", async () => {
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({ page_url: "https://example.com/p", page_path: "/p" }),
     });
     expect(res.status).toBe(400);
@@ -696,7 +696,7 @@ describe("POST /request-screenshot", () => {
   it("returns 400 when page_url is missing", async () => {
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({ website_id: "site_abc", page_path: "/p" }),
     });
     expect(res.status).toBe(400);
@@ -705,7 +705,7 @@ describe("POST /request-screenshot", () => {
   it("returns 400 for an invalid page_url", async () => {
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({ website_id: "site_abc", page_url: "not-a-url", page_path: "/p" }),
     });
     expect(res.status).toBe(400);
@@ -715,7 +715,7 @@ describe("POST /request-screenshot", () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({
         website_id: "site_abc",
         page_url: "http://localhost/admin",
@@ -730,7 +730,7 @@ describe("POST /request-screenshot", () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({
         website_id: "site_abc",
         page_url: "https://evil.com/page",
@@ -744,7 +744,7 @@ describe("POST /request-screenshot", () => {
   it("returns 404 when website is not found", async () => {
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({
         website_id: "missing",
         page_url: "https://example.com/page",
@@ -758,7 +758,7 @@ describe("POST /request-screenshot", () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({
         website_id: "site_abc",
         page_url: "https://example.com/home",
@@ -783,7 +783,7 @@ describe("POST /request-screenshot", () => {
     };
     const res = await app.request("/request-screenshot", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
       body: JSON.stringify({
         website_id: "site_abc",
         page_url: "https://example.com/home",
@@ -791,6 +791,87 @@ describe("POST /request-screenshot", () => {
       }),
     });
     expect(res.status).toBe(202);
+  });
+  /** Posts a screenshot request from the site's own origin unless `headers` says otherwise. */
+  function requestShot(body: Record<string, unknown>, headers: Record<string, string> = { Origin: "https://example.com" }) {
+    return app.request("/request-screenshot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ website_id: "site_abc", ...body }),
+    });
+  }
+
+  it("refuses a request with no Origin or Referer", async () => {
+    // `/collect` lets a header-less request through for beacons; this endpoint launches a
+    // browser per request and has no such callers.
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const res = await requestShot({ page_url: "https://example.com/home", page_path: "/home" }, {});
+    expect(res.status).toBe(403);
+    expect(screenshots.captures).toEqual([]);
+  });
+
+  it("refuses a request from another site's origin", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const res = await requestShot(
+      { page_url: "https://example.com/home", page_path: "/home" },
+      { Origin: "https://evil.test" },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("files the capture under page_url's path, not the client's free-text page_path", async () => {
+    // Regression: one URL under unlimited invented paths was a fresh snapshot per path.
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const res = await requestShot({ page_url: "https://example.com/pricing?utm=x#plans", page_path: "/anything-at-all-1" });
+    expect(res.status).toBe(202);
+    expect(screenshots.captures[0]!.request.pagePath).toBe("/pricing");
+  });
+
+  it("keeps an explicit /@key page override", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    await requestShot({ page_url: "https://example.com/p/123", page_path: "/@product" });
+    expect(screenshots.captures[0]!.request.pagePath).toBe("/@product");
+  });
+
+  it("rejects an over-long page_url", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    const res = await requestShot({ page_url: `https://example.com/${"a".repeat(2100)}`, page_path: "/a" });
+    expect(res.status).toBe(400);
+    expect(screenshots.captures).toEqual([]);
+  });
+
+  it("caps new paths per website per day, but lets a known path through", async () => {
+    const id = "6b1f4f8e-0000-4000-8000-00000000cap1";
+    mockResolveWebsite.mockResolvedValue({ ...ACTIVE_WEBSITE, id });
+    const capped = createTrackerRoutes({
+      collect: createTrackerCollectService(queue),
+      automations, automationEvaluation, funnels, screenshots, snapshotDemand,
+      trackerWebsites: { resolve: mockResolveWebsite, listGoals: mockListGoals, buildConfig: mockBuildConfig },
+      visitorSalt: async () => TEST_SALT,
+    }, { screenshotLimits: { perMinute: 100, newPathsPerDay: 2 } });
+    const ask = (path: string) => capped.request("/request-screenshot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://example.com" },
+      body: JSON.stringify({ website_id: "site_abc", page_url: `https://example.com${path}`, page_path: path }),
+    });
+
+    expect((await ask("/a")).status).toBe(202);
+    expect((await ask("/b")).status).toBe(202);
+    expect((await ask("/c")).status).toBe(429);
+    // Already seen today: dedupe handles it downstream, so it costs nothing new.
+    expect((await ask("/a")).status).toBe(202);
+    expect(screenshots.captures.map((x) => x.request.pagePath)).toEqual(["/a", "/b", "/a"]);
+  });
+
+  it("rate-limits one website's requests per minute", async () => {
+    const id = "6b1f4f8e-0000-4000-8000-0000000rate1";
+    mockResolveWebsite.mockResolvedValue({ ...ACTIVE_WEBSITE, id });
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      statuses.push((await requestShot({ page_url: "https://example.com/home", page_path: "/home" })).status);
+    }
+    expect(statuses.filter((s) => s === 202)).toHaveLength(10);
+    expect(statuses.slice(-1)).toEqual([429]);
   });
 });
 

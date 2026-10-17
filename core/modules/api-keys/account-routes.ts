@@ -2,13 +2,17 @@
  * Managing account API keys from the dashboard — `/user/agency/api-keys`.
  *
  * Keys belong to the signed-in account and are only ever listed, minted and revoked by
- * it: there is no website to authorize against, so the owner is the whole check.
+ * it: there is no website to authorize against, so the owner is the website-level check.
+ * The team's `analytics:apikeys.manage` is the other half — a key carries the account's
+ * whole reach, so a custom role that withholds it must keep the holder out of here too.
+ * `/scopes` stays open: it is a static description, not a key.
  */
 
 import { Hono } from "hono";
 import { z } from "zod";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 import { parseJson } from "../../platform/validation";
+import { permissionDenied } from "../../platform/permissions";
 import { ACCOUNT_SCOPES, ACCOUNT_SCOPE_DESCRIPTIONS, type AccountScope } from "./interfaces";
 import { createAccountApiKey, listAccountApiKeys, revokeAccountApiKey } from "./services/account-api-key.service";
 
@@ -29,6 +33,8 @@ export function createAccountApiKeyRoutes() {
   r.get("/", async (c) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const denied = permissionDenied(c, "analytics:apikeys.manage");
+    if (denied) return denied;
     return c.json({ data: await listAccountApiKeys(userId) });
   });
 
@@ -36,6 +42,8 @@ export function createAccountApiKeyRoutes() {
   r.post("/", async (c) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const denied = permissionDenied(c, "analytics:apikeys.manage");
+    if (denied) return denied;
     const parsed = await parseJson(c, createSchema);
     if (!parsed.ok) return parsed.res;
     const scopes = (parsed.data.scopes ?? [...ACCOUNT_SCOPES]) as AccountScope[];
@@ -45,6 +53,8 @@ export function createAccountApiKeyRoutes() {
   r.delete("/:keyId", async (c) => {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const denied = permissionDenied(c, "analytics:apikeys.manage");
+    if (denied) return denied;
     const removed = await revokeAccountApiKey(userId, c.req.param("keyId"));
     return removed ? c.body(null, 204) : c.json({ error: "not found" }, 404);
   });

@@ -13,25 +13,42 @@
  */
 const MAX_WAITING = 20;
 
-let busy = false;
-const waiting: Array<() => void> = [];
+/**
+ * Cloudflare renders concurrently on its side, so memory is not the constraint there — cost
+ * and the account's browser quota are. Captures used to go straight to the REST endpoint
+ * with no bound at all, so a burst of requests was a burst of billed renders (and 429s from
+ * Cloudflare that failed every capture in the burst). A few at a time, same bounded wait list.
+ */
+const CLOUDFLARE_CONCURRENCY = 4;
 
-export async function withCaptureSlot<T>(capture: () => Promise<T>): Promise<T> {
-  if (busy) {
-    if (waiting.length >= MAX_WAITING) {
-      throw new Error("Browser pool exhausted - screenshot queue is full");
+/** A counting semaphore with a bounded FIFO wait list. */
+export function createCaptureSlot(maxConcurrent: number, maxWaiting: number) {
+  let running = 0;
+  const waiting: Array<() => void> = [];
+
+  return async function withSlot<T>(capture: () => Promise<T>): Promise<T> {
+    if (running >= maxConcurrent) {
+      if (waiting.length >= maxWaiting) {
+        throw new Error("Browser pool exhausted - screenshot queue is full");
+      }
+      // The releasing capture hands its slot straight to us, so `running` is unchanged.
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    } else {
+      running += 1;
     }
-    // The releasing capture hands its slot straight to us, so `busy` stays true.
-    await new Promise<void>((resolve) => waiting.push(resolve));
-  } else {
-    busy = true;
-  }
 
-  try {
-    return await capture();
-  } finally {
-    const next = waiting.shift();
-    if (next) next();
-    else busy = false;
-  }
+    try {
+      return await capture();
+    } finally {
+      const next = waiting.shift();
+      if (next) next();
+      else running -= 1;
+    }
+  };
 }
+
+/** Local Chromium: one render at a time. */
+export const withCaptureSlot = createCaptureSlot(1, MAX_WAITING);
+
+/** Cloudflare Browser Rendering: a few renders at a time. */
+export const withCloudflareCaptureSlot = createCaptureSlot(CLOUDFLARE_CONCURRENCY, MAX_WAITING);

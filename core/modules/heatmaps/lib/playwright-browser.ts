@@ -33,6 +33,8 @@ async function getBrowser(): Promise<Browser> {
         "--disable-sync",
         "--enable-automation",
         "--no-service-autorun",
+        // WebRTC can open UDP to addresses no route handler sees; keep it to proxied paths.
+        "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
       ],
     });
 
@@ -67,7 +69,15 @@ export async function createScreenshotPage(viewport?: { width: number; height: n
       javaScriptEnabled: true,
       ignoreHTTPSErrors: true,
       offline: false,
+      // A service worker's own fetches never reach `page.route`, so a registered worker
+      // was a way around the capture's network policy. Blocked outright: a screenshot
+      // never needs one.
+      serviceWorkers: "block",
     });
+    // WebSockets do not go through `page.route` either. A WebSocket route that never calls
+    // `connectToServer` is answered locally and reaches nothing; closing it at once is the
+    // page seeing a server that hung up.
+    await context.routeWebSocket(() => true, (ws) => ws.close());
 
     page = await context.newPage();
   } catch (error) {

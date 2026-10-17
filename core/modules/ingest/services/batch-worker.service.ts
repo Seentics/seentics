@@ -9,6 +9,14 @@ export type BatchWorkerOptions = {
   idleIntervalMs?: number;
   /** Attempts before a batch is parked for inspection rather than retried forever. */
   maxAttempts?: number;
+  /** Delay before the first retry of a failed batch; doubles per attempt. */
+  retryBaseDelayMs?: number;
+  /** Ceiling for one retry delay. */
+  retryMaxDelayMs?: number;
+  /** How long a parked batch sits before the health check gives it a fresh set of attempts. */
+  parkedRequeueAfterMs?: number;
+  /** Times one batch may be requeued from parked before it stays parked for good. */
+  maxParkedRequeues?: number;
   /** How long applied batches are kept before pruning. */
   retainCompletedMs?: number;
   /** How often a batch being applied renews its lease; keep it well under the lease itself. */
@@ -27,10 +35,22 @@ export type BatchWorkerOptions = {
 /** Ceiling for the claim-failure backoff. Long enough to stay quiet, short enough to recover promptly. */
 const MAX_CLAIM_BACKOFF_MS = 30_000;
 
+/**
+ * Retry schedule defaults. With a 2s base doubling to a 30-minute ceiling, fourteen attempts
+ * span about two hours (2s, 4s, … 17m, then 30m three times) — long enough to ride out a
+ * database failover, an object-storage incident or a deploy gone wrong, rather than the
+ * second or so that five attempts at the poll interval used to cover. Past that, a parked
+ * batch is requeued after six hours, up to three times: about a day of total coverage
+ * before anything needs a human.
+ */
 const DEFAULTS: Required<BatchWorkerOptions> = {
   batchSize: 20,
   idleIntervalMs: 250,
-  maxAttempts: 5,
+  maxAttempts: 14,
+  retryBaseDelayMs: 2_000,
+  retryMaxDelayMs: 30 * 60_000,
+  parkedRequeueAfterMs: 6 * 60 * 60_000,
+  maxParkedRequeues: 3,
   retainCompletedMs: 6 * 60 * 60 * 1000,
   leaseHeartbeatMs: 90_000,
   applyTimeoutMs: 4 * 60_000,
@@ -51,7 +71,8 @@ const DEFAULTS: Required<BatchWorkerOptions> = {
  * in the single-flush design its slowness delayed analytics writes for every site. Here a
  * stalled heatmap lane drains at its own pace while analytics keeps up.
  *
- * A failed batch is retried, then **parked**, never dropped. The in-memory flush drops a
+ * A failed batch is retried with exponential backoff (`retryDelayMs`), then **parked**,
+ * then requeued after a cool-off, never dropped. The in-memory flush drops a
  * batch after three attempts with a log line, which is defensible when the whole window is
  * milliseconds and indefensible once the batch is a durable row you could have replayed.
  *
@@ -205,7 +226,8 @@ export class BatchWorker {
     } catch (err) {
       this.failedCount += 1;
       const attempts = batch.attempts + 1;
-      await this.store.markFailed(batch.batchId, errText(err)).catch((markErr) => {
+      const retryAfterMs = retryDelayMs(attempts, this.opts.retryBaseDelayMs, this.opts.retryMaxDelayMs);
+      await this.store.markFailed(batch.batchId, errText(err), retryAfterMs).catch((markErr) => {
         // If even recording the failure fails, the batch stays pending with its old
         // count and is retried. Worth a distinct log line: it means the database is in
         // worse shape than a single bad write.
@@ -220,6 +242,7 @@ export class BatchWorker {
         batch_id: batch.batchId,
         attempts,
         rows: batch.rowCount,
+        ...(parked ? {} : { retry_in_ms: retryAfterMs }),
         err: errText(err),
       });
       return false;
@@ -270,15 +293,25 @@ export class BatchWorker {
   }
 
   /**
-   * Parked batches never drain on their own, and nothing else reports them: without this a
-   * batch that failed its last attempt is simply data that never arrives. Logged at error level
-   * every check while any exist, so an alert on the log line sees them.
+   * Parked batches do not drain on the retry schedule, and nothing else reports them: without
+   * this a batch that failed its last attempt is simply data that never arrives. Each check
+   * first requeues the ones that have cooled off (see `requeueParked`), then logs what is still
+   * parked at error level, every check while any exist, so an alert on the log line sees them.
    */
   private async checkHealthIfDue(): Promise<void> {
     const now = Date.now();
     if (now - this.lastHealthCheckAt < this.opts.healthCheckMs) return;
     this.lastHealthCheckAt = now;
     try {
+      const requeued = await this.store.requeueParked(
+        this.opts.maxAttempts,
+        this.opts.parkedRequeueAfterMs,
+        this.opts.maxParkedRequeues,
+      );
+      if (requeued > 0) {
+        coreMetrics.ingestBatchesQueued.add(requeued, { lane: "all", outcome: "requeued_from_parked" });
+        this.log.warn({ msg: "ingest_parked_batches_requeued", n: requeued });
+      }
       const parked = await this.store.countParked(this.opts.maxAttempts);
       if (parked > 0) this.log.error({ msg: "ingest_batches_parked_total", parked });
       for (const lane of Object.keys(this.registry) as IngestLane[]) {
@@ -314,6 +347,17 @@ export class BatchWorker {
     }
     this.schedule(applied > 0 ? 0 : this.opts.idleIntervalMs);
   }
+}
+
+/**
+ * Delay before retry number `attempts` (1-based): exponential from `baseMs`, capped at
+ * `maxMs`, with up to 20% jitter subtracted so a lane's worth of batches that failed together
+ * in one outage do not all come back in the same tick.
+ */
+export function retryDelayMs(attempts: number, baseMs: number, maxMs: number, random: () => number = Math.random): number {
+  if (baseMs <= 0) return 0;
+  const exp = Math.min(baseMs * 2 ** Math.max(0, attempts - 1), maxMs);
+  return Math.round(exp * (1 - 0.2 * random()));
 }
 
 function errText(err: unknown): string {

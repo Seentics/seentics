@@ -8,6 +8,7 @@ import {
   markBatchFailed,
   pruneCompletedBatches,
   releaseBatchClaims,
+  requeueParkedBatches,
 } from "./batch-queue.repository";
 import type { BatchQueue } from "../interfaces";
 
@@ -27,5 +28,6 @@ export const postgresBatchQueue: BatchQueue = {
   extendClaim: extendBatchClaim,
   countPending: countPendingBatches,
   countParked: countParkedBatches,
+  requeueParked: requeueParkedBatches,
   pruneCompleted: pruneCompletedBatches,
 };

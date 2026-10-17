@@ -67,6 +67,23 @@ export function validateOriginDomain(
   return ok;
 }
 
+/**
+ * `validateOriginDomain`, except that a request with no Origin or Referer fails.
+ *
+ * The lenient form passes an empty origin on purpose: `/collect` takes beacons and
+ * server-side sends that carry none. An endpoint whose every request costs real work — a
+ * browser launch, a stored object — has no such callers to accommodate, and passing a
+ * header-less request there let any script with a website id drive it.
+ */
+export function validateOriginDomainStrict(
+  origin: string,
+  registeredURL: string,
+  environment: string,
+): boolean {
+  if (!origin.trim()) return false;
+  return validateOriginDomain(origin, registeredURL, environment);
+}
+
 /** Dev bypass: treat all loopback forms like localhost (incl. IPv6 ::1 from http://[::1]:3000). */
 function isLoopbackHost(hostname: string): boolean {
   const h = hostname.toLowerCase();

@@ -7,7 +7,8 @@ import { snapshotDeviceBucketForWidth } from "./device";
 import { getScreenshotCache } from "../services/screenshot-cache.service";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { hostnameResolvesPublicly } from "./capture-network-policy";
-import { withCaptureSlot } from "./capture-slot";
+import { withCaptureSlot, withCloudflareCaptureSlot } from "./capture-slot";
+import { fulfillThroughPinnedFetch } from "./capture-request-proxy";
 import { captureWithCloudflare } from "./cloudflare-screenshots";
 import { env } from "../../../config";
 
@@ -58,7 +59,8 @@ export interface CaptureResult {
  * Capture a screenshot of a webpage, returning the raw JPEG buffer and metadata.
  *
  * Renders on Cloudflare Browser Rendering when `CLOUDFLARE_SCREENSHOTS_ENABLED` is set,
- * otherwise on the local Chromium — one capture at a time, see `capture-slot.ts`.
+ * otherwise on the local Chromium. Both are bounded — one local render at a time, a few on
+ * Cloudflare — see `capture-slot.ts`.
  *
  * @throws Error if the page cannot be loaded or screenshot fails
  */
@@ -75,7 +77,7 @@ function screenshotRenderingAvailable(): boolean {
 
 async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
   const cloudflare = env().screenshots.cloudflare;
-  if (cloudflare) return captureWithCloudflare(cloudflare, options);
+  if (cloudflare) return withCloudflareCaptureSlot(() => captureWithCloudflare(cloudflare, options));
   return withCaptureSlot(() => captureWithLocalChromium(options));
 }
 
@@ -124,33 +126,33 @@ async function captureWithLocalChromium(options: ScreenshotOptions): Promise<Cap
       height: Math.max(240, Math.min(2160, options.viewportHeight ?? 1080)),
     });
 
-    // Revalidate DNS for every distinct host a hostile page tries to reach. This
-    // blocks DNS rebinding and page-script requests to metadata/private services.
-    const hostPolicy = new Map<string, Promise<boolean>>();
+    // Every request the page makes is fetched from here, through `pinnedFetch`, and handed
+    // back with `route.fulfill` — Chromium never resolves or connects to anything itself. The
+    // check and the connection therefore use the same DNS answer, which is what defeats
+    // rebinding; checking a name and then calling `route.continue()` did not, because Chromium
+    // resolved it again. What `page.route` cannot see is closed off where the browser context
+    // is made: service workers are blocked and WebSockets answered locally (playwright-browser.ts).
     await page.route("**/*", async (route) => {
       try {
         const u = new URL(route.request().url());
+        // Only http(s) is ever fetched. Anything else that reaches a route — ftp:, a custom
+        // scheme, a ws: upgrade that slipped through — is refused rather than handed to Chromium.
         if (u.protocol !== "http:" && u.protocol !== "https:") return route.abort("blockedbyclient");
         // The page's own Seentics tracker: a capture is not a visit, and must not count as one
         // in the customer's analytics (nor open their popups over the screenshot).
         if (u.pathname.includes("/api/v1/tracker/")) return route.abort("blockedbyclient");
-        let allowed = hostPolicy.get(u.hostname);
-        if (!allowed) {
-          allowed = allowDevLocal && u.hostname === requested.hostname
-            ? Promise.resolve(true)
-            : hostnameResolvesPublicly(u.hostname);
-          hostPolicy.set(u.hostname, allowed);
-        }
-        if (!(await allowed)) return route.abort("blockedbyclient");
         // A top-frame redirect must stay on the requested host (allowing www/apex).
         if (route.request().isNavigationRequest() && route.request().frame() === page?.mainFrame()) {
           const a = u.hostname.replace(/^www\./, "");
           const b = requested.hostname.replace(/^www\./, "");
           if (a !== b) return route.abort("blockedbyclient");
         }
-        return route.continue();
+        // Development only: the docker-rewritten local site is private by definition.
+        if (allowDevLocal && u.hostname === requested.hostname) return route.continue();
+        await fulfillThroughPinnedFetch(route);
       } catch {
-        return route.abort("blockedbyclient");
+        // A private address (`NonPublicHostError`), a timeout, or a dead origin alike.
+        return route.abort("blockedbyclient").catch(() => undefined);
       }
     });
     page.on("download", (download) => { void download.cancel(); });

@@ -127,4 +127,13 @@ describe("claimPendingBatches SQL", () => {
     expect(candidates).toContain("b.completed_at IS NULL");
     expect(candidates).toContain("b.attempts <");
   });
+
+  it("does not claim a batch before its retry time", () => {
+    // Commutative lanes drop a backing-off batch before DISTINCT ON so the rest of the site
+    // drains; ordered lanes (recordings) keep it at the head of its key and filter after,
+    // so the session waits instead of applying chunks out of order.
+    const { candidates, oldest } = parts();
+    expect(candidates).toContain("::boolean OR b.next_attempt_at IS NULL OR b.next_attempt_at <= now()");
+    expect(oldest).toContain("next_attempt_at IS NULL OR next_attempt_at <= now()");
+  });
 });

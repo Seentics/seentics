@@ -165,7 +165,12 @@ export interface BatchQueue {
    */
   markCompleted(batchId: string): Promise<void>;
 
-  markFailed(batchId: string, error: string): Promise<void>;
+  /**
+   * Record a failed attempt, release the lease, and hold the batch back for `retryAfterMs`
+   * before it may be claimed again. The worker owns the backoff schedule; the store only
+   * writes the not-before time.
+   */
+  markFailed(batchId: string, error: string, retryAfterMs: number): Promise<void>;
 
   /**
    * Hand back batches that were claimed but never applied, without counting an attempt.
@@ -185,5 +190,13 @@ export interface BatchQueue {
 
   countPending(lane: IngestLane, maxAttempts: number): Promise<number>;
   countParked(maxAttempts: number): Promise<number>;
+
+  /**
+   * Give parked batches a fresh set of attempts once they have sat out `coolOffMs` since
+   * their last failure, at most `maxRequeues` times per batch. Returns how many were
+   * requeued. What turns an outage longer than the whole retry window into a delay rather
+   * than lost data.
+   */
+  requeueParked(maxAttempts: number, coolOffMs: number, maxRequeues: number): Promise<number>;
   pruneCompleted(olderThan: Date): Promise<number>;
 }

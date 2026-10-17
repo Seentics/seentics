@@ -324,12 +324,17 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
      * Where heatmap screenshots render: Cloudflare when configured, else a local
      * Chromium when `local` — off in the production image, which ships none
      * (HEATMAP_LOCAL_SCREENSHOTS=false). With neither, no screenshot is taken.
+     *
+     * `local` defaults off in production too, not only in the image: a local render puts a
+     * browser that loads customer-chosen pages on this server's network, so running one is
+     * an explicit opt-in (HEATMAP_LOCAL_SCREENSHOTS=true) rather than something a source
+     * install inherits. Development keeps it on.
      */
     screenshots: {
       cloudflare: cloudflareScreenshotsEnabled
         ? { accountId: cloudflareAccountId, apiToken: cloudflareBrowserToken }
         : null,
-      local: parseBool(process.env.HEATMAP_LOCAL_SCREENSHOTS, true),
+      local: parseBool(process.env.HEATMAP_LOCAL_SCREENSHOTS, !isProduction),
     },
     dataRetention: {
       enabled: dataRetentionEnabled,

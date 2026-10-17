@@ -3,11 +3,20 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { log } from "../../../platform/observability/logger";
 import { requireUser, type AuthVars } from "../../../platform/middleware/auth";
 import { roleAtLeast, type WebsiteRole } from "../../websites/interfaces";
+import { permissionDenied, type Permission } from "../../../platform/permissions";
 import type { FunnelControllerDeps } from "./funnel-controller.types";
 
 const funnelLog = log.child({ category: "funnels" });
 
-/** Any member of the site reads; creating, changing or deleting a funnel needs `minimum` ("member"). */
+/**
+ * Any member of the site reads; creating, changing or deleting a funnel needs `minimum` ("member").
+ *
+ * Then the team permission, the same second check `requireWebsiteAccess` makes: a read needs
+ * `analytics:funnels.view` and anything above a viewer's reach needs `analytics:funnels.manage`.
+ * The website role says whether this person may touch the site; the permission says whether
+ * their team narrowed that, which only the gateway knows. Both keys were defined and granted by
+ * the gateway's roles and checked nowhere, so a custom role without them changed nothing.
+ */
 export async function requireFunnelAccess(
   c: Context<{ Variables: AuthVars }>,
   deps: FunnelControllerDeps,
@@ -20,6 +29,9 @@ export async function requireFunnelAccess(
   if (!role || !roleAtLeast(role, minimum)) {
     return { denied: c.json({ error: "forbidden" }, 403 as ContentfulStatusCode) };
   }
+  const permission: Permission = minimum === "viewer" ? "analytics:funnels.view" : "analytics:funnels.manage";
+  const denied = permissionDenied(c, permission);
+  if (denied) return { denied };
   return { userId };
 }
 

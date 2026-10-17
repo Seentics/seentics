@@ -306,6 +306,48 @@ describe("funnel routes", () => {
     });
   });
 
+  /**
+   * The team permission, on top of the website role. `analytics:funnels.view` and
+   * `.manage` were defined and granted by the gateway's roles but checked nowhere, so a
+   * custom team role without them changed nothing.
+   */
+  describe("team permissions", () => {
+    const withPerms = (perms: string, init: RequestInit = {}) => ({
+      ...init,
+      headers: { "X-Team-Permissions": perms, "Content-Type": "application/json", ...(init.headers as Record<string, string>) },
+    });
+
+    it("lets funnels.view read but not write", async () => {
+      const read = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels`, withPerms("analytics:funnels.view"));
+      expect(read.status).toBe(200);
+
+      const write = await asOwner(
+        `/api/v1/websites/${WEBSITE_UUID}/funnels`,
+        withPerms("analytics:funnels.view", { method: "POST", body: JSON.stringify({ name: "x", steps: [] }) }),
+      );
+      expect(write.status).toBe(403);
+      expect(funnels.created).toEqual([]);
+    });
+
+    it("refuses reads to a team role without funnels.view, even for the site owner", async () => {
+      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels`, withPerms("analytics:dashboard.view"));
+      expect(res.status).toBe(403);
+      const stats = await asOwner(
+        `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111/stats`,
+        withPerms(""),
+      );
+      expect(stats.status).toBe(403);
+    });
+
+    it("lets funnels.manage write", async () => {
+      const res = await asOwner(
+        `/api/v1/websites/${WEBSITE_UUID}/funnels/11111111-1111-4111-8111-111111111111`,
+        withPerms("analytics:funnels.view,analytics:funnels.manage", { method: "DELETE" }),
+      );
+      expect(res.status).toBe(204);
+    });
+  });
+
   describe("list and get", () => {
     it("routes the batch report before the funnel-id route and protects access", async () => {
       const path = `/api/v1/websites/${WEBSITE_UUID}/funnels/stats?days=7`;

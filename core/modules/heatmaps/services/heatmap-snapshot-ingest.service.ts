@@ -6,12 +6,17 @@ import {
   upsertLayoutSnapshot,
   upsertLayoutHtmlSnapshot,
 } from "../lib/layout-db";
-import { upsertLayoutVersion } from "../repositories/heatmap-versions.repository";
+import {
+  layoutVersionBudget,
+  pruneLayoutVersions,
+  upsertLayoutVersion,
+} from "../repositories/heatmap-versions.repository";
 import { extractPath, heatmapPagePathForEvent, normalizeHeatmapPagePath } from "../lib/paths";
 import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "../lib/keys";
-import { snapshotDeviceBucket, snapshotDeviceBucketForWidth } from "../lib/device";
+import { snapshotDeviceBucket, snapshotDeviceBucketForWidth, type SnapshotDeviceBucket } from "../lib/device";
 import { validateScreenshotTargetUrl } from "../../../platform/http/origin";
-import { putJpeg, putHtml } from "../../../platform/storage/s3";
+import { deleteS3Objects, putJpeg, putHtml } from "../../../platform/storage/s3";
+import { takeRateToken } from "../../../platform/cache/token-bucket";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
 import type { HeatmapIngestEvent, ScreenshotJob } from "../interfaces";
 import type { TrackerWebsites } from "../../websites/interfaces";
@@ -32,6 +37,44 @@ const FALLBACK_DOC_H = 800;
 const MIN_HTML_BYTES = 100;
 /** A stored background this much taller than an incoming one is the more complete picture. */
 const TALLER_SNAPSHOT_RATIO = 1.5;
+
+/**
+ * Bounds on what anonymous DOM snapshots can make this service store.
+ *
+ * Snapshots arrive through `/collect`, which is unauthenticated, and a snapshot carrying
+ * `page_version` used to mint a new storage object and version row for every fingerprint it
+ * named — forever, and replacing the page's background each time. Legitimate version tracking
+ * sees a handful of fingerprints per page (a redesign, an A/B arm, a logged-in variant), so
+ * these sit well above that and far below what a script inventing fingerprints would reach.
+ */
+export type SnapshotIngestLimits = {
+  /** Versions kept per page and device; the least recently seen beyond it are pruned. */
+  maxVersionsPerPage: number;
+  /** New fingerprints one site may start recording per rolling day. */
+  maxNewVersionsPerDay: number;
+  /** DOM snapshot writes (objects actually uploaded) per site per minute. */
+  domWritesPerMinute: number;
+  /** Playwright re-captures one site's ingest may trigger per hour. */
+  autoCapturesPerHour: number;
+};
+
+export const DEFAULT_SNAPSHOT_INGEST_LIMITS: SnapshotIngestLimits = {
+  maxVersionsPerPage: 25,
+  maxNewVersionsPerDay: 200,
+  domWritesPerMinute: 60,
+  autoCapturesPerHour: 30,
+};
+
+/**
+ * How many paths the Playwright trigger remembers, and for how long.
+ *
+ * The set used to be unbounded and keyed on paths taken straight from tracker URLs, so any
+ * client could grow it without limit. Oldest-first eviction keeps it a fixed size; the TTL
+ * means a page is re-captured at most daily rather than once per process lifetime, which also
+ * picks up a redesign on a long-running instance.
+ */
+const PLAYWRIGHT_TRIGGERED_MAX = 10_000;
+const PLAYWRIGHT_TRIGGERED_TTL_MS = 24 * 60 * 60_000;
 
 /**
  * What a stored DOM snapshot may do when the dashboard renders it.
@@ -83,8 +126,12 @@ export function withSnapshotPolicy(html: string): string {
  * upload is the expensive part.
  */
 export class SnapshotIngestService {
-  /** Paths already given a Playwright capture this lifecycle. Prevents re-capture spam. */
-  private readonly playwrightTriggered = new Set<string>();
+  /**
+   * `websiteId:path` → when its Playwright capture was triggered. Prevents re-capture spam.
+   * Bounded — see `PLAYWRIGHT_TRIGGERED_MAX`. A `Map` iterates in insertion order, so the
+   * first key is always the oldest and eviction is O(1).
+   */
+  private readonly playwrightTriggered = new Map<string, number>();
 
   constructor(
     private readonly bucket: string,
@@ -104,6 +151,7 @@ export class SnapshotIngestService {
      * `null`: nothing is archived.
      */
     private readonly stylesheets: StylesheetDiscovery | null = null,
+    private readonly limits: SnapshotIngestLimits = DEFAULT_SNAPSHOT_INGEST_LIMITS,
   ) {}
 
   /**
@@ -245,6 +293,30 @@ export class SnapshotIngestService {
     const pageVersion = typeof ev.data?.page_version === "string"
       ? ev.data.page_version.slice(0, 160)
       : "";
+
+    // Everything past here uploads an object. Unchanged snapshots returned above, so this
+    // counts real writes only.
+    if (!takeRateToken(`heatmap-dom-snapshot:${ev.websiteId}`, this.limits.domWritesPerMinute, 60_000).allowed) {
+      log.warn({ msg: "heatmap_dom_snapshot_rate_limited", norm, website_id: ev.websiteId });
+      return;
+    }
+    let newVersion = false;
+    if (pageVersion) {
+      const budget = await layoutVersionBudget(ev.websiteId, norm, device, pageVersion);
+      newVersion = !budget.known;
+      // A fingerprint already on record may still be refreshed; only a new one is budgeted.
+      // Refused outright — no object, no row, and the current background is left alone.
+      if (newVersion && budget.newToday >= this.limits.maxNewVersionsPerDay) {
+        log.warn({
+          msg: "heatmap_dom_snapshot_version_cap",
+          norm,
+          website_id: ev.websiteId,
+          new_today: budget.newToday,
+        });
+        return;
+      }
+    }
+
     const baseSlot = layoutPathSlot(ev.websiteId, norm, device);
     // Content-addressed suffix makes old variants immutable in object storage.
     const key = heatmapHtmlSnapshotKey(
@@ -257,6 +329,7 @@ export class SnapshotIngestService {
     await upsertLayoutHtmlSnapshot(ev.websiteId, norm, device, key, sum, docW, docH, pageVersion, sourcePath);
     if (pageVersion) {
       await upsertLayoutVersion(ev.websiteId, norm, device, pageVersion, key, sum, docW, docH);
+      if (newVersion) await this.pruneVersions(ev.websiteId, norm, device);
     }
     // After the snapshot is stored, and never allowed to fail it: discovery is best-effort.
     if (this.stylesheets) {
@@ -275,7 +348,26 @@ export class SnapshotIngestService {
   }
 
   /**
-   * Ask Playwright for a proper capture of a page, once per path per lifecycle.
+   * Hold a page to `maxVersionsPerPage`, oldest-seen out first, objects with them.
+   *
+   * Only after a *new* version is recorded, since that is the only write that can push a
+   * page over. Best-effort: a failure leaves an extra version behind, never fails the
+   * snapshot that was just stored.
+   */
+  private async pruneVersions(websiteId: string, norm: string, device: SnapshotDeviceBucket): Promise<void> {
+    try {
+      const orphaned = await pruneLayoutVersions(websiteId, norm, device, this.limits.maxVersionsPerPage);
+      if (orphaned.length > 0) {
+        await deleteS3Objects(this.bucket, orphaned);
+        log.info({ msg: "heatmap_page_versions_pruned", website_id: websiteId, norm, n: orphaned.length });
+      }
+    } catch (err) {
+      log.warn({ msg: "heatmap_page_versions_prune_failed", website_id: websiteId, norm, err: String(err) });
+    }
+  }
+
+  /**
+   * Ask Playwright for a proper capture of a page, once per path per day.
    *
    * Fire-and-forget: this runs off an ingest flush, and no visitor's data should wait on
    * a browser launch. The target is checked against the website's registered domain
@@ -284,8 +376,15 @@ export class SnapshotIngestService {
    */
   private triggerPlaywrightCapture(websiteId: string, norm: string, url: string): void {
     const key = `${websiteId}:${norm}`;
-    if (this.playwrightTriggered.has(key)) return;
-    this.playwrightTriggered.add(key);
+    const now = Date.now();
+    const triggeredAt = this.playwrightTriggered.get(key);
+    if (triggeredAt !== undefined && now - triggeredAt < PLAYWRIGHT_TRIGGERED_TTL_MS) return;
+    // Re-inserted rather than updated, so an expired entry moves to the back of the order.
+    this.playwrightTriggered.delete(key);
+    if (this.playwrightTriggered.size >= PLAYWRIGHT_TRIGGERED_MAX) {
+      this.playwrightTriggered.delete(this.playwrightTriggered.keys().next().value!);
+    }
+    this.playwrightTriggered.set(key, now);
 
     if (!this.websites) {
       // No resolver means no way to validate the domain, and capturing unguarded would
@@ -298,6 +397,12 @@ export class SnapshotIngestService {
       .resolve(websiteId)
       .then((website) => {
         if (!website || !validateScreenshotTargetUrl(url, website.url)) return;
+        // Per site as well as per path: distinct paths are the client's to invent, and each
+        // one is a browser render.
+        if (!takeRateToken(`heatmap-auto-capture:${websiteId}`, this.limits.autoCapturesPerHour, 60 * 60_000).allowed) {
+          log.warn({ msg: "heatmap_playwright_auto_rate_limited", website_id: websiteId, norm });
+          return;
+        }
         return captureAndStoreScreenshot(url, this.bucket, websiteId, norm, { force: true }).then(
           (r) => {
             if (r?.stored) log.info({ msg: "heatmap_playwright_auto_captured", url, norm });

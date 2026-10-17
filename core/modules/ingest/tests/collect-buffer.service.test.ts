@@ -40,6 +40,7 @@ class FakeQueue implements BatchQueue {
   async releaseClaims(): Promise<void> {}
   async countPending(): Promise<number> { return 0; }
   async countParked(): Promise<number> { return 0; }
+  async requeueParked(): Promise<number> { return 0; }
   async pruneCompleted(): Promise<number> { return 0; }
 }
 

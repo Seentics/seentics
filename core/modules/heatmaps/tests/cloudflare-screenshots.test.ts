@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "bun:test";
 process.env.DATABASE_URL ??= "postgres://test-not-connected";
 
 import { captureWithCloudflare, jpegDimensions } from "../lib/cloudflare-screenshots";
-import { withCaptureSlot } from "../lib/capture-slot";
+import { createCaptureSlot, withCaptureSlot } from "../lib/capture-slot";
 
 /** Smallest byte sequence `jpegDimensions` accepts: SOI, an APP0 segment, then SOF0. */
 function fakeJpeg(width: number, height: number): Buffer {
@@ -113,5 +113,22 @@ describe("withCaptureSlot", () => {
 
     release();
     await Promise.all([blocker, ...queued]);
+  });
+});
+
+describe("createCaptureSlot", () => {
+  // The Cloudflare path used to skip the slot entirely: a burst of tracker requests was a
+  // burst of concurrent billed renders.
+  it("runs at most `maxConcurrent` captures at once", async () => {
+    const slot = createCaptureSlot(3, 20);
+    let running = 0;
+    let maxRunning = 0;
+    await Promise.all(Array.from({ length: 8 }, () => slot(async () => {
+      running += 1;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((r) => setTimeout(r, 5));
+      running -= 1;
+    })));
+    expect(maxRunning).toBe(3);
   });
 });

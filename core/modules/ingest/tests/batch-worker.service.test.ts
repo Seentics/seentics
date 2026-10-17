@@ -11,7 +11,7 @@ import type {
   LaneSpec,
   QueuedBatch,
 } from "../interfaces";
-import { BatchWorker } from "../services/batch-worker.service";
+import { BatchWorker, retryDelayMs } from "../services/batch-worker.service";
 
 /**
  * The worker's job is claim → apply → complete, or claim → fail → park. No database here:
@@ -38,7 +38,19 @@ const silentLogger: Logger = {
  * lets the shutdown path be tested at all.
  */
 class FakeQueue implements BatchQueue {
-  rows: (QueuedBatch & { completed: boolean; claimed: boolean; lastError?: string })[] = [];
+  rows: (QueuedBatch & {
+    completed: boolean;
+    claimed: boolean;
+    lastError?: string;
+    /** Fake-clock time before which the batch may not be claimed — `next_attempt_at`. */
+    notBefore: number;
+    requeues: number;
+  })[] = [];
+
+  /** The fake's clock, in ms. Tests advance it to step past a retry delay. */
+  now = 0;
+  /** Every `retryAfterMs` the worker asked for, in order. */
+  retryDelays: number[] = [];
 
   seed(batch: Partial<QueuedBatch> & { lane: IngestLane }): QueuedBatch {
     const row = {
@@ -50,6 +62,8 @@ class FakeQueue implements BatchQueue {
       attempts: batch.attempts ?? 0,
       completed: false,
       claimed: false,
+      notBefore: 0,
+      requeues: 0,
     };
     this.rows.push(row);
     return row;
@@ -80,6 +94,7 @@ class FakeQueue implements BatchQueue {
       if (out.length >= limit) break;
       if (r.lane !== lane || r.completed || r.claimed) continue;
       if (r.attempts >= maxAttempts) continue;
+      if (r.notBefore > this.now) continue;
       if (takenKeys.has(r.partitionKey)) continue;
       takenKeys.add(r.partitionKey);
       r.claimed = true;
@@ -96,13 +111,28 @@ class FakeQueue implements BatchQueue {
     }
   }
 
-  async markFailed(batchId: string, error: string): Promise<void> {
+  async markFailed(batchId: string, error: string, retryAfterMs: number): Promise<void> {
+    this.retryDelays.push(retryAfterMs);
     const row = this.rows.find((r) => r.batchId === batchId);
     if (row) {
       row.attempts += 1;
       row.lastError = error;
       row.claimed = false;
+      row.notBefore = this.now + retryAfterMs;
     }
+  }
+
+  async requeueParked(maxAttempts: number, coolOffMs: number, maxRequeues: number): Promise<number> {
+    let n = 0;
+    for (const r of this.rows) {
+      if (r.completed || r.attempts < maxAttempts || r.requeues >= maxRequeues) continue;
+      if (r.notBefore > this.now - coolOffMs) continue;
+      r.attempts = 0;
+      r.requeues += 1;
+      r.notBefore = 0;
+      n += 1;
+    }
+    return n;
   }
 
   released: string[] = [];
@@ -208,7 +238,9 @@ describe("BatchWorker", () => {
   beforeEach(() => {
     queue = new FakeQueue();
     sinks = new FakeRegistry(queue);
-    worker = new BatchWorker(queue, sinks.build(), silentLogger, { maxAttempts: 3 });
+    // No retry delay here, so the existing retry tests can drain back to back; backoff has
+    // its own suite below.
+    worker = new BatchWorker(queue, sinks.build(), silentLogger, { maxAttempts: 3, retryBaseDelayMs: 0 });
   });
 
   describe("dispatch", () => {
@@ -531,6 +563,112 @@ describe("BatchWorker", () => {
       await worker.drainOnce();
 
       expect(sinks.analytics).toHaveLength(1);
+    });
+  });
+
+  /**
+   * Regression: a failed batch was immediately claimable again, so five attempts at a 250ms
+   * poll were spent in about a second and a 5-10s database failover parked live data that
+   * nothing ever picked back up.
+   */
+  describe("retry backoff", () => {
+    let slow: BatchWorker;
+
+    beforeEach(() => {
+      slow = new BatchWorker(queue, sinks.build(), silentLogger, {
+        maxAttempts: 3,
+        retryBaseDelayMs: 1_000,
+        retryMaxDelayMs: 60_000,
+        parkedRequeueAfterMs: 10 * 60_000,
+        maxParkedRequeues: 1,
+        healthCheckMs: 0,
+      });
+    });
+
+    it("grows the delay exponentially up to the ceiling", () => {
+      const noJitter = () => 0;
+      expect(retryDelayMs(1, 2_000, 30 * 60_000, noJitter)).toBe(2_000);
+      expect(retryDelayMs(2, 2_000, 30 * 60_000, noJitter)).toBe(4_000);
+      expect(retryDelayMs(5, 2_000, 30 * 60_000, noJitter)).toBe(32_000);
+      expect(retryDelayMs(30, 2_000, 30 * 60_000, noJitter)).toBe(30 * 60_000);
+      // Jitter only ever shortens, by at most a fifth.
+      expect(retryDelayMs(1, 2_000, 30 * 60_000, () => 1)).toBe(1_600);
+      expect(retryDelayMs(3, 0, 30 * 60_000)).toBe(0);
+    });
+
+    it("covers more than an hour of outage with the default schedule", () => {
+      // The defaults (14 attempts, 2s base, 30-minute ceiling), worst-case jitter.
+      let total = 0;
+      for (let a = 1; a < 14; a++) total += retryDelayMs(a, 2_000, 30 * 60_000, () => 1);
+      expect(total).toBeGreaterThan(60 * 60_000);
+    });
+
+    it("does not retry a failed batch until its delay has passed", async () => {
+      sinks.failLanes.add("analytics");
+      queue.seed({ lane: "analytics", payload: { rows: events(1) } });
+
+      await slow.drainOnce();
+      expect(queue.retryDelays).toHaveLength(1);
+      expect(queue.retryDelays[0]!).toBeGreaterThan(0);
+
+      // Back-to-back passes inside the delay: no attempt is spent.
+      await slow.drainOnce();
+      await slow.drainOnce();
+      expect(sinks.analytics).toHaveLength(1);
+      expect(queue.rows[0]!.attempts).toBe(1);
+
+      sinks.failLanes.clear();
+      queue.now += queue.retryDelays[0]!;
+      await slow.drainOnce();
+      expect(sinks.analytics).toHaveLength(2);
+      expect(queue.rows[0]!.completed).toBe(true);
+    });
+
+    it("asks for a longer delay on each attempt", async () => {
+      sinks.failLanes.add("analytics");
+      queue.seed({ lane: "analytics", payload: { rows: events(1) } });
+      for (let i = 0; i < 3; i++) {
+        await slow.drainOnce();
+        queue.now += 120_000;
+      }
+      const [a, b, c] = queue.retryDelays;
+      expect(b!).toBeGreaterThan(a!);
+      expect(c!).toBeGreaterThan(b!);
+    });
+
+    it("requeues a parked batch after the cool-off, up to the cap", async () => {
+      sinks.failLanes.add("analytics");
+      queue.seed({ lane: "analytics", payload: { rows: events(1) } });
+      for (let i = 0; i < 3; i++) {
+        await slow.drainOnce();
+        queue.now += 120_000;
+      }
+      expect(await queue.countParked(3)).toBe(1);
+
+      // Still cooling off: stays parked.
+      await slow.drainOnce();
+      expect(queue.rows[0]!.attempts).toBe(3);
+
+      // Cooled off and the sink is back: requeued by the health check, applied next pass.
+      queue.now += 10 * 60_000;
+      sinks.failLanes.clear();
+      await slow.drainOnce();
+      await slow.drainOnce();
+      expect(queue.rows[0]!.requeues).toBe(1);
+      expect(queue.rows[0]!.completed).toBe(true);
+    });
+
+    it("leaves a batch parked once it has used its requeues", async () => {
+      sinks.failLanes.add("analytics");
+      queue.seed({ lane: "analytics", payload: { rows: events(1) } });
+      for (let i = 0; i < 12; i++) {
+        await slow.drainOnce();
+        queue.now += 20 * 60_000;
+      }
+      expect(queue.rows[0]!.requeues).toBe(1);
+      expect(await queue.countParked(3)).toBe(1);
+      // Two full rounds of three attempts, and nothing since.
+      expect(sinks.analytics).toHaveLength(6);
     });
   });
 });
