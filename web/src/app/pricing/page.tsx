@@ -57,7 +57,7 @@ export default function PricingPage() {
                         <h1 className="lx-display text-[2.25rem] sm:text-5xl">
                             Every plan has everything.
                             <br />
-                            <span className="lx-dim">Only the amounts differ.</span>
+                            <span>Only the amounts differ.</span>
                         </h1>
                         <p className="lx-dim max-w-md text-base leading-relaxed">
                             Every feature on every plan. Pay for more events, or Agency for client sites.

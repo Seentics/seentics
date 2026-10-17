@@ -100,7 +100,7 @@ function FeatureRow({ row }: { row: Row }) {
           <h2 id={`${row.id}-title`} className="lx-display text-[1.75rem] sm:text-4xl">
             {row.title[0]}
             <br />
-            <span className="lx-dim">{row.title[1]}</span>
+            <span>{row.title[1]}</span>
           </h2>
           <div>
             <p className="lx-dim max-w-md text-base leading-relaxed">{row.body}</p>

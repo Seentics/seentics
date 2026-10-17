@@ -12,7 +12,7 @@ export default function ClosingCta() {
         <h2 className="lx-display text-[1.75rem] sm:text-4xl">
           Know why.
           <br />
-          <span className="lx-dim">Start in two minutes.</span>
+          <span>Start in two minutes.</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={isAuthenticated ? '/websites' : '/signup'} className="lx-btn lx-btn-primary">

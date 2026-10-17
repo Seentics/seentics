@@ -103,7 +103,7 @@ export default function AgenciesPage() {
             <h1 className="lx-display mt-5 max-w-[22ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4rem]">
               Every client site.
               <br />
-              <span className="lx-dim">One workspace.</span>
+              <span>One workspace.</span>
             </h1>
             <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <p className="lx-dim max-w-[40rem] text-base leading-relaxed sm:text-lg">
@@ -142,7 +142,7 @@ export default function AgenciesPage() {
               <h2 id="features-title" className="lx-display text-[1.75rem] sm:text-4xl">
                 What you get.
                 <br />
-                <span className="lx-dim">Built for client work.</span>
+                <span>Built for client work.</span>
               </h2>
               <p className="lx-dim max-w-md text-base leading-relaxed">Everything in Seentics, plus the tools to run it for clients.</p>
             </div>
@@ -195,7 +195,7 @@ export default function AgenciesPage() {
             <h2 className="lx-display text-[1.75rem] sm:text-4xl">
               All your clients.
               <br />
-              <span className="lx-dim">In one place.</span>
+              <span>In one place.</span>
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <Link href={DEMO_HREF} className="lx-btn lx-btn-primary">
