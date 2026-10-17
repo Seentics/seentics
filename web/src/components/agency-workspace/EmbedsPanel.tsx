@@ -78,19 +78,21 @@ export function EmbedsPanel({ scope, targetId, targetName }: { scope: EmbedScope
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-3">
+              {/* One row per section, switch on the right: the panel is narrow, so side-by-side tiles
+                  wrapped every word onto its own line. */}
+              <div className="divide-y divide-border rounded-md border border-border">
                 {EMBED_SECTIONS.map(s => (
-                  <label key={s.id} className="flex items-start gap-2.5 rounded-md border border-border p-2.5">
+                  <label key={s.id} className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5">
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-medium text-foreground">{s.label}</span>
+                      <span className="block text-xs text-muted-foreground">{s.description}</span>
+                    </span>
                     <Switch
                       checked={embed.sections.includes(s.id)}
                       onCheckedChange={on => toggle(embed, s.id, on)}
                       aria-label={`Show ${s.label}`}
                       disabled={update.isPending}
                     />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-medium text-foreground">{s.label}</span>
-                      <span className="block text-[11px] text-muted-foreground">{s.description}</span>
-                    </span>
                   </label>
                 ))}
               </div>

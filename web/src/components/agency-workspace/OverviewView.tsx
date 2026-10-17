@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { dismissAlert, errorMessage } from '@/features/agency/api';
 import { useAgencyMutation, useOverview, useSetup, useUsage } from '@/features/agency/queries';
 import type { AgencyAlert, MetricTotals, OverviewClient } from '@/features/agency/types';
+import { agencySiteHref } from '@/lib/demo/agency-mode';
 import { SetupGuide } from './SetupGuide';
 import { Change, EmptyState, LoadingRow, Panel, Pill, WorkspacePage, compact, percentOf } from './ui';
 
@@ -146,7 +147,7 @@ export function OverviewView() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-foreground">{text.title}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{text.body}</p>
-                        {a.website_id && <Link href={`/websites/${a.website_id}`} className="mt-1 inline-block text-[11px] font-medium text-primary hover:underline">Open site</Link>}
+                        {a.website_id && <Link href={agencySiteHref(a.website_id)} className="mt-1 inline-block text-[11px] font-medium text-primary hover:underline">Open site</Link>}
                       </div>
                       <Button
                         variant="ghost"
@@ -176,7 +177,7 @@ export function OverviewView() {
                       ? <TrendingUp className="h-4 w-4 shrink-0 text-emerald-500" />
                       : <TrendingDown className="h-4 w-4 shrink-0 text-rose-500" />}
                     <div className="min-w-0 flex-1">
-                      <Link href={`/websites/${m.website_id}`} className="block truncate text-sm font-medium text-foreground hover:underline">{m.website_name}</Link>
+                      <Link href={agencySiteHref(m.website_id)} className="block truncate text-sm font-medium text-foreground hover:underline">{m.website_name}</Link>
                       {m.client_id && names.get(m.client_id) && <p className="truncate text-[11px] text-muted-foreground">{names.get(m.client_id)}</p>}
                     </div>
                     <span className="text-xs tabular-nums text-muted-foreground">{compact(m.previous)} → {compact(m.current)}</span>

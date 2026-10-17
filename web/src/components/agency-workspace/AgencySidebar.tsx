@@ -1,11 +1,13 @@
 'use client';
 
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useEffect, useState, type ElementType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeft, BarChart3, Code2, Globe, LayoutDashboard, Menu, Palette, Users } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { AGENCY_DEMO_EXIT_HREF, exitAgencyDemo, useAgencyDemo } from '@/lib/demo/agency-mode';
 import { cn } from '@/lib/utils';
 import { dashboardHref, useHomeWebsite } from './use-home-website';
 
@@ -19,7 +21,7 @@ export const AGENCY_NAV: Item[] = [
   { label: 'Overview', href: '/agency', icon: LayoutDashboard },
   { label: 'Clients', href: '/agency/clients', icon: Users },
   { label: 'Websites', href: '/agency/websites', icon: Globe },
-  { label: 'Branding', href: '/agency/branding', icon: Palette },
+  { label: 'Branding & domain', href: '/agency/branding', icon: Palette },
   { label: 'Usage', href: '/agency/usage', icon: BarChart3 },
   { label: 'API', href: '/agency/api', icon: Code2 },
 ];
@@ -30,10 +32,32 @@ export function isAgencyNavActive(href: string, pathname: string): boolean {
   return path === href || path.startsWith(`${href}/`);
 }
 
+/**
+ * Shown while the agency demo is on: the figures are sample data, and how to leave. Exiting is a
+ * full page load, so the workspace starts again on the real API.
+ */
+export function AgencyDemoBadge({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      data-testid="agency-demo-badge"
+      className={cn('flex items-center gap-2 text-xs', compact ? '' : 'mx-3 mb-2 justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2')}
+    >
+      <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
+        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Demo data
+      </span>
+      <a href={AGENCY_DEMO_EXIT_HREF} onClick={() => exitAgencyDemo()} className="font-medium text-foreground/70 underline-offset-2 hover:text-foreground hover:underline">
+        Exit demo
+      </a>
+    </div>
+  );
+}
+
 /** The workspace's navigation: the dashboard sidebar's look, with the agency's pages. */
 export function AgencySidebar() {
   const pathname = usePathname() ?? '';
   const home = useHomeWebsite();
+  const demo = useAgencyDemo();
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => setDrawerOpen(false), [pathname]);
 
@@ -49,6 +73,7 @@ export function AgencySidebar() {
           <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary">Agency</span>
         </Link>
       </div>
+      {demo && <AgencyDemoBadge />}
       <nav className="flex-1 px-3 py-2">
         <ul className="space-y-0.5">
           {AGENCY_NAV.map(item => {
@@ -73,14 +98,15 @@ export function AgencySidebar() {
           })}
         </ul>
       </nav>
-      <div className="shrink-0 border-t border-sidebar-border px-3 pb-6 pt-3 dark:border-border/60">
+      <div className="flex shrink-0 items-center gap-1 border-t border-sidebar-border px-3 pb-6 pt-3 dark:border-border/60">
         <Link
           href={dashboardHref(home)}
-          className="flex h-9 items-center gap-3 rounded-lg px-3 text-foreground/60 transition-colors hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-muted/50"
+          className="flex h-9 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 text-foreground/60 transition-colors hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-muted/50"
         >
           <ArrowLeft className="h-[17px] w-[17px] shrink-0" />
-          <span className="text-[13.5px] font-medium">Back to dashboard</span>
+          <span className="truncate text-[13.5px] font-medium">Back to dashboard</span>
         </Link>
+        <ThemeToggle className="text-foreground/60 hover:text-foreground" />
       </div>
     </aside>
   );
@@ -100,6 +126,10 @@ export function AgencySidebar() {
           <Logo size="sm" className="shrink-0" />
           <span className="text-[16px] font-bold tracking-tight text-foreground">Agency</span>
         </Link>
+        <div className="ml-auto flex items-center gap-1 pr-1">
+          {demo && <AgencyDemoBadge compact />}
+          <ThemeToggle />
+        </div>
       </div>
       {panel(false)}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

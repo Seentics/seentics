@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AgencyDemoRefusal, agencyDemoGuard, isAgencyDemo } from '@/lib/demo/agency-mode';
 import * as agencyApi from './api';
 import { DOMAIN_POLL_MS } from './constants';
 import type { ClientListFilters, Domain, ListResponse, WebsiteListFilters } from './types';
@@ -86,11 +87,18 @@ export const useClientUsage = () => useCursorList(agencyKeys.clientUsage, cursor
 export const useWebsiteUsage = (clientId?: string) =>
   useCursorList(agencyKeys.websiteUsage(clientId), cursor => agencyApi.listWebsiteUsage(clientId, cursor));
 
-/** Any workspace write: refreshes every agency query once it lands. */
+/**
+ * Any workspace write: refreshes every agency query once it lands. In the agency demo a write is
+ * refused before it starts, with the website demo's toast, and none of the caller's callbacks run
+ * (no "Client created" for a client that was not).
+ */
 export function useAgencyMutation<V, R>(fn: (v: V) => Promise<R>) {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: fn,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: agencyKeys.all }),
   });
+  if (!isAgencyDemo()) return mutation;
+  const refuse = () => { agencyDemoGuard(); };
+  return { ...mutation, mutate: refuse as typeof mutation.mutate, mutateAsync: (async () => { refuse(); throw new AgencyDemoRefusal(); }) as typeof mutation.mutateAsync };
 }

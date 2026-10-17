@@ -49,7 +49,7 @@ export default function Pricing() {
             <span className="lx-dim">Only the amounts differ.</span>
           </h2>
           <p className="lx-dim max-w-md text-base leading-relaxed">
-            Analytics, replay, heatmaps, funnels and popups on every plan. Free, Starter and Pro differ only in how many events and recordings they include; Agency adds client workspaces for the sites you run for clients.
+            Every feature on every plan. Pay for more events, or Agency for client sites.
           </p>
         </div>
 

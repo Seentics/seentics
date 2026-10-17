@@ -127,7 +127,7 @@ describe('plan gate and sidebar', () => {
     localStorage.setItem('seentics:last-website', 'site-7');
     renderWithClient(<AgencySidebar />);
     const nav = screen.getAllByRole('complementary', { name: 'Agency' })[0]!;
-    for (const [label, href] of [['Overview', '/agency'], ['Clients', '/agency/clients'], ['Websites', '/agency/websites'], ['Branding', '/agency/branding'], ['Usage', '/agency/usage'], ['API', '/agency/api']]) {
+    for (const [label, href] of [['Overview', '/agency'], ['Clients', '/agency/clients'], ['Websites', '/agency/websites'], ['Branding & domain', '/agency/branding'], ['Usage', '/agency/usage'], ['API', '/agency/api']]) {
       expect(within(nav).getByRole('link', { name: label })).toHaveAttribute('href', href);
     }
     expect(within(nav).getByRole('link', { name: 'Usage' })).toHaveAttribute('aria-current', 'page');

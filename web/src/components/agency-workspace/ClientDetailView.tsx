@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { archiveClient, errorMessage, unarchiveClient } from '@/features/agency/api';
 import { useAgencyMutation, useClient, useClientWebsites } from '@/features/agency/queries';
 import type { AgencyWebsite } from '@/features/agency/types';
+import { agencySiteHref } from '@/lib/demo/agency-mode';
 import { AddWebsiteDialog } from './AddWebsiteDialog';
 import { ClientFormDialog } from './ClientFormDialog';
 import { EmbedsPanel } from './EmbedsPanel';
@@ -98,7 +99,7 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
                             <Code2 className="h-3.5 w-3.5" />Install
                           </Button>
                           <Button asChild variant="ghost" size="sm" className="h-8 gap-1 text-xs">
-                            <Link href={`/websites/${w.id}`}>Dashboard <ArrowUpRight className="h-3.5 w-3.5" /></Link>
+                            <Link href={agencySiteHref(w.id)}>Dashboard <ArrowUpRight className="h-3.5 w-3.5" /></Link>
                           </Button>
                         </div>
                       </TableCell>

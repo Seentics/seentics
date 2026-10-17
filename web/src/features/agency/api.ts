@@ -1,4 +1,6 @@
 import api from '@/lib/api';
+import { demoAgencyResponse, type DemoDomainState } from '@/lib/demo/agency';
+import { AgencyDemoRefusal, agencyDemoGuard, isAgencyDemo } from '@/lib/demo/agency-mode';
 import type {
   AgencyErrorBody,
   AgencyWebsite,
@@ -60,8 +62,28 @@ function cleanQuery(query: CallOptions['query']): Record<string, string | number
 const newKey = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+/** `?domain=` on a demo page: which custom-domain state the demo shows (see `demoAgencyDomain`). */
+const demoDomainState = (): DemoDomainState | undefined => {
+  const value = new URLSearchParams(window.location.search).get('domain');
+  if (value === 'pending') return 'pending_dns';
+  return value === 'none' || value === 'pending_dns' || value === 'pending_certificate' || value === 'failed' || value === 'active' ? value : undefined;
+};
+
+/**
+ * In the agency demo, nothing is sent: reads answer from the fixtures in `lib/demo/agency`, and a
+ * write that got this far is refused with the demo toast (the workspace's mutations stop it first).
+ */
+async function demoCall<T>(method: Method, path: string, opts: CallOptions): Promise<T> {
+  if (method !== 'GET') {
+    agencyDemoGuard();
+    throw new AgencyDemoRefusal();
+  }
+  return demoAgencyResponse(path, { params: opts.params, query: opts.query, domainState: demoDomainState() }) as T;
+}
+
 /** The raw response body. Every POST carries a fresh Idempotency-Key, as the API asks. */
 async function call<T>(method: Method, path: string, opts: CallOptions = {}): Promise<T> {
+  if (isAgencyDemo()) return demoCall<T>(method, path, opts);
   const response = await api.request<T>({
     method,
     url: fillPath(path, opts.params),

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { deleteWebsite, errorMessage, updateWebsite } from '@/features/agency/api';
 import { useAgencyMutation, useClients, useWebsites } from '@/features/agency/queries';
 import type { AgencyWebsite, WebsiteListFilters } from '@/features/agency/types';
+import { agencySiteHref } from '@/lib/demo/agency-mode';
 import { AddWebsiteDialog } from './AddWebsiteDialog';
 import { InstallDrawer } from './InstallDrawer';
 import { EmptyState, LoadingRow, Panel, Pill, WorkspacePage, useDebounced } from './ui';
@@ -163,7 +164,7 @@ export function WebsitesView() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem asChild>
-                            <Link href={`/websites/${w.id}`}><ArrowUpRight className="mr-2 h-3.5 w-3.5" />Open dashboard</Link>
+                            <Link href={agencySiteHref(w.id)}><ArrowUpRight className="mr-2 h-3.5 w-3.5" />Open dashboard</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setInstalling(w)}><Code2 className="mr-2 h-3.5 w-3.5" />Install & embed</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setMoving(w)}><ArrowRightLeft className="mr-2 h-3.5 w-3.5" />Move to client</DropdownMenuItem>

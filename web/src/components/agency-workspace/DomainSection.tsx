@@ -51,6 +51,7 @@ export function DomainSection() {
   const domain = useDomain();
   const [hostname, setHostname] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showRecords, setShowRecords] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
   const save = useAgencyMutation(setDomain);
   const refresh = useAgencyMutation(refreshDomain);
@@ -116,7 +117,7 @@ export function DomainSection() {
             <Pill tone={look.tone} data-testid="domain-state"><Icon className="h-3 w-3" />{DOMAIN_STATES[d.state].label}</Pill>
           </div>
           <div className="flex gap-1.5">
-            {d.state !== 'active' && (
+            {(
               <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" disabled={refresh.isPending}
                 onClick={() => refresh.mutate(undefined, { onSuccess: put, onError: fail })}>
                 <RefreshCw className={cn('h-3.5 w-3.5', refresh.isPending && 'animate-spin')} />Check now
@@ -143,9 +144,16 @@ export function DomainSection() {
         {d.reason && d.state !== 'active' && (
           <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{d.reason}</p>
         )}
-        {d.state !== 'active' && (
+        {d.state === 'active' && (
+          <button type="button" className="text-xs font-medium text-primary hover:underline" aria-expanded={showRecords} onClick={() => setShowRecords(v => !v)}>
+            {showRecords ? 'Hide DNS records' : 'Show DNS records'}
+          </button>
+        )}
+        {(d.state !== 'active' || showRecords) && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-foreground">Add {d.ownership_verification ? 'these records' : 'this record'} at your DNS provider</p>
+            <p className="text-xs font-medium text-foreground">
+              {d.state === 'active' ? 'Keep these records at your DNS provider' : `Add ${d.ownership_verification ? 'these records' : 'this record'} at your DNS provider`}
+            </p>
             <DnsRecord type="CNAME" name={d.hostname} value={d.cname_target} />
             {d.ownership_verification && (
               <DnsRecord type={d.ownership_verification.type.toUpperCase()} name={d.ownership_verification.name} value={d.ownership_verification.value} />

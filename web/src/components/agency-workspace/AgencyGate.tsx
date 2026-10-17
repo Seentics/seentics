@@ -4,13 +4,23 @@ import { useEffect, type ReactNode } from 'react';
 import { AgencyPlanPrompt } from './AgencyPlanPrompt';
 import { isAgencyPlanRequired, useAgencyPlan } from '@/features/agency/plan';
 import { useSetup } from '@/features/agency/queries';
+import { useAgencyDemo } from '@/lib/demo/agency-mode';
 import { useHomeWebsite } from './use-home-website';
 
 /**
- * The workspace takes the Agency plan. Entitlements decide up front; a 403 `agency_plan_required`
+ * The workspace takes the Agency plan (the agency demo, `?demo=1`, excepted). Entitlements decide up front; a 403 `agency_plan_required`
  * from the API (read on the setup call every page shares) shows the prompt all the same.
  */
 export function AgencyGate({ children }: { children: ReactNode }) {
+  const demo = useAgencyDemo();
+  // Until the demo switch is read (after mount), nothing: no entitlements or API call goes out
+  // for a visitor who is only looking at the demo. The demo has no plan to check.
+  if (demo === null) return null;
+  if (demo) return <>{children}</>;
+  return <PlanGate>{children}</PlanGate>;
+}
+
+function PlanGate({ children }: { children: ReactNode }) {
   const { allowed, markRefused } = useAgencyPlan();
   const setup = useSetup();
   const home = useHomeWebsite();
