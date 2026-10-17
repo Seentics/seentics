@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
 import { Menu, X, Github, Gauge, ChevronDown, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { isEnterprise } from '@/lib/features';
 import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -104,7 +105,7 @@ function ProductsNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Products &amp; Tools
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -246,7 +247,7 @@ function UseCasesNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Use cases
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -321,7 +322,7 @@ function IntegrationsNavItem() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
         Integrations
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -409,6 +410,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   // getting crowded.
   const navLinks = [
     { name: 'Docs',      href: '/docs' },
+    // Cloud only, like the page itself.
+    ...(isEnterprise ? [{ name: 'For agencies', href: '/agencies' }] : []),
     { name: 'Pricing',   href: anchorHref('#pricing') },
   ];
 
@@ -433,8 +436,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             an enterprise product's header reads — not split across a
             centered nav and a separate right cluster that visually competes
             with it. */}
-        <div className="hidden lg:flex items-center gap-7">
-          <nav className="flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-5 xl:gap-7">
+          <nav className="flex items-center gap-5 xl:gap-6">
             <ProductsNavItem />
             <UseCasesNavItem />
             <IntegrationsNavItem />
@@ -442,7 +445,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
               <Link
                 key={link.name}
                 href={link.href}
-                className="text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+                className="whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
               >
                 {link.name}
               </Link>
@@ -450,13 +453,13 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
           </nav>
 
           <div className="flex items-center gap-0.5">
-            <Link href="https://github.com/Seentics/seentics" target="_blank">
+            <Link href="https://github.com/Seentics/seentics" target="_blank" className="hidden xl:inline-flex">
               <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Seentics on GitHub">
                 <Github className="h-4 w-4" />
               </Button>
             </Link>
 
-            <span className="mx-2 h-5 w-px bg-border" aria-hidden />
+            <span className="mx-2 hidden h-5 w-px bg-border xl:block" aria-hidden />
 
             <ThemeToggle />
             {isAuthenticated ? (

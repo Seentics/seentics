@@ -77,20 +77,22 @@ describe('PlanBuilder', () => {
     render(<PlanBuilder />);
     expect(screen.getByText('Move to Pro any time')).toBeTruthy();
     expect(screen.getAllByText('heatmaps, funnels, automations').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('client workspaces and websites')).toHaveLength(1);
+    expect(screen.getAllByText('client workspaces')).toHaveLength(1);
+    expect(screen.getAllByText('Agency features')).toHaveLength(1);
     expect(screen.queryByText(/Agency: client/)).toBeNull();
     expect(screen.queryByText(/logs, traces/)).toBeNull();
   });
 });
 
 describe('the Agency card', () => {
-  it('has its badge, pitch and client access on your own domain', () => {
+  it('has its badge, pitch, and its features with what is not live yet marked Soon', () => {
     render(<PlanBuilder />);
     expect(screen.getByText('For agencies')).toBeTruthy();
     expect(screen.getByText('Most popular')).toBeTruthy();
     expect(screen.getByText('For agencies managing multiple client sites')).toBeTruthy();
-    const access = screen.getByText('Client access and white-label reports on your own domain');
-    expect(access.parentElement!.textContent).not.toContain('Coming soon');
+    expect(screen.getByText('White-label branding: your logo, colours and name').parentElement!.textContent).not.toContain('Soon');
+    expect(screen.getByText('Client dashboards on your own domain').parentElement!.textContent).toContain('Soon');
+    expect(screen.getByText('Client sign-in with pages you choose').parentElement!.textContent).toContain('Soon');
   });
 });
 

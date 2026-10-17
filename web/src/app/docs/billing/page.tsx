@@ -29,8 +29,9 @@ export default function BillingPage() {
           <Li>
             <strong>Agency</strong>: for agencies managing sites for clients. The largest allowances, extra
             usage, and the agency features — client workspaces, adding websites to clients, embedded
-            dashboards — which the other plans don&apos;t include. Clients and embed links you made before
-            keep working on any plan; only creating new ones needs Agency.
+            dashboards, white-label branding and the agency API — which the other plans don&apos;t include.
+            They need Agency for every action: leaving Agency pauses the workspace, and embed links stop
+            loading within about a minute.
           </Li>
         </Ul>
         <P>

@@ -106,21 +106,33 @@ describe('pricing cards', () => {
     expect(JSON.stringify(cardSectionsFor(PRO))).not.toMatch(/per 1K|per GB|spend cap/);
   });
 
-  it('Agency: the agency copy, client access on your own domain, and overage at the limit', () => {
+  it('Agency: its numbers first, then its own features, then overage at the limit', () => {
     expect(TIER_PITCH.agency).toBe('For agencies managing multiple client sites');
-    const [included, past] = cardSectionsFor(AGENCY);
-    const lines = labels(AGENCY);
-    expect(lines).toContain('Up to 15M events');
-    expect(lines).toContain('Up to 30K session recordings');
-    expect(lines).toContain('Unlimited client workspaces and websites');
-    expect(lines).toContain('Unlimited heatmaps, funnels, automations');
-    expect(lines).toContain('Unlimited ad platforms for server-side conversions');
-    expect(lines).toContain('200K contacts & form submissions a month');
-    expect(lines).toContain('1K AI analyses');
-    expect(lines).toContain('3 years analytics retention, 90 days replay retention');
-    expect(lines).toContain('Priority support and personal onboarding');
-    expect(included!.items.map((i) => i.label)).toContain('Client access and white-label reports on your own domain');
-    expect(JSON.stringify(cardSectionsFor(AGENCY))).not.toMatch(/soon/i);
+    const sections = cardSectionsFor(AGENCY);
+    expect(sections.map((x) => x.title)).toEqual(['Included every month', 'Agency features', 'At the limit']);
+    const [included, features, past] = sections;
+    const line = (i: { value: string; label: string }) => (i.value ? `${i.value} ${i.label}` : i.label);
+    expect(included!.items.map(line)).toEqual([
+      'Up to 15M events',
+      'Up to 30K session recordings',
+      '200K contacts & form submissions a month',
+      '1K AI analyses',
+      'Unlimited websites',
+      'Unlimited heatmaps, funnels, automations',
+      'Unlimited ad platforms for server-side conversions',
+      '3 years analytics retention, 90 days replay retention',
+    ]);
+    expect(features!.items.map(line)).toEqual([
+      'Unlimited client workspaces',
+      'White-label branding: your logo, colours and name',
+      'Client dashboards on your own domain',
+      'Client sign-in with pages you choose',
+      'Embeddable client dashboards',
+      'Agency API for clients, sites and usage',
+      'Priority support and personal onboarding',
+    ]);
+    // Not live yet: marked soon until client sign-in and own-domain serving ship.
+    expect(features!.items.filter((i) => i.soon).map((i) => i.label)).toEqual(['Client dashboards on your own domain', 'Client sign-in with pages you choose']);
     expect(past!.items.map((i) => i.label)).toEqual(['Overage instead of pausing, with Extra usage', 'An alert at 80% of each allowance']);
   });
 
@@ -197,11 +209,14 @@ describe('comparison table', () => {
     for (const plan of [FREE, STARTER, PRO]) {
       expect(cell('Client workspaces', plan)).toBe(false);
       expect(cell('Embedded client dashboards', plan)).toBe(false);
-      expect(cell('Client access & white-label reports', plan)).toBe(false);
+      expect(cell('White-label branding', plan)).toBe(false);
+      expect(cell('Client sign-in (soon)', plan)).toBe(false);
     }
     expect(cell('Client workspaces', AGENCY)).toBe('Unlimited');
     expect(cell('Embedded client dashboards', AGENCY)).toBe(true);
-    expect(cell('Client access & white-label reports', AGENCY)).toBe(true);
+    expect(cell('White-label branding', AGENCY)).toBe(true);
+    expect(cell('Client dashboards on your own domain (soon)', AGENCY)).toBe('Soon');
+    expect(cell('Client sign-in (soon)', AGENCY)).toBe('Soon');
     // Account keys stay on every plan.
     expect(cell('API access with account keys', FREE)).toBe(true);
     expect(cell('Support', AGENCY)).toBe('Priority, with onboarding');

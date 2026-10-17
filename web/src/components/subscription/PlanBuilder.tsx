@@ -81,13 +81,13 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
         key={plan.id}
         className={cn(
           // Separate cards on small screens; from lg one panel, the plans side by side with a
-          // divider between them (the panel draws the border, so each column is wider).
+          // divider between them (the panel draws the border, so each column is wider). Pro is told
+          // apart by its badge alone.
           'relative flex min-w-0 flex-col rounded-2xl border border-border bg-card p-6',
           'lg:rounded-none lg:border-0 lg:bg-transparent lg:p-6 xl:p-7',
-          featured && 'border-primary bg-primary/[0.04] lg:bg-primary/[0.04]',
+          featured && 'border-primary lg:border-0',
         )}
       >
-        {featured && <span aria-hidden className="absolute inset-x-0 top-0 hidden h-0.5 bg-primary lg:block" />}
         <div className="mb-3 h-5">
           {featured && (
             <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
@@ -142,6 +142,9 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
                         <a href={item.href} className="font-medium text-primary hover:underline">{item.label}</a>
                       ) : (
                         <span className="text-muted-foreground">{item.label}</span>
+                      )}
+                      {item.soon && (
+                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Soon</span>
                       )}
                     </span>
                   </li>

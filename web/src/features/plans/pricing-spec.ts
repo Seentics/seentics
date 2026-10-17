@@ -155,7 +155,8 @@ export const isMetered = (plan: PricedPlan, product: string, key: string) =>
 // Cards: a short list, one line per allowance. The rest is in the comparison table.
 
 /** `value` empty: a plain line, shown as its label alone. `href`: the line is a link. */
-export type Highlight = { value: string; label: string; href?: string };
+/** `soon`: sold with the plan but not live yet; the card says so rather than promise it. */
+export type Highlight = { value: string; label: string; href?: string; soon?: boolean };
 export type CardSection = { title: string; items: Highlight[] };
 
 const plural = (value: number | undefined, one: string, many: string) => (value === 1 ? one : many);
@@ -185,26 +186,22 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   const agency = hasAgencyFeatures(plan);
   const replayRetention = core('replay_retention_days');
 
+  // One order on every card, so the columns read alike: how much (events, recordings, contacts, AI),
+  // then what (websites, heatmaps and the rest, ad platforms), then how long it is kept. Agency's
+  // own features follow in a section of their own.
   const included: Highlight[] = [
     // "Up to": every plan stops at these by default, so the bill is predictable.
     { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
     ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
-    // Agency: one line for both retentions, as the card's copy reads.
-    agency && has(replays) && replayRetention !== undefined
-      ? { value: formatDays(core('retention_days')), label: `analytics retention, ${formatDays(replayRetention)} replay retention` }
-      : { value: formatDays(core('retention_days')), label: 'analytics retention' },
-    agency
-      ? { value: formatCount(core('websites')), label: 'client workspaces and websites' }
-      : { value: formatCount(core('websites')), label: 'websites' },
-    ...(agency ? [{ value: '', label: 'Client access and white-label reports on your own domain' }] : []),
+    ...(has(leads) ? [{ value: formatCount(leads), label: 'contacts & form submissions a month' }] : []),
+    { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
+    { value: formatCount(core('websites')), label: 'websites' },
     everything
       ? { value: 'Unlimited', label: 'heatmaps, funnels, automations' }
       : {
           value: '',
           label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
         },
-    ...(has(leads) ? [{ value: formatCount(leads), label: 'contacts & form submissions a month' }] : []),
-    { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
     // Server-side conversions: only where the catalogue states the limit (gateway db/sql/042).
     ...(core('conversion_destinations') !== undefined && core('conversion_destinations') !== 0
       ? [{
@@ -212,8 +209,26 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
           label: `${plural(core('conversion_destinations')!, 'ad platform', 'ad platforms')} for server-side conversions`,
         }]
       : []),
-    ...(agency ? [{ value: '', label: 'Priority support and personal onboarding' }] : []),
+    // Agency: one line for both retentions, as the card's copy reads.
+    agency && has(replays) && replayRetention !== undefined
+      ? { value: formatDays(core('retention_days')), label: `analytics retention, ${formatDays(replayRetention)} replay retention` }
+      : { value: formatDays(core('retention_days')), label: 'analytics retention' },
   ];
+
+  // What only Agency has, after its numbers. Client sign-in (phase 2) and serving the dashboard on
+  // the agency's own domain (phase 3) are not live yet: marked soon until they are.
+  const agencyFeatures: CardSection = {
+    title: 'Agency features',
+    items: [
+      { value: formatCount(core('websites')), label: 'client workspaces' },
+      { value: '', label: 'White-label branding: your logo, colours and name' },
+      { value: '', label: 'Client dashboards on your own domain', soon: true },
+      { value: '', label: 'Client sign-in with pages you choose', soon: true },
+      { value: '', label: 'Embeddable client dashboards' },
+      { value: '', label: 'Agency API for clients, sites and usage' },
+      { value: '', label: 'Priority support and personal onboarding' },
+    ],
+  };
 
   // Free and Starter stop at a limit. Pro can turn on Extra usage from Billing; Agency is sold on
   // going past its amounts as overage instead of pausing, with an alert at 80% before it does.
@@ -225,7 +240,9 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
         ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Move to Pro any time' }] }
         : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
 
-  return [{ title: 'Included every month', items: included }, past];
+  return agency
+    ? [{ title: 'Included every month', items: included }, agencyFeatures, past]
+    : [{ title: 'Included every month', items: included }, past];
 }
 
 // ---------------------------------------------------------------------------
@@ -304,7 +321,9 @@ export const COMPARE_GROUPS: CompareGroup[] = [
       { label: 'Client workspaces', value: (p) => (hasAgencyFeatures(p) ? 'Unlimited' : false) },
       { label: 'Embedded client dashboards', value: hasAgencyFeatures },
       { label: 'Client management API', value: hasAgencyFeatures },
-      { label: 'Client access & white-label reports', value: hasAgencyFeatures },
+      { label: 'White-label branding', value: hasAgencyFeatures },
+      { label: 'Client dashboards on your own domain (soon)', value: (p) => (hasAgencyFeatures(p) ? 'Soon' : false) },
+      { label: 'Client sign-in (soon)', value: (p) => (hasAgencyFeatures(p) ? 'Soon' : false) },
     ],
   },
 ];

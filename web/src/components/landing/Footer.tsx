@@ -4,6 +4,7 @@ import { Logo } from '@/components/ui/logo';
 import { FaDiscord } from 'react-icons/fa';
 import { Github } from 'lucide-react';
 import Link from 'next/link';
+import { isEnterprise } from '@/lib/features';
 import { usePathname } from 'next/navigation';
 
 export default function Footer() {
@@ -18,8 +19,8 @@ export default function Footer() {
   return (
     <footer className="border-t border-border py-16 bg-background dark:border-border/40">
       <div className="landing-container">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
-          <div className="col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 gap-10 md:grid-cols-3 lg:grid-cols-6">
+          <div className="col-span-2 md:col-span-3 lg:col-span-1">
             <div className="mb-4">
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
@@ -33,9 +34,22 @@ export default function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href={anchor('#why')} className="hover:text-foreground transition-colors">Products</Link></li>
               <li><Link href={anchor('#pricing')} className="hover:text-foreground transition-colors">Pricing</Link></li>
+              <li><Link href="/docs" className="hover:text-foreground transition-colors">Docs</Link></li>
               <li><Link href={anchor('#faq')} className="hover:text-foreground transition-colors">FAQ</Link></li>
             </ul>
           </div>
+
+          {/* Cloud only: a self-hosted install has no Agency plan (/agencies is not built there). */}
+          {isEnterprise && (
+          <div>
+            <h3 className="text-sm font-medium text-foreground mb-4">Agencies</h3>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li><Link href="/agencies" className="hover:text-foreground transition-colors">For agencies</Link></li>
+              <li><Link href="/agency?demo=1" className="hover:text-foreground transition-colors">Agency demo</Link></li>
+              <li><Link href="/docs/agency/api" className="hover:text-foreground transition-colors">Agency API</Link></li>
+            </ul>
+          </div>
+          )}
 
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Company</h3>
