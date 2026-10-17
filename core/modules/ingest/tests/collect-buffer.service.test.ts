@@ -287,3 +287,51 @@ describe("CollectBuffer", () => {
     });
   });
 });
+
+// Postgres refuses a NUL character or a lone surrogate in jsonb, and every visitor of a site
+// shares one batch per flush. One anonymous event carrying "\u0000" used to fail that batch
+// on every retry until it was dropped, taking everyone else's events with it.
+describe("CollectBuffer: rows Postgres would refuse", () => {
+  /** Rejects a payload the way Postgres does: SQLSTATE 22P05 for a NUL in jsonb. */
+  class StrictQueue extends FakeQueue {
+    attempts = 0;
+    override async enqueue(batch: Enqueued): Promise<void> {
+      this.attempts += 1;
+      if (batch.payloadJson.includes("\\u0000") || batch.payloadJson.includes("POISON")) {
+        throw Object.assign(new Error("unsupported Unicode escape sequence"), { code: "22P05" });
+      }
+      this.written.push(batch);
+    }
+  }
+
+  it("cleans NUL and lone surrogates before they reach the queue", async () => {
+    const queue = new StrictQueue();
+    const buffer = new CollectBuffer(registry(), queue, silentLogger);
+    buffer.configure(cfg());
+    buffer.enqueue("analytics", "site_a", [
+      { type: "pageview", url: "/a\u0000b", data: { "k\u0000": "\uD800x" } },
+      ...rows(3),
+    ]);
+    await buffer.flushNow();
+
+    expect(queue.written).toHaveLength(1);
+    const stored = JSON.parse(queue.written[0]!.payloadJson).rows;
+    expect(stored).toHaveLength(4);
+    expect(stored[0]).toEqual({ type: "pageview", url: "/ab", data: { k: "�x" } });
+  });
+
+  it("keeps everyone else's rows when one row is still refused, and does not retry it", async () => {
+    const queue = new StrictQueue();
+    const buffer = new CollectBuffer(registry(), queue, silentLogger);
+    buffer.configure(cfg());
+    buffer.enqueue("analytics", "site_a", [...rows(5), { type: "pageview", url: "POISON" }, ...rows(4)]);
+    await buffer.flushNow();
+
+    const landed = queue.written.reduce((n, b) => n + b.rowCount, 0);
+    expect(landed).toBe(9);
+    expect(queue.written.some((b) => b.payloadJson.includes("POISON"))).toBe(false);
+    expect(buffer.depth().analytics).toBe(0);
+    await buffer.flushNow();
+    expect(queue.written.reduce((n, b) => n + b.rowCount, 0)).toBe(9);
+  });
+});

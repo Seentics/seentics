@@ -65,3 +65,17 @@ describe("normalizeHostname", () => {
     expect(() => normalizeHostname("   ")).toThrow("invalid website URL format");
   });
 });
+
+describe("normalizeHostname: addresses that used to be stored unmatchable", () => {
+  it("drops a trailing dot, which browsers never send in Origin", () => {
+    expect(normalizeHostname("example.com.")).toBe("example.com");
+  });
+  it("refuses a doubled scheme instead of storing the host as \"https\"", () => {
+    expect(() => normalizeHostname("https://HTTPS://Example.com")).toThrow();
+    expect(() => normalizeHostname("https://http://example.com")).toThrow();
+  });
+  it("still accepts hosts that merely start with http", () => {
+    expect(normalizeHostname("httpie.io")).toBe("httpie.io");
+    expect(normalizeHostname("HTTPS://Example.com/x")).toBe("example.com");
+  });
+});

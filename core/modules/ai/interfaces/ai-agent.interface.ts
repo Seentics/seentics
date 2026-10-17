@@ -31,7 +31,7 @@ export interface AiAgent {
     recommendationId?: string;
   }): Promise<AgentAnswer>;
 
-  conversation(userId: string, conversationId: string): Promise<ConversationTurn[]>;
+  conversation(userId: string, websiteId: string, conversationId: string): Promise<ConversationTurn[]>;
 
   /** This user's threads on one website, newest first. Backs the sidebar. */
   conversations(userId: string, websiteId: string): Promise<ConversationSummary[]>;

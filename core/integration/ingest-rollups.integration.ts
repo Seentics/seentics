@@ -179,6 +179,35 @@ describe("rebuilding from stale markers", () => {
     expect(await snapshot()).toEqual(first);
     expect(first.length).toBeGreaterThan(5);
   });
+
+  // A value over Postgres's ~2.7 KB index-entry limit failed the whole site-day's rebuild, on
+  // every run: one tracker request with a long random utm_source froze that day's dashboard.
+  it("rebuilds a day whose events carry values too long for the rollup key", async () => {
+    const owner = await seedUser();
+    const s = await seedWebsite(owner.id);
+    const random = (n: number) => Array.from({ length: n }, () => Math.random().toString(36).slice(2)).join("").slice(0, n);
+    // As long as ingest lets them through: UTM tags at 256 characters, a non-Latin path at
+    // ~2 KB. Fine for the raw table's indexes; together, as page_utm, past the key's limit.
+    const long = random(256);
+    const cjkPath = `https://x.test/${"\u6f22".repeat(670)}`;
+    const a = sid();
+    await insertEvents(s.id, [
+      { session: a, visitor: "va", page: cjkPath, at: new Date(Date.now() - 60_000), utm: { source: long, medium: long, campaign: long } },
+      { session: a, visitor: "va", page: "https://x.test/ok", at: new Date(Date.now() - 30_000) },
+      { type: "custom", session: a, visitor: "va", at: new Date(Date.now() - 20_000), properties: { name: random(5000) } },
+    ]);
+    const today = utcDay(new Date());
+    await rebuildWebsiteDay(s.id, today);
+    const rows = await sql<{ dimension: string; n: number }[]>`
+      SELECT dimension, max(length(value))::int AS n FROM analytics_rollup_daily
+      WHERE website_id = ${s.id} AND day = ${today}::date GROUP BY dimension`;
+    const byDim = Object.fromEntries(rows.map((r) => [r.dimension, r.n]));
+    expect(byDim.site).toBeDefined();
+    expect(byDim.utm_source).toBe(256);
+    expect(byDim.page).toBeLessThanOrEqual(500);
+    expect(byDim.page_utm).toBe(500);
+    expect(byDim.custom_name).toBe(500);
+  });
 });
 
 describe("rollup reads match the raw-event reads", () => {

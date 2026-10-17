@@ -25,12 +25,31 @@ const ANALYTICS_SKIP = new Set([
 // and take the whole INSERT (and batch) down with it.
 const MAX_EVENT_TYPE_LEN = 64;
 const MAX_TEXT_LEN = 2048;
+/**
+ * Short descriptive fields: UTM tags, language, browser, device, OS. Each becomes a value
+ * in the daily rollups' primary key, which Postgres caps at about 2.7 KB, so an uncapped
+ * one (6 KB of random `utm_source`) failed that site-day's rollup on every rebuild.
+ */
+const MAX_DIM_LEN = 256;
 const MAX_ID_LEN = 128;
 const MAX_PROPERTIES_JSON_CHARS = 32 * 1024;
 
 function capStr(v: string | null | undefined, max: number): string | null {
   if (v == null) return null;
   return v.length > max ? v.slice(0, max) : v;
+}
+
+const utf8 = new TextEncoder();
+/**
+ * Cap by UTF-8 bytes as well as characters. Page and referrer are indexed on Postgres without
+ * TimescaleDB (self-hosted), and an index entry may not exceed ~2.7 KB: 2,048 characters of a
+ * non-Latin path is ~6 KB and failed the insert of the whole batch it was in.
+ */
+function capText(v: string | null | undefined, maxChars: number, maxBytes = 2048): string | null {
+  let s = capStr(v, maxChars);
+  if (s == null || s.length * 3 <= maxBytes) return s;
+  while (utf8.encode(s).length > maxBytes) s = s.slice(0, Math.floor(s.length * 0.9));
+  return s;
 }
 
 /**
@@ -90,9 +109,14 @@ export async function ingestAnalyticsBatch(
     const sw = pickInt(dm, ["sw", "screen_width"]);
     const sh = pickInt(dm, ["sh", "screen_height"]);
     const ts = new Date(clampClientTs(e.ts, now));
-    const utm = pickUtmColumns(dm);
-    const referrer = capStr(ref, MAX_TEXT_LEN);
-    const page = capStr(e.url ?? "", MAX_TEXT_LEN) ?? "";
+    const picked = pickUtmColumns(dm);
+    const utm = {
+      utmSource: capStr(picked.utmSource, MAX_DIM_LEN),
+      utmMedium: capStr(picked.utmMedium, MAX_DIM_LEN),
+      utmCampaign: capStr(picked.utmCampaign, MAX_DIM_LEN),
+    };
+    const referrer = capText(ref, MAX_TEXT_LEN);
+    const page = capText(e.url ?? "", MAX_TEXT_LEN) ?? "";
     rows.push({
       websiteId: websiteId,
       eventType: t,
@@ -104,10 +128,10 @@ export async function ingestAnalyticsBatch(
       country: meta?.country ?? null,
       region: meta?.region ?? null,
       city: meta?.city ?? null,
-      browser: meta?.browser ?? pickStr(dm, ["browser"]) ?? null,
-      device: meta?.device ?? pickStr(dm, ["device", "device_type"]) ?? null,
-      os: meta?.os ?? pickStr(dm, ["os", "os_name"]) ?? null,
-      language: lang ?? null,
+      browser: capStr(meta?.browser ?? pickStr(dm, ["browser"]) ?? null, MAX_DIM_LEN),
+      device: capStr(meta?.device ?? pickStr(dm, ["device", "device_type"]) ?? null, MAX_DIM_LEN),
+      os: capStr(meta?.os ?? pickStr(dm, ["os", "os_name"]) ?? null, MAX_DIM_LEN),
+      language: capStr(lang ?? null, MAX_DIM_LEN),
       screenWidth: sw ?? null,
       screenHeight: sh ?? null,
       utmSource: utm.utmSource,

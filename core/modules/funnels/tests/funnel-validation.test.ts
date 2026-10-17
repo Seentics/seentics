@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { toProgressStep } from "../lib/funnel-step-definition";
 import { MAX_WINDOW_HOURS, validateFunnelDefinition, FunnelValidationError } from "../lib/funnel-validation";
 
 const valid = async (pattern: string) => !pattern.includes("(?<") && !pattern.startsWith("(unclosed");
@@ -48,5 +49,27 @@ describe("validateFunnelDefinition", () => {
     const error = new FunnelValidationError(["one", "two"]);
     expect(error.issues).toEqual(["one", "two"]);
     expect(error.message).toBe("one");
+  });
+});
+
+// A step saved with a number where text belongs used to be accepted, then broke the stats of
+// every funnel on the site (500 on /funnels/stats) because the report called .trim() on it.
+describe("funnel steps must hold text", () => {
+  const ok = async () => true;
+  it("refuses a non-string path or event name", async () => {
+    expect(await validateFunnelDefinition({ steps: [{ step_type: "page_view", page_path: 5 }] }, ok)).toHaveLength(1);
+    expect(await validateFunnelDefinition({ steps: [{ step_type: "event", event_type: { x: 1 } }] }, ok)).toHaveLength(1);
+  });
+  it("refuses steps that are not a list of objects, and a non-text name", async () => {
+    expect(await validateFunnelDefinition({ steps: {} }, ok)).toEqual(["Steps must be a list of steps."]);
+    expect(await validateFunnelDefinition({ steps: [null] }, ok)).toEqual(["Steps must be a list of steps."]);
+    expect(await validateFunnelDefinition({ name: 42 }, ok)).toHaveLength(1);
+  });
+  it("still accepts ordinary steps", async () => {
+    expect(await validateFunnelDefinition({ name: "Checkout", steps: [{ step_type: "page_view", page_path: "/cart" }, { step_type: "event", event_type: "purchase" }] }, ok)).toEqual([]);
+  });
+  it("reads an already-stored bad step as unreachable instead of throwing", () => {
+    expect(toProgressStep({ step_type: "page_view", page_path: 5 } as never)).toBeNull();
+    expect(toProgressStep({ step_type: "event", event_type: 7 } as never)).toBeNull();
   });
 });

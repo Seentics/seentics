@@ -26,7 +26,12 @@ export function normalizeHostname(raw: string): string {
     throw new Error("invalid website URL format");
   }
 
-  if (hostname === "") throw new Error("invalid website URL format");
+  // A fully qualified name's trailing dot ("example.com.") is the same host, but browsers
+  // send Origin without it, so stored with it no event would ever match.
+  hostname = hostname.replace(/\.+$/, "");
+  // "https://HTTPS://example.com" parses, with "https" as the host: what a form produced when
+  // it added a scheme to an address that already had one in capitals. Never a real site.
+  if (hostname === "" || hostname === "http" || hostname === "https") throw new Error("invalid website URL format");
 
   // `www.` is a serving detail, not an identity. Stripped so a visitor on the
   // apex and one on www are attributed to the same site.

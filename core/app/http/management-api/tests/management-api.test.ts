@@ -110,7 +110,7 @@ describe("management API auth", () => {
   });
 
   it("takes sections on create and changes them with PATCH, the token unchanged", async () => {
-    const { routes, embedLinks } = await app();
+    const { routes, embedLinks } = await app(["websites:read", "websites:write", "replays:read", "heatmaps:read"]);
     const headers = { "X-API-Key": KEY, "Content-Type": "application/json" };
     for (const [path, id] of [["websites", SITE], ["clients", CLIENT]] as const) {
       const url = `/${path}/${id}/embed-link`;
@@ -134,5 +134,20 @@ describe("management API auth", () => {
     // PATCH needs the write scope.
     const ro = await app(["websites:read"]);
     expect((await ro.routes.request(`/websites/${SITE}/embed-link`, { method: "PATCH", headers, body: JSON.stringify({ sections: ["analytics"] }) })).status).toBe(403);
+  });
+
+  // A key with only the website scopes used to mint links exposing real visitors' replays and
+  // heatmaps. Analytics embeds stay what `websites:write` manages.
+  it("needs the replay or heatmap read scope to expose those sections", async () => {
+    const { routes } = await app(["websites:read", "websites:write"]);
+    const headers = { "X-API-Key": KEY, "Content-Type": "application/json" };
+    const url = `/websites/${SITE}/embed-link`;
+    for (const sections of [["recordings"], ["heatmaps"], ["analytics", "recordings"]]) {
+      const res = await routes.request(url, { method: "POST", headers, body: JSON.stringify({ sections }) });
+      expect(res.status).toBe(403);
+      expect((await res.json()).code).toBe("insufficient_scope");
+    }
+    expect((await routes.request(url, { method: "POST", headers, body: JSON.stringify({ sections: ["analytics"] }) })).status).toBe(201);
+    expect((await routes.request(url, { method: "PATCH", headers, body: JSON.stringify({ sections: ["recordings"] }) })).status).toBe(403);
   });
 });

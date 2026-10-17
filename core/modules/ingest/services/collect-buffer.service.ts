@@ -1,4 +1,5 @@
 import { serializeBatch } from "../../../platform/idempotency/batch-id";
+import { makeJsonbSafe } from "../../../platform/validation/jsonb-safe";
 import type { AppConfig } from "../../../config";
 import { log as baseLog } from "../../../platform/observability/logger";
 import type { Logger } from "../../../platform/observability/logger";
@@ -141,6 +142,9 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
 
   enqueue(lane: IngestLane, websiteId: string, rows: readonly unknown[]): { accepted: number; dropped: number } {
     if (!rows.length) return { accepted: 0, dropped: 0 };
+    // Before anything is merged with other visitors' rows: a NUL or lone surrogate in one
+    // event would otherwise fail the whole site's batch on every retry (see jsonb-safe.ts).
+    makeJsonbSafe(rows);
     const spec = this.registry[lane];
 
     // Bytes before rows, where a lane declares a ceiling: one screenshot is worth ten
@@ -276,6 +280,20 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
       coreMetrics.ingestBatchesQueued.add(1, { lane, outcome: "queued" });
       this.log.debug({ msg: "ingest_batch_queued", lane, partition: partitionKey, rows: rows.length });
     } catch (err) {
+      // Rejected for its content, not for an outage: retrying the same rows fails the same
+      // way, and they are many visitors' rows merged together. Split the batch so the bad
+      // row is isolated and everything else still lands; a lone bad row is dropped.
+      if (isDataError(err)) {
+        if (rows.length > 1) {
+          const mid = rows.length >> 1;
+          await this.queueBatch(lane, partitionKey, rows.slice(0, mid));
+          await this.queueBatch(lane, partitionKey, rows.slice(mid));
+          return;
+        }
+        coreMetrics.ingestRowsDropped.add(1, { lane, reason: "invalid_row" });
+        this.log.warn({ msg: "ingest_row_rejected", lane, partition: partitionKey, error: errText(err) });
+        return;
+      }
       this.requeue(lane, partitionKey, rows, err);
     }
   }
@@ -328,6 +346,16 @@ export class CollectBuffer implements IngestQueue, IngestFlusher {
       error,
     });
   }
+}
+
+/**
+ * Postgres refused the data itself (a bad character, an out-of-range value, malformed JSON,
+ * a value too long to index), as opposed to being unreachable or overloaded.
+ */
+export function isDataError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  // 22: data exception. 54: program limit exceeded — a value too big for an index entry.
+  return typeof code === "string" && (code.startsWith("22") || code.startsWith("54"));
 }
 
 function attemptKey(lane: IngestLane, partitionKey: string): string {

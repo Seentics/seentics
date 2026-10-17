@@ -172,6 +172,7 @@ export class PostgresAiRepository implements AiRepository {
 
   async conversation(
     userId: string,
+    websiteId: string,
     conversationId: string,
     limit: number,
   ): Promise<ConversationTurn[]> {
@@ -189,7 +190,9 @@ export class PostgresAiRepository implements AiRepository {
       // Owner is part of the lookup, not a check afterwards: a conversation id is a UUID
       // that could be held from a log or a shared link, and who is asking is the only
       // thing that should decide whether it reads.
-      .where(and(eq(aiQueries.userId, userId), eq(aiQueries.conversationId, conversationId)))
+      // And the website: someone removed from a site kept reading (and continuing) its threads
+      // through any other site they could still open, because only the user was checked.
+      .where(and(eq(aiQueries.userId, userId), eq(aiQueries.websiteId, websiteId), eq(aiQueries.conversationId, conversationId)))
       // The newest `limit` turns, then put back in reading order. Ascending with a limit
       // would return the *oldest* turns and freeze a long conversation's context.
       .orderBy(desc(aiQueries.createdAt))

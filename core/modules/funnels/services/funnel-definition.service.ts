@@ -20,7 +20,7 @@ export class FunnelDefinitionService implements FunnelQuery, FunnelMutations {
   /** `isValidPattern` asks the database whether a regular expression is one it can run. */
   constructor(private readonly isValidPattern: (pattern: string) => Promise<boolean> = async () => true) {}
 
-  private async check(input: { steps?: Record<string, unknown>[] | undefined; conversion_window_hours?: unknown }) {
+  private async check(input: { name?: unknown; steps?: unknown; conversion_window_hours?: unknown }) {
     const issues = await validateFunnelDefinition(input, this.isValidPattern);
     if (issues.length) throw new FunnelValidationError(issues);
   }

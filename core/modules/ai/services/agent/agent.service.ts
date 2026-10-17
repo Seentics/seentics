@@ -90,7 +90,7 @@ export class AgentService implements AiAgent {
 
     await this.assertUnderDailyCap(input.userId);
 
-    const history = await this.loadHistory(input.userId, conversationId);
+    const history = await this.loadHistory(input.userId, input.websiteId, conversationId);
 
     // Recorded before the call so an attempt that crashes still counts against the cap.
     const queryId = await this.repo.createPending({
@@ -159,8 +159,8 @@ export class AgentService implements AiAgent {
   }
 
   /** One conversation, oldest first. Scoped to its owner by the repository. */
-  conversation(userId: string, conversationId: string): Promise<ConversationTurn[]> {
-    return this.repo.conversation(userId, conversationId, 100);
+  conversation(userId: string, websiteId: string, conversationId: string): Promise<ConversationTurn[]> {
+    return this.repo.conversation(userId, websiteId, conversationId, 100);
   }
 
   /**
@@ -170,8 +170,8 @@ export class AgentService implements AiAgent {
    * They were already reduced to the answer the model gave, and replaying every tool
    * payload would spend the context budget on data the conversation has moved past.
    */
-  private async loadHistory(userId: string, conversationId: string): Promise<ChatMessage[]> {
-    const turns = await this.repo.conversation(userId, conversationId, HISTORY_TURNS * 2);
+  private async loadHistory(userId: string, websiteId: string, conversationId: string): Promise<ChatMessage[]> {
+    const turns = await this.repo.conversation(userId, websiteId, conversationId, HISTORY_TURNS * 2);
     const recent = turns.slice(-HISTORY_TURNS);
 
     const messages: ChatMessage[] = [];

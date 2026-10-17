@@ -33,6 +33,14 @@ const log = baseLog.child({ category: "analytics_rollups" });
  */
 const HLL_PARAMS = "15, 5";
 const VISITOR_KEY = "coalesce(nullif(trim(visitor_id), ''), session_id)";
+/**
+ * A rollup `value`, cut to fit its primary key. Postgres refuses an index entry over
+ * ~2.7 KB, and one over-long value (a 6 KB UTM tag, a long non-Latin path, three such
+ * pages as a `path`) failed the site-day's whole rebuild on every run, freezing that day's
+ * numbers. 500 characters is at most 2 KB of UTF-8. Grouped by the cut value, so two long
+ * values sharing a prefix merge instead of colliding on the key.
+ */
+const keyValue = (expr: string) => `left(${expr}, 500)`;
 /** Most `path` rows kept per site-day — see the path insert in rebuildWebsiteDay. */
 const PATHS_PER_DAY = 1000;
 
@@ -140,7 +148,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
     // Pageview dimensions: every pageview on this day, by the value it carried.
     await tx`
       INSERT INTO analytics_rollup_daily (website_id, day, dimension, value, pageviews, visitors)
-      SELECT ${websiteId}, ${day}::date, d.dim, d.val, count(*),
+      SELECT ${websiteId}, ${day}::date, d.dim, ${u(keyValue("d.val"))}, count(*),
              coalesce(hll_add_agg(hll_hash_text(pv.vk), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)}))
       FROM (
         SELECT
@@ -177,7 +185,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
                           THEN json_build_array(pv.path, pv.utm_source, pv.utm_medium, pv.utm_campaign)::text END)
       ) AS d(dim, val)
       WHERE d.val IS NOT NULL
-      GROUP BY d.dim, d.val
+      GROUP BY d.dim, ${u(keyValue("d.val"))}
     `;
 
     // Session dimensions: sessions that started on this day, by how they arrived and
@@ -185,7 +193,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
     await tx`
       INSERT INTO analytics_rollup_daily
         (website_id, day, dimension, value, pageviews, sessions, bounces, duration_s, visitors)
-      SELECT ${websiteId}, ${day}::date, d.dim, d.val,
+      SELECT ${websiteId}, ${day}::date, d.dim, ${u(keyValue("d.val"))},
              sum(s.pageviews), count(*), count(*) FILTER (WHERE s.pageviews = 1),
              sum(greatest(0, extract(epoch FROM s.ended_at - s.started_at)))::bigint,
              coalesce(hll_add_agg(hll_hash_text(s.visitor_key), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)}))
@@ -200,7 +208,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         ('exit_page', s.exit_path)
       ) AS d(dim, val)
       WHERE s.website_id = ${websiteId} AND s.day = ${day}::date AND d.val IS NOT NULL
-      GROUP BY d.dim, d.val
+      GROUP BY d.dim, ${u(keyValue("d.val"))}
     `;
 
     // Paths (a session's first three pages), capped at the day's top PATHS_PER_DAY by
@@ -214,7 +222,7 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
         (website_id, day, dimension, value, pageviews, sessions, bounces, duration_s, visitors)
       SELECT ${websiteId}, ${day}::date, 'path', val, pageviews, sessions, bounces, duration_s, visitors
       FROM (
-        SELECT array_to_json(s.path_seq)::text AS val,
+        SELECT ${u(keyValue("array_to_json(s.path_seq)::text"))} AS val,
                sum(s.pageviews) AS pageviews, count(*) AS sessions,
                count(*) FILTER (WHERE s.pageviews = 1) AS bounces,
                sum(greatest(0, extract(epoch FROM s.ended_at - s.started_at)))::bigint AS duration_s,
@@ -262,13 +270,13 @@ export async function rebuildWebsiteDay(websiteId: string, day: string): Promise
     // which is what an event goal created for them matches.
     await tx`
       INSERT INTO analytics_rollup_daily (website_id, day, dimension, value, pageviews, sessions, visitors)
-      SELECT ${websiteId}, ${day}::date, 'custom_name', properties->>'name', count(*), count(DISTINCT session_id),
+      SELECT ${websiteId}, ${day}::date, 'custom_name', ${u(keyValue("properties->>'name'"))}, count(*), count(DISTINCT session_id),
              coalesce(hll_add_agg(hll_hash_text(${u(VISITOR_KEY)}), ${u(HLL_PARAMS)}), hll_empty(${u(HLL_PARAMS)}))
       FROM analytics_events
       WHERE website_id = ${websiteId} AND event_type = 'custom'
         AND coalesce(properties->>'name', '') <> ''
         AND occurred_at >= ${dayStart} AND occurred_at < ${dayEnd}
-      GROUP BY properties->>'name'
+      GROUP BY ${u(keyValue("properties->>'name'"))}
     `;
 
     // Event properties: per event type, property and value, how often. Stored in the

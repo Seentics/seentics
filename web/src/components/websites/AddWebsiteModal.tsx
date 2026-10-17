@@ -40,7 +40,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
 
     // Basic URL validation
     try {
-      new URL(url.startsWith('http') ? url : `https://${url}`);
+      new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     } catch {
       toast({
         title: 'Invalid URL',
@@ -62,7 +62,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
     setIsLoading(true);
 
     try {
-      const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+      const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       const website = await addWebsite({ name: name.trim(), url: normalizedUrl }, user.id);
       
       toast({

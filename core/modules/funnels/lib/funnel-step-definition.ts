@@ -9,10 +9,13 @@ import type { FunnelStep } from "../interfaces";
  * rather than by guessing.
  */
 export function toProgressStep(step: FunnelStep): FunnelProgressStep | null {
+  // Steps are stored JSON: one saved before steps were validated can hold a number where a
+  // string belongs, and `.trim()` on it threw — failing the stats of every funnel on the site.
+  const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   if (step.step_type === "event") {
-    const event = (step.event_type ?? "").trim();
+    const event = str(step.event_type);
     return event ? { kind: "event", event } : null;
   }
-  const path = (step.page_path ?? "").trim();
+  const path = str(step.page_path);
   return path ? { kind: "page", path, match: step.match_type ?? "exact" } : null;
 }

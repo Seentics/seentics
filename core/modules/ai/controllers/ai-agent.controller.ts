@@ -124,10 +124,11 @@ export function confirmProposal(
 
 export function getConversation(deps: AiControllerDeps & { agent: AiAgent }) {
   return async (c: Context<{ Variables: AuthVars }>) => {
-    const access = await requireAccess(c, deps, c.req.param("website_id") ?? "");
+    const websiteId = c.req.param("website_id") ?? "";
+    const access = await requireAccess(c, deps, websiteId);
     if (access instanceof Response) return access;
 
-    const turns = await deps.agent.conversation(access.userId, c.req.param("conversation_id") ?? "");
+    const turns = await deps.agent.conversation(access.userId, websiteId, c.req.param("conversation_id") ?? "");
     return c.json({ turns });
   };
 }

@@ -111,6 +111,7 @@ export interface AiRepository {
    */
   conversation(
     userId: string,
+    websiteId: string,
     conversationId: string,
     limit: number,
   ): Promise<ConversationTurn[]>;

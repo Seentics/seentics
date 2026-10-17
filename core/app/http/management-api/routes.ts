@@ -14,7 +14,7 @@
 
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { z } from "zod";
-import { normalizeSections, sectionsSchema, type EmbedSection } from "../../../modules/api-keys/interfaces";
+import { DEFAULT_EMBED_SECTIONS, normalizeSections, sectionsSchema, type EmbedSection } from "../../../modules/api-keys/interfaces";
 import { env } from "../../../config";
 import { takeRateToken } from "../../../platform/cache/token-bucket";
 import type { AuthVars } from "../../../platform/middleware/auth";
@@ -67,6 +67,26 @@ export const requireMethodScope: MiddlewareHandler<{ Variables: Vars }> = async 
   return next();
 };
 
+/**
+ * The read scope an embed section needs beyond `websites:write`. An embed link is a standing
+ * read of that data, so a key may only expose real visitors' sessions and heatmaps if it could
+ * read them itself: with `websites:write` alone, a key minted links showing session replays.
+ * The analytics section is what `websites:write` documents as "manage embed links", unchanged.
+ */
+const SECTION_SCOPE: Record<EmbedSection, AccountScope | null> = {
+  analytics: null,
+  recordings: "replays:read",
+  heatmaps: "heatmaps:read",
+};
+
+function sectionScopeRefusal(c: Context<{ Variables: Vars }>, sections: readonly EmbedSection[]): Response | null {
+  const held = c.get("accountKey").scopes;
+  const missing = sections.map((s) => SECTION_SCOPE[s]).find((scope): scope is AccountScope => scope !== null && !held.includes(scope));
+  return missing
+    ? c.json({ error: `This API key does not have the "${missing}" scope.`, code: "insufficient_scope", required_scope: missing }, 403)
+    : null;
+}
+
 /** The optional (POST) or required (PATCH) `sections` of an embed-link body. */
 async function readSections(c: Context, required: boolean): Promise<{ ok: true; sections?: EmbedSection[] } | { ok: false; res: Response }> {
   const raw = await c.req.text();
@@ -113,6 +133,12 @@ export function createManagementRoutes(deps: {
       if (name === null) return c.json({ error: "not found" }, 404);
       const body = await readSections(c, false);
       if (!body.ok) return body.res;
+      const asked = sectionScopeRefusal(c, body.sections ?? DEFAULT_EMBED_SECTIONS);
+      if (asked) return asked;
+      // POST returns an existing link as is: the key must be able to read what that one shows too.
+      const existing = await deps.embedLinks.findLive(target(id));
+      const shown = existing && sectionScopeRefusal(c, existing.sections);
+      if (shown) return shown;
       const { link, created } = await deps.embedLinks.getOrCreate(ownerId, target(id), body.sections);
       return c.json({ data: await deps.embedLinks.present(link, name) }, created ? 201 : 200);
     });
@@ -125,6 +151,8 @@ export function createManagementRoutes(deps: {
       if (name === null) return c.json({ error: "not found" }, 404);
       const body = await readSections(c, true);
       if (!body.ok) return body.res;
+      const refused = sectionScopeRefusal(c, body.sections!);
+      if (refused) return refused;
       const link = await deps.embedLinks.findLive(target(id));
       const updated = link && (await deps.embedLinks.setSections(link.id, body.sections!));
       if (!updated) return c.json({ error: "not found" }, 404);

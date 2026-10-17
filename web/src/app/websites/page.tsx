@@ -96,7 +96,7 @@ export default function WebsitesOnboardingPage() {
       return;
     }
     try {
-      new URL(url.startsWith('http') ? url : `https://${url}`);
+      new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     } catch {
       toast({
         title: 'Invalid URL',
@@ -108,7 +108,7 @@ export default function WebsitesOnboardingPage() {
     if (!user?.id) return;
     setIsSubmitting(true);
     try {
-      const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+      const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
       const website = await addWebsite({ name: name.trim(), url: normalizedUrl }, user.id);
       setNewlyAddedSiteId(website.id);
       const origin = window.location.origin;
