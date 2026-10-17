@@ -80,23 +80,29 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
       <div
         key={plan.id}
         className={cn(
-          'relative flex min-w-0 flex-col rounded-2xl border bg-card p-6 lg:p-5 xl:p-6',
-          featured ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary' : 'border-border',
+          // Separate cards on small screens; from lg one panel, the plans side by side with a
+          // divider between them (the panel draws the border, so each column is wider).
+          'relative flex min-w-0 flex-col rounded-2xl border border-border bg-card p-6',
+          'lg:rounded-none lg:border-0 lg:bg-transparent lg:p-6 xl:p-7',
+          featured && 'border-primary bg-primary/[0.04] lg:bg-primary/[0.04]',
         )}
       >
-        {featured && (
-          <span className="absolute -top-3 left-6 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
-            Most popular
-          </span>
-        )}
-        {agency && (
-          <span className="absolute -top-3 left-6 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-background">
-            For agencies
-          </span>
-        )}
+        {featured && <span aria-hidden className="absolute inset-x-0 top-0 hidden h-0.5 bg-primary lg:block" />}
+        <div className="mb-3 h-5">
+          {featured && (
+            <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+              Most popular
+            </span>
+          )}
+          {agency && (
+            <span className="inline-flex rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-background">
+              For agencies
+            </span>
+          )}
+        </div>
 
         <h3 className="text-lg font-semibold">{plan.name}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{TIER_PITCH[plan.tier]}</p>
+        <p className="mt-1 text-sm text-muted-foreground lg:min-h-10">{TIER_PITCH[plan.tier]}</p>
 
         <div className="mt-4 flex items-baseline gap-1.5">
           <span className="text-4xl font-bold tracking-tight">{formatMoney(monthlyPrice(plan, interval))}</span>
@@ -188,7 +194,13 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
           {note.show && <FoundingBanner plans={plans} note={note} />}
 
           {/* Four plans side by side from lg; an older catalogue's three keep three columns. */}
-          <div className={cn('grid grid-cols-1 gap-6 pt-3 md:grid-cols-2 lg:gap-4 xl:gap-6', plans.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
+          <div
+            className={cn(
+              'grid grid-cols-1 gap-6 md:grid-cols-2',
+              'lg:gap-0 lg:divide-x lg:divide-border lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border lg:bg-card',
+              plans.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3',
+            )}
+          >
             {plans.map(renderCard)}
           </div>
 
