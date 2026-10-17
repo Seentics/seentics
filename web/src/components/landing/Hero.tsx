@@ -40,7 +40,7 @@ export default function Hero() {
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <p className="lx-dim max-w-[46rem] text-base leading-relaxed sm:text-lg">
-            Replay, heatmaps and funnels show where people get stuck. Popups and automations win them back.
+            Seentics replaces your analytics, replay, popup, and conversion tracking tools with one privacy-first tool that shows why visitors don’t buy and helps you fix it.
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <Link href={isAuthenticated ? '/websites' : '/signup'} className="lx-btn lx-btn-primary">
