@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { relativeTime } from '@/features/errors/format';
 import { useDeleteSiteSubmission } from '@/features/leads/mutations';
 import { useLeadForms, useSiteSubmissions } from '@/features/leads/queries';
-import type { SiteSubmission, SiteSubmissionFilters } from '@/features/leads/types';
+import { formLabel, type SiteSubmission, type SiteSubmissionFilters } from '@/features/leads/types';
 import { cn } from '@/lib/utils';
 import { cameFrom, SUBMISSION_RANGES } from './lead-format';
 import { SentTo } from './parts';
@@ -87,11 +87,14 @@ export function SubmissionsTab({
     {
       id: 'form',
       header: 'Form',
-      cell: ({ row }) => (
-        <span className="block max-w-[200px] truncate text-[13px] text-foreground/80" title={row.original.form_name ?? undefined}>
-          {row.original.form_name ?? <span className="text-muted-foreground">Deleted form</span>}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const form = formLabel(row.original);
+        return (
+          <span className="block max-w-[200px] truncate text-[13px] text-foreground/80" title={row.original.form_name ?? undefined}>
+            {form.known ? form.text : <span className="text-muted-foreground">{form.text}</span>}
+          </span>
+        );
+      },
     },
     {
       id: 'came_from',

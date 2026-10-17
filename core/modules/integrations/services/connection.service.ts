@@ -4,7 +4,7 @@ import type {
   ConnectionView, DeliveryQuery, DeliveryView, IntegrationFailure, IntegrationMutations, IntegrationProvider,
   IntegrationQueries, IntegrationResult, LeadPayload, Outcome, ProviderContext, ProviderInfo,
 } from "../interfaces";
-import { TransportError } from "../lib/http";
+import { TransportError, UnsafeUrlError } from "../lib/http";
 import { redact } from "../lib/mask";
 import type { Vault, VaultResolution } from "../lib/vault";
 import { getProvider, providers } from "../providers/registry";
@@ -186,6 +186,8 @@ export class ConnectionService implements IntegrationQueries, IntegrationMutatio
     try {
       outcome = await provider.verify(credentials, config, this.ctx);
     } catch (err) {
+      // A refused address is something to correct in the form (400), not the service being down.
+      if (err instanceof UnsafeUrlError) return fail("invalid", `${err.message}.`);
       return fail("unavailable", err instanceof TransportError ? `Could not reach ${provider.label}: ${err.message}.` : `Could not verify ${provider.label}.`);
     }
     if (outcome.kind === "ok") return { ok: true, value: null };

@@ -71,6 +71,16 @@ export type SiteSubmissionFilters = {
   limit: number;
   offset: number;
 };
+/**
+ * The form a submission came from. No name means one of two things: its popup was deleted
+ * (the automation id is still recorded), or there never was a popup — the site's own form,
+ * sent to the leads endpoint directly — which "Deleted form" misdescribed.
+ */
+export function formLabel(s: Pick<SiteSubmission, 'form_name' | 'automation_id'>): { text: string; known: boolean } {
+  if (s.form_name) return { text: s.form_name, known: true };
+  return { text: s.automation_id ? 'Deleted form' : 'Website form', known: false };
+}
+
 export type SiteSubmissionPage = { submissions: SiteSubmission[]; total: number };
 
 /** A form that has submissions, for the form filter. */

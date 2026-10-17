@@ -215,7 +215,10 @@ api.interceptors.response.use(
       (typeof data?.message === 'string' && data.message) ||
       (typeof data?.error === 'string' && data.error);
     if (apiMsg) {
-      return Promise.reject(new Error(apiMsg));
+      // The API's own words as the message, with the response kept: callers read
+      // `err.response.status` / `.data.error` for codes like LIMIT_REACHED, and a bare
+      // Error left every one of them showing its generic fallback instead.
+      return Promise.reject(Object.assign(new Error(apiMsg), { response: error.response, status: error.response?.status }));
     }
 
     return Promise.reject(error);

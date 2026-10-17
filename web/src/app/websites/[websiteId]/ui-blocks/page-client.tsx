@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 
 import { CodeBlock } from '@/components/ui-blocks/CodeBlock';
@@ -24,6 +25,7 @@ export default function UiBlocksPage() {
   const [category, setCategory] = useState<typeof CATEGORIES[number]>('all');
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const blocks = buildBlocks(websiteId);
 
@@ -46,9 +48,7 @@ export default function UiBlocksPage() {
         description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
       >
         <a
-          href="https://docs.seentics.com/ui-blocks"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/docs/ui-blocks"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" />
@@ -127,6 +127,11 @@ export default function UiBlocksPage() {
                         <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal capitalize shrink-0', CATEGORY_COLORS[block.category])}>
                           {block.category}
                         </Badge>
+                        {!block.available && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 rounded-lg font-normal shrink-0">
+                            Coming soon
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">{block.description}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -147,30 +152,50 @@ export default function UiBlocksPage() {
                   </div>
 
                   {/* Action row */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs flex-1"
-                      onClick={() => setExpandedId(expanded ? null : block.id)}
-                    >
-                      <Code2 className="h-3 w-3" />
-                      {expanded ? 'Hide Code' : 'Show Code'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(block.code);
-                      }}
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copy
-                    </Button>
-                  </div>
+                  {block.available ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs flex-1"
+                        onClick={() => setExpandedId(expanded ? null : block.id)}
+                      >
+                        <Code2 className="h-3 w-3" />
+                        {expanded ? 'Hide Code' : 'Show Code'}
+                      </Button>
+                      {block.setup && (
+                        <Button asChild variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
+                          <Link href={block.setup.href}>
+                            <ExternalLink className="h-3 w-3" />
+                            {block.setup.label}
+                          </Link>
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(block.code);
+                            toast({ title: 'Copied to clipboard' });
+                          } catch {
+                            toast({ title: 'Could not copy', description: 'Use Show Code and copy it from there.', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Not available yet — the embed script these widgets need is not published.
+                      For a live view today, use the Full Dashboard Embed.
+                    </p>
+                  )}
 
                   {/* Expanded code */}
-                  {expanded && <CodeBlock code={block.code} toastOnCopy />}
+                  {block.available && expanded && <CodeBlock code={block.code} toastOnCopy />}
                 </CardContent>
               </Card>
             );
@@ -178,19 +203,6 @@ export default function UiBlocksPage() {
         </div>
       )}
 
-      {/* CDN info */}
-      <Card className="border border-border mt-6">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Globe className="h-4 w-4 text-primary" />
-            CDN Embed Script
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Include this once per page to enable all <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">data-seentics</code> attributes:
-          </p>
-          <CodeBlock code={`<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>`} toastOnCopy />
-        </CardContent>
-      </Card>
     </div>
   );
 }

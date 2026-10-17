@@ -13,6 +13,9 @@ const MAX_RESPONSE_CHARS = 2_000;
 /** A request that could not complete — DNS, connection, timeout. Always retryable. */
 export class TransportError extends Error {}
 
+/** The address itself was refused (not https, or internal) — the customer's input, not an outage. */
+export class UnsafeUrlError extends TransportError {}
+
 /**
  * The production `ProviderContext`.
  *
@@ -37,11 +40,11 @@ export function createProviderContext(fetchImpl: typeof fetch = pinned, timeoutM
     },
 
     async assertPublicUrl(url: string): Promise<void> {
-      if (!validateWebhookUrl(url)) throw new TransportError("URL must be https and not point at an internal address");
+      if (!validateWebhookUrl(url)) throw new UnsafeUrlError("URL must be https and not point at an internal address");
       try {
         await assertPublicHost(new URL(url).hostname);
       } catch {
-        throw new TransportError("URL resolves to a non-public address");
+        throw new UnsafeUrlError("URL resolves to a non-public address");
       }
     },
   };

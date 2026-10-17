@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { relativeTime } from '@/features/errors/format';
 import { useUpdateContact } from '@/features/leads/mutations';
 import { useContact } from '@/features/leads/queries';
-import type { Contact, ContactStatus } from '@/features/leads/types';
+import { formLabel, type Contact, type ContactStatus } from '@/features/leads/types';
 import { pathOf } from '@/lib/submission-display';
 import { cameFrom, SOURCE_LABEL } from './lead-format';
 import { DeleteContactsDialog } from './ContactsTab';
@@ -121,7 +121,7 @@ export function ContactDrawer({
                     <li key={s.id} className="rounded-lg border border-border p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium">{s.form_name ?? 'Deleted form'}</p>
+                          <p className="truncate text-[13px] font-medium">{formLabel(s).text}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {relativeTime(s.created_at, now)} · {cameFrom(s.channel, s.utm_campaign)} · <span className="font-mono">{pathOf(s.page_url) || '/'}</span>
                           </p>

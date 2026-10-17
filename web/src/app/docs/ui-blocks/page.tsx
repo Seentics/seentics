@@ -91,7 +91,7 @@ export function Dashboard() {
     <SeenticsProvider
       websiteId="YOUR_WEBSITE_ID"
       apiKey={process.env.SEENTICS_API_KEY!}
-      apiHost="https://app.seentics.com"
+      apiHost="https://api.seentics.com"
     >
       <AnalyticsSummary />
       <TrafficChart granularity="daily" />

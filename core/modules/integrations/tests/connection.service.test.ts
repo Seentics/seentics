@@ -119,6 +119,15 @@ describe("connect", () => {
     expect(await service().connect(WEBSITE, hubspotInput)).toMatchObject({ ok: false, code: "unavailable" });
   });
 
+  it("reports a refused webhook address as invalid input, not as the service being down", async () => {
+    const { UnsafeUrlError } = await import("../lib/http");
+    const refusing: ProviderContext = { ...ctx, async assertPublicUrl() { throw new UnsafeUrlError("URL resolves to a non-public address"); } };
+    const r = await new ConnectionService({ vault, ephemeralDevKey: false }, refusing)
+      .connect(WEBSITE, { provider: "zapier", credentials: { webhook_url: "https://hooks.internal.example/catch" }, config: {} });
+    expect(r).toMatchObject({ ok: false, code: "invalid" });
+    expect(inserted).toHaveLength(0);
+  });
+
   it("rejects malformed input before any network call", async () => {
     expect(await service().connect(WEBSITE, { provider: "hubspot", credentials: { access_token: "x" }, config: {} })).toMatchObject({ ok: false, code: "invalid" });
     expect(await service().connect(WEBSITE, { provider: "mailchimp", credentials: { api_key: `${"0123456789abcdef".repeat(2)}-us21` }, config: {} })).toMatchObject({ ok: false, code: "invalid" });

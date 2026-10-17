@@ -16,6 +16,10 @@ import {
 /**
  * Every embeddable block, with its snippet and preview.
  *
+ * The data-seentics widgets need an embed.js that is not published yet, so they are listed
+ * as coming soon with no code. The full-dashboard embed is a link with a token, made on the
+ * Agency page's Embeds tab; the React blocks are @seentics/ui, used from source (/docs/ui-blocks).
+ *
  * A function of `websiteId` because each snippet embeds it. Out of the page so the
  * catalogue can back a docs page or a public gallery without copying 130 lines of
  * snippets — several of which contain their own `export default function Page`, which is
@@ -31,6 +35,14 @@ export interface Block {
   tags:        string[];
   preview:     React.ReactNode;
   code:        string;
+  /**
+   * False for a block whose code depends on something not shipped yet (the embed.js
+   * widgets): the page shows it as coming soon and offers no code to paste, because a
+   * snippet that loads a script that does not exist fails silently on the customer's site.
+   */
+  available:   boolean;
+  /** Where the block is actually set up, when that is not a copy-paste. */
+  setup?:      { label: string; href: string };
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -49,6 +61,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'badge',
       tags: ['realtime', 'inline'],
       preview: <LiveVisitorsBadge />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="live-visitors"
@@ -63,6 +76,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'badge',
       tags: ['pageviews', 'inline'],
       preview: <PageViewsBadge />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="pageviews"
@@ -78,6 +92,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'chart',
       tags: ['chart', 'trend', 'inline'],
       preview: <MiniSparkline />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="sparkline"
@@ -95,6 +110,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'widget',
       tags: ['stats', 'summary'],
       preview: <StatsWidget />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="stats"
@@ -110,6 +126,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'widget',
       tags: ['pages', 'list'],
       preview: <TopPagesWidget />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="top-pages"
@@ -125,6 +142,7 @@ export function buildBlocks(websiteId: string): Block[] {
       category: 'widget',
       tags: ['geo', 'countries'],
       preview: <CountryWidget />,
+      available: false,
       code: `<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>
 <div
   data-seentics="countries"
@@ -144,44 +162,44 @@ export function buildBlocks(websiteId: string): Block[] {
           <Layout className="h-4 w-4" /> iframe embed
         </div>
       ),
-      code: `<iframe
-  src="https://app.seentics.com/embed/${websiteId}"
+      available: true,
+      setup: { label: 'Create embed link', href: `/websites/${websiteId}/agency?tab=embeds` },
+      code: `<!-- Create the link on Agency → Embeds: it carries the token the embed needs. -->
+<iframe
+  src="EMBED_LINK_FROM_AGENCY_EMBEDS"
   width="100%"
   height="600"
   frameborder="0"
-  allow="clipboard-read; clipboard-write"
 ></iframe>`,
     },
     {
       id: 'react-component',
-      name: 'React Component',
-      description: 'Install the @seentics/react package and use typed React components.',
+      name: 'React Components',
+      description: 'Render your data in your own React app with @seentics/ui (used from source until it is on npm).',
       category: 'embed',
-      tags: ['react', 'npm', 'typescript'],
+      tags: ['react', 'typescript'],
       preview: (
         <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 font-mono text-xs text-foreground/80 space-y-0.5">
-          <p><span className="text-purple-500">import</span> {'{'} SeenticsStats {'}'} <span className="text-purple-500">from</span> <span className="text-green-600">&apos;@seentics/react&apos;</span></p>
-          <p className="mt-1"><span className="text-blue-500">{'<SeenticsStats'}</span></p>
-          <p className="pl-3 text-muted-foreground">{`projectId="${websiteId}"`}</p>
-          <p><span className="text-blue-500">{'/>'}</span></p>
+          <p><span className="text-purple-500">import</span> {'{'} AnalyticsSummary {'}'} <span className="text-purple-500">from</span> <span className="text-green-600">&apos;@seentics/ui&apos;</span></p>
+          <p className="mt-1"><span className="text-blue-500">{'<AnalyticsSummary'}</span> <span className="text-blue-500">{'/>'}</span></p>
         </div>
       ),
-      code: `# Install
-npm install @seentics/react
+      available: true,
+      setup: { label: 'Read the guide', href: '/docs/ui-blocks' },
+      code: `// @seentics/ui is not on npm yet: build it from the Seentics repo (ui/blocks)
+// and install the folder — see /docs/ui-blocks.
+import { SeenticsProvider, AnalyticsSummary, TrafficChart } from '@seentics/ui';
 
-# Usage
-import { SeenticsStats, SeenticsLiveCount } from '@seentics/react';
-
-export default function Page() {
+export function Dashboard() {
   return (
-    <>
-      <SeenticsLiveCount projectId="${websiteId}" />
-      <SeenticsStats
-        projectId="${websiteId}"
-        metrics={['visitors', 'pageviews']}
-        period="7d"
-      />
-    </>
+    <SeenticsProvider
+      websiteId="${websiteId}"
+      apiKey={process.env.SEENTICS_API_KEY!}
+      apiHost="https://api.seentics.com"
+    >
+      <AnalyticsSummary />
+      <TrafficChart granularity="daily" />
+    </SeenticsProvider>
   );
 }`,
     },
