@@ -37,14 +37,14 @@ const CTA: Record<Plan['tier'], string> = { free: 'Start free', starter: 'Get St
  * Free, Starter, Pro and Agency, from gateway's GET /api/v1/plans: a card each with one short list
  * (pricing-spec.ts), a Monthly / Yearly toggle, and the full comparison behind "Compare all features".
  * An older catalogue without Agency shows its three plans in three columns.
- * Yearly is the default: it is the plan's price for the year, shown as a monthly figure with the
- * yearly total beside it.
+ * Monthly is the default; Yearly shows the year's price as a monthly figure with the yearly total
+ * beside it.
  */
 export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval, founding: spots }: PlanBuilderProps) {
   const { data: plans, isLoading, isError } = usePlans();
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
-  const [chosen, setChosen] = React.useState<BillingInterval>('year');
+  const [chosen, setChosen] = React.useState<BillingInterval>('month');
   // The toggle only means something once yearly is offered (OFFER_YEARLY) and the catalogue has a
   // yearly price. Until then every plan is monthly and nothing is offered that cannot be bought.
   // Once every founding spot is taken the box goes, Claim button and all.
@@ -52,21 +52,20 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const hasYearly = OFFER_YEARLY && !!plans?.some((p) => p.priceYearly != null);
   const interval: BillingInterval = hasYearly ? chosen : 'month';
 
+  /**
+   * While the founding offer is open, buying Pro or Agency carries its code, so the checkout opens
+   * with the 30% already applied: nobody has to find and type it. `price` is a month's worth, as for
+   * any selection.
+   */
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
+    if (note.show && FOUNDING_OFFER.plans.includes(plan.tier)) {
+      const price = foundingPrice(plan, interval);
+      onSubscribe({ plan: plan.id, price: interval === 'year' ? price / 12 : price, interval, discount: FOUNDING_OFFER.code });
+      return;
+    }
     onSubscribe({ plan: plan.id, price: monthlyPrice(plan, interval), interval });
-  };
-
-  /**
-   * Claiming the founding price buys the plan on the selected interval, with the code. `price` is a
-   * month's worth, as for any selection: a year's founding price over twelve.
-   */
-  const claimFounding = (plan: Plan, on: BillingInterval) => {
-    if (!onSubscribe) return;
-    setLoadingPlan(`${plan.id}:founding`);
-    const price = foundingPrice(plan, on);
-    onSubscribe({ plan: plan.id, price: on === 'year' ? price / 12 : price, interval: on, discount: FOUNDING_OFFER.code });
   };
 
   const renderCard = (plan: Plan) => {
@@ -186,18 +185,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
           </div>
           )}
 
-          {note.show && (
-            <FoundingBanner
-              plans={plans.filter((p) => FOUNDING_OFFER.plans.includes(p.tier) && p.priceMonthly > 0)}
-              interval={interval}
-              note={note}
-              currentPlan={currentPlan}
-              currentInterval={currentInterval}
-              loading={loading}
-              loadingPlan={loadingPlan}
-              onClaim={onSubscribe ? claimFounding : undefined}
-            />
-          )}
+          {note.show && <FoundingBanner plans={plans} note={note} />}
 
           {/* Four plans side by side from lg; an older catalogue's three keep three columns. */}
           <div className={cn('grid grid-cols-1 gap-6 pt-3 md:grid-cols-2 lg:gap-4 xl:gap-6', plans.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
@@ -219,65 +207,27 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
 }
 
 /**
- * The founding offer, once, above the cards rather than inside them: one code for Pro and Agency, on
- * the interval the toggle shows, with a Claim button per plan (none for the plan the account is on).
+ * The founding offer in one line above the cards. No buttons of its own: Get Pro and Get Agency
+ * apply the code while the offer is open. The availability part reads "first 50 customers" until
+ * the real count is worth showing (foundingNote).
  */
-function FoundingBanner({
-  plans, interval, note, currentPlan, currentInterval, loading, loadingPlan, onClaim,
-}: {
-  plans: Plan[];
-  interval: BillingInterval;
-  note: Extract<FoundingNote, { show: true }>;
-  currentPlan?: string | null;
-  currentInterval?: BillingInterval | null;
-  loading?: boolean;
-  loadingPlan: string | null;
-  onClaim?: (plan: Plan, on: BillingInterval) => void;
-}) {
-  if (plans.length === 0) return null;
-  const on = (plan: Plan): BillingInterval => (interval === 'year' && plan.priceYearly != null ? 'year' : 'month');
-  const names = plans.map((p) => p.name).join(' and ');
+function FoundingBanner({ plans, note }: { plans: Plan[]; note: Extract<FoundingNote, { show: true }> }) {
+  const names = plans.filter((p) => FOUNDING_OFFER.plans.includes(p.tier) && p.priceMonthly > 0).map((p) => p.name);
+  if (names.length === 0) return null;
+  const availability = note.text.startsWith('Limited to the ') ? note.text.replace('Limited to the ', '') : note.text;
   return (
-    <div
-      data-testid="founding-offer"
-      className="mx-auto mb-8 flex max-w-4xl flex-col gap-4 rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div className="min-w-0 text-sm leading-snug">
-        <p className="font-semibold text-foreground">
-          Founding offer: {FOUNDING_OFFER.percentOff}% off {names}, for life
-        </p>
-        <p className="mt-0.5 text-muted-foreground">
-          Monthly or yearly, locked in for as long as you stay. Use code{' '}
-          <code className="rounded bg-muted px-1 font-mono text-[12px] font-semibold text-foreground">{FOUNDING_OFFER.code}</code>{' '}
-          at checkout.
-        </p>
-        <p
-          data-testid="founding-spots"
-          data-emphasised={note.emphasised || undefined}
-          className={cn('mt-0.5', note.emphasised ? 'font-semibold text-destructive' : 'text-muted-foreground')}
-        >
-          {note.text}
-        </p>
-      </div>
-      {onClaim && (
-        <div className="flex shrink-0 flex-wrap gap-2">
-          {plans.map((plan) => {
-            const interval = on(plan);
-            const isCurrent = !!currentPlan && currentPlan === plan.id && (!currentInterval || currentInterval === interval);
-            if (isCurrent) return null;
-            return (
-              <Button key={plan.id} size="sm" variant="outline" className="gap-1.5" disabled={loading} onClick={() => onClaim(plan, interval)}>
-                {loading && loadingPlan === `${plan.id}:founding` ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <>Claim {plan.name} · {formatMoney(foundingPrice(plan, interval))}/{interval === 'year' ? 'yr' : 'mo'}</>
-                )}
-              </Button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <p data-testid="founding-offer" className="mx-auto mb-6 max-w-3xl text-center text-sm text-muted-foreground">
+      <span className="font-semibold text-foreground">Founding offer:</span> {FOUNDING_OFFER.percentOff}% off {names.join(' and ')} for life with code{' '}
+      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] font-semibold text-foreground">{FOUNDING_OFFER.code}</code>
+      <span aria-hidden> · </span>
+      <span
+        data-testid="founding-spots"
+        data-emphasised={note.emphasised || undefined}
+        className={cn(note.emphasised && 'font-semibold text-destructive')}
+      >
+        {availability}
+      </span>
+    </p>
   );
 }
 

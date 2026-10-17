@@ -21,11 +21,14 @@ const { PlanBuilder } = await import('@/components/subscription/PlanBuilder');
 beforeEach(() => { vi.clearAllMocks(); plans = original; });
 
 const monthly = () => fireEvent.click(screen.getByRole('button', { name: 'Monthly' }));
+const yearly = () => fireEvent.click(screen.getByRole('button', { name: 'Yearly (2 months free)' }));
 
 describe('PlanBuilder', () => {
-  it('shows Free, Starter, Pro and Agency, yearly by default with "2 months free"', () => {
+  it('shows Free, Starter, Pro and Agency, monthly by default, yearly with "2 months free"', () => {
     render(<PlanBuilder />);
     for (const name of ['Free', 'Starter', 'Pro', 'Agency']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Monthly' }).getAttribute('aria-pressed')).toBe('true');
+    yearly();
     expect(screen.getByRole('button', { name: 'Yearly (2 months free)' }).getAttribute('aria-pressed')).toBe('true');
     // $90, $240 and $990 a year, shown a month at a time.
     expect(screen.getByText('$7.50')).toBeTruthy();
@@ -38,8 +41,9 @@ describe('PlanBuilder', () => {
     expect(screen.queryByText('$9')).toBeNull();
   });
 
-  it('switches to monthly prices with the toggle', () => {
+  it('switches back to monthly prices with the toggle', () => {
     render(<PlanBuilder />);
+    yearly();
     monthly();
     expect(screen.getByRole('button', { name: 'Monthly' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByText('$9')).toBeTruthy();
@@ -48,9 +52,10 @@ describe('PlanBuilder', () => {
     expect(screen.getAllByText('Billed monthly')).toHaveLength(3);
   });
 
-  it('hands the chosen plan and interval to onSubscribe', () => {
+  it('hands the chosen plan and interval to onSubscribe (founding offer closed)', () => {
     const onSubscribe = vi.fn();
-    render(<PlanBuilder onSubscribe={onSubscribe} />);
+    render(<PlanBuilder onSubscribe={onSubscribe} founding={{ code: 'FOUNDING30', total: 50, claimed: 50, left: 0, status: 'closed' }} />);
+    yearly();
     fireEvent.click(screen.getByRole('button', { name: /Get Agency/ }));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'agency', price: 82.5, interval: 'year' });
     monthly();
@@ -63,7 +68,7 @@ describe('PlanBuilder', () => {
   });
 
   it('marks the current plan', () => {
-    render(<PlanBuilder currentPlan="pro" currentInterval="year" />);
+    render(<PlanBuilder currentPlan="pro" currentInterval="month" />);
     expect((screen.getByRole('button', { name: 'Current plan' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: /Get Starter/ }) as HTMLButtonElement).disabled).toBe(false);
   });
@@ -91,37 +96,29 @@ describe('the Agency card', () => {
 
 describe('the founding offer', () => {
   const banner = () => screen.getByTestId('founding-offer');
-  const claim = (name: RegExp) => screen.getByRole('button', { name });
 
-  it('is one banner above the cards, for Pro and Agency, not inside any card', () => {
+  it('is one short line above the cards, with no buttons of its own', () => {
     render(<PlanBuilder onSubscribe={vi.fn()} />);
     expect(screen.getAllByTestId('founding-offer')).toHaveLength(1);
-    expect(banner().textContent).toContain('Founding offer: 30% off Pro and Agency, for life');
-    expect(banner().textContent).toContain('Use code FOUNDING30 at checkout.');
-    expect(banner().textContent).toContain('Limited to the first 50 customers');
-    // No card carries it.
+    expect(banner().textContent).toBe('Founding offer: 30% off Pro and Agency for life with code FOUNDING30 · first 50 customers');
+    expect(banner().querySelector('button')).toBeNull();
     for (const heading of screen.getAllByRole('heading', { level: 3 })) {
       expect(heading.closest('.rounded-2xl')?.textContent ?? '').not.toContain('FOUNDING30');
     }
-    // Claim buttons show the founding price for the selected interval.
-    expect(claim(/Claim Pro · \$168\/yr/)).toBeTruthy();
-    expect(claim(/Claim Agency · \$693\/yr/)).toBeTruthy();
-    monthly();
-    expect(claim(/Claim Pro · \$16\.80\/mo/)).toBeTruthy();
-    expect(claim(/Claim Agency · \$69\.30\/mo/)).toBeTruthy();
   });
 
-  it('sends the code only when the price is claimed, on the selected interval', () => {
+  it('is applied by Get Pro and Get Agency on the selected interval, never to Starter', () => {
     const onSubscribe = vi.fn();
     render(<PlanBuilder onSubscribe={onSubscribe} />);
+    yearly();
     fireEvent.click(screen.getByRole('button', { name: /Get Agency/ }));
-    expect(onSubscribe.mock.calls[0]![0]).not.toHaveProperty('discount');
-    fireEvent.click(claim(/Claim Agency/));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'agency', price: 57.75, interval: 'year', discount: 'FOUNDING30' });
-    fireEvent.click(claim(/Claim Pro/));
+    fireEvent.click(screen.getByRole('button', { name: /Get Pro/ }));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 14, interval: 'year', discount: 'FOUNDING30' });
+    fireEvent.click(screen.getByRole('button', { name: /Get Starter/ }));
+    expect(onSubscribe.mock.lastCall![0]).not.toHaveProperty('discount');
     monthly();
-    fireEvent.click(claim(/Claim Pro/));
+    fireEvent.click(screen.getByRole('button', { name: /Get Pro/ }));
     expect(onSubscribe).toHaveBeenLastCalledWith({ plan: 'pro', price: 16.8, interval: 'month', discount: 'FOUNDING30' });
   });
 
@@ -132,7 +129,7 @@ describe('the founding offer', () => {
   it('with an unknown or small count, says only that it is limited', () => {
     for (const founding of [undefined, spots(null), spots(9)]) {
       const { unmount } = render(<PlanBuilder founding={founding} />);
-      expect(note().textContent).toBe('Limited to the first 50 customers');
+      expect(note().textContent).toBe('first 50 customers');
       expect(screen.queryByText(/spots left/)).toBeNull();
       unmount();
     }
@@ -150,16 +147,12 @@ describe('the founding offer', () => {
     expect(note().dataset.emphasised).toBe('true');
   });
 
-  it('is gone, Claim buttons and all, once every spot is taken', () => {
-    render(<PlanBuilder onSubscribe={vi.fn()} founding={spots(50, 'closed')} />);
+  it('is gone once every spot is taken, and Get Pro no longer carries the code', () => {
+    const onSubscribe = vi.fn();
+    render(<PlanBuilder onSubscribe={onSubscribe} founding={spots(50, 'closed')} />);
     expect(screen.queryByTestId('founding-offer')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Claim/ })).toBeNull();
-  });
-
-  it('offers no Claim for the plan the account is already on', () => {
-    render(<PlanBuilder onSubscribe={vi.fn()} currentPlan="agency" currentInterval="year" />);
-    expect(screen.queryByRole('button', { name: /Claim Agency/ })).toBeNull();
-    expect(claim(/Claim Pro · \$168\/yr/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Get Pro/ }));
+    expect(onSubscribe.mock.lastCall![0]).not.toHaveProperty('discount');
   });
 });
 
