@@ -46,7 +46,11 @@ export function EventsTable({
   const destination = tab === 'all' ? '' : tab;
   const [status, setStatus] = useState<ConversionStatus | ''>('');
   const [kind, setKind] = useState<EventKind | ''>('');
-  const list = useConversionEvents(websiteId, { destination, status, kind, days, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+  /** An order ID or event name, as typed; the request follows it after a pause. */
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  useEffect(() => { const timer = setTimeout(() => setQuery(search.trim()), 300); return () => clearTimeout(timer); }, [search]);
+  const list = useConversionEvents(websiteId, { destination, status, kind, days, search: query, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
   const retry = useRetryConversion(websiteId);
   const retryMany = useRetryConversions(websiteId);
   /** Events ticked in the table, by id. */
@@ -55,13 +59,13 @@ export function EventsTable({
   const [opened, setOpened] = useState<ConversionEvent | null>(null);
   const total = list.data?.total ?? 0;
   const events = list.data?.events ?? [];
-  const narrowed = !!(destination || status || kind);
+  const narrowed = !!(destination || status || kind || query);
   /** The tabs: every platform, then each connected one. */
   const tabs = ['all', ...destinations.map((d) => d.id)];
   /** Each platform tab's count, under the same status and kind: one row per request, read for its total; the open tab's is the list's own. */
   const counts = useQueries({
     queries: tabs.map((id) => {
-      const filters = { destination: id === 'all' ? '' : id, status, kind, days, limit: 1, offset: 0 };
+      const filters = { destination: id === 'all' ? '' : id, status, kind, days, search: query, limit: 1, offset: 0 };
       return {
         queryKey: conversionKeys.events(websiteId, filters),
         queryFn: () => conversionsApi.events(websiteId, filters),
@@ -78,7 +82,7 @@ export function EventsTable({
   };
 
   // A narrower set changes what page 2 means.
-  useEffect(() => { setPage(0); }, [destination, status, kind, days]);
+  useEffect(() => { setPage(0); }, [destination, status, kind, days, query]);
 
   const filters: FilterField[] = [
     {
@@ -177,6 +181,7 @@ export function EventsTable({
         />
       }
       filters={filters}
+      search={{ value: search, onChange: setSearch, placeholder: all.conversions.searchPlaceholder, label: all.conversions.searchPlaceholder }}
     />
   );
 

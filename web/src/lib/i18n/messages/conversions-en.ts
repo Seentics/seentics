@@ -131,6 +131,23 @@ export const conversionsEn = {
     addCustom: 'Add custom event',
   },
 
+  overview: {
+    sent: 'Sent',
+    accepted: 'Accepted',
+    ofSent: (pct: number) => `${pct}% of sent`,
+    failed: 'Failed',
+    notSent: 'Not sent',
+    notSentHint: 'Not mapped, or no consent',
+    perDay: 'Accepted and failed, per day',
+    matching: 'How well they match',
+    matchingHint: 'The more details a conversion carries, the better the platform finds the person, and the better your ads learn.',
+    value: 'Value sent',
+    valueNone: 'No conversion with a value yet.',
+    byKind: 'By kind',
+    acceptedShort: 'accepted',
+  },
+  searchPlaceholder: 'Order ID or event…',
+
   events: {
     platform: 'Platform',
     event: 'Event',

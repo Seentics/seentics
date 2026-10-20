@@ -34,13 +34,12 @@ export function useConversionEvents(websiteId: string, filters: ConversionEventF
   });
 }
 
-export function useConversionSummary(websiteId: string, days: number, enabled = true) {
+/** The numbers over the last `days`: sent, accepted, failed, how they matched, by kind, the value. */
+export function useConversionSummary(websiteId: string, days: number) {
   return useQuery({
     queryKey: conversionKeys.summary(websiteId, days),
     queryFn: () => conversionsApi.summary(websiteId, days),
-    enabled: enabled && !!websiteId,
+    enabled: !!websiteId,
     staleTime: STALE_MS,
-    refetchInterval: 60_000,
-    placeholderData: keepPreviousData,
   });
 }

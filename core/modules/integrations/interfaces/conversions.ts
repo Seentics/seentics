@@ -137,6 +137,8 @@ export type ConversionSummary = {
   by_day: { day: string; accepted: number; failed: number }[];
   match: { total: number } & Record<MatchKey, number>;
   by_kind: { kind: ConversionKind; accepted: number }[];
+  /** Accepted conversions' value the platforms were told about, per platform and currency, most first. */
+  value: { platform: ConversionPlatform; currency: string; value: number; count: number }[];
 };
 
 /** Where ingest hands consented tracker events; the `conversions` lane calls this. */
@@ -153,7 +155,7 @@ export interface ConversionAdmin {
     Promise<{ destination: ConversionDestinationView } | { error: "invalid_credentials"; message: string } | { error: "not_found" }>;
   remove(websiteId: string, id: string): Promise<boolean>;
   test(websiteId: string, id: string, testEventCode: string | null): Promise<{ ok: boolean; message: string } | null>;
-  events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; days?: number | null; limit: number; offset: number }):
+  events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; days?: number | null; search?: string | null; limit: number; offset: number }):
     Promise<{ events: ConversionEventView[]; total: number }>;
   retry(websiteId: string, id: string): Promise<boolean>;
   summary(websiteId: string, days: number): Promise<ConversionSummary>;

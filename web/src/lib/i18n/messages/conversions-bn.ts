@@ -133,6 +133,23 @@ export const conversionsBn: ConversionsMessages = {
     addCustom: 'কাস্টম ইভেন্ট যোগ করুন',
   },
 
+  overview: {
+    sent: 'পাঠানো হয়েছে',
+    accepted: 'গৃহীত',
+    ofSent: (pct: number) => `পাঠানোর ${pct}%`,
+    failed: 'ব্যর্থ',
+    notSent: 'পাঠানো হয়নি',
+    notSentHint: 'Map করা নেই, বা সম্মতি নেই',
+    perDay: 'প্রতিদিন গৃহীত আর ব্যর্থ',
+    matching: 'কতটা ভালো Match হচ্ছে',
+    matchingHint: 'Conversion-এ যত বেশি তথ্য থাকে, Platform তত ভালো মানুষটিকে চেনে, আর আপনার Ad তত ভালো শেখে।',
+    value: 'পাঠানো Value',
+    valueNone: 'Value সহ কোনো Conversion এখনো নেই।',
+    byKind: 'ধরন অনুযায়ী',
+    acceptedShort: 'গৃহীত',
+  },
+  searchPlaceholder: 'Order ID বা Event…',
+
   events: {
     platform: 'প্ল্যাটফর্ম',
     event: 'Event',

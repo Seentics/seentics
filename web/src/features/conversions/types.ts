@@ -73,6 +73,8 @@ export type ConversionEventFilters = {
   kind: EventKind | '';
   /** Only the last this many days; 0 or absent for every event kept. */
   days?: number;
+  /** Part of an order ID or an event name (the site's or the platform's). */
+  search?: string;
   limit: number;
   offset: number;
 };
@@ -84,6 +86,8 @@ export type ConversionSummary = {
   by_day: { day: string; accepted: number; failed: number }[];
   match: { total: number } & Record<MatchKey, number>;
   by_kind: { kind: EventKind; accepted: number }[];
+  /** Accepted conversions' value the platforms were told about, per platform and currency, most first. */
+  value: { platform: Platform; currency: string; value: number; count: number }[];
 };
 
 export type TestResult = { ok: boolean; message: string };

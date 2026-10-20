@@ -37,6 +37,8 @@ const eventsQuery = z.object({
   kind: z.enum(["purchase", "lead", "sign_up", "custom"]).optional().transform((v) => v ?? null),
   /** Only events from the last this many days; absent for all of them. */
   days: z.coerce.number().int().min(1).max(365).optional().transform((v) => v ?? null),
+  /** Matches the order ID, the site's event name or the platform's; a part of any is enough. */
+  search: z.string().trim().max(100).optional().transform((v) => v || null),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 });

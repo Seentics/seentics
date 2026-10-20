@@ -257,13 +257,14 @@ export async function retryConversion(websiteId: string, id: string): Promise<bo
 // --- The delivery log and summary -------------------------------------------------
 
 export async function listConversionEvents(websiteId: string, q: {
-  destination: string | null; status: string | null; kind: string | null; days?: number | null; limit: number; offset: number;
+  destination: string | null; status: string | null; kind: string | null; days?: number | null; search?: string | null; limit: number; offset: number;
 }): Promise<{ rows: ConversionEventView[]; total: number }> {
   const where = sql`e.website_id = ${websiteId}::uuid
     ${q.destination ? sql`AND e.destination_id = ${q.destination}::uuid` : sql``}
     ${q.status ? sql`AND e.status = ${q.status}` : sql``}
     ${q.kind ? sql`AND e.kind = ${q.kind}` : sql``}
-    ${q.days ? sql`AND e.created_at > NOW() - make_interval(days => ${q.days})` : sql``}`;
+    ${q.days ? sql`AND e.created_at > NOW() - make_interval(days => ${q.days})` : sql``}
+    ${q.search ? sql`AND (e.order_id ILIKE ${`%${q.search}%`} OR e.event_name ILIKE ${`%${q.search}%`} OR e.platform_event ILIKE ${`%${q.search}%`})` : sql``}`;
   const [rows, totals] = await Promise.all([
     sql<ConversionEventView[]>`
       SELECT e.id, e.destination_id, d.platform, e.kind, e.event_name, e.platform_event, e.status, e.error, e.attempt_count,
@@ -278,7 +279,7 @@ export async function listConversionEvents(websiteId: string, q: {
 
 export async function conversionSummary(websiteId: string, days: number): Promise<ConversionSummary> {
   const since = sql`e.website_id = ${websiteId}::uuid AND e.created_at > NOW() - make_interval(days => ${days})`;
-  const [[totals], byDay, [match], byKind] = await Promise.all([
+  const [[totals], byDay, [match], byKind, value] = await Promise.all([
     sql<[{ sent: number; accepted: number; failed: number; skipped: number; pending: number }]>`
       SELECT COUNT(*)::int AS sent,
              COUNT(*) FILTER (WHERE status = 'success')::int AS accepted,
@@ -302,12 +303,19 @@ export async function conversionSummary(websiteId: string, days: number): Promis
     sql<{ kind: ConversionKind; accepted: number }[]>`
       SELECT kind, COUNT(*) FILTER (WHERE status = 'success')::int AS accepted
       FROM conversion_events e WHERE ${since} GROUP BY kind ORDER BY accepted DESC`,
+    // The money the platforms were told about: accepted conversions with a value, per platform and currency.
+    sql<{ platform: string; currency: string; value: number; count: number }[]>`
+      SELECT d.platform, e.currency, SUM(e.value)::float8 AS value, COUNT(*)::int AS count
+      FROM conversion_events e JOIN conversion_destinations d ON d.id = e.destination_id
+      WHERE ${since} AND e.status = 'success' AND e.value IS NOT NULL AND e.currency IS NOT NULL
+      GROUP BY d.platform, e.currency ORDER BY value DESC`,
   ]);
   return {
     totals: totals ?? { sent: 0, accepted: 0, failed: 0, skipped: 0, pending: 0 },
     by_day: [...byDay],
     match: match ?? { total: 0, click_id: 0, email: 0, phone: 0, ip_ua: 0, browser_id: 0 },
     by_kind: [...byKind],
+    value: [...value] as ConversionSummary["value"],
   };
 }
 

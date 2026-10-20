@@ -167,7 +167,8 @@ export function demoDestinations(): Destination[] {
 export function demoConversionEvents(f: ConversionEventFilters): ConversionEventPage {
   const matched = EVENTS.filter((e) =>
     (!f.destination || e.destination_id === f.destination) && (!f.status || e.status === f.status) && (!f.kind || e.kind === f.kind)
-    && (!f.days || Date.parse(e.created_at) >= NOW - f.days * DAY));
+    && (!f.days || Date.parse(e.created_at) >= NOW - f.days * DAY)
+    && (!f.search || [e.order_id ?? '', e.event_name, e.platform_event].some((v) => v.toLowerCase().includes(f.search!.toLowerCase()))));
   return { events: matched.slice(f.offset, f.offset + f.limit), total: matched.length };
 }
 
@@ -195,5 +196,16 @@ export function demoConversionSummary(days: number): ConversionSummary {
     by_day: [...byDay].map(([day, v]) => ({ day, ...v })),
     match,
     by_kind: kinds.map((kind) => ({ kind, accepted: inRange.filter((e) => e.kind === kind && e.status === 'success').length })),
+    value: (() => {
+      const m = new Map<string, ConversionSummary['value'][number]>();
+      for (const e of inRange) {
+        if (e.status !== 'success' || e.value === null || !e.currency) continue;
+        const key = `${e.platform}:${e.currency}`;
+        const row = m.get(key) ?? { platform: e.platform, currency: e.currency, value: 0, count: 0 };
+        row.value += e.value; row.count += 1;
+        m.set(key, row);
+      }
+      return [...m.values()].sort((a, b) => b.value - a.value);
+    })(),
   };
 }
