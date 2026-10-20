@@ -56,7 +56,7 @@ function app() {
       tags: async () => [{ tag: "vip", count: 2 }],
       overview: async (_s, days) => {
         calls.push(`overview:${days}`);
-        return { days, submissions: 12, new_contacts: 5, customers: 1, by_channel: [{ channel: "paid", count: 8 }], by_campaign: [{ campaign: "eid", count: 6 }], failed_deliveries: 2 };
+        return { days, submissions: 12, new_contacts: 5, customers: 1, by_channel: [{ channel: "paid", count: 8 }], by_source: [{ source: "facebook", count: 8 }], by_campaign: [{ campaign: "eid", count: 6, source: "facebook" }], failed_deliveries: 2 };
       },
     },
     contacts: {

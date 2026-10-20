@@ -162,6 +162,16 @@ export function demoContactsCsv(f: Omit<ContactFilters, 'limit' | 'offset'>): st
  * The demo's numbers, from the same submissions and contacts the lists show, over the window
  * ending at the demo's fixed "now" (`demoIso(0)`).
  */
+/** Core's lib/source.ts in brief, for the demo: the UTM source, else the referrer's site, by name. */
+function demoSource(s: { utm_source: string | null; referrer: string }): string | null {
+  const raw = s.utm_source?.toLowerCase() || (() => { try { return new URL(s.referrer).hostname.replace(/^www\./, ''); } catch { return null; } })();
+  if (!raw) return null;
+  if (/^(fb|facebook)$|facebook\.com$/.test(raw)) return 'facebook';
+  if (/^(ig|instagram)$|instagram\.com$/.test(raw)) return 'instagram';
+  if (/^google$|google\./.test(raw)) return 'google';
+  return raw;
+}
+
 export function demoLeadsOverview(days: number): LeadsOverview {
   const since = demoIso(-days * DAY);
   const recent = SUBMISSIONS.filter((s) => s.created_at >= since);
@@ -177,7 +187,10 @@ export function demoLeadsOverview(days: number): LeadsOverview {
     new_contacts: fresh.length,
     customers: fresh.filter((c) => c.status === 'customer').length,
     by_channel: tally(recent.map((s) => s.channel)).map(([channel, count]) => ({ channel, count })),
-    by_campaign: tally(recent.map((s) => s.utm_campaign)).slice(0, 5).map(([campaign, count]) => ({ campaign, count })),
+    by_source: tally(recent.map(demoSource)).slice(0, 6).map(([source, count]) => ({ source, count })),
+    by_campaign: tally(recent.map((s) => s.utm_campaign)).slice(0, 5).map(([campaign, count]) => ({
+      campaign, count, source: tally(recent.filter((s) => s.utm_campaign === campaign).map(demoSource))[0]?.[0] ?? null,
+    })),
     failed_deliveries: recent.filter((s) => s.deliveries.some((d) => d.status === 'failed')).length,
   };
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { getSourceImage } from '@/components/analytics/TopSourcesChart';
 import { useLeadsOverview } from '@/features/leads/queries';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
   const { data } = useLeadsOverview(websiteId, 30);
   const pct = data && data.new_contacts > 0 ? Math.round((data.customers / data.new_contacts) * 100) : 0;
   const total = data?.by_channel.reduce((n, c) => n + c.count, 0) ?? 0;
+  const sourceTotal = data?.by_source.reduce((n, s) => n + s.count, 0) ?? 0;
 
   return (
     // Two rows with room to breathe: the four numbers across the width, then the channels and the
@@ -38,7 +40,20 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="min-w-0 rounded-lg bg-card px-5 py-4">
           <p className="text-[13px] font-semibold text-foreground">{t.channels}</p>
-          {data && total > 0 ? (
+          {data && data.by_source.length > 0 ? (
+            // The sites themselves (Facebook, Google…), each with its logo; channels when none is known.
+            <ul className="mt-3 space-y-2.5">
+              {data.by_source.slice(0, 5).map((s) => (
+                <li key={s.source} className="flex items-center gap-3 text-[13.5px]">
+                  <SourceLogo source={s.source} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex justify-between gap-2"><span className="truncate font-medium text-foreground">{sourceName(s.source)}</span><span className="tabular-nums text-muted-foreground">{s.count.toLocaleString()}</span></span>
+                    <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${Math.max(4, (s.count / sourceTotal) * 100)}%` }} /></span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : data && total > 0 ? (
             <ul className="mt-3 space-y-2.5">
               {data.by_channel.slice(0, 5).map((c) => (
                 <li key={c.channel} className="text-[13.5px]">
@@ -54,8 +69,12 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
           {data && data.by_campaign.length > 0 ? (
             <ul className="mt-3 divide-y divide-border/60 text-[13.5px]">
               {data.by_campaign.map((c) => (
-                <li key={c.campaign} className="flex justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                  <span className="truncate font-mono text-[12.5px] text-foreground" title={c.campaign}>{c.campaign}</span>
+                <li key={c.campaign} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                  {c.source ? <SourceLogo source={c.source} /> : <span aria-hidden className="size-6 shrink-0 rounded-md bg-muted" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono text-[12.5px] text-foreground" title={c.campaign}>{c.campaign}</span>
+                    {c.source && <span className="block truncate text-[12px] text-muted-foreground">{sourceName(c.source)}</span>}
+                  </span>
                   <span className="tabular-nums text-muted-foreground">{c.count.toLocaleString()}</span>
                 </li>
               ))}
@@ -64,6 +83,31 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
         </div>
       </div>
     </section>
+  );
+}
+
+/** The names Core gives the big sources (lib/source.ts), as people write them. */
+const SOURCE_NAMES: Record<string, string> = {
+  facebook: 'Facebook', instagram: 'Instagram', google: 'Google', youtube: 'YouTube', tiktok: 'TikTok',
+  x: 'X', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', messenger: 'Messenger', bing: 'Bing',
+};
+const sourceName = (source: string) => SOURCE_NAMES[source] ?? source;
+
+/**
+ * A source's own logo: the analytics pages' images (getSourceImage), Messenger's mark, or for any
+ * other site its initial on a tile.
+ */
+function SourceLogo({ source }: { source: string }) {
+  if (source === 'messenger') {
+    const mask = 'url(/integrations/messenger.svg) center / 62% no-repeat';
+    return <span aria-hidden className="size-6 shrink-0 rounded-md bg-[#0866FF]"><span className="block h-full w-full bg-white" style={{ WebkitMask: mask, mask }} /></span>;
+  }
+  const image = getSourceImage(source === 'x' ? 'x.com' : source);
+  if (image) return <img src={image} alt="" aria-hidden className="size-6 shrink-0 rounded-md object-contain" />;
+  return (
+    <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold uppercase text-foreground/70">
+      {source.replace(/^www\./, '')[0]}
+    </span>
   );
 }
 

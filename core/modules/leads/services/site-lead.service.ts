@@ -16,6 +16,7 @@ import type {
   SiteSubmissionView,
 } from "../interfaces";
 import { utmOf } from "../lib/utm";
+import { sourceOf } from "../lib/source";
 import { exportContacts, getContact, listContacts, newContactsSince, tagCounts } from "../repositories/contact.repository";
 import {
   exportSiteSubmissions,
@@ -122,12 +123,20 @@ export class SiteLeadService implements SiteLeadQueries {
       this.deps.sink.failedSubmissionIds(websiteId, since, OVERVIEW_ORIGINS_CAP),
     ]);
     const channels = new Map<LeadChannel, number>();
+    const sources = new Map<string, number>();
     const campaigns = new Map<string, number>();
+    /** Per campaign, how many came from each source: its main source is the most. */
+    const campaignSources = new Map<string, Map<string, number>>();
+    const bump = <K>(m: Map<K, number>, k: K) => m.set(k, (m.get(k) ?? 0) + 1);
     for (const o of origins) {
-      const channel = this.channelOf(o.page_url, o.referrer);
-      channels.set(channel, (channels.get(channel) ?? 0) + 1);
+      bump(channels, this.channelOf(o.page_url, o.referrer));
+      const source = sourceOf(o.page_url, o.referrer);
+      if (source) bump(sources, source);
       const campaign = utmOf(o.page_url).campaign;
-      if (campaign) campaigns.set(campaign, (campaigns.get(campaign) ?? 0) + 1);
+      if (campaign) {
+        bump(campaigns, campaign);
+        if (source) bump(campaignSources.get(campaign) ?? campaignSources.set(campaign, new Map()).get(campaign)!, source);
+      }
     }
     const most = <K>(m: Map<K, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
     return {
@@ -136,7 +145,10 @@ export class SiteLeadService implements SiteLeadQueries {
       new_contacts: contacts.total,
       customers: contacts.customers,
       by_channel: most(channels).map(([channel, count]) => ({ channel, count })),
-      by_campaign: most(campaigns).slice(0, 5).map(([campaign, count]) => ({ campaign, count })),
+      by_source: most(sources).slice(0, 6).map(([source, count]) => ({ source, count })),
+      by_campaign: most(campaigns).slice(0, 5).map(([campaign, count]) => ({
+        campaign, count, source: most(campaignSources.get(campaign) ?? new Map<string, number>())[0]?.[0] ?? null,
+      })),
       failed_deliveries: failed.length,
     };
   }

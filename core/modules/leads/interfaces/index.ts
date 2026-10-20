@@ -301,8 +301,10 @@ export type LeadsOverview = {
   customers: number;
   /** The window's submissions by channel, most first. */
   by_channel: { channel: LeadChannel; count: number }[];
-  /** The window's submissions by UTM campaign, the top five. */
-  by_campaign: { campaign: string; count: number }[];
+  /** The window's submissions by source (lib/source.ts: facebook, google, a host), the top six. */
+  by_source: { source: string; count: number }[];
+  /** The window's submissions by UTM campaign, the top five, each with the source that sent most of it. */
+  by_campaign: { campaign: string; count: number; source: string | null }[];
   /** The window's submissions that at least one destination could not take. */
   failed_deliveries: number;
 };

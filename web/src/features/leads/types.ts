@@ -154,6 +154,9 @@ export type LeadsOverview = {
   new_contacts: number;
   customers: number;
   by_channel: { channel: LeadChannel; count: number }[];
-  by_campaign: { campaign: string; count: number }[];
+  /** By source (Core's lib/source.ts: facebook, google, instagram… or a host), the top six. */
+  by_source: { source: string; count: number }[];
+  /** The top five campaigns, each with the source that sent most of it. */
+  by_campaign: { campaign: string; count: number; source: string | null }[];
   failed_deliveries: number;
 };
