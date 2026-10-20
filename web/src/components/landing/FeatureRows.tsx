@@ -20,7 +20,7 @@ type RowId = keyof Messages['features'];
  * lines broken where the sentence turns, the body and three details) are the language's
  * (`features` in lib/i18n).
  */
-type Row = {
+export type Row = {
   id: RowId;
   href: string;
   Mock: ComponentType;
@@ -33,7 +33,7 @@ const ROWS: Row[] = [
   { id: 'automations', href: '/docs/automations', Mock: LazyAutomationBuilderMock },
 ];
 
-function FeatureRow({ row }: { row: Row }) {
+export function FeatureRow({ row }: { row: Row }) {
   const reduce = useReducedMotion();
   const copy = useT().features[row.id];
   // Same props either way (see Hero): reduced motion only takes the duration away.

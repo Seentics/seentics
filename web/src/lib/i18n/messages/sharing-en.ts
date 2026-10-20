@@ -1,4 +1,4 @@
-/** Sharing in English: embed links, shared and public dashboards, the automation preview. `sharing-bn.ts` mirrors it. */
+/** Sharing: embed links, shared and public dashboards, the automation preview. */
 export const sharingEn = {
   embed: {
     tabs: { analytics: 'Analytics', recordings: 'Recordings', heatmaps: 'Heatmaps' },

@@ -3,17 +3,13 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { offersManualPayments, useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
-/**
- * The landing page's questions, in the page's language (`faq` in lib/i18n). A visitor who can pay in
- * taka is asked first whether bKash and Nagad work.
- */
+/** The landing page's questions (`faq` in lib/i18n). */
 
 export default function FaqCta() {
   const t = useT();
-  const { region } = useLocale();
-  const faqs = offersManualPayments(region) ? [t.faq.bdItem, ...t.faq.items] : t.faq.items;
+  const faqs = t.faq.items;
   return (
     <>
       <section id="faq" className="landing-section">

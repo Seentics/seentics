@@ -3,11 +3,11 @@
 import { ArrowRight, Check, Minus, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { SheetOrInline } from '@/components/ui/sheet';
 import { relativeTime } from '@/features/errors/format';
 import { useRetryConversion } from '@/features/conversions/mutations';
 import { MATCH_KEYS, type ConversionEvent, type Destination } from '@/features/conversions/types';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { formatValue, PLATFORMS } from './conversion-format';
 import { PlatformMark, StatusLabel } from './parts';
@@ -17,25 +17,24 @@ import { PlatformMark, StatusLabel } from './parts';
  * to the platform as, how it went (and why not, with a retry), and which details it was matched
  * on. Laid out as the contact sheet is: a grey ground with white blocks on it, no outlines.
  */
-export function EventDetailSheet({ websiteId, event, destinations, now, canEdit, onClose }: {
+export function EventDetailSheet({ websiteId, event, destinations, now, canEdit, onClose, inline }: {
   websiteId: string;
   event: ConversionEvent | null;
   destinations: Destination[];
   now?: number;
   canEdit: boolean;
   onClose: () => void;
+  /** Drawn in place, for the landing's preview. */
+  inline?: boolean;
 }) {
   const all = useT();
   const t = all.conversions.events;
-  const { locale } = useLocale();
   const retry = useRetryConversion(websiteId);
-  const fullDate = (iso: string) => new Date(iso).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined);
+  const fullDate = (iso: string) => new Date(iso).toLocaleString(undefined);
   const ago = (iso: string) => relativeTime(iso, now, all.errors.time);
 
   return (
-    <Sheet open={!!event} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-xl">
-        <SheetTitle className="sr-only">{t.detailTitle}</SheetTitle>
+    <SheetOrInline inline={inline} open={!!event} onClose={onClose} title={t.detailTitle} className="w-full overflow-y-auto p-0 sm:max-w-xl">
         {event && (() => {
           const destination = destinations.find((d) => d.id === event.destination_id);
           const platform = PLATFORMS[event.platform].label;
@@ -120,8 +119,7 @@ export function EventDetailSheet({ websiteId, event, destinations, now, canEdit,
             </div>
           );
         })()}
-      </SheetContent>
-    </Sheet>
+    </SheetOrInline>
   );
 }
 

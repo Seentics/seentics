@@ -32,7 +32,7 @@ import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/stores/useAuthStore';
 import { usePermissions } from '@/hooks/use-permissions';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 interface TeamSettingsComponentProps {
   websiteId: string;
@@ -44,9 +44,8 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const t = useT().settings.team;
-  const { locale } = useLocale();
   const day = (iso: string) =>
-    new Date(iso).toLocaleDateString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const roleLabel = (role: string) => t.roles[role] ?? role;
   const { canManageMembers, canChangeRoles, canInviteMembers, isViewer, isLoading: permLoading } = usePermissions(websiteId);
 

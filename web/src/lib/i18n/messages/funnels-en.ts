@@ -1,4 +1,4 @@
-/** Funnels in English. `funnels-bn.ts` mirrors it. */
+/** Funnels. */
 export const funnelsEn = {
   ranges: {
     last24Hours: 'Last 24 hours',

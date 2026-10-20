@@ -33,7 +33,6 @@ import { clientSettingsHref, firstAllowedPath, navAllowed } from '@/features/cli
 import { clientSignInHref, useIsClientSession } from '@/features/client-mode/session';
 import { useT } from '@/lib/i18n';
 import type { DashboardMessages } from '@/lib/i18n/messages/dashboard-en';
-import { LanguageSwitcher } from '@/components/language-switcher';
 
 interface SuiteNavItem {
   label: string;
@@ -510,7 +509,6 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             )}
             <Separator className="bg-border/60" />
             <div className="flex flex-col p-1.5">
-              <LanguageSwitcher className="h-auto w-full justify-start gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground/80 hover:bg-muted/80 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:opacity-70" />
               <button
                 type="button"
                 onClick={() => {

@@ -1,4 +1,4 @@
-/** Developers in English. `developers-bn.ts` mirrors it. */
+/** Developers. */
 export const developersEn = {
   page: {
     title: 'Developers',

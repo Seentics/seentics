@@ -56,7 +56,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { isDemo, demoMutationGuard, demoWebsite } from '@/lib/demo';
 import { usePathSegment } from '@/lib/path-segment';
-import { formatDate, useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 function trackingSnippetFor(id: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://analytics.seentics.com';
@@ -81,7 +81,6 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   const { toast } = useToast();
   const tAll = useT();
   const t = tAll.settings.websites;
-  const { locale } = useLocale();
 
   // The shared reader of the site in the path (lib/path-segment), like the rest of the app:
   // it also answers for the landing page's preview, which shows this page as the demo's.
@@ -415,7 +414,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   {w.url}
                 </TableCell>
                 <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                  {w.createdAt ? (locale === 'bn' ? formatDate(w.createdAt, locale) : formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })) : '—'}
+                  {w.createdAt ? formatDistanceToNow(new Date(w.createdAt), { addSuffix: true }) : '—'}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">

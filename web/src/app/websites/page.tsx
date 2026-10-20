@@ -20,7 +20,6 @@ import { useClientAccess } from '@/features/client-mode/useClientAccess';
 import { firstAllowedPath } from '@/features/client-mode/routes';
 import { clientSignInHref } from '@/features/client-mode/session';
 import { useT } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { ProfilePicker } from '@/components/websites/ProfilePicker';
 import { isWebsiteProfile, type WebsiteProfile } from '@/features/websites/types';
 
@@ -72,7 +71,7 @@ export default function WebsitesOnboardingPage() {
 
   useEffect(() => {
     if (isClient) return;
-    // `?profile=store` (a landing page's sign-up, e.g. /bd): that answer already picked.
+    // `?profile=store` (a landing page's sign-up): that answer already picked.
     const asked = new URLSearchParams(window.location.search).get('profile');
     if (isWebsiteProfile(asked)) setProfile(asked);
     // The site opened last time: straight there, without waiting for the session check and
@@ -223,7 +222,6 @@ export default function WebsitesOnboardingPage() {
           </Link>
           {user && (
             <div className="flex items-center gap-1">
-            <LanguageSwitcher />
             {hasAgency && (
               <Button variant="outline" size="sm" className="shrink-0 gap-2" asChild>
                 <Link href={AGENCY_WORKSPACE_HREF}>

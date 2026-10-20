@@ -1,5 +1,5 @@
 /**
- * Revenue in English. `revenue-bn.ts` mirrors it.
+ * Revenue.
  *
  * A `Rich` is text with inline code: the parts alternate, and every odd part is shown as code,
  * so `['Only ', 'value', ' is needed.']` reads "Only `value` is needed."

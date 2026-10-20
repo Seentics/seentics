@@ -6,7 +6,6 @@ import { Github } from 'lucide-react';
 import Link from 'next/link';
 import { isEnterprise } from '@/lib/features';
 import { usePathname } from 'next/navigation';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useT } from '@/lib/i18n';
 
 export default function Footer() {
@@ -48,7 +47,6 @@ export default function Footer() {
             <h3 className="text-sm font-medium text-foreground mb-4">{t.footer.agencies}</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/agencies" className="hover:text-foreground transition-colors">{t.footer.forAgencies}</Link></li>
-              <li><Link href="/f-commerce" className="hover:text-foreground transition-colors">{t.footer.fcommerce}</Link></li>
               <li><Link href="/agency?demo=1" className="hover:text-foreground transition-colors">{t.footer.agencyDemo}</Link></li>
               <li><Link href="/docs/agency/api" className="hover:text-foreground transition-colors">{t.footer.agencyApi}</Link></li>
             </ul>
@@ -92,7 +90,6 @@ export default function Footer() {
           <p>{t.footer.rights(new Date().getFullYear())}</p>
           <div className="flex items-center gap-4">
             <p>{t.footer.openSource}</p>
-            <LanguageSwitcher className="text-muted-foreground" />
           </div>
         </div>
       </div>

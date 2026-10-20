@@ -41,7 +41,7 @@ function formatStartedAt(iso: string, locale: string): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   } catch {
     return iso;
   }

@@ -112,8 +112,7 @@ export const foundingPrice = (plan: PricedPlan, interval: BillingInterval): numb
 };
 
 // ---------------------------------------------------------------------------
-// Copy. Every word the cards and the table say, so the pricing reads in English or Bangla
-// (src/lib/i18n). English is the default everywhere, and what the tests read.
+// Copy. Every word the cards and the table say (src/lib/i18n), and what the tests read.
 
 export type PricingCopy = {
   unlimited: string;
@@ -316,9 +315,6 @@ export function formatDays(days: number | undefined, copy: PricingCopy = PRICING
 
 export const formatMoney = (dollars: number) =>
   dollars >= 1_000 ? `$${Math.round(dollars).toLocaleString('en-US')}` : `$${dollars.toFixed(2).replace(/\.00$/, '')}`;
-
-/** Whole taka, with the sign and Latin digits: ৳1,499. A yearly price spread over months rounds. */
-export const formatTaka = (taka: number) => `৳${Math.round(taka).toLocaleString('en-US')}`;
 
 /** What a metered resource allows on this plan: Free's limit, or Pro's included amount. */
 export function allowance(plan: PricedPlan, product: string, key: string): number | undefined {

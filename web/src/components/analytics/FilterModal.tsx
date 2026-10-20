@@ -41,7 +41,7 @@ import { cn } from '@/lib/utils';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { format } from 'date-fns';
 import { COUNTRIES } from '@/utils/countries';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -332,10 +332,8 @@ export function FilterModal({
 }: FilterModalProps) {
   const t = useT().analytics.filters;
   const common = useT().analytics.common;
-  const { locale } = useLocale();
   const deviceOptions = DEVICE_OPTIONS.map((o) => ({ ...o, display: common.devices[o.label] ?? o.label }));
-  const fmtDay = (d: Date) =>
-    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' }) : format(d, 'MMM d, yyyy');
+  const fmtDay = (d: Date) => format(d, 'MMM d, yyyy');
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
   const setOpen = (nextOpen: boolean) => {

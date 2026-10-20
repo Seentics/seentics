@@ -4,7 +4,6 @@ import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Logo } from '@/components/ui/logo';
 import { useAuth } from '@/stores/useAuthStore';
@@ -31,7 +30,6 @@ export function BillingShell({ children }: { children: ReactNode }) {
             <span className="text-lg font-bold tracking-tight">Seentics</span>
           </Link>
           <div className="flex items-center gap-1">
-            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </div>

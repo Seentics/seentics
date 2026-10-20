@@ -15,8 +15,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { CopyButton } from '@/components/developers/CopyButton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
-import { timeAgo } from '@/features/shop/format';
-import { useLocale, useT, type Messages } from '@/lib/i18n';
+import { useT, type Messages } from '@/lib/i18n';
 
 type KeysMessages = Messages['developers']['keys'];
 
@@ -175,7 +174,6 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
 export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; onCreate: () => void }) {
   const all = useT();
   const t = all.developers.keys;
-  const { locale } = useLocale();
   const { data: keys = [], isLoading } = useAPIKeys(websiteId);
   const revoke = useDeleteAPIKey(websiteId);
   const [confirm, confirmDialog] = useConfirm();
@@ -243,10 +241,10 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
               </td>
               <td className="px-5 py-3.5 text-muted-foreground">
                 {key.lastUsed
-                  ? locale === 'bn' ? timeAgo(key.lastUsed, locale) : formatDistanceToNow(new Date(key.lastUsed), { addSuffix: true })
+                  ? formatDistanceToNow(new Date(key.lastUsed), { addSuffix: true })
                   : t.never}
               </td>
-              <td className="px-5 py-3.5 text-muted-foreground">{new Date(key.createdAt).toLocaleDateString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+              <td className="px-5 py-3.5 text-muted-foreground">{new Date(key.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
               <td className="px-5 py-3.5 text-right">
                 <Button
                   variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"

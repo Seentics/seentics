@@ -1,4 +1,4 @@
-/** Conversions in English. `conversions-bn.ts` mirrors it. */
+/** Conversions. */
 export const conversionsEn = {
   page: {
     title: 'Conversions',

@@ -85,22 +85,22 @@ export function pageProblems(p: PageInput): Array<'slug' | 'title' | 'productNam
   return out;
 }
 
-/** "2 hours ago" / "2 ঘণ্টা আগে", digits Latin in both, as the rest of the product writes them. */
-export function timeAgo(iso: string, locale: 'en' | 'bn', now = Date.now()): string {
+/** "2 hours ago". */
+export function timeAgo(iso: string, now = Date.now()): string {
   const ms = new Date(iso).getTime() - now;
   if (Number.isNaN(ms)) return '—';
-  const rtf = new Intl.RelativeTimeFormat(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en', { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
   const abs = Math.abs(ms);
   if (abs < 60_000) return rtf.format(0, 'second');
   if (abs < 3_600_000) return rtf.format(Math.round(ms / 60_000), 'minute');
   if (abs < 86_400_000) return rtf.format(Math.round(ms / 3_600_000), 'hour');
   if (abs < 30 * 86_400_000) return rtf.format(Math.round(ms / 86_400_000), 'day');
-  return new Date(iso).toLocaleDateString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** Date and time in Dhaka, for history lines: "20 Oct, 3:40 pm". */
-export function dhakaTime(iso: string, locale: 'en' | 'bn'): string {
-  return new Date(iso).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB', {
+export function dhakaTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Dhaka',
   });
 }

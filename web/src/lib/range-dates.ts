@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useLocale, type Locale } from '@/lib/i18n';
 import { uiEn } from '@/lib/i18n/messages/ui-en';
-import { uiBn } from '@/lib/i18n/messages/ui-bn';
 
-/** Short weekday and month names in `locale`; digits stay Latin in both. */
-const names = (locale: Locale) => (locale === 'bn' ? uiBn : uiEn).dates;
+/** Short weekday and month names. */
+const names = (_locale: Locale) => uiEn.dates;
 
-/** "Sun, 27 Sep" / "রবি, 27 সেপ্টে". Built by hand: `toLocaleDateString` spells September "Sept" in en-GB. */
+/** "Sun, 27 Sep". Built by hand: `toLocaleDateString` spells September "Sept" in en-GB. */
 export function formatShortDate(d: Date, locale: Locale = 'en'): string {
   const { weekdays, months } = names(locale);
   return `${weekdays[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;

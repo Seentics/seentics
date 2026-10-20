@@ -9,7 +9,6 @@ import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { WebsitesSettingsPanel } from '@/components/settings/WebsitesSettingsPanel';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useT } from '@/lib/i18n';
 
 /** Full-page entry to manage all websites. Prefer Settings → Websites from any dashboard. */
@@ -31,7 +30,6 @@ export default function WebsitesManagePage() {
             <h1 className="truncate text-lg font-semibold text-foreground">{t.manage.title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
             {user && (
               <Button
                 variant="ghost"

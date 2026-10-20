@@ -8,10 +8,9 @@ import {
 } from 'recharts';
 import { formatNumber } from '@/features/analytics/format';
 import type { EventAnnotation } from './EventAnnotations';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 /** Chart dates in the reader's language, digits kept Latin. */
-const dateLocale = (locale: string) => (locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US');
 
 interface TrafficChartProps {
   data: any;
@@ -29,10 +28,9 @@ const PREVIOUS_COLOR = 'hsl(var(--muted-foreground))';
 
 function CustomTooltip({ active, payload, label }: any) {
   const t = useT().analytics.common;
-  const { locale } = useLocale();
   if (!active || !payload?.length) return null;
 
-  const date = new Date(label).toLocaleDateString(dateLocale(locale), {
+  const date = new Date(label).toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 
@@ -112,7 +110,6 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
   data, isLoading, previousData, showComparison, annotations = [],
 }) => {
   const t = useT().analytics;
-  const { locale } = useLocale();
   // Page views run ~3x visitors, which flattens the visitors line; the legend hides either series.
   const [hidden, setHidden] = useState<{ views?: boolean; unique?: boolean }>({});
   const toggle = (key: 'views' | 'unique') => setHidden((h) => ({ ...h, [key]: !h[key] }));
@@ -178,7 +175,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={d => new Date(d).toLocaleDateString(dateLocale(locale), { month: 'short', day: 'numeric' })}
+            tickFormatter={d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             tick={{ fill: 'hsl(var(--muted-foreground))' }}
             interval="preserveStartEnd"
             minTickGap={48}

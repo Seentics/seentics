@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/integrations/StatusBadge';
 import { canRetry, describeDelivery } from '@/lib/integration-form';
 import { avatarTone, hostOf, humanizeKey, initials, pathOf } from '@/lib/submission-display';
 import { cn } from '@/lib/utils';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 export interface SubmissionRowProps {
   submission: Submission;
@@ -24,7 +24,6 @@ export interface SubmissionRowProps {
 export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelete, onRetry, retryingId }: SubmissionRowProps) {
   const t = useT();
   const m = t.automations.submissions.row;
-  const { locale } = useLocale();
   const source = hostOf(s.referrer);
   const answers = Object.entries(s.fields);
   return (
@@ -90,7 +89,7 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
       </div>
 
       <div className="flex items-center justify-between gap-2 md:justify-end">
-        <time className="text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>
+        <time className="text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString(undefined)}>
           {relativeTime(s.created_at, now, t.errors.time)}
         </time>
         {canDelete && (

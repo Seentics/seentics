@@ -1,6 +1,6 @@
 import type { OrderStatus, PurchaseEventOn, RiskLevel, Template } from '@/features/shop/types';
 
-/** The Shop and Orders pages and the "no website" onboarding, in English. `shop-bn.ts` mirrors it. */
+/** The Shop and Orders pages and the "no website" onboarding. */
 export const shopEn = {
   nav: { shop: 'Shop', orders: 'Orders', shopHint: 'Product landing pages with a COD order form', ordersHint: 'Cash-on-delivery orders and fake-order checks' },
 

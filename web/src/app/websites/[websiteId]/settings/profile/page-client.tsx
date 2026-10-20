@@ -7,14 +7,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { User, Lock, Save, Loader2, Eye, EyeOff, Key, Trash2, Languages } from 'lucide-react';
+import { User, Lock, Save, Loader2, Eye, EyeOff, Key, Trash2 } from 'lucide-react';
 import { DeleteAccountCard } from '@/components/settings/DeleteAccountCard';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isEnterprise } from '@/lib/features';
-import { LOCALES, useLocale, useT } from '@/lib/i18n';
-import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * The server's minimum: the cloud gateway requires 12 (gateway/validators/auth.ts), the
@@ -31,7 +30,6 @@ export default function ProfileSettingsPage() {
   const { toast } = useToast();
   const tAll = useT();
   const t = tAll.settings.profile;
-  const { locale, setLocale } = useLocale();
 
   const demo = isDemo(params.websiteId);
   const [name, setName] = useState(user?.name || (demo ? 'Alex Morgan' : ''));
@@ -132,36 +130,6 @@ export default function ProfileSettingsPage() {
                 {savingProfile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 {tAll.actions.save}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-2.5">
-        <div className="flex items-center gap-2 px-1">
-          <Languages className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">{t.language}</h2>
-        </div>
-        <Card className="border border-border bg-card shadow-md hover:shadow-lg transition-all duration-200">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-6">
-            <p className="text-xs text-muted-foreground">{t.languageHint}</p>
-            <div role="radiogroup" aria-label={tAll.language.label} className="inline-flex rounded-md border border-border p-0.5">
-              {LOCALES.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  role="radio"
-                  aria-checked={locale === l}
-                  lang={l}
-                  onClick={() => setLocale(l)}
-                  className={cn(
-                    'rounded px-3 py-1.5 text-xs font-medium transition-colors',
-                    locale === l ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {tAll.language[l]}
-                </button>
-              ))}
             </div>
           </CardContent>
         </Card>

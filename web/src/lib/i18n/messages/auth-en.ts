@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-/** Auth in English: a client user's email-link sign-in and a self-hosted install's first admin. `auth-bn.ts` mirrors it. */
+/** Auth: a client user's email-link sign-in and a self-hosted install's first admin. */
 export const authEn = {
   clientSignIn: {
     invalidEmail: 'Enter a valid email address.',

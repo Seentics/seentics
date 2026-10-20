@@ -10,13 +10,6 @@ export type Plan = {
   priceMonthly: number;
   /** The price of a year, billed at once ($90, $240, $990); null when the plan is not sold yearly. */
   priceYearly: number | null;
-  /**
-   * The same plan in whole taka, paid with bKash, Nagad or Rocket in Bangladesh (৳499 / ৳1,499 /
-   * ৳5,999 a month, ten months for a year). Null, or absent from an older gateway, when it is not
-   * sold in taka.
-   */
-  priceMonthlyBdt?: number | null;
-  priceYearlyBdt?: number | null;
   /** Which suite products this plan grants access to, e.g. ['core', 'observe']. */
   products: string[];
   features: string[];

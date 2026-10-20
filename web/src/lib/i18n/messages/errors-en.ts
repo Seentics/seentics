@@ -1,4 +1,4 @@
-/** The JS error tracking page in English. `errors-bn.ts` mirrors it. */
+/** The JS error tracking page. */
 export const errorsEn = {
   page: {
     title: 'Errors',

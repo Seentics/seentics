@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/stores/useAuthStore';
-import { startCheckout, startInvoiceCheckout, takeCheckoutIntent } from '@/lib/checkout';
+import { startCheckout, takeCheckoutIntent } from '@/lib/checkout';
 import { useT } from '@/lib/i18n';
 
 /**
  * Mounted on the dashboard: someone who chose a paid plan before signing up lands here after sign-up
- * and goes straight on to that plan's checkout, before they add a website: the card checkout, or
- * the taka invoice when that is how they chose to pay.
+ * and goes straight on to that plan's checkout, before they add a website.
  */
 export default function CheckoutIntent() {
   const { user } = useAuth();
@@ -24,12 +23,11 @@ export default function CheckoutIntent() {
     if (!intent) return;
     started.current = true;
     setBusy(true);
-    const go = intent.manual ? startInvoiceCheckout(intent.plan, intent.interval) : startCheckout(intent.plan, intent.interval, intent.discount);
-    go.catch(() => {
+    startCheckout(intent.plan, intent.interval, intent.discount).catch(() => {
       toast.error(t.checkout.openFailed);
       setBusy(false);
     });
-    // Once per sign-in: changing language must not start a second checkout.
+    // Once per sign-in.
   }, [user]);
 
   if (!busy) return null;

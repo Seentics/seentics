@@ -21,7 +21,6 @@ import { INTEGRATIONS } from '@/lib/integrations';
 import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
 import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 import { HashLinks } from './HashLinks';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useT } from '@/lib/i18n';
 
 // The Products & Tools menu was removed: the header keeps Use cases, Integrations, Docs, For agencies
@@ -289,7 +288,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
             <span className="mx-2 hidden h-5 w-px bg-border xl:block" aria-hidden />
 
-            <LanguageSwitcher />
             <ThemeToggle />
             {isAuthenticated ? (
               <Link href="/websites" className="ml-2">
@@ -316,7 +314,6 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
         {/* Mobile */}
         <div className="flex items-center gap-1.5 lg:hidden">
-          <LanguageSwitcher />
           <ThemeToggle />
           <button
             type="button"

@@ -24,21 +24,18 @@ export function useDomainErrorText(): (e: unknown) => string {
   return useCallback((e: unknown) => domainErrorMessage(e, m), [m]);
 }
 
-/** Intl locale for dates: Bangla month names with Latin digits; English as "5 Oct 2026". */
-const dateLocale = (locale: Locale) => (locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB');
-
-/** "5 Oct 2026" / "5 অক্টো, 2026"; `year: false` drops the year. */
-export function shortDate(iso: string, locale: Locale, year = true): string {
+/** "5 Oct 2026"; `year: false` drops the year. */
+export function shortDate(iso: string, _locale?: Locale, year = true): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(dateLocale(locale), { day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}) });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}) });
 }
 
-/** "3 hours ago" / "3 ঘণ্টা আগে", digits Latin. */
-export function timeAgo(iso: string, locale: Locale): string {
+/** "3 hours ago". */
+export function timeAgo(iso: string, _locale?: Locale): string {
   const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
   if (!Number.isFinite(seconds)) return '—';
-  const rtf = new Intl.RelativeTimeFormat(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en', { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
   const steps: Array<[Intl.RelativeTimeFormatUnit, number]> = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
   for (const [unit, size] of steps) {
     if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);

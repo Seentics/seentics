@@ -1,4 +1,4 @@
-/** Analytics in English. `analytics-bn.ts` mirrors it. */
+/** Analytics. */
 export const analyticsEn = {
   /** Shared metric and dimension words used across the overview's panels. */
   common: {

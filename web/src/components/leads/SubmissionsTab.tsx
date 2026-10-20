@@ -15,7 +15,7 @@ import { useRetryDelivery } from '@/features/integrations/mutations';
 import { useDeleteSiteSubmission } from '@/features/leads/mutations';
 import { useLeadForms, useSiteSubmissions } from '@/features/leads/queries';
 import { formLabel, type SiteSubmission, type SiteSubmissionFilters } from '@/features/leads/types';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { SUBMISSION_RANGES } from './lead-format';
 import { SentTo } from './parts';
 
@@ -53,7 +53,6 @@ export function SubmissionsTab({
   }) : undefined;
   const t = all.leads;
   const ts = t.submissions;
-  const { locale } = useLocale();
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [form, setForm] = useState('');
@@ -116,7 +115,7 @@ export function SubmissionsTab({
     {
       id: 'when', header: ts.when, width: '96px', align: 'right', sorted: true,
       cell: (s) => (
-        <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>
+        <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString(undefined)}>
           {relativeTime(s.created_at, now, all.errors.time)}
         </time>
       ),

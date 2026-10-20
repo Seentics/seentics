@@ -1,4 +1,4 @@
-/** UiBlocks in English. `ui-blocks-bn.ts` mirrors it. */
+/** UiBlocks. */
 export const uiBlocksEn = {
   page: {
     title: 'UI Blocks',

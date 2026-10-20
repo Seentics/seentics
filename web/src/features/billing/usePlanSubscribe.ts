@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { PlanSelection } from '@/components/subscription/PlanBuilder';
-import { rememberCheckoutIntent, startCheckout, startInvoiceCheckout } from '@/lib/checkout';
+import { rememberCheckoutIntent, startCheckout } from '@/lib/checkout';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/stores/useAuthStore';
 
 /**
  * What a pricing card's button does, for the landing page and /pricing alike. Free opens the
- * dashboard (or sign-up). A paid plan opens its checkout: Lemon Squeezy's for a card, or a taka
- * invoice for bKash, Nagad and Rocket. A visitor without an account signs up first, and the
+ * dashboard (or sign-up). A paid plan opens Lemon Squeezy's checkout. A visitor without an account
+ * signs up first, and the
  * dashboard then carries on to that checkout (CheckoutIntent).
  */
 export function usePlanSubscribe() {
@@ -26,14 +26,13 @@ export function usePlanSubscribe() {
       return;
     }
     if (!isAuthenticated) {
-      rememberCheckoutIntent(selection.plan, selection.interval, selection.discount, !!selection.manual);
+      rememberCheckoutIntent(selection.plan, selection.interval, selection.discount);
       router.push('/signup');
       return;
     }
     try {
       setLoading(true);
-      if (selection.manual) await startInvoiceCheckout(selection.plan, selection.interval);
-      else await startCheckout(selection.plan, selection.interval, selection.discount);
+      await startCheckout(selection.plan, selection.interval, selection.discount);
     } catch (error: any) {
       toast.error(error?.response?.data?.error || error?.response?.data?.message || t.pricingSection.checkoutFailed);
     } finally {

@@ -1,6 +1,6 @@
 import type { DomainState, EmbedSection, FeatureAccess, FeatureId, Resource, SetupStepId } from '@/features/agency/types';
 
-/** Agency in English. `agency-bn.ts` mirrors it. */
+/** Agency. */
 export const agencyEn = {
   /** The workspace's shared bits: pills, copy buttons, loading rows, period changes. */
   common: {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-/** Dashboard in English: the sidebar, adding a website, goals, team invites, loading and error pages. `dashboard-bn.ts` mirrors it. */
+/** Dashboard: the sidebar, adding a website, goals, team invites, loading and error pages. */
 export const dashboardEn = {
   sidebar: {
     nav: {

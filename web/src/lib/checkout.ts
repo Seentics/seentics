@@ -1,5 +1,4 @@
 import api from './api';
-import { createInvoice } from '@/features/billing/api';
 
 /**
  * Checkout is the payment provider's own page: the customer is sent there, pays, and comes back to
@@ -13,8 +12,7 @@ const INTENT_KEY = 'seentics_checkout_intent';
 const INTENT_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type BillingInterval = 'month' | 'year';
-/** `manual`: they chose to pay in taka (bKash, Nagad, Rocket), so an invoice is made instead of a card checkout. */
-export type CheckoutIntent = { plan: string; interval: BillingInterval; discount?: string; manual?: true };
+export type CheckoutIntent = { plan: string; interval: BillingInterval; discount?: string };
 
 /**
  * A visitor who picks a paid plan before they have an account: remember the plan, and whether they
@@ -22,9 +20,9 @@ export type CheckoutIntent = { plan: string; interval: BillingInterval; discount
  * (and the verification email, which may open in another tab), so the first thing they see after
  * signing up is that plan's checkout, not an empty dashboard.
  */
-export function rememberCheckoutIntent(plan: string, interval: BillingInterval = 'month', discount?: string, manual = false): void {
+export function rememberCheckoutIntent(plan: string, interval: BillingInterval = 'month', discount?: string): void {
   try {
-    localStorage.setItem(INTENT_KEY, JSON.stringify({ plan, interval, ...(discount ? { discount } : {}), ...(manual ? { manual: true } : {}), at: Date.now() }));
+    localStorage.setItem(INTENT_KEY, JSON.stringify({ plan, interval, ...(discount ? { discount } : {}), at: Date.now() }));
   } catch {
     // storage blocked: they pick the plan again from the dashboard
   }
@@ -36,13 +34,12 @@ export function takeCheckoutIntent(): CheckoutIntent | null {
     const raw = localStorage.getItem(INTENT_KEY);
     if (!raw) return null;
     localStorage.removeItem(INTENT_KEY);
-    const { plan, interval, discount, manual, at } = JSON.parse(raw) as { plan?: string; interval?: string; discount?: unknown; manual?: unknown; at?: number };
+    const { plan, interval, discount, at } = JSON.parse(raw) as { plan?: string; interval?: string; discount?: unknown; at?: number };
     if (!plan || typeof at !== 'number' || Date.now() - at >= INTENT_TTL_MS) return null;
     return {
       plan,
       interval: interval === 'year' ? 'year' : 'month',
       ...(typeof discount === 'string' && discount ? { discount } : {}),
-      ...(manual === true ? { manual: true as const } : {}),
     };
   } catch {
     return null;
@@ -59,17 +56,4 @@ export async function startCheckout(plan: string, interval: BillingInterval = 'm
   const url: string | undefined = res.data?.data?.checkoutUrl;
   if (!url) throw new Error(res.data?.error ?? 'No checkout was returned');
   openCheckout(url);
-}
-
-/** The page an invoice is paid on: its number, amount and where to send the money. */
-export const invoiceUrl = (id: string) => `/billing/invoice?id=${encodeURIComponent(id)}`;
-
-/**
- * Buy `plan` in taka: the gateway issues an invoice, and the customer is taken to it to pay with
- * bKash, Nagad or Rocket. Throws with the gateway's message (403 when taka payments are not open
- * to the account, 409 when it already has that plan).
- */
-export async function startInvoiceCheckout(plan: string, interval: BillingInterval = 'month'): Promise<void> {
-  const invoice = await createInvoice(plan, interval);
-  openCheckout(invoiceUrl(invoice.id));
 }

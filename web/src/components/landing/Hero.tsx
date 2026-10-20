@@ -5,8 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '@/stores/useAuthStore';
 import { HeroExplorer } from './HeroExplorer';
-import { useLocale, useT } from '@/lib/i18n';
-import { isEnterprise } from '@/lib/features';
+import { useT } from '@/lib/i18n';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -20,9 +19,6 @@ export default function Hero() {
   const reduce = useReducedMotion();
   const { isAuthenticated } = useAuth();
   const t = useT();
-  // Visitors from Bangladesh are mostly Facebook sellers: point them at the page made for them.
-  const { region } = useLocale();
-  const fcommerce = isEnterprise && region?.region === 'bd';
 
   // Always animated, never conditionally: the server renders the first frame, and a
   // client that then dropped the animation for reduced motion left the hero invisible.
@@ -37,30 +33,14 @@ export default function Hero() {
     <section className="relative overflow-hidden pt-40 sm:pt-52 lg:pt-64">
       <div className="lx-container relative">
 
-        {fcommerce && (
-          <Link
-            href="/f-commerce"
-            className="mb-6 inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-accent"
-            style={{ borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}
-          >
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-            <span className="truncate">{t.hero.fcommerceBanner}</span>
-            <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-          </Link>
-        )}
-
-        <motion.p {...rise(0)} className="landing-eyebrow !text-[10px] !font-medium !tracking-[0.16em] sm:!text-[10.5px]">
-          {t.hero.eyebrow}
-        </motion.p>
-
         <motion.h1
-          {...rise(0.08)}
+          {...rise(0)}
           className="lx-display max-w-[26ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
         >
-          {t.hero.titleA}<br className="hidden sm:block" /> {t.hero.titleB}
+          {t.hero.titleA}{' '}<br className="hidden sm:block" />{t.hero.titleB}
         </motion.h1>
 
-        <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+        <motion.div {...rise(0.08)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <p className="lx-dim max-w-[46rem] text-base leading-relaxed sm:text-lg">
             {t.hero.body}
           </p>

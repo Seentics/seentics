@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blankPage, formatBdt, nextStatuses, normalisePhone, pageProblems, slugify, slugProblem, telHref } from '@/features/shop/format';
 import { demoOrderSummary, demoOrdersPage, DEMO_PAGES } from '@/lib/demo/shop';
-import { en } from '@/lib/i18n/messages/en';
-import { bn } from '@/lib/i18n/messages/bn';
 
 describe('shop format', () => {
   it('writes taka grouped as in Bangladesh', () => {
@@ -53,12 +51,5 @@ describe('demo shop', () => {
     expect(Object.values(summary.byStatus).reduce((a, b) => a + b, 0)).toBe(all.total);
     // Every number is in the reserved demo range.
     expect(all.items.every((o) => o.phone.startsWith('01700000'))).toBe(true);
-  });
-});
-
-describe('shop strings', () => {
-  it('has a Bangla string for every status and risk level', () => {
-    for (const s of Object.keys(en.shop.orders.statuses)) expect(bn.shop.orders.statuses[s as keyof typeof bn.shop.orders.statuses]).toBeTruthy();
-    expect(Object.keys(bn.shop.orders.risk)).toEqual(Object.keys(en.shop.orders.risk));
   });
 });

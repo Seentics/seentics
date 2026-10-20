@@ -18,8 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
-import { useInvoices, useManualSubscription, useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
-import { InvoiceList, TakaBilling } from '@/components/subscription/TakaBilling';
+import { useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
 import type { MeterState } from '@/features/billing/types';
 import { OFFER_YEARLY, RATES_LINE } from '@/features/plans/pricing-spec';
 import api from '@/lib/api';
@@ -28,7 +27,7 @@ import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
-import { formatDate, offersManualPayments, useLocale, useT, type Messages } from '@/lib/i18n';
+import { formatDate, useT, type Messages } from '@/lib/i18n';
 
 const GB = 1024 ** 3;
 
@@ -44,8 +43,7 @@ export default function BillingSettingsPage() {
   const router = useRouter();
   const demo = isDemo(websiteId);
   const t = useT();
-  const { locale, region } = useLocale();
-  const fmtDate = (iso?: string) => formatDate(iso, locale);
+  const fmtDate = (iso?: string) => formatDate(iso);
 
   useEffect(() => {
     if (!isEnterprise && !demo) router.replace(`/websites/${websiteId}/settings`);
@@ -63,11 +61,6 @@ export default function BillingSettingsPage() {
   const meter = useMeter({ demo, enabled: canExtra });
   const extraUsageOn = !!meter.data;
   const [busy, setBusy] = useState<string | null>(null);
-  // Paying in taka: an account with a plan paid that way, or a free account in Bangladesh (which
-  // buys with an invoice; /pricing still offers a card). A card subscription keeps the card's page.
-  const manual = useManualSubscription({ enabled: isEnterprise && !demo });
-  const invoices = useInvoices({ enabled: isEnterprise && !demo });
-  const paysInTaka = !!manual.data || (!isPaid && offersManualPayments(region));
 
   if (!isEnterprise && !demo) return null;
 
@@ -107,7 +100,7 @@ export default function BillingSettingsPage() {
     }
   };
 
-  if (loading || (isEnterprise && !demo && manual.isLoading)) {
+  if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
@@ -119,10 +112,6 @@ export default function BillingSettingsPage() {
     <div className={cn(websiteWorkspaceShellClass, 'space-y-6')}>
       <DashboardPageHeader websiteId={websiteId} title={t.billing.title} description={t.billing.description} />
 
-      {paysInTaka ? (
-        <TakaBilling demo={demo} />
-      ) : (
-      <>
       {/* Plan */}
       <Card className="border border-border">
         <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -205,12 +194,8 @@ export default function BillingSettingsPage() {
           <SpendCap meter={meter.data} demo={demo} plan={planName} t={t} />
         </>
       )}
-      {/* A card customer who once paid in taka still sees those invoices. */}
-      {!!invoices.data?.length && <InvoiceList invoices={invoices.data} />}
-      </>
-      )}
 
-      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn && !paysInTaka} title={canExtra && extraUsageOn && !paysInTaka ? t.billing.otherUsage : t.billing.usageThisMonth} t={t} />
+      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn} title={canExtra && extraUsageOn ? t.billing.otherUsage : t.billing.usageThisMonth} t={t} />
     </div>
   );
 }

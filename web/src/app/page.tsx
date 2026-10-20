@@ -2,6 +2,7 @@ import { isEnterprise } from '@/lib/features';
 import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
+import FlowSection from '@/components/landing/FlowSection';
 import PlatformStrip from '@/components/landing/PlatformStrip';
 import Statement from '@/components/landing/Statement';
 import FeatureRows from '@/components/landing/FeatureRows';
@@ -24,6 +25,7 @@ export default function LandingPage() {
         <Hero />
         <PlatformStrip />
         <Statement />
+        <FlowSection />
         <FeatureRows />
         <Pricing />
         <FaqCta />

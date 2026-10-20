@@ -1,6 +1,6 @@
 import type { IntegrationCategory } from '@/lib/integrations';
 
-/** The public pages outside the landing page — Integrations, Contact, the speed test — in English. `site-bn.ts` mirrors it. */
+/** The public pages outside the landing page — Integrations, Contact, the speed test. */
 export const siteEn = {
   integrations: {
     eyebrow: 'Integrations',

@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Trash2, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 export interface EventAnnotation {
   id: string;
@@ -38,12 +38,8 @@ interface EventAnnotationsProps {
 export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotationsProps) {
   const t = useT().analytics.annotations;
   const actions = useT().actions;
-  const { locale } = useLocale();
-  // Bangla month names with Latin digits; English keeps date-fns' own formats.
-  const longDate = (d: Date) =>
-    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }) : format(d, 'PPP');
-  const shortDate = (d: Date) =>
-    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' }) : format(d, 'MMM d, yyyy');
+  const longDate = (d: Date) => format(d, 'PPP');
+  const shortDate = (d: Date) => format(d, 'MMM d, yyyy');
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [title, setTitle] = useState('');

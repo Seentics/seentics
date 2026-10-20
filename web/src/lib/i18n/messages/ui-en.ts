@@ -1,10 +1,8 @@
-/** Ui in English: the shared controls (tables, collections, date ranges, calendar). `ui-bn.ts` mirrors it. */
+/** Ui: the shared controls (tables, collections, date ranges, calendar). */
 export const uiEn = {
   dates: {
     weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    weekdaysMin: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    monthsLong: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
   },
 
   ranges: {
@@ -43,11 +41,6 @@ export const uiEn = {
     range: (first: string, last: string, total: string) => `${first}–${last} of ${total}`,
     previous: 'Previous',
     next: 'Next',
-  },
-
-  calendar: {
-    previousMonth: 'Go to the previous month',
-    nextMonth: 'Go to the next month',
   },
 };
 

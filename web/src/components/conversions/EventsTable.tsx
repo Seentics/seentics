@@ -17,7 +17,7 @@ import { conversionsApi } from '@/features/conversions/api';
 import { conversionKeys, useConversionEvents } from '@/features/conversions/queries';
 import type { ConversionEvent, ConversionStatus, Destination, EventKind, MatchKey } from '@/features/conversions/types';
 import { cn } from '@/lib/utils';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { formatValue, PLATFORMS } from './conversion-format';
 import { EventDetailSheet } from './EventDetailSheet';
 import { PlatformMark, StatusLabel } from './parts';
@@ -48,7 +48,6 @@ export function EventsTable({
   const all = useT();
   const t = all.conversions.events;
   const kinds = all.conversions.kinds;
-  const { locale } = useLocale();
   const [page, setPage] = useState(0);
   /** The open tab: every platform, or one connected destination by id. */
   const [tab, setTab] = useState('all');
@@ -161,7 +160,7 @@ export function EventsTable({
     },
     {
       id: 'when', header: t.when, width: '96px', align: 'right', sorted: true,
-      cell: (e) => <time className="text-xs text-muted-foreground" dateTime={e.created_at} title={new Date(e.created_at).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>{relativeTime(e.created_at, now, all.errors.time)}</time>,
+      cell: (e) => <time className="text-xs text-muted-foreground" dateTime={e.created_at} title={new Date(e.created_at).toLocaleString(undefined)}>{relativeTime(e.created_at, now, all.errors.time)}</time>,
     },
     {
       id: 'actions', header: <span className="sr-only">{all.actions.actions}</span>, width: '100px', align: 'right',

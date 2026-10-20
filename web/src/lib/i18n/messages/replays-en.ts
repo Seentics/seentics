@@ -1,4 +1,4 @@
-/** Replays in English. `replays-bn.ts` mirrors it. */
+/** Replays. */
 export const replaysEn = {
   /** The recordings list. */
   list: {

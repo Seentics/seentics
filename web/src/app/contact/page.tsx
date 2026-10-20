@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Mail, MessageSquare, MapPin, Clock, Send, ExternalLink, Github } from 'lucide-react';
 import { FaDiscord } from 'react-icons/fa';
 import { Logo } from '@/components/ui/logo';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { isEnterprise } from '@/lib/features';
@@ -89,7 +88,6 @@ export default function ContactPage() {
             <Logo size="lg" showText={true} textClassName="font-headline text-2xl font-bold" />
           </Link>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
             <Button asChild>
               <Link href="/">{t.goHome}</Link>
             </Button>

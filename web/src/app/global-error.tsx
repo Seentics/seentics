@@ -1,9 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { readLocaleCookie, type Locale } from '@/lib/i18n/locale';
 import { dashboardEn } from '@/lib/i18n/messages/dashboard-en';
-import { dashboardBn } from '@/lib/i18n/messages/dashboard-bn';
 
 export default function GlobalError({
   error,
@@ -12,13 +9,9 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  // This replaces the root layout, language provider included: the visitor's chosen language
-  // is read from its cookie once mounted.
-  const [locale, setLocale] = useState<Locale>('en');
-  useEffect(() => setLocale(readLocaleCookie() ?? 'en'), []);
-  const t = (locale === 'bn' ? dashboardBn : dashboardEn).errorPages;
+  const t = dashboardEn.errorPages;
   return (
-    <html lang={locale}>
+    <html lang="en">
       <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', background: '#0a0a0a', color: '#fafafa' }}>
         <div style={{
           minHeight: '100vh',

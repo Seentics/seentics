@@ -21,7 +21,7 @@ import { useBulkUpdateContacts, useDeleteContacts, useUpdateContact } from '@/fe
 import { useContactTags, useContacts, useLeadsOverview } from '@/features/leads/queries';
 import { CONTACT_STATUSES, type Contact, type ContactFilters, type ContactSort, type ContactSource, type ContactStatus, type LeadChannel } from '@/features/leads/types';
 import { cn } from '@/lib/utils';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import type { LeadsMessages } from '@/lib/i18n/messages/leads-en';
 import { cameFrom } from './lead-format';
 import { StatusDot, StatusSelect, TagList } from './parts';
@@ -289,9 +289,8 @@ function Avatar({ contact }: { contact: Contact }) {
 
 function When({ iso, now }: { iso: string; now?: number }) {
   const time = useT().errors.time;
-  const { locale } = useLocale();
   return (
-    <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={iso} title={new Date(iso).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>
+    <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={iso} title={new Date(iso).toLocaleString(undefined)}>
       {relativeTime(iso, now, time)}
     </time>
   );

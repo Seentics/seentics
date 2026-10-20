@@ -21,20 +21,11 @@ import { uiEn } from './ui-en';
 import { authEn } from './auth-en';
 
 /**
- * Every word the translated pages say, in English. `bn.ts` has the same keys (the type is this
- * object's), so a missing Bangla string fails the typecheck rather than showing a blank.
- *
- * Translated: the landing page, pricing, checkout, Billing, the taka invoice pages, and the whole
- * dashboard, each area in its own `<area>-en.ts` (shop, analytics, funnels, settings…). `actions` holds
- * the words every page shares. Docs, blog, use-cases, tools and the legal pages stay English.
+ * The words the landing page, pricing, checkout, Billing and the whole dashboard show, each
+ * dashboard area in its own `<area>-en.ts` (shop, analytics, funnels, settings…). `actions` holds
+ * the words every page shares.
  */
 export const en = {
-  language: {
-    label: 'Language',
-    en: 'English',
-    bn: 'বাংলা',
-  },
-
   common: {
     startFree: 'Start for free',
     openDashboard: 'Open dashboard',
@@ -146,7 +137,6 @@ export const en = {
     forAgencies: 'For agencies',
     agencyDemo: 'Agency demo',
     agencyApi: 'Agency API',
-    fcommerce: 'For Facebook sellers',
     company: 'Company',
     contact: 'Contact',
     legal: 'Legal',
@@ -165,8 +155,6 @@ export const en = {
   },
 
   hero: {
-    fcommerceBanner: 'Sell on Facebook in Bangladesh? Take COD orders and stop fake ones',
-    eyebrow: 'Analytics · Lead capture · Server-side tracking',
     titleA: 'Turn more ad clicks',
     titleB: 'into customers.',
     body: 'Seentics shows you what visitors do on your site, captures them with popups and forms before they leave, and sends every conversion to Meta and Google with server-side tracking. One tool instead of three.',
@@ -190,6 +178,17 @@ export const en = {
   },
 
   features: {
+    conversions: {
+      area: 'Server-side tracking',
+      title: ['Your ads see every sale,', 'even past ad blockers'] as [string, string],
+      body: 'Ad blockers and Safari stop browser pixels, so Meta and Google miss sales and learn from half the story. Seentics sends each purchase and lead from its own server, matched with click ID, email and phone.',
+      link: 'How conversions work',
+      details: [
+        { name: 'Meta, Google, TikTok, LinkedIn', text: 'One setup sends to every ad platform you use.' },
+        { name: 'Match quality', text: 'Each event shows what it was matched with, and how strongly.' },
+        { name: 'Retries and alerts', text: 'A rejected event is retried, and you see why it failed.' },
+      ],
+    },
     analytics: {
       area: 'Analytics and funnels',
       title: ['Every number,', 'with the reason behind it'] as [string, string],
@@ -266,10 +265,6 @@ export const en = {
     founding: (percent: number, names: string) => `${percent}% off ${names} for life with code`,
     foundingLabel: 'Founding offer:',
     and: ' and ',
-    payWith: 'Pay with',
-    payLocal: 'bKash · Nagad · Rocket (৳)',
-    payCard: 'International card ($)',
-    localNote: 'Pay in taka with bKash, Nagad or Rocket. No card needed.',
   },
 
   pricing: PRICING_EN,
@@ -299,11 +294,6 @@ export const en = {
         a: 'It loads with defer, so it never blocks the page, and it sends data in batches in the background.',
       },
     ],
-    /** Shown first to visitors in Bangladesh. */
-    bdItem: {
-      q: 'Can I pay with bKash or Nagad?',
-      a: 'Yes. In Bangladesh you pay in taka: Starter is ৳499, Pro ৳1,499 and Agency ৳5,999 a month. Choose a plan, send the amount with bKash, Nagad or Rocket, and enter the transaction ID. We check it, usually within a few hours, and your plan turns on. Before it ends we email the next invoice.',
-    },
   },
 
   closing: {
@@ -396,94 +386,6 @@ export const en = {
     },
   },
 
-  /** Paying in taka: the invoice, bKash / Nagad / Rocket, and the plan it pays for. */
-  bd: {
-    sectionTitle: 'Pay with bKash, Nagad or Rocket',
-    sectionBody: 'Your plan is paid in taka. Before it ends we email the next invoice; pay it and the plan carries on.',
-    paidUntil: (date: string) => `Paid until ${date}`,
-    graceWarning: (date: string) => `Your plan’s period has ended. Pay the renewal invoice by ${date} to keep it; after that the account moves to Free (nothing is deleted).`,
-    payRenewal: 'Pay renewal',
-    payInvoice: 'Pay invoice',
-    getPlan: (name: string) => `Get ${name}`,
-    switchTo: (name: string) => `Switch to ${name}`,
-    switchYearly: 'Pay yearly (2 months free)',
-    invoices: 'Invoices',
-    noInvoices: 'No invoices yet.',
-    perMonth: (amount: string) => `${amount} / month`,
-    perYear: (amount: string) => `${amount} / year`,
-    interval: { month: 'Monthly', year: 'Yearly' },
-    kind: { new: 'New plan', renewal: 'Renewal' },
-    status: { open: 'Unpaid', submitted: 'Verifying', paid: 'Paid', rejected: 'Not verified', void: 'Cancelled' },
-    createFailed: 'Could not create the invoice. Please try again.',
-    creating: 'Creating your invoice…',
-    unavailable: 'Taka payments are not available for this account. Pay by card instead.',
-  },
-
-  invoice: {
-    title: (number: string) => `Invoice ${number}`,
-    plan: 'Plan',
-    amount: 'Amount',
-    due: 'Due',
-    period: 'Period',
-    status: 'Status',
-    notFound: 'This invoice could not be found.',
-    howToPay: 'How to pay',
-    chooseMethod: 'Pay with',
-    steps: {
-      personal: (app: string) => [
-        `Open your ${app} app and choose “Send Money”.`,
-        'Enter the number below.',
-        'Enter the exact amount on this invoice.',
-        'In Reference, write the invoice number.',
-        'Confirm with your PIN, then copy the transaction ID (TrxID) from the message.',
-      ],
-      merchant: (app: string) => [
-        `Open your ${app} app and choose “Payment”.`,
-        'Enter the merchant number below.',
-        'Enter the exact amount on this invoice.',
-        'In Reference, write the invoice number.',
-        'Confirm with your PIN, then copy the transaction ID (TrxID) from the message.',
-      ],
-      agent: (app: string) => [
-        `Open your ${app} app and choose “Cash Out”.`,
-        'Enter the agent number below.',
-        'Enter the exact amount on this invoice.',
-        'Confirm with your PIN, then copy the transaction ID (TrxID) from the message.',
-      ],
-    },
-    numberLabel: (kind: 'personal' | 'merchant' | 'agent'): string =>
-      kind === 'merchant' ? 'Merchant number' : kind === 'agent' ? 'Agent number' : 'Number (personal)',
-    accountName: 'Account name',
-    reference: 'Reference',
-    submitTitle: 'After you pay',
-    method: 'Paid with',
-    payerNumber: 'Your number (the one you paid from)',
-    payerPlaceholder: '01XXXXXXXXX',
-    payerInvalid: 'Enter an 11-digit Bangladeshi mobile number, like 017XXXXXXXX (12 digits for Rocket).',
-    transactionId: 'Transaction ID (TrxID)',
-    transactionPlaceholder: 'e.g. 9GH7K2LMNP',
-    transactionInvalid: 'Enter the transaction ID from the payment message.',
-    submit: 'I have paid — verify my payment',
-    submitFailed: 'Could not send your payment details. Please try again.',
-    duplicate: 'This transaction ID has already been used.',
-    notPayable: 'This invoice is already paid, cancelled or being verified. Reload the page to see where it stands.',
-    verifyingTitle: 'We’re verifying your payment',
-    verifyingBody: 'This usually takes a few hours. You’ll get an email as soon as your plan is on, and this page updates by itself.',
-    paidTitle: 'Payment confirmed',
-    paidBody: (plan: string, until: string | null) => `Your ${plan} plan is active${until ? ` until ${until}` : ''}. We’ve emailed your receipt.`,
-    rejectedTitle: 'We couldn’t verify this payment',
-    rejectedBody: 'Check the details and send them again, or contact support if the money left your account.',
-    reason: 'Reason',
-    voidTitle: 'This invoice is cancelled',
-    voidBody: 'Choose a plan again to get a new invoice.',
-    cancel: 'Cancel invoice',
-    cancelConfirm: 'Cancel this invoice? You can create a new one any time.',
-    cancelled: 'Invoice cancelled.',
-    seePlans: 'See plans',
-    goToBilling: 'Go to billing',
-    support: 'Questions? Write to',
-    submittedAt: (date: string) => `Sent ${date}`,
-  },
   shop: shopEn,
   site: siteEn,
   analytics: analyticsEn,

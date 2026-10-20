@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
 import type { BillingInterval, FoundingSpots, Plan } from '@/features/plans/types';
 import {
-  FOUNDING_OFFER, type FoundingNote, OFFER_YEARLY, cardSectionsFor, compareGroups, formatMoney, formatTaka, foundingNote, foundingPrice, monthlyPrice, yearlySavingLabel,
+  FOUNDING_OFFER, type FoundingNote, OFFER_YEARLY, cardSectionsFor, compareGroups, formatMoney, foundingNote, foundingPrice, monthlyPrice, yearlySavingLabel,
 } from '@/features/plans/pricing-spec';
-import { offersManualPayments, useLocale, useT, type Messages } from '@/lib/i18n';
+import { useT, type Messages } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
@@ -19,8 +19,6 @@ export interface PlanSelection {
   interval: BillingInterval;
   /** A discount code the visitor claimed: the founding code (FOUNDING_OFFER), on Pro or Agency. */
   discount?: string;
-  /** Paid in taka with bKash, Nagad or Rocket: an invoice, not a card checkout. `price` is then in taka. */
-  manual?: true;
 }
 
 interface PlanBuilderProps {
@@ -34,36 +32,24 @@ interface PlanBuilderProps {
   founding?: FoundingSpots | null;
 }
 
-/** A plan's taka price a month on an interval: the year's spread over twelve months. Null when it has none. */
-const monthlyTaka = (plan: Plan, interval: BillingInterval): number | null =>
-  interval === 'year' && plan.priceYearlyBdt ? plan.priceYearlyBdt / 12 : (plan.priceMonthlyBdt ?? null);
-
 /**
  * Free, Starter, Pro and Agency, from gateway's GET /api/v1/plans: a card each with one short list
  * (pricing-spec.ts), a Monthly / Yearly toggle, and the full comparison behind "Compare all features".
  * An older catalogue without Agency shows its three plans in three columns.
  * Monthly is the default; Yearly shows the year's price as a monthly figure with the yearly total
  * beside it.
- *
- * A visitor in Bangladesh, when the catalogue has taka prices, sees them and pays with bKash, Nagad
- * or Rocket; a toggle above the cards switches to paying by card in dollars instead.
  */
 export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval, founding: spots }: PlanBuilderProps) {
   const { data: plans, isLoading, isError } = usePlans();
   const t = useT();
   const copy = t.pricing;
-  const { region } = useLocale();
-  const takaOffered = offersManualPayments(region) && !!plans?.length && plans.every((p) => p.priceMonthly === 0 || p.priceMonthlyBdt != null);
-  const [payWith, setPayWith] = React.useState<'local' | 'card'>('local');
-  const local = takaOffered && payWith === 'local';
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
   const [chosen, setChosen] = React.useState<BillingInterval>('month');
   // The toggle only means something once yearly is offered (OFFER_YEARLY) and the catalogue has a
   // yearly price. Until then every plan is monthly and nothing is offered that cannot be bought.
   // Once every founding spot is taken the box goes, Claim button and all.
-  // The founding code is a card checkout's discount: not offered on the taka prices.
-  const note: FoundingNote = local ? { show: false } : foundingNote(spots, copy);
+  const note: FoundingNote = foundingNote(spots, copy);
   const hasYearly = OFFER_YEARLY && !!plans?.some((p) => p.priceYearly != null);
   const interval: BillingInterval = hasYearly ? chosen : 'month';
 
@@ -75,12 +61,6 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
-    if (local) {
-      onSubscribe(plan.priceMonthly > 0
-        ? { plan: plan.id, price: monthlyTaka(plan, interval) ?? 0, interval, manual: true }
-        : { plan: plan.id, price: 0, interval });
-      return;
-    }
     if (note.show && FOUNDING_OFFER.plans.includes(plan.tier)) {
       const price = foundingPrice(plan, interval);
       onSubscribe({ plan: plan.id, price: interval === 'year' ? price / 12 : price, interval, discount: FOUNDING_OFFER.code });
@@ -96,9 +76,9 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
     // A card is the current plan when it is the plan, and for the paid ones the interval too: the
     // other interval is a switch the customer can make.
     const isCurrent = !!currentPlan && currentPlan === plan.id && (!paid || !currentInterval || currentInterval === interval);
-    const yearly = paid && interval === 'year' && (local ? plan.priceYearlyBdt != null : plan.priceYearly != null);
-    const price = local && paid ? formatTaka(monthlyTaka(plan, interval) ?? 0) : formatMoney(monthlyPrice(plan, interval));
-    const yearTotal = local ? formatTaka(plan.priceYearlyBdt ?? 0) : formatMoney(plan.priceYearly ?? 0);
+    const yearly = paid && interval === 'year' && plan.priceYearly != null;
+    const price = formatMoney(monthlyPrice(plan, interval));
+    const yearTotal = formatMoney(plan.priceYearly ?? 0);
     return (
       <div
         key={plan.id}
@@ -196,28 +176,6 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
 
       {plans && (
         <>
-          {takaOffered && (
-            <div className="mb-4 flex flex-col items-center gap-2">
-              <div role="group" aria-label={t.planBuilder.payWith} className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
-                {(['local', 'card'] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={payWith === value}
-                    onClick={() => setPayWith(value)}
-                    className={cn(
-                      'rounded-full px-4 py-1.5 transition-colors',
-                      payWith === value ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {value === 'local' ? t.planBuilder.payLocal : t.planBuilder.payCard}
-                  </button>
-                ))}
-              </div>
-              {local && <p className="text-[13px] text-muted-foreground">{t.planBuilder.localNote}</p>}
-            </div>
-          )}
-
           {hasYearly && (
           <div className="mb-8 flex justify-center">
             <div role="group" aria-label={t.planBuilder.billingInterval} className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
@@ -259,7 +217,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
             </Button>
           </div>
 
-          {comparing && <CompareTable plans={plans} interval={interval} local={local} t={t} />}
+          {comparing && <CompareTable plans={plans} interval={interval} t={t} />}
         </>
       )}
     </div>
@@ -292,10 +250,10 @@ function FoundingBanner({ plans, note, t }: { plans: Plan[]; note: Extract<Found
   );
 }
 
-function CompareTable({ plans, interval, local, t }: { plans: Plan[]; interval: BillingInterval; local: boolean; t: Messages }) {
+function CompareTable({ plans, interval, t }: { plans: Plan[]; interval: BillingInterval; t: Messages }) {
   const groups = compareGroups(t.pricing);
   const perMonth = (plan: Plan) =>
-    `${local ? formatTaka(monthlyTaka(plan, interval) ?? 0) : formatMoney(monthlyPrice(plan, interval))}${t.planBuilder.perMonthShort}`;
+    `${formatMoney(monthlyPrice(plan, interval))}${t.planBuilder.perMonthShort}`;
   return (
     <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card">
       <table className="w-full min-w-[720px] text-sm">

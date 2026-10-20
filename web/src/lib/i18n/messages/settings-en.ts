@@ -1,4 +1,4 @@
-/** Settings in English. `settings-bn.ts` mirrors it. */
+/** Settings. */
 export const settingsEn = {
   layout: {
     backToAnalytics: 'Back to Analytics',
@@ -95,8 +95,6 @@ export const settingsEn = {
     namePlaceholder: 'Your name',
     email: 'Email',
     emailLocked: 'Email cannot be changed here.',
-    language: 'Language',
-    languageHint: 'The language Seentics uses on this device.',
     changePassword: 'Change password',
     currentPassword: 'Current password',
     newPassword: 'New password',

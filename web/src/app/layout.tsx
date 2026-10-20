@@ -13,12 +13,6 @@ import CrispChat from '@/components/crisp-chat';
 import { CustomHostBrand } from '@/features/client-mode/CustomHostBrand';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { LocaleProvider } from '@/lib/i18n';
-// Bangla's glyphs only: Latin text keeps its own faces, and the file loads only where Bangla is shown.
-import '@fontsource/hind-siliguri/bengali-400.css';
-import '@fontsource/hind-siliguri/bengali-500.css';
-import '@fontsource/hind-siliguri/bengali-600.css';
-import '@fontsource/hind-siliguri/bengali-700.css';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -76,7 +70,6 @@ export default function RootLayout({
         >
 
           <QueryProvider>
-            <LocaleProvider>
             <ThemeCustomizationProvider>
             <div className="relative min-h-screen isolate overflow-x-clip">
               {/* Ambient Background Blobs */}
@@ -92,7 +85,6 @@ export default function RootLayout({
 
             </div>
             </ThemeCustomizationProvider>
-            </LocaleProvider>
           </QueryProvider>
           <Toaster />
           <SonnerToaster />

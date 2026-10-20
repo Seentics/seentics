@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-/** Heatmaps in English. `heatmaps-bn.ts` mirrors it. */
+/** Heatmaps. */
 export const heatmapsEn = {
   ranges: { d1: 'Today', d7: '7 days', d30: '30 days', d90: '90 days' },
 

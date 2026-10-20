@@ -78,7 +78,25 @@ const SheetDescription = React.forwardRef<
 ))
 SheetDescription.displayName = "SheetDescription"
 
-export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription }
+/**
+ * A side sheet, or with `inline` the same content drawn in place (filling its parent, no overlay or
+ * portal): for previews that show a sheet open inside a framed page.
+ */
+function SheetOrInline({ inline, open, onClose, title, className, children }: {
+  inline?: boolean; open: boolean; onClose: () => void; title: string; className?: string; children: React.ReactNode
+}) {
+  if (inline) return open ? <div role="dialog" aria-label={title} className="h-full w-full overflow-y-auto bg-background">{children}</div> : null
+  return (
+    <Sheet open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <SheetContent className={className}>
+        <SheetTitle className="sr-only">{title}</SheetTitle>
+        {children}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+export { SheetOrInline, Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription }
 
 /** The close button's name for screen readers, in the dashboard's language. */
 function CloseLabel() {

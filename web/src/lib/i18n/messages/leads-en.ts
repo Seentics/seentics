@@ -1,4 +1,4 @@
-/** Leads in English. `leads-bn.ts` mirrors it. */
+/** Leads. */
 export const leadsEn = {
   page: {
     title: 'Leads',

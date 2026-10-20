@@ -1,4 +1,4 @@
-/** Automations in English. `automations-bn.ts` mirrors it. */
+/** Automations. */
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const times = (n: number) => `${n.toLocaleString()} ${plural(n, 'time', 'times')}`;

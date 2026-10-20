@@ -13,7 +13,7 @@ import {
 } from '@/features/ai/recommendations/helpers';
 import type { Recommendation } from '@/features/ai/recommendations/types';
 import { usePermissions } from '@/hooks/use-permissions';
-import { useLocale, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface RecommendationsPanelProps {
@@ -37,8 +37,6 @@ const OPEN_PREVIEW = 3;
  */
 export function RecommendationsPanel({ websiteId, className }: RecommendationsPanelProps) {
   const t = useT().ai.recommendations;
-  const { locale } = useLocale();
-  const dateLocale = locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined;
   const list = useRecommendations(websiteId);
   const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
@@ -107,7 +105,7 @@ export function RecommendationsPanel({ websiteId, className }: RecommendationsPa
                 <Hourglass className="mt-[0.3em] h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
                   <span className="text-foreground">{rec.title}</span>
-                  <span className="ml-1.5 text-xs text-muted-foreground">{measuringLabel(rec.report, t.measuringLabel, dateLocale)}</span>
+                  <span className="ml-1.5 text-xs text-muted-foreground">{measuringLabel(rec.report, t.measuringLabel)}</span>
                   {rec.report.checkpoints.length > 0 && (
                     <span className="block text-xs text-muted-foreground">{rec.report.headline}</span>
                   )}

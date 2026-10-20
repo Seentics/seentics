@@ -1,4 +1,4 @@
-/** Seentics AI (AI mode, AI Reports, alerts, insights, recommendations, drafts) in English. `ai-bn.ts` mirrors it. */
+/** Seentics AI (AI mode, AI Reports, alerts, insights, recommendations, drafts). */
 export const aiEn = {
   brand: 'Seentics AI',
 
@@ -50,7 +50,7 @@ export const aiEn = {
     insightContext: 'Insight',
     suggestionContext: 'Suggestion',
     recommendationContext: 'Recommendation',
-    /** An action, cut to its first clause, already starting lower-case in English. */
+    /** An action, cut to its first clause, already starting lower-case. */
     next: (text: string) => `Next: ${text}`,
   },
 

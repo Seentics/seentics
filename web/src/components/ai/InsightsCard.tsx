@@ -14,7 +14,7 @@ import {
 } from '@/features/ai/insights/card-state';
 import type { DailyInsight, InsightLine } from '@/features/ai/insights/types';
 import { usePermissions } from '@/hooks/use-permissions';
-import { useLocale, useT, type Messages } from '@/lib/i18n';
+import { useT, type Messages } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface InsightsCardProps {
@@ -34,7 +34,6 @@ export interface InsightsCardProps {
  */
 export function InsightsCard({ websiteId, className }: InsightsCardProps) {
   const t = useT().ai.insights;
-  const { locale } = useLocale();
   const insight = useDailyInsight(websiteId);
   const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
@@ -97,7 +96,7 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
         <Sparkles className="h-4 w-4 shrink-0 text-primary" />
         <h2 className="text-sm font-semibold tracking-tight text-foreground">{t.title}</h2>
         {data?.date && (
-          <span className="text-xs text-muted-foreground">{formatDay(data.date, locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}</span>
+          <span className="text-xs text-muted-foreground">{formatDay(data.date)}</span>
         )}
         {data?.source === 'rules' && (
           <span

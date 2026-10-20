@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { SheetOrInline } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { relativeTime } from '@/features/errors/format';
@@ -48,8 +48,8 @@ function initials(c: Contact): string {
  * where each submission was delivered, attempt by attempt.
  */
 export function ContactDrawer({
-  websiteId, contactId, now, canEdit, onClose,
-}: { websiteId: string; contactId: string | null; now?: number; canEdit: boolean; onClose: () => void }) {
+  websiteId, contactId, now, canEdit, onClose, inline,
+}: { websiteId: string; contactId: string | null; now?: number; canEdit: boolean; onClose: () => void; /** Drawn in place, for the landing's preview. */ inline?: boolean }) {
   const all = useT();
   const t = all.leads;
   const td = t.drawer;
@@ -105,9 +105,7 @@ export function ContactDrawer({
   };
 
   return (
-    <Sheet open={!!contactId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-4xl">
-        <SheetTitle className="sr-only">{td.title}</SheetTitle>
+    <SheetOrInline inline={inline} open={!!contactId} onClose={onClose} title={td.title} className="w-full overflow-y-auto p-0 sm:max-w-4xl">
         {detail.isLoading || !draft || !contact ? (
           detail.isLoading || !contactId ? (
             <div className="space-y-3 p-6"><Skeleton className="h-6 w-56" /><Skeleton className="h-4 w-40" /><Skeleton className="h-40 w-full" /></div>
@@ -233,8 +231,7 @@ export function ContactDrawer({
         {contact && (
           <DeleteContactsDialog websiteId={websiteId} open={deleting} contacts={[contact]} onOpenChange={setDeleting} onDeleted={onClose} />
         )}
-      </SheetContent>
-    </Sheet>
+    </SheetOrInline>
   );
 }
 

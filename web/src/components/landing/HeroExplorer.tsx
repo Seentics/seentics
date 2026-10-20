@@ -28,9 +28,9 @@ function AutomationsScreen() {
  */
 const loadingPage = () => <div className="h-full w-full bg-background" />;
 const ErrorsPage = dynamic(() => import('@/app/websites/[websiteId]/errors/page-client'), { ssr: false, loading: loadingPage });
-const LeadsPage = dynamic(() => import('@/app/websites/[websiteId]/leads/page-client'), { ssr: false, loading: loadingPage });
+export const LeadsPage = dynamic(() => import('@/app/websites/[websiteId]/leads/page-client'), { ssr: false, loading: loadingPage });
 const IntegrationsPage = dynamic(() => import('@/app/websites/[websiteId]/integrations/page-client'), { ssr: false, loading: loadingPage });
-const ConversionsPage = dynamic(() => import('@/app/websites/[websiteId]/conversions/page-client'), { ssr: false, loading: loadingPage });
+export const ConversionsPage = dynamic(() => import('@/app/websites/[websiteId]/conversions/page-client'), { ssr: false, loading: loadingPage });
 const RevenuePage = dynamic(() => import('@/app/websites/[websiteId]/revenue/page-client'), { ssr: false, loading: loadingPage });
 const AiReportsPage = dynamic(() => import('@/app/websites/[websiteId]/ai-reports/page-client'), { ssr: false, loading: loadingPage });
 const DevelopersPage = dynamic(() => import('@/app/websites/[websiteId]/developers/page-client'), { ssr: false, loading: loadingPage });
@@ -51,7 +51,7 @@ const STAY: AppRouterInstance = {
   prefetch: () => {},
 };
 
-function RealPage({ label, path, children }: { label: MockNavLabel; path: string; children: ReactNode }) {
+export function RealPage({ label, path, children }: { label: MockNavLabel; path: string; children: ReactNode }) {
   const contentProps = useMockContentProps();
   return (
     <div className="flex h-full w-full overflow-hidden bg-sidebar text-foreground">
@@ -91,8 +91,7 @@ const VIEWS = Object.keys(SCREENS) as MockNavLabel[];
  * linear.app lets a visitor click around its app. Opens on the overview, which is
  * server-rendered (it is the page's largest paint); the others load once the page is idle.
  *
- * `order` gives the sidebar a website type's pages, in its order (the Bangladesh landing pages
- * show a store's or a Facebook seller's dashboard); `initial` is the screen it opens on.
+ * `order` gives the sidebar a website type's pages, in its order; `initial` is the screen it opens on.
  */
 export function HeroExplorer({ order, initial = 'Overview', label = 'Seentics dashboard preview. Use the sidebar to switch screens.' }: {
   order?: readonly MockNavLabel[];
