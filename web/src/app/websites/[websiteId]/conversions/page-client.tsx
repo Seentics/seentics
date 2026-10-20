@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConnectDialog, type ConnectMode } from '@/components/conversions/ConnectDialog';
-import { ConversionsOverview } from '@/components/conversions/ConversionsOverview';
+import { ConversionInsights, ConversionStats } from '@/components/conversions/ConversionsOverview';
 import { PLATFORM_ORDER, PLATFORMS } from '@/components/conversions/conversion-format';
 import { DestinationCard, type CardAction } from '@/components/conversions/DestinationCard';
 import { EmptyState } from '@/components/conversions/EmptyState';
@@ -106,8 +106,6 @@ export default function ConversionsPage() {
       ) : (
         <>
           {/* The platforms first: each card is its connection's health and controls. */}
-          {/* The window in numbers first, then each platform's connection, then every event. */}
-          <ConversionsOverview websiteId={websiteId} days={days} />
           {/* Lined up with the table panel under it (its 12 / 16px inset), no rule between them. */}
           <section aria-label={t.platforms} className="grid gap-3 px-3 pt-4 sm:grid-cols-2 md:px-4 xl:grid-cols-4">
             {list.map((d) => (
@@ -124,7 +122,10 @@ export default function ConversionsPage() {
               />
             ))}
           </section>
+          {/* What people come for first: each platform, the counts, every event; then what is behind them. */}
+          <ConversionStats websiteId={websiteId} days={days} />
           <EventsTable websiteId={websiteId} destinations={list} now={now} canEdit={canEdit} days={days} />
+          <ConversionInsights websiteId={websiteId} days={days} />
         </>
       )}
 

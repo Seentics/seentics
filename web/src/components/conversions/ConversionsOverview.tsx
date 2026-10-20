@@ -12,29 +12,43 @@ const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / who
 const shortDay = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 /**
- * The window's conversions in numbers, at the top of the Conversions page: how many were sent,
- * accepted, failed and not sent; accepted and failed per day; how well they match a person (the
- * share carrying each detail, with the tip when too few carry an email); the value each platform
- * was told about; and the accepted ones by kind.
+ * The window's conversions in numbers, for the Conversions page, in two parts: the counts (sent,
+ * accepted, failed, not sent) above the events, and what lies behind them below.
  */
-export function ConversionsOverview({ websiteId, days }: { websiteId: string; days: number }) {
+export function ConversionStats({ websiteId, days }: { websiteId: string; days: number }) {
   const all = useT();
   const t = all.conversions.overview;
   const { data } = useConversionSummary(websiteId, days);
   const totals = data?.totals;
-  const sent = totals ? totals.sent - totals.skipped : 0;
-  const days_ = data?.by_day ?? [];
-  const peak = Math.max(1, ...days_.map((d) => d.accepted + d.failed));
-  const match = data?.match;
-
+  // Sent is what went out, whatever came of it: never derived from the total, which counts the
+  // ones not sent too (and the demo's did not), so a share of it can never pass 100%.
+  const sent = totals ? totals.accepted + totals.failed + totals.pending : 0;
   return (
-    <section aria-label={t.sent} className="mx-3 mt-4 space-y-3 md:mx-4">
+    <section aria-label={t.sent} className="mx-3 mt-3 md:mx-4">
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.sent} value={totals ? sent : undefined} />
         <Tile label={t.accepted} value={totals?.accepted} hint={totals ? t.ofSent(pct(totals.accepted, sent)) : undefined} tone="good" />
         <Tile label={t.failed} value={totals?.failed} tone={totals?.failed ? 'bad' : undefined} />
         <Tile label={t.notSent} value={totals?.skipped} hint={t.notSentHint} />
       </dl>
+    </section>
+  );
+}
+
+/**
+ * Behind the numbers, below the events: accepted and failed per day; how well they match a person
+ * (the share carrying each detail, with the tip when too few carry an email); the value each
+ * platform was told about; and the accepted ones by kind.
+ */
+export function ConversionInsights({ websiteId, days }: { websiteId: string; days: number }) {
+  const all = useT();
+  const t = all.conversions.overview;
+  const { data } = useConversionSummary(websiteId, days);
+  const days_ = data?.by_day ?? [];
+  const peak = Math.max(1, ...days_.map((d) => d.accepted + d.failed));
+  const match = data?.match;
+  return (
+    <section aria-label={t.perDay} className="mx-3 mb-4 space-y-3 md:mx-4">
 
       {/* The days, wide: accepted (green) under failed (red), one bar a day, scaled to the busiest. */}
       <Block title={t.perDay} aside={(
@@ -122,12 +136,11 @@ export function ConversionsOverview({ websiteId, days }: { websiteId: string; da
 
 function Tile({ label, value, hint, tone }: { label: string; value: number | undefined; hint?: string; tone?: 'good' | 'bad' }) {
   return (
-    <div className="min-w-0 rounded-lg bg-card px-5 py-4">
-      <dt className="text-[13px] font-medium text-foreground/60">{label}</dt>
-      <dd className={cn('mt-1.5 text-[26px] font-semibold leading-none tabular-nums', tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
+    <div className="flex min-w-0 items-baseline justify-between gap-3 rounded-lg bg-card px-4 py-3">
+      <dt className="min-w-0 text-[13px] font-medium text-foreground/60">{label}{hint && <span className="mt-0.5 block text-[12px] font-normal text-muted-foreground">{hint}</span>}</dt>
+      <dd className={cn('shrink-0 text-[22px] font-semibold leading-none tabular-nums', tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
         {value === undefined ? '—' : value.toLocaleString()}
       </dd>
-      {hint && <p className="mt-2 text-[12.5px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
