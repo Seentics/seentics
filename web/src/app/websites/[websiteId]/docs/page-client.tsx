@@ -4,7 +4,7 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
 
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Copy, Check, Zap, Code2 } from 'lucide-react';
@@ -132,12 +132,13 @@ export default function DocsPage() {
   const [tab, setTab] = useState<Tab>('Node.js');
 
   return (
-    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[900px] mx-auto">
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Documentation"
-        description="Integrate Seentics into your services using the official SDKs."
-      />
+    <ReportPage
+      icon={<BookOpen />}
+      title="Documentation"
+      description="Integrate Seentics into your services using the official SDKs."
+      websiteId={websiteId}
+      width="max-w-[900px]"
+    >
 
       {/* SDK tabs */}
       <div className="flex items-center gap-1 mb-8 bg-muted/40 border border-border rounded-lg p-1 w-fit">
@@ -230,6 +231,6 @@ export default function DocsPage() {
           The full OpenAPI reference is available in the dashboard under <strong>Developers &rarr; Docs</strong>.
         </p>
       </Section>
-    </div>
+    </ReportPage>
   );
 }

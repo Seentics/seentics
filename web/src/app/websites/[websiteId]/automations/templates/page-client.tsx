@@ -4,10 +4,10 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Zap } from 'lucide-react';
+import { Zap, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { cn } from '@/lib/utils';
 import type { AutomationDefinition } from '@/components/automations/AutomationBuilder';
 
@@ -34,25 +34,13 @@ export default function AutomationTemplatesPage() {
   };
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
-      <div className="flex items-center gap-3 mb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => router.push(`/websites/${websiteId}/automations`)}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Automations
-        </Button>
-      </div>
-
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Automation Templates"
-        description="Start from a pre-built template and customise it to fit your needs."
-      />
-
+    <ReportPage
+      icon={<LayoutTemplate />}
+      title="Templates"
+      parent={{ label: 'Automations', onClick: () => router.push(`/websites/${websiteId}/automations`) }}
+      description="Start from a pre-built template and customise it to fit your needs."
+      websiteId={websiteId}
+    >
       {/* Category filter */}
       <div className="flex flex-wrap gap-2 mb-6">
         {CATEGORIES.map(cat => (
@@ -113,6 +101,6 @@ export default function AutomationTemplatesPage() {
           </div>
         ))}
       </div>
-    </div>
+    </ReportPage>
   );
 }

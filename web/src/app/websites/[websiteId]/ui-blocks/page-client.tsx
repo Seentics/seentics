@@ -4,12 +4,12 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
 
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
+import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter, Blocks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -41,12 +41,13 @@ export default function UiBlocksPage() {
   });
 
   return (
-    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1100px] mx-auto">
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="UI Blocks"
-        description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
-      >
+    <ReportPage
+      icon={<Blocks />}
+      title="UI Blocks"
+      description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
+      websiteId={websiteId}
+      width="max-w-[1100px]"
+      actions={<>
         <a
           href="/docs/ui-blocks"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -54,7 +55,8 @@ export default function UiBlocksPage() {
           <ExternalLink className="h-3.5 w-3.5" />
           Full docs
         </a>
-      </DashboardPageHeader>
+      </>}
+    >
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -203,6 +205,6 @@ export default function UiBlocksPage() {
         </div>
       )}
 
-    </div>
+    </ReportPage>
   );
 }

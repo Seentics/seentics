@@ -38,7 +38,7 @@ const COLS = {
  * Hairlines between cells: the grid's 1px gaps over the border colour, each cell on the card
  * colour. On phones a lone last cell spans the row, so no empty gap shows.
  */
-const GRID = 'surface grid gap-px overflow-hidden bg-border';
+const GRID = 'grid gap-px overflow-hidden rounded-lg bg-border';
 const CELL = 'min-w-0 bg-card px-5 py-4 [&:last-child:nth-child(odd)]:col-span-2 md:[&:last-child:nth-child(odd)]:col-span-1';
 
 export function StatCards({

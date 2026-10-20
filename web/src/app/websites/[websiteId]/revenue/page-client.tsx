@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 
 import { useRevenueDashboard, formatMoney, type RevenueTransaction } from '@/lib/revenue-analytics';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,8 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Receipt,
   ExternalLink,
-  BookOpen,
-} from 'lucide-react';
+  BookOpen, CircleDollarSign } from 'lucide-react';
 
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -174,14 +173,12 @@ export default function RevenuePage() {
   if (!summary) return null;
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
-
-      {/* ── Header ── */}
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Revenue"
-        description="Purchase revenue, order economics, and channel attribution."
-      >
+    <ReportPage
+      icon={<CircleDollarSign />}
+      title="Revenue"
+      description="Purchase revenue, order economics, and channel attribution."
+      websiteId={websiteId}
+      actions={<>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -204,7 +201,8 @@ export default function RevenuePage() {
             </SelectContent>
           </Select>
         </div>
-      </DashboardPageHeader>
+      </>}
+    >
 
       {/* ── 4 stat cards (same StatCards component as Funnels, Events pages) ── */}
       <StatCards cards={topCards} cols={4} isLoading={false} />
@@ -333,6 +331,6 @@ export default function RevenuePage() {
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </ReportPage>
   );
 }

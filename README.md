@@ -6,7 +6,8 @@
 
 <p align="center">
   <strong>The open-source Google Analytics + Hotjar you can self-host in one <code>docker compose up</code>.</strong><br />
-  Traffic analytics, session replay, heatmaps, funnels, revenue, on-site popups and an AI analyst.<br />
+  Traffic analytics, session replay, heatmaps, funnels and revenue; popups and forms that capture leads;<br />
+  server-side conversions for Meta and Google; and an AI analyst.<br />
   Cookie-free by default, and it runs on just PostgreSQL and S3.
 </p>
 
@@ -40,20 +41,38 @@
 
 ---
 
-Most teams pay for a traffic tool, a replay and heatmap tool, and a popup tool, and send
-visitor data to all three. Seentics does all of that in one place, on your own servers, and
-no data leaves your infrastructure.
+Most teams pay for a traffic tool, a replay and heatmap tool, a popup tool and a conversion
+tracking tool, and send visitor data to all of them. Seentics does all of that in one place,
+on your own servers: see what visitors do, capture them before they leave, and send every
+conversion to your ad platforms.
 
 ## Features
 
+**Understand visitors**
 - **Real-time analytics**: live visitor map, active pages, traffic as it happens
-- **Session replays**: full recordings with rage-click and JS error detection
+- **Session replays**: full recordings, grouped by what needs a look: errors, rage clicks, dead clicks, abandoned forms and U-turns
 - **Heatmaps**: click maps, scroll depth, captured page screenshots, AI findings per page
-- **Funnels**: multi-step conversion analysis with drop-off rates
+- **Funnels and paths**: multi-step conversion analysis with drop-off rates, and the routes visitors take
 - **Revenue**: orders, AOV, ARPU, UTM channel attribution
-- **Behavioral automations**: popups, forms, banners, webhooks and redirects triggered by behavior, with leads sent to Mailchimp, Klaviyo, HubSpot or Zapier
 - **Events and goals**: page, event or CSS-selector conversions
+- **Error tracking**: JavaScript errors grouped by fingerprint, each linked to the replay where it happened
+
+**Capture and convert**
+- **Behavioral automations**: popups, forms, spin-to-win wheels, banners, webhooks and redirects triggered by behavior
+- **Leads**: every form submission in one place, and the contacts behind them, with status, tags and notes; view them as a list, a table or a pipeline board; import and export CSV
+- **Integrations**: send leads to Zapier, any webhook, Mailchimp, Klaviyo and HubSpot, with automatic retries and credentials encrypted at rest
+- **Server-side conversions**: purchases, leads and sign-ups sent to Meta, Google Analytics 4, TikTok and LinkedIn from your server, matched and deduplicated, for consenting visitors only
+
+**AI**
 - **Seentics AI**: ask questions in plain English and get charts back (`⌘K`)
+- **AI reports**: unusual activity, daily insights and what to fix next, with the measured results of changes you made
+- **MCP server**: connect Claude, Cursor, VS Code or any MCP client to your data with a read-only API key
+
+**For developers and agencies**
+- **API and API keys**: read your data from your own tools, with scoped keys
+- **Install anywhere**: a script tag, Google Tag Manager, a WordPress plugin, Shopify and WooCommerce, or served from your own domain through a proxy
+- **Embeddable charts**: [`@seentics/ui`](ui/blocks) React blocks for putting Seentics charts in your own app
+- **Agency workspace**: run every client site from one workspace, with clients, install checks, white-label branding and embed links
 
 ## How it compares
 

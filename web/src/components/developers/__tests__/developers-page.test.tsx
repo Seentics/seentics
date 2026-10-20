@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-vi.mock('@/lib/path-segment', () => ({ usePathSegment: () => 'site-1' }));
-vi.mock('@/components/dashboard-header', () => ({
-  DashboardPageHeader: ({ title, description, children }: { title: string; description?: string; children?: React.ReactNode }) => (
-    <header><h1>{title}</h1><p>{description}</p>{children}</header>
+vi.mock('@/lib/path-segment', () => ({ usePathSegment: () => 'site-1', useIsPathOverridden: () => false }));
+vi.mock('@/components/ui/linear-list', () => ({
+  ReportPage: ({ title, description, actions, children }: { title: string; description?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) => (
+    <div><header><h1>{title}</h1>{actions}</header><p>{description}</p>{children}</div>
   ),
 }));
 vi.mock('@/components/developers/api-keys', () => ({

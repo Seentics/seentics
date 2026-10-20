@@ -59,28 +59,35 @@ test.describe('Heatmaps E2E Tests', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Heatmaps');
 
-    // Stat cards, summed over the pages: views are clicks + scrolls.
-    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
-    await expect(stat('Total views')).toContainText('340');
-    await expect(stat('Total clicks')).toContainText('200');
-    await expect(stat('Avg scroll depth')).toContainText('73%');
-    await expect(page.getByText('2 pages tracked')).toBeVisible();
-
-    // One row per page, with a plain-words "What happened" line instead of raw counts.
-    await expect(page.getByRole('columnheader', { name: 'What happened' })).toBeVisible();
-    const pricing = page.getByRole('row').filter({ hasText: '/pricing' });
+    // Linear-style: grouped rows, the pages needing attention first. Views are clicks + scrolls.
+    const attention = page.getByRole('region', { name: 'Needs attention' });
+    const pricing = attention.getByRole('listitem').filter({ hasText: '/pricing' });
+    await expect(pricing).toContainText('Pricing');
+    await expect(pricing).toContainText('250');
+    await expect(pricing).toContainText('30%');
+    await expect(pricing).toContainText('Dead clicks');
     await expect(pricing).toContainText('30% of clicks hit things that do nothing');
-    await expect(pricing).toContainText('only 40% scroll past halfway');
-    await expect(page.getByRole('row').filter({ hasText: '/blog' })).toContainText('Not enough visits yet to judge');
+    const blog = page.getByRole('region', { name: 'Not enough data' }).getByRole('listitem');
+    await expect(blog).toContainText('/blog');
 
-    // Below the table, pages are grouped by what visitors do.
-    await expect(page.getByRole('heading', { name: 'Pages by what visitors do' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Dead clicks/ })).toContainText('1');
-    await expect(page.getByRole('button', { name: /Most leave early/ })).toContainText('1');
-    await expect(page.getByRole('button', { name: /Not enough data/ })).toContainText('1');
+    // Narrow to the pages that need attention; the device switches the scroll column.
+    await page.getByRole('tab', { name: 'Needs attention' }).click();
+    await expect(page.getByRole('region', { name: 'Not enough data' })).toHaveCount(0);
+    await expect(pricing).toContainText('70%');
+    await page.getByRole('button', { name: 'Mobile' }).click();
+    await expect(pricing).toContainText('60%');
+
+    // Table: every figure side by side. Cards: each page with its heat, and a choice of overlay.
+    await page.getByRole('button', { name: 'Table', exact: true }).click();
+    await expect(page.getByRole('columnheader', { name: /Mobile vs desktop/ })).toBeVisible();
+    await expect(page.locator('tbody tr').filter({ hasText: '/pricing' })).toContainText('30%');
+    await page.getByRole('button', { name: 'Cards', exact: true }).click();
+    await expect(page.getByRole('group', { name: 'Overlay' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open heatmap for /pricing' })).toBeVisible();
+    await page.getByRole('button', { name: 'List', exact: true }).click();
 
     // A row opens that page's heatmap.
-    await pricing.getByRole('button', { name: 'View' }).click();
+    await pricing.getByRole('button', { name: 'Open heatmap for /pricing' }).click();
     await expect(page).toHaveURL(/\/websites\/web-123\/heatmaps\/_pricing$/);
   });
 

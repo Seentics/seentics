@@ -5,26 +5,26 @@ import { usePathSegment } from '@/lib/path-segment';
 import { useEffect, useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { DashboardPageHeader } from '@/components/dashboard-header';
 import { usePermissions } from '@/hooks/use-permissions';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
-import { StatCards } from '@/components/seentics-ui/StatCards';
-import { GitBranch, MoreVertical, Eye, Edit, Trash2, Plus, Search } from 'lucide-react';
+import { GitBranch, Trash2, Plus } from 'lucide-react';
+import {
+  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+} from '@/components/ui/collection';
+import { LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { FUNNEL_TONE_LABEL, FunnelCards, FunnelList, FunnelTable } from '@/components/funnels/FunnelViews';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
 import { useFunnels, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
-import { DataTable, SortableHeader, selectionColumn } from '@/components/ui/data-table';
 
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect, MAX_FUNNEL_DAYS } from '@/components/funnels/FunnelRangeSelect';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { ListGroups } from '@/components/ui/list-groups';
-import { FUNNEL_GROUP_META, FUNNEL_TONE_DOT, FUNNEL_TONE_RANK, funnelLine, funnelTone, inFunnelGroup, previousFrom, type FunnelGroupId, type FunnelPrevious } from '@/features/funnels/insights';
+import { FUNNEL_TONE_DOT, FUNNEL_TONE_RANK, funnelTone, previousFrom, type FunnelPrevious, type FunnelTone } from '@/features/funnels/insights';
+import type { FunnelAnalyticsItem } from '@/lib/funnels-dashboard';
 
 /** The demo's period before, so its trends read like a real site's. */
 const DEMO_PREVIOUS: Record<string, FunnelPrevious> = {
@@ -32,6 +32,13 @@ const DEMO_PREVIOUS: Record<string, FunnelPrevious> = {
   'demo-funnel-2': { starts: 31_900, conversions: 3_250 },
 };
 
+type View = 'all' | 'attention';
+type Sort = 'attention' | 'rate' | 'starts' | 'name';
+
+const LAYOUTS = ['list', 'table', 'cards'] as const;
+type FunnelLayout = (typeof LAYOUTS)[number];
+
+const rateOf = (a?: FunnelAnalyticsItem) => (a && a.total_starts ? a.total_conversions / a.total_starts : -1);
 
 export default function FunnelsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -78,19 +85,11 @@ export default function FunnelsPage() {
       ? DEMO_PREVIOUS[id] ?? null
       : previousFrom(funnelReports.data?.[id]?.analytics?.[0], doubledReports.data?.[id]?.analytics?.[0]);
   const reportOf = (id: string) => funnelReports.data?.[id]?.analytics?.[0];
-  /** A group the table is narrowed to, from "Show all" below it. */
-  const [groupFilter, setGroupFilter] = useState<FunnelGroupId | null>(null);
-  const avgConversionStr = useMemo(() => {
-    if (isDemoMode || funnelIds.length === 0) return '';
-    const rates = Object.values(funnelReports.data ?? {})
-      .map(r => r.analytics?.[0])
-      .filter(item => item && (item.total_starts ?? 0) > 0)
-      .map(item => Number(item!.conversion_rate ?? 0))
-      .filter(r => !Number.isNaN(r));
-    if (!rates.length) return '—';
-    const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
-    return `${avg.toFixed(1)}%`;
-  }, [isDemoMode, funnelIds.length, funnelReports.data]);
+  const [view, setView] = useState<View>('all');
+  const [sort, setSort] = useState<Sort>('attention');
+  const [trend, setTrend] = useState<FunnelTone | ''>('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [layout, setLayout] = useLayoutPreference<FunnelLayout>('funnels', LAYOUTS, 'list');
   const createFunnelMutation = useCreateFunnel();
   const updateFunnelMutation = useUpdateFunnel();
   const deleteFunnelMutation = useDeleteFunnel();
@@ -127,215 +126,105 @@ export default function FunnelsPage() {
     if (ok) deleteFunnelMutation.mutate({ websiteId, funnelId: id });
   };
 
-  const filtered = useMemo(() => {
-    if (!search) return funnels;
-    const s = search.toLowerCase();
-    return funnels.filter(f =>
-      f.name.toLowerCase().includes(s) ||
-      (f.description ?? '').toLowerCase().includes(s)
-    );
-  }, [funnels, search]);
+  const toneOf = (f: Funnel) => funnelTone(f, reportOf(f.id), previousOf(f.id));
+  const SORTS: Record<Sort, { label: string; compare: (a: Funnel, b: Funnel) => number }> = {
+    attention: { label: 'Needs attention first', compare: (a, b) => FUNNEL_TONE_RANK[toneOf(b)] - FUNNEL_TONE_RANK[toneOf(a)] || (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
+    rate: { label: 'Best converting', compare: (a, b) => rateOf(reportOf(b.id)) - rateOf(reportOf(a.id)) },
+    starts: { label: 'Most entries', compare: (a, b) => (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
+    name: { label: 'Name', compare: (a, b) => a.name.localeCompare(b.name) },
+  };
 
-  const columns = useMemo(() => [
-    ...(canEdit ? [selectionColumn<Funnel>()] : []),
-    {
-      id: 'name',
-      header: ({ column }: { column: any }) => <SortableHeader column={column}>Funnel</SortableHeader>,
-      accessorKey: 'name',
-      cell: ({ row }: { row: any }) => (
-        <div className="min-w-0 max-w-[min(100%,40rem)]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <GitBranch size={14} />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-[13px] font-semibold text-foreground">{row.original.name}</span>
-                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                  {row.original.steps?.length || 0} steps
-                </span>
-              </div>
-              {row.original.description ? (
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{row.original.description}</p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'what',
-      header: 'What happened',
-      accessorFn: (f: Funnel) => FUNNEL_TONE_RANK[funnelTone(f, reportOf(f.id), previousOf(f.id))],
-      size: 560,
-      cell: ({ row }: { row: any }) => {
-        const f = row.original as Funnel;
-        const tone = funnelTone(f, reportOf(f.id), previousOf(f.id));
-        const text = funnelLine(f, reportOf(f.id), previousOf(f.id));
-        return funnelReports.isLoading ? (
-          <Skeleton className="h-4 w-64" />
-        ) : (
-          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
-            <span className={cn('h-2 w-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[tone])} />
-            <span className={cn('truncate text-sm', tone === 'worse' || tone === 'leak' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
-              {text}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 150,
-      cell: ({ row }: { row: any }) => (
-        <div className="flex items-center justify-end gap-1 pr-0.5" onClick={(e) => e.stopPropagation()}>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/15 hover:text-primary"
-            onClick={(e) => { e.stopPropagation(); router.push(`/websites/${websiteId}/funnels/${row.original.id}`); }}
-          >
-            <Eye size={13} /> View
-          </Button>
-          {canEdit && <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                <MoreVertical size={14} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={() => { setEditingFunnel(row.original); setIsBuilderOpen(true); }}>
-                <Edit size={12} className="mr-2" /> Edit funnel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDeleteFunnel(row.original.id)} className="text-destructive font-medium">
-                <Trash2 size={12} className="mr-2" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>}
-        </div>
-      )
-    }
-  ], [websiteId, dateRange, router, funnelReports.data, funnelReports.isLoading, doubledReports.data, isDemoMode, canEdit]);
+  const q = search.trim().toLowerCase();
+  const shown = funnels
+    .filter((f) => view === 'all' || ['worse', 'leak'].includes(toneOf(f)))
+    .filter((f) => !trend || toneOf(f) === trend)
+    .filter((f) => !q || f.name.toLowerCase().includes(q) || (f.description ?? '').toLowerCase().includes(q))
+    .sort(SORTS[sort].compare);
 
+  const fields: FilterField[] = [{
+    id: 'trend', label: 'Trend', value: trend, onChange: (v) => setTrend(v as FunnelTone | ''),
+    options: (Object.keys(FUNNEL_TONE_LABEL) as FunnelTone[]).map((t) => ({ value: t, label: FUNNEL_TONE_LABEL[t], icon: <span aria-hidden className={cn('size-1.5 rounded-full', FUNNEL_TONE_DOT[t])} /> })),
+  }];
 
-  // Summary Metrics
-  const summary = useMemo(() => {
-    if (isDemoMode) {
-      return [
-        { label: 'Active funnels', value: 3 },
-        { label: 'Avg completion', value: '24.3%' },
-        { label: 'Total entries', value: '48,291' },
-        { label: 'Conversions', value: '11,726' },
-      ];
-    }
-    return [
-      { label: 'Active funnels', value: funnels.filter(f => f.is_active).length },
-      { label: 'Total funnels', value: funnels.length },
-      { label: 'Total steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0) },
-      {
-        label: 'Avg. conversion',
-        value: funnelIds.length === 0 ? '—' : avgConversionStr,
-      },
-    ];
-  }, [isDemoMode, funnels, funnelIds.length, avgConversionStr]);
+  const open = (f: Funnel) => router.push(`/websites/${websiteId}/funnels/${f.id}`);
+  const props = {
+    funnels: shown, reportOf, previousOf, loading: funnelReports.isLoading, canEdit, onOpen: open,
+    onEdit: (f: Funnel) => { setEditingFunnel(f); setIsBuilderOpen(true); },
+    onDelete: (f: Funnel) => handleDeleteFunnel(f.id),
+  };
+  const chosen = [...selected].filter((id) => shown.some((f) => f.id === id));
+  const narrowed = !!(q || trend || view !== 'all');
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
+    <div className={LIST_PAGE}>
       {confirmDialog}
-      <DashboardPageHeader
-        websiteId={websiteId}
+      <PageBar
+        icon={<GitBranch />}
         title="Funnels"
-        description="Track conversion steps and identify where users drop off in their journey."
+        views={<ViewTabs label="Views" tabs={[{ id: 'all', label: 'All funnels' }, { id: 'attention', label: 'Needs attention' }]} value={view} onChange={setView} />}
       >
-        <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnels(dateRange)} />
+        <AskAiButton websiteId={websiteId} {...askAbout.funnels(dateRange)} />
         <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
-        {canEdit && <Button
-          onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}
-          size="sm"
-          className="gap-1.5"
-        >
-          <Plus size={14} /> New Funnel
-        </Button>}
-      </DashboardPageHeader>
+        {canEdit && (
+          <Button onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }} className="h-7 gap-1.5 px-2.5 text-[12.5px]">
+            <Plus className="size-3.5" /> New funnel
+          </Button>
+        )}
+      </PageBar>
 
-      <StatCards cards={summary} isLoading={funnelsLoading} />
+      <FilterToolbar
+        sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
+        filters={fields}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search funnels…', label: 'Search funnels' }}
+        count={funnelsLoading ? undefined : `${shown.length} of ${funnels.length}`}
+      >
+        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+      </FilterToolbar>
 
-      <div className="mt-4">
-        <DataTable
-          className="shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2 [&_th]:!py-2"
-          rowClassName={() => 'cursor-pointer hover:bg-muted/35'}
-          onRowClick={(f) => router.push(`/websites/${websiteId}/funnels/${f.id}`)}
-          columns={columns as any}
-          data={groupFilter ? filtered.filter((f) => inFunnelGroup(f, reportOf(f.id), previousOf(f.id), groupFilter)) : filtered}
-          isLoading={funnelsLoading}
-          enableRowSelection={canEdit}
-          selectionActions={(selectedRows) => (
-            <>
-              <span className="text-sm font-medium text-muted-foreground mr-2">
-                {selectedRows.length} selected
-              </span>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 gap-1.5"
-                disabled={bulkDeleteMutation.isPending}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: `Delete ${selectedRows.length} funnel${selectedRows.length === 1 ? '' : 's'}?`,
-                    description: 'The funnels and their conversion history are removed. Your analytics data is not affected.',
-                    confirmLabel: 'Delete',
-                    destructive: true,
-                  });
-                  if (ok) bulkDeleteMutation.mutate({ websiteId, funnelIds: selectedRows.map(r => r.id) });
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </Button>
-            </>
-          )}
-          toolbarLeft={
-            <div>
-              <h3 className=" font-semibold text-foreground">Funnels</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {filtered.length} funnel{filtered.length !== 1 ? 's' : ''} configured
-              </p>
-            </div>
-          }
-          toolbarRight={
-            <div className="relative w-64 h-8 bg-card border border-border rounded-lg overflow-hidden flex items-center px-2.5 gap-2 group focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all">
-              <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              <input
-                type="text"
-                placeholder="Search funnels..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-transparent border-none outline-none text-xs w-full placeholder:text-muted-foreground/60"
-              />
-            </div>
-          }
-          pageSize={10}
+      {chosen.length > 0 && layout === 'table' && (
+        <div className="flex items-center gap-2 border-b border-border bg-primary/[0.04] px-4 py-1.5 text-[13px]">
+          <span className="font-medium">{chosen.length} selected</span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(new Set())}>Clear</Button>
+          <Button
+            variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive"
+            disabled={bulkDeleteMutation.isPending}
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Delete ${chosen.length} funnel${chosen.length === 1 ? '' : 's'}?`,
+                description: 'The funnels and their conversion history are removed. Your analytics data is not affected.',
+                confirmLabel: 'Delete',
+                destructive: true,
+              });
+              if (ok) bulkDeleteMutation.mutate({ websiteId, funnelIds: chosen }, { onSuccess: () => setSelected(new Set()) });
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />Delete
+          </Button>
+        </div>
+      )}
+
+      {funnelsLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
+        <CollectionEmpty
+          icon={<GitBranch />}
+          title={narrowed ? 'No matches' : 'No funnels yet'}
+          description={narrowed ? 'No funnel matches this view, filter or search.' : 'A funnel is the steps visitors take to convert, such as pricing → signup → paid. Make one to see where people drop off.'}
+          action={!narrowed && canEdit ? <Button size="sm" className="gap-1.5" onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}><Plus className="h-3.5 w-3.5" />New funnel</Button> : undefined}
         />
-
-      </div>
-
-      <ListGroups
-        className="mt-6"
-        title="Funnels by trend"
-        description="How each funnel is doing in this period. Open a group to see its funnels."
-        groups={FUNNEL_GROUP_META.map((meta) => ({
-          ...meta,
-          items: funnels
-            .filter((f) => inFunnelGroup(f, reportOf(f.id), previousOf(f.id), meta.id))
-            .map((f) => ({
-              key: f.id,
-              text: `${f.name} — ${funnelLine(f, reportOf(f.id), previousOf(f.id))}`,
-              onClick: () => router.push(`/websites/${websiteId}/funnels/${f.id}`),
-            })),
-        }))}
-        onShowAll={(id) => { setGroupFilter(id as FunnelGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-      />
+      ) : layout === 'table' ? (
+        <FunnelTable
+          {...props}
+          sortedBy={sort}
+          selection={canEdit ? {
+            selected,
+            labelOf: (id) => funnels.find((f) => f.id === id)?.name ?? id,
+            onChange: (ids, on) => setSelected((prev) => { const next = new Set(prev); ids.forEach((id) => (on ? next.add(id) : next.delete(id))); return next; }),
+          } : undefined}
+        />
+      ) : layout === 'cards' ? (
+        <FunnelCards {...props} />
+      ) : (
+        <FunnelList {...props} />
+      )}
 
       {/* Create/Edit Funnel Sheet */}
       <Sheet

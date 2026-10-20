@@ -1,6 +1,7 @@
 'use client';
 
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { Sparkles } from 'lucide-react';
+import { ReportPage } from '@/components/ui/linear-list';
 import { AlertsBanner } from '@/components/ai/AlertsBanner';
 import { InsightsCard } from '@/components/ai/InsightsCard';
 import { RecommendationsPanel } from '@/components/ai/RecommendationsPanel';
@@ -14,15 +15,16 @@ export default function AiReportsPage() {
   const websiteId = usePathSegment(1) ?? '';
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-4 p-4 md:p-5 lg:px-6 lg:py-5">
-      <DashboardPageHeader
-        title="AI Reports"
-        description="Unusual activity, today's insights, and what to fix next — with the results of what you changed."
-        websiteId={websiteId}
-      />
+    <ReportPage
+      icon={<Sparkles />}
+      title="AI Reports"
+      description="Unusual activity, today's insights, and what to fix next — with the results of what you changed."
+      websiteId={websiteId}
+      bodyClassName="space-y-4"
+    >
       <AlertsBanner websiteId={websiteId} />
       <InsightsCard websiteId={websiteId} />
       <RecommendationsPanel websiteId={websiteId} />
-    </div>
+    </ReportPage>
   );
 }

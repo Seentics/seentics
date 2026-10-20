@@ -2,152 +2,187 @@
 
 import { usePathSegment } from '@/lib/path-segment';
 
-import { useState } from 'react';
-
+import { useMemo, useState } from 'react';
+import { ChevronRight, MousePointerClick } from 'lucide-react';
 import { useCustomEvents } from '@/features/analytics/queries';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown } from 'lucide-react';
+import {
+  CollectionEmpty, CollectionRow, CollectionSkeleton, CollectionTable, FilterToolbar, GroupedRows,
+  LayoutSwitch, useLayoutPreference, type CollectionColumn, type FilterField,
+} from '@/components/ui/collection';
+import { LIST_PAGE, PageBar } from '@/components/ui/linear-list';
+import { RangeSelect } from '@/components/ui/range-select';
 import { cn } from '@/lib/utils';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
-import { useRangeDates } from '@/lib/range-dates';
-import { StatCards } from '@/components/seentics-ui/StatCards';
 
-function EventRow({ event }: { event: any }) {
-  const [open, setOpen] = useState(false);
-  const hasProps = event.top_properties && Object.keys(event.top_properties).length > 0;
+/** One custom event type over the period, as the analytics API returns it. */
+type EventSummary = {
+  event_type: string;
+  count?: number;
+  unique_visitors?: number;
+  /** Older cores sent this name; `unique_visitors` alone showed 0 for every event on them. */
+  unique_users?: number;
+  top_properties?: Record<string, Record<string, number>>;
+};
 
-  return (
-    <div className="border-b border-border last:border-0">
-      <div
-        className={cn('flex items-center gap-3 px-4 py-3.5 hover:bg-muted/20 sm:gap-4 sm:px-5 transition-colors', hasProps && 'cursor-pointer')}
-        onClick={() => hasProps && setOpen(o => !o)}
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{event.event_type}</span>
-            {hasProps && (
-              <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
-            )}
-          </div>
-        </div>
-        <span className="text-sm font-semibold w-16 text-right shrink-0 sm:w-24">{(event.count || 0).toLocaleString()}</span>
-        {/* The API field is `unique_visitors`; this read `unique_users` alone and showed 0 for every event. */}
-        <span className="text-xs text-muted-foreground w-20 text-right shrink-0 sm:w-28">{(event.unique_visitors ?? event.unique_users ?? 0).toLocaleString()} users</span>
-      </div>
+type Sort = 'count' | 'visitors' | 'name';
 
-      {open && hasProps && (
-        <div className="px-5 pb-4 bg-muted/10">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Property breakdown</p>
-          <div className="space-y-1">
-            {Object.entries(event.top_properties).slice(0, 10).map(([key, vals]: any) => (
-              <div key={key} className="text-xs">
-                <span className="font-mono font-semibold text-primary">{key}</span>
-                <div className="mt-0.5 flex flex-wrap gap-1.5">
-                  {Object.entries(vals || {}).slice(0, 8).map(([val, count]: any) => (
-                    <Badge key={val} variant="secondary" className="text-[10px] px-2 py-0">
-                      {val}: {count}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+const LAYOUTS = ['list', 'table'] as const;
+type EventLayout = (typeof LAYOUTS)[number];
 
+const RANGES = [
+  { days: 7, label: 'Last 7 days' },
+  { days: 14, label: 'Last 14 days' },
+  { days: 30, label: 'Last 30 days' },
+  { days: 90, label: 'Last 90 days' },
+] as const;
+
+/**
+ * What the tracker records on its own. `performance` (web vitals, sent on every page) and
+ * `identify` (an identify() call, not a tracked event) used to be listed — and counted in
+ * the totals — as if the site had tracked them.
+ */
+const INTERNAL = new Set(['pageview', 'session_start', 'session_end', '__sn_heartbeat', '__sn_leave', 'performance', 'identify']);
+
+const countOf = (e: EventSummary) => e.count ?? 0;
+const visitorsOf = (e: EventSummary) => e.unique_visitors ?? e.unique_users ?? 0;
+const propsOf = (e: EventSummary) => Object.keys(e.top_properties ?? {});
+
+const SORTS: Record<Sort, { label: string; compare: (a: EventSummary, b: EventSummary) => number }> = {
+  count: { label: 'Most occurrences', compare: (a, b) => countOf(b) - countOf(a) },
+  visitors: { label: 'Most visitors', compare: (a, b) => visitorsOf(b) - visitorsOf(a) },
+  name: { label: 'Name', compare: (a, b) => a.event_type.localeCompare(b.event_type) },
+};
+
+/**
+ * Every custom event sent with `seentics.track()` in the period: how often, by how many
+ * visitors, and — opening a row — the values its properties took.
+ */
 export default function EventsPage() {
-  const params = { websiteId: usePathSegment(1) ?? '' };
-  const websiteId = params?.websiteId as string;
+  const websiteId = usePathSegment(1) ?? '';
+  const [days, setDays] = useState(7);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<Sort>('count');
+  const [withProps, setWithProps] = useState('');
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [layout, setLayout] = useLayoutPreference<EventLayout>('events', LAYOUTS, 'list');
 
-  const [dateRange, setDateRange] = useState(7);
-  const rangeDates = useRangeDates(dateRange);
+  const { data, isLoading } = useCustomEvents(websiteId, days);
+  const events = useMemo(
+    () => ((data?.top_events ?? []) as EventSummary[]).filter((e) => !INTERNAL.has(e.event_type)),
+    [data],
+  );
 
-  const { data, isLoading } = useCustomEvents(websiteId, dateRange);
-  const events: any[] = data?.top_events ?? [];
+  const q = search.trim().toLowerCase();
+  const shown = events
+    .filter((e) => !withProps || (withProps === 'yes') === propsOf(e).length > 0)
+    .filter((e) => !q || e.event_type.toLowerCase().includes(q) || propsOf(e).some((p) => p.toLowerCase().includes(q)))
+    .sort(SORTS[sort].compare);
+  const busiest = Math.max(1, ...shown.map(countOf));
 
-  // Filter out what the tracker records on its own. `performance` (web vitals, sent on
-  // every page) and `identify` (an identify() call, not a tracked event) used to be
-  // listed — and counted in the totals — as if the site had tracked them.
-  const internalEvents = new Set([
-    'pageview', 'session_start', 'session_end', '__sn_heartbeat', '__sn_leave', 'performance', 'identify',
-  ]);
-  const filteredEvents = events.filter(e => !internalEvents.has(e.event_type));
+  const fields: FilterField[] = [{
+    id: 'props', label: 'Properties', op: '', value: withProps, onChange: setWithProps,
+    options: [{ value: 'yes', label: 'Has properties' }, { value: 'no', label: 'No properties' }],
+  }];
 
-  const totalEvents = filteredEvents.reduce((s, e) => s + (e.count || 0), 0);
+  const toggle = (name: string) => setOpen((prev) => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    return next;
+  });
+
+  const columns: CollectionColumn<EventSummary>[] = [
+    { id: 'name', header: 'Event', width: '26%', sorted: sort === 'name', cell: (e) => <span className="font-mono text-[12.5px] text-foreground">{e.event_type}</span> },
+    { id: 'count', header: 'Occurrences', width: '120px', align: 'right', sorted: sort === 'count', cell: (e) => <span className="tabular-nums text-foreground/80">{countOf(e).toLocaleString()}</span> },
+    { id: 'visitors', header: 'Visitors', width: '110px', align: 'right', sorted: sort === 'visitors', cell: (e) => <span className="tabular-nums text-foreground/80">{visitorsOf(e).toLocaleString()}</span> },
+    {
+      id: 'per', header: 'Per visitor', width: '110px', align: 'right',
+      cell: (e) => <span className="tabular-nums text-foreground/80">{visitorsOf(e) ? (countOf(e) / visitorsOf(e)).toFixed(1) : '—'}</span>,
+    },
+    {
+      id: 'props', header: 'Properties',
+      cell: (e) => (propsOf(e).length
+        ? <span className="font-mono text-[11.5px] text-muted-foreground" title={propsOf(e).join(', ')}>{propsOf(e).join(', ')}</span>
+        : <span className="text-muted-foreground">—</span>),
+    },
+  ];
 
   return (
-    <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1200px] mx-auto">
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title="Custom Events"
-        description="All custom events tracked via seentics.track(). Click a row to see property breakdowns."
-      >
-        <Select value={String(dateRange)} onValueChange={v => setDateRange(Number(v))}>
-          <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
-            <SelectValue>{rangeDates}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {[7, 14, 30, 90].map(d => (
-              <SelectItem key={d} value={String(d)} className="text-xs">Last {d} days</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </DashboardPageHeader>
+    <div className={LIST_PAGE}>
+      <PageBar icon={<MousePointerClick />} title="Custom events">
+        <RangeSelect value={days} onChange={setDays} ranges={RANGES} />
+      </PageBar>
 
-      {/* Summary */}
-      {!isLoading && filteredEvents.length > 0 && (
-        <StatCards
-          cards={[
-            { label: 'Event types', value: filteredEvents.length },
-            { label: 'Total occurrences', value: totalEvents },
-          ]}
-          cols={2}
+      <FilterToolbar
+        sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
+        filters={fields}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search events or properties…', label: 'Search events' }}
+        count={data ? `${shown.length} ${shown.length === 1 ? 'event' : 'events'} · ${shown.reduce((s, e) => s + countOf(e), 0).toLocaleString()} times` : undefined}
+      >
+        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+      </FilterToolbar>
+
+      {isLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
+        <CollectionEmpty
+          icon={<MousePointerClick />}
+          title={events.length ? 'No matches' : 'No custom events yet'}
+          description={events.length
+            ? 'No event matches that filter or search in this range.'
+            : <>Call <code className="rounded bg-muted px-1 font-mono">seentics.track(&apos;event_name&apos;)</code> from your site to start tracking.</>}
+        />
+      ) : layout === 'table' ? (
+        <CollectionTable label="Custom events" items={shown} getKey={(e) => e.event_type} columns={columns} minWidth={860} />
+      ) : (
+        <GroupedRows
+          items={shown}
+          getKey={(e) => e.event_type}
+          renderRow={(e) => {
+            const props = Object.entries(e.top_properties ?? {});
+            const isOpen = open.has(e.event_type);
+            return (
+              <>
+                <CollectionRow onOpen={props.length ? () => toggle(e.event_type) : undefined}>
+                  <span className="flex w-3.5 shrink-0 justify-center">
+                    {props.length > 0 && <ChevronRight aria-hidden className={cn('size-3 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />}
+                  </span>
+                  {props.length > 0 ? (
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={(ev) => { ev.stopPropagation(); toggle(e.event_type); }}
+                      className="min-w-0 flex-1 truncate text-left font-mono text-[12.5px] text-foreground focus-visible:underline focus-visible:outline-none"
+                    >
+                      {e.event_type}
+                    </button>
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-foreground">{e.event_type}</span>
+                  )}
+                  <span className="hidden truncate text-xs text-muted-foreground md:block md:w-48">{props.length ? `${props.length} propert${props.length === 1 ? 'y' : 'ies'}` : ''}</span>
+                  <span className="w-28 shrink-0">
+                    <span className="block text-right text-[12.5px] tabular-nums text-foreground">{countOf(e).toLocaleString()}</span>
+                    <span aria-hidden className="mt-1 block h-1 overflow-hidden rounded-full bg-border">
+                      <span className="block h-1 rounded-full bg-primary/60" style={{ width: `${Math.max(3, Math.round((countOf(e) / busiest) * 100))}%` }} />
+                    </span>
+                  </span>
+                  <span className="w-24 shrink-0 text-right text-xs text-muted-foreground"><span className="tabular-nums text-foreground/80">{visitorsOf(e).toLocaleString()}</span> visitors</span>
+                </CollectionRow>
+                {isOpen && (
+                  <div className="space-y-2.5 border-b border-border/60 bg-muted/30 py-3 pl-[60px] pr-4">
+                    {props.slice(0, 10).map(([name, values]) => (
+                      <div key={name} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+                        <span className="w-32 shrink-0 font-mono text-foreground">{name}</span>
+                        {Object.entries(values ?? {}).slice(0, 8).map(([value, n]) => (
+                          <span key={value} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-1.5 py-0.5 text-foreground/80">
+                            {value}<span className="tabular-nums text-muted-foreground">{Number(n).toLocaleString()}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          }}
         />
       )}
-
-      {/* Events table */}
-      <div className="mb-2 mt-4">
-        <h3 className="text-sm font-semibold text-foreground">Custom Events</h3>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{filteredEvents.length} event type{filteredEvents.length !== 1 ? 's' : ''} tracked</p>
-      </div>
-      <Card className="border border-border">
-        <CardContent className="p-0">
-          <div className="flex items-center gap-3 px-4 py-2.5 sm:gap-4 sm:px-5 bg-muted/20 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            <span className="flex-1">Event</span>
-            <span className="w-16 text-right sm:w-24">Count</span>
-            <span className="w-20 text-right sm:w-28">Unique users</span>
-          </div>
-
-          {isLoading ? (
-            <div>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-border">
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-              ))}
-            </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
-              No custom events tracked yet. Call{' '}
-              <code className="font-mono bg-muted px-1 rounded-lg">seentics.track('event_name')</code>{' '}
-              from your site to start tracking.
-            </div>
-          ) : (
-            filteredEvents
-              .sort((a, b) => (b.count || 0) - (a.count || 0))
-              .map((event, i) => <EventRow key={event.event_type ?? i} event={event} />)
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

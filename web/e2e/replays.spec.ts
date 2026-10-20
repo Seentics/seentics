@@ -92,7 +92,6 @@ test.describe('Session Replays E2E Tests', () => {
             withErrors: 1,
             withRageClicks: 1,
             avgDurationSeconds: 163,
-            // Per-group totals, counted by core, drive the "Session groups" card.
             groups: { errors: 1, rage: 1, forms: 1 },
           },
         }),
@@ -101,52 +100,49 @@ test.describe('Session Replays E2E Tests', () => {
 
     await page.goto('/websites/web-123/replays');
 
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Session Replays');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Session replays');
 
-    // The table is Location, Duration, "What happened" and Recorded. Browser and OS
-    // columns were dropped for the one-line summary (6bb44878), so they are not asserted.
-    const table = page.getByRole('table');
-    for (const header of ['Location', 'Duration', 'What happened', 'Recorded']) {
-      await expect(table.getByRole('columnheader', { name: header })).toBeVisible();
-    }
-
-    const rows = page.getByRole('row');
+    // Linear-style: one line per session, grouped, the ones that need a look first.
+    const rows = page.getByRole('listitem');
     const pricing = rows.filter({ hasText: '/pricing' });
-    const blog = rows.filter({ hasText: '/blog/news' });
+    const blog = rows.filter({ hasText: 'Rage-clicked' });
     const checkout = rows.filter({ hasText: 'shipping step' });
+    await expect(page.getByRole('region', { name: 'Needs a look' })).toContainText('Hit an error · 3 pages from /pricing');
+    await expect(page.getByText('3 sessions', { exact: true })).toBeVisible();
 
-    // Location, and the duration rendered rather than raw seconds, with the page count.
+    // Location and the duration rendered rather than raw seconds.
     await expect(pricing).toContainText('US');
     await expect(pricing).toContainText('2m 25s');
-    await expect(pricing).toContainText('3 pages');
     await expect(blog).toContainText('GB');
     await expect(blog).toContainText('0m 45s');
-    await expect(blog).toContainText('1 page');
 
-    // "What happened": from the ingest flags until a session is analysed, then core's summary.
-    await expect(pricing).toContainText('Hit an error · 3 pages from /pricing');
-    await expect(blog).toContainText('Rage-clicked · 1 page from /blog/news');
+    // The labels: the ingest flags until a session is analysed, then core's summary.
+    await expect(pricing).toContainText('JS error');
+    await expect(blog).toContainText('Rage clicks');
     await expect(checkout).toContainText('Started the checkout form and left at the shipping step');
-    await expect(checkout).toContainText('DE');
+    await expect(checkout).toContainText('Abandoned form');
 
-    // The headline figures come from the response's own `summary`, not from counting the page.
-    // `.first()`: the stat cards come before the session groups, which also has a "Rage clicks" row.
-    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
-    await expect(stat('Total sessions')).toContainText('3');
-    await expect(stat('Avg duration')).toContainText('2m 43s');
-    await expect(stat('With errors')).toContainText('1');
-    await expect(stat('Rage clicks')).toContainText('1');
-    await expect(page.getByText('3 sessions recorded')).toBeVisible();
-    await expect(page.getByText('1–3 of 3 rows')).toBeVisible();
+    // The Filter menu narrows by device; the chip removes it.
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await page.getByRole('menuitem', { name: 'Device' }).hover();
+    await page.getByRole('menuitemradio', { name: 'Mobile' }).click();
+    const chip = page.getByRole('button', { name: 'Remove filter: Device is Mobile' });
+    await expect(chip).toBeVisible();
+    await chip.click();
+    await expect(chip).toHaveCount(0);
 
-    // Below the table, sessions are grouped by what kind of visit they were.
-    await expect(page.getByRole('heading', { name: 'Session groups' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Errors.*Hit a JavaScript/ })).toContainText('1');
-    await expect(page.getByRole('button', { name: /^Rage clicks/ })).toContainText('1');
-    await expect(page.getByRole('button', { name: /^Abandoned forms/ })).toContainText('1');
+    // Sorting newest first; the table layout shows every field.
+    await page.getByRole('button', { name: /Sorted by/ }).click();
+    await page.getByRole('menuitemradio', { name: 'Newest first' }).click();
+    await expect(page.getByRole('button', { name: /Sorted by\s*Newest first/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Table', exact: true }).click();
+    await expect(page.getByRole('columnheader', { name: /Entry page/ })).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await page.getByRole('button', { name: 'List', exact: true }).click();
 
     // Watch opens the player for that session.
-    await blog.getByRole('button', { name: 'Watch' }).click();
+    await blog.hover();
+    await blog.getByRole('button', { name: 'Watch replay' }).click();
     await expect(page).toHaveURL(/\/websites\/web-123\/replays\/sess-xyz-987$/);
   });
 

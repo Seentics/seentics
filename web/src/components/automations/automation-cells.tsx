@@ -1,152 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  Bell,
-  Bot,
-  CheckCircle2,
-  Clock,
-  Coffee,
-  Eye,
-  EyeOff,
-  ExternalLink,
-  Feather,
-  Globe,
-  Highlighter,
-  Info,
-  LayoutTemplate,
-  LogOut,
-  Megaphone,
-  MessageSquare,
-  MoreVertical,
-  MousePointer,
-  Pause,
-  Pencil,
-  Plus,
-  Search,
-  Tag,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  Trash2,
-  UserCheck,
-  Webhook,
-  Zap,
-} from 'lucide-react';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { ColumnDef, DataTable, SortableHeader, selectionColumn } from '@/components/ui/data-table';
-import { StatCards } from '@/components/seentics-ui/StatCards';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import {
-  useAutomations,
-  useBulkDeleteAutomations,
-  useDeleteAutomation,
-  useToggleAutomation,
-  type Automation,
-} from '@/lib/automations-api';
-import { TRIGGERS, ACTIONS } from '@/features/automations/catalog';
+import { useDeleteAutomation, type Automation } from '@/lib/automations-api';
 
-/**
- * The cells of the automations table: the trigger-to-action flow, the status toggle and
- * the row menu.
- *
- * Each takes the automation it renders, so the same row can appear in the list, a
- * dashboard summary or a fixture-driven demo.
- */
-export function rateTone(rate: number): string {
-  if (rate >= 90) return 'text-emerald-600 dark:text-emerald-400';
-  if (rate >= 70) return 'text-amber-600 dark:text-amber-400';
-  return 'text-rose-600 dark:text-rose-400';
-}
-
-/** A borderless pill: the trigger is tinted with the brand colour, actions are neutral. */
-export function Chip({ icon: Icon, label, tone = 'action' }: { icon: React.ElementType; label: string; tone?: 'trigger' | 'action' }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium',
-        tone === 'trigger'
-          ? 'bg-primary/10 text-primary'
-          : 'bg-muted text-foreground/80',
-      )}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{label}</span>
-    </span>
-  );
-}
-
-/** Trigger → action, as the builder would draw it. */
-export function FlowCell({ automation }: { automation: Automation }) {
-  const trigger = TRIGGERS[automation.triggerType] ?? { label: automation.triggerType, icon: Zap };
-  const actions = automation.actions ?? [];
-  const shown = actions.slice(0, 2);
-
-  return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <Chip icon={trigger.icon} label={trigger.label} tone="trigger" />
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
-      {shown.length === 0 ? (
-        <span className="text-[11px] italic text-muted-foreground">no action</span>
-      ) : (
-        shown.map((a, i) => {
-          const meta = ACTIONS[a.actionType] ?? { label: a.actionType, icon: Zap };
-          return <Chip key={a.id ?? i} icon={meta.icon} label={meta.label} />;
-        })
-      )}
-      {actions.length > shown.length && (
-        <span
-          className="shrink-0 text-[11px] font-medium text-muted-foreground"
-          title={`${actions.length} actions in total`}
-        >
-          +{actions.length - shown.length}
-        </span>
-      )}
-    </div>
-  );
-}
-
-/** In-place activate/pause. */
-/** `readOnly`: a viewer sees the state but cannot switch it (the server refuses them too). */
-export function StatusCell({ automation, websiteId, readOnly = false }: { automation: Automation; websiteId: string; readOnly?: boolean }) {
-  const { mutate: toggle, isPending } = useToggleAutomation();
-
-  return (
-    <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
-      <Switch
-        checked={automation.isActive}
-        disabled={isPending || readOnly}
-        onCheckedChange={() => toggle({ websiteId, automationId: automation.id })}
-        aria-label={automation.isActive ? `Pause ${automation.name}` : `Activate ${automation.name}`}
-      />
-      <span
-        className={cn(
-          'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold',
-          automation.isActive
-            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-            : 'bg-muted text-muted-foreground',
-        )}
-      >
-        <span className={cn('h-2 w-2 rounded-full', automation.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/50')} />
-        {automation.isActive ? 'Active' : 'Paused'}
-      </span>
-    </div>
-  );
-}
-
+/** An automation's overflow menu: edit, and delete after a confirmation. */
 export function RowMenu({ automation, websiteId, onEdit }: { automation: Automation; websiteId: string; onEdit: () => void }) {
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
   const [confirm, confirmDialog] = useConfirm();

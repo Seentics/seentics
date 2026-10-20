@@ -31,16 +31,20 @@ export default function Hero() {
     <section className="relative overflow-hidden pt-40 sm:pt-52 lg:pt-64">
       <div className="lx-container relative">
 
+        <motion.p {...rise(0)} className="landing-eyebrow">
+          Analytics · Lead capture · Server-side tracking
+        </motion.p>
+
         <motion.h1
           {...rise(0.08)}
           className="lx-display max-w-[26ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
         >
-          See why visitors<br className="hidden sm:block" /> leave, then win them back
+          Turn more ad clicks<br className="hidden sm:block" /> into customers.
         </motion.h1>
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <p className="lx-dim max-w-[46rem] text-base leading-relaxed sm:text-lg">
-            Seentics replaces your analytics, replay, popup, and conversion tracking tools with one privacy-first tool that shows why visitors don’t buy and helps you fix it.
+            Seentics shows you what visitors do on your site, captures them with popups and forms before they leave, and sends every conversion to Meta and Google with server-side tracking. One tool instead of three.
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <Link href={isAuthenticated ? '/websites' : '/signup'} className="lx-btn lx-btn-primary">

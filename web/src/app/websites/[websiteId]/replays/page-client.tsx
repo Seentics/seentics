@@ -6,22 +6,17 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DashboardPageHeader } from '@/components/dashboard-header';
 import { usePermissions } from '@/hooks/use-permissions';
-import { AskAiButton } from '@/components/ai/AskAiButton';
-import { askAbout } from '@/features/ai/ask-link';
-import { DataTable } from '@/components/ui/data-table';
-import { StatCards } from '@/components/seentics-ui/StatCards';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Video, AlertTriangle, Search, RefreshCw, Trash2, MousePointerClick, Flame } from 'lucide-react';
+import {
+  CollectionEmpty, CollectionPager, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+} from '@/components/ui/collection';
+import { GHOST_BUTTON, LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { Video, RefreshCw } from 'lucide-react';
 
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
 import { demoDate } from '@/lib/demo/fixture-utils';
 import { DEFAULT_REPLAY_DAYS, ReplayRangeSelect } from '@/components/replays/ReplayRangeSelect';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { cn } from '@/lib/utils';
 import {
   listSessions,
@@ -31,19 +26,34 @@ import {
 } from '@/lib/replays-api';
 import { useToast } from '@/hooks/use-toast';
 
-
-import { SignalFilter } from '@/components/replays/SignalFilter';
-import { sessionColumns } from '@/components/replays/session-columns';
-import { formatDuration } from '@/features/replays/format';
+import { SessionList, SessionTable } from '@/components/replays/SessionList';
 import {
-  PAGE_SIZE_OPTIONS, SEARCH_DEBOUNCE_MS,
+  SEARCH_DEBOUNCE_MS,
   type DeviceFilter, type SessionRow, type SessionSort,
 } from '@/features/replays/list-types';
 import { FRUSTRATED_MIN_SCORE } from '@/features/replays/analysis';
+import { sessionLevel } from '@/features/replays/session-line';
 import { demoSessionFrustration } from '@/lib/demo/ai';
-import { SessionGroups } from '@/components/replays/SessionGroups';
 import { SESSION_GROUP_META, inSessionGroup } from '@/features/replays/groups';
 import type { SessionGroup } from '@/features/replays/types';
+
+type View = 'all' | 'look' | 'mobile';
+
+const PAGE_SIZE = 50;
+
+const LAYOUTS = ['list', 'table'] as const;
+type ReplayLayout = (typeof LAYOUTS)[number];
+const DEVICES = ['desktop', 'mobile', 'tablet'] as const;
+
+/**
+ * How much a session needs a look, for the demo's sort: errors and rage clicks first, then
+ * the frustration score, unanalysed sessions last — the order core's `frustration` sort gives.
+ */
+function importance(r: SessionRow): number {
+  return (r.has_errors || r.has_rage_clicks ? 1000 : 0) + (r.frustration_score ?? -1);
+}
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function ReplaysPage() {
   return <ReplaysView />;
@@ -51,7 +61,10 @@ export default function ReplaysPage() {
 
 /**
  * The recordings list: the signed-in page, and the same page inside an embed. An embed is
- * watch-only — no selecting, no deleting — and takes the website from its link, not the URL.
+ * watch-only — no deleting — and takes the website from its link, not the URL.
+ *
+ * Laid out as Linear lists issues: grouped under Needs a look / Worth watching / Smooth,
+ * one quiet line per session, the ones that most need a look first.
  */
 export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websiteId?: string; embed?: boolean }) {
   const segment = usePathSegment(1) ?? '';
@@ -68,45 +81,38 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
   const [confirm, confirmDialog] = useConfirm();
   /** What the server is actually filtering on; trails `search` by the debounce. */
   const [committedSearch, setCommittedSearch] = useState('');
+  const [view, setView] = useState<View>('all');
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
-  const [errorsOnly, setErrorsOnly] = useState(false);
-  const [rageOnly, setRageOnly] = useState(false);
-  /** Analysed sessions scoring at least `FRUSTRATED_MIN_SCORE`. */
-  const [frustratedOnly, setFrustratedOnly] = useState(false);
-  const [sort, setSort] = useState<SessionSort>('recent');
-  /** A session group the table is narrowed to, from "Show all" in Session groups. */
+  /** A kind of visit picked in the Filter menu. */
   const [groupFilter, setGroupFilter] = useState<SessionGroup | null>(null);
+  /** Most important first by default: the sessions worth watching lead the list. */
+  const [sort, setSort] = useState<SessionSort>('frustration');
+  const [layout, setLayout] = useLayoutPreference<ReplayLayout>('replays', LAYOUTS, 'list');
   /** Rolling window in days; 0 is every retained session. */
   const [rangeDays, setRangeDays] = useState<number>(DEFAULT_REPLAY_DAYS);
   const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
 
   useEffect(() => {
     const t = setTimeout(() => setCommittedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [search]);
 
+  /** The Mobile view is the device filter, kept in one place. */
+  const device: DeviceFilter = view === 'mobile' ? 'mobile' : deviceFilter;
+
   const filters: ReplayListParams = useMemo(() => ({
     search: committedSearch || undefined,
-    device: deviceFilter === 'all' ? undefined : deviceFilter,
-    hasErrors: errorsOnly || undefined,
-    hasRageClicks: rageOnly || undefined,
+    device: device === 'all' ? undefined : device,
     days: rangeDays || undefined,
-    minFrustration: frustratedOnly ? FRUSTRATED_MIN_SCORE : undefined,
     sort: sort === 'frustration' ? 'frustration' : undefined,
     group: groupFilter ?? undefined,
-  }), [committedSearch, deviceFilter, errorsOnly, rageOnly, rangeDays, frustratedOnly, sort, groupFilter]);
-
-  /** What the groups are counted within: everything but the group itself. */
-  const groupScope: ReplayListParams = useMemo(() => {
-    const { group: _g, sort: _s, ...rest } = filters;
-    return rest;
-  }, [filters]);
+    minFrustration: view === 'look' ? FRUSTRATED_MIN_SCORE : undefined,
+  }), [committedSearch, device, rangeDays, sort, groupFilter, view]);
 
   /** Narrowing the set changes what page 1 means, so never keep the old offset. */
   useEffect(() => {
     setPageIndex(0);
-  }, [filters, pageSize]);
+  }, [filters]);
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => {
@@ -118,22 +124,20 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         queryClient.invalidateQueries({ queryKey: ['sessions', websiteId] });
       }
       toast({
-        title: isDemoMode ? "Action simulated" : "Sessions deleted",
+        title: isDemoMode ? "Action simulated" : "Session deleted",
         description: isDemoMode
           ? "In demo mode, sessions are not actually deleted."
-          : "The selected sessions have been successfully removed.",
+          : "The recording has been removed.",
       });
     },
     onError: (err: any) => {
       toast({
         variant: "destructive",
         title: "Deletion failed",
-        description: err.message || "Something went wrong while deleting sessions.",
+        description: err.message || "Something went wrong while deleting the session.",
       });
     },
   });
-
-
 
   /**
    * One page from the server, filtered by the server.
@@ -144,11 +148,11 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
    * session reported "no results" for a session that exists.
    */
   const { data: apiData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['sessions', websiteId, pageIndex, pageSize, filters],
+    queryKey: ['sessions', websiteId, pageIndex, PAGE_SIZE, filters],
     queryFn: () => listSessions(websiteId, {
       ...filters,
-      limit: pageSize,
-      offset: pageIndex * pageSize,
+      limit: PAGE_SIZE,
+      offset: pageIndex * PAGE_SIZE,
     }),
     // The id comes from the URL after mount (usePathSegment); until then it is empty and
     // the request went out as /replays/?limit=… — a 404 on every visit.
@@ -181,7 +185,7 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
         has_errors: s.has_errors,
         has_rage_clicks: s.has_rage_clicks,
         start_time: s.start_time,
-        // A spread of scores, so the demo's frustration filter and sort have something to show.
+        // A spread of scores, so the demo's groups have something in each.
         frustration_score: demoSessionFrustration(i).frustrationScore,
         signal_counts: demoSessionFrustration(i).signalCounts,
         summary: demoSessionFrustration(i).summary,
@@ -207,293 +211,112 @@ export function ReplaysView({ websiteId: websiteIdProp, embed = false }: { websi
 
   }, [isDemoMode, apiData, rangeDays]);
 
-  /**
-   * Headline figures for the whole filtered set, computed by the database.
-   *
-   * Deriving these from `rows` would make each one a statistic about the page being
-   * looked at — "Total Sessions: 25" on a site with thousands. Demo mode has no server
-   * to ask, so it sums its own fixture.
-   */
-  const stats = useMemo(() => {
-    if (isDemoMode) {
-      const withDuration = rows.filter(r => r.duration_seconds > 0);
-      return {
-        total: rows.length,
-        withErrors: rows.filter(r => r.has_errors).length,
-        withRageClicks: rows.filter(r => r.has_rage_clicks).length,
-        avgDurationSeconds: withDuration.length
-          ? Math.round(withDuration.reduce((a, r) => a + r.duration_seconds, 0) / withDuration.length)
-          : 0,
-      };
-    }
-    return apiData?.summary ?? {
-      total: apiData?.total ?? 0,
-      withErrors: 0,
-      withRageClicks: 0,
-      avgDurationSeconds: 0,
-    };
-  }, [isDemoMode, rows, apiData]);
+  /** The demo has no server to filter, sort or page, so it does all three here. */
+  const demoMatching = useMemo(() => {
+    if (!isDemoMode) return [];
+    const q = committedSearch.toLowerCase();
+    const kept = rows
+      .filter((r) => view !== 'look' || sessionLevel(r) === 'look')
+      .filter((r) => device === 'all' || r.device.toLowerCase() === device)
+      .filter((r) => !groupFilter || inSessionGroup(r, groupFilter))
+      .filter((r) => !q || [r.country, r.browser, r.entry_page, r.summary ?? ''].some((v) => v.toLowerCase().includes(q)));
+    return sort === 'frustration' ? [...kept].sort((a, b) => importance(b) - importance(a)) : kept;
+  }, [isDemoMode, rows, view, device, groupFilter, committedSearch, sort]);
 
-  /** Demo mode groups in the browser; the server does it for real sites. */
-  const demoGroupCounts = useMemo(
-    () => (isDemoMode ? Object.fromEntries(SESSION_GROUP_META.map((g) => [g.id, rows.filter((r) => inSessionGroup(r, g.id)).length])) : undefined),
-    [isDemoMode, rows],
-  );
-  const tableRows = isDemoMode && groupFilter ? rows.filter((r) => inSessionGroup(r, groupFilter)) : rows;
-  const totalRows = isDemoMode ? tableRows.length : (apiData?.total ?? 0);
-  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
-  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || errorsOnly || rageOnly || frustratedOnly || groupFilter !== null;
+  const pageRows = isDemoMode ? demoMatching.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE) : rows;
+  const totalRows = isDemoMode ? demoMatching.length : (apiData?.total ?? 0);
+  const filtersActive = Boolean(committedSearch) || deviceFilter !== 'all' || groupFilter !== null || view !== 'all';
 
   const clearFilters = useCallback(() => {
     setSearch('');
     setCommittedSearch('');
     setDeviceFilter('all');
-    setErrorsOnly(false);
-    setRageOnly(false);
-    setFrustratedOnly(false);
     setGroupFilter(null);
+    setView('all');
   }, []);
 
-  const columns = useMemo(
-    () => sessionColumns({
-      websiteId,
-      onPlay: (sessionId) => router.push(`/websites/${websiteId}/replays/${sessionId}`),
-      readOnly: embed || !canEdit,
-      // The confirm lived inside the column's cell before it was extracted. It belongs
-      // here: the column renders a button, the page decides what destroying a session
-      // requires.
-      onDelete: async (sessionId) => {
-        const ok = await confirm({
-          title: 'Delete this recording?',
-          description: 'The session replay is removed permanently.',
-          confirmLabel: 'Delete recording',
-          destructive: true,
-        });
-        if (ok) deleteMutation.mutate([sessionId]);
-      },
-      isMutating: deleteMutation.isPending,
-    }),
-    [websiteId, router, deleteMutation, confirm, embed, canEdit],
-  );
+  const play = useCallback((sessionId: string) => router.push(`/websites/${websiteId}/replays/${sessionId}`), [router, websiteId]);
+  const readOnly = embed || !canEdit;
+  const remove = useCallback(async (sessionId: string) => {
+    const ok = await confirm({
+      title: 'Delete this recording?',
+      description: 'The session replay is removed permanently.',
+      confirmLabel: 'Delete recording',
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate([sessionId]);
+  }, [confirm, deleteMutation]);
 
-
-
-
-
+  const fields: FilterField[] = [
+    {
+      // The Mobile view is this filter, set from the tabs; picking a device here leaves that view.
+      id: 'device', label: 'Device', value: device === 'all' ? '' : device,
+      onChange: (v) => { setDeviceFilter((v || 'all') as DeviceFilter); if (view === 'mobile') setView('all'); },
+      options: DEVICES.map((d) => ({ value: d, label: cap(d) })),
+    },
+    {
+      id: 'visit', label: 'Visit', value: groupFilter ?? '',
+      onChange: (v) => setGroupFilter((v || null) as SessionGroup | null),
+      options: SESSION_GROUP_META.map((g) => ({ value: g.id, label: g.label })),
+    },
+  ];
 
   return (
-    <div className={embed ? 'w-full p-3' : 'w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5'}>
+    <div className={LIST_PAGE}>
       {confirmDialog}
-      {embed ? (
-        <div className="mb-3 flex items-center justify-end gap-2">
-          <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
-        </div>
-      ) : (
-        <DashboardPageHeader
-          websiteId={websiteId}
-          title="Session Replays"
-          description="Watch real user sessions to understand exactly how people use your product."
-        >
-          <AskAiButton websiteId={websiteId} size="md" {...askAbout.replays(rangeDays)} />
-          <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
-          {!isDemoMode && (
-            <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </Button>
-          )}
-        </DashboardPageHeader>
-      )}
 
-      <StatCards cards={[
-        {
-          label: filtersActive ? 'Matching sessions' : 'Total sessions',
-          value: stats.total,
-        },
-        {
-          label: 'Avg duration',
-          value: stats.avgDurationSeconds > 0 ? formatDuration(stats.avgDurationSeconds) : '—',
-        },
-        {
-          label: 'With errors',
-          value: stats.withErrors,
-          tone: 'danger',
-          toneWhen: stats.withErrors > 0,
-        },
-        {
-          label: 'Rage clicks',
-          value: stats.withRageClicks,
-        },
-      ]} />
-
-      <DataTable
-        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-2 [&_th]:!py-2"
-        data={tableRows}
-        columns={columns}
-        isLoading={isLoading || isFetching}
-        rowClassName={() => 'hover:bg-muted/35'}
-        enableRowSelection={!embed && canEdit}
-        selectionActions={embed || !canEdit ? undefined : (selectedRows) => (
-          <>
-            <span className="text-sm font-medium text-muted-foreground mr-2">
-              {selectedRows.length} selected
-            </span>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 gap-1.5"
-              disabled={deleteMutation.isPending}
-              onClick={async () => {
-                const ok = await confirm({
-                  title: `Delete ${selectedRows.length} recording${selectedRows.length === 1 ? '' : 's'}?`,
-                  description: 'The selected session replays are removed permanently.',
-                  confirmLabel: 'Delete',
-                  destructive: true,
-                });
-                if (ok) deleteMutation.mutate(selectedRows.map(r => r.session_id));
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-          </>
+      <PageBar
+        themeToggle={!embed}
+        icon={<Video />}
+        title="Session replays"
+        views={
+          <ViewTabs
+            label="Views"
+            tabs={[{ id: 'all', label: 'All sessions' }, { id: 'look', label: 'Needs a look' }, { id: 'mobile', label: 'Mobile' }]}
+            value={view}
+            onChange={setView}
+          />
+        }
+      >
+        <ReplayRangeSelect value={rangeDays} onChange={setRangeDays} />
+        {!isDemoMode && (
+          <button type="button" className={GHOST_BUTTON} onClick={() => refetch()} aria-label="Refresh">
+            <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
+          </button>
         )}
-        toolbarLeft={
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Recorded sessions</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {filtersActive
-                ? `${stats.total} matching session${stats.total === 1 ? '' : 's'}`
-                : `${stats.total} session${stats.total === 1 ? '' : 's'} recorded`}
-            </p>
-          </div>
-        }
-        toolbarRight={
-          <>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search sessions…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="h-8 w-52 pl-8 text-xs"
-              />
-            </div>
+      </PageBar>
 
-            {/*
-              "Show me the sessions that broke" in one click — the two signals the
-              Signals column already surfaces, as filters rather than something to
-              scroll for.
-            */}
-            <SignalFilter
-              pressed={errorsOnly}
-              onPressedChange={setErrorsOnly}
-              label="Errors"
-              title="Only sessions where a JavaScript error or unhandled rejection fired"
-              icon={<AlertTriangle className="h-3.5 w-3.5" />}
-              activeClass="border-red-500/40 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-300"
-            />
-            <SignalFilter
-              pressed={rageOnly}
-              onPressedChange={setRageOnly}
-              label="Rage"
-              title="Only sessions with a rage-click cluster"
-              icon={<MousePointerClick className="h-3.5 w-3.5" />}
-              activeClass="border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
-            />
-            {!isDemoMode && (
-              <SignalFilter
-                pressed={frustratedOnly}
-                onPressedChange={setFrustratedOnly}
-                label="Frustrated"
-                title={`Only sessions with a frustration score of ${FRUSTRATED_MIN_SCORE} or more: rage, dead or error clicks, U-turns, abandoned forms`}
-                icon={<Flame className="h-3.5 w-3.5" />}
-                activeClass="border-orange-500/40 bg-orange-500/10 text-orange-700 hover:bg-orange-500/15 dark:text-orange-300"
-              />
-            )}
+      <FilterToolbar
+        sort={{
+          value: sort, onChange: (v) => setSort(v as SessionSort),
+          options: [{ value: 'frustration', label: 'Most important' }, { value: 'recent', label: 'Newest first' }],
+        }}
+        filters={fields}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search country, browser, page…', label: 'Search sessions' }}
+        count={`${totalRows.toLocaleString()} ${totalRows === 1 ? 'session' : 'sessions'}`}
+      >
+        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+      </FilterToolbar>
 
-            <Select
-              value={deviceFilter}
-              onValueChange={(v) => setDeviceFilter(v as DeviceFilter)}
-            >
-              <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">All devices</SelectItem>
-                <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
-                <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
-                <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {!isDemoMode && (
-              <Select value={sort} onValueChange={(v) => setSort(v as SessionSort)}>
-                <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')} aria-label="Sort sessions">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="recent" className="text-xs">Newest first</SelectItem>
-                  <SelectItem value="frustration" className="text-xs">Most frustrated</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-
-            {groupFilter && (
-              <Button variant="secondary" size="sm" className="h-8 gap-1 text-xs" onClick={() => setGroupFilter(null)}>
-                {SESSION_GROUP_META.find((g) => g.id === groupFilter)?.label} ×
-              </Button>
-            )}
-            {filtersActive && (
-              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearFilters}>
-                Clear
-              </Button>
-            )}
-          </>
-        }
-        onRowClick={row => router.push(`/websites/${websiteId}/replays/${row.session_id}`)}
-        emptyIcon={<Video className="h-6 w-6" />}
-        emptyTitle={filtersActive ? 'No matching sessions' : 'No sessions yet'}
-        emptyDescription={
-          frustratedOnly
-            ? 'No frustrated sessions in this range. Sessions are analysed shortly after they end, so the newest may not be scored yet.'
-            : filtersActive
+      {isLoading && !isDemoMode ? <CollectionSkeleton rows={10} /> : pageRows.length === 0 ? (
+        <CollectionEmpty
+          icon={<Video />}
+          title={filtersActive ? 'No matching sessions' : 'No sessions yet'}
+          description={filtersActive
             ? 'No session matches these filters. The search covers every recorded session, not just this page.'
             : isDemoMode
               ? 'Demo mode has no sessions to show.'
-              : 'Install the Seentics tracker with recording enabled to capture sessions.'
-        }
-        emptyAction={
-          filtersActive ? (
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          ) : undefined
-        }
-        paginationMode={isDemoMode ? 'client' : 'server'}
-        pageIndex={pageIndex}
-        pageSize={pageSize}
-        pageCount={pageCount}
-        totalRowCount={totalRows}
-        pageSizeOptions={PAGE_SIZE_OPTIONS}
-        onPaginationChange={({ pageIndex: nextIndex, pageSize: nextSize }) => {
-          setPageIndex(nextIndex);
-          setPageSize(nextSize);
-        }}
-      />
-
-      {!embed && (
-        <SessionGroups
-          className="mt-6"
-          websiteId={websiteId}
-          filters={groupScope}
-          counts={isDemoMode ? demoGroupCounts : apiData?.summary?.groups}
-          demoRows={isDemoMode ? rows : undefined}
-          onPlay={(id) => router.push(`/websites/${websiteId}/replays/${id}`)}
-          onShowAll={(g) => { setGroupFilter(g); setPageIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              : 'Install the Seentics tracker with recording enabled to capture sessions.'}
+          action={filtersActive ? <button type="button" className={cn(GHOST_BUTTON, 'border border-border')} onClick={clearFilters}>Clear filters</button> : undefined}
         />
+      ) : layout === 'table' ? (
+        <SessionTable rows={pageRows} websiteId={websiteId} sort={sort} onPlay={play} onDelete={readOnly ? undefined : remove} />
+      ) : (
+        // Grouped by importance only when that is the order; newest first reads as one timeline.
+        <SessionList rows={pageRows} websiteId={websiteId} grouped={sort === 'frustration'} onPlay={play} onDelete={readOnly ? undefined : remove} />
       )}
 
+      <CollectionPager page={pageIndex} pageSize={PAGE_SIZE} total={totalRows} onChange={setPageIndex} previousLabel="Newer" nextLabel="Older" />
     </div>
   );
 }

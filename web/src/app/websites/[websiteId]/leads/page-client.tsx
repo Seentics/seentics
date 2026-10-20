@@ -3,12 +3,11 @@
 import { usePathSegment, useIsPathOverridden } from '@/lib/path-segment';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, Plus, Upload } from 'lucide-react';
+import { Contact, Download, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { StatCards } from '@/components/seentics-ui/StatCards';
+import { AiModeButton } from '@/components/ai/AiModeButton';
 import { Button } from '@/components/ui/button';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { GHOST_BUTTON, LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
 import { usePermissions } from '@/hooks/use-permissions';
 import { AddContactDialog } from '@/components/leads/AddContactDialog';
 import { ContactDrawer } from '@/components/leads/ContactDrawer';
@@ -20,12 +19,14 @@ import { leadsApi } from '@/features/leads/api';
 import { useContacts, useSiteSubmissions } from '@/features/leads/queries';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
-import { cn } from '@/lib/utils';
 
 /**
  * Route composition only: which tab, which contact is open, the dialogs, and export. Each tab,
  * the drawer and the dialogs are components under `components/leads`; data lives in
  * `features/leads`.
+ *
+ * Laid out like the other list pages: a top bar with the two tabs and the page's actions, then
+ * each tab's toolbar and layouts (see `components/ui/collection`).
  *
  * Two views of the same people. Submissions are every form's entries, kept for 90 days;
  * contacts are the people behind them, kept until deleted, and can also be added by hand or
@@ -38,7 +39,7 @@ const DAY = 86_400_000;
 
 function writeUrl(tab: Tab, contact: string | null) {
   const params = new URLSearchParams();
-  if (tab === 'contacts') params.set('tab', 'contacts');
+  if (tab === 'submissions') params.set('tab', 'submissions');
   if (contact) params.set('contact', contact);
   const qs = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
@@ -54,7 +55,7 @@ export default function LeadsPage() {
   // The demo shows every control; its writes answer with the demo notice instead of saving.
   const canEdit = canEditRole || demo;
 
-  const [tab, setTab] = useState<Tab>('submissions');
+  const [tab, setTab] = useState<Tab>('contacts');
   const [contactId, setContactId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -65,7 +66,7 @@ export default function LeadsPage() {
   useEffect(() => {
     if (embedded) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('tab') === 'contacts') setTab('contacts');
+    if (params.get('tab') === 'submissions') setTab('submissions');
     const contact = params.get('contact');
     if (contact) setContactId(contact);
   }, [embedded]);
@@ -73,15 +74,14 @@ export default function LeadsPage() {
   const go = (next: Tab) => { setTab(next); if (!embedded) writeUrl(next, contactId); };
   const openContact = useCallback((id: string | null) => {
     setContactId(id);
-    if (!embedded) writeUrl(new URLSearchParams(window.location.search).get('tab') === 'contacts' ? 'contacts' : 'submissions', id);
+    if (!embedded) writeUrl(new URLSearchParams(window.location.search).get('tab') === 'submissions' ? 'submissions' : 'contacts', id);
   }, [embedded]);
 
-  // The summary: plain counts, from the same endpoints the tabs use (one row each, just the totals).
+  // The tab counts: one row each from the endpoints the tabs use, just the totals.
   const monthAgo = useMemo(() => new Date((now ?? Date.now()) - 30 * DAY).toISOString(), [now]);
   const recent = useSiteSubmissions(websiteId, { search: '', form: '', from: monthAgo, to: '', limit: 1, offset: 0 });
   const everyone = useContacts(websiteId, { search: '', status: '', tag: '', source: '', sort: 'last_activity', limit: 1, offset: 0 });
-  const statuses = everyone.data?.statuses;
-  const figure = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString());
+  const count = (n: number | undefined) => (n === undefined ? '' : ` ${n.toLocaleString()}`);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -98,51 +98,37 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
-      <DashboardPageHeader title="Leads" description="Everyone who filled in a form, and the contacts they became." websiteId={websiteId}>
-        <Button variant="ghost" className={cn(GHOST_CONTROL, 'h-8 gap-1.5 px-3 text-xs')} onClick={exportCsv} disabled={exporting}>
-          <Download className="h-3.5 w-3.5" />Export CSV
-        </Button>
+    <div className={LIST_PAGE}>
+      <PageBar
+        icon={<Contact />}
+        title="Leads"
+        views={
+          <ViewTabs
+            label="Leads"
+            tabs={[
+              { id: 'contacts', label: `People${count(everyone.data?.total)}` },
+              { id: 'submissions', label: `Submissions${count(recent.data?.total)}` },
+            ]}
+            value={tab}
+            onChange={go}
+          />
+        }
+      >
+        <button type="button" className={GHOST_BUTTON} onClick={exportCsv} disabled={exporting}>
+          <Download className="size-3.5" />Export
+        </button>
         {tab === 'contacts' && canEdit && (
           <>
-            <Button variant="ghost" className={cn(GHOST_CONTROL, 'h-8 gap-1.5 px-3 text-xs')} onClick={() => setImporting(true)}>
-              <Upload className="h-3.5 w-3.5" />Import
-            </Button>
-            <Button className="h-8 gap-1.5 px-3 text-xs" onClick={() => setAdding(true)}>
-              <Plus className="h-3.5 w-3.5" />Add contact
+            <button type="button" className={GHOST_BUTTON} onClick={() => setImporting(true)}>
+              <Upload className="size-3.5" />Import
+            </button>
+            <Button className="h-7 gap-1.5 px-2.5 text-[12.5px]" onClick={() => setAdding(true)}>
+              <Plus className="size-3.5" />Add contact
             </Button>
           </>
         )}
-      </DashboardPageHeader>
-
-      <StatCards
-        className="mb-5"
-        cards={[
-          { label: 'Submissions', value: figure(recent.data?.total), subtext: 'Last 30 days' },
-          { label: 'Contacts', value: figure(everyone.data?.total), subtext: 'Kept until deleted' },
-          { label: 'New', value: figure(statuses?.new), subtext: 'Not contacted yet' },
-          { label: 'Customers', value: figure(statuses?.customer) },
-        ]}
-      />
-
-      <div role="tablist" aria-label="Leads" className="mb-4 flex gap-5 border-b border-border">
-        {(['submissions', 'contacts'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => go(t)}
-            className={cn(
-              '-mb-px border-b-2 px-0.5 pb-2.5 text-[13px] font-medium transition-colors',
-              tab === t ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {t === 'submissions' ? 'Submissions' : 'Contacts'}
-            {t === 'contacts' && everyone.data && <span className="ml-1.5 tabular-nums text-muted-foreground">{everyone.data.total}</span>}
-          </button>
-        ))}
-      </div>
+        <AiModeButton websiteId={websiteId} className="h-7" />
+      </PageBar>
 
       {tab === 'submissions' ? (
         <SubmissionsTab websiteId={websiteId} now={now} canEdit={canEdit} onOpenContact={openContact} onFiltersChange={setSubmissionFilters} />

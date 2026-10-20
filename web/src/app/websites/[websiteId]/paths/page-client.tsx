@@ -4,8 +4,9 @@ import { usePathSegment } from '@/lib/path-segment';
 
 
 import { PathAnalysis, usePathAnalysis } from '@/components/analytics/PathAnalysis';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { PathsDashboardView } from '@/components/paths/PathsDashboardView';
+import { Route } from 'lucide-react';
+import { StatCards } from '@/components/seentics-ui/StatCards';
+import { ReportPage } from '@/components/ui/linear-list';
 import { useDashboardData } from '@/features/analytics/queries';
 
 const DAYS = 30;
@@ -26,16 +27,15 @@ export default function PathsPage() {
   const loading = '—';
 
   return (
-    <PathsDashboardView
+    <ReportPage
+      icon={<Route />}
+      title="User paths"
+      description="Discover the most common journeys users take through your product."
       websiteId={websiteId}
-      header={
-        <DashboardPageHeader
-          websiteId={websiteId}
-          title="User Paths"
-          description="Discover the most common journeys users take through your product."
-        />
-      }
-      stats={[
+      width="max-w-[1200px]"
+    >
+      <StatCards
+        cards={[
           {
             label: 'Avg path length',
             value: metrics?.pages_per_session != null ? metrics.pages_per_session.toFixed(1) : loading,
@@ -49,8 +49,9 @@ export default function PathsPage() {
             label: 'Avg time',
             value: metrics?.avg_session_time != null ? formatDuration(metrics.avg_session_time) : loading,
           },
-      ]}
-      analysis={<PathAnalysis websiteId={websiteId} dateRange={DAYS} />}
-    />
+        ]}
+      />
+      <PathAnalysis websiteId={websiteId} dateRange={DAYS} />
+    </ReportPage>
   );
 }

@@ -3,7 +3,7 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConnectDialog, type ConnectMode } from '@/components/conversions/ConnectDialog';
 import { PLATFORM_ORDER, PLATFORMS, percent } from '@/components/conversions/conversion-format';
@@ -14,7 +14,7 @@ import { EventsTable } from '@/components/conversions/EventsTable';
 import { MatchQuality } from '@/components/conversions/MatchQuality';
 import { PlatformMark } from '@/components/conversions/parts';
 import { TestEventDialog } from '@/components/conversions/TestEventDialog';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -94,16 +94,17 @@ export default function ConversionsPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
-      {confirmDialog}
-      <DashboardPageHeader
-        title="Conversions"
-        description="Your sales and leads, sent from Seentics' servers to your ad platforms — so ad blockers and browsers can't drop them."
-        websiteId={websiteId}
-      >
+    <ReportPage
+      icon={<Send />}
+      title="Conversions"
+      description="Your sales and leads, sent from Seentics' servers to your ad platforms — so ad blockers and browsers can't drop them."
+      websiteId={websiteId}
+      actions={<>
         {connected && <RangeSelect value={days} onChange={setDays} ranges={RANGES} />}
         {connectMenu}
-      </DashboardPageHeader>
+      </>}
+    >
+      {confirmDialog}
 
       {destinations.isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -167,6 +168,6 @@ export default function ConversionsPage() {
 
       <ConnectDialog websiteId={websiteId} mode={mode} onClose={() => setMode(null)} />
       <TestEventDialog websiteId={websiteId} destination={testing} onClose={() => setTesting(null)} />
-    </div>
+    </ReportPage>
   );
 }

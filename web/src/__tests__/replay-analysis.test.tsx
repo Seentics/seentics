@@ -7,7 +7,7 @@ import {
 } from '@/features/replays/analysis';
 import { replayListQuery } from '@/features/replays/api';
 import { askAbout } from '@/features/ai/ask-link';
-import { sessionColumns } from '@/components/replays/session-columns';
+import { sessionLine } from '@/features/replays/session-line';
 
 describe('analysis helpers', () => {
   it('lists signals most severe first, skipping zeros and unknowns', () => {
@@ -59,29 +59,22 @@ describe('analysis helpers', () => {
   });
 });
 
-describe('session list columns', () => {
-  const cols = sessionColumns({ websiteId: 'w1', onPlay: vi.fn(), onDelete: vi.fn() });
-  const cell = (id: string, original: Record<string, unknown>) =>
-    render(<div>{(cols.find(c => c.id === id) as any).cell({ row: { original } })}</div>);
-
+describe('session list line', () => {
   const base = { pages_viewed: 3, entry_page: '/pricing', has_errors: false, has_rage_clicks: false, frustration_score: null, summary: null };
 
-  it('shows the one-line summary once analysed, on one line', () => {
-    const { container } = cell('summary', { ...base, frustration_score: 76, summary: 'Rage-clicked button "Apply coupon" 4 times on /checkout' });
-    expect(screen.getByText('Rage-clicked button "Apply coupon" 4 times on /checkout')).toBeTruthy();
-    expect(container.querySelector('.truncate')).toBeTruthy();
-    expect(container.querySelector('[title="Frustration score 76/100"]')).toBeTruthy();
+  it('uses the summary once analysed', () => {
+    expect(sessionLine({ ...base, frustration_score: 76, summary: 'Rage-clicked button "Apply coupon" 4 times on /checkout' }, 'w1'))
+      .toBe('Rage-clicked button "Apply coupon" 4 times on /checkout');
   });
 
   it('falls back to the ingest flags for an unanalysed session', () => {
-    cell('summary', { ...base, has_errors: true });
-    expect(screen.getByText(/^Hit an error · 3 pages from/)).toBeTruthy();
+    expect(sessionLine({ ...base, has_errors: true }, 'w1')).toMatch(/^Hit an error · 3 pages from/);
   });
 
   it('says a calm analysed session had no friction', () => {
-    cell('summary', { ...base, frustration_score: 0 });
-    expect(screen.getByText(/no friction$/)).toBeTruthy();
+    expect(sessionLine({ ...base, frustration_score: 0 }, 'w1')).toMatch(/no friction$/);
   });
+
 });
 
 // ── the player panel ──────────────────────────────────────────────────────────

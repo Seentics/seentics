@@ -51,7 +51,7 @@ export function AiBrief({ websiteId }: { websiteId: string }) {
   const alertPart = parts.find((p) => p.tone === 'alert');
 
   return (
-    <div className="flex min-h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm">
+    <div className="flex min-h-9 items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm">
       {alertPart ? (
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-orange-500" />
       ) : (

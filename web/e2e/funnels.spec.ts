@@ -95,31 +95,24 @@ test.describe('Funnels E2E Tests', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Funnels');
 
-    // The table is the funnel and a plain-words "What happened" line — the old raw
-    // Status/Steps/Conversion columns are gone.
-    const table = page.getByRole('table');
-    await expect(table.getByRole('columnheader', { name: 'What happened' })).toBeVisible();
-
-    const row = page.getByRole('row').filter({ hasText: 'Checkout Flow' });
+    // A list grouped by how each funnel is doing: one line per funnel, its rate beside it.
+    const row = page.getByRole('listitem').filter({ hasText: 'Checkout Flow' });
     await expect(row).toBeVisible();
     await expect(row).toContainText('2 steps');
-    await expect(row).toContainText('Main sales funnel');
-    // From this period's report, with the trend against the period before (150 of 1,000).
-    await expect(row).toContainText('Converts 25% (250 of 1,000)');
-    await expect(row).toContainText('up from 15%');
+    await expect(row.getByRole('button', { name: 'Checkout Flow', exact: true })).toHaveAttribute('title', 'Main sales funnel');
+    // From this period's report. No trend: at the default 31 days, twice the period is past
+    // MAX_FUNNEL_DAYS, so the period before is not fetched.
+    await expect(row).toContainText('25%');
+    await expect(page.getByText('1 of 1', { exact: true })).toBeVisible();
+    // Losing 75% between two steps puts it under Big leak, though it is improving.
+    await expect(page.getByRole('region', { name: 'Big leak' })).toContainText('Checkout Flow');
 
-    // The stat cards are derived from the list and the reports.
-    await expect(page.getByText('1 funnel configured')).toBeVisible();
-    const stat = (label: string) => page.getByRole('group', { name: label, exact: true });
-    await expect(stat('Active funnels')).toContainText('1');
-    await expect(stat('Avg. conversion')).toContainText('25.0%');
-
-    // Below the table, the funnel is grouped by trend; opening a group lists it.
-    await expect(page.getByRole('heading', { name: 'Funnels by trend' })).toBeVisible();
-    const improving = page.getByRole('button', { name: /Improving/ });
-    await expect(improving).toContainText('1');
-    await improving.click();
-    await expect(page.getByRole('button', { name: /^Checkout Flow — Converts 25%/ })).toBeVisible();
+    // The table: every figure side by side.
+    await page.getByRole('button', { name: 'Table', exact: true }).click();
+    const tableRow = page.locator('tbody tr').filter({ hasText: 'Checkout Flow' });
+    await expect(tableRow).toContainText('1,000');
+    await expect(tableRow).toContainText('250');
+    await expect(tableRow).toContainText('Home → Cart');
   });
 
   /**
@@ -135,9 +128,9 @@ test.describe('Funnels E2E Tests', () => {
 
     await page.goto('/websites/web-123/funnels');
 
-    const row = page.getByRole('row').filter({ hasText: 'Checkout Flow' });
-    await expect(row).toContainText('most leave at Home → Cart (75%)');
-    await expect(page.getByRole('button', { name: /Big leak/ })).toContainText('1');
+    const row = page.getByRole('listitem').filter({ hasText: 'Checkout Flow' });
+    await expect(row).toContainText(/most leave at Home → Cart \(75%\)/i);
+    await expect(page.getByRole('region', { name: 'Big leak' })).toContainText('Checkout Flow');
   });
 
   test('should show details page for a funnel', async ({ page }) => {
@@ -230,7 +223,8 @@ test.describe('Funnels E2E Tests', () => {
 
     await page.goto('/websites/web-123/funnels');
 
-    await page.getByRole('button', { name: 'New Funnel' }).click();
+    // Offered in the top bar and, with no funnels yet, in the empty state.
+    await page.getByRole('button', { name: 'New funnel' }).first().click();
 
     // The builder opens in a side sheet (a dialog), titled "New funnel".
     const sheet = page.getByRole('dialog');
@@ -255,8 +249,8 @@ test.describe('Funnels E2E Tests', () => {
 
     await page.goto('/websites/web-123/funnels');
 
-    await expect(page.getByText('0 funnels configured')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New Funnel' })).toHaveCount(0);
+    await expect(page.getByText('No funnels yet')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New funnel' })).toHaveCount(0);
   });
 
 });

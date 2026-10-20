@@ -51,3 +51,18 @@ export function errorLine(g: ErrorGroup, periodStart: number, periodLabel: strin
   if (w.count === 0) return `Not seen ${periodLabel}`;
   return `${trend} · ${times(w.count)}${where} ${periodLabel}${who}`;
 }
+
+/** The list's groups: each error under exactly one, the most pressing it is in. */
+export type ErrorBucket = ErrorGroupId | 'steady';
+export const ERROR_BUCKETS: Array<{ id: ErrorBucket; label: string; dot: string }> = [
+  ...ERROR_GROUP_META.filter((g) => g.id !== 'better' && g.id !== 'noisy'),
+  { id: 'steady', label: 'Steady', dot: 'bg-muted-foreground/70' },
+  ...ERROR_GROUP_META.filter((g) => g.id === 'better' || g.id === 'noisy'),
+];
+
+export function errorBucket(g: ErrorGroup, periodStart: number): ErrorBucket {
+  // Harmless first: a browser warning that is "new" is still not worth a look.
+  if (inErrorGroup(g, 'noisy', periodStart)) return 'noisy';
+  const order: ErrorGroupId[] = ['new', 'worse', 'key_pages', 'better'];
+  return order.find((id) => inErrorGroup(g, id, periodStart)) ?? 'steady';
+}

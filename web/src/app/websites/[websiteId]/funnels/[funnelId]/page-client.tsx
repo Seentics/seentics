@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect, funnelRangeLabel } from '@/components/funnels/FunnelRangeSelect';
@@ -83,24 +83,18 @@ export default function FunnelDetailPage() {
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] p-4 md:p-5 lg:px-6 lg:py-5">
-      <button
-        type="button"
-        onClick={() => router.push(`/websites/${websiteId}/funnels`)}
-        className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        All funnels
-      </button>
-      <DashboardPageHeader
-        websiteId={websiteId}
-        title={funnel.name}
-        description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
-      >
+    <ReportPage
+      icon={<GitBranch />}
+      title={funnel.name}
+      parent={{ label: 'Funnels', onClick: () => router.push(`/websites/${websiteId}/funnels`) }}
+      description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
+      websiteId={websiteId}
+      width="max-w-[1200px]"
+      actions={<>
         <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name)} />
         <FunnelRangeSelect value={days} onChange={setDays} />
-      </DashboardPageHeader>
-
+      </>}
+    >
       {(analyticsData?.warnings?.length ?? 0) > 0 && (
         <ul role="status" className="mb-4 space-y-1 text-sm text-amber-700 dark:text-amber-400">
           {analyticsData?.warnings?.map(warning => <li key={warning}>{warning}</li>)}
@@ -128,6 +122,6 @@ export default function FunnelDetailPage() {
           {windowText ? ` Each step has to follow the one before within ${windowText}.` : ''}
         </p>
       </details>
-    </div>
+    </ReportPage>
   );
 }

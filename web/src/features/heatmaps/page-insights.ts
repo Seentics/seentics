@@ -75,3 +75,19 @@ export const HEATMAP_TONE_DOT: Record<HeatmapTone, string> = {
 };
 
 export const HEATMAP_TONE_RANK: Record<HeatmapTone, number> = { problem: 2, healthy: 1, unknown: 0 };
+
+
+/** A page's one status for its label: the most pressing group it is in. */
+export function pageStatus(p: HeatmapPageFacts): HeatmapGroupId {
+  const order: HeatmapGroupId[] = ['dead_clicks', 'low_scroll', 'mobile_gap', 'too_little'];
+  return order.find((id) => inHeatmapGroup(p, id)) ?? 'healthy';
+}
+
+/** A readable name for a page from its path: `/` is Home, `/blog/why-real-time` is "Why real time". */
+export function pageName(path: string): string {
+  const last = path.split('?')[0].split('/').filter(Boolean).pop();
+  if (!last) return 'Home';
+  if (last === ':id') return path;
+  const words = decodeURIComponent(last).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : path;
+}

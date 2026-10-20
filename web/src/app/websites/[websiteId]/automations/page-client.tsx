@@ -5,298 +5,192 @@ import { usePathSegment } from '@/lib/path-segment';
 import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Bell,
-  Bot,
-  Clock,
-  Coffee,
-  Eye,
-  EyeOff,
-  ExternalLink,
-  Feather,
-  Globe,
-  Highlighter,
-  Info,
-  LayoutTemplate,
-  LogOut,
-  Megaphone,
-  MessageSquare,
-  MoreVertical,
-  MousePointer,
-  Pencil,
-  Plus,
-  Search,
-  Tag,
-  Target,
-  TrendingDown,
-  Trash2,
-  UserCheck,
-  Webhook,
-  Zap,
-} from 'lucide-react';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { ColumnDef, DataTable, SortableHeader, selectionColumn } from '@/components/ui/data-table';
-import { StatCards } from '@/components/seentics-ui/StatCards';
+import { Bot, LayoutTemplate, Plus, Trash2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+} from '@/components/ui/collection';
+import { GHOST_BUTTON, LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { AutomationCards, AutomationList, AutomationTable } from '@/components/automations/AutomationViews';
+import { usePermissions } from '@/hooks/use-permissions';
+import { useAutomations, useBulkDeleteAutomations, type Automation } from '@/lib/automations-api';
+import { AUTOMATION_GROUP_META, AUTOMATION_TONE_RANK, automationTone, type AutomationGroupId } from '@/features/automations/insights';
+import { ACTIONS, TRIGGERS } from '@/features/automations/catalog';
 import { cn } from '@/lib/utils';
-import {
-  useAutomations,
-  useBulkDeleteAutomations,
-  useDeleteAutomation,
-  useToggleAutomation,
-  type Automation,
-} from '@/lib/automations-api';
 
 /**
- * The automations list.
+ * The automations, in the shared list-page layout: a top bar with the views and the page's
+ * actions, the toolbar (sort, filters, search, layout), then a list grouped by how each one
+ * is doing, a table with every figure (and bulk delete), or cards that show the popup itself.
  *
- * The table used to show a name, a status pill, one trigger label and two numbers —
- * which told you an automation existed but not what it did. An automation *is* a
- * trigger wired to actions, so that shape is now a column: `Exit Intent → Show Modal`.
- * It is the one thing you need to tell two rows apart without opening the builder.
- *
- * Activating and pausing also came out of the overflow menu. It is the most frequent
- * action on this page and it was two clicks deep behind a `MoreVertical`.
+ * The on/off switch is on every row and card: switching one on or off is the most frequent
+ * thing done here, and it used to be two clicks deep behind a menu.
  */
 
-import { StatusCell, RowMenu } from '@/components/automations/automation-cells';
-import { usePermissions } from '@/hooks/use-permissions';
-import { ListGroups } from '@/components/ui/list-groups';
-import { AUTOMATION_GROUP_META, AUTOMATION_TONE_DOT, AUTOMATION_TONE_RANK, automationLine, automationTone, inAutomationGroup, type AutomationGroupId } from '@/features/automations/insights';
-import { TRIGGERS, ACTIONS } from '@/features/automations/catalog';
+type View = 'all' | 'live' | 'attention';
+type Sort = 'attention' | 'runs' | 'updated' | 'name';
+
+const LAYOUTS = ['list', 'table', 'cards'] as const;
+type AutomationLayout = (typeof LAYOUTS)[number];
+
+const SORTS: Record<Sort, { label: string; compare: (a: Automation, b: Automation) => number }> = {
+  attention: {
+    label: 'Needs attention first',
+    compare: (a, b) => AUTOMATION_TONE_RANK[automationTone(b)] - AUTOMATION_TONE_RANK[automationTone(a)] || (b.stats?.last30Days ?? 0) - (a.stats?.last30Days ?? 0),
+  },
+  runs: { label: 'Most runs', compare: (a, b) => (b.stats?.last30Days ?? 0) - (a.stats?.last30Days ?? 0) },
+  updated: { label: 'Recently edited', compare: (a, b) => b.updatedAt.localeCompare(a.updatedAt) },
+  name: { label: 'Name', compare: (a, b) => a.name.localeCompare(b.name) },
+};
+
+const label = (catalog: Record<string, { label: string }>, id: string) => catalog[id]?.label ?? id;
 
 export default function AutomationsPage() {
-  const params = { websiteId: usePathSegment(1) ?? '' };
+  const websiteId = usePathSegment(1) ?? '';
   const router = useRouter();
-  const websiteId = params?.websiteId as string;
-
-  const [search, setSearch] = useState('');
   const [confirm, confirmDialog] = useConfirm();
   const { data, isLoading } = useAutomations(websiteId);
-  /** A group the table is narrowed to, from "Show all" below it. */
-  const [groupFilter, setGroupFilter] = useState<AutomationGroupId | null>(null);
-  const automations: Automation[] = data?.automations ?? [];
   const bulkDelete = useBulkDeleteAutomations();
   // A viewer reads; creating, switching and deleting are for members and up.
   const { canEdit } = usePermissions(websiteId);
 
-  const filtered = useMemo(() => {
+  const [view, setView] = useState<View>('all');
+  const [sort, setSort] = useState<Sort>('attention');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<AutomationGroupId | ''>('');
+  const [trigger, setTrigger] = useState('');
+  const [action, setAction] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [layout, setLayout] = useLayoutPreference<AutomationLayout>('automations', LAYOUTS, 'list');
+
+  const automations: Automation[] = useMemo(() => data?.automations ?? [], [data]);
+
+  const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return automations;
-    return automations.filter(a =>
-      a.name.toLowerCase().includes(q) ||
-      (a.description ?? '').toLowerCase().includes(q) ||
-      (TRIGGERS[a.triggerType]?.label ?? a.triggerType).toLowerCase().includes(q) ||
-      (a.actions ?? []).some(x => (ACTIONS[x.actionType]?.label ?? x.actionType).toLowerCase().includes(q)),
-    );
-  }, [automations, search]);
+    return automations
+      .filter((a) => view === 'all' || (view === 'live' ? a.isActive : ['failing', 'never_fired'].includes(automationTone(a))))
+      .filter((a) => !status || automationTone(a) === status)
+      .filter((a) => !trigger || a.triggerType === trigger)
+      .filter((a) => !action || (a.actions ?? []).some((x) => x.actionType === action))
+      .filter((a) => !q
+        || a.name.toLowerCase().includes(q)
+        || (a.description ?? '').toLowerCase().includes(q)
+        || label(TRIGGERS, a.triggerType).toLowerCase().includes(q)
+        || (a.actions ?? []).some((x) => label(ACTIONS, x.actionType).toLowerCase().includes(q)))
+      .sort(SORTS[sort].compare);
+  }, [automations, view, status, trigger, action, search, sort]);
 
-  const active = automations.filter(a => a.isActive).length;
-  const paused = automations.length - active;
-  const totalRuns = automations.reduce((s, a) => s + (a.stats?.totalExecutions ?? 0), 0);
-  // Averaged over automations that have actually run — including never-run ones as 0%
-  // dragged the figure down and made a healthy account look broken.
-  const withRuns = automations.filter(a => (a.stats?.totalExecutions ?? 0) > 0);
-  const avgSuccess = withRuns.length
-    ? withRuns.reduce((s, a) => s + (a.stats?.successRate ?? 0), 0) / withRuns.length
-    : 0;
-
-  const columns: ColumnDef<Automation>[] = [
-    ...(canEdit ? [selectionColumn<Automation>()] : []),
+  // Only the triggers and actions in use: a filter that can only empty the list is noise.
+  const usedTriggers = [...new Set(automations.map((a) => a.triggerType))];
+  const usedActions = [...new Set(automations.flatMap((a) => (a.actions ?? []).map((x) => x.actionType)))];
+  const filters: FilterField[] = [
     {
-      id: 'name',
-      header: ({ column }) => <SortableHeader column={column}>Automation</SortableHeader>,
-      accessorKey: 'name',
-      size: 260,
-      cell: ({ row }) => {
-        const a = row.original;
-        const TriggerIcon = TRIGGERS[a.triggerType]?.icon ?? Zap;
-        return (
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                a.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}
-            >
-              <TriggerIcon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 max-w-[280px]">
-              <p className="truncate text-[15px] font-semibold leading-tight text-foreground" title={a.description || undefined}>{a.name}</p>
-            </div>
-          </div>
-        );
-      },
+      id: 'status', label: 'Status', value: status, onChange: (v) => setStatus(v as AutomationGroupId | ''),
+      options: AUTOMATION_GROUP_META.map((g) => ({ value: g.id, label: g.label, icon: <span aria-hidden className={cn('size-1.5 rounded-full', g.dot)} /> })),
     },
-    {
-      id: 'what',
-      header: 'What happened',
-      accessorFn: row => AUTOMATION_TONE_RANK[automationTone(row)],
-      size: 560,
-      cell: ({ row }) => {
-        const tone = automationTone(row.original);
-        const text = automationLine(row.original);
-        return (
-          <div className="flex min-w-0 max-w-[44rem] items-center gap-2">
-            <span className={cn('h-2 w-2 shrink-0 rounded-full', AUTOMATION_TONE_DOT[tone])} />
-            <span className={cn('truncate text-sm', tone === 'failing' ? 'text-foreground' : 'text-muted-foreground')} title={text}>
-              {text}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      accessorFn: row => (row.isActive ? 1 : 0),
-      size: 160,
-      cell: ({ row }) => <StatusCell automation={row.original} websiteId={websiteId} readOnly={!canEdit} />,
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 56,
-      enableSorting: false,
-      cell: ({ row }) => canEdit && (
-        <div className="flex justify-end pr-1">
-          <RowMenu
-            automation={row.original}
-            websiteId={websiteId}
-            onEdit={() => router.push(`/websites/${websiteId}/automations/${row.original.id}`)}
-          />
-        </div>
-      ),
-    },
+    { id: 'trigger', label: 'Trigger', value: trigger, onChange: setTrigger, options: usedTriggers.map((t) => ({ value: t, label: label(TRIGGERS, t) })) },
+    { id: 'action', label: 'Action', value: action, onChange: setAction, options: usedActions.map((t) => ({ value: t, label: label(ACTIONS, t) })) },
   ];
 
+  const open = (a: Automation) => router.push(`/websites/${websiteId}/automations/${a.id}`);
+  const props = { automations: shown, websiteId, canEdit, onOpen: open };
+  const chosen = [...selected].filter((id) => shown.some((a) => a.id === id));
+  const narrowed = !!(search.trim() || status || trigger || action || view !== 'all');
+
+  const deleteChosen = async () => {
+    const ok = await confirm({
+      title: `Delete ${chosen.length} automation${chosen.length === 1 ? '' : 's'}?`,
+      description: 'They stop running and their run history is removed.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    bulkDelete.mutate({ websiteId, automationIds: chosen }, { onSuccess: () => setSelected(new Set()) });
+  };
+
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
+    <div className={LIST_PAGE}>
       {confirmDialog}
-      <DashboardPageHeader
-        websiteId={websiteId}
+
+      <PageBar
+        icon={<Zap />}
         title="Automations"
-        description="Trigger actions automatically based on user behavior and analytics events."
+        views={
+          <ViewTabs
+            label="Views"
+            tabs={[{ id: 'all', label: 'All' }, { id: 'live', label: 'Live' }, { id: 'attention', label: 'Needs attention' }]}
+            value={view}
+            onChange={setView}
+          />
+        }
       >
         {canEdit && (
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
-            >
-              <LayoutTemplate className="h-3.5 w-3.5" />
-              Templates
-            </Button>
-            <Button size="sm" className="gap-1.5" onClick={() => router.push(`/websites/${websiteId}/automations/new`)}>
-              <Plus className="h-3.5 w-3.5" />
-              New automation
+            <button type="button" className={GHOST_BUTTON} onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}>
+              <LayoutTemplate className="size-3.5" />Templates
+            </button>
+            <Button className="h-7 gap-1.5 px-2.5 text-[12.5px]" onClick={() => router.push(`/websites/${websiteId}/automations/new`)}>
+              <Plus className="size-3.5" />New automation
             </Button>
           </>
         )}
-      </DashboardPageHeader>
+      </PageBar>
 
-      <StatCards
-        isLoading={isLoading}
-        cards={[
-          { label: 'Active', value: active },
-          { label: 'Paused', value: paused },
-          { label: 'Total runs', value: totalRuns },
-          {
-            label: 'Avg success',
-            value: withRuns.length ? `${avgSuccess.toFixed(1)}%` : '—',
-          },
-        ]}
-      />
+      <FilterToolbar
+        sort={{
+          value: sort, onChange: (v) => setSort(v as Sort),
+          options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })),
+        }}
+        filters={filters}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search name, trigger or action…', label: 'Search automations' }}
+        count={data ? `${shown.length} of ${automations.length}` : undefined}
+      >
+        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+      </FilterToolbar>
 
-      <DataTable
-        className="rounded-lg shadow-sm [&_td]:!py-3.5 [&_th]:!py-2.5"
-        data={groupFilter ? filtered.filter((a) => inAutomationGroup(a, groupFilter)) : filtered}
-        columns={columns}
-        isLoading={isLoading}
-        enableRowSelection={canEdit}
-        rowClassName={() => 'hover:bg-muted/35'}
-        selectionActions={selectedRows => (
-          <>
-            <span className="mr-2 text-sm font-medium text-muted-foreground">
-              {selectedRows.length} selected
-            </span>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 gap-1.5"
-              disabled={bulkDelete.isPending}
-              onClick={async () => {
-                const ok = await confirm({
-                  title: `Delete ${selectedRows.length} automation${selectedRows.length === 1 ? '' : 's'}?`,
-                  description: 'They stop running and their run history is removed.',
-                  confirmLabel: 'Delete',
-                  destructive: true,
-                });
-                if (!ok) return;
-                bulkDelete.mutate({ websiteId, automationIds: selectedRows.map(r => r.id) });
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-          </>
-        )}
-        toolbarLeft={
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">All automations</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {filtered.length === automations.length
-                ? `${automations.length} automation${automations.length === 1 ? '' : 's'}`
-                : `${filtered.length} of ${automations.length} shown`}
-            </p>
-          </div>
-        }
-        toolbarRight={
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search name, trigger or action…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="h-8 w-60 pl-8 text-xs"
-            />
-          </div>
-        }
-        onRowClick={row => router.push(`/websites/${websiteId}/automations/${row.id}`)}
-        emptyIcon={<Bot className="h-6 w-6" />}
-        emptyTitle={search ? 'No matches' : 'No automations yet'}
-        emptyDescription={
-          search
-            ? 'No automation matches that name, trigger or action.'
-            : 'Create your first automation to trigger actions based on user behavior.'
-        }
-        pageSize={10}
-      />
+      {chosen.length > 0 && layout === 'table' && (
+        <div className="flex items-center gap-2 border-b border-border bg-primary/[0.04] px-4 py-1.5 text-[13px]">
+          <span className="font-medium">{chosen.length} selected</span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(new Set())}>Clear</Button>
+          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive" disabled={bulkDelete.isPending} onClick={deleteChosen}>
+            <Trash2 className="h-3.5 w-3.5" />Delete
+          </Button>
+        </div>
+      )}
 
-      <ListGroups
-        className="mt-6"
-        title="Automations by how they are doing"
-        description="From each automation's runs. Open a group to see its automations."
-        groups={AUTOMATION_GROUP_META.map((meta) => ({
-          ...meta,
-          items: automations
-            .filter((a) => inAutomationGroup(a, meta.id))
-            .map((a) => ({ key: a.id, text: `${a.name} — ${automationLine(a)}`, onClick: () => router.push(`/websites/${websiteId}/automations/${a.id}`) })),
-        }))}
-        onShowAll={(id) => { setGroupFilter(id as AutomationGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-      />
+      {isLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
+        <CollectionEmpty
+          icon={<Bot />}
+          title={narrowed ? 'No matches' : 'No automations yet'}
+          description={narrowed
+            ? 'No automation matches this view, these filters or that search.'
+            : 'Create your first automation to show a popup, collect leads or call a webhook when visitors do something.'}
+          action={!narrowed && canEdit ? (
+            <div className="flex justify-center gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}><LayoutTemplate className="h-3.5 w-3.5" />Start from a template</Button>
+              <Button size="sm" className="gap-1.5" onClick={() => router.push(`/websites/${websiteId}/automations/new`)}><Plus className="h-3.5 w-3.5" />New automation</Button>
+            </div>
+          ) : undefined}
+        />
+      ) : layout === 'table' ? (
+        <AutomationTable
+          {...props}
+          sortedBy={sort}
+          selection={canEdit ? {
+            selected,
+            labelOf: (id) => automations.find((a) => a.id === id)?.name ?? id,
+            onChange: (ids, on) => setSelected((prev) => {
+              const next = new Set(prev);
+              ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+              return next;
+            }),
+          } : undefined}
+        />
+      ) : layout === 'cards' ? (
+        <AutomationCards {...props} />
+      ) : (
+        <AutomationList {...props} />
+      )}
     </div>
   );
 }

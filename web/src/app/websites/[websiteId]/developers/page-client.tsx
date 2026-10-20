@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BarChart3, BookOpen, Bot, FileCode2, KeyRound, Plus, Webhook, Wrench } from 'lucide-react';
+import { BarChart3, BookOpen, Bot, FileCode2, KeyRound, Plus, Webhook, Wrench, Code2 } from 'lucide-react';
 import { usePathSegment } from '@/lib/path-segment';
 import { cn } from '@/lib/utils';
 import { useAPIKeys } from '@/components/developers/api-keys';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { Button } from '@/components/ui/button';
 import { PAGE_MENU_LABEL, PAGE_MENU_PANEL, pageMenuItem } from '@/components/ui/page-menu';
 import { CreateAccountKeyDialog, type AccessPreset } from '@/components/developers/AccountKeysPanel';
@@ -80,8 +80,12 @@ export default function DevelopersPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] p-4 md:p-5 lg:px-6 lg:py-5">
-      <DashboardPageHeader websiteId={websiteId} title="Developers" description={DESCRIPTIONS[tab]}>
+    <ReportPage
+      icon={<Code2 />}
+      title="Developers"
+      description={DESCRIPTIONS[tab]}
+      websiteId={websiteId}
+      actions={<>
         <Button variant="outline" size="sm" className="gap-1.5" asChild>
           <Link href="/docs/api">
             <BookOpen className="h-3.5 w-3.5" />
@@ -94,7 +98,8 @@ export default function DevelopersPage() {
             New account key
           </Button>
         )}
-      </DashboardPageHeader>
+      </>}
+    >
 
       <div className="grid gap-5 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-4">
         <nav className={cn(PAGE_MENU_PANEL, 'lg:sticky lg:top-5 lg:self-start')} aria-label="Developer sections">
@@ -134,6 +139,6 @@ export default function DevelopersPage() {
       </div>
 
       <CreateAccountKeyDialog websiteId={websiteId} open={newKey} onOpenChange={setNewKey} preset={preset} />
-    </div>
+    </ReportPage>
   );
 }

@@ -6,7 +6,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
 import { EditGuard, ReadOnlyNote } from '@/features/client-mode/ClientMode';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ShieldCheck } from 'lucide-react';
+import { ReportPage } from '@/components/ui/linear-list';
 import { isEnterprise } from '@/lib/features';
 
 export default function PrivacyPage() {
@@ -23,17 +24,18 @@ export default function PrivacyPage() {
     if (!isEnterprise) return null;
 
     return (
-        <div className="p-4 sm:p-8 space-y-4 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-            <DashboardPageHeader
-                websiteId={websiteId}
-                title="Privacy & Compliance"
-                description="Configure data protection and GDPR compliance for your website."
-            />
+        <ReportPage
+          icon={<ShieldCheck />}
+          title="Privacy & Compliance"
+          description="Configure data protection and GDPR compliance for your website."
+          websiteId={websiteId}
+          bodyClassName="space-y-4"
+        >
 
             <ReadOnlyNote feature="privacy" />
             <EditGuard feature="privacy" mode="disable">
                 <PrivacySettingsComponent websiteId={websiteId} />
             </EditGuard>
-        </div>
+        </ReportPage>
     );
 }

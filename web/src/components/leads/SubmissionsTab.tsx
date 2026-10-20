@@ -2,26 +2,25 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Inbox, PlayCircle, Search, Trash2 } from 'lucide-react';
+import { Inbox, PlayCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  CollectionEmpty, CollectionPager, CollectionSkeleton, CollectionTable, FilterToolbar,
+  type CollectionColumn, type FilterField,
+} from '@/components/ui/collection';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
-import { Input } from '@/components/ui/input';
-import { RangeSelect } from '@/components/ui/range-select';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { relativeTime } from '@/features/errors/format';
 import { useDeleteSiteSubmission } from '@/features/leads/mutations';
 import { useLeadForms, useSiteSubmissions } from '@/features/leads/queries';
 import { formLabel, type SiteSubmission, type SiteSubmissionFilters } from '@/features/leads/types';
-import { cn } from '@/lib/utils';
 import { cameFrom, SUBMISSION_RANGES } from './lead-format';
 import { SentTo } from './parts';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 50;
 const DAY = 86_400_000;
-const ALL_FORMS = '__all__';
+/** Submissions are kept 90 days, so removing the date filter shows them all. */
+const KEPT_DAYS = 90;
 
 export type SubmissionListFilters = Omit<SiteSubmissionFilters, 'limit' | 'offset'>;
 
@@ -43,7 +42,9 @@ export function SubmissionsTab({
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [form, setForm] = useState('');
-  const [days, setDays] = useState(30);
+  /** The date filter, in days; '' when removed. */
+  const [range, setRange] = useState('30');
+  const days = range ? Number(range) : KEPT_DAYS;
   const [page, setPage] = useState(0);
 
   // Fixed per range choice: a `from` recomputed every render would be a new query each time.
@@ -59,146 +60,116 @@ export function SubmissionsTab({
 
   const total = list.data?.total ?? 0;
   const narrowed = !!(search.trim() || form);
+  useEffect(() => { setPage(0); }, [filtersKey]);
 
-  const columns = useMemo<ColumnDef<SiteSubmission>[]>(() => [
+  const fields: FilterField[] = [
     {
-      id: 'when',
-      header: 'When',
-      cell: ({ row }) => (
-        <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={row.original.created_at} title={new Date(row.original.created_at).toLocaleString()}>
-          {relativeTime(row.original.created_at, now)}
-        </time>
-      ),
+      id: 'form', label: 'Form', value: form, onChange: setForm,
+      options: (forms.data ?? []).map((f) => ({ value: f.id, label: `${f.name} · ${f.count}` })),
     },
     {
-      id: 'contact',
-      header: 'Contact',
-      cell: ({ row }) => {
-        const s = row.original;
+      id: 'date', label: 'Date', op: 'is', value: range, onChange: setRange,
+      options: SUBMISSION_RANGES.map((r) => ({ value: String(r.days), label: r.label })),
+    },
+  ];
+
+  const columns: CollectionColumn<SiteSubmission>[] = [
+    {
+      id: 'contact', header: 'Contact', width: '26%',
+      cell: (s) => {
         const sub = [s.name, s.phone].filter(Boolean).join(' · ');
         return (
-          <div className="min-w-[180px] max-w-[260px]">
-            <p className="truncate text-[13px] font-medium text-foreground" title={s.email}>{s.email}</p>
-            <p className="truncate text-xs text-muted-foreground">{sub || (s.consent ? 'Consented' : 'No name given')}</p>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'form',
-      header: 'Form',
-      cell: ({ row }) => {
-        const form = formLabel(row.original);
-        return (
-          <span className="block max-w-[200px] truncate text-[13px] text-foreground/80" title={row.original.form_name ?? undefined}>
-            {form.known ? form.text : <span className="text-muted-foreground">{form.text}</span>}
+          <span className="block min-w-0">
+            <span className="block truncate font-medium text-foreground" title={s.email}>{s.email}</span>
+            <span className="block truncate text-xs text-muted-foreground">{sub || (s.consent ? 'Consented' : 'No name given')}</span>
           </span>
         );
       },
     },
     {
-      id: 'came_from',
-      header: 'Came from',
-      cell: ({ row }) => <span className="whitespace-nowrap text-[13px] text-foreground/80">{cameFrom(row.original.channel, row.original.utm_campaign)}</span>,
-    },
-    {
-      id: 'sent_to',
-      header: 'Sent to',
-      cell: ({ row }) => <span className="text-xs"><SentTo deliveries={row.original.deliveries} /></span>,
-    },
-    {
-      id: 'actions',
-      header: () => <span className="sr-only">Actions</span>,
-      cell: ({ row }) => {
-        const s = row.original;
-        return (
-          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-            {s.has_replay && s.session_id ? (
-              <Button asChild variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground">
-                <Link href={`/websites/${websiteId}/replays/${s.session_id}`}><PlayCircle className="h-3.5 w-3.5" />Watch</Link>
-              </Button>
-            ) : (
-              <span className="w-[68px]" aria-hidden />
-            )}
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                aria-label={`Delete submission from ${s.email}`}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'Delete this submission?',
-                    description: `${s.email}'s answers to “${s.form_name ?? 'a deleted form'}” are removed. Their contact stays, and anything already sent to a destination stays there.`,
-                    confirmLabel: 'Delete',
-                    destructive: true,
-                  });
-                  if (!ok) return;
-                  remove.mutate(s.id, { onError: () => toast.error('Could not delete the submission. Please try again.') });
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        );
+      id: 'form', header: 'Form', width: '20%',
+      cell: (s) => {
+        const f = formLabel(s);
+        return <span className={f.known ? 'text-foreground/80' : 'text-muted-foreground'} title={s.form_name ?? undefined}>{f.text}</span>;
       },
     },
-  ], [canEdit, confirm, now, remove, websiteId]);
+    { id: 'came_from', header: 'Came from', width: '16%', cell: (s) => <span className="text-foreground/80">{cameFrom(s.channel, s.utm_campaign)}</span> },
+    { id: 'sent_to', header: 'Sent to', cell: (s) => <span className="block overflow-hidden text-xs [&>span]:flex-nowrap"><SentTo deliveries={s.deliveries} /></span> },
+    {
+      id: 'when', header: 'When', width: '96px', align: 'right', sorted: true,
+      cell: (s) => (
+        <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString()}>
+          {relativeTime(s.created_at, now)}
+        </time>
+      ),
+    },
+    {
+      id: 'actions', header: <span className="sr-only">Actions</span>, width: canEdit ? '120px' : '84px', align: 'right',
+      cell: (s) => (
+        <span className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {s.has_replay && s.session_id ? (
+            <Button asChild variant="ghost" size="sm" className="h-7 w-[72px] gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground">
+              <Link href={`/websites/${websiteId}/replays/${s.session_id}`}><PlayCircle className="h-3.5 w-3.5" />Watch</Link>
+            </Button>
+          ) : (
+            // Keeps the delete buttons in one column whether or not there is a recording.
+            <span className="w-[72px]" aria-hidden />
+          )}
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              aria-label={`Delete submission from ${s.email}`}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Delete this submission?',
+                  description: `${s.email}'s answers to “${s.form_name ?? 'a deleted form'}” are removed. Their contact stays, and anything already sent to a destination stays there.`,
+                  confirmLabel: 'Delete',
+                  destructive: true,
+                });
+                if (!ok) return;
+                remove.mutate(s.id, { onError: () => toast.error('Could not delete the submission. Please try again.') });
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  const submissions = list.data?.submissions ?? [];
 
   return (
     <>
       {confirmDialog}
-      <DataTable
-        columns={columns}
-        data={list.data?.submissions ?? []}
-        isLoading={list.isLoading}
-        paginationMode="server"
-        pageSize={PAGE_SIZE}
-        pageIndex={page}
-        pageCount={Math.max(1, Math.ceil(total / PAGE_SIZE))}
-        totalRowCount={total}
-        onPaginationChange={(p) => setPage(p.pageIndex)}
-        pageSizeOptions={[PAGE_SIZE]}
-        onRowClick={(s) => s.contact_id && onOpenContact(s.contact_id)}
-        rowClassName={(s) => (s.contact_id ? 'cursor-pointer' : undefined)}
-        toolbarLeft={
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              placeholder="Search email, name or phone…"
-              className="h-8 !bg-card pl-8 text-xs"
-              aria-label="Search submissions"
-            />
-          </div>
-        }
-        toolbarRight={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <Select value={form || ALL_FORMS} onValueChange={(v) => { setForm(v === ALL_FORMS ? '' : v); setPage(0); }}>
-              <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto max-w-[220px] gap-2 px-3 text-xs')} aria-label="Form"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_FORMS} className="text-xs">All forms</SelectItem>
-                {(forms.data ?? []).map((f) => (
-                  <SelectItem key={f.id} value={f.id} className="text-xs">{f.name} <span className="text-muted-foreground">· {f.count}</span></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <RangeSelect value={days} onChange={(d) => { setDays(d); setPage(0); }} ranges={SUBMISSION_RANGES} />
-          </div>
-        }
-        emptyIcon={<Inbox className="h-6 w-6" />}
-        emptyTitle={narrowed ? 'No matches' : 'No submissions yet'}
-        emptyDescription={
-          narrowed
-            ? 'No submission matches that search or form in this date range.'
-            : 'Add a popup with a form to start collecting leads. Submissions are kept for 90 days; their contacts are kept until you delete them.'
-        }
-        emptyAction={!narrowed ? (
-          <Button asChild size="sm" variant="outline"><Link href={`/websites/${websiteId}/automations`}>Go to automations</Link></Button>
-        ) : undefined}
+      <FilterToolbar
+        filters={fields}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search email, name or phone…', label: 'Search submissions' }}
+        count={list.data ? `${total.toLocaleString()} ${total === 1 ? 'submission' : 'submissions'}` : undefined}
       />
+      {list.isLoading ? <CollectionSkeleton /> : submissions.length === 0 ? (
+        <CollectionEmpty
+          icon={<Inbox />}
+          title={narrowed ? 'No matches' : 'No submissions yet'}
+          description={narrowed
+            ? 'No submission matches that search or form in this date range.'
+            : 'Add a popup with a form to start collecting leads. Submissions are kept for 90 days; their contacts are kept until you delete them.'}
+          action={!narrowed ? <Button asChild size="sm" variant="outline"><Link href={`/websites/${websiteId}/automations`}>Go to automations</Link></Button> : undefined}
+        />
+      ) : (
+        <CollectionTable
+          label="Submissions"
+          items={submissions}
+          getKey={(s) => s.id}
+          columns={columns}
+          minWidth={980}
+          onOpen={(s) => s.contact_id && onOpenContact(s.contact_id)}
+        />
+      )}
+      <CollectionPager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
     </>
   );
 }

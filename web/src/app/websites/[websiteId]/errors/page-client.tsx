@@ -2,30 +2,26 @@
 
 import { usePathSegment } from '@/lib/path-segment';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardPageHeader } from '@/components/dashboard-header';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { RangeSelect } from '@/components/ui/range-select';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ChevronLeft, Search } from 'lucide-react';
-import { StatCards } from '@/components/seentics-ui/StatCards';
-import { relativeTime } from '@/features/errors/format';
+import { Bug, ChevronLeft } from 'lucide-react';
+import {
+  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+} from '@/components/ui/collection';
+import { LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
 import { ErrorGroupDetail } from '@/components/errors/error-group-detail';
-import { ErrorGroupList } from '@/components/errors/error-group-list';
+import { ErrorList, ErrorTable } from '@/components/errors/ErrorViews';
+import { errorTypeOf } from '@/features/errors/format';
 import { useErrorGroup, useErrorGroups } from '@/features/errors/queries';
 import { useSetErrorStatus } from '@/features/errors/mutations';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
-import { ListGroups, type ListGroup } from '@/components/ui/list-groups';
-import { ERROR_GROUP_META, errorLine, inErrorGroup, type ErrorGroupId } from '@/features/errors/insights';
+import { ERROR_BUCKETS, errorBucket, errorLine, type ErrorBucket } from '@/features/errors/insights';
 import type { ErrorGroup } from '@/features/errors/types';
 
 /**
@@ -43,12 +39,18 @@ const RANGES = [
   { days: 30, label: 'Last 30 days' },
 ] as const;
 
-const STATUSES = [
-  { value: 'unresolved', label: 'Unresolved' },
-  { value: 'resolved',   label: 'Resolved' },
-  { value: 'ignored',    label: 'Ignored' },
-  { value: 'all',        label: 'All' },
-];
+type Status = 'unresolved' | 'resolved' | 'ignored' | 'all';
+type Sort = 'count' | 'visitors' | 'recent' | 'new';
+
+const LAYOUTS = ['list', 'table'] as const;
+type ErrorLayout = (typeof LAYOUTS)[number];
+
+const SORTS: Record<Sort, { label: string; compare: (a: ErrorGroup, b: ErrorGroup) => number }> = {
+  count: { label: 'Most frequent', compare: (a, b) => (b.window?.count ?? b.event_count) - (a.window?.count ?? a.event_count) },
+  visitors: { label: 'Most visitors', compare: (a, b) => (b.window?.sessions ?? 0) - (a.window?.sessions ?? 0) },
+  recent: { label: 'Last seen', compare: (a, b) => b.last_seen.localeCompare(a.last_seen) },
+  new: { label: 'Newest', compare: (a, b) => b.first_seen.localeCompare(a.first_seen) },
+};
 
 export default function ErrorsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
@@ -56,13 +58,15 @@ export default function ErrorsPage() {
   const websiteId = params?.websiteId as string;
 
   const [days,   setDays]   = useState(7);
-  const [status, setStatus] = useState('unresolved');
+  const [status, setStatus] = useState<Status>('unresolved');
   const [search, setSearch] = useState('');
   const [openFingerprint, setOpenFingerprint] = useState<string | null>(null);
-  /** A group the list is narrowed to, from "Show all" below it. */
-  const [groupFilter, setGroupFilter] = useState<ErrorGroupId | null>(null);
+  const [sort, setSort] = useState<Sort>('count');
+  const [trend, setTrend] = useState<ErrorBucket | ''>('');
+  const [kind, setKind] = useState('');
+  const [layout, setLayout] = useLayoutPreference<ErrorLayout>('errors', LAYOUTS, 'list');
 
-  // The API treats an empty status as "every status"; the select calls that "all".
+  // The API treats an empty status as "every status"; the tabs call that "All".
   const filters = { days, status: status === 'all' ? '' : status, search };
 
   const { data: groups, isLoading, error } = useErrorGroups(websiteId, filters);
@@ -72,29 +76,24 @@ export default function ErrorsPage() {
 
   // Demo data is dated against a fixed clock; relative times read against it too.
   const now = isDemo(websiteId) ? DEMO_REFERENCE_DATE.getTime() : undefined;
-
-  // Summary of the groups the filters return.
-  const list = groups ?? [];
   const rangeStart = (now ?? Date.now()) - days * 86_400_000;
-  const newInRange = list.filter((g) => new Date(g.first_seen).getTime() >= rangeStart).length;
-  const lastSeen = list.reduce<string | null>(
-    (latest, g) => (!latest || g.last_seen > latest ? g.last_seen : latest), null,
-  );
-
   const periodLabel = days === 1 ? 'in the last 24 hours' : `in the last ${days} days`;
   const lineFor = (g: ErrorGroup) => errorLine(g, rangeStart, periodLabel);
-  const shownList = groupFilter ? list.filter((g) => inErrorGroup(g, groupFilter, rangeStart)) : list;
-  const errorGroups: ListGroup[] = ERROR_GROUP_META.map((meta) => ({
-    ...meta,
-    items: list
-      .filter((g) => inErrorGroup(g, meta.id, rangeStart))
-      .map((g) => ({
-        key: g.fingerprint,
-        text: g.message,
-        meta: g.window ? `${g.window.count.toLocaleString()}×` : undefined,
-        onClick: () => setOpenFingerprint(g.fingerprint),
-      })),
-  }));
+
+  const list = useMemo(() => groups ?? [], [groups]);
+  const kinds = [...new Set(list.map((g) => errorTypeOf(g.message)))].sort();
+  const shown = useMemo(() => list
+    .filter((g) => !trend || errorBucket(g, rangeStart) === trend)
+    .filter((g) => !kind || errorTypeOf(g.message) === kind)
+    .sort(SORTS[sort].compare), [list, trend, kind, sort, rangeStart]);
+
+  const fields: FilterField[] = [
+    {
+      id: 'trend', label: 'Trend', value: trend, onChange: (v) => setTrend(v as ErrorBucket | ''),
+      options: ERROR_BUCKETS.map((b) => ({ value: b.id, label: b.label, icon: <span aria-hidden className={cn('size-1.5 rounded-full', b.dot)} /> })),
+    },
+    { id: 'kind', label: 'Kind', value: kind, onChange: setKind, options: kinds.map((k) => ({ value: k, label: k })) },
+  ];
 
   const watchReplay = (sessionId: string) =>
     router.push(`/websites/${websiteId}/replays/${sessionId}`);
@@ -128,82 +127,54 @@ export default function ErrorsPage() {
     );
   }
 
-  return (
-    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-5 lg:px-6 lg:py-5">
-      <DashboardPageHeader
-        title="Errors"
-        description="Uncaught JavaScript errors from real visitors, grouped by fault."
-        websiteId={websiteId}
-      >
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <RangeSelect value={days} onChange={setDays} ranges={RANGES} />
-      </DashboardPageHeader>
+  const props = { groups: shown, periodStart: rangeStart, lineFor, now, onOpen: setOpenFingerprint };
+  const narrowed = !!(search.trim() || trend || kind);
 
-      <StatCards
-        isLoading={isLoading}
-        cards={[
-          { label: 'Error groups', value: list.length, tone: 'danger', toneWhen: list.length > 0 },
-          { label: 'Occurrences', value: list.reduce((sum, g) => sum + g.event_count, 0) },
-          { label: 'New in this range', value: newInRange },
-          { label: 'Last error', value: lastSeen ? relativeTime(lastSeen, now) : '—' },
-        ]}
-      />
+  return (
+    <div className={LIST_PAGE}>
+      <PageBar
+        icon={<Bug />}
+        title="Errors"
+        views={
+          <ViewTabs
+            label="Status"
+            tabs={[{ id: 'unresolved', label: 'Unresolved' }, { id: 'resolved', label: 'Resolved' }, { id: 'ignored', label: 'Ignored' }, { id: 'all', label: 'All' }]}
+            value={status}
+            onChange={setStatus}
+          />
+        }
+      >
+        <RangeSelect value={days} onChange={setDays} ranges={RANGES} />
+      </PageBar>
+
+      <FilterToolbar
+        sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
+        filters={fields}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search errors…', label: 'Search errors' }}
+        count={groups ? `${shown.length} ${shown.length === 1 ? 'error' : 'errors'}` : undefined}
+      >
+        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+      </FilterToolbar>
 
       {error && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive" className="m-4 w-auto">
           <AlertDescription>{(error as Error).message}</AlertDescription>
         </Alert>
       )}
 
-      <ErrorGroupList
-        groups={shownList}
-        lineFor={lineFor}
-        isLoading={isLoading}
-        status={status}
-        now={now}
-        onOpen={setOpenFingerprint}
-        toolbarLeft={
-          <div>
-            <h3 className="font-semibold text-foreground">Error groups</h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {shownList.length} fault{shownList.length !== 1 ? 's' : ''} in this range
-            </p>
-          </div>
-        }
-        toolbarRight={
-          <div className="flex items-center gap-2">
-          {groupFilter && (
-            <Button variant="secondary" size="sm" className="h-8 gap-1 text-xs" onClick={() => setGroupFilter(null)}>
-              {ERROR_GROUP_META.find((g) => g.id === groupFilter)?.label} ×
-            </Button>
-          )}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search errors..."
-              className="h-8 w-56 pl-8 text-xs"
-            />
-          </div>
-          </div>
-        }
-      />
-
-      <ListGroups
-        className="mt-6"
-        title="Error groups by trend"
-        description="What each error is doing in this period. Open a group to see its errors."
-        groups={errorGroups}
-        onShowAll={(id) => { setGroupFilter(id as ErrorGroupId); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-      />
+      {isLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
+        <CollectionEmpty
+          icon={<Bug />}
+          title={narrowed ? 'No matches' : status === 'unresolved' ? 'No unresolved errors' : 'No errors here'}
+          description={narrowed
+            ? 'No error matches these filters or that search in this range.'
+            : `Nothing ${status === 'all' ? '' : `${status} `}${periodLabel}. Uncaught JavaScript errors from real visitors appear here, grouped by fault.`}
+        />
+      ) : layout === 'table' ? (
+        <ErrorTable {...props} sortedBy={sort} />
+      ) : (
+        <ErrorList {...props} />
+      )}
     </div>
   );
 }
