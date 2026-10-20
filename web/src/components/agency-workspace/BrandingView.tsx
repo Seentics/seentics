@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { errorMessage, updateBranding } from '@/features/agency/api';
+import { updateBranding } from '@/features/agency/api';
 import { useAgencyMutation, useBranding, useDomain } from '@/features/agency/queries';
 import type { BrandingInput } from '@/features/agency/types';
+import { useT } from '@/lib/i18n';
+import { agencyEn, type AgencyMessages } from '@/lib/i18n/messages/agency-en';
 import { DomainSection } from './DomainSection';
-import { ErrorNote, LoadingRow, Panel, WorkspacePage } from './ui';
+import { ErrorNote, LoadingRow, Panel, WorkspacePage, useErrorText } from './ui';
 
 const EMPTY: BrandingInput = {
   brand_name: '', logo_url: '', primary_color: '#2563eb', support_email: '', footer_text: '', hide_seentics: false, slug: '',
@@ -21,25 +23,29 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const SLUG = /^[a-z0-9-]{3,40}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** What is wrong with the form, field by field; empty when it can be saved. */
-export function brandingProblems(f: BrandingInput): Partial<Record<keyof BrandingInput, string>> {
+/** What is wrong with the form, field by field, in `m`'s language; empty when it can be saved. */
+export function brandingProblems(
+  f: BrandingInput,
+  m: AgencyMessages['branding']['problems'] = agencyEn.branding.problems,
+): Partial<Record<keyof BrandingInput, string>> {
   const p: Partial<Record<keyof BrandingInput, string>> = {};
-  if (f.logo_url && !f.logo_url.startsWith('https://')) p.logo_url = 'The logo must be an https:// address.';
-  if (f.primary_color && !HEX.test(f.primary_color)) p.primary_color = 'Use a hex colour such as #7c3aed.';
-  if (f.support_email && !EMAIL.test(f.support_email)) p.support_email = 'Enter a valid email address.';
-  if (f.slug && !SLUG.test(f.slug.trim().toLowerCase())) p.slug = 'Lowercase letters, digits and dashes, 3–40 characters.';
+  if (f.logo_url && !f.logo_url.startsWith('https://')) p.logo_url = m.logo;
+  if (f.primary_color && !HEX.test(f.primary_color)) p.primary_color = m.colour;
+  if (f.support_email && !EMAIL.test(f.support_email)) p.support_email = m.email;
+  if (f.slug && !SLUG.test(f.slug.trim().toLowerCase())) p.slug = m.slug;
   return p;
 }
 
 function Preview({ form, domain }: { form: BrandingInput; domain: string | null }) {
+  const t = useT().agency.branding.preview;
   const [logoFailed, setLogoFailed] = useState(false);
   useEffect(() => setLogoFailed(false), [form.logo_url]);
-  const name = form.brand_name.trim() || 'Your agency';
+  const name = form.brand_name.trim() || t.yourAgency;
   const accent = HEX.test(form.primary_color) ? form.primary_color : '#2563eb';
   const address = domain ? `https://${domain}` : form.slug ? `seentics.com/signin?agency=${form.slug.trim().toLowerCase()}` : 'seentics.com';
   return (
     <div data-testid="brand-preview" className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">What clients see</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{t.title}</p>
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
         <div className="truncate border-b border-border bg-muted/40 px-3 py-1.5 font-mono text-[10.5px] text-muted-foreground">{address}</div>
         <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
@@ -54,7 +60,7 @@ function Preview({ form, domain }: { form: BrandingInput; domain: string | null 
           <span className="truncate text-sm font-semibold text-foreground">{name}</span>
         </div>
         <div className="space-y-2 bg-muted/30 p-3.5">
-          {['Overview', 'Recordings', 'Heatmaps'].map((item, i) => (
+          {t.nav.map((item, i) => (
             <div key={item} className={i === 0 ? 'rounded-md px-2.5 py-1.5 text-xs font-medium text-white' : 'rounded-md bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground'}
               style={i === 0 ? { backgroundColor: accent } : undefined}>
               {item}
@@ -65,7 +71,7 @@ function Preview({ form, domain }: { form: BrandingInput; domain: string | null 
           {form.footer_text.trim() && <p className="truncate">{form.footer_text.trim()}</p>}
           <div className="flex items-center justify-between gap-2">
             <span className="truncate">{form.support_email || 'support@youragency.com'}</span>
-            {!form.hide_seentics && <span className="shrink-0">Powered by Seentics</span>}
+            {!form.hide_seentics && <span className="shrink-0">{t.poweredBy}</span>}
           </div>
         </div>
       </div>
@@ -74,6 +80,8 @@ function Preview({ form, domain }: { form: BrandingInput; domain: string | null 
 }
 
 export function BrandingView() {
+  const t = useT().agency.branding;
+  const errorMessage = useErrorText();
   const branding = useBranding();
   const domain = useDomain();
   const [form, setForm] = useState<BrandingInput>(EMPTY);
@@ -86,7 +94,7 @@ export function BrandingView() {
     setForm({ ...EMPTY, ...rest, slug: rest.slug ?? '' });
   }, [branding.data]);
 
-  const problems = brandingProblems(form);
+  const problems = brandingProblems(form, t.problems);
   const field = <K extends keyof BrandingInput>(k: K) => ({
     id: `brand-${k}`,
     value: (form[k] ?? '') as string,
@@ -105,42 +113,42 @@ export function BrandingView() {
         support_email: form.support_email.trim(),
         slug: form.slug?.trim().toLowerCase() || null,
       },
-      { onSuccess: () => toast.success('Branding saved'), onError: err => setError(errorMessage(err)) },
+      { onSuccess: () => toast.success(t.saved), onError: err => setError(errorMessage(err)) },
     );
   };
 
   const activeDomain = domain.data?.state === 'active' ? domain.data.hostname : null;
 
   return (
-    <WorkspacePage title="Branding" description="Put your name, logo and colour on what clients see, and serve it from your own domain.">
+    <WorkspacePage title={t.title} description={t.description}>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
-          <Panel title="White label">
+          <Panel title={t.whiteLabel}>
             {branding.isLoading ? <LoadingRow /> : branding.isError ? <ErrorNote>{errorMessage(branding.error)}</ErrorNote> : (
               <form onSubmit={submit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="brand-brand_name" className="text-xs">Brand name</Label>
+                    <Label htmlFor="brand-brand_name" className="text-xs">{t.brandName}</Label>
                     <Input {...field('brand_name')} placeholder="Meridian Digital" className="h-9" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="brand-slug" className="text-xs">Sign-in name</Label>
+                    <Label htmlFor="brand-slug" className="text-xs">{t.signinName}</Label>
                     <Input {...field('slug')} placeholder="meridian" className="h-9 font-mono" />
                     {problems.slug && <ErrorNote>{problems.slug}</ErrorNote>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-logo_url" className="text-xs">Logo URL</Label>
+                  <Label htmlFor="brand-logo_url" className="text-xs">{t.logoUrl}</Label>
                   <Input {...field('logo_url')} placeholder="https://cdn.youragency.com/logo.png" className="h-9" />
                   {problems.logo_url && <ErrorNote>{problems.logo_url}</ErrorNote>}
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="brand-primary_color" className="text-xs">Primary colour</Label>
+                    <Label htmlFor="brand-primary_color" className="text-xs">{t.primaryColour}</Label>
                     <div className="flex gap-2">
                       <input
                         type="color"
-                        aria-label="Pick primary colour"
+                        aria-label={t.pickColour}
                         value={HEX.test(form.primary_color) ? form.primary_color : '#2563eb'}
                         onChange={e => setForm(f => ({ ...f, primary_color: e.target.value }))}
                         className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-border bg-card p-1"
@@ -150,27 +158,27 @@ export function BrandingView() {
                     {problems.primary_color && <ErrorNote>{problems.primary_color}</ErrorNote>}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="brand-support_email" className="text-xs">Support email</Label>
+                    <Label htmlFor="brand-support_email" className="text-xs">{t.supportEmail}</Label>
                     <Input {...field('support_email')} type="email" placeholder="help@youragency.com" className="h-9" />
                     {problems.support_email && <ErrorNote>{problems.support_email}</ErrorNote>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="brand-footer_text" className="text-xs">Footer text</Label>
-                  <Input {...field('footer_text')} placeholder="Reports by Meridian Digital" className="h-9" />
+                  <Label htmlFor="brand-footer_text" className="text-xs">{t.footerText}</Label>
+                  <Input {...field('footer_text')} placeholder={t.footerPlaceholder} className="h-9" />
                 </div>
                 <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
                   <div>
-                    <Label htmlFor="brand-hide" className="text-xs font-medium text-foreground">Hide Seentics branding</Label>
-                    <p className="text-[11px] text-muted-foreground">Drops “Powered by Seentics” from client pages and emails.</p>
+                    <Label htmlFor="brand-hide" className="text-xs font-medium text-foreground">{t.hideSeentics}</Label>
+                    <p className="text-[11px] text-muted-foreground">{t.hideSeenticsBody}</p>
                   </div>
-                  <Switch id="brand-hide" checked={form.hide_seentics} onCheckedChange={v => setForm(f => ({ ...f, hide_seentics: v }))} aria-label="Hide Seentics branding" />
+                  <Switch id="brand-hide" checked={form.hide_seentics} onCheckedChange={v => setForm(f => ({ ...f, hide_seentics: v }))} aria-label={t.hideSeentics} />
                 </div>
                 {error && <ErrorNote>{error}</ErrorNote>}
                 <div className="flex justify-end">
                   <Button type="submit" size="sm" className="h-8 gap-1.5 text-xs" disabled={save.isPending || Object.keys(problems).length > 0}>
                     {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    Save branding
+                    {t.save}
                   </Button>
                 </div>
               </form>

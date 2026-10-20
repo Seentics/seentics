@@ -5,6 +5,7 @@ import { describeRouting, setRoutingMode, toggleDestination } from '@/lib/form-r
 import type { LeadForm } from '@/lib/lead-form';
 import { usePathSegment } from '@/lib/path-segment';
 import { ProviderIcon } from '@/components/integrations/ProviderIcon';
+import { useT } from '@/lib/i18n';
 
 /**
  * "Send submissions to": every destination on the site (the default), or a chosen few.
@@ -14,33 +15,34 @@ import { ProviderIcon } from '@/components/integrations/ProviderIcon';
  * Settings > Integrations; this only picks among them.
  */
 export function FormDestinations({ form, onChange }: { form: LeadForm; onChange: (form: LeadForm) => void }) {
+  const m = useT().automations.destinations;
   const websiteId = usePathSegment(1) ?? '';
   const { data, isLoading } = useIntegrations(websiteId);
   const connections = data?.connections ?? [];
   const routing = describeRouting(form.destinations, connections);
-  const settings = `/websites/${websiteId}/settings/integrations`;
+  const settings = `/websites/${websiteId}/integrations`;
 
   return (
     <fieldset className="space-y-2 rounded-md border border-border/60 p-2">
-      <legend className="px-1 text-[11px] font-medium text-muted-foreground">Send submissions to</legend>
+      <legend className="px-1 text-[11px] font-medium text-muted-foreground">{m.legend}</legend>
 
-      <div className="flex gap-1 rounded-md bg-muted p-0.5" role="radiogroup" aria-label="Where submissions are sent">
+      <div className="flex gap-1 rounded-md bg-muted p-0.5" role="radiogroup" aria-label={m.aria}>
         {(['all', 'selected'] as const).map((mode) => (
           <button
             key={mode} type="button" role="radio" aria-checked={routing.mode === mode}
             onClick={() => routing.mode !== mode && onChange(setRoutingMode(form, mode, connections))}
             className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${routing.mode === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            {mode === 'all' ? 'All destinations' : 'Choose destinations'}
+            {mode === 'all' ? m.all : m.choose}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <p className="text-[11px] text-muted-foreground">Loading destinations…</p>
+        <p className="text-[11px] text-muted-foreground">{m.loading}</p>
       ) : connections.length === 0 ? null : routing.mode === 'all' ? (
         <p className="text-[11px] text-muted-foreground">
-          Sends to {routing.receiving.length} destination{routing.receiving.length === 1 ? '' : 's'}: {routing.receiving.map((c) => c.name).join(', ') || 'none that are on'}. Destinations you add later are included.
+          {m.sendsTo(routing.receiving.length, routing.receiving.map((c) => c.name).join(', '))}
         </p>
       ) : (
         <ul className="space-y-1">
@@ -52,9 +54,9 @@ export function FormDestinations({ form, onChange }: { form: LeadForm; onChange:
                   checked={form.destinations?.includes(c.id) ?? false}
                   onChange={() => onChange(toggleDestination(form, c.id, connections))}
                 />
-                <ProviderIcon provider={c.provider} className="h-5 w-5" />
+                <ProviderIcon provider={c.provider} hint={c.credentials_hint} className="h-5 w-5" />
                 <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                {!c.enabled && <span className="text-[10px] text-amber-600 dark:text-amber-400">off</span>}
+                {!c.enabled && <span className="text-[10px] text-amber-600 dark:text-amber-400">{m.off}</span>}
               </label>
             </li>
           ))}
@@ -69,8 +71,8 @@ export function FormDestinations({ form, onChange }: { form: LeadForm; onChange:
       )}
 
       <p className="text-[11px] text-muted-foreground">
-        <Link href={settings} className="text-primary hover:underline">Manage destinations</Link>
-        {' '}— Zapier or any webhook, Mailchimp, Klaviyo, HubSpot.
+        <Link href={settings} className="text-primary hover:underline">{m.manage}</Link>
+        {' '}{m.manageTail}
       </p>
     </fieldset>
   );

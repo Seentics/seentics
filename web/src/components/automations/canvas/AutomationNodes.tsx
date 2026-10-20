@@ -4,7 +4,19 @@ import React, { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
-import { outletLabel, outletsFor, type GraphNode } from '@/lib/automation-graph';
+import { outletsFor, type GraphNode } from '@/lib/automation-graph';
+import { useT } from '@/lib/i18n';
+import type { AutomationsMessages } from '@/lib/i18n/messages/automations-en';
+
+/** An outlet's name in the builder's language; a switch case keeps the name its owner gave it. */
+function outletText(node: GraphNode, outlet: string, m: AutomationsMessages['builder']['outlets']): string {
+  if (node.kind === 'switch') {
+    if (outlet === 'default') return m.otherwise;
+    return node.cases.find(c => c.id === outlet)?.label || outlet;
+  }
+  if (node.kind === 'wait_until') return outlet === 'met' ? m.met : m.timeout;
+  return outlet === 'true' ? m.yes : m.no;
+}
 
 /**
  * The canvas nodes.
@@ -38,6 +50,7 @@ export type AutomationNodeData = {
 const HANDLE = '!h-3 !w-3 !border-2 !border-background transition-colors';
 
 function OutletHandles({ node }: { node: GraphNode }) {
+  const m = useT().automations.builder.outlets;
   const outlets = outletsFor(node);
 
   if (outlets === null) {
@@ -70,7 +83,7 @@ function OutletHandles({ node }: { node: GraphNode }) {
               className="pointer-events-none absolute -bottom-6 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-1.5 py-px text-[9px] font-semibold text-muted-foreground"
               style={{ left }}
             >
-              {outletLabel(node, outlet)}
+              {outletText(node, outlet, m)}
             </span>
           </React.Fragment>
         );
@@ -84,6 +97,7 @@ export const AutomationNode = memo(function AutomationNode({
   selected,
 }: NodeProps<AutomationNodeData>) {
   const { node, visual, summary, invalid, onDelete } = data;
+  const m = useT().automations.builder.canvas;
   const Icon = visual.icon;
 
   return (
@@ -118,7 +132,7 @@ export const AutomationNode = memo(function AutomationNode({
               type="button"
               onClick={e => { e.stopPropagation(); onDelete(node.id); }}
               className="nodrag flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
-              aria-label={`Remove ${visual.title}`}
+              aria-label={m.remove(visual.title)}
             >
               <X className="h-3 w-3" />
             </button>
@@ -156,6 +170,7 @@ export type TriggerNodeData = {
  * target handle says so without needing an error message when someone tries.
  */
 export const TriggerNode = memo(function TriggerNode({ data, selected }: NodeProps<TriggerNodeData>) {
+  const m = useT().automations.builder.canvas;
   const Icon = data.icon;
 
   return (
@@ -182,14 +197,14 @@ export const TriggerNode = memo(function TriggerNode({ data, selected }: NodePro
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Trigger
+              {m.trigger}
             </span>
             {data.canDelete && (
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); data.onDelete(data.index); }}
                 className="nodrag flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
-                aria-label="Remove trigger"
+                aria-label={m.removeTrigger}
               >
                 <X className="h-3 w-3" />
               </button>

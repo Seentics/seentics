@@ -8,16 +8,17 @@ import { useAppNavigation } from '@/lib/embed-nav';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Flame, RefreshCw } from 'lucide-react';
+import { Flame, RefreshCw, Trash2 } from 'lucide-react';
 import {
-  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+  COLLECTION_SURFACE, CollectionEmpty, CollectionSkeleton, CountTabs, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
 } from '@/components/ui/collection';
-import { DOT, GHOST_BUTTON, LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { DOT, GHOST_BUTTON, LIST_PAGE, PageBar } from '@/components/ui/linear-list';
 import {
   HEATMAP_SIGNAL, HeatmapCards, HeatmapList, HeatmapTable, type HeatmapDevice, type HeatmapListPage,
 } from '@/components/heatmaps/HeatmapList';
 import type { ThumbMode } from '@/components/heatmaps/HeatmapThumbnail';
 import { useToast } from '@/hooks/use-toast';
+import { useT } from '@/lib/i18n';
 
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages } from '@/lib/demo/heatmaps';
@@ -31,7 +32,7 @@ import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
 import { RangeSelect } from '@/components/ui/range-select';
 
 import { cn } from '@/lib/utils';
-import { HEATMAP_TONE_RANK, heatmapTone, pageStatus, type HeatmapGroupId } from '@/features/heatmaps/page-insights';
+import { HEATMAP_TONE_RANK, heatmapTone, pageSignals, type HeatmapGroupId } from '@/features/heatmaps/page-insights';
 
 /** Which pages the list shows. */
 type HeatmapView = 'all' | 'attention' | 'healthy';
@@ -41,13 +42,12 @@ const LAYOUTS = ['list', 'table', 'cards'] as const;
 type HeatmapLayout = (typeof LAYOUTS)[number];
 
 /** Each order's tie-breaker is traffic. */
-const SORTS: Record<HeatmapSort, { label: string; compare: (a: PageRow, b: PageRow) => number }> = {
+const SORTS: Record<HeatmapSort, { compare: (a: PageRow, b: PageRow) => number }> = {
   attention: {
-    label: 'Needs attention first',
     compare: (a, b) => HEATMAP_TONE_RANK[heatmapTone(b)] - HEATMAP_TONE_RANK[heatmapTone(a)] || severity(b) - severity(a) || b.views - a.views,
   },
-  views: { label: 'Most views', compare: (a, b) => b.views - a.views },
-  dead: { label: 'Most dead clicks', compare: (a, b) => (b.dead_click_pct ?? -1) - (a.dead_click_pct ?? -1) || b.views - a.views },
+  views: { compare: (a, b) => b.views - a.views },
+  dead: { compare: (a, b) => (b.dead_click_pct ?? -1) - (a.dead_click_pct ?? -1) || b.views - a.views },
 };
 
 /** Path-only label for table; tooltip keeps full stored path. */
@@ -132,6 +132,10 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
   const readOnly = embed || !canEdit;
   const queryClient = useQueryClient();
   const { toast }   = useToast();
+  const messages = useT();
+  const m = messages.heatmaps;
+  const t = m.list;
+  const sortLabel: Record<HeatmapSort, string> = { attention: t.sortAttention, views: t.sortViews, dead: t.sortDead };
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
   const [days, setDays] = useState<number>(DEFAULT_HEATMAP_DAYS);
@@ -152,10 +156,8 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['heatmap-pages', websiteId] });
       toast({
-        title: isDemoMode ? "Action simulated" : "Heatmap data deleted",
-        description: isDemoMode 
-          ? "In demo mode, data is not actually removed."
-          : "The page's clicks, moves and scrolls have been cleared.",
+        title: isDemoMode ? t.simulated : t.deleted,
+        description: isDemoMode ? t.simulatedBody : t.deletedBody,
       });
     },
   });
@@ -208,106 +210,142 @@ export function HeatmapsView({ websiteId: websiteIdProp, embed = false }: { webs
   const [signal, setSignal] = useState<HeatmapGroupId | ''>('');
   /** What the cards draw on each page: where people click, or how far they scroll. */
   const [mode, setMode] = useState<ThumbMode>('clicks');
-  const [layout, setLayout] = useLayoutPreference<HeatmapLayout>('heatmaps', LAYOUTS, 'list');
+  // Table first: every figure side by side, with checkboxes for acting on several pages at once.
+  const [layout, setLayout] = useLayoutPreference<HeatmapLayout>('heatmaps', LAYOUTS, 'table');
+  /** Pages ticked in the table, by URL. */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const ordered = useMemo(() => [...pages].sort(SORTS[sort].compare), [pages, sort]);
 
-  const shown: HeatmapListPage[] = useMemo(() => {
+  /** The pages the search and Signal filter keep, before the tab narrows them. */
+  const matching = useMemo(() => {
     const q = search.trim().toLowerCase();
     return ordered
-      .filter((p) => view === 'all' || (view === 'attention') === (heatmapTone(p) === 'problem'))
-      .filter((p) => !signal || pageStatus(p) === signal)
-      .filter((p) => !q || p.url.toLowerCase().includes(q))
-      .map((p) => {
-        const { display, title } = heatmapPathDisplay(p.url, websiteId);
-        return { ...p, path: display, title };
-      });
-  }, [ordered, view, signal, search, websiteId]);
+      // A page matches when it has the signal at all, not only as its first.
+      .filter((p) => !signal || pageSignals(p).includes(signal))
+      .filter((p) => !q || p.url.toLowerCase().includes(q));
+  }, [ordered, signal, search]);
+  const inView = useCallback((p: PageRow, v: HeatmapView) => v === 'all' || (v === 'attention') === (heatmapTone(p) === 'problem'), []);
+
+  const shown: HeatmapListPage[] = useMemo(() => matching
+    .filter((p) => inView(p, view))
+    .map((p) => {
+      const { display, title } = heatmapPathDisplay(p.url, websiteId);
+      return { ...p, path: display, title };
+    }), [matching, inView, view, websiteId]);
 
   const filters: FilterField[] = [{
-    id: 'signal', label: 'Signal', value: signal, onChange: (v) => setSignal(v as HeatmapGroupId | ''),
+    id: 'signal', label: t.signal, value: signal, onChange: (v) => setSignal(v as HeatmapGroupId | ''),
     options: (Object.keys(HEATMAP_SIGNAL) as HeatmapGroupId[]).map((id) => ({
-      value: id, label: HEATMAP_SIGNAL[id].label,
+      value: id, label: m.signals[id],
       icon: <span aria-hidden className="size-1.5 rounded-full" style={{ background: DOT[HEATMAP_SIGNAL[id].tone] }} />,
     })),
   }];
 
   const remove = async (url: string) => {
     const ok = await confirm({
-      title: 'Delete heatmap data for this page?',
-      description: `Every click, move and scroll recorded on ${url} is removed.`,
-      confirmLabel: 'Delete data',
+      title: t.deleteTitle,
+      description: t.deleteBody(url),
+      confirmLabel: t.deleteConfirm,
       destructive: true,
     });
     if (ok) deleteMutation.mutate([url]);
   };
 
   const open = (url: string) => router.push(heatmapHref(url));
+  /** The ticked pages still shown: a tab or search that hides one leaves it out. */
+  const chosen = [...selected].filter((url) => shown.some((p) => p.url === url));
+  const removeChosen = async () => {
+    const ok = await confirm({
+      title: t.deleteManyTitle(chosen.length),
+      description: t.deleteManyBody,
+      confirmLabel: t.deleteConfirm,
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(chosen, { onSuccess: () => setSelected(new Set()) });
+  };
   const onDelete = readOnly ? undefined : remove;
+
+  const views: { id: HeatmapView; label: string }[] = [{ id: 'all', label: t.tabAll }, { id: 'attention', label: t.tabAttention }, { id: 'healthy', label: t.tabHealthy }];
+  /** The panel's top row: the views with their counts on the left, every control on the right. */
+  const toolbar = (
+    <FilterToolbar
+      leading={
+        <CountTabs
+          label={t.views}
+          tabs={views.map((v) => ({ ...v, count: isLoading && !isDemoMode ? undefined : matching.filter((p) => inView(p, v.id)).length }))}
+          value={view}
+          onChange={setView}
+        />
+      }
+      sort={{
+        value: sort, onChange: (v) => setSort(v as HeatmapSort),
+        options: (Object.keys(SORTS) as HeatmapSort[]).map((id) => ({ value: id, label: sortLabel[id] })),
+      }}
+      filters={filters}
+      search={{ value: search, onChange: setSearch, placeholder: t.searchPlaceholder, label: t.searchLabel }}
+    >
+      {layout === 'cards' && (
+        <Toggle label={t.overlay} value={mode} onChange={setMode} options={[['clicks', t.clicks], ['scroll', t.scroll]]} />
+      )}
+      <Toggle label={t.device} value={device} onChange={setDevice} options={[['desktop', m.devices.desktop], ['mobile', m.devices.mobile]]} />
+      <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+    </FilterToolbar>
+  );
+  /** Under the toolbar while pages are ticked: how many, clear, delete. */
+  const bulkBar = chosen.length > 0 && layout === 'table' && !readOnly ? (
+    <div className="flex items-center gap-2 border-b border-border/70 bg-muted/60 px-4 py-1.5 text-[13px]">
+      <span className="font-medium text-foreground">{t.selected(chosen.length)}</span>
+      <button type="button" className={GHOST_BUTTON} onClick={() => setSelected(new Set())}>{messages.actions.clear}</button>
+      <button type="button" className={cn(GHOST_BUTTON, 'gap-1.5 text-destructive hover:text-destructive')} disabled={deleteMutation.isPending} onClick={removeChosen}>
+        <Trash2 className="size-3.5" />{messages.actions.delete}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className={LIST_PAGE}>
       {confirmDialog}
 
-      <PageBar
-        themeToggle={!embed}
-        icon={<Flame />}
-        title="Heatmaps"
-        views={
-          <ViewTabs
-            label="Views"
-            tabs={[{ id: 'all', label: 'All pages' }, { id: 'attention', label: 'Needs attention' }, { id: 'healthy', label: 'Healthy' }]}
-            value={view}
-            onChange={setView}
-          />
-        }
-      >
-        <RangeSelect value={days} onChange={setDays} ranges={HEATMAP_RANGES} />
+      <PageBar themeToggle={!embed} title={t.title} description={t.description}>
+        <RangeSelect value={days} onChange={setDays} ranges={HEATMAP_RANGES.map((r) => ({ days: r.days, label: m.ranges[`d${r.days}` as keyof typeof m.ranges] ?? r.label }))} />
         {!isDemoMode && (
-          <button type="button" className={GHOST_BUTTON} disabled={isFetching} onClick={() => refetch()} aria-label="Refresh">
+          <button type="button" className={GHOST_BUTTON} disabled={isFetching} onClick={() => refetch()} aria-label={messages.actions.refresh}>
             <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
           </button>
         )}
       </PageBar>
 
-      <FilterToolbar
-        sort={{
-          value: sort, onChange: (v) => setSort(v as HeatmapSort),
-          options: (Object.keys(SORTS) as HeatmapSort[]).map((id) => ({ value: id, label: SORTS[id].label })),
-        }}
-        filters={filters}
-        search={{ value: search, onChange: setSearch, placeholder: 'Search pages…', label: 'Search pages' }}
-        count={`${shown.length} ${shown.length === 1 ? 'page' : 'pages'}`}
-      >
-        {layout === 'cards' && (
-          <Toggle label="Overlay" value={mode} onChange={setMode} options={[['clicks', 'Clicks'], ['scroll', 'Scroll']]} />
-        )}
-        <Toggle label="Device" value={device} onChange={setDevice} options={[['desktop', 'Desktop'], ['mobile', 'Mobile']]} />
-        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
-      </FilterToolbar>
-
       {isError && !isDemoMode && (
         <Alert variant="destructive" className="m-4 w-auto">
           <AlertDescription className="text-sm">
-            {(error as Error)?.message ?? 'Could not load heatmap pages. Check your connection and try again.'}
+            {(error as Error)?.message ?? t.loadFailed}
           </AlertDescription>
         </Alert>
       )}
 
-      {isLoading && !isDemoMode ? <CollectionSkeleton /> : shown.length === 0 ? (
-        <CollectionEmpty
+      {isLoading && !isDemoMode ? <div className={COLLECTION_SURFACE}>{toolbar}<CollectionSkeleton /></div> : shown.length === 0 ? (
+        <div className={COLLECTION_SURFACE}>{toolbar}<CollectionEmpty
           icon={<Flame />}
-          title={pages.length === 0 ? 'No heatmap data yet' : 'No pages match'}
+          title={pages.length === 0 ? t.emptyTitle : t.emptyFilteredTitle}
           description={pages.length === 0
-            ? 'Install the tracker script, then open Settings → Features to enable heatmaps and adjust URL include/exclude patterns (localhost is often blocked by include rules).'
-            : 'No tracked page matches this view, filter or search in the selected range.'}
-        />
+            ? t.emptyBody
+            : t.emptyFiltered}
+        /></div>
       ) : layout === 'table' ? (
-        <HeatmapTable pages={shown} device={device} onOpen={open} onDelete={onDelete} sortedBy={sort} />
+        <HeatmapTable
+          pages={shown} device={device} onOpen={open} onDelete={onDelete} sortedBy={sort}
+          toolbar={<>{toolbar}{bulkBar}</>}
+          selection={readOnly ? undefined : {
+            selected,
+            labelOf: (url) => shown.find((p) => p.url === url)?.path ?? url,
+            onChange: (urls, on) => setSelected((prev) => { const next = new Set(prev); urls.forEach((u) => (on ? next.add(u) : next.delete(u))); return next; }),
+          }}
+        />
       ) : layout === 'cards' ? (
-        <HeatmapCards pages={shown} device={device} onOpen={open} onDelete={onDelete} websiteId={websiteId} days={days} demo={isDemoMode} mode={mode} />
+        <HeatmapCards pages={shown} device={device} onOpen={open} onDelete={onDelete} websiteId={websiteId} days={days} demo={isDemoMode} mode={mode} toolbar={toolbar} />
       ) : (
-        <HeatmapList pages={shown} device={device} onOpen={open} onDelete={onDelete} />
+        <HeatmapList pages={shown} device={device} onOpen={open} onDelete={onDelete} toolbar={toolbar} />
       )}
     </div>
   );

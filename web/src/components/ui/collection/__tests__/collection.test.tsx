@@ -31,12 +31,12 @@ describe('useLayoutPreference', () => {
   it('remembers the choice per page, and ignores a stored layout the page does not offer', () => {
     const { result } = renderHook(() => useLayoutPreference('people', ['list', 'table'] as const, 'list'));
     act(() => result.current[1]('table'));
-    expect(window.localStorage.getItem('seentics:layout:people')).toBe('table');
+    expect(window.localStorage.getItem('seentics:layout:v2:people')).toBe('table');
 
     const again = renderHook(() => useLayoutPreference('people', ['list', 'table'] as const, 'list'));
     expect(again.result.current[0]).toBe('table');
 
-    window.localStorage.setItem('seentics:layout:pages', 'board');
+    window.localStorage.setItem('seentics:layout:v2:pages', 'board');
     const other = renderHook(() => useLayoutPreference('pages', ['list', 'table'] as const, 'list'));
     expect(other.result.current[0]).toBe('list');
   });

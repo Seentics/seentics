@@ -94,6 +94,8 @@ export const NAV_FEATURES: Record<NavId, FeatureId | 'settings' | null> = {
   leads: 'leads',
   revenue: 'revenue',
   conversions: 'conversions',
+  // Where form submissions are sent: the account's own connections, never a client's.
+  integrations: null,
   'ai-reports': 'ai',
   errors: 'errors',
   developers: null,

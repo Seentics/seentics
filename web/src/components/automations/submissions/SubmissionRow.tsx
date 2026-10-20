@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/integrations/StatusBadge';
 import { canRetry, describeDelivery } from '@/lib/integration-form';
 import { avatarTone, hostOf, humanizeKey, initials, pathOf } from '@/lib/submission-display';
 import { cn } from '@/lib/utils';
+import { useLocale, useT } from '@/lib/i18n';
 
 export interface SubmissionRowProps {
   submission: Submission;
@@ -21,6 +22,9 @@ export interface SubmissionRowProps {
 
 /** One submission: who, what they answered and won, where from, and where it was sent. */
 export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelete, onRetry, retryingId }: SubmissionRowProps) {
+  const t = useT();
+  const m = t.automations.submissions.row;
+  const { locale } = useLocale();
   const source = hostOf(s.referrer);
   const answers = Object.entries(s.fields);
   return (
@@ -32,8 +36,8 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
         <div className="min-w-0">
           <p className="truncate text-sm font-medium" title={s.email}>{s.email}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {[s.name, s.phone].filter(Boolean).join(' · ') || 'No name given'}
-            {s.consent ? ' · consented' : ''}
+            {[s.name, s.phone].filter(Boolean).join(' · ') || m.noName}
+            {s.consent ? m.consented : ''}
           </p>
         </div>
       </div>
@@ -41,7 +45,7 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
       <div className="min-w-0 space-y-1 text-xs">
         {s.prize && (
           <p className="truncate">
-            <span className="text-muted-foreground">{s.prize.coupon_code ? 'Won ' : 'Result: '}</span>
+            <span className="text-muted-foreground">{s.prize.coupon_code ? m.won : m.result}</span>
             <span className="font-medium">{s.prize.label}</span>
             {s.prize.coupon_code && <code className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">{s.prize.coupon_code}</code>}
           </p>
@@ -49,16 +53,16 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
         {answers.map(([key, value]) => (
           <p key={key} className="truncate"><span className="text-muted-foreground">{humanizeKey(key)}: </span>{String(value)}</p>
         ))}
-        {!s.prize && answers.length === 0 && <p className="text-muted-foreground">Email only</p>}
+        {!s.prize && answers.length === 0 && <p className="text-muted-foreground">{m.emailOnly}</p>}
       </div>
 
       <div className="min-w-0 space-y-1 text-xs text-muted-foreground">
         <p className="truncate" title={s.page_url}>{pathOf(s.page_url) || '—'}</p>
         <p className="truncate">
-          {source || 'Direct'}{s.variant ? ` · variant ${s.variant.toUpperCase()}` : ''}
+          {source || m.direct}{s.variant ? m.variant(s.variant.toUpperCase()) : ''}
         </p>
         {s.deliveries.length === 0 ? (
-          <p>Not sent anywhere</p>
+          <p>{m.notSent}</p>
         ) : (
           <div className="flex flex-wrap gap-1">
             {s.deliveries.map((d) => (
@@ -74,9 +78,9 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
                     className="inline-flex items-center gap-0.5 rounded px-1 text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
                     onClick={() => onRetry(d.id)}
                     disabled={retryingId === d.id}
-                    aria-label={`Retry sending to ${d.connection_name}`}
+                    aria-label={m.retryAria(d.connection_name)}
                   >
-                    <RotateCcw className="h-3 w-3" aria-hidden />Retry
+                    <RotateCcw className="h-3 w-3" aria-hidden />{m.retry}
                   </button>
                 )}
               </span>
@@ -86,11 +90,11 @@ export function SubmissionRow({ submission: s, now, canDelete, deleting, onDelet
       </div>
 
       <div className="flex items-center justify-between gap-2 md:justify-end">
-        <time className="text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString()}>
-          {relativeTime(s.created_at, now)}
+        <time className="text-xs text-muted-foreground" dateTime={s.created_at} title={new Date(s.created_at).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>
+          {relativeTime(s.created_at, now, t.errors.time)}
         </time>
         {canDelete && (
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={`Delete submission from ${s.email}`} onClick={() => onDelete(s)} disabled={deleting}>
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={m.deleteAria(s.email)} onClick={() => onDelete(s)} disabled={deleting}>
             <Trash2 className="h-4 w-4" />
           </Button>
         )}

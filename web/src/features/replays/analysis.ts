@@ -9,6 +9,7 @@ import api from '@/lib/api';
 import type { FrustrationSignalType, SignalCounts } from './types';
 import { isDemo } from '@/lib/demo';
 import { demoSessionAnalysis } from '@/lib/demo/ai';
+import { replaysEn, type ReplaysMessages } from '@/lib/i18n/messages/replays-en';
 
 export type FrustrationSignal = {
   type: FrustrationSignalType;
@@ -109,11 +110,14 @@ export const SIGNAL_META: Record<FrustrationSignalType, { label: string; descrip
 export const FRUSTRATED_MIN_SCORE = 30;
 
 /** Signals present, most severe first, with their counts. */
-export function signalChips(counts: SignalCounts | null | undefined): Array<{ type: FrustrationSignalType; count: number; label: string }> {
+export function signalChips(
+  counts: SignalCounts | null | undefined,
+  m: ReplaysMessages = replaysEn,
+): Array<{ type: FrustrationSignalType; count: number; label: string }> {
   if (!counts) return [];
   return SIGNAL_ORDER
     .filter((t) => (counts[t] ?? 0) > 0)
-    .map((t) => ({ type: t, count: counts[t]!, label: SIGNAL_META[t].label }));
+    .map((t) => ({ type: t, count: counts[t]!, label: m.signals[t].label }));
 }
 
 export type FrustrationTone = 'none' | 'low' | 'medium' | 'high';
@@ -154,22 +158,23 @@ export const OUTCOME_META: Record<SessionSummary['outcome'], { label: string; cl
 };
 
 /** What to say in place of a summary, or `null` when there is one (or none is wanted). */
-export function summaryNotice(status: SummaryStatus, retryAfterSec?: number): string | null {
+export function summaryNotice(status: SummaryStatus, retryAfterSec?: number, m: ReplaysMessages = replaysEn): string | null {
+  const t = m.summaryNotice;
   switch (status) {
     case 'ready':
     case 'not_requested':
     case 'unavailable':
       return null;
     case 'no_data':
-      return 'Not enough recorded activity to summarise this session.';
+      return t.noData;
     case 'cooldown': {
       const minutes = Math.max(1, Math.ceil((retryAfterSec ?? 60) / 60));
-      return `A summary was attempted moments ago. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+      return t.cooldown(minutes);
     }
     case 'limit':
-      return "This site has used today's session summaries. New ones will be written tomorrow.";
+      return t.limit;
     case 'failed':
-      return "Couldn't write a summary right now.";
+      return t.failed;
   }
 }
 

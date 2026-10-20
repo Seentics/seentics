@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * The page a demo heatmap covers, with its heat layer.
@@ -98,6 +101,7 @@ function HotSpot({ size, strength = 1 }: { size: number; strength?: number }) {
 export const DEMO_HEATMAP_PAGE_HEIGHT = 1560;
 
 export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' }) {
+  const tv = useT().heatmaps.viewer;
   return (
     <div
       className={cn(
@@ -258,9 +262,9 @@ export function DemoHeatmapPage({ heat = 'click' }: { heat?: 'click' | 'scroll' 
             }}
           />
           {[
-            { at: '30%', label: '75% of visitors reached here' },
-            { at: '58%', label: '42% reached here' },
-            { at: '84%', label: '11% reached here' },
+            { at: '30%', label: tv.reachedVisitors(75) },
+            { at: '58%', label: tv.reached(42) },
+            { at: '84%', label: tv.reached(11) },
           ].map((fold) => (
             <div key={fold.at} className="absolute inset-x-0" style={{ top: fold.at }}>
               <div className="h-px w-full bg-black/45 dark:bg-white/45" />

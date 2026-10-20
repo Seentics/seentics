@@ -5,6 +5,7 @@ import { Monitor, RotateCcw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { previewPrize, type PopupAction } from '@/lib/popup-config';
+import { useT } from '@/lib/i18n';
 // The same renderer the tracker runs on a visitor's page. Importing it here, rather than
 // drawing a lookalike, is what keeps the preview from drifting from the real thing.
 import { createPopupRenderer } from '../../../../public/trackers/popup-render.js';
@@ -41,6 +42,7 @@ export function stripOwnerCode<T extends Record<string, unknown>>(action: T): { 
  * through, the teaser tab opened. Links do not navigate away from the builder.
  */
 export function PopupPreview({ action }: { action: PopupAction }) {
+  const m = useT().automations.popup.preview;
   const hostRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [run, setRun] = useState(0);
@@ -83,15 +85,15 @@ export function PopupPreview({ action }: { action: PopupAction }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-foreground">Live preview</p>
+        <p className="text-xs font-semibold text-foreground">{m.title}</p>
         <div className="flex items-center gap-1">
-          <Button type="button" size="icon" variant={device === 'desktop' ? 'secondary' : 'ghost'} className="h-7 w-7" aria-label="Desktop preview" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')}>
+          <Button type="button" size="icon" variant={device === 'desktop' ? 'secondary' : 'ghost'} className="h-7 w-7" aria-label={m.desktop} aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')}>
             <Monitor className="h-3.5 w-3.5" />
           </Button>
-          <Button type="button" size="icon" variant={device === 'mobile' ? 'secondary' : 'ghost'} className="h-7 w-7" aria-label="Mobile preview" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')}>
+          <Button type="button" size="icon" variant={device === 'mobile' ? 'secondary' : 'ghost'} className="h-7 w-7" aria-label={m.mobile} aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')}>
             <Smartphone className="h-3.5 w-3.5" />
           </Button>
-          <Button type="button" size="icon" variant="ghost" className="h-7 w-7" aria-label="Restart preview" onClick={() => setRun((n) => n + 1)}>
+          <Button type="button" size="icon" variant="ghost" className="h-7 w-7" aria-label={m.restart} onClick={() => setRun((n) => n + 1)}>
             <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -107,8 +109,8 @@ export function PopupPreview({ action }: { action: PopupAction }) {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        This is the code that runs on your site. Submitting here sends nothing.
-        {stripped && ' Custom HTML, CSS and JavaScript are not previewed.'}
+        {m.note}
+        {stripped && m.stripped}
       </p>
     </div>
   );

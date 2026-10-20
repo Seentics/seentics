@@ -93,6 +93,8 @@
 /websites/:websiteId/settings/features            /websites/w-leaf/settings/features                200
 /websites/:websiteId/settings/goals.txt           /websites/w-leaf/settings/goals.txt               200
 /websites/:websiteId/settings/goals               /websites/w-leaf/settings/goals                   200
+/websites/:websiteId/integrations.txt            /websites/w-leaf/integrations.txt                200
+/websites/:websiteId/integrations                /websites/w-leaf/integrations                    200
 /websites/:websiteId/settings/integrations.txt   /websites/w-leaf/settings/integrations.txt       200
 /websites/:websiteId/settings/integrations       /websites/w-leaf/settings/integrations           200
 /websites/:websiteId/settings/alerts.txt         /websites/w-leaf/settings/alerts.txt             200

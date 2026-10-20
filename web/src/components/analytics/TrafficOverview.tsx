@@ -9,6 +9,7 @@ import { ComparisonToggle } from './ComparisonToggle';
 import { EventAnnotations, EventAnnotation } from './EventAnnotations';
 import { cn } from '@/lib/utils';
 import { BarChart3, Clock } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 export interface TrafficOverviewProps {
   dailyStats: any;
@@ -45,6 +46,7 @@ export function TrafficOverview({
   onViewChange,
   headerAction,
 }: TrafficOverviewProps) {
+  const t = useT().analytics.traffic;
   const [activeView, handleViewChange] = useControllableState({
     value: view,
     defaultValue: 'chart' as const,
@@ -55,7 +57,7 @@ export function TrafficOverview({
     <Card className={cn("col-span-full surface overflow-hidden pb-2", className)}>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 space-y-0 px-4 py-3 shrink-0 border-b border-border">
         <div className="flex min-w-0 items-center gap-1">
-          <h2 className="text-sm font-semibold tracking-tight">Traffic Overview</h2>
+          <h2 className="text-sm font-semibold tracking-tight">{t.title}</h2>
           {headerAction}
         </div>
 
@@ -76,11 +78,11 @@ export function TrafficOverview({
             <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5">
               <TabsTrigger value="chart" className={TAB_CLS}>
                 <BarChart3 className="h-3.5 w-3.5" />
-                Chart
+                {t.chart}
               </TabsTrigger>
               <TabsTrigger value="hourly" className={TAB_CLS}>
                 <Clock className="h-3.5 w-3.5" />
-                Hourly
+                {t.hourly}
               </TabsTrigger>
             </TabsList>
           </Tabs>

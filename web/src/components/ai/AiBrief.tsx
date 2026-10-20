@@ -7,7 +7,9 @@ import { askWhyHref, bannerAlerts } from '@/features/ai/alerts/format';
 import { useDailyInsight } from '@/features/ai/insights/queries';
 import { useRecommendations } from '@/features/ai/recommendations/queries';
 import { buildAskAiHref } from '@/features/ai/ask-link';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { aiEn, type AiMessages } from '@/lib/i18n/messages/ai-en';
 
 type BriefLine = { key: string; tone: 'alert' | 'finding' | 'action'; text: string; href: string; cta: string };
 
@@ -23,31 +25,33 @@ export function AiBrief({ websiteId }: { websiteId: string }) {
   const alerts = useAlerts(websiteId);
   const insight = useDailyInsight(websiteId);
   const recs = useRecommendations(websiteId);
+  const ai = useT().ai;
+  const t = ai.brief;
 
   const lines: BriefLine[] = [];
   const openAlert = alerts.data
     ? bannerAlerts(alerts.data.alerts).shown.find((a) => a.status === 'open')
     : undefined;
   if (openAlert) {
-    lines.push({ key: `alert-${openAlert.id}`, tone: 'alert', text: openAlert.title, href: askWhyHref(websiteId, openAlert), cta: 'Ask why' });
+    lines.push({ key: `alert-${openAlert.id}`, tone: 'alert', text: openAlert.title, href: askWhyHref(websiteId, openAlert, ai.alerts), cta: t.askWhy });
   }
   const insightLines = insight.data?.status === 'ready' ? insight.data.lines : [];
   for (const l of insightLines.filter((x) => x.kind === 'finding')) {
     if (lines.length >= MAX_LINES - 1) break;
-    lines.push({ key: `finding-${l.text}`, tone: 'finding', text: l.text, href: buildAskAiHref(websiteId, `Tell me more: ${l.text}`, 'Insight'), cta: 'Ask AI' });
+    lines.push({ key: `finding-${l.text}`, tone: 'finding', text: l.text, href: buildAskAiHref(websiteId, t.tellMeMore(l.text), t.insightContext), cta: t.askAi });
   }
   const action = insightLines.find((x) => x.kind === 'action' && x.action);
   const rec = recs.data?.find((r) => r.status === 'open');
   if (lines.length < MAX_LINES && action?.action) {
-    lines.push({ key: 'action', tone: 'action', text: action.text, href: buildAskAiHref(websiteId, action.action.prompt, 'Suggestion'), cta: 'Ask AI' });
+    lines.push({ key: 'action', tone: 'action', text: action.text, href: buildAskAiHref(websiteId, action.action.prompt, t.suggestionContext), cta: t.askAi });
   } else if (lines.length < MAX_LINES && rec) {
-    lines.push({ key: `rec-${rec.id}`, tone: 'action', text: rec.title, href: buildAskAiHref(websiteId, rec.prompt, 'Recommendation', rec.id), cta: 'Do it' });
+    lines.push({ key: `rec-${rec.id}`, tone: 'action', text: rec.title, href: buildAskAiHref(websiteId, rec.prompt, t.recommendationContext, rec.id), cta: t.doIt });
   }
 
   if (lines.length === 0) return null;
 
   // One line, not a panel: each point cut to its first clause, joined with dots.
-  const parts = lines.slice(0, MAX_LINES).map((l) => ({ ...l, short: briefPhrase(l.text, l.tone) }));
+  const parts = lines.slice(0, MAX_LINES).map((l) => ({ ...l, short: briefPhrase(l.text, l.tone, t.next) }));
   const alertPart = parts.find((p) => p.tone === 'alert');
 
   return (
@@ -71,16 +75,18 @@ export function AiBrief({ websiteId }: { websiteId: string }) {
         href={`/websites/${websiteId}/ai-reports`}
         className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
       >
-        Details <ArrowRight className="h-3 w-3" />
+        {t.details} <ArrowRight className="h-3 w-3" />
       </Link>
     </div>
   );
 }
 
 /** A point cut to its first clause, so three fit on one line; actions read as "Next: …". */
-export function briefPhrase(text: string, tone: BriefLine['tone']): string {
+export function briefPhrase(
+  text: string, tone: BriefLine['tone'], next: AiMessages['brief']['next'] = aiEn.brief.next,
+): string {
   const first = text.split(/(?<=[a-z0-9%)])[,;:.](?:\s|$)| — | or /i)[0]!.trim();
   const cut = first.length > 70 ? `${first.slice(0, 67).trimEnd()}…` : first;
   if (tone !== 'action') return cut;
-  return `Next: ${cut.charAt(0).toLowerCase()}${cut.slice(1)}`;
+  return next(`${cut.charAt(0).toLowerCase()}${cut.slice(1)}`);
 }

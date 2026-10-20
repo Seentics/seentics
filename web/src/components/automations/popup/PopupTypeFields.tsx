@@ -8,6 +8,7 @@ import { StepsFields } from './StepsFields';
 import { TeaserFields } from './TeaserFields';
 import { WheelFields } from './WheelFields';
 import { Labeled, inp } from './fields';
+import { useT } from '@/lib/i18n';
 
 /**
  * The popup type picker and the editor for whatever it selects, plus the mechanics that
@@ -17,16 +18,17 @@ import { Labeled, inp } from './fields';
  * line to host it and none of its own state.
  */
 export function PopupTypeFields({ action, onChange }: { action: PopupAction; onChange: (a: PopupAction) => void }) {
+  const m = useT().automations.popup;
   const layout = layoutOf(action);
-  const hint = LAYOUT_OPTIONS.find((o) => o.value === layout)?.hint;
+  const hint = m.layouts[layout]?.hint;
 
   return (
     <div className="space-y-3">
-      <Labeled label="Popup type" hint={hint}>
+      <Labeled label={m.popupType} hint={hint}>
         <Select value={layout} onValueChange={(v) => onChange(applyLayout(action, v as PopupLayout))}>
           <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
           <SelectContent>
-            {LAYOUT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            {LAYOUT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{m.layouts[o.value].label}</SelectItem>)}
           </SelectContent>
         </Select>
       </Labeled>

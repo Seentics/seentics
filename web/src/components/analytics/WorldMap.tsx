@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
+import { useT } from '@/lib/i18n';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -125,6 +126,7 @@ function choroplethColor(ratio: number): string {
 
 // ── 3D Globe ─────────────────────────────────────────────────────────────────
 function GlobeView({ data }: { data: TopItem[] }) {
+    const t = useT().analytics.geo;
     const containerRef = useRef<HTMLDivElement>(null);
     const globeRef = useRef<any>(null);
     const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -185,11 +187,11 @@ function GlobeView({ data }: { data: TopItem[] }) {
                          border:1px solid rgba(255,255,255,0.12);pointer-events:none;z-index:99999;
                          box-shadow:0 4px 12px rgba(0,0,0,0.5);">
                         <div style="font-weight:700;margin-bottom:2px;">${escapedName}</div>
-                        <div style="opacity:0.7;">${item.count.toLocaleString()} visitors${pctLabel ? ' · ' + pctLabel : ''}</div>
+                        <div style="opacity:0.7;">${t.visitorsCount(item.count.toLocaleString())}${pctLabel ? ' · ' + pctLabel : ''}</div>
                     </div>
                 </div>`,
             }];
-        }), [data, maxPct]);
+        }), [data, maxPct, t]);
 
     const rings = useMemo(() =>
         data.flatMap(item => {
@@ -271,6 +273,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
 
 // ── 2D Flat Choropleth ────────────────────────────────────────────────────────
 function FlatMapView({ data }: { data: TopItem[] }) {
+    const t = useT().analytics.geo;
     const [tooltip, setTooltip] = useState<{ name: string; count: number; percentage: number } | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const [isDark, setIsDark] = useState(false);
@@ -338,7 +341,7 @@ function FlatMapView({ data }: { data: TopItem[] }) {
                 <div className="fixed z-50 pointer-events-none bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
                     style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 52 }}>
                     <div className="font-semibold">{tooltip.name}</div>
-                    <div className="text-muted-foreground mt-0.5">{tooltip.count.toLocaleString()} visitors · {tooltip.percentage.toFixed(2)}%</div>
+                    <div className="text-muted-foreground mt-0.5">{t.visitorsCount(tooltip.count.toLocaleString())} · {tooltip.percentage.toFixed(2)}%</div>
                 </div>
             )}
         </div>
@@ -347,9 +350,10 @@ function FlatMapView({ data }: { data: TopItem[] }) {
 
 // ── Legend ────────────────────────────────────────────────────────────────────
 function Legend() {
+    const t = useT().analytics.geo;
     return (
         <div className="absolute bottom-3 left-3 flex flex-col gap-1.5 bg-background/90 backdrop-blur-md border border-border rounded-lg px-3 py-2.5 text-[10px]">
-            <div className="font-semibold text-foreground mb-0.5 text-[11px]">Traffic share</div>
+            <div className="font-semibold text-foreground mb-0.5 text-[11px]">{t.trafficShare}</div>
             {[
                 { bg: '#dbeafe', label: '< 8%' },
                 { bg: '#93c5fd', label: '8–25%' },
@@ -368,6 +372,7 @@ function Legend() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WorldMap({ data, isLoading, view = 'globe', showLegend = true }: WorldMapProps) {
+    const t = useT().analytics.geo;
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
@@ -382,7 +387,7 @@ export default function WorldMap({ data, isLoading, view = 'globe', showLegend =
             {showLegend && <Legend />}
             {data.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <p className="text-muted-foreground/40 text-sm">No geographic data yet</p>
+                    <p className="text-muted-foreground/40 text-sm">{t.noData}</p>
                 </div>
             )}
         </div>

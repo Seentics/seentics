@@ -71,6 +71,8 @@ export type ConversionEventFilters = {
   destination: string;
   status: ConversionStatus | '';
   kind: EventKind | '';
+  /** Only the last this many days; 0 or absent for every event kept. */
+  days?: number;
   limit: number;
   offset: number;
 };

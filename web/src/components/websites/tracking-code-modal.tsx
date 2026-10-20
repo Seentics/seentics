@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, Copy, Code } from 'lucide-react';
 import { toast } from 'sonner';
+import { useT } from '@/lib/i18n';
 
 interface TrackingCodeModalProps {
   siteId: string;
@@ -19,6 +20,8 @@ export function TrackingCodeModal({
   onOpenChange,
   isNewlyCreated = false
 }: TrackingCodeModalProps) {
+  const all = useT();
+  const t = all.dashboard.trackingCode;
   const [trackingCode, setTrackingCode] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -35,10 +38,10 @@ export function TrackingCodeModal({
     try {
       await navigator.clipboard.writeText(trackingCode);
       setCopied(true);
-      toast.success('Tracking code copied!');
+      toast.success(t.copiedToast);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast.error('Failed to copy');
+      toast.error(t.copyFailed);
     }
   };
 
@@ -57,10 +60,10 @@ export function TrackingCodeModal({
               </div>
             )}
             <DialogTitle className="text-xl font-bold">
-              {isNewlyCreated ? 'Website Created!' : 'Installation Script'}
+              {isNewlyCreated ? t.createdTitle : t.title}
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Copy and paste this snippet into the <span className="font-mono bg-muted px-1 rounded-lg">{'<head>'}</span> of your site.
+              {t.instructionsBefore}<span className="font-mono bg-muted px-1 rounded-lg">{'<head>'}</span>{t.instructionsAfter}
             </DialogDescription>
           </div>
 
@@ -77,7 +80,7 @@ export function TrackingCodeModal({
                 ) : (
                   <Copy className="h-3.5 w-3.5 mr-1.5" />
                 )}
-                {copied ? 'Copied' : 'Copy'}
+                {copied ? all.actions.copied : all.actions.copy}
               </Button>
             </div>
             <div 
@@ -94,7 +97,7 @@ export function TrackingCodeModal({
               onClick={() => onOpenChange(false)}
               className="rounded-lg"
             >
-              Done
+              {all.actions.done}
             </Button>
             <Button 
               className="rounded-lg shadow-lg shadow-primary/20"
@@ -103,7 +106,7 @@ export function TrackingCodeModal({
                 window.location.href = `/websites/${siteId}`;
               }}
             >
-              View Stats
+              {t.viewStats}
               <CheckCircle className="ml-2 h-4 w-4" />
             </Button>
           </div>

@@ -9,9 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter, Blocks } from 'lucide-react';
+import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useT } from '@/lib/i18n';
 import Link from 'next/link';
 
 
@@ -19,6 +20,8 @@ import { CodeBlock } from '@/components/ui-blocks/CodeBlock';
 import { buildBlocks, CATEGORIES, type Block, CATEGORY_COLORS } from '@/features/ui-blocks/catalogue';
 
 export default function UiBlocksPage() {
+  const t = useT().uiBlocks;
+  const m = t.page;
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
 
@@ -33,8 +36,8 @@ export default function UiBlocksPage() {
     if (category !== 'all' && b.category !== category) return false;
     if (search) {
       const q = search.toLowerCase();
-      return b.name.toLowerCase().includes(q) ||
-             b.description.toLowerCase().includes(q) ||
+      return t.blocks[b.id].name.toLowerCase().includes(q) ||
+             t.blocks[b.id].description.toLowerCase().includes(q) ||
              b.tags.some(t => t.includes(q));
     }
     return true;
@@ -42,9 +45,8 @@ export default function UiBlocksPage() {
 
   return (
     <ReportPage
-      icon={<Blocks />}
-      title="UI Blocks"
-      description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
+      title={m.title}
+      description={m.description}
       websiteId={websiteId}
       width="max-w-[1100px]"
       actions={<>
@@ -53,7 +55,7 @@ export default function UiBlocksPage() {
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Full docs
+          {m.fullDocs}
         </a>
       </>}
     >
@@ -63,7 +65,7 @@ export default function UiBlocksPage() {
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search blocks..."
+            placeholder={m.searchPlaceholder}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-8 h-8 text-xs"
@@ -82,7 +84,7 @@ export default function UiBlocksPage() {
                   : 'bg-muted text-muted-foreground hover:text-foreground',
               )}
             >
-              {c}
+              {t.categories[c]}
             </button>
           ))}
         </div>
@@ -102,7 +104,7 @@ export default function UiBlocksPage() {
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal', CATEGORY_COLORS[cat])}>
-              {cat}
+              {t.categories[cat as keyof typeof t.categories] ?? cat}
             </Badge>
             <span>{count}</span>
           </button>
@@ -113,7 +115,7 @@ export default function UiBlocksPage() {
       {filtered.length === 0 ? (
         <div className="py-16 text-center">
           <Layout className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">No blocks match your search.</p>
+          <p className="text-sm text-muted-foreground">{m.noMatch}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -125,17 +127,17 @@ export default function UiBlocksPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <CardTitle className="text-sm font-semibold">{block.name}</CardTitle>
+                        <CardTitle className="text-sm font-semibold">{t.blocks[block.id].name}</CardTitle>
                         <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal capitalize shrink-0', CATEGORY_COLORS[block.category])}>
-                          {block.category}
+                          {t.categories[block.category]}
                         </Badge>
                         {!block.available && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 rounded-lg font-normal shrink-0">
-                            Coming soon
+                            {m.comingSoon}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{block.description}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{t.blocks[block.id].description}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {block.tags.map(t => (
                           <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded-lg bg-muted text-muted-foreground border border-border">
@@ -163,13 +165,13 @@ export default function UiBlocksPage() {
                         onClick={() => setExpandedId(expanded ? null : block.id)}
                       >
                         <Code2 className="h-3 w-3" />
-                        {expanded ? 'Hide Code' : 'Show Code'}
+                        {expanded ? m.hideCode : m.showCode}
                       </Button>
                       {block.setup && (
                         <Button asChild variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
                           <Link href={block.setup.href}>
                             <ExternalLink className="h-3 w-3" />
-                            {block.setup.label}
+                            {t.setup[block.setup.label]}
                           </Link>
                         </Button>
                       )}
@@ -179,20 +181,19 @@ export default function UiBlocksPage() {
                         onClick={async () => {
                           try {
                             await navigator.clipboard.writeText(block.code);
-                            toast({ title: 'Copied to clipboard' });
+                            toast({ title: m.copied });
                           } catch {
-                            toast({ title: 'Could not copy', description: 'Use Show Code and copy it from there.', variant: 'destructive' });
+                            toast({ title: m.copyFailed, description: m.copyFailedBody, variant: 'destructive' });
                           }
                         }}
                       >
                         <Copy className="h-3 w-3" />
-                        Copy
+                        {m.copy}
                       </Button>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Not available yet — the embed script these widgets need is not published.
-                      For a live view today, use the Full Dashboard Embed.
+                      {m.notAvailable}
                     </p>
                   )}
 

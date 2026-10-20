@@ -36,6 +36,7 @@ import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection'
 import { forgetWebsite, rememberedWebsite, rememberWebsite } from '@/lib/last-website';
 import { useNearViewport } from '@/hooks/use-near-viewport';
 import { AiBrief } from '@/components/ai/AiBrief';
+import { useT } from '@/lib/i18n';
 
 export interface WebsiteOverviewProps {
   websiteId: string;
@@ -53,6 +54,8 @@ export interface WebsiteOverviewProps {
 /** The website's analytics overview: the signed-in page, and the same page when embedded. */
 export function WebsiteOverview({ websiteId, embed = false, sample = false, headerLeft }: WebsiteOverviewProps) {
   const router = useRouter();
+  const t = useT().analytics;
+  const askT = useT().ai.ask;
 
   /*
    * Open in AI mode when that is this website's default (see `features/ai/default-mode`).
@@ -322,7 +325,7 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
 
   const dashboardContent = !isDemoMode && dashboardError ? (
     <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
-      Failed to load analytics data.
+      {t.overview.loadFailed}
     </div>
   ) : (
       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -396,6 +399,8 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
         </div>
 
         <ActiveFilterPills
+          label={t.filters.activeLabel}
+          clearAllLabel={t.filters.clearAll}
           filters={advancedFilters}
           onRemove={removeFilter}
           onClearAll={() => setAdvancedFilters({})}
@@ -403,7 +408,7 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
 
         {/* Traffic Overview */}
         <section>
-          <ChartErrorBoundary label="Traffic Overview">
+          <ChartErrorBoundary label={t.sections.trafficOverview}>
             <TrafficOverview
               dailyStats={finalDailyStats}
               hourlyStats={finalHourlyStats}
@@ -414,7 +419,7 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
               annotations={annotations}
               onAddAnnotation={handleAddAnnotation}
               onDeleteAnnotation={handleDeleteAnnotation}
-              headerAction={ask(askAbout.traffic(dateRange))}
+              headerAction={ask(askAbout.traffic(dateRange, askT))}
             />
           </ChartErrorBoundary>
         </section>
@@ -443,14 +448,14 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
             isLoading: !isDemoMode && customEventsLoading,
           }}
           headerActions={showAi ? {
-            pages: ask(askAbout.pages(dateRange)),
-            sources: ask(askAbout.sources(dateRange)),
-            geolocation: ask(askAbout.geography(dateRange)),
-            devices: ask(askAbout.devices(dateRange)),
-            utm: ask(askAbout.utm(dateRange)),
+            pages: ask(askAbout.pages(dateRange, askT)),
+            sources: ask(askAbout.sources(dateRange, askT)),
+            geolocation: ask(askAbout.geography(dateRange, askT)),
+            devices: ask(askAbout.devices(dateRange, askT)),
+            utm: ask(askAbout.utm(dateRange, askT)),
           } : undefined}
           footer={embed ? undefined : (
-            <ChartErrorBoundary label="Goals">
+            <ChartErrorBoundary label={t.sections.goals}>
               <WebsiteGoalsSection websiteId={websiteId} days={dateRange} enabled={belowFoldReleased} />
             </ChartErrorBoundary>
           )}

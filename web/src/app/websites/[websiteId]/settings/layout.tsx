@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePathSegment, useIsPathOverridden } from '@/lib/path-segment';
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers, Plug, BellRing } from 'lucide-react';
+import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isEnterprise } from '@/lib/features';
@@ -15,6 +15,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { PAGE_MENU_LABEL, pageMenuItem } from '@/components/ui/page-menu';
 import { Target } from 'lucide-react';
 import { useClientMode } from '@/features/client-mode/ClientMode';
+import { useT } from '@/lib/i18n';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -32,43 +33,43 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const clientMode = useClientMode();
   const client = clientMode?.access.isClient ? clientMode.access : null;
   const showBilling = !client && (isEnterprise || isDemo(websiteId));
+  const t = useT().settings.layout;
 
   // Grouped by what the customer is doing, not by how the app is built: their websites, their account,
   // and getting help. The hint shows on hover.
   const groups = useMemo(
     () => [
       {
-        label: 'Your websites',
+        label: t.groups.websites,
         items: [
-          { href: `/websites/${websiteId}/settings/websites`, label: 'Websites', hint: 'Add a site, copy its tracking code', icon: LayoutGrid },
-          { href: `/websites/${websiteId}/settings/features`, label: 'Tracking', hint: 'Heatmaps, recordings, funnels', icon: Layers },
-          { href: `/websites/${websiteId}/settings/privacy`, label: 'Privacy', hint: 'What visitor data you collect', icon: Shield },
-          { href: `/websites/${websiteId}/settings/integrations`, label: 'Integrations', hint: 'Where forms send submissions', icon: Plug },
-          { href: `/websites/${websiteId}/settings/alerts`, label: 'Alerts', hint: 'Emails when traffic or errors look unusual', icon: BellRing },
+          { href: `/websites/${websiteId}/settings/websites`, ...t.items.websites, icon: LayoutGrid },
+          { href: `/websites/${websiteId}/settings/features`, ...t.items.tracking, icon: Layers },
+          { href: `/websites/${websiteId}/settings/privacy`, ...t.items.privacy, icon: Shield },
+          { href: `/websites/${websiteId}/settings/alerts`, ...t.items.alerts, icon: BellRing },
         ],
       },
       {
-        label: 'Your account',
+        label: t.groups.account,
         items: [
-          { href: `/websites/${websiteId}/settings/billing`, label: 'Billing', hint: 'Your plan, usage and invoices', icon: CreditCard, enterpriseOrDemoBilling: true },
-          { href: `/websites/${websiteId}/settings/profile`, label: 'Profile', hint: 'Name, email and password', icon: User },
-          { href: `/websites/${websiteId}/settings/team`, label: 'Team', hint: 'Invite people and set their access', icon: Users, enterpriseOnly: true },
+          { href: `/websites/${websiteId}/settings/billing`, ...t.items.billing, icon: CreditCard, enterpriseOrDemoBilling: true },
+          { href: `/websites/${websiteId}/settings/profile`, ...t.items.profile, icon: User },
+          { href: `/websites/${websiteId}/settings/team`, ...t.items.team, icon: Users, enterpriseOnly: true },
         ],
       },
       {
-        label: 'Help',
-        items: [{ href: `/websites/${websiteId}/settings/support`, label: 'Support', hint: 'Ask us a question', icon: LifeBuoy }],
+        label: t.groups.help,
+        items: [{ href: `/websites/${websiteId}/settings/support`, ...t.items.support, icon: LifeBuoy }],
       },
     ],
-    [websiteId],
+    [websiteId, t],
   );
 
   const visibleGroups = useMemo(
     () => client ? [{
-      label: 'Your website',
+      label: t.groups.website,
       items: [
-        ...(client.canSee('goals') ? [{ href: `/websites/${websiteId}/settings/goals`, label: 'Goals', hint: 'Conversions the site counts', icon: Target }] : []),
-        ...(client.canSee('privacy') ? [{ href: `/websites/${websiteId}/settings/privacy`, label: 'Privacy', hint: 'What visitor data is collected', icon: Shield }] : []),
+        ...(client.canSee('goals') ? [{ href: `/websites/${websiteId}/settings/goals`, ...t.items.goals, icon: Target }] : []),
+        ...(client.canSee('privacy') ? [{ href: `/websites/${websiteId}/settings/privacy`, ...t.items.clientPrivacy, icon: Shield }] : []),
       ],
     }].filter((group) => group.items.length > 0) :
       groups
@@ -81,7 +82,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           }),
         }))
         .filter((group) => group.items.length > 0),
-    [groups, websiteId, client],
+    [groups, websiteId, client, t],
   );
 
   const demo = isDemo(websiteId);
@@ -115,10 +116,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Analytics
+          {t.backToAnalytics}
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <SettingsHeading className="text-xl font-semibold tracking-tight">Settings</SettingsHeading>
+          <SettingsHeading className="text-xl font-semibold tracking-tight">{t.title}</SettingsHeading>
           {showBilling && (
             // Always in view, on every settings page: the plan, and the way to change it or see invoices.
             <Link
@@ -127,9 +128,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             >
               <CreditCard className="h-4 w-4" />
               <span>
-                Your plan: <span className="font-medium text-foreground">{subscription?.plan || 'Free'}</span>
+                {t.yourPlan} <span className="font-medium text-foreground">{subscription?.plan || t.free}</span>
               </span>
-              <span className="text-primary">Manage plan &amp; billing</span>
+              <span className="text-primary">{t.managePlan}</span>
             </Link>
           )}
         </div>
@@ -137,7 +138,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:gap-8">
           {/* Sections: a list down the side on a wide screen, a row to scroll on a narrow one. */}
           <nav
-            aria-label="Settings sections"
+            aria-label={t.sectionsLabel}
             // The panel look is only for the side-by-side layout; on a narrow screen the
             // sections are a plain row to scroll. Written out because Tailwind cannot see
             // class names assembled at runtime.

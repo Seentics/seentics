@@ -2,6 +2,7 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { formatDuration, formatPercentage } from '@/features/analytics/format';
 import { cn } from '@/lib/utils';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 type SummaryMetric = {
   sessions?: number;
@@ -37,11 +38,12 @@ function GrowthBadge({
   previous: number;
   inverse?: boolean;
 }) {
+  const t = useT().analytics.summary;
   if (previous === 0) {
     if (current > 0) {
       return (
         <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-          New
+          {t.newBadge}
         </span>
       );
     }
@@ -52,7 +54,7 @@ function GrowthBadge({
   if (current === previous) {
     return (
       <span className="text-[10px] font-medium text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-lg">
-        No change
+        {t.noChange}
       </span>
     );
   }
@@ -85,6 +87,7 @@ function GrowthBadge({
  * state from the outside; it never fetches data or owns dashboard state.
  */
 export function SummaryCardsView({ data, liveVisitors = 0, isLoading = false }: SummaryCardsViewProps) {
+  const t = useT().analytics;
   if (isLoading || !data) return <StatCards cards={[]} cols={6} isLoading />;
 
   const currentPeriod = data.comparison?.current_period;
@@ -103,16 +106,16 @@ export function SummaryCardsView({ data, liveVisitors = 0, isLoading = false }: 
     <StatCards
       cols={6}
       cards={[
-        { label: 'Live visitors', value: liveVisitors, live: true, subtext: 'Right now' },
+        { label: t.summary.liveVisitors, value: liveVisitors, live: true, subtext: t.summary.rightNow },
         {
-          label: 'Unique visitors',
+          label: t.common.uniqueVisitors,
           value: uniqueVisitors,
           delta: growth(uniqueVisitors, previousPeriod?.unique_visitors ?? previousPeriod?.total_visitors),
         },
-        { label: 'Total visitors', value: sessions, delta: growth(sessions, previousPeriod?.sessions) },
-        { label: 'Page views', value: pageViews, delta: growth(pageViews, previousPeriod?.page_views) },
-        { label: 'Session duration', value: formatDuration(sessionDuration), delta: growth(sessionDuration, previousPeriod?.avg_session_time) },
-        { label: 'Bounce rate', value: formatPercentage(bounceRate), delta: growth(bounceRate, previousPeriod?.bounce_rate, true) },
+        { label: t.common.totalVisitors, value: sessions, delta: growth(sessions, previousPeriod?.sessions) },
+        { label: t.common.pageViews, value: pageViews, delta: growth(pageViews, previousPeriod?.page_views) },
+        { label: t.common.sessionDuration, value: formatDuration(sessionDuration), delta: growth(sessionDuration, previousPeriod?.avg_session_time) },
+        { label: t.common.bounceRate, value: formatPercentage(bounceRate), delta: growth(bounceRate, previousPeriod?.bounce_rate, true) },
       ]}
     />
   );

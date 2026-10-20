@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { brandColorVars, brandLogo } from '@/features/client-mode/brand';
 import type { ClientBrand } from '@/features/client-mode/types';
 import { useOnCustomHost } from '@/lib/seentics-host';
+import { useT } from '@/lib/i18n';
 
 /**
  * The frame of the client sign-in pages: the auth app's single narrow column (auth/web
@@ -24,6 +25,7 @@ export function ClientAuthShell({ brand, title, subtitle, children, footer }: {
   const logo = brandLogo(brand);
   const style = brandColorVars(brand?.primary_color) as CSSProperties;
   const customHost = useOnCustomHost();
+  const t = useT().agency.clientMode;
 
   return (
     <main
@@ -66,7 +68,7 @@ export function ClientAuthShell({ brand, title, subtitle, children, footer }: {
         {(brand?.footer_text || (brand && !brand.hide_seentics)) && (
           <div className="mt-6 space-y-1 text-center text-xs leading-relaxed text-muted-foreground/80">
             {brand.footer_text && <p>{brand.footer_text}</p>}
-            {!brand.hide_seentics && <p data-testid="powered-by-seentics">Powered by Seentics</p>}
+            {!brand.hide_seentics && <p data-testid="powered-by-seentics">{t.poweredBy}</p>}
           </div>
         )}
       </div>

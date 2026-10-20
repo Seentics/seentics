@@ -3,6 +3,7 @@ import type { SessionRow } from './list-types';
 import type { FrustrationSignalType } from './types';
 import { FRUSTRATED_MIN_SCORE, signalChips } from './analysis';
 import type { DotTone } from '@/components/ui/linear-list';
+import { replaysEn, type ReplaysMessages } from '@/lib/i18n/messages/replays-en';
 
 /**
  * Which group a session sits in.
@@ -19,13 +20,13 @@ export function sessionLevel(s: Pick<SessionRow, 'has_errors' | 'has_rage_clicks
   return 'watch';
 }
 
-const SIGNAL_TAG: Record<FrustrationSignalType, { label: string; tone: DotTone }> = {
-  error_click: { label: 'Error clicks', tone: 'red' },
-  rage_click: { label: 'Rage clicks', tone: 'orange' },
-  form_abandon: { label: 'Abandoned form', tone: 'violet' },
-  dead_click: { label: 'Dead clicks', tone: 'indigo' },
-  u_turn: { label: 'U-turns', tone: 'grey' },
-  scroll_thrash: { label: 'Scroll thrash', tone: 'grey' },
+const SIGNAL_TONE: Record<FrustrationSignalType, DotTone> = {
+  error_click: 'red',
+  rage_click: 'orange',
+  form_abandon: 'violet',
+  dead_click: 'indigo',
+  u_turn: 'grey',
+  scroll_thrash: 'grey',
 };
 
 /**
@@ -34,12 +35,14 @@ const SIGNAL_TAG: Record<FrustrationSignalType, { label: string; tone: DotTone }
  */
 export function sessionTags(
   s: Pick<SessionRow, 'signal_counts' | 'has_errors' | 'has_rage_clicks'>,
+  m: ReplaysMessages = replaysEn,
 ): Array<{ label: string; tone: DotTone }> {
+  const tag = (type: FrustrationSignalType) => ({ label: m.signals[type].label, tone: SIGNAL_TONE[type] });
   const chips = signalChips(s.signal_counts);
-  const tags = chips.map((c) => SIGNAL_TAG[c.type]);
-  if (s.has_errors && !chips.some((c) => c.type === 'error_click')) tags.unshift({ label: 'JS error', tone: 'red' });
+  const tags = chips.map((c) => tag(c.type));
+  if (s.has_errors && !chips.some((c) => c.type === 'error_click')) tags.unshift({ label: m.line.jsError, tone: 'red' });
   if (s.has_rage_clicks && !chips.some((c) => c.type === 'rage_click')) {
-    tags.splice(s.has_errors ? 1 : 0, 0, SIGNAL_TAG.rage_click);
+    tags.splice(s.has_errors ? 1 : 0, 0, tag('rage_click'));
   }
   return tags;
 }
@@ -60,11 +63,13 @@ export function sessionIcon(s: Pick<SessionRow, 'signal_counts' | 'has_errors' |
 export function sessionLine(
   s: Pick<SessionRow, 'summary' | 'has_errors' | 'has_rage_clicks' | 'pages_viewed' | 'entry_page' | 'frustration_score'>,
   websiteId: string,
+  m: ReplaysMessages = replaysEn,
 ): string {
   if (s.summary) return s.summary;
-  const pages = `${s.pages_viewed} page${s.pages_viewed === 1 ? '' : 's'} from ${entryPathDisplay(s.entry_page, websiteId).display}`;
-  if (s.has_errors && s.has_rage_clicks) return `Hit errors and rage-clicked · ${pages}`;
-  if (s.has_errors) return `Hit an error · ${pages}`;
-  if (s.has_rage_clicks) return `Rage-clicked · ${pages}`;
-  return s.frustration_score != null ? `Browsed ${pages} — no friction` : `Browsed ${pages}`;
+  const t = m.line;
+  const pages = t.pages(s.pages_viewed, entryPathDisplay(s.entry_page, websiteId).display);
+  if (s.has_errors && s.has_rage_clicks) return t.errorsAndRage(pages);
+  if (s.has_errors) return t.error(pages);
+  if (s.has_rage_clicks) return t.rage(pages);
+  return s.frustration_score != null ? t.smooth(pages) : t.browsed(pages);
 }

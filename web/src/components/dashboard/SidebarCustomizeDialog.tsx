@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Switch } from '@/components/ui/switch';
 import { LOCKED, type NavId } from '@/features/sidebar/nav-prefs';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export type CustomizableItem = { id: NavId; label: string; icon: React.ElementType; hint: string };
 
@@ -22,6 +23,8 @@ export function SidebarCustomizeDialog({
   hidden: readonly NavId[];
   onChange: (next: NavId[]) => void;
 }) {
+  const t = useT().dashboard.customize;
+  const done = useT().actions.done;
   const off = new Set(hidden);
   const shown = items.filter((i) => !off.has(i.id)).length;
 
@@ -29,10 +32,8 @@ export function SidebarCustomizeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 p-0 sm:max-w-md">
         <DialogHeader className="space-y-1 px-5 pb-4 pt-5 text-left">
-          <DialogTitle>Customize sidebar</DialogTitle>
-          <DialogDescription>
-            Keep the pages you use. Hidden pages still open from a link, and you can bring them back here.
-          </DialogDescription>
+          <DialogTitle>{t.title}</DialogTitle>
+          <DialogDescription>{t.description}</DialogDescription>
         </DialogHeader>
 
         <ul className="max-h-[60vh] divide-y divide-border overflow-y-auto border-y border-border">
@@ -47,14 +48,14 @@ export function SidebarCustomizeDialog({
                 </span>
                 <label htmlFor={switchId} className={cn('min-w-0 flex-1', locked ? 'cursor-default' : 'cursor-pointer')}>
                   <span className={cn('block text-[13.5px] font-medium', on ? 'text-foreground' : 'text-muted-foreground')}>{item.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{locked ? 'Always shown' : item.hint}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{locked ? t.alwaysShown : item.hint}</span>
                 </label>
                 <Switch
                   id={switchId}
                   checked={on}
                   disabled={locked}
                   onCheckedChange={(checked) => onChange(checked ? hidden.filter((id) => id !== item.id) : [...hidden, item.id])}
-                  aria-label={`Show ${item.label} in the sidebar`}
+                  aria-label={t.showItem(item.label)}
                 />
               </li>
             );
@@ -62,12 +63,12 @@ export function SidebarCustomizeDialog({
         </ul>
 
         <DialogFooter className="flex-row items-center justify-between gap-2 px-5 py-3 sm:justify-between">
-          <p className="text-xs text-muted-foreground">{shown} of {items.length} shown</p>
+          <p className="text-xs text-muted-foreground">{t.shownCount(shown, items.length)}</p>
           <div className="flex gap-2">
             {hidden.length > 0 && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => onChange([])}>Show all</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => onChange([])}>{t.showAll}</Button>
             )}
-            <Button type="button" size="sm" onClick={() => onOpenChange(false)}>Done</Button>
+            <Button type="button" size="sm" onClick={() => onOpenChange(false)}>{done}</Button>
           </div>
         </DialogFooter>
       </DialogContent>

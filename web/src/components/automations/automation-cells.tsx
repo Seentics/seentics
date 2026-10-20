@@ -10,9 +10,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDeleteAutomation, type Automation } from '@/lib/automations-api';
+import { useT } from '@/lib/i18n';
 
 /** An automation's overflow menu: edit, and delete after a confirmation. */
 export function RowMenu({ automation, websiteId, onEdit }: { automation: Automation; websiteId: string; onEdit: () => void }) {
+  const t = useT();
+  const m = t.automations.rowMenu;
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
   const [confirm, confirmDialog] = useConfirm();
 
@@ -25,13 +28,13 @@ export function RowMenu({ automation, websiteId, onEdit }: { automation: Automat
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={e => e.stopPropagation()}>
           <MoreVertical className="h-3.5 w-3.5" />
-          <span className="sr-only">Options for {automation.name}</span>
+          <span className="sr-only">{m.options(automation.name)}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">
         <DropdownMenuItem onClick={e => { e.stopPropagation(); onEdit(); }}>
           <Pencil className="mr-2 h-3.5 w-3.5" />
-          Edit
+          {t.actions.edit}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={deleting}
@@ -39,16 +42,16 @@ export function RowMenu({ automation, websiteId, onEdit }: { automation: Automat
           onClick={async e => {
             e.stopPropagation();
             const ok = await confirm({
-              title: `Delete "${automation.name}"?`,
-              description: 'The automation stops running and its run history is removed.',
-              confirmLabel: 'Delete automation',
+              title: m.deleteTitle(automation.name),
+              description: m.deleteBody,
+              confirmLabel: m.deleteConfirm,
               destructive: true,
             });
             if (ok) remove({ websiteId, automationId: automation.id });
           }}
         >
           <Trash2 className="mr-2 h-3.5 w-3.5" />
-          Delete
+          {t.actions.delete}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

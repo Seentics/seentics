@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Plus, Tag, Trash2, Upload, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  BoardView, CARD, CollectionEmpty, CollectionPager, CollectionRow, CollectionSkeleton, CollectionTable,
+  BoardView, CARD, COLLECTION_SURFACE, CollectionEmpty, CollectionPager, CollectionRow, CollectionSkeleton, CollectionTable,
   FilterToolbar, GroupedRows, LayoutSwitch, useLayoutPreference,
   type CollectionColumn, type CollectionGroup, type FilterField,
 } from '@/components/ui/collection';
@@ -21,7 +21,9 @@ import { useBulkUpdateContacts, useDeleteContacts, useUpdateContact } from '@/fe
 import { useContactTags, useContacts } from '@/features/leads/queries';
 import { CONTACT_STATUSES, type Contact, type ContactFilters, type ContactSort, type ContactSource, type ContactStatus } from '@/features/leads/types';
 import { cn } from '@/lib/utils';
-import { cameFrom, SOURCE_LABEL, STATUS_META } from './lead-format';
+import { useLocale, useT } from '@/lib/i18n';
+import type { LeadsMessages } from '@/lib/i18n/messages/leads-en';
+import { cameFrom } from './lead-format';
 import { StatusDot, StatusSelect, TagList } from './parts';
 
 /** Rows per page in the list and the table. */
@@ -43,7 +45,7 @@ export type ContactListFilters = Omit<ContactFilters, 'limit' | 'offset'>;
  * column per status where a card can be dragged to change it. A person opens in the drawer.
  */
 export function ContactsTab({
-  websiteId, now, canEdit, onOpenContact, onAdd, onImport, onFiltersChange,
+  websiteId, now, canEdit, onOpenContact, onAdd, onImport, onFiltersChange, tabs,
 }: {
   websiteId: string;
   now?: number;
@@ -52,7 +54,12 @@ export function ContactsTab({
   onAdd: () => void;
   onImport: () => void;
   onFiltersChange?: (filters: ContactListFilters) => void;
+  /** The page's tabs (People / Submissions), on the left of this tab's toolbar. */
+  tabs?: ReactNode;
 }) {
+  const all = useT();
+  const t = all.leads;
+  const tc = t.contacts;
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ContactStatus | ''>('');
   const [tag, setTag] = useState('');
@@ -61,7 +68,8 @@ export function ContactsTab({
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Map<string, Contact>>(new Map());
   const [deleting, setDeleting] = useState(false);
-  const [layout, setLayout] = useLayoutPreference<ContactLayout>('leads-contacts', LAYOUTS, 'list');
+  // Table first: the people side by side, with checkboxes for status, tags or delete on several at once.
+  const [layout, setLayout] = useLayoutPreference<ContactLayout>('leads-contacts', LAYOUTS, 'table');
 
   const board = layout === 'board';
   const size = board ? BOARD_SIZE : PAGE_SIZE;
@@ -82,33 +90,33 @@ export function ContactsTab({
   // Tags offered in the filter: every tag in use on the site, and the one picked.
   const siteTags = useContactTags(websiteId).data;
   const tagOptions = useMemo(
-    () => [...new Set([...(siteTags ?? []).map((t) => t.tag), ...contacts.flatMap((c) => c.tags), ...(tag ? [tag] : [])])].sort(),
+    () => [...new Set([...(siteTags ?? []).map((x) => x.tag), ...contacts.flatMap((c) => c.tags), ...(tag ? [tag] : [])])].sort(),
     [siteTags, contacts, tag],
   );
 
   const filters: FilterField[] = [
     {
-      id: 'status', label: 'Status', value: status, onChange: (v) => setStatus(v as ContactStatus | ''),
-      options: CONTACT_STATUSES.map((s) => ({ value: s, label: STATUS_META[s].label, icon: <StatusDot status={s} /> })),
+      id: 'status', label: t.fields.status, value: status, onChange: (v) => setStatus(v as ContactStatus | ''),
+      options: CONTACT_STATUSES.map((s) => ({ value: s, label: t.statuses[s], icon: <StatusDot status={s} /> })),
     },
-    { id: 'tag', label: 'Tag', value: tag, onChange: setTag, options: tagOptions.map((t) => ({ value: t, label: t })) },
+    { id: 'tag', label: tc.tag, value: tag, onChange: setTag, options: tagOptions.map((x) => ({ value: x, label: x })) },
     {
-      id: 'source', label: 'Source', value: source, onChange: (v) => setSource(v as ContactSource | ''),
-      options: (Object.keys(SOURCE_LABEL) as ContactSource[]).map((s) => ({ value: s, label: SOURCE_LABEL[s] })),
+      id: 'source', label: tc.source, value: source, onChange: (v) => setSource(v as ContactSource | ''),
+      options: (Object.keys(t.sources) as ContactSource[]).map((s) => ({ value: s, label: t.sources[s] })),
     },
   ];
 
   const setStatusOf = (c: Contact, next: ContactStatus) => update.mutate(
     { id: c.id, patch: { status: next } },
-    { onError: () => toast.error('Could not change the status. Please try again.') },
+    { onError: () => toast.error(tc.statusFailed) },
   );
   const groups = (order: ContactStatus[]): CollectionGroup[] => order.map((s) => ({
-    id: s, label: STATUS_META[s].label, icon: <StatusDot status={s} />, count: statuses?.[s],
+    id: s, label: t.statuses[s], icon: <StatusDot status={s} />, count: statuses?.[s],
   }));
 
   const columns: CollectionColumn<Contact>[] = [
     {
-      id: 'contact', header: 'Contact', width: '26%',
+      id: 'contact', header: tc.contact,
       cell: (c) => (
         <span className="flex min-w-0 items-center gap-2.5">
           <Avatar contact={c} />
@@ -122,16 +130,14 @@ export function ContactsTab({
       ),
     },
     {
-      id: 'status', header: 'Status', width: '140px',
-      cell: (c) => <StatusSelect value={c.status} ariaLabel={`Status of ${c.email}`} onChange={canEdit ? (next) => setStatusOf(c, next) : undefined} />,
+      id: 'status', header: t.fields.status, width: '140px',
+      cell: (c) => <StatusSelect value={c.status} ariaLabel={tc.statusOf(c.email)} onChange={canEdit ? (next) => setStatusOf(c, next) : undefined} />,
     },
-    { id: 'tags', header: 'Tags', width: '18%', cell: (c) => <span className="text-xs"><TagList tags={c.tags} /></span> },
-    { id: 'source', header: 'Source', width: '130px', cell: (c) => <span className="text-foreground/80">{SOURCE_LABEL[c.source]}</span> },
-    { id: 'first', header: 'First came from', width: '140px', cell: (c) => <span className="text-foreground/80">{cameFrom(c.first_channel)}</span> },
-    { id: 'phone', header: 'Phone', width: '140px', cell: (c) => <span className="tabular-nums text-foreground/80">{c.phone || '—'}</span> },
-    { id: 'forms', header: 'Forms', width: '70px', align: 'right', cell: (c) => <span className="tabular-nums text-foreground/80">{c.submission_count}</span> },
+    // Who they are, where they stand, how they are tagged and when they were last seen; source,
+    // phone and forms are on the contact's own panel.
+    { id: 'tags', header: t.fields.tags, width: '24%', cell: (c) => <span className="text-xs"><TagList tags={c.tags} /></span> },
     {
-      id: 'last', header: sort === 'created' ? 'Added' : 'Last activity', width: '110px', align: 'right', sorted: true,
+      id: 'last', header: sort === 'created' ? tc.added : tc.lastActivity, width: '110px', align: 'right', sorted: true,
       cell: (c) => <When iso={sort === 'created' ? c.created_at : c.last_activity_at} now={now} />,
     },
   ];
@@ -139,7 +145,7 @@ export function ContactsTab({
   const ids = [...selected.keys()];
   const applyBulk = (change: { status?: ContactStatus; add_tags?: string[] }, done: string) => bulk.mutate(
     { ids, ...change },
-    { onSuccess: () => { toast.success(done); setSelected(new Map()); }, onError: () => toast.error('Could not update the contacts. Please try again.') },
+    { onSuccess: () => { toast.success(done); setSelected(new Map()); }, onError: () => toast.error(tc.bulkFailed) },
   );
 
   const byId = new Map(contacts.map((c) => [c.id, c]));
@@ -153,24 +159,60 @@ export function ContactsTab({
     }),
   } : undefined;
 
-  const body = list.isLoading ? <CollectionSkeleton /> : contacts.length === 0 ? (
-    <CollectionEmpty
+  /** The panel's top row: the page's tabs on the left, this list's controls on the right. */
+  const toolbar = (
+    <FilterToolbar
+      leading={tabs}
+      sort={{
+        value: sort, onChange: (v) => setSort(v as ContactSort),
+        options: [{ value: 'last_activity', label: tc.sortRecent }, { value: 'created', label: tc.sortNewest }],
+      }}
+      filters={filters}
+      search={{ value: search, onChange: setSearch, placeholder: tc.searchPlaceholder, label: tc.searchLabel }}
+      count={tabs ? undefined : list.data ? tc.count(total, total.toLocaleString()) : undefined}
+    >
+      <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+    </FilterToolbar>
+  );
+  // The bulk actions, under the toolbar inside the table's panel while rows are picked.
+  const bulkBar = selected.size > 0 && layout === 'table' ? (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-muted/60 px-4 py-1.5 text-[13px]">
+      <span className="font-medium text-foreground">{tc.selected(selected.size)}</span>
+      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(new Map())}>{all.actions.clear}</Button>
+      <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+      <Select onValueChange={(v) => applyBulk({ status: v as ContactStatus }, tc.statusSet(t.statuses[v as ContactStatus]))}>
+        <SelectTrigger className={cn(GHOST_CONTROL, 'h-7 w-auto gap-2 px-2.5 text-xs')} aria-label={tc.setStatus}><SelectValue placeholder={tc.setStatus} /></SelectTrigger>
+        <SelectContent>
+          {CONTACT_STATUSES.map((s) => (
+            <SelectItem key={s} value={s} className="text-xs"><span className="inline-flex items-center gap-2"><StatusDot status={s} />{t.statuses[s]}</span></SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <AddTagButton onAdd={(tag) => applyBulk({ add_tags: [tag] }, tc.tagged(selected.size, tag))} />
+      <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive" onClick={() => setDeleting(true)}>
+        <Trash2 className="h-3.5 w-3.5" />{all.actions.delete}
+      </Button>
+    </div>
+  ) : null;
+
+  const body = list.isLoading ? <div className={COLLECTION_SURFACE}>{toolbar}<CollectionSkeleton /></div> : contacts.length === 0 ? (
+    <div className={COLLECTION_SURFACE}>{toolbar}<CollectionEmpty
       icon={<Users />}
-      title={narrowed ? 'No matches' : 'No contacts yet'}
-      description={narrowed
-        ? 'No contact matches these filters.'
-        : 'Contacts appear here when someone fills in a form. You can also add people by hand or import a spreadsheet.'}
+      title={narrowed ? tc.noMatches : tc.empty}
+      description={narrowed ? tc.noMatchBody : tc.emptyBody}
       action={!narrowed && canEdit ? (
         <div className="flex justify-center gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={onImport}><Upload className="h-3.5 w-3.5" />Import CSV</Button>
-          <Button size="sm" className="gap-1.5" onClick={onAdd}><Plus className="h-3.5 w-3.5" />Add contact</Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={onImport}><Upload className="h-3.5 w-3.5" />{tc.importCsv}</Button>
+          <Button size="sm" className="gap-1.5" onClick={onAdd}><Plus className="h-3.5 w-3.5" />{t.page.addContact}</Button>
         </div>
       ) : undefined}
-    />
+    /></div>
   ) : layout === 'table' ? (
-    <CollectionTable label="Contacts" items={contacts} getKey={(c) => c.id} columns={columns} onOpen={(c) => onOpenContact(c.id)} selection={selection} minWidth={1080} />
+    <CollectionTable label={tc.tableLabel} items={contacts} getKey={(c) => c.id} columns={columns} onOpen={(c) => onOpenContact(c.id)} selection={selection} minWidth={720} rowClassName="h-14" toolbar={<>{toolbar}{bulkBar}</>} />
   ) : board ? (
     <>
+      {/* The board's columns are panels of their own: the toolbar sits on its own white strip above them. */}
+      <div className="mx-3 mt-3 overflow-clip rounded-lg bg-card md:mx-4 md:mt-4 [&>div]:rounded-lg [&>div]:border-b-0">{toolbar}</div>
       <BoardView
         items={contacts}
         getKey={(c) => c.id}
@@ -181,12 +223,13 @@ export function ContactsTab({
       />
       {total > contacts.length && (
         <p className="px-4 pb-4 text-xs text-muted-foreground">
-          The board shows the {contacts.length} most recently active of {total.toLocaleString()} people. Use the filters or the table to reach the rest.
+          {tc.boardMore(contacts.length, total.toLocaleString())}
         </p>
       )}
     </>
   ) : (
     <GroupedRows
+      toolbar={toolbar}
       items={contacts}
       getKey={(c) => c.id}
       groups={status ? undefined : groups(LIST_ORDER)}
@@ -197,38 +240,6 @@ export function ContactsTab({
 
   return (
     <>
-      <FilterToolbar
-        sort={{
-          value: sort, onChange: (v) => setSort(v as ContactSort),
-          options: [{ value: 'last_activity', label: 'Recent activity' }, { value: 'created', label: 'Newest contacts' }],
-        }}
-        filters={filters}
-        search={{ value: search, onChange: setSearch, placeholder: 'Search email, name or phone…', label: 'Search contacts' }}
-        count={list.data ? `${total.toLocaleString()} ${total === 1 ? 'person' : 'people'}` : undefined}
-      >
-        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
-      </FilterToolbar>
-
-      {selected.size > 0 && layout === 'table' && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-primary/[0.04] px-4 py-1.5 text-[13px]">
-          <span className="font-medium">{selected.size} selected</span>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(new Map())}>Clear</Button>
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-          <Select onValueChange={(v) => applyBulk({ status: v as ContactStatus }, `Status set to ${STATUS_META[v as ContactStatus].label}`)}>
-            <SelectTrigger className={cn(GHOST_CONTROL, 'h-7 w-auto gap-2 px-2.5 text-xs')} aria-label="Set status"><SelectValue placeholder="Set status" /></SelectTrigger>
-            <SelectContent>
-              {CONTACT_STATUSES.map((s) => (
-                <SelectItem key={s} value={s} className="text-xs"><span className="inline-flex items-center gap-2"><StatusDot status={s} />{STATUS_META[s].label}</span></SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <AddTagButton onAdd={(t) => applyBulk({ add_tags: [t] }, `Tagged ${selected.size} contact${selected.size === 1 ? '' : 's'} “${t}”`)} />
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive" onClick={() => setDeleting(true)}>
-            <Trash2 className="h-3.5 w-3.5" />Delete
-          </Button>
-        </div>
-      )}
-
       {body}
       {!board && <CollectionPager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />}
 
@@ -264,29 +275,36 @@ function Avatar({ contact }: { contact: Contact }) {
 }
 
 function When({ iso, now }: { iso: string; now?: number }) {
-  return <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={iso} title={new Date(iso).toLocaleString()}>{relativeTime(iso, now)}</time>;
+  const time = useT().errors.time;
+  const { locale } = useLocale();
+  return (
+    <time className="whitespace-nowrap text-xs text-muted-foreground" dateTime={iso} title={new Date(iso).toLocaleString(locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}>
+      {relativeTime(iso, now, time)}
+    </time>
+  );
 }
 
 /** How a person arrived: "2 forms · from Search", "Added by hand", "Imported". */
-function arrival(c: Contact): string {
-  if (c.source !== 'form') return SOURCE_LABEL[c.source];
-  const forms = `${c.submission_count} form${c.submission_count === 1 ? '' : 's'}`;
-  return c.first_channel ? `${forms} · from ${cameFrom(c.first_channel)}` : forms;
+function arrival(c: Contact, t: LeadsMessages): string {
+  if (c.source !== 'form') return t.sources[c.source];
+  const forms = t.contacts.formsCount(c.submission_count);
+  return c.first_channel ? `${forms} · ${t.contacts.from(cameFrom(t, c.first_channel))}` : forms;
 }
 
 /** What to know about a person at a glance: the first line of their notes, else how they arrived. */
-function contactLine(c: Contact): string {
-  return c.notes.trim().split('\n')[0] || arrival(c);
+function contactLine(c: Contact, t: LeadsMessages): string {
+  return c.notes.trim().split('\n')[0] || arrival(c, t);
 }
 
 function ContactRow({ contact: c, now, sort, onOpen }: { contact: Contact; now?: number; sort: ContactSort; onOpen: () => void }) {
+  const t = useT().leads;
   return (
     <CollectionRow onOpen={onOpen}>
       <Avatar contact={c} />
       <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="w-44 shrink-0 truncate text-left text-[13px] text-foreground focus-visible:underline focus-visible:outline-none" title={c.email}>
         {c.name || c.email}
       </button>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{contactLine(c)}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">{contactLine(c, t)}</span>
       {c.tags.length > 0 && <span className="hidden shrink-0 text-xs md:block"><TagList tags={c.tags} max={2} /></span>}
       <span className="hidden w-48 shrink-0 truncate text-right text-xs text-muted-foreground xl:block" title={c.email}>{c.email}</span>
       <span className="w-16 shrink-0 text-right"><When iso={sort === 'created' ? c.created_at : c.last_activity_at} now={now} /></span>
@@ -295,6 +313,7 @@ function ContactRow({ contact: c, now, sort, onOpen }: { contact: Contact; now?:
 }
 
 function ContactCard({ contact: c, now, onOpen }: { contact: Contact; now?: number; onOpen: () => void }) {
+  const t = useT().leads;
   return (
     <div onClick={onOpen} className={cn(CARD, 'cursor-pointer')}>
       <span className="flex items-center gap-2">
@@ -305,31 +324,33 @@ function ContactCard({ contact: c, now, onOpen }: { contact: Contact; now?: numb
         <span className="ml-auto shrink-0"><When iso={c.last_activity_at} now={now} /></span>
       </span>
       {c.name && <span className="truncate text-xs text-muted-foreground">{c.email}</span>}
-      <span className="line-clamp-2 text-[12.5px] leading-snug text-foreground/75">{contactLine(c)}</span>
+      <span className="line-clamp-2 text-[12.5px] leading-snug text-foreground/75">{contactLine(c, t)}</span>
       {c.tags.length > 0 && <span className="text-xs"><TagList tags={c.tags} max={3} /></span>}
     </div>
   );
 }
 
 function AddTagButton({ onAdd }: { onAdd: (tag: string) => void }) {
+  const all = useT();
+  const tc = all.leads.contacts;
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const submit = () => {
-    const t = value.trim().toLowerCase();
-    if (!t) return;
-    onAdd(t);
+    const tag = value.trim().toLowerCase();
+    if (!tag) return;
+    onAdd(tag);
     setValue('');
     setOpen(false);
   };
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />Add tag</Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs"><Tag className="h-3.5 w-3.5" />{tc.addTag}</Button>
       </PopoverTrigger>
       <PopoverContent className="w-60 p-2" align="start">
         <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="flex gap-2">
-          <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder="Tag name" className="h-8 text-xs" aria-label="Tag name" />
-          <Button type="submit" size="sm" className="h-8">Add</Button>
+          <Input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder={tc.tagName} className="h-8 text-xs" aria-label={tc.tagName} />
+          <Button type="submit" size="sm" className="h-8">{all.actions.add}</Button>
         </form>
       </PopoverContent>
     </Popover>
@@ -340,37 +361,39 @@ function AddTagButton({ onAdd }: { onAdd: (tag: string) => void }) {
 export function DeleteContactsDialog({
   websiteId, open, contacts, onOpenChange, onDeleted,
 }: { websiteId: string; open: boolean; contacts: Contact[]; onOpenChange: (open: boolean) => void; onDeleted?: () => void }) {
+  const all = useT();
+  const t = all.leads.remove;
   const [withSubmissions, setWithSubmissions] = useState(false);
   const remove = useDeleteContacts(websiteId);
   const n = contacts.length;
-  const who = n === 1 ? contacts[0]!.email : `${n} contacts`;
+  const who = n === 1 ? contacts[0]!.email : t.many(n);
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setWithSubmissions(false); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete {who}?</DialogTitle>
+          <DialogTitle>{t.title(who)}</DialogTitle>
           <DialogDescription>
-            Their status, tags and notes are removed. This cannot be undone. Anything already sent to Mailchimp, HubSpot or another destination stays there.
+            {t.body}
           </DialogDescription>
         </DialogHeader>
         <Label className="flex items-start gap-2.5 text-sm font-normal">
           <Checkbox checked={withSubmissions} onCheckedChange={(v) => setWithSubmissions(!!v)} className="mt-0.5" />
-          <span>Also delete their form submissions<span className="block text-xs text-muted-foreground">Use this when someone asks for their data to be erased.</span></span>
+          <span>{t.withSubmissions}<span className="block text-xs text-muted-foreground">{t.withSubmissionsHint}</span></span>
         </Label>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{all.actions.cancel}</Button>
           <Button
             variant="destructive"
             disabled={remove.isPending}
             onClick={() => remove.mutate(
               { ids: contacts.map((c) => c.id), withSubmissions },
               {
-                onSuccess: () => { toast.success(n === 1 ? 'Contact deleted' : `${n} contacts deleted`); onOpenChange(false); onDeleted?.(); },
-                onError: () => toast.error('Could not delete. Please try again.'),
+                onSuccess: () => { toast.success(t.deleted(n)); onOpenChange(false); onDeleted?.(); },
+                onError: () => toast.error(t.failed),
               },
             )}
           >
-            Delete
+            {all.actions.delete}
           </Button>
         </DialogFooter>
       </DialogContent>

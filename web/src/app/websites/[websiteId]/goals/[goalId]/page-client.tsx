@@ -14,17 +14,12 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-
-const GOAL_TYPE_LABEL: Record<string, string> = {
-  pageview: 'Page Visit',
-  event: 'Custom Event',
-  click: 'CSS Click',
-};
+import { useT, type Messages } from '@/lib/i18n';
 
 // Generate demo sparkline data
-function demoTrend(completions: number) {
+function demoTrend(completions: number, day: Messages['analytics']['goalDetail']['day']) {
   return Array.from({ length: 30 }, (_, i) => ({
-    day: `Day ${i + 1}`,
+    day: day(i + 1),
     completions: Math.max(0, Math.floor((completions / 30) * (0.5 + Math.random()))),
   }));
 }
@@ -32,6 +27,8 @@ function demoTrend(completions: number) {
 export default function GoalDetailPage() {
   const params = { websiteId: usePathSegment(1) ?? '', goalId: usePathSegment(3) ?? '' };
   const router = useRouter();
+  const t = useT().analytics;
+  const actions = useT().actions;
   const websiteId = params?.websiteId as string;
   const goalId = params?.goalId as string;
 
@@ -54,15 +51,15 @@ export default function GoalDetailPage() {
   if (!goal) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        <p className="text-sm">Goal not found.</p>
+        <p className="text-sm">{t.goalDetail.notFound}</p>
         <Button variant="ghost" size="sm" className="mt-4" onClick={() => router.back()}>
-          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back
+          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> {actions.back}
         </Button>
       </div>
     );
   }
 
-  const trendData = demoTrend(goal.completions || 0);
+  const trendData = demoTrend(goal.completions || 0, t.goalDetail.day);
 
   return (
     <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1200px] mx-auto">
@@ -74,7 +71,7 @@ export default function GoalDetailPage() {
           onClick={() => router.push(`/websites/${websiteId}`)}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to analytics
+          {t.goalDetail.backToAnalytics}
         </Button>
       </div>
 
@@ -84,7 +81,7 @@ export default function GoalDetailPage() {
             <Target className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-bold text-foreground">{goal.name}</h1>
             <Badge variant="outline" className="text-xs">
-              {GOAL_TYPE_LABEL[goal.goal_type] ?? goal.goal_type}
+              {t.goals.types[goal.goal_type] ?? goal.goal_type}
             </Badge>
           </div>
           {goal.target && (
@@ -97,19 +94,19 @@ export default function GoalDetailPage() {
       <StatCards
         cards={[
           {
-            label: 'Completions',
+            label: t.goals.completions,
             value: goal.completions ?? 0,
           },
           {
-            label: 'Conversion rate',
+            label: t.goals.conversionRate,
             value: `${(goal.conversion_rate || 0).toFixed(1)}%`,
           },
           {
-            label: 'Unique visitors',
+            label: t.goalDetail.uniqueVisitors,
             value: goal.unique_visitors || Math.floor((goal.completions || 0) * 0.8),
           },
           {
-            label: 'Last 30 days',
+            label: t.goalDetail.last30Days,
             value: goal.completions ?? 0,
           },
         ]}
@@ -118,7 +115,7 @@ export default function GoalDetailPage() {
       {/* Chart */}
       <Card className="border border-border mb-6">
         <CardHeader className="px-5 py-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Completions over 30 days</CardTitle>
+          <CardTitle className="text-sm font-semibold">{t.goalDetail.completionsOver30}</CardTitle>
         </CardHeader>
         <CardContent className="p-5">
           <ResponsiveContainer width="100%" height={220}>
@@ -145,7 +142,7 @@ export default function GoalDetailPage() {
       {/* Conversion bar */}
       <Card className="border border-border">
         <CardHeader className="px-5 py-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Conversion Rate</CardTitle>
+          <CardTitle className="text-sm font-semibold">{t.goals.conversionRate}</CardTitle>
         </CardHeader>
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
@@ -153,7 +150,7 @@ export default function GoalDetailPage() {
             <span className="text-2xl font-bold text-primary">{(goal.conversion_rate || 0).toFixed(1)}%</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {(goal.completions || 0).toLocaleString()} completions out of total sessions
+            {t.goalDetail.completionsOutOf((goal.completions || 0).toLocaleString())}
           </p>
         </CardContent>
       </Card>

@@ -16,6 +16,8 @@ export type Website = {
   automationEnabled: boolean;
   funnelEnabled: boolean;
   errorsEnabled: boolean;
+  /** What kind of business the site is for; orders the sidebar (features/sidebar/profiles.ts). Null until chosen. */
+  profile?: WebsiteProfile | null;
   heatmapEnabled: boolean;
   /** Whether visitors' browsers capture page backgrounds for heatmaps. Read only on the detail fetch. */
   heatmapLayoutEnabled?: boolean;
@@ -80,4 +82,12 @@ export interface WebsiteInvitation {
   acceptedAt?: string;
   createdAt: string;
   websiteName?: string;
+}
+
+/** fcommerce: a Facebook seller on seentics.shop; store: an online store; leads: a lead or service business. */
+export const WEBSITE_PROFILES = ['fcommerce', 'store', 'leads', 'other'] as const;
+export type WebsiteProfile = (typeof WEBSITE_PROFILES)[number];
+
+export function isWebsiteProfile(value: unknown): value is WebsiteProfile {
+  return typeof value === 'string' && (WEBSITE_PROFILES as readonly string[]).includes(value);
 }

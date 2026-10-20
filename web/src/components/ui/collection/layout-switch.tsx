@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { KanbanSquare, LayoutGrid, List, Table2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /** The ways a collection can be laid out. A page offers only the ones that earn their place. */
 export type CollectionLayout = 'list' | 'table' | 'cards' | 'board';
 
+/** Each layout's icon, and its English name (LayoutSwitch shows the name in the dashboard's language). */
 export const LAYOUT_META: Record<CollectionLayout, { label: string; icon: ReactNode }> = {
   list: { label: 'List', icon: <List /> },
   table: { label: 'Table', icon: <Table2 /> },
@@ -27,12 +29,13 @@ export function LayoutSwitch<L extends CollectionLayout>({
   /** Overrides a layout's name, e.g. Board for a pipeline's cards. */
   labels?: Partial<Record<L, string>>;
 }) {
+  const t = useT().ui.collection;
   if (layouts.length < 2) return null;
   return (
-    <div role="group" aria-label="Layout" className="flex gap-0.5 rounded-[7px] border border-border p-0.5">
+    <div role="group" aria-label={t.layout} className="flex gap-0.5 rounded-[7px] border border-border p-0.5">
       {layouts.map((l) => {
         const on = l === value;
-        const label = labels?.[l] ?? LAYOUT_META[l].label;
+        const label = labels?.[l] ?? t.layouts[l];
         return (
           <button
             key={l}
@@ -54,7 +57,9 @@ export function LayoutSwitch<L extends CollectionLayout>({
   );
 }
 
-const STORAGE_PREFIX = 'seentics:layout:';
+// v2: the list pages moved to table first; a choice saved before that is dropped once, so every
+// page opens on the new default, and a choice made since is kept as before.
+const STORAGE_PREFIX = 'seentics:layout:v2:';
 
 /**
  * The layout a page shows, remembered per page in this browser. Storage can be missing or

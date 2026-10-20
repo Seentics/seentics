@@ -140,7 +140,7 @@ export type CreatedWebsite = AgencyWebsite & { install?: WebsiteInstall };
 
 // ─── Feature visibility ───────────────────────────────────────────────────────
 
-/** Every dashboard page a client can be shown; the order is `FEATURES` in `constants.ts`. */
+/** Every dashboard page a client can be shown; the order is `FEATURE_IDS` in `constants.ts`. */
 export type FeatureId =
   | 'overview' | 'events' | 'paths' | 'revenue' | 'recordings' | 'heatmaps' | 'funnels'
   | 'goals' | 'automations' | 'leads' | 'conversions' | 'ai' | 'errors' | 'privacy';

@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isDemo } from '@/lib/demo';
-import { SENSITIVITY_OPTIONS } from '@/features/ai/alerts/format';
+import { sensitivityOptions } from '@/features/ai/alerts/format';
 import { useAlertSettings, useUpdateAlertSettings } from '@/features/ai/alerts/queries';
 import type { AlertSensitivity, AlertSettings } from '@/features/ai/alerts/types';
+import { useT } from '@/lib/i18n';
 
 /**
  * Turn a site's anomaly alerts on or off and choose how sensitive they are. Owners and
@@ -21,38 +22,40 @@ import type { AlertSensitivity, AlertSettings } from '@/features/ai/alerts/types
 export function AlertSettingsCard({ websiteId }: { websiteId: string }) {
   const settings = useAlertSettings(websiteId);
   const update = useUpdateAlertSettings(websiteId);
+  const tAll = useT();
+  const t = tAll.settings.alertCard;
+  const options = sensitivityOptions(tAll.ai.alerts.sensitivity);
 
   if (isDemo(websiteId)) {
     return (
-      <Card><CardContent className="p-5 text-sm text-muted-foreground">Alerts are not available on the demo website.</CardContent></Card>
+      <Card><CardContent className="p-5 text-sm text-muted-foreground">{t.demo}</CardContent></Card>
     );
   }
   if (settings.isPending) {
     return <Card><CardContent className="space-y-3 p-5"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-9 w-48" /></CardContent></Card>;
   }
   if (settings.isError || !settings.data) {
-    return <Card><CardContent className="p-5 text-sm text-destructive">Alert settings could not be loaded. Try again later.</CardContent></Card>;
+    return <Card><CardContent className="p-5 text-sm text-destructive">{t.loadFailed}</CardContent></Card>;
   }
 
   const { enabled, sensitivity, canManage } = settings.data;
   const disabled = !canManage || update.isPending;
   const save = (patch: Partial<AlertSettings>) => {
     update.mutate(patch, {
-      onSuccess: () => toast.success('Alert settings saved'),
-      onError: (err: unknown) => toast.error(err instanceof Error && err.message ? err.message : 'Failed to save alert settings'),
+      onSuccess: () => toast.success(t.saved),
+      onError: (err: unknown) => toast.error(err instanceof Error && err.message ? err.message : t.saveFailed),
     });
   };
-  const hint = SENSITIVITY_OPTIONS.find((o) => o.value === sensitivity)?.hint;
+  const hint = options.find((o) => o.value === sensitivity)?.hint;
 
   return (
     <Card>
       <CardContent className="space-y-5 p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <Label htmlFor="alerts-enabled" className="text-sm font-medium">Detect unusual activity</Label>
+            <Label htmlFor="alerts-enabled" className="text-sm font-medium">{t.detect}</Label>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Traffic drops and spikes, tracking that has gone quiet, JavaScript error surges and falling goal conversions.
-              Open alerts show at the top of the dashboard.
+              {t.detectBody}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -62,17 +65,17 @@ export function AlertSettingsCard({ websiteId }: { websiteId: string }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Sensitivity</Label>
+          <Label className="text-sm font-medium">{t.sensitivity}</Label>
           <Select
             value={sensitivity}
             disabled={disabled || !enabled}
             onValueChange={(v) => save({ sensitivity: v as AlertSensitivity })}
           >
-            <SelectTrigger className="w-48" aria-label="Alert sensitivity">
+            <SelectTrigger className="w-48" aria-label={t.sensitivityAria}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SENSITIVITY_OPTIONS.map((o) => (
+              {options.map((o) => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
@@ -83,9 +86,8 @@ export function AlertSettingsCard({ websiteId }: { websiteId: string }) {
         <div className="flex gap-2 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground leading-relaxed">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <p>
-            Alert emails go to everyone with access to this website, at most a few a day. Each email has a link to stop
-            alerts for this site without affecting the weekly digest.
-            {!canManage && ' Only the website owner or an admin can change these settings.'}
+            {t.emails}
+            {!canManage && t.ownerOnly}
           </p>
         </div>
       </CardContent>

@@ -1,19 +1,22 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { IntegrationIcon } from '@/components/integrations/IntegrationIcon';
+import { useT } from '@/lib/i18n';
 import { INTEGRATIONS, INTEGRATION_CATEGORIES } from '@/lib/integrations';
 
 export default function IntegrationsPage() {
+  const t = useT().site.integrations;
   return (
     <div className="landing-container py-16 sm:py-20">
       <div className="max-w-2xl">
-        <p className="text-sm font-medium text-muted-foreground">Integrations</p>
+        <p className="text-sm font-medium text-muted-foreground">{t.eyebrow}</p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Works with the stack you already have
+          {t.title}
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-          One script tag is all Seentics needs. For the platforms below there is a guide, and for
-          stores and frameworks a plugin or package that also reports purchases and events.
+          {t.lead}
         </p>
       </div>
 
@@ -24,7 +27,7 @@ export default function IntegrationsPage() {
           return (
             <section key={category} aria-labelledby={`cat-${category}`}>
               <h2 id={`cat-${category}`} className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/70">
-                {category}
+                {t.categories[category]}
               </h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => (
@@ -40,7 +43,7 @@ export default function IntegrationsPage() {
                         <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
                       </span>
                       <span className="mt-0.5 block text-[13px] leading-relaxed text-muted-foreground">
-                        {item.description}
+                        {t.descriptions[item.name] ?? item.description}
                       </span>
                     </span>
                   </Link>
@@ -52,13 +55,12 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="mt-16 rounded-xl border border-border bg-muted/30 p-6 sm:p-8">
-        <h2 className="text-lg font-semibold text-foreground">Not listed?</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t.notListed}</h2>
         <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-          If your site lets you add a script to its pages, Seentics works there. Paste the tag and
-          you are done.
+          {t.notListedBody}
         </p>
         <Link href="/docs/quick-start" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-          Quick start <ArrowRight className="h-3.5 w-3.5" />
+          {t.quickStart} <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
     </div>

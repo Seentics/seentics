@@ -14,6 +14,7 @@ import { useConversationList } from '@/features/ai/queries';
 import { useDefaultMode } from '@/features/ai/default-mode';
 import { readAskParams, type AskParams } from '@/features/ai/ask-link';
 import { useAuth } from '@/stores/useAuthStore';
+import { useT } from '@/lib/i18n';
 
 /**
  * Route composition only.
@@ -35,6 +36,7 @@ import { useAuth } from '@/stores/useAuthStore';
 export default function AIModePage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const { user } = useAuth();
+  const t = useT().ai.page;
   const websiteId = params?.websiteId as string;
 
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
@@ -87,7 +89,7 @@ export default function AIModePage() {
         <AskParamsReader onAsk={onAsk} />
       </Suspense>
 
-      <div className="app-frame relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]">
+      <div className="app-frame relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AssistantChat
           // Remount on an explicit pick or "New" so the chat starts from that conversation
           // rather than merging it into whatever is already on screen — and so a reply
@@ -116,7 +118,7 @@ export default function AIModePage() {
                   className="flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5" />
-                  Dashboard
+                  {t.dashboard}
                 </Link>
               )}
             </>

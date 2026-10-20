@@ -8,22 +8,25 @@ import { ArrowLeft, BarChart3, Code2, Globe, LayoutDashboard, Menu, Palette, Use
 import { Logo } from '@/components/ui/logo';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { AGENCY_DEMO_EXIT_HREF, exitAgencyDemo, useAgencyDemo } from '@/lib/demo/agency-mode';
+import { useT } from '@/lib/i18n';
+import type { AgencyMessages } from '@/lib/i18n/messages/agency-en';
 import { cn } from '@/lib/utils';
 import { dashboardHref, useHomeWebsite } from './use-home-website';
 
 interface Item {
-  label: string;
+  /** Its name: `useT().agency.nav[label]`. */
+  label: keyof AgencyMessages['nav'];
   href: string;
   icon: ElementType;
 }
 
 export const AGENCY_NAV: Item[] = [
-  { label: 'Overview', href: '/agency', icon: LayoutDashboard },
-  { label: 'Clients', href: '/agency/clients', icon: Users },
-  { label: 'Websites', href: '/agency/websites', icon: Globe },
-  { label: 'Branding & domain', href: '/agency/branding', icon: Palette },
-  { label: 'Usage', href: '/agency/usage', icon: BarChart3 },
-  { label: 'API', href: '/agency/api', icon: Code2 },
+  { label: 'overview', href: '/agency', icon: LayoutDashboard },
+  { label: 'clients', href: '/agency/clients', icon: Users },
+  { label: 'websites', href: '/agency/websites', icon: Globe },
+  { label: 'branding', href: '/agency/branding', icon: Palette },
+  { label: 'usage', href: '/agency/usage', icon: BarChart3 },
+  { label: 'api', href: '/agency/api', icon: Code2 },
 ];
 
 export function isAgencyNavActive(href: string, pathname: string): boolean {
@@ -37,6 +40,7 @@ export function isAgencyNavActive(href: string, pathname: string): boolean {
  * full page load, so the workspace starts again on the real API.
  */
 export function AgencyDemoBadge({ compact = false }: { compact?: boolean }) {
+  const t = useT().agency.nav;
   return (
     <div
       data-testid="agency-demo-badge"
@@ -44,10 +48,10 @@ export function AgencyDemoBadge({ compact = false }: { compact?: boolean }) {
     >
       <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        Demo data
+        {t.demoData}
       </span>
       <a href={AGENCY_DEMO_EXIT_HREF} onClick={() => exitAgencyDemo()} className="font-medium text-foreground/70 underline-offset-2 hover:text-foreground hover:underline">
-        Exit demo
+        {t.exitDemo}
       </a>
     </div>
   );
@@ -55,6 +59,7 @@ export function AgencyDemoBadge({ compact = false }: { compact?: boolean }) {
 
 /** The workspace's navigation: the dashboard sidebar's look, with the agency's pages. */
 export function AgencySidebar() {
+  const t = useT().agency.nav;
   const pathname = usePathname() ?? '';
   const home = useHomeWebsite();
   const demo = useAgencyDemo();
@@ -63,14 +68,14 @@ export function AgencySidebar() {
 
   const panel = (inDrawer: boolean) => (
     <aside
-      aria-label="Agency"
+      aria-label={t.agency}
       className={cn('flex-col shrink-0 overflow-hidden bg-sidebar select-none', inDrawer ? 'flex h-full w-full' : 'hidden h-screen w-[216px] md:flex')}
     >
       <div className="flex h-[60px] shrink-0 items-center gap-2.5 px-4">
         <Link href="/agency" className="flex min-w-0 items-center gap-2.5">
           <Logo size="sm" className="shrink-0" />
           <span className="text-[16px] font-bold tracking-tight text-foreground">Seentics</span>
-          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary">Agency</span>
+          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary">{t.agency}</span>
         </Link>
       </div>
       {demo && <AgencyDemoBadge />}
@@ -86,12 +91,12 @@ export function AgencySidebar() {
                   className={cn(
                     'flex h-9 items-center gap-3 rounded-lg px-3 transition-colors',
                     active
-                      ? 'bg-card text-foreground shadow-[0_0_0_1px_rgb(15_15_20/0.07),0_1px_2px_rgb(15_15_20/0.06)] dark:bg-accent dark:shadow-none'
-                      : 'text-foreground/60 hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-muted/50',
+                      ? 'bg-muted text-foreground dark:bg-white/[0.08]'
+                      : 'text-foreground/60 hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-white/[0.05]',
                   )}
                 >
                   <item.icon className="h-[17px] w-[17px] shrink-0" />
-                  <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+                  <span className="flex-1 text-[13.5px] font-medium">{t[item.label]}</span>
                 </Link>
               </li>
             );
@@ -101,10 +106,10 @@ export function AgencySidebar() {
       <div className="flex shrink-0 items-center gap-1 border-t border-sidebar-border px-3 pb-6 pt-3 dark:border-border/60">
         <Link
           href={dashboardHref(home)}
-          className="flex h-9 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 text-foreground/60 transition-colors hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-muted/50"
+          className="flex h-9 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 text-foreground/60 transition-colors hover:bg-black/[0.045] hover:text-foreground dark:hover:bg-white/[0.05]"
         >
           <ArrowLeft className="h-[17px] w-[17px] shrink-0" />
-          <span className="truncate text-[13.5px] font-medium">Back to dashboard</span>
+          <span className="truncate text-[13.5px] font-medium">{t.backToDashboard}</span>
         </Link>
         <ThemeToggle className="text-foreground/60 hover:text-foreground" />
       </div>
@@ -117,14 +122,14 @@ export function AgencySidebar() {
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open navigation"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+          aria-label={t.openNavigation}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted/60 dark:hover:bg-white/[0.05] hover:text-foreground"
         >
           <Menu className="h-5 w-5" />
         </button>
         <Link href="/agency" className="flex items-center gap-2">
           <Logo size="sm" className="shrink-0" />
-          <span className="text-[16px] font-bold tracking-tight text-foreground">Agency</span>
+          <span className="text-[16px] font-bold tracking-tight text-foreground">{t.agency}</span>
         </Link>
         <div className="ml-auto flex items-center gap-1 pr-1">
           {demo && <AgencyDemoBadge compact />}
@@ -134,7 +139,7 @@ export function AgencySidebar() {
       {panel(false)}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="left" className="w-[264px] max-w-[85vw] border-sidebar-border bg-sidebar p-0 md:hidden">
-          <SheetTitle className="sr-only">Agency navigation</SheetTitle>
+          <SheetTitle className="sr-only">{t.agencyNavigation}</SheetTitle>
           {panel(true)}
         </SheetContent>
       </Sheet>

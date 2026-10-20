@@ -166,7 +166,8 @@ export function demoDestinations(): Destination[] {
 
 export function demoConversionEvents(f: ConversionEventFilters): ConversionEventPage {
   const matched = EVENTS.filter((e) =>
-    (!f.destination || e.destination_id === f.destination) && (!f.status || e.status === f.status) && (!f.kind || e.kind === f.kind));
+    (!f.destination || e.destination_id === f.destination) && (!f.status || e.status === f.status) && (!f.kind || e.kind === f.kind)
+    && (!f.days || Date.parse(e.created_at) >= NOW - f.days * DAY));
   return { events: matched.slice(f.offset, f.offset + f.limit), total: matched.length };
 }
 

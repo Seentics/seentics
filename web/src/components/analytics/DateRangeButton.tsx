@@ -8,18 +8,22 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { formatDateSpan, formatRangeDates, formatShortDate } from '@/lib/range-dates';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
-/** The presets, as the Filters dialog's "Time Period" offers them — both write the same state. */
+/**
+ * The presets, as the Filters dialog's "Time Period" offers them — both write the same state.
+ * Their names are in `analytics.dateRange.presets`, keyed by value.
+ */
 export const DATE_PRESETS = [
-  { value: '0',      label: 'Today' },
-  { value: '1',      label: 'Yesterday' },
-  { value: '7',      label: 'Last 7 days' },
-  { value: '14',     label: 'Last 14 days' },
-  { value: '30',     label: 'Last 30 days' },
-  { value: '90',     label: 'Last 90 days' },
-  { value: '180',    label: 'Last 6 months' },
-  { value: '365',    label: 'Last 12 months' },
-  { value: 'custom', label: 'Custom range' },
+  { value: '0' },
+  { value: '1' },
+  { value: '7' },
+  { value: '14' },
+  { value: '30' },
+  { value: '90' },
+  { value: '180' },
+  { value: '365' },
+  { value: 'custom' },
 ] as const;
 
 interface DateRangeButtonProps {
@@ -59,6 +63,7 @@ export function DateRangeButton({
   onDateRangeChange,
   onCustomDateChange,
 }: DateRangeButtonProps) {
+  const t = useT().analytics.dateRange;
   const [open, setOpen] = useState(false);
   // Computed after mount: it comes from the clock, which the server and browser can
   // disagree on around midnight.
@@ -67,16 +72,16 @@ export function DateRangeButton({
 
   const activeValue = isCustomRange ? 'custom' : String(dateRange);
 
-  let label = 'Select dates';
+  let label = t.selectDates;
   if (isCustomRange) {
     label =
       customStartDate && customEndDate
         ? formatDateSpan(customStartDate, customEndDate)
-        : 'Custom range';
+        : t.presets.custom;
   } else if (now) {
     label = presetDates(dateRange, now);
   } else {
-    label = DATE_PRESETS.find((p) => p.value === activeValue)?.label ?? 'Select dates';
+    label = t.presets[activeValue] ?? t.selectDates;
   }
 
   return (
@@ -84,7 +89,7 @@ export function DateRangeButton({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          aria-label="Date range"
+          aria-label={t.ariaLabel}
           className={cn(GHOST_CONTROL, 'h-8 gap-1.5 px-2.5 text-[13px]')}
         >
           <CalendarDays className="h-3.5 w-3.5 shrink-0" />
@@ -94,11 +99,10 @@ export function DateRangeButton({
 
       <PopoverContent align="end" className="w-auto p-1">
         <div className="flex flex-col sm:flex-row">
-          <div className="flex min-w-[160px] flex-col" role="listbox" aria-label="Date presets">
+          <div className="flex min-w-[160px] flex-col" role="listbox" aria-label={t.presetsAria}>
             {PRESET_GROUPS.map((group, gi) => (
               <div key={gi} className={cn('flex flex-col gap-px', gi > 0 && 'mt-1 border-t border-border pt-1')}>
                 {group.map((value) => {
-                  const preset = DATE_PRESETS.find((p) => p.value === value)!;
                   const active = value === activeValue;
                   return (
                     <button
@@ -115,7 +119,7 @@ export function DateRangeButton({
                         active ? 'bg-muted font-semibold text-foreground' : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground',
                       )}
                     >
-                      {preset.label}
+                      {t.presets[value]}
                       {active && <Check className="h-3.5 w-3.5" />}
                     </button>
                   );

@@ -12,6 +12,7 @@ import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { DEFAULT_FUNNEL_DAYS, FunnelRangeSelect, funnelRangeLabel } from '@/components/funnels/FunnelRangeSelect';
 import { useFunnelAnalytics, useFunnels } from '@/features/funnels/queries';
+import { useT } from '@/lib/i18n';
 
 /**
  * A funnel's page: its header and range, then the report (components/funnels/FunnelReport),
@@ -27,6 +28,8 @@ export default function FunnelDetailPage() {
   const websiteId = params?.websiteId as string;
   const funnelId = params?.funnelId as string;
 
+  const all = useT();
+  const t = all.funnels.detail;
   const { data: funnels = [], isLoading: funnelsLoading } = useFunnels(websiteId);
   const [days, setDays] = useState<number>(DEFAULT_FUNNEL_DAYS);
   const { data: analyticsData, isLoading: analyticsLoading } = useFunnelAnalytics(funnelId, days, websiteId);
@@ -58,9 +61,9 @@ export default function FunnelDetailPage() {
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <GitBranch className="h-6 w-6" />
           </span>
-          <p className="text-sm font-semibold text-foreground">Funnel not found</p>
+          <p className="text-sm font-semibold text-foreground">{t.notFound}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            It may have been deleted, or it belongs to another website.
+            {t.notFoundBody}
           </p>
           <Button
             variant="outline"
@@ -69,7 +72,7 @@ export default function FunnelDetailPage() {
             onClick={() => router.push(`/websites/${websiteId}/funnels`)}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to funnels
+            {t.back}
           </Button>
         </div>
       </div>
@@ -78,20 +81,19 @@ export default function FunnelDetailPage() {
 
   const windowText = funnel.conversion_window_hours
     ? funnel.conversion_window_hours >= 24 && funnel.conversion_window_hours % 24 === 0
-      ? `${funnel.conversion_window_hours / 24} day${funnel.conversion_window_hours === 24 ? '' : 's'}`
-      : `${funnel.conversion_window_hours} hour${funnel.conversion_window_hours === 1 ? '' : 's'}`
+      ? t.days(funnel.conversion_window_hours / 24)
+      : t.hours(funnel.conversion_window_hours)
     : null;
 
   return (
     <ReportPage
-      icon={<GitBranch />}
       title={funnel.name}
-      parent={{ label: 'Funnels', onClick: () => router.push(`/websites/${websiteId}/funnels`) }}
-      description={funnel.description || `${rows.length} step${rows.length === 1 ? '' : 's'} · ${funnel.is_active ? 'Active' : 'Paused'}`}
+      parent={{ label: t.parent, onClick: () => router.push(`/websites/${websiteId}/funnels`) }}
+      description={funnel.description || t.stepsStatus(rows.length, funnel.is_active)}
       websiteId={websiteId}
       width="max-w-[1200px]"
       actions={<>
-        <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name)} />
+        <AskAiButton websiteId={websiteId} size="md" {...askAbout.funnel(funnel.name, all.ai.ask)} />
         <FunnelRangeSelect value={days} onChange={setDays} />
       </>}
     >
@@ -108,18 +110,18 @@ export default function FunnelDetailPage() {
         conversionRate={analytics?.conversion_rate || 0}
         dropOffRate={analytics?.drop_off_rate || 0}
         avgTimeToConvert={analytics?.avg_time_to_convert}
-        rangeLabel={funnelRangeLabel(days)}
+        rangeLabel={funnelRangeLabel(days, all.funnels.ranges)}
         loading={analyticsLoading}
       />
 
       <details className="group mt-4 text-xs text-muted-foreground">
         <summary className="inline-flex cursor-pointer list-none items-center gap-1 font-medium transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
           <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" aria-hidden />
-          How this is counted
+          {t.howCounted}
         </summary>
         <p className="mt-2 max-w-3xl pl-[18px] leading-relaxed">
-          Counted from page views and events. Visitors who have not agreed to tracking are followed within a single day only, so a journey that crosses midnight counts them at the step they reached before it.
-          {windowText ? ` Each step has to follow the one before within ${windowText}.` : ''}
+          {t.howCountedBody}
+          {windowText ? t.window(windowText) : ''}
         </p>
       </details>
     </ReportPage>

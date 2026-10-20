@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { errorMessage, inviteClientUser, removeClientUser, sendClientUserLink, updateClientUser } from '@/features/agency/api';
+import { inviteClientUser, removeClientUser, sendClientUserLink, updateClientUser } from '@/features/agency/api';
 import { useAgencyMutation, useBranding, useClientUsers, useDomain } from '@/features/agency/queries';
 import type { ClientUser, ClientUserStatus, Domain } from '@/features/agency/types';
-import { CopyButton, EmptyState, ErrorNote, LoadingRow, Panel, Pill, type Tone } from './ui';
+import { useLocale, useT, type Locale } from '@/lib/i18n';
+import type { AgencyMessages } from '@/lib/i18n/messages/agency-en';
+import { CopyButton, EmptyState, ErrorNote, LoadingRow, Panel, Pill, shortDate, useErrorText, type Tone } from './ui';
 
 /** Where a client signs in without a domain of the agency's own: seentics.com, under its sign-in name. */
 export const CLIENT_SIGNIN_BASE = 'https://seentics.com/signin';
@@ -29,18 +31,14 @@ export function clientSigninUrl(slug: string | null | undefined, domain?: Domain
   return slug ? `${CLIENT_SIGNIN_BASE}?agency=${encodeURIComponent(slug)}` : null;
 }
 
-const STATUS: Record<ClientUserStatus, [Tone, string]> = {
-  invited: ['amber', 'Invited'],
-  active: ['green', 'Active'],
-  disabled: ['muted', 'Disabled'],
-};
+const STATUS_TONE: Record<ClientUserStatus, Tone> = { invited: 'amber', active: 'green', disabled: 'muted' };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function lastSeen(user: ClientUser): string {
-  if (!user.last_seen_at) return user.status === 'invited' ? 'Not signed in yet' : 'Never signed in';
+function lastSeen(user: ClientUser, t: AgencyMessages['clientUsers'], locale: Locale): string {
+  if (!user.last_seen_at) return user.status === 'invited' ? t.notSignedInYet : t.neverSignedIn;
   const d = new Date(user.last_seen_at);
-  return Number.isNaN(d.getTime()) ? '—' : `Last seen ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return Number.isNaN(d.getTime()) ? '—' : t.lastSeen(shortDate(user.last_seen_at, locale));
 }
 
 /**
@@ -48,6 +46,10 @@ function lastSeen(user: ClientUser): string {
  * or enable, remove. With the sign-in address to hand out.
  */
 export function ClientUsersPanel({ clientId }: { clientId: string }) {
+  const all = useT().agency;
+  const t = all.clientUsers;
+  const { locale } = useLocale();
+  const errorMessage = useErrorText();
   const users = useClientUsers(clientId);
   const branding = useBranding();
   const domain = useDomain();
@@ -66,7 +68,7 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
     e.preventDefault();
     const address = email.trim();
     if (!EMAIL.test(address)) {
-      setFormError('Enter a valid email address.');
+      setFormError(t.invalidEmail);
       return;
     }
     setFormError(null);
@@ -74,7 +76,7 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
     const body = name.trim() ? { email: address, name: name.trim() } : { email: address };
     invite.mutate(body, {
       onSuccess: () => {
-        toast.success('Invite sent');
+        toast.success(t.inviteSent);
         setSentTo(address);
         setEmail('');
         setName('');
@@ -85,12 +87,12 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
 
   const removeUser = async (user: ClientUser) => {
     const ok = await confirm({
-      title: `Remove ${user.email}?`,
-      description: 'They lose access to this client’s dashboard at once. You can invite them again later.',
-      confirmLabel: 'Remove',
+      title: t.removeTitle(user.email),
+      description: t.removeBody,
+      confirmLabel: all.common.remove,
       destructive: true,
     });
-    if (ok) remove.mutate(user.id, { onSuccess: () => toast.success('Client user removed'), onError });
+    if (ok) remove.mutate(user.id, { onSuccess: () => toast.success(t.removed), onError });
   };
 
   const slug = branding.data?.slug ?? null;
@@ -100,33 +102,33 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
   return (
     <Panel
       data-testid="client-users-panel"
-      title="Client sign-in"
-      description="People at this client who sign in to their dashboard with an email link. They see only this client’s websites and the pages you allow."
+      title={t.title}
+      description={t.description}
     >
       {confirmDialog}
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-foreground">Sign-in link</p>
+        <p className="text-xs font-medium text-foreground">{t.signinLink}</p>
         {branding.isLoading || domain.isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading…</p>
+          <p className="text-xs text-muted-foreground">{all.common.loading}</p>
         ) : signinUrl ? (
           <div className="flex items-center gap-2">
-            <Input readOnly value={signinUrl} aria-label="Client sign-in link" className="h-8 font-mono text-xs" />
-            <CopyButton text={signinUrl} label="Copy sign-in link" />
+            <Input readOnly value={signinUrl} aria-label={t.signinLinkLabel} className="h-8 font-mono text-xs" />
+            <CopyButton text={signinUrl} label={t.copySigninLink} />
           </div>
         ) : (
           <p data-testid="signin-slug-missing" className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Set a sign-in name in{' '}
-            <Link href="/agency/branding" className="font-medium text-primary hover:underline">Branding &amp; domain</Link>{' '}
-            to get your clients’ sign-in link.
+            {t.slugMissingBefore}{' '}
+            <Link href="/agency/branding" className="font-medium text-primary hover:underline">{t.slugMissingLink}</Link>{' '}
+            {t.slugMissingAfter}
           </p>
         )}
       </div>
 
       <form onSubmit={submit} className="mt-4 space-y-2 border-t border-border pt-4" noValidate>
-        <p className="text-xs font-medium text-foreground">Invite someone</p>
+        <p className="text-xs font-medium text-foreground">{t.inviteSomeone}</p>
         <div className="space-y-1">
-          <Label htmlFor={`invite-email-${clientId}`} className="text-xs">Email</Label>
+          <Label htmlFor={`invite-email-${clientId}`} className="text-xs">{t.email}</Label>
           <Input
             id={`invite-email-${clientId}`}
             type="email"
@@ -138,7 +140,7 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={`invite-name-${clientId}`} className="text-xs">Name <span className="font-normal text-muted-foreground">(optional)</span></Label>
+          <Label htmlFor={`invite-name-${clientId}`} className="text-xs">{t.name} <span className="font-normal text-muted-foreground">{all.common.optional}</span></Label>
           <Input
             id={`invite-name-${clientId}`}
             autoComplete="off"
@@ -151,12 +153,12 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
         {formError && <ErrorNote>{formError}</ErrorNote>}
         {sentTo && (
           <p role="status" className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-            <Mail className="h-3.5 w-3.5" />Invite sent to {sentTo}
+            <Mail className="h-3.5 w-3.5" />{t.inviteSentTo(sentTo)}
           </p>
         )}
         <Button type="submit" size="sm" className="h-8 gap-1.5 text-xs" disabled={invite.isPending}>
           {invite.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
-          Invite
+          {t.invite}
         </Button>
       </form>
 
@@ -166,18 +168,19 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
         ) : users.isError ? (
           <ErrorNote>{errorMessage(users.error)}</ErrorNote>
         ) : list.length === 0 ? (
-          <EmptyState icon={<Users className="h-5 w-5" />} title="No client users yet" description="Invite someone above. They get an email with a sign-in link." />
+          <EmptyState icon={<Users className="h-5 w-5" />} title={t.noneYet} description={t.noneYetBody} />
         ) : (
-          <ul className="divide-y divide-border rounded-md border border-border" aria-label="Client users">
+          <ul className="divide-y divide-border rounded-md border border-border" aria-label={t.listLabel}>
             {list.map(user => {
-              const [tone, label] = STATUS[user.status];
+              const tone = STATUS_TONE[user.status];
+              const label = t.status[user.status];
               return (
                 <li key={user.id} className="space-y-2 px-3 py-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-[13px] font-medium text-foreground">{user.name || user.email}</p>
                       {user.name && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
-                      <p className="text-[11px] text-muted-foreground">{lastSeen(user)}</p>
+                      <p className="text-[11px] text-muted-foreground">{lastSeen(user, t, locale)}</p>
                     </div>
                     <Pill tone={tone}>{label}</Pill>
                   </div>
@@ -185,38 +188,38 @@ export function ClientUsersPanel({ clientId }: { clientId: string }) {
                     {user.status !== 'disabled' && (
                       <Button
                         variant="outline" size="sm" className="h-7 gap-1 px-2 text-[11px]"
-                        aria-label={`Resend link to ${user.email}`}
+                        aria-label={t.resendTo(user.email)}
                         disabled={resend.isPending}
-                        onClick={() => resend.mutate(user.id, { onSuccess: () => toast.success('Sign-in link sent'), onError })}
+                        onClick={() => resend.mutate(user.id, { onSuccess: () => toast.success(t.linkSent), onError })}
                       >
-                        <Send className="h-3 w-3" />Resend link
+                        <Send className="h-3 w-3" />{t.resend}
                       </Button>
                     )}
                     {user.status === 'disabled' ? (
                       <Button
                         variant="outline" size="sm" className="h-7 gap-1 px-2 text-[11px]"
-                        aria-label={`Enable ${user.email}`}
+                        aria-label={t.enableNamed(user.email)}
                         disabled={update.isPending}
-                        onClick={() => update.mutate({ userId: user.id, status: 'active' }, { onSuccess: () => toast.success('Client user enabled'), onError })}
+                        onClick={() => update.mutate({ userId: user.id, status: 'active' }, { onSuccess: () => toast.success(t.enabled), onError })}
                       >
-                        <RotateCcw className="h-3 w-3" />Enable
+                        <RotateCcw className="h-3 w-3" />{t.enable}
                       </Button>
                     ) : (
                       <Button
                         variant="outline" size="sm" className="h-7 gap-1 px-2 text-[11px]"
-                        aria-label={`Disable ${user.email}`}
+                        aria-label={t.disableNamed(user.email)}
                         disabled={update.isPending}
-                        onClick={() => update.mutate({ userId: user.id, status: 'disabled' }, { onSuccess: () => toast.success('Client user disabled'), onError })}
+                        onClick={() => update.mutate({ userId: user.id, status: 'disabled' }, { onSuccess: () => toast.success(t.disabled), onError })}
                       >
-                        <Ban className="h-3 w-3" />Disable
+                        <Ban className="h-3 w-3" />{t.disable}
                       </Button>
                     )}
                     <Button
                       variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove ${user.email}`}
+                      aria-label={t.removeNamed(user.email)}
                       onClick={() => void removeUser(user)}
                     >
-                      <Trash2 className="h-3 w-3" />Remove
+                      <Trash2 className="h-3 w-3" />{all.common.remove}
                     </Button>
                   </div>
                 </li>

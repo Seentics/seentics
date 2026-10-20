@@ -50,6 +50,7 @@ import { isEnterprise } from '@/lib/features';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { VisitorRequestCard } from './VisitorRequestCard';
+import { useT } from '@/lib/i18n';
 
 interface PrivacySettingsProps {
   websiteId?: string;
@@ -96,6 +97,8 @@ function PrivacyToggleCard({
 
 export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
   const { user } = useAuth();
+  const tAll = useT();
+  const t = tAll.settings.privacy;
 
   // --- Shared state ---
   const [isExporting, setIsExporting] = useState(false);
@@ -142,11 +145,11 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
     try {
       localStorage.setItem('seentics_oss_privacy', JSON.stringify(updated));
-      toast.success('Privacy setting updated');
+      toast.success(t.settingUpdated);
     } catch {
-      toast.error('Failed to save setting');
+      toast.error(t.settingFailed);
     }
-  }, [ipAnonymization, cookielessMode, respectDnt, botFiltering]);
+  }, [ipAnonymization, cookielessMode, respectDnt, botFiltering, t]);
 
   // --- Enterprise: load settings ---
   useEffect(() => {
@@ -172,9 +175,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
     setIsSavingSettings(true);
     try {
       await privacyAPI.updateWebsitePrivacy(websiteId, privacySettings);
-      toast.success('Privacy settings saved.');
+      toast.success(t.saved);
     } catch {
-      toast.error('Failed to save privacy settings.');
+      toast.error(t.saveFailed);
     } finally {
       setIsSavingSettings(false);
     }
@@ -183,16 +186,16 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
   // Export all user data
   const handleExportAll = async () => {
     if (!user?.id) {
-      toast.error('You must be logged in to export data.');
+      toast.error(t.signedOut);
       return;
     }
     try {
       setIsExporting(true);
       const data = await privacyAPI.exportAnalyticsData(user.id);
       downloadJson(data, `seentics-all-data-export-${new Date().toISOString().split('T')[0]}.json`);
-      toast.success('All data exported successfully.');
+      toast.success(t.allExported);
     } catch {
-      toast.error('Failed to export data.');
+      toast.error(t.exportFailed);
     } finally {
       setIsExporting(false);
     }
@@ -201,7 +204,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
   // Export website-specific data
   const handleExportWebsite = async () => {
     if (!websiteId) {
-      toast.error('No website selected.');
+      toast.error(t.noWebsite);
       return;
     }
     try {
@@ -209,9 +212,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       const res = await privacyAPI.exportWebsiteData(websiteId);
       const exportData = res.data || res;
       downloadJson(exportData, `seentics-website-${websiteId}-export-${new Date().toISOString().split('T')[0]}.json`);
-      toast.success('Website data exported successfully.');
+      toast.success(t.websiteExported);
     } catch {
-      toast.error('Failed to export website data.');
+      toast.error(t.websiteExportFailed);
     } finally {
       setIsExportingWebsite(false);
     }
@@ -223,15 +226,15 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       setIsDeleting(true);
       if (websiteId) {
         await privacyAPI.deleteWebsiteAnalytics(websiteId);
-        toast.success('Website analytics data deleted.');
+        toast.success(t.websiteDeleted);
       } else if (user?.id) {
         await privacyAPI.deleteAnalyticsData(user.id);
-        toast.success('All analytics data deleted.');
+        toast.success(t.allDeleted);
       }
       setShowDeleteConfirm(false);
       setDeleteConfirmText('');
     } catch {
-      toast.error('Failed to delete data.');
+      toast.error(t.deleteFailed);
     } finally {
       setIsDeleting(false);
     }
@@ -257,15 +260,15 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               <Shield className="h-4.5 w-4.5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold tracking-tight">Privacy & Data Protection</h3>
-              <p className="text-xs text-muted-foreground">Control how visitor data is collected, stored, and processed.</p>
+              <h3 className="text-lg font-bold tracking-tight">{t.title}</h3>
+              <p className="text-xs text-muted-foreground">{t.description}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Privacy-First</span>
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">{t.privacyFirst}</span>
           </div>
         </div>
       </div>
@@ -274,7 +277,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Privacy Controls</h4>
+          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{t.controls}</h4>
         </div>
 
         {/* OSS mode: local toggles */}
@@ -282,8 +285,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <div className="space-y-2">
             <PrivacyToggleCard
               icon={EyeOff}
-              title="IP Anonymization"
-              description="Mask the last octet of visitor IP addresses before storage. Recommended for GDPR compliance."
+              title={t.ipAnonymization}
+              description={t.ipAnonymizationBody}
               checked={ipAnonymization}
               onToggle={(v) => handleOssToggle('ipAnonymization', v)}
               color="text-indigo-500"
@@ -291,8 +294,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             />
             <PrivacyToggleCard
               icon={Cookie}
-              title="Cookie-less Tracking"
-              description="Track unique visitors without persistent cookies. Eliminates the need for cookie consent banners."
+              title={t.cookieless}
+              description={t.cookielessBody}
               checked={cookielessMode}
               onToggle={(v) => handleOssToggle('cookielessMode', v)}
               color="text-indigo-500"
@@ -300,8 +303,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             />
             <PrivacyToggleCard
               icon={Globe}
-              title="Respect Do-Not-Track"
-              description="Honor the browser's DNT signal. When enabled, visitors with DNT:1 won't be tracked at all."
+              title={t.dnt}
+              description={t.dntBody}
               checked={respectDnt}
               onToggle={(v) => handleOssToggle('respectDnt', v)}
               color="text-indigo-500"
@@ -309,8 +312,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             />
             <PrivacyToggleCard
               icon={Bot}
-              title="Bot Filtering"
-              description="Automatically exclude known bots and crawlers from your analytics data for cleaner metrics."
+              title={t.bots}
+              description={t.botsBody}
               checked={botFiltering}
               onToggle={(v) => handleOssToggle('botFiltering', v)}
               color="text-teal-500"
@@ -327,7 +330,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <EyeOff className="h-3 w-3 text-indigo-500" />
-                    IP Anonymization
+                    {t.ipAnonymization}
                   </Label>
                   <Select
                     value={privacySettings.ipAnonymization}
@@ -339,28 +342,28 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                     <SelectContent>
                       <SelectItem value="none">
                         <span className="flex items-center gap-2">
-                          <XCircle className="h-3 w-3 text-red-400" /> None (full IP stored)
+                          <XCircle className="h-3 w-3 text-red-400" /> {t.ipNone}
                         </span>
                       </SelectItem>
                       <SelectItem value="partial">
                         <span className="flex items-center gap-2">
-                          <EyeOff className="h-3 w-3 text-amber-500" /> Partial (last octet zeroed)
+                          <EyeOff className="h-3 w-3 text-amber-500" /> {t.ipPartial}
                         </span>
                       </SelectItem>
                       <SelectItem value="full">
                         <span className="flex items-center gap-2">
-                          <Fingerprint className="h-3 w-3 text-emerald-500" /> Full (SHA-256 hash)
+                          <Fingerprint className="h-3 w-3 text-emerald-500" /> {t.ipFull}
                         </span>
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground">Controls how visitor IPs are stored.</p>
+                  <p className="text-[10px] text-muted-foreground">{t.ipHint}</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <Cookie className="h-3 w-3 text-indigo-500" />
-                    Consent Mode
+                    {t.consentMode}
                   </Label>
                   <Select
                     value={privacySettings.consentMode}
@@ -370,19 +373,19 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cookieless">Anonymous until consent (recommended)</SelectItem>
-                      <SelectItem value="strict">Nothing until consent</SelectItem>
-                      <SelectItem value="none">No consent asked (outside the EU / other legal basis)</SelectItem>
+                      <SelectItem value="cookieless">{t.consentCookieless}</SelectItem>
+                      <SelectItem value="strict">{t.consentStrict}</SelectItem>
+                      <SelectItem value="none">{t.consentNone}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-[10px] text-muted-foreground">
                     {privacySettings.consentMode === 'none'
-                      ? 'Every visitor is identified, recorded and mapped without consent. Only choose this if you have another legal basis for it.'
+                      ? t.consentNoneHint
                       : privacySettings.consentMode === 'strict'
-                        ? 'Nothing is collected until the visitor consents.'
-                        : 'Before consent: anonymous page views and events, nothing stored in the browser. After consent: recordings, heatmaps, automations and identify().'}
+                        ? t.consentStrictHint
+                        : t.consentCookielessHint}
                     {privacySettings.consentMode !== 'none' && (
-                      <> From your consent banner, call <code>seentics.consent(true)</code> when the visitor accepts.</>
+                      <>{t.consentCallBefore}<code>seentics.consent(true)</code>{t.consentCallAfter}</>
                     )}
                   </p>
                 </div>
@@ -395,9 +398,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   <div>
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
                       <Globe className="h-3 w-3 text-indigo-500" />
-                      Respect Do-Not-Track
+                      {t.dnt}
                     </Label>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Block tracking when browser sends DNT:1</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t.dntHint}</p>
                   </div>
                   <Switch
                     checked={privacySettings.respectDnt}
@@ -408,7 +411,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <Clock className="h-3 w-3 text-orange-500" />
-                    Data Retention (days)
+                    {t.retention}
                   </Label>
                   <Input
                     type="number"
@@ -416,17 +419,17 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                     max={3650}
                     value={privacySettings.dataRetentionDays ?? ''}
                     onChange={(e) => setPrivacySettings(s => s ? { ...s, dataRetentionDays: e.target.value ? parseInt(e.target.value) : null } : s)}
-                    placeholder="Plan default"
+                    placeholder={t.retentionPlaceholder}
                     className="h-9 text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">Leave empty to use the deployment&apos;s default retention period.</p>
+                  <p className="text-[10px] text-muted-foreground">{t.retentionHint}</p>
                 </div>
               </div>
 
               <div className="flex justify-end pt-1">
                 <Button size="sm" onClick={handleSavePrivacy} disabled={isSavingSettings} className="gap-1.5 text-xs font-semibold">
                   {isSavingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Save Privacy Settings
+                  {t.savePrivacy}
                 </Button>
               </div>
             </CardContent>
@@ -438,7 +441,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <Database className="h-3.5 w-3.5 text-muted-foreground" />
-          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Data Export</h4>
+          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{t.dataExport}</h4>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -450,12 +453,12 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   <Download className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold">Export All Data</h4>
-                  <p className="text-[10px] text-muted-foreground">GDPR Article 20</p>
+                  <h4 className="text-sm font-semibold">{t.exportAll}</h4>
+                  <p className="text-[10px] text-muted-foreground">{t.article20}</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed flex-1">
-                Download all analytics data across all websites — events, sessions, heatmaps, replays, goals, and funnels.
+                {t.exportAllBody}
               </p>
               <Button
                 size="sm"
@@ -465,7 +468,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 className="w-full gap-1.5 text-xs font-semibold"
               >
                 {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                {isExporting ? 'Exporting...' : 'Export All (JSON)'}
+                {isExporting ? t.exporting : t.exportAllButton}
               </Button>
             </CardContent>
           </Card>
@@ -479,12 +482,12 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                     <Globe className="h-4 w-4 text-indigo-500" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold">Export Website</h4>
-                    <p className="text-[10px] text-muted-foreground">This website only</p>
+                    <h4 className="text-sm font-semibold">{t.exportWebsite}</h4>
+                    <p className="text-[10px] text-muted-foreground">{t.thisWebsiteOnly}</p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mb-4 leading-relaxed flex-1">
-                  Export all data for this specific website. Includes events, sessions, heatmaps, replays, goals, and funnels.
+                  {t.exportWebsiteBody}
                 </p>
                 <Button
                   size="sm"
@@ -494,7 +497,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   className="w-full gap-1.5 text-xs font-semibold"
                 >
                   {isExportingWebsite ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  {isExportingWebsite ? 'Exporting...' : 'Export Website (JSON)'}
+                  {isExportingWebsite ? t.exporting : t.exportWebsiteButton}
                 </Button>
               </CardContent>
             </Card>
@@ -508,7 +511,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
-          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Data Actions</h4>
+          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{t.dataActions}</h4>
         </div>
 
         <div className="grid gap-3">
@@ -520,12 +523,12 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold">Delete Data</h4>
-                  <p className="text-[10px] text-muted-foreground">GDPR Article 17</p>
+                  <h4 className="text-sm font-semibold">{t.deleteData}</h4>
+                  <p className="text-[10px] text-muted-foreground">{t.article17}</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed flex-1">
-                Permanently delete all analytics data{websiteId ? ' for this website' : ''}. Includes events, sessions, heatmaps, replays, goals, and funnels. This is irreversible.
+                {websiteId ? t.deleteBodyWebsite : t.deleteBodyAll}
               </p>
               <Button
                 variant="destructive"
@@ -535,7 +538,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 className="w-full gap-1.5 text-xs font-semibold"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Delete All Data
+                {t.deleteAll}
               </Button>
             </CardContent>
           </Card>
@@ -545,9 +548,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <div className="flex gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Irreversible Actions</p>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t.irreversible}</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
-                Deletion removes the stored analytics, heatmap, replay, funnel, and automation data for the selected scope. It is irreversible.
+                {t.irreversibleBody}
               </p>
             </div>
           </div>
@@ -558,14 +561,14 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Data Retention</h4>
+          <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{t.dataRetention}</h4>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Analytics', value: 'Plan-based', icon: Database },
-            { label: 'Heatmaps', value: '90 days', icon: Fingerprint },
-            { label: 'Replays', value: '30 days', icon: FileText },
-            { label: 'Cleanup', value: 'Weekly', icon: RefreshCw },
+            { ...t.retentionItems.analytics, icon: Database },
+            { ...t.retentionItems.heatmaps, icon: Fingerprint },
+            { ...t.retentionItems.replays, icon: FileText },
+            { ...t.retentionItems.cleanup, icon: RefreshCw },
           ].map((item) => (
             <Card key={item.label} className="border-border bg-card/50">
               <CardContent className="p-4 flex items-center gap-3">
@@ -587,16 +590,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             <Info className="h-4.5 w-4.5 text-emerald-600" />
           </div>
           <div className="space-y-2">
-            <h4 className="text-sm font-bold">Privacy by Design</h4>
+            <h4 className="text-sm font-bold">{t.byDesign}</h4>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
-              {[
-                'No personally identifiable information (PII) collected by default',
-                'All data processed in GDPR-compliant infrastructure',
-                'Anonymous until consent: no identifiers stored before the visitor agrees',
-                'Full data portability and right-to-deletion support',
-                'No data sold or shared with third parties',
-                'Open-source tracker script for full transparency',
-              ].map((point, i) => (
+              {t.byDesignPoints.map((point, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-muted-foreground leading-relaxed">{point}</p>
@@ -613,16 +609,15 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
-              Delete All Analytics Data
+              {t.confirmTitle}
             </DialogTitle>
             <DialogDescription>
-              This will permanently delete {websiteId ? 'all analytics data for this website' : 'all your analytics data'} including events, sessions, heatmaps, replays, goals, and funnels.
-              This action cannot be undone.
+              {websiteId ? t.confirmBodyWebsite : t.confirmBodyAll}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <Label className="text-xs font-medium">
-              Type <span className="font-bold text-red-600">delete my data</span> to confirm:
+              {t.typeBefore}<span className="font-bold text-red-600">delete my data</span>{t.typeAfter}
             </Label>
             <Input
               value={deleteConfirmText}
@@ -633,7 +628,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}>
-              Cancel
+              {tAll.actions.cancel}
             </Button>
             <Button
               variant="destructive"
@@ -642,7 +637,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               className="gap-1.5"
             >
               {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              Permanently Delete
+              {t.permanentlyDelete}
             </Button>
           </DialogFooter>
         </DialogContent>

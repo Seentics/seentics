@@ -38,6 +38,8 @@ const PAGES: Entry[] = [
   { path: '/',              priority: 1.0, changeFrequency: 'weekly' },
   { path: '/pricing',       priority: 0.9, changeFrequency: 'weekly' },
   { path: '/agencies',      priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/f-commerce',    priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/bd',            priority: 0.8, changeFrequency: 'monthly' },
   { path: '/docs',          priority: 0.8, changeFrequency: 'weekly' },
   ...DOC_ENTRIES,
   { path: '/blog',          priority: 0.7, changeFrequency: 'weekly' },

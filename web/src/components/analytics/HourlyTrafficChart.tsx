@@ -12,6 +12,7 @@ import {
   Bar,
 } from 'recharts';
 import { formatNumber } from '@/features/analytics/format';
+import { useT } from '@/lib/i18n';
 
 interface HourlyTrafficChartProps {
   data: any;
@@ -35,6 +36,7 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
   data, 
   isLoading 
 }) => {
+  const t = useT().analytics.common;
   if (isLoading) {
     return <Skeleton className="h-full w-full" />;
   }
@@ -73,8 +75,8 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
           {...commonTooltipProps} 
           formatter={(value: any) => [formatNumber(value)]}
         />
-        <Bar dataKey="views" fill="#2563eb" radius={[4, 4, 0, 0]} name="Page Views" />
-        <Bar dataKey="unique" fill="#10b981" radius={[4, 4, 0, 0]} name="Unique Visitors" />
+        <Bar dataKey="views" fill="#2563eb" radius={[4, 4, 0, 0]} name={t.pageViews} />
+        <Bar dataKey="unique" fill="#10b981" radius={[4, 4, 0, 0]} name={t.uniqueVisitors} />
       </BarChart>
     </ResponsiveContainer>
   );

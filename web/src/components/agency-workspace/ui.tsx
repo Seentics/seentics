@@ -1,11 +1,50 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AlertCircle, Check, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DashboardPageTitle } from '@/components/dashboard/DashboardPageTitle';
+import { domainErrorMessage, errorMessage } from '@/features/agency/api';
+import { useT, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+
+/** The workspace's words in the current language. */
+export const useAgencyT = () => useT().agency;
+
+/** `errorMessage` in the current language. */
+export function useErrorText(): (e: unknown) => string {
+  const m = useT().agency.errors;
+  return useCallback((e: unknown) => errorMessage(e, m), [m]);
+}
+
+/** `domainErrorMessage` in the current language. */
+export function useDomainErrorText(): (e: unknown) => string {
+  const m = useT().agency.domainErrors;
+  return useCallback((e: unknown) => domainErrorMessage(e, m), [m]);
+}
+
+/** Intl locale for dates: Bangla month names with Latin digits; English as "5 Oct 2026". */
+const dateLocale = (locale: Locale) => (locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB');
+
+/** "5 Oct 2026" / "5 অক্টো, 2026"; `year: false` drops the year. */
+export function shortDate(iso: string, locale: Locale, year = true): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(dateLocale(locale), { day: 'numeric', month: 'short', ...(year ? { year: 'numeric' } : {}) });
+}
+
+/** "3 hours ago" / "3 ঘণ্টা আগে", digits Latin. */
+export function timeAgo(iso: string, locale: Locale): string {
+  const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (!Number.isFinite(seconds)) return '—';
+  const rtf = new Intl.RelativeTimeFormat(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en', { numeric: 'auto' });
+  const steps: Array<[Intl.RelativeTimeFormatUnit, number]> = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
+  for (const [unit, size] of steps) {
+    if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);
+  }
+  return rtf.format(Math.round(seconds), 'second');
+}
 
 /** The page frame every workspace page sits in: the dashboard's width, padding and title. */
 export function WorkspacePage({ title, description, actions, before, children }: {
@@ -62,11 +101,12 @@ export function EmptyState({ icon, title, description, action }: { icon?: ReactN
   );
 }
 
-export function LoadingRow({ label = 'Loading…' }: { label?: string }) {
+export function LoadingRow({ label }: { label?: string }) {
+  const t = useAgencyT();
   return (
     <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
-      {label}
+      {label ?? t.common.loading}
     </div>
   );
 }
@@ -100,11 +140,14 @@ export function Pill({ tone = 'muted', children, ...rest }: { tone?: Tone; child
 
 /** A client's status as a pill. */
 export function StatusPill({ status }: { status: 'active' | 'suspended' | 'archived' }) {
-  const look = { active: ['green', 'Active'], suspended: ['amber', 'Suspended'], archived: ['muted', 'Archived'] } as const;
-  return <Pill tone={look[status][0]}>{look[status][1]}</Pill>;
+  const t = useAgencyT();
+  const tone = { active: 'green', suspended: 'amber', archived: 'muted' } as const;
+  return <Pill tone={tone[status]}>{t.common.status[status]}</Pill>;
 }
 
-export function CopyButton({ text, label = 'Copy', className }: { text: string; label?: string; className?: string }) {
+export function CopyButton({ text, label: given, className }: { text: string; label?: string; className?: string }) {
+  const t = useAgencyT();
+  const label = given ?? t.common.copy;
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard?.writeText(text).then(() => {
@@ -120,11 +163,12 @@ export function CopyButton({ text, label = 'Copy', className }: { text: string; 
 }
 
 /** A block of code with a copy button in its corner. */
-export function CodeBlock({ code, label = 'Copy code', className }: { code: string; label?: string; className?: string }) {
+export function CodeBlock({ code, label, className }: { code: string; label?: string; className?: string }) {
+  const t = useAgencyT();
   return (
     <div className={cn('relative rounded-md border border-border bg-muted/40', className)}>
       <pre className="overflow-x-auto p-3 pr-12 font-mono text-[12px] leading-relaxed text-foreground"><code>{code}</code></pre>
-      <CopyButton text={code} label={label} className="absolute right-2 top-2 bg-card" />
+      <CopyButton text={code} label={label ?? t.common.copyCode} className="absolute right-2 top-2 bg-card" />
     </div>
   );
 }
@@ -151,7 +195,8 @@ export function Meter({ value, max, className, label }: { value: number; max: nu
 
 /** Change against the previous period: green up, red down. */
 export function Change({ pct }: { pct: number | null }) {
-  if (pct === null || !Number.isFinite(pct)) return <span className="text-xs text-muted-foreground">New</span>;
+  const t = useAgencyT();
+  if (pct === null || !Number.isFinite(pct)) return <span className="text-xs text-muted-foreground">{t.common.newChange}</span>;
   const up = pct >= 0;
   return (
     <span className={cn('text-xs font-medium tabular-nums', up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>

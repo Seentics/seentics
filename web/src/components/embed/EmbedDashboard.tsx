@@ -14,6 +14,7 @@ import { HeatmapDetailView } from '@/app/websites/[websiteId]/heatmaps/[slug]/pa
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { viewFromHref, resolveActiveSection, type View } from '@/features/embed/view';
 import { EmbedTokenError, fetchEmbedClientSites, fetchEmbedInfo, isSampleToken } from '@/features/embed/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * The read-only dashboard behind an embed link: a website's, or a client's
@@ -24,26 +25,24 @@ import { EmbedTokenError, fetchEmbedClientSites, fetchEmbedInfo, isSampleToken }
  * (`setEmbedToken`), so every analytics call carries it.
  */
 
-const TABS: Array<{ id: EmbedSection; label: string; icon: React.ElementType }> = [
-  { id: 'analytics', label: 'Analytics', icon: LayoutDashboard },
-  { id: 'recordings', label: 'Recordings', icon: Video },
-  { id: 'heatmaps', label: 'Heatmaps', icon: Flame },
+/** The section tabs; their names are `useT().sharing.embed.tabs[id]`. */
+const TABS: Array<{ id: EmbedSection; icon: React.ElementType }> = [
+  { id: 'analytics', icon: LayoutDashboard },
+  { id: 'recordings', icon: Video },
+  { id: 'heatmaps', icon: Flame },
 ];
 
 const DETAIL_HEIGHT = 'h-[760px]';
 
-const EMBED_INVALID = {
-  title: 'This embed link is no longer valid',
-  body: 'It may have been revoked. Ask whoever runs this page for a new one.',
-};
-
-export function EmbedDashboard({ id, token, clientMode, invalid = EMBED_INVALID }: {
+export function EmbedDashboard({ id, token, clientMode, invalid: givenInvalid }: {
   id: string;
   token: string;
   clientMode: boolean;
   /** What a revoked or expired token reads as. */
   invalid?: { title: string; body: string };
 }) {
+  const t = useT().sharing.embed;
+  const invalid = givenInvalid ?? { title: t.invalidTitle, body: t.invalidBody };
   const [pickedSite, setPickedSite] = useState<string | null>(null);
   const [view, setView] = useState<View>({ section: 'analytics' });
 
@@ -69,7 +68,7 @@ export function EmbedDashboard({ id, token, clientMode, invalid = EMBED_INVALID 
   const sample = isSampleToken(token);
   const error = sitesQuery.error ?? infoQuery.error;
   const sections: EmbedSection[] = infoQuery.data?.sections ?? sitesQuery.data?.sections ?? ['analytics'];
-  const tabs = TABS.filter(t => sections.includes(t.id));
+  const tabs = TABS.filter(tab => sections.includes(tab.id));
   const activeSection = resolveActiveSection(view.section, sections);
   const site = sites.find(s => s.id === siteId);
   const siteUrl = infoQuery.data?.website.url ?? site?.url;
@@ -88,7 +87,7 @@ export function EmbedDashboard({ id, token, clientMode, invalid = EMBED_INVALID 
   const heading = clientMode ? (
     sites.length > 1 ? (
       <Select value={siteId} onValueChange={v => { setPickedSite(v); setView({ section: activeSection }); }}>
-        <SelectTrigger className="h-8 w-64 text-xs"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-8 w-64 text-xs" aria-label={t.chooseWebsite}><SelectValue /></SelectTrigger>
         <SelectContent>
           {sites.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}
         </SelectContent>
@@ -111,14 +110,14 @@ export function EmbedDashboard({ id, token, clientMode, invalid = EMBED_INVALID 
         <div className="surface m-4 flex flex-col items-center gap-2 py-12 text-center">
           <Link2Off className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
-            {error instanceof EmbedTokenError ? invalid.title : "This dashboard couldn't load"}
+            {error instanceof EmbedTokenError ? invalid.title : t.loadFailed}
           </p>
           <p className="max-w-xs text-xs text-muted-foreground">
-            {error instanceof EmbedTokenError ? invalid.body : 'Please try again in a moment.'}
+            {error instanceof EmbedTokenError ? invalid.body : t.tryAgain}
           </p>
         </div>
       ) : clientMode && !sitesQuery.isLoading && sites.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted-foreground">This client has no websites yet.</p>
+        <p className="py-16 text-center text-sm text-muted-foreground">{t.noWebsites}</p>
       ) : !ready ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -131,19 +130,19 @@ export function EmbedDashboard({ id, token, clientMode, invalid = EMBED_INVALID 
             <div className="flex-1" />
             {tabs.length > 1 && (
               <div role="tablist" className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5">
-                {tabs.map(t => (
+                {tabs.map(tab => (
                   <button
-                    key={t.id}
+                    key={tab.id}
                     role="tab"
-                    aria-selected={activeSection === t.id}
-                    onClick={() => setView({ section: t.id } as View)}
+                    aria-selected={activeSection === tab.id}
+                    onClick={() => setView({ section: tab.id } as View)}
                     className={cn(
                       'inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                      activeSection === t.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                      activeSection === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    <t.icon className="h-3.5 w-3.5" />
-                    {t.label}
+                    <tab.icon className="h-3.5 w-3.5" />
+                    {t.tabs[tab.id]}
                   </button>
                 ))}
               </div>

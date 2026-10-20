@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { buildAskAiHref } from '@/features/ai/ask-link';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface AskAiButtonProps {
@@ -23,11 +26,12 @@ export interface AskAiButtonProps {
  */
 export function AskAiButton({ websiteId, question, context, size = 'sm', className }: AskAiButtonProps) {
   const md = size === 'md';
+  const label = useT().ai.ask.button;
   return (
     <Link
       href={buildAskAiHref(websiteId, question, context)}
-      title="Ask AI about this"
-      aria-label="Ask AI about this"
+      title={label}
+      aria-label={label}
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors',
         'hover:bg-primary/10 hover:text-primary focus-visible:bg-primary/10 focus-visible:text-primary focus-visible:outline-none',

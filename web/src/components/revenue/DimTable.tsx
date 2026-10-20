@@ -6,6 +6,7 @@ import { Globe, MousePointerClick } from 'lucide-react';
 import { getCountryCode } from '@/components/analytics/TopCountriesChart';
 import { getSourceImage } from '@/components/analytics/TopSourcesChart';
 import { formatMoney, type RevenueByRow } from '@/lib/revenue-analytics';
+import { useT } from '@/lib/i18n';
 
 /** Which logo a row gets: a source's favicon or a country's flag, as on the overview. */
 export type DimIcon = 'source' | 'country';
@@ -48,6 +49,7 @@ function RowIcon({ kind, name }: { kind: DimIcon; name: string }) {
 export function DimTable({ rows, currency, emptyMessage, icon }: {
   rows: RevenueByRow[]; currency: string; emptyMessage: string; icon?: DimIcon;
 }) {
+  const t = useT().revenue.table;
   if (!rows.length) {
     return <div className="py-10 text-center text-sm text-muted-foreground">{emptyMessage}</div>;
   }
@@ -56,10 +58,10 @@ export function DimTable({ rows, currency, emptyMessage, icon }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/30 text-left">
-            <th className="py-2 pl-3 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
-            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Revenue</th>
-            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Orders</th>
-            <th className="py-2 pr-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[140px]">Share</th>
+            <th className="py-2 pl-3 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t.name}</th>
+            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t.revenue}</th>
+            <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t.orders}</th>
+            <th className="py-2 pr-3 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[140px]">{t.share}</th>
           </tr>
         </thead>
         <tbody>

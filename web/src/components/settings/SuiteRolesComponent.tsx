@@ -30,6 +30,7 @@ import {
   type Role,
 } from '@/lib/suite-roles-api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * Suite roles and permissions.
@@ -40,12 +41,6 @@ import { cn } from '@/lib/utils';
  * together — and it narrows their website role rather than replacing it, since
  * both checks run on every request.
  */
-
-const PRODUCT_LABELS: Record<string, string> = {
-  observability: 'Observability',
-  analytics: 'Analytics',
-  team: 'Team',
-};
 
 const BASE_ROLES: Role[] = ['admin', 'member', 'viewer'];
 const FIVE_MINUTES = 5 * 60_000;
@@ -58,6 +53,9 @@ function reason(error: unknown, fallback: string): string {
 
 export function SuiteRolesComponent() {
   const queryClient = useQueryClient();
+  const tAll = useT();
+  const t = tAll.settings.suiteRoles;
+  const roleLabel = (role: string) => tAll.settings.team.roles[role] ?? role;
   const [editing, setEditing] = useState<CustomRole | 'new' | null>(null);
 
   const { data: teams = [], isError, isLoading } = useQuery({
@@ -113,9 +111,9 @@ export function SuiteRolesComponent() {
     onSuccess: () => {
       invalidate();
       setEditing(null);
-      toast.success('Role created');
+      toast.success(t.created);
     },
-    onError: (error) => toast.error(reason(error, 'Could not create that role')),
+    onError: (error) => toast.error(reason(error, t.createFailed)),
   });
 
   const update = useMutation({
@@ -124,18 +122,18 @@ export function SuiteRolesComponent() {
     onSuccess: () => {
       invalidate();
       setEditing(null);
-      toast.success('Role saved');
+      toast.success(t.saved);
     },
-    onError: (error) => toast.error(reason(error, 'Could not save that role')),
+    onError: (error) => toast.error(reason(error, t.saveFailed)),
   });
 
   const remove = useMutation({
     mutationFn: (roleId: string) => deleteSuiteRole(teamId, roleId),
     onSuccess: () => {
       invalidate();
-      toast.success('Role deleted');
+      toast.success(t.deleted);
     },
-    onError: (error) => toast.error(reason(error, 'Could not delete that role')),
+    onError: (error) => toast.error(reason(error, t.deleteFailed)),
   });
 
   const assign = useMutation({
@@ -143,16 +141,16 @@ export function SuiteRolesComponent() {
       assignSuiteRole(teamId, userId, customRoleId),
     onSuccess: () => {
       invalidate();
-      toast.success('Role assigned');
+      toast.success(t.assigned);
     },
-    onError: (error) => toast.error(reason(error, 'Could not assign that role')),
+    onError: (error) => toast.error(reason(error, t.assignFailed)),
   });
 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading suite roles…
+        {t.loading}
       </div>
     );
   }
@@ -184,27 +182,23 @@ export function SuiteRolesComponent() {
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Shield className="h-5 w-5 text-muted-foreground" />
-            Suite roles
+            {t.title}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            What people may do across Analytics and Observability. Separate from this
-            site&rsquo;s members — a suite role narrows what someone can do, it does not decide which
-            sites they can open.
+            {t.description}
           </p>
         </div>
         {mayManage && (
           <Button size="sm" onClick={() => setEditing('new')} disabled={!catalogue}>
             <Plus className="mr-1.5 h-4 w-4" />
-            New role
+            {t.newRole}
           </Button>
         )}
       </div>
 
       {roles.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No custom roles. The four presets — owner, admin, member, viewer — cover most teams; make
-          one when you need to say something they cannot, like an analyst who sees dashboards and
-          nothing else.
+          {t.empty}
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">
@@ -213,19 +207,19 @@ export function SuiteRolesComponent() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{role.name}</span>
-                  <Badge variant="outline">as {role.baseRole}</Badge>
+                  <Badge variant="outline">{t.as(roleLabel(role.baseRole))}</Badge>
                 </div>
                 <RoleSummary role={role} />
               </div>
               {mayManage && (
                 <div className="flex shrink-0 items-center gap-1">
                   <Button variant="ghost" size="sm" onClick={() => setEditing(role)}>
-                    Edit
+                    {tAll.actions.edit}
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Delete ${role.name}`}
+                    aria-label={t.deleteRole(role.name)}
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(role.id)}
                   >
@@ -240,9 +234,9 @@ export function SuiteRolesComponent() {
 
       {mayManage && members.length > 0 && roles.length > 0 && (
         <div className="border-t pt-5">
-          <h3 className="text-sm font-semibold">Who holds what</h3>
+          <h3 className="text-sm font-semibold">{t.whoHolds}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Assigning a custom role replaces that person&rsquo;s preset permissions entirely.
+            {t.whoHoldsBody}
           </p>
           <ul className="mt-4 space-y-2">
             {members.map((member) => (
@@ -265,7 +259,7 @@ export function SuiteRolesComponent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="preset">Preset ({member.role})</SelectItem>
+                    <SelectItem value="preset">{t.preset(roleLabel(member.role))}</SelectItem>
                     {roles.map((role) => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.name}
@@ -284,6 +278,7 @@ export function SuiteRolesComponent() {
 
 function RoleSummary({ role }: { role: CustomRole }) {
   const [open, setOpen] = useState(false);
+  const t = useT().settings.suiteRoles;
   const counts = useMemo(() => {
     const byProduct = new Map<string, number>();
     for (const key of role.permissions) {
@@ -301,8 +296,8 @@ function RoleSummary({ role }: { role: CustomRole }) {
         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       >
         <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
-        {counts.map(([product, count]) => `${PRODUCT_LABELS[product] ?? product} ${count}`).join(' · ') ||
-          'no permissions'}
+        {counts.map(([product, count]) => `${t.products[product] ?? product} ${count}`).join(' · ') ||
+          t.noPermissions}
       </button>
       {open && (
         <ul className="mt-1.5 flex flex-wrap gap-1.5">
@@ -339,6 +334,8 @@ function RoleEditor({
   onSave: (input: { name: string; baseRole: Role; permissions: string[] }) => void;
   onCancel: () => void;
 }) {
+  const tAll = useT();
+  const t = tAll.settings.suiteRoles;
   const [name, setName] = useState(initial?.name ?? '');
   const [baseRole, setBaseRole] = useState<Role>(initial?.baseRole ?? 'member');
   const [selected, setSelected] = useState<Set<string>>(
@@ -382,17 +379,17 @@ function RoleEditor({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-[220px] flex-1">
-          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Role name</span>
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t.roleName}</span>
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Marketing analyst"
+            placeholder={t.roleNamePlaceholder}
             maxLength={60}
           />
         </label>
         <label className="w-[190px]">
           <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Administered as
+            {t.administeredAs}
           </span>
           <Select value={baseRole} onValueChange={(value) => setBaseRole(value as Role)}>
             <SelectTrigger>
@@ -401,7 +398,7 @@ function RoleEditor({
             <SelectContent>
               {BASE_ROLES.map((role) => (
                 <SelectItem key={role} value={role}>
-                  {role}
+                  {tAll.settings.team.roles[role] ?? role}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -410,8 +407,7 @@ function RoleEditor({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        The rank decides who may edit someone holding this role. It does not decide what they can do
-        — that is the list below, and it replaces the preset entirely.
+        {t.rankNote}
       </p>
 
       <div className="space-y-3">
@@ -423,9 +419,9 @@ function RoleEditor({
           return (
             <section key={product} className="rounded-lg border">
               <div className="flex items-center gap-2 border-b px-4 py-2.5">
-                <h3 className="text-sm font-semibold">{PRODUCT_LABELS[product] ?? product}</h3>
+                <h3 className="text-sm font-semibold">{t.products[product] ?? product}</h3>
                 <span className="text-xs text-muted-foreground">
-                  {productKeys.filter((key) => selected.has(key)).length} of {productKeys.length}
+                  {t.countOf(productKeys.filter((key) => selected.has(key)).length, productKeys.length)}
                 </span>
                 <button
                   type="button"
@@ -433,7 +429,7 @@ function RoleEditor({
                   disabled={grantableKeys.length === 0}
                   className="ml-auto text-xs text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
                 >
-                  {allOn ? 'Clear all' : 'Select all'}
+                  {allOn ? t.clearAll : t.selectAll}
                 </button>
               </div>
 
@@ -456,7 +452,7 @@ function RoleEditor({
                           title={
                             allowed
                               ? key
-                              : `${key} — you do not hold this permission, so you cannot grant it`
+                              : t.cannotGrant(key)
                           }
                           className={cn(
                             'flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors',
@@ -483,12 +479,12 @@ function RoleEditor({
           onClick={() => onSave({ name: name.trim(), baseRole, permissions: [...selected] })}
         >
           {isSaving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-          {initial ? 'Save role' : 'Create role'}
+          {initial ? t.saveRole : t.createRole}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {tAll.actions.cancel}
         </Button>
-        <span className="ml-auto text-xs text-muted-foreground">{selected.size} permissions</span>
+        <span className="ml-auto text-xs text-muted-foreground">{t.permissions(selected.size)}</span>
       </div>
     </div>
   );

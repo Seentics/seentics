@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useT } from '@/lib/i18n';
 
 export type ConfirmOptions = {
   title: string;
@@ -34,6 +35,7 @@ export type ConfirmOptions = {
  * dialog any way other than the action button resolves `false`.
  */
 export function useConfirm() {
+  const t = useT().actions;
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
 
@@ -68,14 +70,14 @@ export function useConfirm() {
           </div>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" size="sm" onClick={() => settle(false)}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={() => settle(false)}>{t.cancel}</Button>
           <Button
             size="sm"
             variant={options?.destructive ? 'destructive' : 'default'}
             onClick={() => settle(true)}
             autoFocus
           >
-            {options?.confirmLabel ?? 'Confirm'}
+            {options?.confirmLabel ?? t.confirm}
           </Button>
         </DialogFooter>
       </DialogContent>

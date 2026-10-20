@@ -6,6 +6,7 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { UtmBreakdownCard, type UtmTab } from '@/components/analytics/UtmBreakdownCard';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export type AudiencePanel = 'pages' | 'sources' | 'geolocation' | 'devices' | 'utm';
 
@@ -46,12 +47,13 @@ export interface AudienceSectionProps {
 export function AudienceSection({
   pages, sources, geolocation, devices, utm, footer, headerActions, className,
 }: AudienceSectionProps) {
+  const t = useT().analytics.sections;
   return (
     <div className={cn('space-y-3', className)}>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="border border-border bg-card">
           <CardContent className="p-4">
-            <ChartErrorBoundary label="Top Pages">
+            <ChartErrorBoundary label={t.topPages}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopPagesChart
                 data={pages.data as any}
@@ -66,7 +68,7 @@ export function AudienceSection({
 
         <Card className="border border-border bg-card">
           <CardContent className="p-4">
-            <ChartErrorBoundary label="Top Sources">
+            <ChartErrorBoundary label={t.topSources}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopSourcesChart data={sources.data as any} isLoading={sources.isLoading ?? false} headerAction={headerActions?.sources} />
             </ChartErrorBoundary>
@@ -74,7 +76,7 @@ export function AudienceSection({
         </Card>
       </div>
 
-      <ChartErrorBoundary label="Geographic Intelligence">
+      <ChartErrorBoundary label={t.locations}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <GeolocationOverview data={geolocation.data as any} isLoading={geolocation.isLoading ?? false} headerAction={headerActions?.geolocation} />
       </ChartErrorBoundary>
@@ -82,7 +84,7 @@ export function AudienceSection({
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card className="min-h-[420px] border border-border bg-card">
           <CardContent className="p-4">
-            <ChartErrorBoundary label="Top Devices">
+            <ChartErrorBoundary label={t.topDevices}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <TopDevicesChart
                 data={devices.data as any}

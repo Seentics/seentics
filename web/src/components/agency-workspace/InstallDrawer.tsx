@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { AgencyWebsite } from '@/features/agency/types';
 import { agencySiteHref } from '@/lib/demo/agency-mode';
+import { useT } from '@/lib/i18n';
 import { EmbedsPanel } from './EmbedsPanel';
 import { InstallPanel } from './InstallPanel';
 
 /** One website's install snippet, tracking check and embed link, in a side drawer. */
 export function InstallDrawer({ website, onClose }: { website: AgencyWebsite | null; onClose: () => void }) {
+  const t = useT().agency.common;
   return (
     <Sheet open={!!website} onOpenChange={o => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
@@ -21,7 +23,7 @@ export function InstallDrawer({ website, onClose }: { website: AgencyWebsite | n
               <SheetDescription className="break-all">{website.url}</SheetDescription>
             </SheetHeader>
             <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-              <Link href={agencySiteHref(website.id)}>Open site dashboard <ArrowUpRight className="h-3.5 w-3.5" /></Link>
+              <Link href={agencySiteHref(website.id)}>{t.openSiteDashboard} <ArrowUpRight className="h-3.5 w-3.5" /></Link>
             </Button>
             <InstallPanel websiteId={website.id} />
             <EmbedsPanel scope="website" targetId={website.id} targetName={website.name} />

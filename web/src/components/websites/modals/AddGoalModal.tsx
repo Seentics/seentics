@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,10 @@ import { addGoal, updateGoal, type Goal } from '@/lib/websites-api';
 import { analyticsKeys } from '@/features/analytics/queries';
 import { toast } from 'sonner';
 import { Loader2, Check, Copy, Code } from 'lucide-react';
+import { useT } from '@/lib/i18n';
+
+/** A sentence with code in it, as the message builds it. */
+const rich = (parts: ReactNode[]) => parts.map((part, i) => <Fragment key={i}>{part}</Fragment>);
 
 interface AddGoalModalProps {
   open: boolean;
@@ -34,6 +38,8 @@ interface AddGoalModalProps {
 }
 
 export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null }: AddGoalModalProps) {
+  const all = useT();
+  const t = all.dashboard.goal;
   const [name, setName] = useState('');
   const [type, setType] = useState<'event' | 'pageview'>('event');
   const [identifier, setIdentifier] = useState('');
@@ -76,13 +82,13 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
     mutationFn: (data: { name: string; type: string; identifier: string; selector?: string }) =>
       addGoal(websiteId, data),
     onSuccess: (_data, variables) => {
-      toast.success('Goal created successfully');
+      toast.success(t.created);
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
       queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
       setCreatedGoal({ type: variables.type, identifier: variables.identifier, selector: variables.selector });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create goal');
+      toast.error(error.message || t.createFailed);
     },
   });
 
@@ -90,14 +96,14 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
     mutationFn: (data: { name: string; type: string; identifier: string; selector?: string }) =>
       updateGoal(websiteId, editingGoal!.id, data),
     onSuccess: () => {
-      toast.success('Goal updated');
+      toast.success(t.updated);
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
       queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
       resetForm();
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update goal');
+      toast.error(error.message || t.updateFailed);
     },
   });
 
@@ -115,7 +121,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !identifier.trim()) {
-      toast.error('Please fill in all fields');
+      toast.error(t.fillAll);
       return;
     }
     const payload = { name, type, identifier, selector: selector.trim() || undefined };
@@ -138,14 +144,14 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                 <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <Check className="h-4 w-4 text-emerald-500" />
                 </div>
-                <DialogTitle>Goal Created</DialogTitle>
+                <DialogTitle>{t.createdTitle}</DialogTitle>
               </div>
               <DialogDescription>
                 {createdGoal.type === 'pageview'
-                  ? 'This goal will automatically track visits to the specified page. No code changes needed.'
+                  ? t.createdPageview
                   : createdGoal.selector
-                    ? 'Clicks on the target element will be auto-tracked. No code changes needed.'
-                    : 'To start tracking conversions, trigger this event from your site.'}
+                    ? t.createdSelector
+                    : t.createdEvent}
               </DialogDescription>
             </DialogHeader>
 
@@ -153,7 +159,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Code className="h-3.5 w-3.5" />
-                  Add this to your site where the action happens:
+                  {t.addSnippet}
                 </div>
                 <div className="relative group">
                   <pre className="bg-muted/50 border border-border rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto">
@@ -170,7 +176,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  You can also pass properties: <code className="bg-muted px-1 rounded-lg text-[10px]">{`seentics.track('${createdGoal.identifier}', { value: 99 })`}</code>
+                  {t.passProperties}<code className="bg-muted px-1 rounded-lg text-[10px]">{`seentics.track('${createdGoal.identifier}', { value: 99 })`}</code>
                 </p>
               </div>
             )}
@@ -178,7 +184,10 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             {createdGoal.type === 'event' && createdGoal.selector && (
               <div className="bg-muted/30 border border-border rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
-                  The tracker script will automatically fire <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code> when a user clicks on <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.selector}</code>.
+                  {rich(t.autoFire(
+                    <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code>,
+                    <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.selector}</code>,
+                  ))}
                 </p>
               </div>
             )}
@@ -186,70 +195,70 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             {createdGoal.type === 'pageview' && (
               <div className="bg-muted/30 border border-border rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
-                  Conversions will be counted each time a visitor views <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code>. No code changes required.
+                  {rich(t.countedOnView(<code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code>))}
                 </p>
               </div>
             )}
 
             <DialogFooter>
               <Button onClick={() => resetForm()} variant="outline">
-                Create Another
+                {t.createAnother}
               </Button>
               <Button onClick={handleClose}>
-                Done
+                {all.actions.done}
               </Button>
             </DialogFooter>
           </div>
         ) : (
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{isEdit ? 'Edit goal' : 'Create New Goal'}</DialogTitle>
+            <DialogTitle>{isEdit ? t.editTitle : t.newTitle}</DialogTitle>
             <DialogDescription>
-              {isEdit ? 'Update how this goal is tracked.' : 'Define a goal to track specific actions or page visits.'}
+              {isEdit ? t.editDescription : t.newDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="name" className="text-xs">Goal Name</Label>
+              <Label htmlFor="name" className="text-xs">{t.name}</Label>
               <Input
                 id="name"
-                placeholder="e.g., Signup Success"
+                placeholder={t.namePlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="h-9 text-sm"
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="type" className="text-xs">Goal Type</Label>
+              <Label htmlFor="type" className="text-xs">{t.type}</Label>
               <Select value={type} onValueChange={(v: any) => {
                 setType(v);
                 if (!isEdit) setIdentifier('');
               }}>
                 <SelectTrigger id="type" className="h-9 text-sm">
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder={t.selectType} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="event">Custom Event</SelectItem>
-                  <SelectItem value="pageview">Page Visit</SelectItem>
+                  <SelectItem value="event">{t.customEvent}</SelectItem>
+                  <SelectItem value="pageview">{t.pageVisit}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="identifier" className="text-xs">
-                  {type === 'event' ? 'Event Name (ID)' : 'Target Page Path'}
+                  {type === 'event' ? t.eventName : t.pagePath}
                 </Label>
                 <button
                   type="button"
                   onClick={() => setShowHelper(!showHelper)}
                   className="text-xs font-medium text-primary hover:underline"
                 >
-                  Need help?
+                  {t.needHelp}
                 </button>
               </div>
               <Input
                 id="identifier"
-                placeholder={type === 'event' ? 'e.g., signup_click' : 'e.g., /thank-you'}
+                placeholder={type === 'event' ? t.eventPlaceholder : t.pathPlaceholder}
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="h-9 text-sm"
@@ -257,17 +266,17 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
               {type === 'event' && (
                 <div className="mt-1 grid gap-1.5">
                   <Label htmlFor="selector" className="text-xs">
-                    Target Selector <span className="font-normal text-muted-foreground">(ID or class, optional)</span>
+                    {t.selector} <span className="font-normal text-muted-foreground">{t.selectorHint}</span>
                   </Label>
                   <Input
                     id="selector"
-                    placeholder="e.g., #form-id or .btn-cta"
+                    placeholder={t.selectorPlaceholder}
                     value={selector}
                     onChange={(e) => setSelector(e.target.value)}
                     className="h-9 text-sm"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    The tracker will listen for clicks on this element automatically.
+                    {t.selectorListens}
                   </p>
                 </div>
               )}
@@ -275,12 +284,12 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                 <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/10 text-[11px] font-medium leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1">
                   {type === 'event' ? (
                     <ul className="list-disc pl-4 space-y-1">
-                      <li><strong>Event Name:</strong> The name that will appear in your reports.</li>
-                      <li><strong>Selector:</strong> Provide a CSS selector (e.g. <code className="bg-primary/10 px-1 rounded-lg text-primary">#submit-btn</code> or <code className="bg-primary/10 px-1 rounded-lg text-primary">.buy-now</code>) to auto-track it.</li>
-                      <li><strong>Predefined:</strong> Use <code className="bg-primary/10 px-1 rounded-lg text-primary">form_submission</code> for all forms.</li>
+                      <li><strong>{t.help.eventName}</strong> {t.help.eventNameBody}</li>
+                      <li><strong>{t.help.selector}</strong> {rich(t.help.selectorBody(<code className="bg-primary/10 px-1 rounded-lg text-primary">#submit-btn</code>, <code className="bg-primary/10 px-1 rounded-lg text-primary">.buy-now</code>))}</li>
+                      <li><strong>{t.help.predefined}</strong> {rich(t.help.predefinedBody(<code className="bg-primary/10 px-1 rounded-lg text-primary">form_submission</code>))}</li>
                     </ul>
                   ) : (
-                    <p>Enter the exact URL path. For example, to track users who reach your success page, use <code className="bg-primary/10 px-1 rounded-lg text-primary">/signup-complete</code>.</p>
+                    <p>{rich(t.help.path(<code className="bg-primary/10 px-1 rounded-lg text-primary">/signup-complete</code>))}</p>
                   )}
                 </div>
               )}
@@ -292,13 +301,13 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
               variant="outline"
               onClick={() => handleClose()}
             >
-              Cancel
+              {all.actions.cancel}
             </Button>
             <Button type="submit" disabled={pending}>
               {pending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {isEdit ? 'Save changes' : 'Create Goal'}
+              {isEdit ? t.saveChanges : t.create}
             </Button>
           </DialogFooter>
         </form>

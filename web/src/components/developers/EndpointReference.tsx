@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { CopyButton } from '@/components/developers/CopyButton';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
@@ -115,6 +116,7 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
 
 /** One endpoint: title, one-line description, URL, payload and response. Nothing else. */
 function EndpointDetail({ doc, baseUrl }: { doc: EndpointDoc; baseUrl: string }) {
+  const t = useT().developers.reference;
   const url = `${baseUrl}${doc.path}`;
   const payload = payloadFor(doc);
   const response = `// ${doc.status} ${STATUS_TEXT[doc.status] ?? ''}\n${doc.exampleResponse === null ? '' : JSON.stringify(doc.exampleResponse, null, 2)}`;
@@ -134,13 +136,13 @@ function EndpointDetail({ doc, baseUrl }: { doc: EndpointDoc; baseUrl: string })
 
       {/* What the key must be allowed to do. A call without it answers 403 insufficient_scope. */}
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        Requires the
+        {t.requiresThe}
         <code className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-foreground">{doc.access}</code>
-        scope
+        {t.scope}
       </p>
 
-      {payload && <CodeBlock title={doc.body ? 'Payload' : 'Query parameters'} code={payload} />}
-      <CodeBlock title="Response" code={response} />
+      {payload && <CodeBlock title={doc.body ? t.payload : t.queryParameters} code={payload} />}
+      <CodeBlock title={t.response} code={response} />
     </article>
   );
 }
@@ -156,6 +158,7 @@ export function EndpointReference({ docs, baseUrl, intro }: {
   /** One line on authentication, shown once above the list. */
   intro: React.ReactNode;
 }) {
+  const t = useT().developers.reference;
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -177,24 +180,24 @@ export function EndpointReference({ docs, baseUrl, intro }: {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <div className="min-w-0 text-sm text-muted-foreground">{intro}</div>
         <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/40 py-1 pl-3 pr-1">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Base URL</span>
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t.baseUrl}</span>
           <code className="truncate font-mono text-xs text-foreground">{baseUrl}</code>
           <CopyButton text={baseUrl} />
         </div>
       </div>
 
       <div className="grid min-h-0 grid-cols-1 lg:flex-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <nav aria-label="Endpoints" className="border-b border-border p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <nav aria-label={t.endpoints} className="border-b border-border p-3 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder={`Search ${docs.length} endpoints`}
+              placeholder={t.search(docs.length)}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="h-8 pl-8 text-xs"
             />
           </div>
-          {groups.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">No match.</p>}
+          {groups.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">{t.noMatch}</p>}
           {groups.map(([group, items]) => (
             <div key={group} className="mb-3">
               <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
@@ -224,7 +227,7 @@ export function EndpointReference({ docs, baseUrl, intro }: {
           {current ? (
             <EndpointDetail doc={current} baseUrl={baseUrl} />
           ) : (
-            <p className="text-sm text-muted-foreground">No endpoints.</p>
+            <p className="text-sm text-muted-foreground">{t.noEndpoints}</p>
           )}
         </div>
       </div>

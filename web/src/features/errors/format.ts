@@ -1,4 +1,5 @@
 /** Presentation helpers for error data. Pure, so components and fixtures share them. */
+import { errorsEn, type ErrorsMessages } from '@/lib/i18n/messages/errors-en';
 
 /** `TypeError: x is not a function` → `TypeError`, for the badge. */
 export function errorTypeOf(message: string): string {
@@ -12,15 +13,17 @@ export function errorTypeOf(message: string): string {
  * `now` is a parameter rather than a call to `Date.now()` so a recording can pin it.
  * A fixture dated "2d ago" in one render and "3d ago" in the next is exactly the drift
  * that makes a re-render differ from the take that was approved.
+ *
+ * `t` is `useT().errors.time` for the viewer's language; English without it.
  */
-export function relativeTime(iso: string, now: number = Date.now()): string {
+export function relativeTime(iso: string, now: number = Date.now(), t: ErrorsMessages['time'] = errorsEn.time): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return '';
   const secs = Math.max(0, Math.round((now - then) / 1000));
-  if (secs < 60) return `${secs}s ago`;
+  if (secs < 60) return t.seconds(secs);
   const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return t.minutes(mins);
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t.hours(hours);
+  return t.days(Math.round(hours / 24));
 }

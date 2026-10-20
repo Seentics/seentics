@@ -15,6 +15,7 @@ import type { ClientBrand, ClientMe } from '@/features/client-mode/types';
 import { forgetWebsite } from '@/lib/last-website';
 import { onCustomHost } from '@/lib/seentics-host';
 import { useAuth } from '@/stores/useAuthStore';
+import { useT } from '@/lib/i18n';
 
 /**
  * Where a client user's email link lands: `/signin/verify#t=<token>`. The token is in the
@@ -44,6 +45,8 @@ type Phase = 'verifying' | 'invalid' | 'error';
 export default function VerifyClientLinkPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const t = useT().auth.verifyLink;
+  const tryAgain = useT().dashboard.errorPages.tryAgain;
   const [phase, setPhase] = useState<Phase>('verifying');
   const [message, setMessage] = useState('');
   const [slug, setSlug] = useState<string | null>(null);
@@ -103,7 +106,7 @@ export default function VerifyClientLinkPage() {
 
   const requestNew = (
     <Button asChild className="w-full font-semibold">
-      <Link href={clientSignInHref(slug)}>Request a new link</Link>
+      <Link href={clientSignInHref(slug)}>{t.requestNew}</Link>
     </Button>
   );
 
@@ -111,8 +114,8 @@ export default function VerifyClientLinkPage() {
     return (
       <ClientAuthShell
         brand={brand}
-        title="This link is invalid or has expired"
-        subtitle="Sign-in links work once and expire after 15 minutes. Request a new one and use it on this device."
+        title={t.invalidTitle}
+        subtitle={t.invalidBody}
       >
         <div className="flex flex-col items-center text-center" data-testid="client-link-invalid">
           <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -126,17 +129,17 @@ export default function VerifyClientLinkPage() {
 
   if (phase === 'error') {
     return (
-      <ClientAuthShell brand={brand} title="We could not sign you in" subtitle="Your link has not been used. Try again in a moment.">
+      <ClientAuthShell brand={brand} title={t.errorTitle} subtitle={t.errorBody}>
         <div className="space-y-3">
           <ClientAuthError>{message}</ClientAuthError>
-          <Button className="w-full font-semibold" onClick={() => void verify()}>Try again</Button>
+          <Button className="w-full font-semibold" onClick={() => void verify()}>{tryAgain}</Button>
         </div>
       </ClientAuthShell>
     );
   }
 
   return (
-    <ClientAuthShell brand={brand} title="Signing you in…" subtitle="One moment while we check your link.">
+    <ClientAuthShell brand={brand} title={t.verifyingTitle} subtitle={t.verifyingBody}>
       <div className="flex justify-center py-2" aria-busy="true">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>

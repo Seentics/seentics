@@ -1,4 +1,7 @@
+'use client';
+
 import { Bug } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { errorTypeOf, relativeTime } from '@/features/errors/format';
 import type { ErrorGroup } from '@/features/errors/types';
@@ -45,6 +48,7 @@ export function MessageLine({ message }: { message: string }) {
  * time this file changes.
  */
 export function ErrorGroupRow({ group, onOpen, share = 0, now, line, className }: ErrorGroupRowProps) {
+  const t = useT().errors;
   const body = (
     <>
       <Bug className="mt-0.5 h-4 w-4 shrink-0 text-destructive/70" />
@@ -64,15 +68,15 @@ export function ErrorGroupRow({ group, onOpen, share = 0, now, line, className }
             )}
           </span>
           {group.status !== 'unresolved' && (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium capitalize text-foreground/80">
-              {group.status}
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+              {t.status[group.status] ?? group.status}
             </span>
           )}
         </p>
       </div>
       <div className={cn('shrink-0 text-right', ERROR_EVENTS_COL)}>
         <p className="text-sm font-semibold tabular-nums text-foreground">
-          {group.event_count.toLocaleString()}
+          {group.event_count.toLocaleString('en-US')}
         </p>
         {/* How much of the list's traffic this fault is — the count alone does not say. */}
         <div className="ml-auto mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
@@ -83,7 +87,7 @@ export function ErrorGroupRow({ group, onOpen, share = 0, now, line, className }
         </div>
       </div>
       <p className={cn('shrink-0 pt-px text-right text-[13px] text-muted-foreground', ERROR_SEEN_COL)}>
-        {relativeTime(group.last_seen, now)}
+        {relativeTime(group.last_seen, now, t.time)}
       </p>
     </>
   );

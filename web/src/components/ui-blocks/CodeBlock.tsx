@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useT } from '@/lib/i18n';
 
 export interface CodeBlockProps {
   code: string;
@@ -23,13 +24,14 @@ export interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, toastOnCopy = false, className }: CodeBlockProps) {
+  const m = useT().uiBlocks.codeBlock;
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
     await navigator.clipboard.writeText(code);
     setCopied(true);
-    if (toastOnCopy) toast({ title: 'Copied to clipboard' });
+    if (toastOnCopy) toast({ title: m.copied });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -39,7 +41,9 @@ export function CodeBlock({ code, toastOnCopy = false, className }: CodeBlockPro
         {code}
       </pre>
       <button
+        type="button"
         onClick={copy}
+        aria-label={m.copy}
         className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}

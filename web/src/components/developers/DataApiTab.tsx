@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useApiCatalogue } from '@/features/api-keys/queries';
 import { EndpointReference, type EndpointDoc } from '@/components/developers/EndpointReference';
+import { useT } from '@/lib/i18n';
 
 /** `/v1/websites/:website_id/analytics/top-pages` → "Top pages"; `/heatmap/points` → "Heatmap points". */
 function titleFromPath(path: string): string {
@@ -25,6 +26,7 @@ function useOrigin() {
  * longer exists.
  */
 export function DataApiTab() {
+  const t = useT().developers;
   const origin = useOrigin();
   const { data: catalogue, isLoading, isError } = useApiCatalogue();
 
@@ -61,7 +63,7 @@ export function DataApiTab() {
     return (
       <div className="surface flex items-center gap-3 p-5 text-sm text-muted-foreground">
         <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-        Couldn&apos;t load the Analytics API reference — the API did not answer. Refresh to try again.
+        {t.dataApi.loadFailed}
       </div>
     );
   }
@@ -70,7 +72,7 @@ export function DataApiTab() {
     <EndpointReference
       docs={docs}
       baseUrl={`${origin}${catalogue.meta.base_path}`}
-      intro={<>Send an <strong>account key</strong> with the data scopes as <code className="font-mono text-xs">X-API-Key</code>.</>}
+      intro={<>{t.intro.send} <strong>{t.intro.accountKey}</strong> {t.intro.withDataScopes} <code className="font-mono text-xs">X-API-Key</code>{t.intro.end}</>}
     />
   );
 }

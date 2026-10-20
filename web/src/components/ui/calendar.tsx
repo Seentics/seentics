@@ -6,6 +6,7 @@ import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { useLocale, useT } from "@/lib/i18n"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -15,8 +16,27 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  // English is DayPicker's own; Bangla names months and weekdays itself, keeping Latin digits.
+  const { locale } = useLocale()
+  const t = useT().ui
+  const bangla =
+    locale === "bn"
+      ? {
+          formatters: {
+            formatCaption: (month: Date) => `${t.dates.monthsLong[month.getMonth()]} ${month.getFullYear()}`,
+            formatWeekdayName: (day: Date) => t.dates.weekdaysMin[day.getDay()],
+            formatDay: (day: Date) => String(day.getDate()),
+          },
+          labels: {
+            labelNext: () => t.calendar.nextMonth,
+            labelPrevious: () => t.calendar.previousMonth,
+            labelDayButton: (day: Date) => `${day.getDate()} ${t.dates.monthsLong[day.getMonth()]}, ${day.getFullYear()}`,
+          },
+        }
+      : {}
   return (
     <DayPicker
+      {...bangla}
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{

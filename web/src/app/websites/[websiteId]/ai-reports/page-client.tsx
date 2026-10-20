@@ -1,11 +1,11 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
 import { ReportPage } from '@/components/ui/linear-list';
 import { AlertsBanner } from '@/components/ai/AlertsBanner';
 import { InsightsCard } from '@/components/ai/InsightsCard';
 import { RecommendationsPanel } from '@/components/ai/RecommendationsPanel';
 import { usePathSegment } from '@/lib/path-segment';
+import { useT } from '@/lib/i18n';
 
 /**
  * The AI's full read of the site: unusual activity, today's insight, and what to do next with the
@@ -13,12 +13,12 @@ import { usePathSegment } from '@/lib/path-segment';
  */
 export default function AiReportsPage() {
   const websiteId = usePathSegment(1) ?? '';
+  const t = useT().ai.reports;
 
   return (
     <ReportPage
-      icon={<Sparkles />}
-      title="AI Reports"
-      description="Unusual activity, today's insights, and what to fix next — with the results of what you changed."
+      title={t.title}
+      description={t.description}
       websiteId={websiteId}
       bodyClassName="space-y-4"
     >

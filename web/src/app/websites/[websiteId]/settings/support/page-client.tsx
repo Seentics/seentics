@@ -30,19 +30,21 @@ import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isDemo } from '@/lib/demo';
 import { config } from '@/lib/config';
+import { useT } from '@/lib/i18n';
 
 const SUPPORT_EMAIL = config.supportEmail;
 
 type TabId = 'contact' | 'call';
 
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'contact', label: 'Contact', icon: Mail },
-  { id: 'call', label: 'Book a Call', icon: Calendar },
+const TABS: { id: TabId; icon: React.ElementType }[] = [
+  { id: 'contact', icon: Mail },
+  { id: 'call', icon: Calendar },
 ];
 
 export default function SupportPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
+  const t = useT().settings.support;
 
   const [activeTab, setActiveTab] = useState<TabId>('contact');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +53,8 @@ export default function SupportPage() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isDemo(websiteId)) {
-      toast.info('Demo mode', {
-        description: 'Messages are not sent in demo mode. Create a site to reach support.',
+      toast.info(t.demoTitle, {
+        description: t.demoBody,
       });
       return;
     }
@@ -64,13 +66,13 @@ export default function SupportPage() {
           ...formData,
           websiteId,
         });
-        toast.success('Message sent', {
-          description: 'We will reply to your email as soon as we can.',
+        toast.success(t.sentTitle, {
+          description: t.sentBody,
         });
         setFormData({ name: '', email: '', message: '' });
       } catch (error: unknown) {
         const err = error as { response?: { data?: { error?: string } }; message?: string };
-        const msg = err.response?.data?.error || err.message || 'Failed to send message';
+        const msg = err.response?.data?.error || err.message || t.sendFailed;
         toast.error(msg);
       } finally {
         setIsLoading(false);
@@ -83,16 +85,16 @@ export default function SupportPage() {
       `Name: ${formData.name}\nEmail: ${formData.email}\n\n---\n${formData.message}`,
     );
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-    toast.success('Opening your email app', {
-      description: `If nothing opens, email us at ${SUPPORT_EMAIL}`,
+    toast.success(t.openingEmail, {
+      description: t.openingEmailBody(SUPPORT_EMAIL),
     });
   };
 
   return (
     <div className={cn(websiteWorkspaceShellClass, 'animate-in fade-in duration-500 space-y-6')}>
       <DashboardPageHeader
-        title="Support"
-        description="Ask a question, report an issue, or book time with the team."
+        title={t.title}
+        description={t.description}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -100,36 +102,35 @@ export default function SupportPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
-              How we help
+              {t.howWeHelp}
             </CardTitle>
             <CardDescription className="text-xs leading-relaxed">
-              Use the contact form for product questions, billing (if applicable), and bug reports. Include
-              your site URL and steps to reproduce when reporting issues—we respond faster with context.
+              {t.howWeHelpBody}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-3 text-xs">
             <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
               <Clock className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Response time</p>
+                <p className="font-medium text-foreground">{t.responseTime}</p>
                 <p className="text-muted-foreground mt-0.5 leading-snug">
-                  We aim to answer within one business day. Priority depends on your plan where applicable.
+                  {t.responseTimeBody}
                 </p>
               </div>
             </div>
             <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
               <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Docs &amp; setup</p>
+                <p className="font-medium text-foreground">{t.docs}</p>
                 <p className="text-muted-foreground mt-0.5 leading-snug">
                   <Link
                     href={`/websites/${websiteId}/docs`}
                     className="text-primary font-medium hover:underline inline-flex items-center gap-1"
                   >
-                    Open documentation
+                    {t.openDocs}
                     <ExternalLink className="h-3 w-3 opacity-70" />
-                  </Link>{' '}
-                  for tracking installation, privacy, and product guides.
+                  </Link>
+                  {t.docsAfter}
                 </p>
               </div>
             </div>
@@ -138,7 +139,7 @@ export default function SupportPage() {
 
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Quick links</CardTitle>
+            <CardTitle className="text-sm">{t.quickLinks}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <Link
@@ -146,14 +147,14 @@ export default function SupportPage() {
               className="flex items-center gap-2 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              Tracking features
+              {t.trackingFeatures}
             </Link>
             <Link
               href={`/websites/${websiteId}/settings/profile`}
               className="flex items-center gap-2 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              Profile settings
+              {t.profileSettings}
             </Link>
           </CardContent>
         </Card>
@@ -176,7 +177,7 @@ export default function SupportPage() {
               )}
             >
               <Icon className="h-3.5 w-3.5" />
-              {tab.label}
+              {t.tabs[tab.id]}
             </button>
           );
         })}
@@ -197,7 +198,7 @@ export default function SupportPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Discord</p>
                 <p className="text-xs text-indigo-500/80 dark:text-indigo-400/60 mt-0.5">
-                  Community help and announcements
+                  {t.discordBody}
                 </p>
               </div>
               <ExternalLink className="h-3.5 w-3.5 text-indigo-400 group-hover:text-indigo-600 transition-colors shrink-0" />
@@ -211,7 +212,7 @@ export default function SupportPage() {
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Email</p>
+                <p className="text-sm font-semibold">{t.email}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{SUPPORT_EMAIL}</p>
               </div>
             </a>
@@ -219,32 +220,32 @@ export default function SupportPage() {
 
           <div className="border border-border rounded-lg overflow-hidden bg-card">
             <div className="px-5 py-4 border-b border-border bg-muted/20">
-              <h2 className="text-sm font-semibold">Send a message</h2>
+              <h2 className="text-sm font-semibold">{t.sendMessage}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isEnterprise
-                  ? 'Delivered to our team from your account. We reply by email.'
-                  : 'We will open your email client with your message pre-filled to our support address.'}
+                  ? t.sendMessageCloud
+                  : t.sendMessageSelfHosted}
               </p>
             </div>
             <form onSubmit={handleContactSubmit} className="p-5 space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-medium">
-                    Name
+                    {t.name}
                   </Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
                     required
-                    placeholder="Your name"
+                    placeholder={t.namePlaceholder}
                     className="h-9 text-sm"
                     autoComplete="name"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs font-medium">
-                    Email
+                    {t.email}
                   </Label>
                   <Input
                     id="email"
@@ -260,14 +261,14 @@ export default function SupportPage() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="message" className="text-xs font-medium">
-                  Message
+                  {t.message}
                 </Label>
                 <Textarea
                   id="message"
                   value={formData.message}
                   onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
                   required
-                  placeholder="What can we help with? Include URLs or errors if relevant."
+                  placeholder={t.messagePlaceholder}
                   className="min-h-[140px] text-sm resize-y"
                 />
               </div>
@@ -277,7 +278,7 @@ export default function SupportPage() {
                 ) : (
                   <Send className="h-3.5 w-3.5" />
                 )}
-                {isEnterprise ? 'Send message' : 'Send via email'}
+                {isEnterprise ? t.send : t.sendViaEmail}
               </Button>
             </form>
           </div>
@@ -288,9 +289,9 @@ export default function SupportPage() {
         <div className="animate-in fade-in duration-200">
           <div className="border border-border rounded-lg overflow-hidden bg-card">
             <div className="px-5 py-4 border-b border-border bg-muted/20">
-              <h2 className="text-sm font-semibold">Book a 30-minute call</h2>
+              <h2 className="text-sm font-semibold">{t.bookTitle}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Pick a time below. Prefer email first? Use the Contact tab.
+                {t.bookBody}
               </p>
             </div>
             <div className="p-0">

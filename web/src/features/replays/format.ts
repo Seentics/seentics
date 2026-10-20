@@ -1,3 +1,5 @@
+import { replaysEn, type ReplaysMessages } from '@/lib/i18n/messages/replays-en';
+
 /**
  * Pure formatting for replay sessions.
  *
@@ -15,12 +17,12 @@ export function formatDuration(seconds: number): string {
   return `${m}m ${s.toString().padStart(2, '0')}s`;
 }
 
-export function timeAgo(iso: string, now: number = Date.now()): string {
+export function timeAgo(iso: string, now: number = Date.now(), t: ReplaysMessages['time'] = replaysEn.time): string {
   const m = Math.floor((now - new Date(iso).getTime()) / 60000);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t.minutesAgo(m);
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t.hoursAgo(h);
+  return t.daysAgo(Math.floor(h / 24));
 }
 
 /** Strip origin; keep path (+ query). Truncate for table cells; tooltip shows full path. */

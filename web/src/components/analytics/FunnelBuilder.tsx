@@ -11,6 +11,7 @@ import { SheetHeader, SheetFooter, SheetTitle, SheetDescription } from '@/compon
 import { Plus, Trash2, GripVertical, Save, X, Target } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { FunnelStep, Funnel } from '@/features/funnels/queries';
+import { useT } from '@/lib/i18n';
 
 interface FunnelBuilderProps {
   websiteId: string;
@@ -26,6 +27,8 @@ const autoName = (step: FunnelStep) => {
 };
 
 export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: FunnelBuilderProps) {
+  const t = useT().analytics.funnelBuilder;
+  const actions = useT().actions;
   const [name, setName] = useState(existingFunnel?.name || '');
   const [description, setDescription] = useState(existingFunnel?.description || '');
   // Hours a visitor may take between one step and the next; empty is no limit.
@@ -85,12 +88,12 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
 
   const handleSave = useCallback(() => {
     if (!name.trim()) {
-      toast.error('Give the funnel a name');
+      toast.error(t.needName);
       return;
     }
 
     if (steps.length < 2) {
-      toast.error('A funnel needs at least 2 steps');
+      toast.error(t.needSteps);
       return;
     }
 
@@ -101,7 +104,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
     );
 
     if (hasEmptySteps) {
-      toast.error('Fill in every step before saving');
+      toast.error(t.fillSteps);
       return;
     }
 
@@ -112,7 +115,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
       is_active: existingFunnel?.is_active ?? true,
       conversion_window_hours: windowHours === 'none' ? null : Number(windowHours),
     });
-  }, [name, description, steps, windowHours, onSave, existingFunnel?.is_active]);
+  }, [name, description, steps, windowHours, onSave, existingFunnel?.is_active, t]);
 
   const getStepColor = (index: number) => {
     const colors = ['bg-indigo-500', 'bg-indigo-500', 'bg-green-500', 'bg-orange-500', 'bg-pink-500', 'bg-teal-500'];
@@ -124,10 +127,10 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
       <SheetHeader className="bg-card">
         <SheetTitle className="flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" />
-          {existingFunnel ? 'Edit funnel' : 'New funnel'}
+          {existingFunnel ? t.editTitle : t.newTitle}
         </SheetTitle>
         <SheetDescription>
-          Define the steps a visitor takes and see where they drop off.
+          {t.description}
         </SheetDescription>
       </SheetHeader>
       <div className="flex-1 overflow-y-auto bg-muted/40 px-4 py-4 space-y-3">
@@ -135,53 +138,50 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
         <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_9rem]">
             <div>
-              <Label htmlFor="funnel-name" className="text-xs">Name</Label>
+              <Label htmlFor="funnel-name" className="text-xs">{t.name}</Label>
               <Input
                 id="funnel-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Checkout conversion"
+                placeholder={t.namePlaceholder}
                 className="mt-1 h-8 !bg-card text-xs"
               />
             </div>
             <div>
-              <Label htmlFor="funnel-window" className="text-xs">Step window</Label>
+              <Label htmlFor="funnel-window" className="text-xs">{t.stepWindow}</Label>
               <Select value={windowHours} onValueChange={setWindowHours}>
                 <SelectTrigger id="funnel-window" className="mt-1 h-8 !bg-card text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No limit</SelectItem>
-                  <SelectItem value="1">1 hour</SelectItem>
-                  <SelectItem value="24">1 day</SelectItem>
-                  <SelectItem value="72">3 days</SelectItem>
-                  <SelectItem value="168">7 days</SelectItem>
-                  <SelectItem value="720">30 days</SelectItem>
+                  {(Object.keys(t.windows) as (keyof typeof t.windows)[]).map((value) => (
+                    <SelectItem key={value} value={value}>{t.windows[value]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div>
-            <Label htmlFor="funnel-description" className="text-xs">Description (optional)</Label>
+            <Label htmlFor="funnel-description" className="text-xs">{t.descriptionLabel}</Label>
             <Textarea
               id="funnel-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What this funnel tracks"
+              placeholder={t.descriptionPlaceholder}
               rows={2}
               className="mt-1 min-h-0 resize-none !bg-card text-xs"
             />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            A visitor counts at the next step only if they reach it within the step window of the step before.
+            {t.windowHint}
           </p>
         </div>
 
         {/* Funnel Steps */}
         <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Steps</h3>
+            <h3 className="text-sm font-semibold">{t.steps}</h3>
             <Button onClick={addStep} size="sm" variant="outline">
               <Plus className="w-4 h-4 mr-2" />
-              Add Step
+              {t.addStep}
             </Button>
           </div>
 
@@ -217,16 +217,16 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                             <div className="flex gap-2">
                               {step.type !== 'custom' && (
                                 <div className="flex h-8 shrink-0 rounded-md border bg-card p-0.5 text-xs">
-                                  {(['page', 'event'] as const).map((t) => (
+                                  {(['page', 'event'] as const).map((kind) => (
                                     <button
-                                      key={t}
+                                      key={kind}
                                       type="button"
-                                      onClick={() => step.type !== t && updateStep(step.id, { type: t, condition: {} })}
+                                      onClick={() => step.type !== kind && updateStep(step.id, { type: kind, condition: {} })}
                                       className={`rounded px-2.5 font-medium transition-colors ${
-                                        step.type === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                                        step.type === kind ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                                       }`}
                                     >
-                                      {t === 'page' ? 'Page' : 'Event'}
+                                      {kind === 'page' ? t.page : t.event}
                                     </button>
                                   ))}
                                 </div>
@@ -247,31 +247,31 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                                 placeholder={
                                   step.type === 'page' ? '/pricing' :
                                   step.type === 'event' ? 'signup_completed' :
-                                  'Custom condition'
+                                  t.customCondition
                                 }
-                                aria-label="Page path or event name"
+                                aria-label={t.inputAria}
                                 className="h-8 min-w-0 flex-1 !bg-card text-xs"
                               />
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               {step.type === 'page' ? (
                                 <>
-                                  Visitor views a page that{' '}
+                                  {t.viewsPageThat}{' '}
                                   <select
                                     value={step.matchType || 'exact'}
                                     onChange={(e) => updateStep(step.id, { matchType: e.target.value as FunnelStep['matchType'] })}
                                     className="cursor-pointer rounded bg-transparent font-medium text-foreground underline decoration-dotted underline-offset-2 outline-none"
                                   >
-                                    <option value="exact">is exactly this path</option>
-                                    <option value="starts_with">starts with this path</option>
-                                    <option value="contains">contains this text</option>
-                                    <option value="regex">matches this regex</option>
+                                    <option value="exact">{t.match.exact}</option>
+                                    <option value="starts_with">{t.match.starts_with}</option>
+                                    <option value="contains">{t.match.contains}</option>
+                                    <option value="regex">{t.match.regex}</option>
                                   </select>
                                 </>
                               ) : step.type === 'event' ? (
-                                'Visitor triggers this custom event'
+                                t.triggersEvent
                               ) : (
-                                'Custom condition'
+                                t.customCondition
                               )}
                             </p>
                           </div>
@@ -282,7 +282,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
-                              aria-label="Remove step"
+                              aria-label={t.removeStep}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
@@ -302,11 +302,11 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
       <SheetFooter className="bg-card pr-20">
         <Button onClick={onCancel} variant="outline" size="sm">
           <X className="w-4 h-4 mr-1.5" />
-          Cancel
+          {actions.cancel}
         </Button>
         <Button onClick={handleSave} size="sm">
           <Save className="w-4 h-4 mr-1.5" />
-          {existingFunnel ? 'Update funnel' : 'Create funnel'}
+          {existingFunnel ? t.update : t.create}
         </Button>
       </SheetFooter>
     </>

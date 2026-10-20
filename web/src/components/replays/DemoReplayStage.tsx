@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type RefObject } from 'react';
+import { useT } from '@/lib/i18n';
 import { FastForward, Gauge, Maximize2, MousePointer2, Pause, Play, Rewind, SkipForward } from 'lucide-react';
 
 /**
@@ -57,8 +58,8 @@ const SCROLL: { at: number; y: number }[] = [
 
 /** Where the timeline marks the visit's moments, as a share of the recording. */
 const MARKERS = [
-  { at: 7.7 / LOOP_S, cls: 'bg-amber-400', label: 'Rage click' },
-  { at: 10.4 / LOOP_S, cls: 'bg-rose-500', label: 'Error' },
+  { at: 7.7 / LOOP_S, cls: 'bg-amber-400', label: 'rageClick' as const },
+  { at: 10.4 / LOOP_S, cls: 'bg-rose-500', label: 'error' as const },
 ];
 
 const ease = (k: number) => (k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
@@ -166,6 +167,7 @@ function usePlayback(refs: {
 
 /** The page being replayed, with the visitor's cursor moving over it. */
 export function DemoReplayViewport({ transport }: { transport?: RefObject<{ played: HTMLDivElement | null; knob: HTMLDivElement | null; time: HTMLSpanElement | null }> }) {
+  const demoT = useT().replays.demo;
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const cursor = useRef<HTMLDivElement>(null);
@@ -285,7 +287,7 @@ export function DemoReplayViewport({ transport }: { transport?: RefObject<{ play
         className="pointer-events-none absolute left-0 top-0 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-black opacity-0 shadow transition-opacity duration-200 data-[on=true]:opacity-100"
         aria-hidden
       >
-        Rage click
+        {demoT.rageClick}
       </div>
       {/* Where the recording has the cursor; the still picture's spot until playback moves it. */}
       <div ref={cursor} className="pointer-events-none absolute left-[24%] top-[57%] will-change-transform" aria-hidden>
@@ -299,6 +301,7 @@ type TransportRefs = { played: HTMLDivElement | null; knob: HTMLDivElement | nul
 
 /** Play / seek / speed / fullscreen — always dark, as under the real player. */
 export function DemoTransportBar({ transport }: { transport?: RefObject<TransportRefs> }) {
+  const t = useT().replays.demo;
   return (
     <div className="w-full shrink-0 border-t border-zinc-800/80 bg-zinc-900/90 px-3 py-2">
       <div className="flex min-h-[2.25rem] items-center gap-2">
@@ -324,7 +327,7 @@ export function DemoTransportBar({ transport }: { transport?: RefObject<Transpor
           {MARKERS.map((m) => (
             <span
               key={m.label}
-              title={m.label}
+              title={t[m.label]}
               className={`absolute top-1/2 h-2 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full ${m.cls}`}
               style={{ left: `${m.at * 100}%` }}
             />

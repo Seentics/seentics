@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n';
 
 export default function DashboardError({
   error,
@@ -11,6 +12,7 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT().dashboard.errorPages;
   useEffect(() => {
     console.error('Dashboard error:', error);
   }, [error]);
@@ -23,13 +25,13 @@ export default function DashboardError({
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Dashboard Error
+          {t.dashboardTitle}
         </h1>
         <p className="text-muted-foreground mb-2">
-          Something went wrong while loading the dashboard.
+          {t.dashboardBody}
         </p>
         <p className="text-sm text-muted-foreground/70 mb-8">
-          {error.message || 'An unexpected error occurred.'}
+          {error.message || t.unexpected}
         </p>
 
         <div className="flex items-center justify-center gap-3">
@@ -38,14 +40,14 @@ export default function DashboardError({
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
-            Try again
+            {t.tryAgain}
           </button>
           <Link
             href="/websites"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-medium hover:bg-accent transition-colors"
           >
             <Home className="h-4 w-4" />
-            All websites
+            {t.allWebsites}
           </Link>
         </div>
       </div>

@@ -9,10 +9,11 @@ import { Card } from '@/components/ui/card';
 import { useAiStatus } from '@/features/ai/queries';
 import { useRecommendationAction, useRecommendations } from '@/features/ai/recommendations/queries';
 import {
-  SOURCE_LABEL, beforeAfter, doItHref, groupRecommendations, impactTone, measuringLabel,
+  beforeAfter, doItHref, groupRecommendations, impactTone, measuringLabel,
 } from '@/features/ai/recommendations/helpers';
 import type { Recommendation } from '@/features/ai/recommendations/types';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface RecommendationsPanelProps {
@@ -35,6 +36,9 @@ const OPEN_PREVIEW = 3;
  * suggestions come from rules, so it shows without a model; only "Do it" needs one.
  */
 export function RecommendationsPanel({ websiteId, className }: RecommendationsPanelProps) {
+  const t = useT().ai.recommendations;
+  const { locale } = useLocale();
+  const dateLocale = locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined;
   const list = useRecommendations(websiteId);
   const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
@@ -55,7 +59,7 @@ export function RecommendationsPanel({ websiteId, className }: RecommendationsPa
     try {
       await act.mutateAsync({ id, action });
     } catch {
-      setError('That did not go through. Try again.');
+      setError(t.failed);
     }
   };
 
@@ -63,9 +67,9 @@ export function RecommendationsPanel({ websiteId, className }: RecommendationsPa
     <Card className={cn('surface overflow-hidden', className)}>
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Lightbulb className="h-4 w-4 shrink-0 text-primary" />
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">Recommendations</h2>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">{t.title}</h2>
         <span className="truncate text-xs text-muted-foreground">
-          · {groups.open.length} to do{groups.measuring.length > 0 && `, ${groups.measuring.length} measuring`}
+          · {t.toDo(groups.open.length)}{groups.measuring.length > 0 && t.measuringCount(groups.measuring.length)}
         </span>
       </div>
 
@@ -92,18 +96,18 @@ export function RecommendationsPanel({ websiteId, className }: RecommendationsPa
             className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAll && 'rotate-180')} />
-            {showAll ? 'Show fewer' : `Show all ${groups.open.length}`}
+            {showAll ? t.showFewer : t.showAll(groups.open.length)}
           </button>
         )}
 
         {groups.measuring.length > 0 && (
-          <Section title="Measuring">
+          <Section title={t.measuring}>
             {groups.measuring.map((rec) => (
               <li key={rec.id} className="flex items-start gap-2.5 text-[13px] leading-relaxed">
                 <Hourglass className="mt-[0.3em] h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
                   <span className="text-foreground">{rec.title}</span>
-                  <span className="ml-1.5 text-xs text-muted-foreground">{measuringLabel(rec.report)}</span>
+                  <span className="ml-1.5 text-xs text-muted-foreground">{measuringLabel(rec.report, t.measuringLabel, dateLocale)}</span>
                   {rec.report.checkpoints.length > 0 && (
                     <span className="block text-xs text-muted-foreground">{rec.report.headline}</span>
                   )}
@@ -114,7 +118,7 @@ export function RecommendationsPanel({ websiteId, className }: RecommendationsPa
         )}
 
         {groups.measured.length > 0 && (
-          <Section title="Results">
+          <Section title={t.results}>
             {groups.measured.slice(0, 5).map((rec) => <MeasuredItem key={rec.id} rec={rec} />)}
           </Section>
         )}
@@ -135,6 +139,7 @@ function OpenItem({
   busy: boolean;
   onAction: (action: 'dismiss' | 'done') => void;
 }) {
+  const t = useT().ai.recommendations;
   const href = aiReady && canAct ? doItHref(websiteId, rec) : null;
   return (
     <li className="rounded-lg bg-primary/5 px-3 py-2 text-[13px] leading-relaxed">
@@ -142,24 +147,24 @@ function OpenItem({
         <div className="min-w-0">
           <p className="font-medium text-foreground">{rec.title}</p>
           {rec.rationale && <p className="text-muted-foreground">{rec.rationale}</p>}
-          <p className="mt-0.5 text-[11px] text-muted-foreground/80">{SOURCE_LABEL[rec.source]}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/80">{t.source[rec.source] ?? rec.source}</p>
         </div>
         {canAct && (
           <div className="flex shrink-0 items-center gap-1 self-start">
             {href && (
               <Link
                 href={href}
-                title="Open the assistant with this typed in"
+                title={t.doItTitle}
                 className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
               >
                 <Sparkles className="h-3 w-3" />
-                Do it
+                {t.doIt}
               </Link>
             )}
-            <SmallButton label="I did this myself" disabled={busy} onClick={() => onAction('done')}>
+            <SmallButton label={t.didItMyself} disabled={busy} onClick={() => onAction('done')}>
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             </SmallButton>
-            <SmallButton label="Dismiss" disabled={busy} onClick={() => onAction('dismiss')}>
+            <SmallButton label={t.dismiss} disabled={busy} onClick={() => onAction('dismiss')}>
               <X className="h-3.5 w-3.5" />
             </SmallButton>
           </div>
@@ -170,9 +175,10 @@ function OpenItem({
 }
 
 function MeasuredItem({ rec }: { rec: Recommendation }) {
+  const t = useT().ai.recommendations;
   const r = rec.report;
   const tone = impactTone(r.verdict);
-  const ba = beforeAfter(r);
+  const ba = beforeAfter(r, t.pts);
   const Icon = tone === 'good' ? TrendingUp : tone === 'bad' ? TrendingDown : Minus;
   return (
     <li className="flex items-start gap-2.5 text-[13px] leading-relaxed">

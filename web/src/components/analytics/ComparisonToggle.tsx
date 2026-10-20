@@ -4,6 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { GitCompareArrows } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 interface ComparisonToggleProps {
   enabled: boolean;
@@ -11,6 +12,7 @@ interface ComparisonToggleProps {
 }
 
 export function ComparisonToggle({ enabled, onToggle }: ComparisonToggleProps) {
+  const t = useT().analytics.traffic;
   return (
     <Button
       variant="ghost"
@@ -22,7 +24,7 @@ export function ComparisonToggle({ enabled, onToggle }: ComparisonToggleProps) {
       )}
     >
       <GitCompareArrows className="h-3.5 w-3.5" />
-      Compare
+      {t.compare}
     </Button>
   );
 }

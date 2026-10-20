@@ -64,7 +64,7 @@ function RealPage({ label, path, children }: { label: MockNavLabel; path: string
   );
 }
 
-const SCREENS: Record<string, ComponentType> = {
+const SCREENS: Record<MockNavLabel, ComponentType> = {
   Overview: DashboardMock,
   Recording: LazyReplayMock,
   Heatmaps: LazyHeatmapMock,
@@ -88,9 +88,18 @@ const VIEWS = Object.keys(SCREENS) as MockNavLabel[];
  * The hero's dashboard, explorable: the sidebar switches between the real screens, the way
  * linear.app lets a visitor click around its app. Opens on the overview, which is
  * server-rendered (it is the page's largest paint); the others load once the page is idle.
+ *
+ * `order` gives the sidebar a website type's pages, in its order (the Bangladesh landing pages
+ * show a store's or a Facebook seller's dashboard); `initial` is the screen it opens on.
  */
-export function HeroExplorer() {
-  const [view, setView] = useState<MockNavLabel>('Overview');
+export function HeroExplorer({ order, initial = 'Overview', label = 'Seentics dashboard preview. Use the sidebar to switch screens.' }: {
+  order?: readonly MockNavLabel[];
+  initial?: MockNavLabel;
+  label?: string;
+} = {}) {
+  const views = order ?? VIEWS;
+  const [view, setView] = useState<MockNavLabel>(initial);
+  useEffect(() => setView(initial), [initial]);
 
   // The other screens mount once the page is idle: they are ready before a click, and
   // their weight stays out of the first paint.
@@ -102,7 +111,7 @@ export function HeroExplorer() {
   }, []);
 
   return (
-    <MockNavContext.Provider value={{ views: VIEWS, onSelect: setView }}>
+    <MockNavContext.Provider value={{ views, onSelect: setView, order }}>
       <ProductWindow
         // 1280, not the dashboard's 1440: each screen caps its content (the real pages do
         // too), and at 1440 that left an empty band on the right of the window. Here every
@@ -110,7 +119,7 @@ export function HeroExplorer() {
         designWidth={1280}
         designHeight={900}
         crop={0.8}
-        interactiveLabel="Seentics dashboard preview. Use the sidebar to switch screens."
+        interactiveLabel={label}
       >
         {/* Every screen stays mounted, stacked, and only the chosen one is shown: switching
             is instant, as in the app. Unmounting on each click re-drew the screen, sidebar
@@ -118,7 +127,7 @@ export function HeroExplorer() {
             `invisible` (not `hidden`) keeps the hidden screens laid out at full size, so
             their charts do not collapse and re-measure when shown again. */}
         <div className="relative h-full w-full">
-          {VIEWS.map((label) => {
+          {views.map((label) => {
             const Screen = SCREENS[label];
             const shown = label === view;
             if (!shown && !warm) return null;

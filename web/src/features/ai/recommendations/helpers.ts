@@ -2,6 +2,7 @@
  * Pure helpers for the recommendations panel and the insight card's impact line, so what each
  * shows and links to is testable without rendering a dashboard.
  */
+import { aiEn, type AiMessages } from '@/lib/i18n/messages/ai-en';
 import { buildAskAiHref } from '../ask-link';
 import type { ImpactReport, Recommendation, RecommendationSource, Verdict } from './types';
 
@@ -45,7 +46,9 @@ export function impactTone(verdict: Verdict | null): ImpactTone {
 const pct = (v: number) => `${v < 10 ? Math.round(v * 10) / 10 : Math.round(v)}%`;
 
 /** "52% → 46%" and "−6 pts" for the newest reading, or null without both figures. */
-export function beforeAfter(report: ImpactReport): { before: string; after: string; delta: string } | null {
+export function beforeAfter(
+  report: ImpactReport, pts: (text: string) => string = aiEn.recommendations.pts,
+): { before: string; after: string; delta: string } | null {
   const latest = report.checkpoints[report.checkpoints.length - 1];
   const b = report.baseline?.value;
   const a = latest?.after?.value;
@@ -53,24 +56,24 @@ export function beforeAfter(report: ImpactReport): { before: string; after: stri
   const d = latest.deltaPts;
   const abs = Math.abs(d);
   const text = abs < 10 && !Number.isInteger(abs) ? abs.toFixed(1) : String(Math.round(abs));
-  return { before: pct(b), after: pct(a), delta: `${d < 0 ? '−' : '+'}${text} pts` };
+  return { before: pct(b), after: pct(a), delta: pts(`${d < 0 ? '−' : '+'}${text}`) };
 }
 
 /** "Measuring · first reading Oct 8": what an applied recommendation is waiting for. */
-export function measuringLabel(report: ImpactReport): string {
-  if (!report.nextCheckAt) return 'Measuring…';
+export function measuringLabel(
+  report: ImpactReport,
+  t: AiMessages['recommendations']['measuringLabel'] = aiEn.recommendations.measuringLabel,
+  dateLocale?: string,
+): string {
+  if (!report.nextCheckAt) return t.pending;
   const d = new Date(report.nextCheckAt);
-  if (Number.isNaN(d.getTime())) return 'Measuring…';
-  const when = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return report.checkpoints.length === 0 ? `Measuring · first reading ${when}` : `Measuring · final reading ${when}`;
+  if (Number.isNaN(d.getTime())) return t.pending;
+  const when = d.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' });
+  return report.checkpoints.length === 0 ? t.first(when) : t.final(when);
 }
 
-export const SOURCE_LABEL: Record<RecommendationSource, string> = {
-  insight: 'Daily insight',
-  heatmap: 'Heatmap',
-  session: 'Session recordings',
-  assistant: 'Assistant',
-};
+/** English; components use `useT().ai.recommendations.source`. */
+export const SOURCE_LABEL: Record<RecommendationSource, string> = aiEn.recommendations.source;
 
 /**
  * The one result worth a line on the insight card: the newest reading that says something (a move

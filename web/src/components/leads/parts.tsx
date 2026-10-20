@@ -8,13 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CONTACT_STATUSES, type ContactStatus, type SubmissionDelivery } from '@/features/leads/types';
 import { describeDelivery } from '@/lib/integration-form';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import { STATUS_META } from './lead-format';
 
 const TONE_DOT = { success: 'bg-emerald-500', warning: 'bg-amber-500', danger: 'bg-rose-500', muted: 'bg-muted-foreground/50' } as const;
 
 /** Where a submission was sent, as quiet "● Name" pairs; the dot carries the outcome. */
 export function SentTo({ deliveries }: { deliveries: readonly SubmissionDelivery[] }) {
-  if (deliveries.length === 0) return <span className="text-muted-foreground">Not sent</span>;
+  const t = useT().leads.parts;
+  if (deliveries.length === 0) return <span className="text-muted-foreground">{t.notSent}</span>;
   return (
     <span className="flex flex-wrap gap-x-3 gap-y-1">
       {deliveries.map((d) => {
@@ -37,19 +39,20 @@ export function StatusDot({ status }: { status: ContactStatus }) {
 
 /** A contact's status as a compact select; read-only text where changes are not allowed. */
 export function StatusSelect({
-  value, onChange, disabled, className, ariaLabel = 'Status',
+  value, onChange, disabled, className, ariaLabel,
 }: { value: ContactStatus; onChange?: (next: ContactStatus) => void; disabled?: boolean; className?: string; ariaLabel?: string }) {
+  const t = useT().leads;
   if (!onChange) {
     return (
       <span className={cn('inline-flex items-center gap-1.5 text-[13px]', className)}>
-        <StatusDot status={value} />{STATUS_META[value].label}
+        <StatusDot status={value} />{t.statuses[value]}
       </span>
     );
   }
   return (
     <Select value={value} onValueChange={(v) => onChange(v as ContactStatus)} disabled={disabled}>
       <SelectTrigger
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? t.fields.status}
         className={cn('h-7 w-[124px] gap-1.5 border-transparent bg-transparent px-2 text-[13px] shadow-none hover:bg-muted/60', className)}
         onClick={(e) => e.stopPropagation()}
       >
@@ -58,7 +61,7 @@ export function StatusSelect({
       <SelectContent onClick={(e) => e.stopPropagation()}>
         {CONTACT_STATUSES.map((s) => (
           <SelectItem key={s} value={s} className="text-[13px]">
-            <span className="inline-flex items-center gap-2"><StatusDot status={s} />{STATUS_META[s].label}</span>
+            <span className="inline-flex items-center gap-2"><StatusDot status={s} />{t.statuses[s]}</span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -79,19 +82,20 @@ export function TagList({ tags, max = 3 }: { tags: readonly string[]; max?: numb
 
 /** Tags as removable chips with a field to add more (Enter or comma adds; Backspace on empty removes the last). */
 export function TagInput({ value, onChange, disabled, id }: { value: string[]; onChange: (tags: string[]) => void; disabled?: boolean; id?: string }) {
+  const t = useT().leads.parts;
   const [draft, setDraft] = useState('');
   const add = (raw: string) => {
-    const tags = raw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+    const tags = raw.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
     if (tags.length) onChange([...new Set([...value, ...tags])].slice(0, 20));
     setDraft('');
   };
   return (
     <div className={cn('flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1.5', disabled && 'opacity-60')}>
-      {value.map((t) => (
-        <span key={t} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs">
-          {t}
+      {value.map((tag) => (
+        <span key={tag} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs">
+          {tag}
           {!disabled && (
-            <button type="button" aria-label={`Remove tag ${t}`} className="text-muted-foreground hover:text-foreground" onClick={() => onChange(value.filter((x) => x !== t))}>
+            <button type="button" aria-label={t.removeTag(tag)} className="text-muted-foreground hover:text-foreground" onClick={() => onChange(value.filter((x) => x !== tag))}>
               <X className="h-3 w-3" />
             </button>
           )}
@@ -107,7 +111,7 @@ export function TagInput({ value, onChange, disabled, id }: { value: string[]; o
           if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1));
         }}
         onBlur={() => draft && add(draft)}
-        placeholder={value.length ? '' : 'Add a tag…'}
+        placeholder={value.length ? '' : t.addTag}
         className="h-6 min-w-[6rem] flex-1 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
       />
     </div>

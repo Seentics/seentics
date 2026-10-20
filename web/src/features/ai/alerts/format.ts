@@ -2,6 +2,7 @@
  * Pure helpers for anomaly alerts: ordering, what the dashboard banner shows, labels and
  * links. No React, so each is testable without rendering the banner.
  */
+import { aiEn, type AiMessages } from '@/lib/i18n/messages/ai-en';
 import { buildAskAiHref } from '../ask-link';
 import { evidenceHref } from '../insights/card-state';
 import type {
@@ -17,9 +18,8 @@ export function severityRank(s: string): number {
   return SEVERITIES.indexOf(s as AlertSeverity);
 }
 
-export const SEVERITY_LABEL: Record<AlertSeverity, string> = {
-  low: 'Low', medium: 'Medium', high: 'High', critical: 'Critical',
-};
+/** English severity labels; components use `useT().ai.alerts.severity`. */
+export const SEVERITY_LABEL: Record<AlertSeverity, string> = aiEn.alerts.severity;
 
 /** Tailwind classes for the dot beside an alert. */
 export const SEVERITY_DOT: Record<AlertSeverity, string> = {
@@ -29,11 +29,15 @@ export const SEVERITY_DOT: Record<AlertSeverity, string> = {
   critical: 'bg-destructive',
 };
 
-export const SENSITIVITY_OPTIONS: ReadonlyArray<{ value: AlertSensitivity; label: string; hint: string }> = [
-  { value: 'low', label: 'Low', hint: 'Only large, sustained changes. Fewest alerts.' },
-  { value: 'normal', label: 'Normal', hint: 'Clear departures from what is usual for that hour of the week.' },
-  { value: 'high', label: 'High', hint: 'Smaller changes too. More alerts, some of them minor.' },
-];
+/** The sensitivity choices, labelled in the viewer's language (`useT().ai.alerts.sensitivity`); English without it. */
+export function sensitivityOptions(
+  t: AiMessages['alerts']['sensitivity'] = aiEn.alerts.sensitivity,
+): ReadonlyArray<{ value: AlertSensitivity; label: string; hint: string }> {
+  return SENSITIVITIES.map((value) => ({ value, label: t[value].label, hint: t[value].hint }));
+}
+
+/** English; prefer `sensitivityOptions(useT().ai.alerts.sensitivity)`. */
+export const SENSITIVITY_OPTIONS = sensitivityOptions();
 
 const ts = (iso: string | null | undefined) => {
   const t = iso ? Date.parse(iso) : NaN;
@@ -67,15 +71,17 @@ export function bannerAlerts(alerts: readonly AlertView[], now = Date.now(), max
 }
 
 /** "just now", "12 min ago", "3 h ago", "2 d ago". */
-export function relativeTime(iso: string | null | undefined, now = Date.now()): string {
+export function relativeTime(
+  iso: string | null | undefined, now = Date.now(), m: AiMessages['alerts']['time'] = aiEn.alerts.time,
+): string {
   const t = ts(iso);
   if (!t) return '';
   const min = Math.max(0, Math.round((now - t) / 60_000));
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
+  if (min < 1) return m.justNow;
+  if (min < 60) return m.minutes(min);
   const h = Math.round(min / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.round(h / 24)} d ago`;
+  if (h < 24) return m.hours(h);
+  return m.days(Math.round(h / 24));
 }
 
 /** The page an alert points at, or `null` when its path is not a safe dashboard link. `''` is the overview. */
@@ -86,18 +92,20 @@ export function alertHref(websiteId: string, path: string | null | undefined): s
 }
 
 /** Link label for the page an alert points at. */
-export function alertLinkLabel(path: string): string {
+export function alertLinkLabel(path: string, t: AiMessages['alerts']['link'] = aiEn.alerts.link): string {
   const p = path.replace(/^\/+/, '');
-  if (p.startsWith('errors')) return 'View errors';
-  if (p.startsWith('goals')) return 'View goals';
-  if (p.startsWith('settings/tracking') || p.startsWith('settings/features') || p.startsWith('settings/websites')) return 'Check tracking';
-  return 'Open';
+  if (p.startsWith('errors')) return t.errors;
+  if (p.startsWith('goals')) return t.goals;
+  if (p.startsWith('settings/tracking') || p.startsWith('settings/features') || p.startsWith('settings/websites')) return t.tracking;
+  return t.open;
 }
 
 /** "Ask AI why": the alert's own question, or one built from its title when it has none. */
-export function askWhyHref(websiteId: string, alert: Pick<AlertView, 'askPrompt' | 'title'>): string {
-  const question = alert.askPrompt?.trim() || `Why did this happen: ${alert.title}?`;
-  return buildAskAiHref(websiteId, question, 'Alert');
+export function askWhyHref(
+  websiteId: string, alert: Pick<AlertView, 'askPrompt' | 'title'>, t: AiMessages['alerts'] = aiEn.alerts,
+): string {
+  const question = alert.askPrompt?.trim() || t.whyQuestion(alert.title);
+  return buildAskAiHref(websiteId, question, t.askContext);
 }
 
 // ─── Response parsing ─────────────────────────────────────────────────────────

@@ -7,10 +7,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { relativeTime } from '@/features/errors/format';
 import type { Destination } from '@/features/conversions/types';
 import { cn } from '@/lib/utils';
 import { PLATFORMS } from './conversion-format';
+import { useT } from '@/lib/i18n';
 import { PlatformMark } from './parts';
 
 export type CardAction = 'test' | 'events' | 'credentials' | 'delete';
@@ -24,52 +24,38 @@ export function DestinationCard({
   onToggle: (enabled: boolean) => void;
   onAction: (action: CardAction) => void;
 }) {
+  const all = useT();
+  const t = all.conversions.card;
   const info = PLATFORMS[d.platform];
   const healthy = d.enabled && d.status === 'active';
-  const stateLabel = !d.enabled ? 'Paused' : d.status === 'error' ? 'Needs attention' : 'Sending';
+  const stateLabel = !d.enabled ? t.paused : d.status === 'error' ? t.needsAttention : t.sending;
 
   return (
     <article className="surface flex flex-col gap-4 p-4" aria-label={`${info.label} — ${stateLabel}`}>
       <header className="flex items-start gap-3">
         <PlatformMark platform={d.platform} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-foreground">{d.name || info.label}</p>
+          <p className="truncate text-[14px] font-semibold text-foreground">{d.name || info.label}</p>
           <p className="truncate font-mono text-[11px] text-muted-foreground">{d.credentials_hint}</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="-mr-1 h-7 w-7 text-muted-foreground" aria-label={`${info.label} options`}>
+            <Button variant="ghost" size="icon" className="-mr-1 h-7 w-7 text-muted-foreground" aria-label={t.options(info.label)}>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => onAction('test')} disabled={!canEdit}>Send test event</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('events')} disabled={!canEdit}>Edit events</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('credentials')} disabled={!canEdit}>Edit credentials</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction('test')} disabled={!canEdit}>{t.sendTest}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction('events')} disabled={!canEdit}>{t.editEvents}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction('credentials')} disabled={!canEdit}>{t.editCredentials}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => onAction('delete')} disabled={!canEdit} className="text-destructive focus:text-destructive">
-              Disconnect
+              {t.disconnect}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
 
-      <dl className="grid grid-cols-3 gap-3">
-        <div>
-          <dt className="whitespace-nowrap text-[11px] text-muted-foreground">Sent · 7d</dt>
-          <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{d.stats.sent_7d.toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt className="text-[11px] text-muted-foreground">Failed</dt>
-          <dd className={cn('mt-0.5 text-lg font-semibold tabular-nums', d.stats.failed_7d ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
-            {d.stats.failed_7d.toLocaleString()}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[11px] text-muted-foreground">Last sent</dt>
-          <dd className="mt-1 text-[13px] text-foreground/80">{d.stats.last_sent_at ? relativeTime(d.stats.last_sent_at, now) : '—'}</dd>
-        </div>
-      </dl>
 
       <footer className="mt-auto flex items-start gap-2 border-t border-border pt-3 text-xs">
         <span className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', healthy ? 'bg-emerald-500' : !d.enabled ? 'bg-muted-foreground/50' : 'bg-rose-500')} aria-hidden />
@@ -81,7 +67,7 @@ export function DestinationCard({
           checked={d.enabled}
           onCheckedChange={onToggle}
           disabled={!canEdit}
-          aria-label={d.enabled ? `Pause ${info.label}` : `Resume ${info.label}`}
+          aria-label={d.enabled ? t.pause(info.label) : t.resume(info.label)}
           className="-my-0.5 ml-auto shrink-0"
         />
       </footer>

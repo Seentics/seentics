@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAskAi, useConfirmProposal } from './mutations';
 import { useConversation } from './queries';
+import { useT } from '@/lib/i18n';
 import type { ChatMessage } from './types';
 
 /**
@@ -27,6 +28,7 @@ export function useAssistantChat(
   const [recommendationId, setRecommendationId] = useState<string | null>(initialRecommendationId ?? null);
   const [confirmingIds, setConfirmingIds] = useState<ReadonlySet<string>>(() => new Set());
 
+  const copy = useT().ai.chat;
   const ask = useAskAi(websiteId);
   const confirm = useConfirmProposal(websiteId);
   const stored = useConversation(websiteId, conversationId);
@@ -64,11 +66,13 @@ export function useAssistantChat(
           id: t.id, role: 'assistant', content: t.answer ?? '',
           proposal: t.proposal, proposalApplied: !!t.proposalAppliedAt,
           error: t.status === 'error' && !t.answer
-            ? 'This answer could not be generated.'
+            ? copy.notGenerated
             : undefined,
         },
       ]),
     );
+    // `copy` is left out: a language switch should not rebuild a thread already on screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stored.data, messages.length]);
 
   const send = useCallback(
@@ -123,14 +127,14 @@ export function useAssistantChat(
         if (gen !== generation.current) return;
         setMessages((prev) =>
           prev.map((m) => (m.id === pendingId
-            ? { ...m, pending: false, error: errorMessage(err, 'Something went wrong. Try again.') }
+            ? { ...m, pending: false, error: errorMessage(err, copy.failed) }
             : m)),
         );
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [ask, conversationId, isRestoring, recommendationId],
+    [ask, conversationId, isRestoring, recommendationId, copy],
   );
 
   const confirmProposal = useCallback(
@@ -160,7 +164,7 @@ export function useAssistantChat(
           prev.map((m) => (m.id === messageId
             ? {
                 ...m,
-                proposalError: errorMessage(err, 'Could not apply it.'),
+                proposalError: errorMessage(err, copy.couldNotApply),
                 proposalStale: errorCode(err) === 'stale' || undefined,
               }
             : m)));
@@ -168,7 +172,7 @@ export function useAssistantChat(
         setConfirming(false);
       }
     },
-    [confirm, conversationId, messages],
+    [confirm, conversationId, messages, copy],
   );
 
   const dismissProposal = useCallback((messageId: string) => {

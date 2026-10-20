@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * The small previews shown beside each embeddable block.
@@ -17,19 +18,21 @@ import { cn } from '@/lib/utils';
  * about.
  */
 export function LiveVisitorsBadge({ count = 142 }: { count?: number }) {
+  const m = useT().uiBlocks.preview;
   return (
     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
       <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-      {count.toLocaleString()} live
+      {m.live(count.toLocaleString())}
     </span>
   );
 }
 
 export function PageViewsBadge({ views = '12.4k' }: { views?: string }) {
+  const m = useT().uiBlocks.preview;
   return (
     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
       <Eye className="h-3.5 w-3.5" />
-      {views} views today
+      {m.viewsToday(views)}
     </span>
   );
 }
@@ -52,12 +55,13 @@ export function MiniSparkline() {
 }
 
 export function StatsWidget() {
+  const m = useT().uiBlocks.preview;
   return (
     <div className="inline-grid grid-cols-3 gap-px rounded-lg border border-border overflow-hidden bg-border text-sm">
       {[
-        { icon: Users, label: 'Visitors', value: '8,421' },
-        { icon: Eye,   label: 'Pageviews', value: '24.6k' },
-        { icon: Zap,   label: 'Events',    value: '3,190' },
+        { icon: Users, label: m.visitors,  value: '8,421' },
+        { icon: Eye,   label: m.pageviews, value: '24.6k' },
+        { icon: Zap,   label: m.events,    value: '3,190' },
       ].map(s => (
         <div key={s.label} className="bg-card px-4 py-3 flex flex-col items-center gap-1">
           <s.icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -70,6 +74,7 @@ export function StatsWidget() {
 }
 
 export function TopPagesWidget() {
+  const m = useT().uiBlocks.preview;
   const pages = [
     { url: '/', views: 4120 },
     { url: '/pricing', views: 1870 },
@@ -79,7 +84,7 @@ export function TopPagesWidget() {
   const max = pages[0].views;
   return (
     <div className="rounded-lg border border-border bg-card p-4 w-64 space-y-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Top Pages</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{m.topPages}</p>
       {pages.map(p => (
         <div key={p.url} className="space-y-1">
           <div className="flex items-center justify-between text-xs">
@@ -96,15 +101,16 @@ export function TopPagesWidget() {
 }
 
 export function CountryWidget() {
+  const m = useT().uiBlocks.preview;
   const rows = [
-    { flag: '🇺🇸', country: 'United States', pct: 38 },
-    { flag: '🇬🇧', country: 'United Kingdom', pct: 14 },
-    { flag: '🇩🇪', country: 'Germany',        pct: 11 },
-    { flag: '🇫🇷', country: 'France',          pct: 8 },
+    { flag: '🇺🇸', country: m.countries.us, pct: 38 },
+    { flag: '🇬🇧', country: m.countries.gb, pct: 14 },
+    { flag: '🇩🇪', country: m.countries.de, pct: 11 },
+    { flag: '🇫🇷', country: m.countries.fr, pct: 8 },
   ];
   return (
     <div className="rounded-lg border border-border bg-card p-4 w-64 space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Top Countries</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{m.topCountries}</p>
       {rows.map(r => (
         <div key={r.country} className="flex items-center gap-2 text-xs">
           <span className="text-base leading-none">{r.flag}</span>

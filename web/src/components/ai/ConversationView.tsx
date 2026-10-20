@@ -1,4 +1,7 @@
+'use client';
+
 import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/features/ai/types';
 import { ChatMessageView } from './ChatMessageView';
@@ -32,10 +35,11 @@ export interface ConversationViewProps {
  * open at the top.
  */
 export function ConversationView({
-  messages, starters = [], onStarter, emptyTitle = 'Ask about this website',
+  messages, starters = [], onStarter, emptyTitle,
   emptyBody, showUsage, onConfirmProposal, onDismissProposal, confirmingIds,
   viewerRole, isLoading, className,
 }: ConversationViewProps) {
+  const t = useT().ai.chat;
   if (messages.length === 0 && isLoading) {
     return (
       <div className={cn('space-y-4 py-2', className)} aria-busy="true">
@@ -55,7 +59,7 @@ export function ConversationView({
         <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-primary">
           <Sparkles className="h-4 w-4" />
         </span>
-        <p className="mt-4 text-lg font-semibold tracking-tight text-foreground">{emptyTitle}</p>
+        <p className="mt-4 text-lg font-semibold tracking-tight text-foreground">{emptyTitle ?? t.emptyTitle}</p>
         {emptyBody && <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{emptyBody}</p>}
         {!!starters.length && onStarter && (
           <ul className="mt-6 divide-y divide-border overflow-hidden rounded-xl border border-border">

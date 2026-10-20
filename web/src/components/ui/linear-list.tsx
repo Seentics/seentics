@@ -13,19 +13,27 @@ import { cn } from '@/lib/utils';
  * only in the small status icons and the dots inside labels.
  */
 
-/** The page fills the dashboard's frame edge to edge; the bars and groups carry the lines. */
-export const LIST_PAGE = 'flex min-h-full w-full flex-col text-[13px] tracking-[-0.005em]';
+/**
+ * The page fills the dashboard's frame edge to edge; the bars and groups carry the lines.
+ * `shrink-0`: the frame is a flex column, and a page allowed to shrink to the window's
+ * height clips its own list instead of letting the frame scroll.
+ */
+export const LIST_PAGE = 'flex min-h-full w-full shrink-0 flex-col text-[13px] tracking-[-0.005em]';
 
 /**
- * The top bar: icon, name, a divider, the views, then the page's actions and the theme toggle
- * on the right. The toggle is left out inside the landing page's preview, where it would
- * switch the whole landing page, and where `themeToggle` is false (an embed).
+ * The page's heading, on the page itself rather than in a bar: the title (under its parent, as a
+ * breadcrumb, when it has one) and a line saying what the page is for on the left; the page's
+ * actions, such as the date range, and the theme toggle on the right; the views under it. Lined
+ * up with the panels below (their 12 / 16px inset). The toggle is left out inside the landing
+ * page's preview, where it would switch the whole landing page, and where `themeToggle` is false
+ * (an embed).
  */
-export function PageBar({ icon, title, parent, views, children, themeToggle = true }: {
-  icon: ReactNode;
+export function PageBar({ title, parent, description, views, children, themeToggle = true }: {
   title: string;
-  /** The page this one sits under, as a breadcrumb before the title: "Funnels / Checkout". */
+  /** The page this one sits under, as a breadcrumb above the title: "Funnels / Checkout". */
   parent?: { label: string; onClick: () => void };
+  /** One line under the title saying what the page is for. */
+  description?: ReactNode;
   views?: ReactNode;
   children?: ReactNode;
   themeToggle?: boolean;
@@ -34,35 +42,34 @@ export function PageBar({ icon, title, parent, views, children, themeToggle = tr
   const overridden = useIsPathOverridden();
   const Heading = overridden ? 'h2' : 'h1';
   return (
-    <div className="flex min-h-11 flex-wrap items-center gap-1 border-b border-border px-4 py-1.5">
-      <span className="mr-1.5 text-muted-foreground [&_svg]:size-3.5" aria-hidden>{icon}</span>
-      {parent && (
-        <>
-          <button type="button" onClick={parent.onClick} className="rounded px-0.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
-            {parent.label}
-          </button>
-          <ChevronRight aria-hidden className="size-3 text-muted-foreground/60" />
-        </>
-      )}
-      <Heading className="min-w-0 truncate text-[13px] font-medium text-foreground">{title}</Heading>
-      {views && <><span aria-hidden className="mx-2.5 h-3.5 w-px bg-border" />{views}</>}
-      <div className="ml-auto flex flex-wrap items-center gap-1">
-        {children}
-        {themeToggle && !overridden && <ThemeToggle className="h-7 w-7 [&_svg]:!size-3.5" />}
+    <header className="flex flex-wrap items-start gap-x-6 gap-y-3 px-3 pt-5 md:px-4 md:pt-6">
+      <div className="min-w-0 flex-1">
+        {parent && (
+          <div className="mb-1 flex items-center gap-1 text-[12.5px] text-muted-foreground">
+            <button type="button" onClick={parent.onClick} className="rounded transition-colors hover:text-foreground">{parent.label}</button>
+            <ChevronRight aria-hidden className="size-3 text-muted-foreground/60" />
+          </div>
+        )}
+        <Heading className="min-w-0 truncate text-[20px] font-semibold leading-tight tracking-[-0.015em] text-foreground">{title}</Heading>
+        {description && <p className="mt-0.5 max-w-2xl text-[13px] leading-snug text-muted-foreground">{description}</p>}
+        {views && <div className="mt-3">{views}</div>}
       </div>
-    </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {children}
+        {themeToggle && !overridden && <ThemeToggle className="h-8 w-8 [&_svg]:!size-4" />}
+      </div>
+    </header>
   );
 }
 
 /**
- * A report or settings-like page in the same frame as the list pages: the slim top bar with
- * the page's actions (and AI Mode for a website), then the page's own content, padded and
- * centred. The description, which the old header carried under the title, opens the body.
+ * A report or settings-like page in the same frame as the list pages: the page heading with
+ * its description and actions (and AI Mode for a website), then the page's own content, padded
+ * and centred.
  */
 export function ReportPage({
-  icon, title, parent, description, views, actions, websiteId, width = 'max-w-[1440px]', bodyClassName, children,
+  title, parent, description, views, actions, websiteId, width = 'max-w-[1440px]', bodyClassName, children,
 }: {
-  icon: ReactNode;
   title: string;
   parent?: { label: string; onClick: () => void };
   description?: ReactNode;
@@ -78,13 +85,12 @@ export function ReportPage({
 }) {
   return (
     <div className={LIST_PAGE}>
-      <PageBar icon={icon} title={title} parent={parent} views={views}>
+      <PageBar title={title} parent={parent} description={description} views={views}>
         {/* Pages pass their usual buttons; in the bar they take its height. */}
         {actions && <div className="flex flex-wrap items-center gap-1.5 [&_button]:h-7 [&_button]:text-[12.5px] [&_a]:h-7 [&_a]:text-[12.5px]">{actions}</div>}
         {websiteId && <AiModeButton websiteId={websiteId} className="h-7" />}
       </PageBar>
       <div className={cn('mx-auto w-full p-4 md:p-5 lg:px-6 lg:py-5', width, bodyClassName)}>
-        {description && <p className="mb-5 max-w-3xl text-muted-foreground">{description}</p>}
         {children}
       </div>
     </div>
@@ -137,12 +143,14 @@ export function GroupHeader({ icon, label, count, open, onToggle }: { icon: Reac
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex h-9 w-full items-center gap-2 border-b border-border bg-muted/50 px-4 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+      // A stone band: a warm grey, apart from the white rows under it and from the cool grey page
+      // around the panel, in both themes.
+      className="flex h-10 w-full items-center gap-2 border-b border-stone-300/60 bg-stone-200/70 px-4 text-left text-[13px] font-semibold text-foreground transition-colors hover:bg-stone-200 dark:border-stone-700/50 dark:bg-stone-800/60 dark:hover:bg-stone-800/80"
     >
       <ChevronRight className={cn('size-3 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden />
       <span aria-hidden className="inline-flex">{icon}</span>
       {label}
-      <span className="font-normal text-muted-foreground">{count.toLocaleString()}</span>
+      <span className="rounded-full bg-card px-1.5 py-px text-[11px] font-medium tabular-nums text-muted-foreground">{count.toLocaleString()}</span>
     </button>
   );
 }

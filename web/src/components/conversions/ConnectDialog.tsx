@@ -21,6 +21,7 @@ import { useConnectDestination, useUpdateDestination } from '@/features/conversi
 import type { Credentials, Destination, DestinationConfig, Platform } from '@/features/conversions/types';
 import { isLinkedinId, isMeasurementId, isPixelId, isTiktokPixel, PLATFORMS } from './conversion-format';
 import { cleanConfig, defaultConfig, EventMappingFields } from './EventMappingFields';
+import { useT } from '@/lib/i18n';
 import { PlatformMark } from './parts';
 
 export type ConnectMode =
@@ -29,41 +30,6 @@ export type ConnectMode =
   | { kind: 'events'; destination: Destination };
 
 type Fields = { a: string; b: string };
-
-const FIELDS: Record<Platform, { a: string; b: string; aHint: string; bHint: string; where: string; secret: string }> = {
-  meta: {
-    a: 'Pixel ID',
-    b: 'Conversions API access token',
-    aHint: 'Digits only, e.g. 104851239920392',
-    bHint: 'Starts with EAA…',
-    where: 'Events Manager → your pixel → Settings → Conversions API → Generate access token.',
-    secret: 'The token is encrypted and never shown again.',
-  },
-  ga4: {
-    a: 'Measurement ID',
-    b: 'API secret',
-    aHint: 'Starts with G-',
-    bHint: 'A short random string',
-    where: 'Admin → Data streams → your web stream → Measurement Protocol API secrets → Create.',
-    secret: 'The secret is encrypted and never shown again.',
-  },
-  tiktok: {
-    a: 'Pixel ID',
-    b: 'Events API access token',
-    aHint: 'Letters and digits, e.g. C4ABCD1234EFGH5678',
-    bHint: 'A long random string',
-    where: 'TikTok Ads Manager → Tools → Events → your web pixel → Settings → Events API → Generate access token.',
-    secret: 'The token is encrypted and never shown again.',
-  },
-  linkedin: {
-    a: 'Ad account ID',
-    b: 'Access token',
-    aHint: 'Digits only, e.g. 512345678',
-    bHint: 'With the rw_conversions scope',
-    where: 'Campaign Manager shows the account ID next to its name. Generate the token for a LinkedIn app with the Conversions API product (scope rw_conversions).',
-    secret: 'The token is encrypted and never shown again.',
-  },
-};
 
 function credentialsOf(platform: Platform, f: Fields): Credentials {
   const a = f.a.trim();
@@ -85,6 +51,8 @@ function fieldsValid(platform: Platform, f: Fields): boolean {
 export function ConnectDialog({
   websiteId, mode, onClose,
 }: { websiteId: string; mode: ConnectMode | null; onClose: () => void }) {
+  const all = useT();
+  const t = all.conversions.connect;
   const connect = useConnectDestination(websiteId);
   const update = useUpdateDestination(websiteId);
   const platform: Platform | null = mode ? (mode.kind === 'connect' ? mode.platform : mode.destination.platform) : null;
@@ -104,12 +72,14 @@ export function ConnectDialog({
 
   if (!mode || !platform || !config) return null;
   const info = PLATFORMS[platform];
-  const copy = FIELDS[platform];
+  const copy = t.fields[platform];
   const busy = connect.isPending || update.isPending;
 
   const fail = (err: unknown) => {
-    if (err instanceof ConnectError) setProblem({ reason: err.reason, message: err.message });
-    else toast.error('Could not save. Please try again.');
+    if (err instanceof ConnectError) {
+      const message = err.reason === 'exists' ? t.exists : err.reason === 'limit' ? t.limit : err.message;
+      setProblem({ reason: err.reason, message });
+    } else toast.error(t.saveFailed);
   };
 
   const save = () => {
@@ -117,27 +87,25 @@ export function ConnectDialog({
     if (mode.kind === 'connect') {
       connect.mutate(
         { platform, credentials: credentialsOf(platform, fields), config: cleanConfig(platform, config) },
-        { onSuccess: (d) => { if (d) toast.success(`${info.label} connected`); onClose(); }, onError: (e) => { setStep('credentials'); fail(e); } },
+        { onSuccess: (d) => { if (d) toast.success(t.connected(info.label)); onClose(); }, onError: (e) => { setStep('credentials'); fail(e); } },
       );
     } else if (mode.kind === 'credentials') {
       update.mutate(
         { id: mode.destination.id, patch: { credentials: credentialsOf(platform, fields) } },
-        { onSuccess: (d) => { if (d) toast.success('Credentials updated'); onClose(); }, onError: fail },
+        { onSuccess: (d) => { if (d) toast.success(t.credentialsUpdated); onClose(); }, onError: fail },
       );
     } else {
       update.mutate(
         { id: mode.destination.id, patch: { config: cleanConfig(platform, config) } },
-        { onSuccess: (d) => { if (d) toast.success('Events updated'); onClose(); }, onError: fail },
+        { onSuccess: (d) => { if (d) toast.success(t.eventsUpdated); onClose(); }, onError: fail },
       );
     }
   };
 
-  const title = mode.kind === 'connect' ? `Connect ${info.label}` : mode.kind === 'credentials' ? `${info.label} credentials` : `${info.label} events`;
+  const title = mode.kind === 'connect' ? t.connectTitle(info.label) : mode.kind === 'credentials' ? t.credentialsTitle(info.label) : t.eventsTitle(info.label);
   const description = step === 'credentials'
-    ? `Seentics sends your conversions to ${info.label}'s ${info.api} from its servers. ${copy.secret}`
-    : platform === 'linkedin'
-      ? 'LinkedIn counts each event toward a conversion rule. Create one per event in Campaign Manager → Conversion tracking (source: Conversions API) and enter its ID.'
-      : 'Choose what to send and what to call it. The defaults are the platform’s standard event names.';
+    ? t.credentialsBody(info.label, info.api, copy.secret)
+    : platform === 'linkedin' ? t.linkedinBody : t.eventsBody;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -147,7 +115,7 @@ export function ConnectDialog({
             <PlatformMark platform={platform} />
             <div className="min-w-0 text-left">
               <DialogTitle>{title}</DialogTitle>
-              {mode.kind === 'connect' && <p className="text-xs text-muted-foreground">Step {step === 'credentials' ? 1 : 2} of 2</p>}
+              {mode.kind === 'connect' && <p className="text-xs text-muted-foreground">{t.step(step === 'credentials' ? 1 : 2)}</p>}
             </div>
           </div>
           <DialogDescription className="pt-1">{description}</DialogDescription>
@@ -191,7 +159,7 @@ export function ConnectDialog({
                 />
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                <span className="font-medium text-foreground/80">Where to find it:</span> {copy.where}
+                <span className="font-medium text-foreground/80">{t.whereToFind}</span> {copy.where}
               </p>
             </div>
           ) : (
@@ -204,7 +172,7 @@ export function ConnectDialog({
             <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               {problem.message}
               {problem.reason === 'limit' && (
-                <SeenticsOnly><> <Link href="/pricing" className="font-medium underline">See plans</Link> or disconnect another platform first.</></SeenticsOnly>
+                <SeenticsOnly><> <Link href="/pricing" className="font-medium underline">{t.seePlans}</Link>{t.orDisconnect}</></SeenticsOnly>
               )}
             </p>
           )}
@@ -212,13 +180,13 @@ export function ConnectDialog({
           <DialogFooter className="gap-2 sm:justify-between">
             {mode.kind === 'connect' && step === 'events' ? (
               <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={() => setStep('credentials')} disabled={busy}>
-                <ArrowLeft className="h-3.5 w-3.5" />Back
+                <ArrowLeft className="h-3.5 w-3.5" />{all.actions.back}
               </Button>
             ) : <span />}
             <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
+              <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>{all.actions.cancel}</Button>
               <Button type="submit" size="sm" disabled={busy || (step === 'credentials' && !fieldsValid(platform, fields))}>
-                {mode.kind === 'connect' && step === 'credentials' ? 'Continue' : mode.kind === 'connect' ? (busy ? 'Connecting…' : 'Connect') : busy ? 'Saving…' : 'Save'}
+                {mode.kind === 'connect' && step === 'credentials' ? all.actions.continue : mode.kind === 'connect' ? (busy ? t.connecting : t.connect) : busy ? all.actions.saving : all.actions.save}
               </Button>
             </div>
           </DialogFooter>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { usePathSegment } from '@/lib/path-segment';
 import CheckoutIntent from '@/components/subscription/CheckoutIntent';
+import { useT } from '@/lib/i18n';
 
 export default function WebsitesLayout({
   children,
@@ -14,6 +15,7 @@ export default function WebsitesLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const t = useT().dashboard.loading;
   // usePathSegment, not useParams — see src/lib/path-segment.ts. A stale
   // params() here would misjudge demo mode on a static-export SPA-shell
   // landing, which gates whether an unauthenticated visitor gets redirected.
@@ -40,8 +42,8 @@ export default function WebsitesLayout({
             <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-background bg-primary animate-pulse" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Loading your dashboard</p>
-            <p className="mt-1 text-xs text-muted-foreground">Fetching your analytics data…</p>
+            <p className="text-sm font-semibold text-foreground">{t.title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t.body}</p>
           </div>
           <div className="flex gap-1">
             {[0, 1, 2].map((i) => (

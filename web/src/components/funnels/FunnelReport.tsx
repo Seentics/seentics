@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { formatDuration, worstTransition, type StepRow } from '@/features/funnels/format';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useT } from '@/lib/i18n';
 
 /**
  * A funnel's report, read top to bottom as three answers:
@@ -29,31 +30,32 @@ export function FunnelReport({
   loading?: boolean;
   fixedLayout?: boolean;
 }) {
+  const t = useT().funnels.report;
   const worst = worstTransition(rows);
   const dropped = Math.max(totalStarts - conversions, 0);
   return (
     <>
       {/* 1. How did it do. */}
-      <section aria-label="Summary" className={cn('surface grid', fixedLayout ? 'grid-cols-4' : 'grid-cols-2 md:grid-cols-4')}>
-        <Figure label="Entered funnel" value={totalStarts.toLocaleString()} loading={loading} />
+      <section aria-label={t.summary} className={cn('surface grid', fixedLayout ? 'grid-cols-4' : 'grid-cols-2 md:grid-cols-4')}>
+        <Figure label={t.entered} value={totalStarts.toLocaleString()} loading={loading} />
         <Figure
-          label="Completed"
+          label={t.completed}
           value={conversions.toLocaleString()}
-          note={avgTimeToConvert ? `${formatDuration(avgTimeToConvert)} on average` : undefined}
+          note={avgTimeToConvert ? t.onAverage(formatDuration(avgTimeToConvert)) : undefined}
           loading={loading}
           className="border-l border-border"
         />
         <Figure
-          label="Conversion rate"
+          label={t.conversionRate}
           value={`${conversionRate.toFixed(1)}%`}
           note={rangeLabel}
           loading={loading}
           className={fixedLayout ? 'border-l border-border' : 'border-t border-border md:border-l md:border-t-0'}
         />
         <Figure
-          label="Drop-off rate"
+          label={t.dropOffRate}
           value={`${dropOffRate.toFixed(1)}%`}
-          note={dropped > 0 ? `${dropped.toLocaleString()} people` : undefined}
+          note={dropped > 0 ? t.people(dropped.toLocaleString()) : undefined}
           loading={loading}
           className={fixedLayout ? 'border-l border-border' : 'border-l border-t border-border md:border-t-0'}
         />
@@ -64,13 +66,13 @@ export function FunnelReport({
         <p className="mt-5 flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
           <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
           <span>
-            Most people leave between{' '}
-            <span className="font-medium text-foreground">{worst.from.name}</span> and{' '}
-            <span className="font-medium text-foreground">{worst.to.name}</span>:{' '}
+            {t.mostLeaveBefore}{' '}
+            <span className="font-medium text-foreground">{worst.from.name}</span> {t.and}{' '}
+            <span className="font-medium text-foreground">{worst.to.name}</span>{t.afterTo}:{' '}
             <span className="font-medium text-amber-700 dark:text-amber-400">
-              {worst.to.dropOffRate.toFixed(1)}% of them ({worst.to.dropOff.toLocaleString()})
+              {t.share(`${worst.to.dropOffRate.toFixed(1)}%`, worst.to.dropOff.toLocaleString())}
             </span>{' '}
-            do not carry on.
+            {t.doNotCarryOn}
           </span>
         </p>
       )}
@@ -78,20 +80,20 @@ export function FunnelReport({
       {/* 3. Each step: the funnel itself. */}
       <section aria-labelledby="funnel-steps" className="surface mt-5 overflow-hidden">
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
-          <h2 id="funnel-steps" className="text-sm font-semibold text-foreground">Steps</h2>
-          <p className="text-[11px] text-muted-foreground">Bar length is the share of everyone who entered</p>
+          <h2 id="funnel-steps" className="text-sm font-semibold text-foreground">{t.steps}</h2>
+          <p className="text-[11px] text-muted-foreground">{t.barHint}</p>
         </div>
 
         {rows.length === 0 ? (
-          <p className="py-14 text-center text-sm text-muted-foreground">This funnel has no steps yet.</p>
+          <p className="py-14 text-center text-sm text-muted-foreground">{t.noSteps}</p>
         ) : (
           <div className="overflow-x-auto">
             <ol className="min-w-[560px] px-5 py-4">
               <li aria-hidden className={cn(STEP_GRID, 'pb-2 text-[11px] text-muted-foreground')}>
-                <span>Step</span>
+                <span>{t.step}</span>
                 <span />
-                <span className="text-right">Visitors</span>
-                <span className="text-right">Of entries</span>
+                <span className="text-right">{t.visitors}</span>
+                <span className="text-right">{t.ofEntries}</span>
               </li>
               {rows.map((row, i) => {
                 const next = rows[i + 1];
@@ -141,7 +143,7 @@ export function FunnelReport({
                             <span className={cn('font-semibold', nextIsWorst ? '' : 'text-foreground')}>
                               {(next.stepRate ?? 0).toFixed(1)}%
                             </span>{' '}
-                            continued · {next.dropOff.toLocaleString()} left
+                            {t.continued} · {t.left(next.dropOff.toLocaleString())}
                           </span>
                         </div>
                         <span />

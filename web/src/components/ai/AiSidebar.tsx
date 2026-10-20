@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ChevronLeft, MessageSquare, Plus } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/ui/logo';
 import type { ConversationSummary } from '@/features/ai/types';
@@ -30,6 +31,7 @@ export interface AiSidebarProps {
 export function AiSidebar({
   websiteId, conversations, activeId, onSelect, onNewChat, isLoading, className,
 }: AiSidebarProps) {
+  const t = useT().ai;
   return (
     <aside
       className={cn(
@@ -41,11 +43,12 @@ export function AiSidebar({
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-3">
         <Link href={`/websites/${websiteId}?dashboard=1`} className="flex min-w-0 items-center gap-2">
           <Logo className="h-5 w-5 shrink-0" />
-          <span className="truncate text-sm font-semibold text-foreground">Seentics AI</span>
+          <span className="truncate text-sm font-semibold text-foreground">{t.brand}</span>
         </Link>
         <Link
           href={`/websites/${websiteId}?dashboard=1`}
-          title="Back to dashboard"
+          title={t.sidebar.backToDashboard}
+          aria-label={t.sidebar.backToDashboard}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -59,7 +62,7 @@ export function AiSidebar({
           className="flex h-9 w-full items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
         >
           <Plus className="h-4 w-4" />
-          New chat
+          {t.sidebar.newChat}
         </button>
       </div>
 
@@ -72,7 +75,7 @@ export function AiSidebar({
           </div>
         ) : conversations.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">
-            Your conversations will appear here.
+            {t.sidebar.empty}
           </p>
         ) : (
           <ul className="space-y-0.5">

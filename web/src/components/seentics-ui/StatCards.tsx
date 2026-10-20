@@ -3,6 +3,7 @@
 import type React from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useT } from '@/lib/i18n';
 
 /**
  * The figures at the top of a dashboard page: one panel, split by hairlines.
@@ -53,9 +54,10 @@ export function StatCards({
   /** Extra classes on the panel (spacing). */
   className?: string;
 }) {
+  const summary = useT().dashboard.summary;
   if (isLoading) {
     return (
-      <section aria-label="Summary" aria-busy className={cn(GRID, COLS[cols], 'mb-4', className)}>
+      <section aria-label={summary} aria-busy className={cn(GRID, COLS[cols], 'mb-4', className)}>
         {Array.from({ length: cols }).map((_, i) => (
           <div key={i} className={CELL}>
             <Skeleton className="h-3 w-20 rounded" />
@@ -68,7 +70,7 @@ export function StatCards({
   }
 
   return (
-    <section aria-label="Summary" className={cn(GRID, COLS[cols], 'mb-4', className)}>
+    <section aria-label={summary} className={cn(GRID, COLS[cols], 'mb-4', className)}>
       {cards.map((card) => {
         const danger = card.tone === 'danger' && card.toneWhen !== false;
         return (

@@ -46,13 +46,13 @@ export const freeMonths = (plan: PricedPlan): number =>
   plan.priceYearly && plan.priceMonthly > 0 ? Math.max(0, Math.round(12 - plan.priceYearly / plan.priceMonthly)) : 0;
 
 /** The yearly saving in words, for the toggle and the cards: "2 months free", or "save 17%" when it isn't whole months. */
-export function yearlySavingLabel(plans: PricedPlan | PricedPlan[]): string {
+export function yearlySavingLabel(plans: PricedPlan | PricedPlan[], copy: PricingCopy = PRICING_EN): string {
   const list = Array.isArray(plans) ? plans : [plans];
   const months = Math.max(0, ...list.map(freeMonths));
   const exact = months > 0 && list.every((p) => !p.priceYearly || Math.abs(p.priceYearly - p.priceMonthly * (12 - months)) < 0.01);
-  if (exact) return `${months} ${months === 1 ? 'month' : 'months'} free`;
+  if (exact) return copy.monthsFree(months);
   const saving = maxYearlySaving(list);
-  return saving > 0 ? `save ${saving}%` : '';
+  return saving > 0 ? copy.savePercent(saving) : '';
 }
 
 /**
@@ -95,14 +95,14 @@ export type FoundingNote = { show: false } | { show: true; text: string; emphasi
  * /billing/founding). Never made up: an unknown or small count shows only the limit, a closed offer
  * hides the box, and without an answer the limit is FOUNDING_OFFER.seats.
  */
-export function foundingNote(spots?: Pick<FoundingSpots, 'total' | 'claimed' | 'left' | 'status'> | null): FoundingNote {
+export function foundingNote(spots?: Pick<FoundingSpots, 'total' | 'claimed' | 'left' | 'status'> | null, copy: PricingCopy = PRICING_EN): FoundingNote {
   if (spots?.status === 'closed') return { show: false };
   const total = spots?.total ?? FOUNDING_OFFER.seats;
   const claimed = spots?.claimed ?? null;
-  if (claimed === null || claimed < FOUNDING_COUNT_SHOWN_FROM) return { show: true, text: `Limited to the first ${total} customers`, emphasised: false };
+  if (claimed === null || claimed < FOUNDING_COUNT_SHOWN_FROM) return { show: true, text: copy.founding.limitedTo(total), emphasised: false };
   const left = spots?.left ?? Math.max(0, total - claimed);
   if (left <= 0) return { show: false };
-  return { show: true, text: `Only ${left} of ${total} founding spots left`, emphasised: left <= FOUNDING_EMPHASIS_LEFT };
+  return { show: true, text: copy.founding.onlyLeft(left, total), emphasised: left <= FOUNDING_EMPHASIS_LEFT };
 }
 
 /** What a plan costs with the founding code, per interval: the month's or the year's price, to the cent. */
@@ -111,35 +111,214 @@ export const foundingPrice = (plan: PricedPlan, interval: BillingInterval): numb
   return Math.round(price * (100 - FOUNDING_OFFER.percentOff)) / 100;
 };
 
-export const TIER_PITCH: Record<PricingTier, string> = {
-  free: 'Everything to get started',
-  starter: 'The whole product for a growing site',
-  pro: 'More of everything, with extra usage',
-  agency: 'For agencies managing multiple client sites',
+// ---------------------------------------------------------------------------
+// Copy. Every word the cards and the table say, so the pricing reads in English or Bangla
+// (src/lib/i18n). English is the default everywhere, and what the tests read.
+
+export type PricingCopy = {
+  unlimited: string;
+  free: string;
+  days: (n: number) => string;
+  years: (n: number) => string;
+  monthsFree: (n: number) => string;
+  savePercent: (n: number) => string;
+  founding: {
+    /** The availability line before the count is worth showing; starts with `limitedPrefix`. */
+    limitedTo: (total: number) => string;
+    limitedPrefix: string;
+    onlyLeft: (left: number, total: number) => string;
+  };
+  tierPitch: Record<PricingTier, string>;
+  card: {
+    includedTitle: string;
+    agencyTitle: string;
+    upTo: (value: string) => string;
+    events: string;
+    sessionRecordings: string;
+    contacts: string;
+    aiAnalyses: string;
+    websites: string;
+    everything: string;
+    /** "3 heatmaps, 1 funnel, 3 automations": the counts already formatted. */
+    someOfEach: (heatmaps: { n: number | undefined; text: string }, funnels: { n: number | undefined; text: string }, automations: { n: number | undefined; text: string }) => string;
+    adPlatforms: (n: number) => string;
+    analyticsRetention: string;
+    bothRetentions: (replayRetention: string) => string;
+    agencyItems: { workspaces: string; whiteLabel: string; ownDomain: string; clientSignIn: string; embeds: string; api: string; support: string };
+    atTheLimit: string;
+    atALimit: string;
+    past: { agency: [string, string]; pro: [string, string]; starter: [string, string]; free: [string, string] };
+  };
+  compare: {
+    analytics: string;
+    eventsPerMonth: string;
+    pastTheLimit: string;
+    collectionPauses: string;
+    eventsExtraAgency: string;
+    eventsExtraPro: string;
+    dataRetention: string;
+    websites: string;
+    revenue: string;
+    cookieless: string;
+    replay: string;
+    recordingsPerMonth: string;
+    recordingPauses: string;
+    replaysExtraAgency: string;
+    replaysExtraPro: string;
+    replayRetention: string;
+    heatmaps: string;
+    heatmapPages: (n: number) => string;
+    automationGroup: string;
+    funnels: string;
+    automations: string;
+    contacts: string;
+    aiPerMonth: string;
+    conversions: string;
+    adPlatforms: (n: number, count: string) => string;
+    apiAccess: string;
+    spendCap: string;
+    underADollar: string;
+    notBilled: string;
+    support: string;
+    supportAgency: string;
+    supportPro: string;
+    supportCommunity: string;
+    agency: string;
+    clientWorkspaces: string;
+    embeds: string;
+    clientApi: string;
+    whiteLabel: string;
+    ownDomain: string;
+    soon: string;
+    clientSignIn: string;
+  };
 };
+
+const plural = (value: number | undefined, one: string, many: string) => (value === 1 ? one : many);
+
+export const PRICING_EN: PricingCopy = {
+  unlimited: 'Unlimited',
+  free: 'Free',
+  days: (n) => (n === 1 ? '1 day' : `${n} days`),
+  years: (n) => (n === 1 ? '1 year' : `${n} years`),
+  monthsFree: (n) => `${n} ${n === 1 ? 'month' : 'months'} free`,
+  savePercent: (n) => `save ${n}%`,
+  founding: {
+    limitedTo: (total) => `Limited to the first ${total} customers`,
+    limitedPrefix: 'Limited to the ',
+    onlyLeft: (left, total) => `Only ${left} of ${total} founding spots left`,
+  },
+  tierPitch: {
+    free: 'Everything to get started',
+    starter: 'The whole product for a growing site',
+    pro: 'More of everything, with extra usage',
+    agency: 'For agencies managing multiple client sites',
+  },
+  card: {
+    includedTitle: 'Included every month',
+    agencyTitle: 'Agency features',
+    upTo: (value) => `Up to ${value}`,
+    events: 'events',
+    sessionRecordings: 'session recordings',
+    contacts: 'contacts & form submissions a month',
+    aiAnalyses: 'AI analyses',
+    websites: 'websites',
+    everything: 'heatmaps, funnels, automations',
+    someOfEach: (h, f, a) =>
+      `${h.text} ${plural(h.n, 'heatmap', 'heatmaps')}, ${f.text} ${plural(f.n, 'funnel', 'funnels')}, ${a.text} ${plural(a.n, 'automation', 'automations')}`,
+    adPlatforms: (n) => `${plural(n, 'ad platform', 'ad platforms')} for server-side conversions`,
+    analyticsRetention: 'analytics retention',
+    bothRetentions: (replay) => `analytics retention, ${replay} replay retention`,
+    agencyItems: {
+      workspaces: 'client workspaces',
+      whiteLabel: 'White-label branding: your logo, colours and name',
+      ownDomain: 'Client dashboards on your own domain',
+      clientSignIn: 'Client sign-in with pages you choose',
+      embeds: 'Embeddable client dashboards',
+      api: 'Agency API for clients, sites and usage',
+      support: 'Priority support and personal onboarding',
+    },
+    atTheLimit: 'At the limit',
+    atALimit: 'At a limit',
+    past: {
+      agency: ['Overage instead of pausing, with Extra usage', 'An alert at 80% of each allowance'],
+      pro: ['Pauses, or keep going with Extra usage', 'Move to Agency any time'],
+      starter: ['Collection pauses at the limit', 'Move to Pro any time'],
+      free: ['Collection pauses at the limit', 'No card needed'],
+    },
+  },
+  compare: {
+    analytics: 'Product analytics',
+    eventsPerMonth: 'Events / month',
+    pastTheLimit: 'Past the limit',
+    collectionPauses: 'Collection pauses',
+    eventsExtraAgency: 'Extra usage at $0.01 / 1K, alert at 80%',
+    eventsExtraPro: 'Pauses, or extra usage at $0.01 / 1K',
+    dataRetention: 'Data retention',
+    websites: 'Websites',
+    revenue: 'Revenue & attribution',
+    cookieless: 'Cookieless, GDPR-ready',
+    replay: 'Session replay',
+    recordingsPerMonth: 'Recordings / month',
+    recordingPauses: 'Recording pauses',
+    replaysExtraAgency: 'Extra usage at $2 / 1K, alert at 80%',
+    replaysExtraPro: 'Pauses, or extra usage at $2 / 1K',
+    replayRetention: 'Replay retention',
+    heatmaps: 'Heatmaps',
+    heatmapPages: (n) => `${n} pages`,
+    automationGroup: 'Automation, AI & teams',
+    funnels: 'Funnels',
+    automations: 'Automations',
+    contacts: 'Contacts & form submissions / month',
+    aiPerMonth: 'AI analyses / month',
+    conversions: 'Server-side conversions (Meta, GA4, TikTok, LinkedIn)',
+    adPlatforms: (n, count) => `${count} ${plural(n, 'ad platform', 'ad platforms')}`,
+    apiAccess: 'API access with account keys',
+    spendCap: 'Monthly spend cap on extra usage',
+    underADollar: 'Extra usage under $1 a month',
+    notBilled: 'Not billed',
+    support: 'Support',
+    supportAgency: 'Priority, with onboarding',
+    supportPro: 'Email',
+    supportCommunity: 'Community',
+    agency: 'Agency',
+    clientWorkspaces: 'Client workspaces',
+    embeds: 'Embedded client dashboards',
+    clientApi: 'Client management API',
+    whiteLabel: 'White-label branding',
+    ownDomain: 'Client dashboards on your own domain (soon)',
+    soon: 'Soon',
+    clientSignIn: 'Client sign-in',
+  },
+};
+
+export const TIER_PITCH: Record<PricingTier, string> = PRICING_EN.tierPitch;
 
 // ---------------------------------------------------------------------------
 // Formatting
 
 const limit = (plan: PricedPlan, product: string, key: string) => plan.limits[product]?.[key];
 
-export function formatCount(value: number | undefined): string {
+export function formatCount(value: number | undefined, copy: PricingCopy = PRICING_EN): string {
   if (value === undefined) return '—';
-  if (value === -1) return 'Unlimited';
+  if (value === -1) return copy.unlimited;
   if (value >= 1_000_000) return `${+(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${+(value / 1_000).toFixed(1)}K`;
   return value.toLocaleString('en-US');
 }
 
-export function formatDays(days: number | undefined): string {
+export function formatDays(days: number | undefined, copy: PricingCopy = PRICING_EN): string {
   if (days === undefined) return '—';
-  if (days === -1) return 'Unlimited';
-  if (days >= 365 && days % 365 === 0) return days === 365 ? '1 year' : `${days / 365} years`;
-  return days === 1 ? '1 day' : `${days} days`;
+  if (days === -1) return copy.unlimited;
+  if (days >= 365 && days % 365 === 0) return copy.years(days / 365);
+  return copy.days(days);
 }
 
 export const formatMoney = (dollars: number) =>
   dollars >= 1_000 ? `$${Math.round(dollars).toLocaleString('en-US')}` : `$${dollars.toFixed(2).replace(/\.00$/, '')}`;
+
+/** Whole taka, with the sign and Latin digits: ৳1,499. A yearly price spread over months rounds. */
+export const formatTaka = (taka: number) => `৳${Math.round(taka).toLocaleString('en-US')}`;
 
 /** What a metered resource allows on this plan: Free's limit, or Pro's included amount. */
 export function allowance(plan: PricedPlan, product: string, key: string): number | undefined {
@@ -159,8 +338,6 @@ export const isMetered = (plan: PricedPlan, product: string, key: string) =>
 export type Highlight = { value: string; label: string; href?: string; soon?: boolean };
 export type CardSection = { title: string; items: Highlight[] };
 
-const plural = (value: number | undefined, one: string, many: string) => (value === 1 ? one : many);
-
 /** "$0.01 / 1K events · $2 / 1K recordings · $0.25 / GB": the rates in one line, for the billing page. */
 export const RATES_LINE = Object.values(OVERAGE_RATES)
   .map((r) => `${formatMoney(r.price)} / ${r.per === 1 ? r.unit : `${formatCount(r.per)} ${r.unit}`}`)
@@ -174,7 +351,9 @@ export const hasAgencyFeatures = (plan: PricedPlan) =>
  * A card's two sections: what the plan includes each month, then what happens past it. Each line is
  * short enough to sit on one line in a card, so the lists scan; the section title carries "every month".
  */
-export function cardSectionsFor(plan: PricedPlan): CardSection[] {
+export function cardSectionsFor(plan: PricedPlan, copy: PricingCopy = PRICING_EN): CardSection[] {
+  const c = copy.card;
+  const count = (value: number | undefined) => formatCount(value, copy);
   const core = (key: string) => limit(plan, 'core', key);
   const replays = allowance(plan, 'core', 'replays');
   const heatmaps = core('heatmaps');
@@ -191,58 +370,61 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
   // own features follow in a section of their own.
   const included: Highlight[] = [
     // "Up to": every plan stops at these by default, so the bill is predictable.
-    { value: `Up to ${formatCount(allowance(plan, 'core', 'monthly_events'))}`, label: 'events' },
-    ...(has(replays) ? [{ value: `Up to ${formatCount(replays)}`, label: 'session recordings' }] : []),
-    ...(has(leads) ? [{ value: formatCount(leads), label: 'contacts & form submissions a month' }] : []),
-    { value: formatCount(core('ai_analyses')), label: 'AI analyses' },
-    { value: formatCount(core('websites')), label: 'websites' },
+    { value: c.upTo(count(allowance(plan, 'core', 'monthly_events'))), label: c.events },
+    ...(has(replays) ? [{ value: c.upTo(count(replays)), label: c.sessionRecordings }] : []),
+    ...(has(leads) ? [{ value: count(leads), label: c.contacts }] : []),
+    { value: count(core('ai_analyses')), label: c.aiAnalyses },
+    { value: count(core('websites')), label: c.websites },
     everything
-      ? { value: 'Unlimited', label: 'heatmaps, funnels, automations' }
+      ? { value: copy.unlimited, label: c.everything }
       : {
           value: '',
-          label: `${formatCount(heatmaps)} ${plural(heatmaps, 'heatmap', 'heatmaps')}, ${formatCount(funnels)} ${plural(funnels, 'funnel', 'funnels')}, ${formatCount(automations)} ${plural(automations, 'automation', 'automations')}`,
+          label: c.someOfEach(
+            { n: heatmaps, text: count(heatmaps) },
+            { n: funnels, text: count(funnels) },
+            { n: automations, text: count(automations) },
+          ),
         },
     // Server-side conversions: only where the catalogue states the limit (gateway db/sql/042).
     ...(core('conversion_destinations') !== undefined && core('conversion_destinations') !== 0
-      ? [{
-          value: formatCount(core('conversion_destinations')),
-          label: `${plural(core('conversion_destinations')!, 'ad platform', 'ad platforms')} for server-side conversions`,
-        }]
+      ? [{ value: count(core('conversion_destinations')), label: c.adPlatforms(core('conversion_destinations')!) }]
       : []),
     // Agency: one line for both retentions, as the card's copy reads.
     agency && has(replays) && replayRetention !== undefined
-      ? { value: formatDays(core('retention_days')), label: `analytics retention, ${formatDays(replayRetention)} replay retention` }
-      : { value: formatDays(core('retention_days')), label: 'analytics retention' },
+      ? { value: formatDays(core('retention_days'), copy), label: c.bothRetentions(formatDays(replayRetention, copy)) }
+      : { value: formatDays(core('retention_days'), copy), label: c.analyticsRetention },
   ];
 
   // What only Agency has, after its numbers. Serving the dashboard on the agency's own domain
   // (phase 3) is not live yet: marked soon until it is. Client sign-in (phase 2) is live.
+  const a = c.agencyItems;
   const agencyFeatures: CardSection = {
-    title: 'Agency features',
+    title: c.agencyTitle,
     items: [
-      { value: formatCount(core('websites')), label: 'client workspaces' },
-      { value: '', label: 'White-label branding: your logo, colours and name' },
-      { value: '', label: 'Client dashboards on your own domain', soon: true },
-      { value: '', label: 'Client sign-in with pages you choose' },
-      { value: '', label: 'Embeddable client dashboards' },
-      { value: '', label: 'Agency API for clients, sites and usage' },
-      { value: '', label: 'Priority support and personal onboarding' },
+      { value: count(core('websites')), label: a.workspaces },
+      { value: '', label: a.whiteLabel },
+      { value: '', label: a.ownDomain, soon: true },
+      { value: '', label: a.clientSignIn },
+      { value: '', label: a.embeds },
+      { value: '', label: a.api },
+      { value: '', label: a.support },
     ],
   };
 
   // Free and Starter stop at a limit. Pro can turn on Extra usage from Billing; Agency is sold on
   // going past its amounts as overage instead of pausing, with an alert at 80% before it does.
+  const lines = (pair: [string, string]) => pair.map((label) => ({ value: '', label }));
   const past: CardSection = agency
-    ? { title: 'At the limit', items: [{ value: '', label: 'Overage instead of pausing, with Extra usage' }, { value: '', label: 'An alert at 80% of each allowance' }] }
+    ? { title: c.atTheLimit, items: lines(c.past.agency) }
     : plan.tier === 'pro'
-      ? { title: 'At a limit', items: [{ value: '', label: 'Pauses, or keep going with Extra usage' }, { value: '', label: 'Move to Agency any time' }] }
+      ? { title: c.atALimit, items: lines(c.past.pro) }
       : plan.tier === 'starter'
-        ? { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'Move to Pro any time' }] }
-        : { title: 'At a limit', items: [{ value: '', label: 'Collection pauses at the limit' }, { value: '', label: 'No card needed' }] };
+        ? { title: c.atALimit, items: lines(c.past.starter) }
+        : { title: c.atALimit, items: lines(c.past.free) };
 
   return agency
-    ? [{ title: 'Included every month', items: included }, agencyFeatures, past]
-    : [{ title: 'Included every month', items: included }, past];
+    ? [{ title: c.includedTitle, items: included }, agencyFeatures, past]
+    : [{ title: c.includedTitle, items: included }, past];
 }
 
 // ---------------------------------------------------------------------------
@@ -251,79 +433,86 @@ export function cardSectionsFor(plan: PricedPlan): CardSection[] {
 export type CompareRow = { label: string; value: (plan: PricedPlan) => string | boolean };
 export type CompareGroup = { title: string; rows: CompareRow[] };
 
-/** "Up to 300", or a dash for a plan that has none of it (a limit of 0). */
-const meteredCell = (product: string, key: string, unit = '') => (p: PricedPlan): string | boolean => {
-  const value = allowance(p, product, key);
-  if (value === 0 || value === undefined) return false;
-  return `Up to ${unit ? `${value} ${unit}` : formatCount(value)}`;
-};
-
-/** A count, or a dash for a plan that has none of it. */
-const countCell = (product: string, key: string) => (p: PricedPlan): string | boolean => {
-  const value = limit(p, product, key);
-  return value === 0 ? false : formatCount(value);
-};
-
 /** Pro and Agency can go past their included amounts with Extra usage. */
 const extraUsage = (p: PricedPlan) => p.tier === 'pro' || p.tier === 'agency';
 
-export const COMPARE_GROUPS: CompareGroup[] = [
-  {
-    title: 'Product analytics',
-    rows: [
-      { label: 'Events / month', value: meteredCell('core', 'monthly_events') },
-      {
-        label: 'Past the limit',
-        value: (p) => (!isMetered(p, 'core', 'monthly_events')
-          ? 'Collection pauses'
-          : hasAgencyFeatures(p) ? 'Extra usage at $0.01 / 1K, alert at 80%' : 'Pauses, or extra usage at $0.01 / 1K'),
-      },
-      { label: 'Data retention', value: (p) => formatDays(limit(p, 'core', 'retention_days')) },
-      { label: 'Websites', value: (p) => formatCount(limit(p, 'core', 'websites')) },
-      { label: 'Revenue & attribution', value: () => true },
-      { label: 'Cookieless, GDPR-ready', value: () => true },
-    ],
-  },
-  {
-    title: 'Session replay',
-    rows: [
-      { label: 'Recordings / month', value: meteredCell('core', 'replays') },
-      {
-        label: 'Past the limit',
-        value: (p) => (allowance(p, 'core', 'replays') === 0
-          ? false
-          : !isMetered(p, 'core', 'replays')
-            ? 'Recording pauses'
-            : hasAgencyFeatures(p) ? 'Extra usage at $2 / 1K, alert at 80%' : 'Pauses, or extra usage at $2 / 1K'),
-      },
-      { label: 'Replay retention', value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : formatDays(limit(p, 'core', 'replay_retention_days'))) },
-      { label: 'Heatmaps', value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === 0 ? false : v === -1 ? 'Unlimited' : `${v} pages`; } },
-    ],
-  },
-  {
-    title: 'Automation, AI & teams',
-    rows: [
-      { label: 'Funnels', value: countCell('core', 'funnels') },
-      { label: 'Automations', value: countCell('core', 'automations') },
-      { label: 'Contacts & form submissions / month', value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : `Up to ${formatCount(v)}`; } },
-      { label: 'AI analyses / month', value: countCell('core', 'ai_analyses') },
-      { label: 'Server-side conversions (Meta, GA4, TikTok, LinkedIn)', value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : `${formatCount(v)} ${plural(v, 'ad platform', 'ad platforms')}`; } },
-      { label: 'API access with account keys', value: () => true },
-      { label: 'Monthly spend cap on extra usage', value: extraUsage },
-      { label: 'Extra usage under $1 a month', value: (p) => (extraUsage(p) ? 'Not billed' : '—') },
-      { label: 'Support', value: (p) => (hasAgencyFeatures(p) ? 'Priority, with onboarding' : p.tier === 'pro' ? 'Email' : 'Community') },
-    ],
-  },
-  {
-    // Free, Starter and Pro are for one business; these are Agency's.
-    title: 'Agency',
-    rows: [
-      { label: 'Client workspaces', value: (p) => (hasAgencyFeatures(p) ? 'Unlimited' : false) },
-      { label: 'Embedded client dashboards', value: hasAgencyFeatures },
-      { label: 'Client management API', value: hasAgencyFeatures },
-      { label: 'White-label branding', value: hasAgencyFeatures },
-      { label: 'Client dashboards on your own domain (soon)', value: (p) => (hasAgencyFeatures(p) ? 'Soon' : false) },
-      { label: 'Client sign-in', value: hasAgencyFeatures },
-    ],
-  },
-];
+export function compareGroups(copy: PricingCopy = PRICING_EN): CompareGroup[] {
+  const t = copy.compare;
+  const count = (value: number | undefined) => formatCount(value, copy);
+
+  /** "Up to 300", or a dash for a plan that has none of it (a limit of 0). */
+  const meteredCell = (product: string, key: string) => (p: PricedPlan): string | boolean => {
+    const value = allowance(p, product, key);
+    if (value === 0 || value === undefined) return false;
+    return copy.card.upTo(count(value));
+  };
+
+  /** A count, or a dash for a plan that has none of it. */
+  const countCell = (product: string, key: string) => (p: PricedPlan): string | boolean => {
+    const value = limit(p, product, key);
+    return value === 0 ? false : count(value);
+  };
+
+  return [
+    {
+      title: t.analytics,
+      rows: [
+        { label: t.eventsPerMonth, value: meteredCell('core', 'monthly_events') },
+        {
+          label: t.pastTheLimit,
+          value: (p) => (!isMetered(p, 'core', 'monthly_events')
+            ? t.collectionPauses
+            : hasAgencyFeatures(p) ? t.eventsExtraAgency : t.eventsExtraPro),
+        },
+        { label: t.dataRetention, value: (p) => formatDays(limit(p, 'core', 'retention_days'), copy) },
+        { label: t.websites, value: (p) => count(limit(p, 'core', 'websites')) },
+        { label: t.revenue, value: () => true },
+        { label: t.cookieless, value: () => true },
+      ],
+    },
+    {
+      title: t.replay,
+      rows: [
+        { label: t.recordingsPerMonth, value: meteredCell('core', 'replays') },
+        {
+          label: t.pastTheLimit,
+          value: (p) => (allowance(p, 'core', 'replays') === 0
+            ? false
+            : !isMetered(p, 'core', 'replays')
+              ? t.recordingPauses
+              : hasAgencyFeatures(p) ? t.replaysExtraAgency : t.replaysExtraPro),
+        },
+        { label: t.replayRetention, value: (p) => (allowance(p, 'core', 'replays') === 0 ? false : formatDays(limit(p, 'core', 'replay_retention_days'), copy)) },
+        { label: t.heatmaps, value: (p) => { const v = limit(p, 'core', 'heatmaps'); return v === 0 ? false : v === -1 ? copy.unlimited : t.heatmapPages(v as number); } },
+      ],
+    },
+    {
+      title: t.automationGroup,
+      rows: [
+        { label: t.funnels, value: countCell('core', 'funnels') },
+        { label: t.automations, value: countCell('core', 'automations') },
+        { label: t.contacts, value: (p) => { const v = limit(p, 'core', 'leads'); return v === 0 ? false : copy.card.upTo(count(v)); } },
+        { label: t.aiPerMonth, value: countCell('core', 'ai_analyses') },
+        { label: t.conversions, value: (p) => { const v = limit(p, 'core', 'conversion_destinations'); return v === undefined || v === 0 ? false : t.adPlatforms(v, count(v)); } },
+        { label: t.apiAccess, value: () => true },
+        { label: t.spendCap, value: extraUsage },
+        { label: t.underADollar, value: (p) => (extraUsage(p) ? t.notBilled : '—') },
+        { label: t.support, value: (p) => (hasAgencyFeatures(p) ? t.supportAgency : p.tier === 'pro' ? t.supportPro : t.supportCommunity) },
+      ],
+    },
+    {
+      // Free, Starter and Pro are for one business; these are Agency's.
+      title: t.agency,
+      rows: [
+        { label: t.clientWorkspaces, value: (p) => (hasAgencyFeatures(p) ? copy.unlimited : false) },
+        { label: t.embeds, value: hasAgencyFeatures },
+        { label: t.clientApi, value: hasAgencyFeatures },
+        { label: t.whiteLabel, value: hasAgencyFeatures },
+        { label: t.ownDomain, value: (p) => (hasAgencyFeatures(p) ? t.soon : false) },
+        { label: t.clientSignIn, value: hasAgencyFeatures },
+      ],
+    },
+  ];
+}
+
+export const COMPARE_GROUPS: CompareGroup[] = compareGroups(PRICING_EN);

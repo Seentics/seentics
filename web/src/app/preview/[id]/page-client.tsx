@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Terminal, RefreshCw } from 'lucide-react';
 import { fetchAutomation, type Automation } from '@/lib/automations-api';
 import Script from 'next/script';
+import { useT } from '@/lib/i18n';
 
 
 // A simple log viewer component
 function LogViewer({ logs, clearLogs, onRestart }: { logs: string[], clearLogs: () => void, onRestart: () => void }) {
+  const t = useT().sharing.preview;
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,18 +27,18 @@ function LogViewer({ logs, clearLogs, onRestart }: { logs: string[], clearLogs: 
       <div className="flex items-center justify-between mb-4 border-b border-gray-700 pb-2 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Terminal className="h-5 w-5 text-green-400" />
-          <h3 className="text-lg font-semibold">Workflow Logs</h3>
+          <h3 className="text-lg font-semibold">{t.logs}</h3>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onRestart}><RefreshCw className="mr-2 h-4 w-4" /> Restart</Button>
-          <Button variant="ghost" size="sm" onClick={clearLogs}>Clear</Button>
+          <Button variant="ghost" size="sm" onClick={onRestart}><RefreshCw className="mr-2 h-4 w-4" /> {t.restart}</Button>
+          <Button variant="ghost" size="sm" onClick={clearLogs}>{t.clear}</Button>
         </div>
       </div>
       <div ref={logContainerRef} className="space-y-1 text-sm flex-grow overflow-y-auto">
         {logs.map((log, index) => (
           <p key={index} className="whitespace-pre-wrap">{`[${new Date().toLocaleTimeString()}] ${log}`}</p>
         ))}
-        {logs.length === 0 && <p className="text-gray-500">Waiting for events...</p>}
+        {logs.length === 0 && <p className="text-gray-500">{t.waiting}</p>}
       </div>
     </div>
   )
@@ -54,6 +56,7 @@ export default function PreviewPage() {
 // export — unrelated to the usePathSegment change above, just a standing
 // App Router requirement this page never hit before it was prerendered.
 function PreviewPageInner() {
+  const t = useT().sharing.preview;
   const params = { id: usePathSegment(1) ?? '' };
   const searchParams = useSearchParams();
   const id = params.id as string;
@@ -81,7 +84,7 @@ function PreviewPageInner() {
     const fetchWorkflowData = async () => {
       setIsLoading(true);
       if (!websiteId) {
-        setLogs(prev => [...prev, 'Error: websiteId query parameter is required.']);
+        setLogs(prev => [...prev, t.errorNoWebsite]);
         setIsLoading(false);
         return;
       }
@@ -92,12 +95,12 @@ function PreviewPageInner() {
           setWorkflow(previewWorkflow);
           (window as any).__SEENTICS_PREVIEW_WORKFLOW = previewWorkflow;
         } else {
-          setLogs(prev => [...prev, 'Error: Workflow not found.']);
+          setLogs(prev => [...prev, t.errorNotFound]);
         }
       } catch (error) {
         console.error('Error fetching workflow:', error);
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        setLogs(prev => [...prev, `Error fetching workflow: ${errorMessage}`]);
+        const errorMessage = error instanceof Error ? error.message : t.unknownError;
+        setLogs(prev => [...prev, t.errorFetching(errorMessage)]);
       } finally {
         setIsLoading(false);
       }
@@ -114,9 +117,9 @@ function PreviewPageInner() {
           (el as HTMLElement).style.outline = '2px dashed #22c55e';
           setTimeout(() => { (el as HTMLElement).style.outline = orig || ''; }, 2000);
         });
-        setLogs(prev => [...prev, `Selector '${highlightSelector}' matches: ${elements.length}`]);
+        setLogs(prev => [...prev, t.selectorMatches(highlightSelector, elements.length)]);
       } catch (e) {
-        setLogs(prev => [...prev, `Invalid selector: ${highlightSelector}`]);
+        setLogs(prev => [...prev, t.invalidSelector(highlightSelector)]);
       }
     }
 
@@ -133,7 +136,7 @@ function PreviewPageInner() {
       <div className="flex h-screen w-full items-center justify-center bg-gray-100">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-muted-foreground">Loading workflow preview...</p>
+          <p className="mt-4 text-muted-foreground">{t.loading}</p>
         </div>
       </div>
     )
@@ -153,21 +156,20 @@ function PreviewPageInner() {
       <div className="min-h-screen bg-background p-8 font-sans">
         <div className="max-w-4xl mx-auto">
           <header className="border border-border/40 pb-6 mb-8 text-center bg-card p-6 rounded-lg shadow-sm">
-            <h1 className="text-4xl font-bold text-foreground">Simulated Client Website</h1>
+            <h1 className="text-4xl font-bold text-foreground">{t.title}</h1>
             <p className="text-muted-foreground mt-2">
-              This page is a testing ground for your workflow. All configured triggers are now active.
+              {t.subtitle}
             </p>
           </header>
           <main className="bg-card border border-border/40 p-8 rounded-lg shadow-sm space-y-6">
             <div className="prose max-w-none text-muted-foreground">
               <p>
-                Your workflow is now running. Perform actions on this page to test your triggers:
+                {t.intro}
               </p>
               <ul>
-                <li><strong className="text-foreground">Page View / Time on Page:</strong> These triggers have already started.</li>
-                <li><strong className="text-foreground">Scroll Depth:</strong> Scroll down the page to test this trigger.</li>
-                <li><strong className="text-foreground">Exit Intent:</strong> Move your mouse cursor towards the top of the browser window to simulate leaving the page.</li>
-                <li><strong className="text-foreground">Element Click:</strong> Click the specific button below.</li>
+                {t.triggers.map((tr) => (
+                  <li key={tr.name}><strong className="text-foreground">{tr.name}</strong> {tr.text}</li>
+                ))}
               </ul>
             </div>
 
@@ -176,7 +178,7 @@ function PreviewPageInner() {
                 id="cta-button"
                 className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-base font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8 py-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
               >
-                Click Me (for Element Click trigger)
+                {t.clickMe}
               </button>
             </div>
 
@@ -185,7 +187,7 @@ function PreviewPageInner() {
             <div className="prose max-w-none text-muted-foreground space-y-4 pt-6">
               <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
               <p>Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu. Aliquam erat volutpat. Duis ac turpis. Integer rutrum ante eu lacus.</p>
-              <h3 className="text-xl font-semibold text-foreground">Another Section</h3>
+              <h3 className="text-xl font-semibold text-foreground">{t.anotherSection}</h3>
               <p>Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Morbi lacinia molestie dui. Praesent blandit dolor. Sed non quam. In vel mi sit amet augue congue elementum. Morbi in ipsum sit amet pede facilisis laoreet. Donec lacus nunc, viverra nec, blandit vel, egestas et, augue. Vestibulum tincidunt malesuada tellus. Ut ultrices ultrices enim. Curabitur sit amet mauris. Morbi in dui quis est pulvinar ullamcorper. Nulla facilisi. Integer lacinia sollicitudin massa. Cras metus. Sed aliquet risus a tortor. Integer id quam. Morbi mi. Quisque nisl felis, venenatis tristique, dignissim in, ultrices sit amet, augue. Proin sodales libero eget ante.</p>
             </div>
           </main>

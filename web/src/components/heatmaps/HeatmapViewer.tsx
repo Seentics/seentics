@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useT } from '@/lib/i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 
@@ -40,6 +41,7 @@ import { rewriteSnapshotStylesheets } from '@/lib/stylesheet-archive';
 
 
 export function HeatOnlyUnderlay() {
+  const t = useT().heatmaps.viewer;
   return (
     <div
       className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-muted/30 to-muted/50"
@@ -58,9 +60,9 @@ export function HeatOnlyUnderlay() {
       />
       <div className="absolute inset-0 flex items-center justify-center p-6">
         <div className="max-w-sm rounded-lg border border-border bg-card/95 px-4 py-4 text-center">
-          <p className="text-sm font-medium text-foreground">Heat layer only</p>
+          <p className="text-sm font-medium text-foreground">{t.heatOnlyTitle}</p>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Neutral grid under the heatmap. Open the live page in another tab to compare layout.
+            {t.heatOnlyBody}
           </p>
         </div>
       </div>
@@ -93,22 +95,25 @@ export function HeatmapPreviewBrowserChrome({
   capturedOn?: string | null;
   requestedDevice?: string;
 }) {
+  const hm = useT().heatmaps;
+  const t = hm.viewer;
+  const deviceName = (d: string | null) => (d ? hm.devices[d.toLowerCase() as keyof typeof hm.devices] ?? d : '');
   const displayUrl = pageUrl.trim() || '—';
   const secure     = /^https:\/\//i.test(pageUrl);
   const showFallbackNote =
     usingPageVisual && !!capturedOn && requestedDevice !== 'all' && loadState !== 'loading';
   const statusLead =
     underlay === 'heat-only'
-      ? 'Heat only · '
+      ? t.leadHeatOnly
       : usingPageVisual
         ? loadState === 'loading'
-          ? 'Loading screenshot · '
+          ? t.leadLoading
           : showFallbackNote
-            ? `${capturedOn} screenshot · `
-            : 'Captured screenshot · '
-        : 'No screenshot yet · ';
+            ? t.leadFallback(deviceName(capturedOn))
+            : t.leadCaptured
+        : t.leadNone;
   const barTitle = showFallbackNote
-    ? `No ${requestedDevice} capture yet — showing the ${capturedOn} one, so the layout under the points is approximate. ${displayUrl}`
+    ? t.fallbackNote(deviceName(requestedDevice), deviceName(capturedOn), displayUrl)
     : `${statusLead}${displayUrl}`;
 
   const openExternal = () => {
@@ -159,7 +164,8 @@ export function HeatmapPreviewBrowserChrome({
         onClick={openExternal}
         disabled={!pageUrl.trim()}
         className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35"
-        title="Open in new tab"
+        title={t.openNewTab}
+        aria-label={t.openNewTab}
       >
         <ExternalLink className="h-3.5 w-3.5" />
       </button>
@@ -176,15 +182,16 @@ export function HeatmapPreviewBrowserChrome({
  */
 export function HeatLegend({ heatType }: { heatType: HeatType }) {
   const scroll = heatType === 'scroll';
+  const t = useT().heatmaps.viewer;
   return (
     <div
       className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center gap-2.5 rounded-full border border-border bg-card/95 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-md backdrop-blur"
       role="img"
-      aria-label={scroll ? 'Colour key: fewer to more visitors reached' : 'Colour key: fewer to more clicks'}
+      aria-label={scroll ? t.keyScroll : t.keyClicks}
     >
-      <span>{scroll ? 'Fewer visitors' : 'Fewer clicks'}</span>
+      <span>{scroll ? t.fewerVisitors : t.fewerClicks}</span>
       <span className="h-1.5 w-24 rounded-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-red-500" aria-hidden />
-      <span>{scroll ? 'More visitors' : 'More clicks'}</span>
+      <span>{scroll ? t.moreVisitors : t.moreClicks}</span>
     </div>
   );
 }
@@ -520,6 +527,9 @@ export function HeatmapViewer({
 
   const showHeatOnlyFallback = underlay === 'heat-only' || !screenshotActive;
   const showLoadingOverlay = screenshotActive && loadState === 'loading';
+  const hmT = useT().heatmaps;
+  const tv = hmT.viewer;
+  const heatOnlyLabel = hmT.detail.heatOnly;
 
   return (
     /*
@@ -586,7 +596,7 @@ export function HeatmapViewer({
                     {...(snapshotDoc.state === 'ready'
                       ? { srcDoc: snapshotDoc.html }
                       : { src: pageScreenshot.html_url })}
-                    title="Page snapshot"
+                    title={tv.snapshot}
                     // The snapshot is page content any visitor's browser could have posted for this site,
                     // and the measurement script has to run in it. The sandbox gives it an opaque origin:
                     // no cookies, storage or access to this page. Its network, form and frame limits are a
@@ -637,9 +647,13 @@ export function HeatmapViewer({
 
             {mappingQuality && mappingQuality.total > 0 ? (
               <div className="pointer-events-none absolute right-3 top-3 z-30 rounded-md border border-black/10 bg-white/90 px-2 py-1 font-mono text-[10px] text-zinc-800 shadow-sm backdrop-blur">
-                Element {Math.round(mappingQuality.element / mappingQuality.total * 100)}% · fallback {Math.round(mappingQuality.coordinate / mappingQuality.total * 100)}% · unmapped {Math.round(mappingQuality.unmapped / mappingQuality.total * 100)}%
+                {tv.mapping(
+                  Math.round(mappingQuality.element / mappingQuality.total * 100),
+                  Math.round(mappingQuality.coordinate / mappingQuality.total * 100),
+                  Math.round(mappingQuality.unmapped / mappingQuality.total * 100),
+                )}
                 {mappingQuality.element / mappingQuality.total < 0.85 ? (
-                  <span className="ml-1 text-amber-700">· low confidence</span>
+                  <span className="ml-1 text-amber-700">{tv.lowConfidence}</span>
                 ) : null}
               </div>
             ) : null}
@@ -661,9 +675,9 @@ export function HeatmapViewer({
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
                 <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
-                  <p className="text-xs text-white/60">Loading screenshot…</p>
+                  <p className="text-xs text-white/60">{tv.loadingShot}</p>
                   <p className="max-w-[220px] text-center text-[10px] leading-relaxed text-white/40">
-                    Switch to <span className="text-white/55">Heat only</span> for an instant grid backdrop.
+                    {tv.switchTo(<span key="h" className="text-white/55">{heatOnlyLabel}</span>)}
                   </p>
                 </div>
               </div>

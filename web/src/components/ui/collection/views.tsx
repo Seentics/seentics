@@ -4,6 +4,7 @@ import { useState, type DragEvent, type ReactNode } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GroupHeader } from '@/components/ui/linear-list';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * The layouts a collection can take, each fed the same items and told only how to draw one:
@@ -26,6 +27,19 @@ interface Keyed<T> {
   getKey: (item: T) => string;
 }
 
+/**
+ * The panel lists and tables sit on: its own fill (white in light, a lifted grey in dark),
+ * inset from the page, so the content reads apart from the toolbar and the page around it.
+ * The last row's own line is dropped where the panel's border already closes it.
+ */
+export const COLLECTION_SURFACE = cn(
+  // shrink-0: inside the page's flex column a clipped panel would otherwise shrink to the space
+  // left and cut its rows off rather than grow the page. overflow-clip, not -hidden: it rounds the
+  // corners the same but is no scroll box, so the toolbar inside can stick to the page's top.
+  'm-3 shrink-0 overflow-clip rounded-lg border border-border bg-card md:m-4',
+  '[&>section:last-child>ul>li:last-child>*]:border-b-0 [&>ul>li:last-child>*]:border-b-0 [&_tbody>tr:last-child]:border-b-0',
+);
+
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -33,17 +47,23 @@ interface Keyed<T> {
  * list. Empty groups are left out.
  */
 export function GroupedRows<T>({
-  items, getKey, groups, groupOf, renderRow,
+  items, getKey, groups, groupOf, renderRow, header, toolbar,
 }: Keyed<T> & {
   groups?: CollectionGroup[];
   groupOf?: (item: T) => string;
   renderRow: (item: T) => ReactNode;
+  /** A line above the rows inside the panel, such as column labels. */
+  header?: ReactNode;
+  /** The panel's top row: tabs and controls (FilterToolbar with `leading`). */
+  toolbar?: ReactNode;
 }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const rows = (list: T[]) => <ul>{list.map((item) => <li key={getKey(item)}>{renderRow(item)}</li>)}</ul>;
-  if (!groups || !groupOf) return rows(items);
+  if (!groups || !groupOf) return <div className={COLLECTION_SURFACE}>{toolbar}{header}{rows(items)}</div>;
   return (
-    <>
+    <div className={COLLECTION_SURFACE}>
+      {toolbar}
+      {header}
       {groups.map((g) => {
         const inGroup = items.filter((item) => groupOf(item) === g.id);
         if (inGroup.length === 0) return null;
@@ -55,19 +75,19 @@ export function GroupedRows<T>({
           </section>
         );
       })}
-    </>
+    </div>
   );
 }
 
-/** The usual row: a 40–44px line that opens the item. Pages put their own cells inside. */
+/** The usual row: a 48px line that opens the item. Pages put their own cells inside. */
 export function CollectionRow({ onOpen, children, className }: { onOpen?: () => void; children: ReactNode; className?: string }) {
   return (
     // The whole row opens the item for a mouse; a button or link inside is the keyboard's way in.
     <div
       onClick={onOpen}
       className={cn(
-        'group flex min-h-11 items-center gap-3 border-b border-border/60 py-1.5 pl-[34px] pr-4 transition-colors focus-within:bg-muted/50',
-        onOpen && 'cursor-pointer hover:bg-muted/50',
+        'group flex min-h-12 items-center gap-3 border-b border-border/40 py-1.5 pl-[34px] pr-4 transition-colors focus-within:bg-muted/40',
+        onOpen && 'cursor-pointer hover:bg-muted/40',
         className,
       )}
     >
@@ -101,7 +121,7 @@ export interface RowSelection {
  * screen. Optional checkboxes for bulk actions.
  */
 export function CollectionTable<T>({
-  items, getKey, columns, onOpen, selection, minWidth = 900, label,
+  items, getKey, columns, onOpen, selection, minWidth = 900, label, rowClassName, toolbar,
 }: Keyed<T> & {
   columns: CollectionColumn<T>[];
   onOpen?: (item: T) => void;
@@ -109,25 +129,33 @@ export function CollectionTable<T>({
   /** Below this the table scrolls sideways rather than squeezing its columns. */
   minWidth?: number;
   label: string;
+  /** Extra classes for each row, e.g. a taller row for two-line cells. */
+  rowClassName?: string;
+  /** The panel's top row: tabs and controls (FilterToolbar with `leading`); stays put while the table scrolls sideways. */
+  toolbar?: ReactNode;
 }) {
+  const t = useT().ui.collection;
   const keys = items.map(getKey);
   const allOn = keys.length > 0 && keys.every((k) => selection?.selected.has(k));
   const someOn = !allOn && keys.some((k) => selection?.selected.has(k));
   const align = (c: CollectionColumn<T>) => (c.align === 'right' ? 'text-right' : 'text-left');
 
   return (
-    <div className="overflow-x-auto">
+    <div className={COLLECTION_SURFACE}>
+      {toolbar}
+      <div className="overflow-x-auto">
       <table aria-label={label} className="w-full table-fixed border-collapse text-[13px]" style={{ minWidth }}>
         <colgroup>
           {selection && <col style={{ width: 44 }} />}
           {columns.map((c) => <col key={c.id} style={c.width ? { width: c.width } : undefined} />)}
         </colgroup>
         <thead>
-          <tr className="h-[34px] border-b border-border bg-muted/50 text-xs text-muted-foreground">
+          {/* The header on the panel's own white, labels a step stronger than the rows' grey. */}
+          <tr className="h-10 border-b border-border/70 text-[12px] text-muted-foreground">
             {selection && (
-              <th scope="col" className="pl-4 text-left font-normal">
+              <th scope="col" className="pl-4 text-left font-medium">
                 <Checkbox
-                  aria-label="Select all shown"
+                  aria-label={t.selectAllShown}
                   checked={allOn ? true : someOn ? 'indeterminate' : false}
                   onCheckedChange={(on) => selection.onChange(keys, !!on)}
                 />
@@ -138,7 +166,7 @@ export function CollectionTable<T>({
                 key={c.id}
                 scope="col"
                 aria-sort={c.sorted ? 'descending' : undefined}
-                className={cn('px-3 font-normal', align(c), i === 0 && !selection && 'pl-4', i === columns.length - 1 && 'pr-4')}
+                className={cn('px-3 font-medium', align(c), i === 0 && !selection && 'pl-4', i === columns.length - 1 && 'pr-4')}
               >
                 {c.header}{c.sorted && <span aria-hidden> ↓</span>}
               </th>
@@ -155,13 +183,14 @@ export function CollectionTable<T>({
                 onClick={onOpen ? () => onOpen(item) : undefined}
                 data-state={on ? 'selected' : undefined}
                 className={cn(
-                  'group h-11 border-b border-border/60 transition-colors focus-within:bg-muted/50 data-[state=selected]:bg-primary/[0.05]',
-                  onOpen && 'cursor-pointer hover:bg-muted/50',
+                  'group h-12 border-b border-border/40 transition-colors focus-within:bg-muted/40 data-[state=selected]:bg-primary/[0.05]',
+                  onOpen && 'cursor-pointer hover:bg-muted/40',
+                  rowClassName,
                 )}
               >
                 {selection && (
                   <td className="pl-4" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox aria-label={`Select ${selection.labelOf(key)}`} checked={on} onCheckedChange={(v) => selection.onChange([key], !!v)} />
+                    <Checkbox aria-label={t.selectItem(selection.labelOf(key))} checked={on} onCheckedChange={(v) => selection.onChange([key], !!v)} />
                   </td>
                 )}
                 {columns.map((c, i) => (
@@ -174,6 +203,7 @@ export function CollectionTable<T>({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -181,16 +211,77 @@ export function CollectionTable<T>({
 // ── Cards ────────────────────────────────────────────────────────────────────
 
 /** The card frame every card layout uses: a quiet bordered box that lifts on hover. */
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+
+export interface CountTab<V extends string> {
+  id: V;
+  label: string;
+  /** How many items the tab holds; left out while unknown. */
+  count?: number;
+}
+
+/**
+ * Views of one list, each with its count, as the panel's top row: "All 1,240 · Needs a look 32".
+ * The chosen one is underlined against the row's bottom line.
+ */
+export function CountTabs<V extends string>({ tabs, value, onChange, label }: {
+  tabs: CountTab<V>[];
+  value: V;
+  onChange: (value: V) => void;
+  label: string;
+}) {
+  return (
+    // A fixed height, not the row's: when the controls wrap below, the tabs keep their shape.
+    <div role="tablist" aria-label={label} className="flex h-12 shrink-0 items-stretch gap-4 overflow-x-auto">
+      {tabs.map((tab) => {
+        const on = tab.id === value;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 border-b-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              on ? 'border-foreground font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {tab.label}
+            {tab.count !== undefined && (
+              <span className={cn('rounded-full px-1.5 py-px text-[11px] tabular-nums', on ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground')}>
+                {tab.count.toLocaleString()}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export const CARD = 'flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-foreground/20 focus-within:border-foreground/20';
 
 /** Items as a responsive grid of cards. */
 export function CardGrid<T>({
-  items, getKey, renderCard, minCardWidth = 280,
-}: Keyed<T> & { renderCard: (item: T) => ReactNode; minCardWidth?: number }) {
-  return (
-    <ul className="grid gap-3 p-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${minCardWidth}px), 1fr))` }}>
+  items, getKey, renderCard, minCardWidth = 280, toolbar,
+}: Keyed<T> & {
+  renderCard: (item: T) => ReactNode;
+  minCardWidth?: number;
+  /** Tabs and controls (FilterToolbar with `leading`) on their own white bar above the cards, sticky like the list's. */
+  toolbar?: ReactNode;
+}) {
+  const grid = (
+    <ul className={cn('grid gap-3', toolbar ? 'pt-3' : 'p-4')} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${minCardWidth}px), 1fr))` }}>
       {items.map((item) => <li key={getKey(item)}>{renderCard(item)}</li>)}
     </ul>
+  );
+  if (!toolbar) return grid;
+  return (
+    <div className="m-3 shrink-0 md:m-4 [&>div:first-child>div]:rounded-lg [&>div:first-child>div]:border-b-0">
+      <div className="sticky top-0 z-10">{toolbar}</div>
+      {grid}
+    </div>
   );
 }
 
@@ -264,18 +355,19 @@ export function BoardView<T>({
 
 /** "26–50 of 120" with previous and next, under a paged collection. Hidden when it all fits. */
 export function CollectionPager({
-  page, pageSize, total, onChange, previousLabel = 'Previous', nextLabel = 'Next',
+  page, pageSize, total, onChange, previousLabel, nextLabel,
 }: { page: number; pageSize: number; total: number; onChange: (page: number) => void; previousLabel?: string; nextLabel?: string }) {
+  const all = useT();
   if (total <= pageSize) return null;
   const first = page * pageSize + 1;
   const last = Math.min(total, (page + 1) * pageSize);
   const button = 'inline-flex h-7 items-center rounded-md px-2 text-[12.5px] font-medium text-foreground/75 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
   return (
-    <nav aria-label="Pages" className="flex h-10 items-center justify-between border-t border-border px-4 text-xs text-muted-foreground">
-      <span className="tabular-nums">{first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}</span>
+    <nav aria-label={all.ui.collection.pages} className="flex h-10 items-center justify-between border-t border-border px-4 text-xs text-muted-foreground">
+      <span className="tabular-nums">{all.ui.collection.range(first.toLocaleString(), last.toLocaleString(), total.toLocaleString())}</span>
       <span className="flex gap-1">
-        <button type="button" className={button} disabled={page === 0} onClick={() => onChange(page - 1)}>{previousLabel}</button>
-        <button type="button" className={button} disabled={last >= total} onClick={() => onChange(page + 1)}>{nextLabel}</button>
+        <button type="button" className={button} disabled={page === 0} onClick={() => onChange(page - 1)}>{previousLabel ?? all.ui.collection.previous}</button>
+        <button type="button" className={button} disabled={last >= total} onClick={() => onChange(page + 1)}>{nextLabel ?? all.ui.collection.next}</button>
       </span>
     </nav>
   );

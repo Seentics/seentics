@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Save, Info, CheckCircle2, XCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useT } from '@/lib/i18n';
 
 interface HeatmapSettingsProps {
   websiteId: string;
@@ -21,6 +22,8 @@ interface HeatmapSettingsProps {
 export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const tAll = useT();
+  const t = tAll.settings.heatmapSettings;
 
   const { data: website, isLoading } = useQuery({
     queryKey: ['website', websiteId],
@@ -47,15 +50,15 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => {
-      if (!user?.id) throw new Error('You must be logged in to update settings');
+      if (!user?.id) throw new Error(t.signedOut);
       return updateWebsite(websiteId, data, user.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website', websiteId] });
-      toast.success('Heatmap settings updated successfully');
+      toast.success(t.updated);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update heatmap settings');
+      toast.error(error.message || t.failed);
     },
   });
 
@@ -81,8 +84,8 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-sm font-semibold">Heatmap Configuration</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Control how heatmaps are recorded on your website.</p>
+              <h3 className="text-sm font-semibold">{t.title}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch
@@ -91,7 +94,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
                 onCheckedChange={setHeatmapEnabled}
               />
               <Label htmlFor="heatmap-toggle" className="text-xs font-medium text-muted-foreground">
-                {heatmapEnabled ? 'Enabled' : 'Disabled'}
+                {heatmapEnabled ? tAll.actions.enabled : tAll.actions.disabled}
               </Label>
             </div>
           </div>
@@ -99,9 +102,9 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
           {!heatmapEnabled && (
             <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 mb-5">
               <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">Heatmaps Paused</AlertTitle>
+              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">{t.paused}</AlertTitle>
               <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 text-xs">
-                Heatmap recording is currently disabled. No new interaction data will be collected until enabled.
+                {t.pausedBody}
               </AlertDescription>
             </Alert>
           )}
@@ -109,33 +112,33 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="include-patterns" className="text-xs font-medium text-muted-foreground">
-                Include Patterns
+                {t.include}
               </Label>
               <Textarea
                 id="include-patterns"
-                placeholder="e.g. /products/*, /pricing"
+                placeholder={t.includePlaceholder}
                 className="min-h-[80px] text-sm bg-muted/20 border-border"
                 value={includePatterns}
                 onChange={(e) => setIncludePatterns(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground">
-                Enter URL patterns to specifically include. Leave empty to track all pages. One pattern per line.
+                {t.includeHint}
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="exclude-patterns" className="text-xs font-medium text-muted-foreground">
-                Exclude Patterns
+                {t.exclude}
               </Label>
               <Textarea
                 id="exclude-patterns"
-                placeholder="e.g. /admin/*, /checkout/success"
+                placeholder={t.excludePlaceholder}
                 className="min-h-[80px] text-sm bg-muted/20 border-border"
                 value={excludePatterns}
                 onChange={(e) => setExcludePatterns(e.target.value)}
               />
               <p className="text-[11px] text-muted-foreground">
-                Enter URL patterns to exclude from heatmap recording. Useful for sensitive pages.
+                {t.excludeHint}
               </p>
             </div>
           </div>
@@ -152,7 +155,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              Save Changes
+              {t.saveChanges}
             </Button>
           </div>
         </CardContent>
@@ -163,12 +166,12 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="text-xs font-semibold">Pattern Examples</span>
+              <span className="text-xs font-semibold">{t.examples}</span>
             </div>
             <div className="space-y-1.5 text-[11px] text-muted-foreground">
-              <p><code className="bg-muted px-1 rounded-lg text-foreground">/products/*</code> matches all product pages</p>
-              <p><code className="bg-muted px-1 rounded-lg text-foreground">/blog/post-title</code> matches an exact page</p>
-              <p><code className="bg-muted px-1 rounded-lg text-foreground">*/search?q=*</code> matches search pages</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">/products/*</code>{t.matchesProducts}</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">/blog/post-title</code>{t.matchesExact}</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">*/search?q=*</code>{t.matchesSearch}</p>
             </div>
           </CardContent>
         </Card>
@@ -177,12 +180,12 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <XCircle className="h-3.5 w-3.5 text-rose-500" />
-              <span className="text-xs font-semibold">Exclusion Tips</span>
+              <span className="text-xs font-semibold">{t.tips}</span>
             </div>
             <div className="space-y-1.5 text-[11px] text-muted-foreground">
-              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/admin/*</code> to avoid tracking internal tools</p>
-              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/login</code> and <code className="bg-muted px-1 rounded-lg text-foreground">/signup</code> for privacy</p>
-              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/settings/*</code> for sensitive user data</p>
+              <p>{t.exclude1}<code className="bg-muted px-1 rounded-lg text-foreground">/admin/*</code>{t.tipAdmin}</p>
+              <p>{t.exclude1}<code className="bg-muted px-1 rounded-lg text-foreground">/login</code>{t.and}<code className="bg-muted px-1 rounded-lg text-foreground">/signup</code>{t.tipLogin}</p>
+              <p>{t.exclude1}<code className="bg-muted px-1 rounded-lg text-foreground">/settings/*</code>{t.tipSettings}</p>
             </div>
           </CardContent>
         </Card>

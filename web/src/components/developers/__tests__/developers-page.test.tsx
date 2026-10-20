@@ -50,7 +50,7 @@ describe('Developers page', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Data API' }).getAttribute('aria-selected')).toBe('true'));
     fireEvent.click(screen.getByRole('tab', { name: /Webhooks/ }));
     expect(window.location.search).toBe('?tab=integrations');
-    expect(screen.getByRole('link', { name: /Integrations & webhooks/ }).getAttribute('href')).toBe('/websites/site-1/settings/integrations');
+    expect(screen.getByRole('link', { name: /Integrations & webhooks/ }).getAttribute('href')).toBe('/websites/site-1/integrations');
   });
 
   it('API keys: opens the new-key dialog', () => {

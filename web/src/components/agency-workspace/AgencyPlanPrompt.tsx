@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils';
  * reads included, answers 403 `agency_plan_required` without it.
  */
 export function AgencyPlanPrompt({ websiteId, className }: { websiteId: string | null; className?: string }) {
+  const t = useT().agency.gate;
   return (
     <div
       data-testid="agency-plan-prompt"
@@ -18,19 +20,19 @@ export function AgencyPlanPrompt({ websiteId, className }: { websiteId: string |
       <div className="flex gap-3">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div>
-          <p className="text-sm font-semibold text-foreground">The agency workspace is part of the Agency plan</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Upgrade to add clients and their websites, put your brand on what they see, and use the agency API.</p>
+          <p className="text-sm font-semibold text-foreground">{t.promptTitle}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t.promptBody}</p>
         </div>
       </div>
       <div className="flex shrink-0 gap-2">
         {websiteId && (
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`/websites/${websiteId}/settings/billing`}>Billing</Link>
+            <Link href={`/websites/${websiteId}/settings/billing`}>{t.billing}</Link>
           </Button>
         )}
         <Button size="sm" className="gap-1.5" asChild>
           <Link href="/pricing">
-            See the Agency plan <ArrowRight className="h-3.5 w-3.5" />
+            {t.seePlan} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </Button>
       </div>

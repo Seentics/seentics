@@ -1,14 +1,18 @@
+import { errorsEn, type ErrorsMessages } from '@/lib/i18n/messages/errors-en';
 import type { ErrorGroup } from './types';
 
 export type ErrorGroupId = 'new' | 'worse' | 'key_pages' | 'better' | 'noisy';
 
-/** The groups the error list is browsed by, in the order shown. */
-export const ERROR_GROUP_META: Array<{ id: ErrorGroupId; label: string; description: string; dot: string }> = [
-  { id: 'new',       label: 'New',                     description: 'First seen in this period',                  dot: 'bg-red-500' },
-  { id: 'worse',     label: 'Getting worse',           description: 'At least twice as often as the period before', dot: 'bg-orange-500' },
-  { id: 'key_pages', label: 'On checkout or signup',   description: 'Hitting the pages that make money',          dot: 'bg-red-500' },
-  { id: 'better',    label: 'Calming down',            description: 'Less than half as often as before',          dot: 'bg-emerald-500' },
-  { id: 'noisy',     label: 'Noisy but harmless',      description: 'Browser warnings that rarely affect visitors', dot: 'bg-muted-foreground' },
+/**
+ * The groups the error list is browsed by, in the order shown. Labels and descriptions are in
+ * the `errors` messages (`buckets[id]`, `bucketHints[id]`).
+ */
+export const ERROR_GROUP_META: Array<{ id: ErrorGroupId; dot: string }> = [
+  { id: 'new',       dot: 'bg-red-500' },
+  { id: 'worse',     dot: 'bg-orange-500' },
+  { id: 'key_pages', dot: 'bg-red-500' },
+  { id: 'better',    dot: 'bg-emerald-500' },
+  { id: 'noisy',     dot: 'bg-muted-foreground' },
 ];
 
 /** Messages browsers and extensions raise that almost never break a page. */
@@ -27,36 +31,37 @@ export function inErrorGroup(g: ErrorGroup, id: ErrorGroupId, periodStart: numbe
   }
 }
 
-const times = (n: number) => `${n.toLocaleString()} time${n === 1 ? '' : 's'}`;
-
 /** One line saying what an error is doing in the period, in plain words. */
-export function errorLine(g: ErrorGroup, periodStart: number, periodLabel: string): string {
+export function errorLine(
+  g: ErrorGroup, periodStart: number, periodLabel: string, t: ErrorsMessages['line'] = errorsEn.line,
+): string {
   const w = g.window;
+  const times = (n: number) => t.times(n.toLocaleString('en-US'), n === 1);
   if (HARMLESS.test(g.message)) {
-    return `Browser warning — usually harmless${w ? ` · ${times(w.count)} ${periodLabel}` : ''}`;
+    return `${t.harmless}${w ? ` · ${times(w.count)} ${periodLabel}` : ''}`;
   }
-  if (!w) return g.last_page_path ? `On ${g.last_page_path}` : '';
+  if (!w) return g.last_page_path ? t.on(g.last_page_path) : '';
   const isNew = new Date(g.first_seen).getTime() >= periodStart;
-  const where = w.pages.length ? ` on ${w.pages.slice(0, 2).join(' and ')}` : '';
-  const who = w.sessions > 0 ? `, ${w.sessions.toLocaleString()} visitor${w.sessions === 1 ? '' : 's'} affected` : '';
+  const where = w.pages.length ? t.onPages(w.pages.slice(0, 2)) : '';
+  const who = w.sessions > 0 ? t.affected(w.sessions.toLocaleString('en-US'), w.sessions === 1) : '';
   const trend = isNew
-    ? 'New'
+    ? t.new
     : w.prev_count === 0 && w.count > 0
-      ? 'Back again'
+      ? t.backAgain
       : w.count >= 2 * w.prev_count && w.count >= 10
-        ? `Up from ${w.prev_count.toLocaleString()}`
+        ? t.upFrom(w.prev_count.toLocaleString('en-US'))
         : w.count * 2 <= w.prev_count
-          ? `Down from ${w.prev_count.toLocaleString()}`
-          : 'Steady';
-  if (w.count === 0) return `Not seen ${periodLabel}`;
-  return `${trend} · ${times(w.count)}${where} ${periodLabel}${who}`;
+          ? t.downFrom(w.prev_count.toLocaleString('en-US'))
+          : t.steady;
+  if (w.count === 0) return t.notSeen(periodLabel);
+  return t.full(trend, times(w.count), where, periodLabel, who);
 }
 
 /** The list's groups: each error under exactly one, the most pressing it is in. */
 export type ErrorBucket = ErrorGroupId | 'steady';
-export const ERROR_BUCKETS: Array<{ id: ErrorBucket; label: string; dot: string }> = [
+export const ERROR_BUCKETS: Array<{ id: ErrorBucket; dot: string }> = [
   ...ERROR_GROUP_META.filter((g) => g.id !== 'better' && g.id !== 'noisy'),
-  { id: 'steady', label: 'Steady', dot: 'bg-muted-foreground/70' },
+  { id: 'steady', dot: 'bg-muted-foreground/70' },
   ...ERROR_GROUP_META.filter((g) => g.id === 'better' || g.id === 'noisy'),
 ];
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import type { ClientBrand } from '@/features/client-mode/types';
 import { config } from '@/lib/config';
 import { hardRedirect } from '@/lib/hard-redirect';
 import { onCustomHost } from '@/lib/seentics-host';
+import { useT } from '@/lib/i18n';
 
 /**
  * Two sign-ins share this address.
@@ -41,6 +42,7 @@ function toAccountSignIn() {
 type Phase = 'resolving' | 'form' | 'sent';
 
 export default function SignInPage() {
+  const t = useT().auth.clientSignIn;
   const [phase, setPhase] = useState<Phase>('resolving');
   const [slug, setSlug] = useState('');
   const [brand, setBrand] = useState<ClientBrand | null>(null);
@@ -85,7 +87,7 @@ export default function SignInPage() {
     e.preventDefault();
     const address = email.trim();
     if (!EMAIL.test(address)) {
-      setError('Enter a valid email address.');
+      setError(t.invalidEmail);
       return;
     }
     setError(null);
@@ -96,7 +98,7 @@ export default function SignInPage() {
       if (slug) rememberClientAgency(slug);
       setPhase('sent');
     } catch (err) {
-      setError(err instanceof RequestError ? err.message : 'We could not send a link just now. Please try again.');
+      setError(err instanceof RequestError ? err.message : t.sendFailed);
     } finally {
       setSending(false);
     }
@@ -104,26 +106,25 @@ export default function SignInPage() {
 
   if (phase === 'resolving') return <ClientAuthLoading />;
 
-  const name = brand?.brand_name || 'your agency';
+  const name = brand?.brand_name || t.yourAgency;
 
   if (phase === 'sent') {
     return (
       <ClientAuthShell
         brand={brand}
-        title="Check your email"
-        subtitle={<>If <span className="font-medium text-foreground">{email.trim()}</span> can sign in to {name}, a sign-in link is on its way.</>}
-        footer={brand?.support_email ? <>Trouble signing in? <a className="font-medium text-foreground underline-offset-4 hover:underline" href={`mailto:${brand.support_email}`}>Contact {name}</a></> : undefined}
+        title={t.checkEmail}
+        subtitle={<>{t.sentSubtitle(<span className="font-medium text-foreground">{email.trim()}</span>, name).map((part, i) => <Fragment key={i}>{part}</Fragment>)}</>}
+        footer={brand?.support_email ? <>{t.trouble} <a className="font-medium text-foreground underline-offset-4 hover:underline" href={`mailto:${brand.support_email}`}>{t.contact(name)}</a></> : undefined}
       >
         <div className="flex flex-col items-center text-center" data-testid="client-signin-sent">
           <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="h-6 w-6" />
           </span>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Open the link on this device. It works once and expires in 15 minutes. Nothing arrived? Check your spam folder, or ask
-            {' '}{name} to invite this address.
+            {t.sentBody(name)}
           </p>
           <Button variant="outline" className="mt-6 w-full font-medium" onClick={() => setPhase('form')}>
-            Use another email
+            {t.anotherEmail}
           </Button>
         </div>
       </ClientAuthShell>
@@ -133,15 +134,15 @@ export default function SignInPage() {
   return (
     <ClientAuthShell
       brand={brand}
-      title={brand ? `Sign in to ${brand.brand_name}` : 'Sign in to your dashboard'}
-      subtitle="Enter your email and we will send you a link to sign in. No password needed."
-      footer={brand?.support_email ? <>Need access? <a className="font-medium text-foreground underline-offset-4 hover:underline" href={`mailto:${brand.support_email}`}>Contact {name}</a></> : undefined}
+      title={brand ? t.signInTo(brand.brand_name) : t.signInDashboard}
+      subtitle={t.subtitle}
+      footer={brand?.support_email ? <>{t.needAccess} <a className="font-medium text-foreground underline-offset-4 hover:underline" href={`mailto:${brand.support_email}`}>{t.contact(name)}</a></> : undefined}
     >
       <form onSubmit={submit} className="space-y-4" noValidate>
-        {expired && !error && <ClientAuthError>Your session has ended. Sign in again to continue.</ClientAuthError>}
+        {expired && !error && <ClientAuthError>{t.sessionEnded}</ClientAuthError>}
         {error && <ClientAuthError>{error}</ClientAuthError>}
         <div className="space-y-1.5">
-          <label htmlFor="client-email" className="text-sm font-medium text-foreground">Email</label>
+          <label htmlFor="client-email" className="text-sm font-medium text-foreground">{t.email}</label>
           <Input
             id="client-email"
             name="email"
@@ -156,7 +157,7 @@ export default function SignInPage() {
           />
         </div>
         <Button type="submit" disabled={sending} className="mt-1 w-full font-semibold">
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a sign-in link'}
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : t.submit}
         </Button>
       </form>
     </ClientAuthShell>

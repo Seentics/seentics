@@ -6,6 +6,7 @@ import { brandColorVars, brandLogo } from './brand';
 import { featureForPath } from './routes';
 import { useClientAccess, type ClientAccess } from './useClientAccess';
 import { useOnCustomHost } from '@/lib/seentics-host';
+import { useT } from '@/lib/i18n';
 import type { ClientBrand, FeatureId } from './types';
 
 /**
@@ -86,10 +87,11 @@ export function EditGuard({ feature, mode = 'hide', fallback = null, children }:
 /** A line above a read-only page's controls, so a disabled form explains itself. */
 export function ReadOnlyNote({ feature, className }: { feature: FeatureId; className?: string }) {
   const allowed = useCanEditFeature(feature);
+  const t = useT().agency.clientMode;
   if (allowed) return null;
   return (
     <p role="note" className={className ?? 'mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground'}>
-      You can view this page. Ask your agency if you need to change anything here.
+      {t.readOnly}
     </p>
   );
 }

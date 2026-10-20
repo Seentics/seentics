@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, Check, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
-import { ACCOUNT_SCOPES, SCOPE_LABELS, isDemoRefusal, useAPIKeys, useCreateAPIKey, useDeleteAPIKey, type AccountScope } from '@/components/developers/api-keys';
+import { ACCOUNT_SCOPES, isDemoRefusal, useAPIKeys, useCreateAPIKey, useDeleteAPIKey, type AccountScope } from '@/components/developers/api-keys';
 import { useAgencyPlan } from '@/features/agency/plan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,54 +15,32 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { CopyButton } from '@/components/developers/CopyButton';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
+import { timeAgo } from '@/features/shop/format';
+import { useLocale, useT, type Messages } from '@/lib/i18n';
+
+type KeysMessages = Messages['developers']['keys'];
 
 const DATA_SCOPES: AccountScope[] = ['analytics:read', 'replays:read', 'heatmaps:read'];
 const AGENCY_SCOPES: AccountScope[] = ['agency:read', 'agency:write'];
 
 export type AccessPreset = 'full' | 'read' | 'manage' | 'assistant' | 'agency' | 'custom';
 
-const PRESETS: Array<{ id: Exclude<AccessPreset, 'custom'>; label: string; description: string; scopes: AccountScope[]; agencyOnly?: boolean }> = [
-  {
-    id: 'full',
-    label: 'Full access',
-    description: 'Create and manage websites, and read their analytics. What most backends need.',
-    scopes: ['websites:read', 'websites:write', ...DATA_SCOPES],
-  },
-  {
-    id: 'read',
-    label: 'Read only',
-    description: 'List websites and read their analytics, recordings and heatmaps. Cannot change anything.',
-    scopes: ['websites:read', ...DATA_SCOPES],
-  },
-  {
-    id: 'manage',
-    label: 'Manage only',
-    description: 'Create, update and delete websites. Cannot read analytics.',
-    scopes: ['websites:read', 'websites:write'],
-  },
-  {
-    id: 'assistant',
-    label: 'AI assistant (MCP)',
-    description: 'Ask Claude, Cursor or another assistant about your websites. Reads data only, never changes anything.',
-    scopes: DATA_SCOPES,
-  },
-  {
-    id: 'agency',
-    label: 'Agency API',
-    description: 'Run the agency workspace from your backend: clients, websites, install checks, branding, embeds, usage.',
-    scopes: AGENCY_SCOPES,
-    agencyOnly: true,
-  },
+const PRESETS: Array<{ id: Exclude<AccessPreset, 'custom'>; scopes: AccountScope[]; agencyOnly?: boolean }> = [
+  { id: 'full', scopes: ['websites:read', 'websites:write', ...DATA_SCOPES] },
+  { id: 'read', scopes: ['websites:read', ...DATA_SCOPES] },
+  { id: 'manage', scopes: ['websites:read', 'websites:write'] },
+  { id: 'assistant', scopes: DATA_SCOPES },
+  { id: 'agency', scopes: AGENCY_SCOPES, agencyOnly: true },
 ];
 
 const sameScopes = (a: AccountScope[], b: AccountScope[]) => a.length === b.length && a.every(s => b.includes(s));
 
 /** How a key's scopes read in the table. */
-function accessLabel(scopes: AccountScope[]): { text: string; strong: boolean } {
+function accessLabel(scopes: AccountScope[], t: KeysMessages): { text: string; strong: boolean } {
   const preset = PRESETS.find(p => sameScopes(p.scopes, scopes));
-  if (preset) return { text: preset.label, strong: preset.id !== 'read' };
-  if (sameScopes([...ACCOUNT_SCOPES], scopes)) return { text: 'All scopes', strong: true };
-  return { text: 'Custom', strong: scopes.some(s => s.endsWith(':write')) };
+  if (preset) return { text: t.presets[preset.id].label, strong: preset.id !== 'read' };
+  if (sameScopes([...ACCOUNT_SCOPES], scopes)) return { text: t.allScopes, strong: true };
+  return { text: t.presets.custom.label, strong: scopes.some(s => s.endsWith(':write')) };
 }
 
 /**
@@ -75,6 +53,8 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
   onOpenChange: (v: boolean) => void;
   preset?: AccessPreset;
 }) {
+  const all = useT();
+  const t = all.developers.keys;
   const { allowed: isAgency } = useAgencyPlan(websiteId);
   const presets = PRESETS.filter(p => !p.agencyOnly || isAgency);
   const [name, setName] = useState('');
@@ -92,7 +72,7 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
   const submit = () =>
     create.mutate({ name: name.trim(), scopes: ACCOUNT_SCOPES.filter(s => scopes.includes(s)) }, {
       onSuccess: key => { setSecret(key.key ?? null); setName(''); onOpenChange(false); },
-      onError: e => { if (!isDemoRefusal(e)) toast.error((e as Error).message || 'Failed to create key'); },
+      onError: e => { if (!isDemoRefusal(e)) toast.error((e as Error).message || t.createFailed); },
     });
 
   return (
@@ -100,17 +80,17 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-md">
           <SheetHeader className="bg-card">
-            <SheetTitle>New API key</SheetTitle>
-            <SheetDescription>One key for your whole account. Keep it on your server.</SheetDescription>
+            <SheetTitle>{t.newTitle}</SheetTitle>
+            <SheetDescription>{t.newDescription}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
             <div className="space-y-1 rounded-lg border bg-card p-3.5 shadow-sm">
-              <Label className="text-xs">Name</Label>
-              <Input placeholder="e.g. Signup handler" value={name} onChange={e => setName(e.target.value)} className="h-8 !bg-card text-xs" autoFocus />
+              <Label className="text-xs">{t.name}</Label>
+              <Input placeholder={t.namePlaceholder} value={name} onChange={e => setName(e.target.value)} className="h-8 !bg-card text-xs" autoFocus />
             </div>
             <div className="space-y-2 rounded-lg border bg-card p-3.5 shadow-sm">
-              <Label className="text-xs">Access</Label>
-              {[...presets, { id: 'custom' as const, label: 'Custom', description: 'Pick the scopes one by one.' }].map(a => (
+              <Label className="text-xs">{t.access}</Label>
+              {[...presets.map(p => p.id), 'custom' as const].map(id => ({ id, ...t.presets[id] })).map(a => (
                 <button
                   key={a.id}
                   type="button"
@@ -129,8 +109,8 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
             </div>
             {access === 'custom' && (
               <fieldset className="space-y-1.5 rounded-lg border bg-card p-3.5 shadow-sm">
-                <legend className="sr-only">Scopes</legend>
-                <Label className="text-xs">Scopes</Label>
+                <legend className="sr-only">{t.scopes}</legend>
+                <Label className="text-xs">{t.scopes}</Label>
                 {ACCOUNT_SCOPES.map(scope => (
                   <label key={scope} className="flex cursor-pointer items-start gap-2.5 rounded-md px-1 py-1 hover:bg-muted/50">
                     <input
@@ -143,8 +123,8 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
                     <span className="min-w-0">
                       <code className="font-mono text-xs text-foreground">{scope}</code>
                       <span className="block text-[11px] text-muted-foreground">
-                        {SCOPE_LABELS[scope]}
-                        {AGENCY_SCOPES.includes(scope) && !isAgency && ' (needs the Agency plan)'}
+                        {t.scopeLabels[scope]}
+                        {AGENCY_SCOPES.includes(scope) && !isAgency && t.needsAgency}
                       </span>
                     </span>
                   </label>
@@ -153,10 +133,10 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
             )}
           </div>
           <SheetFooter className="bg-card pr-20">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>{all.actions.cancel}</Button>
             <Button size="sm" onClick={submit} disabled={!name.trim() || scopes.length === 0 || create.isPending}>
               {create.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-              Create key
+              {t.createKey}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -167,14 +147,14 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-500" />
-              Key created
+              {t.created}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                Copy it now — it is never shown again. Keep it on your server: depending on its access it can change your sites and read their data.
+                {t.copyNow}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -182,7 +162,7 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
               <CopyButton text={secret ?? ''} />
             </div>
             <div className="flex justify-end">
-              <Button onClick={() => setSecret(null)}>Done</Button>
+              <Button onClick={() => setSecret(null)}>{all.actions.done}</Button>
             </div>
           </div>
         </DialogContent>
@@ -193,6 +173,9 @@ export function CreateAccountKeyDialog({ websiteId, open, onOpenChange, preset }
 
 /** Account-level keys for the Data API and the Management API, as a table of rows. */
 export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; onCreate: () => void }) {
+  const all = useT();
+  const t = all.developers.keys;
+  const { locale } = useLocale();
   const { data: keys = [], isLoading } = useAPIKeys(websiteId);
   const revoke = useDeleteAPIKey(websiteId);
   const [confirm, confirmDialog] = useConfirm();
@@ -212,14 +195,14 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
           <KeyRound className="h-5 w-5 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">No account keys yet</p>
+          <p className="text-sm font-semibold text-foreground">{t.empty}</p>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Create one to read analytics and manage websites from your own backend.
+            {t.emptyBody}
           </p>
         </div>
         <Button size="sm" className="gap-1.5" onClick={onCreate}>
           <Plus className="h-3.5 w-3.5" />
-          Create your first key
+          {t.createFirst}
         </Button>
       </div>
     );
@@ -231,17 +214,17 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border/60 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          <th className="px-5 py-3 font-medium">Name</th>
-          <th className="px-5 py-3 font-medium">Key</th>
-          <th className="px-5 py-3 font-medium">Access</th>
-          <th className="px-5 py-3 font-medium">Last used</th>
-          <th className="px-5 py-3 font-medium">Created</th>
+          <th className="px-5 py-3 font-medium">{all.actions.name}</th>
+          <th className="px-5 py-3 font-medium">{t.colKey}</th>
+          <th className="px-5 py-3 font-medium">{t.access}</th>
+          <th className="px-5 py-3 font-medium">{t.colLastUsed}</th>
+          <th className="px-5 py-3 font-medium">{t.colCreated}</th>
           <th className="w-14 px-5 py-3" />
         </tr>
       </thead>
       <tbody className="divide-y divide-border/60">
         {keys.map(key => {
-          const access = accessLabel(key.scopes);
+          const access = accessLabel(key.scopes, t);
           return (
             <tr key={key.id} className="hover:bg-muted/35">
               <td className="px-5 py-3.5 font-medium text-foreground">{key.name}</td>
@@ -259,24 +242,26 @@ export function AccountKeysList({ websiteId, onCreate }: { websiteId: string; on
                 </span>
               </td>
               <td className="px-5 py-3.5 text-muted-foreground">
-                {key.lastUsed ? formatDistanceToNow(new Date(key.lastUsed), { addSuffix: true }) : 'Never'}
+                {key.lastUsed
+                  ? locale === 'bn' ? timeAgo(key.lastUsed, locale) : formatDistanceToNow(new Date(key.lastUsed), { addSuffix: true })
+                  : t.never}
               </td>
-              <td className="px-5 py-3.5 text-muted-foreground">{format(new Date(key.createdAt), 'MMM d, yyyy')}</td>
+              <td className="px-5 py-3.5 text-muted-foreground">{new Date(key.createdAt).toLocaleDateString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
               <td className="px-5 py-3.5 text-right">
                 <Button
                   variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                  title="Revoke key"
+                  title={t.revoke}
                   disabled={revoke.isPending}
                   onClick={async () => {
                     const ok = await confirm({
-                      title: `Revoke "${key.name}"?`,
-                      description: 'Anything still using this key stops working immediately. This cannot be undone.',
-                      confirmLabel: 'Revoke key',
+                      title: t.revokeTitle(key.name),
+                      description: t.revokeBody,
+                      confirmLabel: t.revoke,
                       destructive: true,
                     });
                     if (!ok) return;
                     revoke.mutate(key.id, {
-                      onSuccess: () => toast.success('Key revoked'),
+                      onSuccess: () => toast.success(t.revoked),
                       onError: e => { if (!isDemoRefusal(e)) toast.error((e as Error).message); },
                     });
                   }}

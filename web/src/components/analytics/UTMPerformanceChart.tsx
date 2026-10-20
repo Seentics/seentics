@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 
 import { formatNumber } from '@/features/analytics/format';
+import { useT } from '@/lib/i18n';
 
 export interface UTMPerformanceData {
   sources: Array<{
@@ -47,7 +48,10 @@ export interface UTMPerformanceChartProps {
 }
 
 export function UTMPerformanceChart({ data, isLoading = false, controlledTab }: UTMPerformanceChartProps) {
+  const t = useT().analytics;
   const utmTab = controlledTab ?? 'sources';
+  // 'Direct' and 'Unknown' are the dashboard's names for a missing value, not a campaign's own.
+  const display = (name: string) => (name === 'Direct' ? t.common.direct : name === 'Unknown' ? t.common.unknown : name);
   
   if (isLoading) {
     return (
@@ -92,7 +96,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab }: 
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
         <Layers className="h-10 w-10 mb-2 opacity-20" />
-        <p className="text-xs font-medium text-muted-foreground">No campaign data available</p>
+        <p className="text-xs font-medium text-muted-foreground">{t.utm.noData}</p>
       </div>
     );
   }
@@ -123,8 +127,8 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab }: 
                 <Globe className="h-4 w-4 text-primary hidden" />
               </div>
 
-              <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={item.name}>
-                {item.name}
+              <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={display(item.name)}>
+                {display(item.name)}
               </span>
             </div>
 

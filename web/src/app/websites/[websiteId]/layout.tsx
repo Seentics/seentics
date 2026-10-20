@@ -19,8 +19,8 @@ export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const isAiMode = pathname === `/websites/${websiteId}/ai`;
 
-  // From md up the page sits in a rounded frame inset from the window, the sidebar on the
-  // chrome around it, as in Linear's app. Phones stay edge to edge.
+  // From md up the page runs edge to edge beside the sidebar, no line between: the sidebar is the
+  // cards' colour against the page's grey in both themes.
   const framed = Boolean(websiteId) && !isAiMode;
 
   // Client mode (an agency's client user): the brand, the pages they may open, and which of
@@ -30,7 +30,6 @@ export default function Layout({ children }: LayoutProps) {
     <div
       className={cn(
         'flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground supports-[height:100dvh]:h-[100dvh] md:flex-row',
-        framed && 'md:bg-sidebar',
       )}
     >
       {websiteId && !isAiMode && <Sidebar websiteId={websiteId} />}
@@ -41,12 +40,10 @@ export default function Layout({ children }: LayoutProps) {
       <div
         className={cn(
           'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
-          framed && 'app-frame md:my-2 md:mr-2 md:rounded-xl md:border md:border-border md:shadow-[var(--panel-edge)]',
+          framed && 'app-frame',
         )}
       >
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"><FeatureGate>{children}</FeatureGate></main>
-        {/* Above the page, so the light falls on its cards too; never takes a click. */}
-        {framed && <div aria-hidden className="app-frame-glow pointer-events-none absolute inset-0" />}
       </div>
       {websiteId && !isAiMode && <DashboardContentOverlay websiteId={websiteId} />}
     </div>

@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { defaultCoupon, type CouponConfig } from '@/lib/popup-config';
 import { Labeled, ToggleSection, inp } from './fields';
+import { useT } from '@/lib/i18n';
 
 /**
  * A coupon code. Behind an email form it is revealed only after the form is accepted —
@@ -10,19 +11,20 @@ import { Labeled, ToggleSection, inp } from './fields';
 export function CouponFields({
   value, onChange, hasForm,
 }: { value: CouponConfig | undefined; onChange: (c: CouponConfig | undefined) => void; hasForm: boolean }) {
+  const m = useT().automations.popup.coupon;
   return (
     <ToggleSection
-      title="Offer a coupon code"
-      description={hasForm ? 'Revealed after the email is submitted.' : 'Shown in the popup. Turn on the email form to reveal it only after a signup.'}
+      title={m.title}
+      description={hasForm ? m.withForm : m.withoutForm}
       enabled={!!value}
       onToggle={(on) => onChange(on ? defaultCoupon() : undefined)}
     >
       {value && (
         <div className="grid grid-cols-2 gap-3">
-          <Labeled label="Code">
+          <Labeled label={m.code}>
             <Input value={value.code} maxLength={64} onChange={(e) => onChange({ ...value, code: e.target.value })} className={inp} />
           </Labeled>
-          <Labeled label="Description">
+          <Labeled label={m.description}>
             <Input value={value.description} maxLength={160} onChange={(e) => onChange({ ...value, description: e.target.value })} className={inp} />
           </Labeled>
         </div>

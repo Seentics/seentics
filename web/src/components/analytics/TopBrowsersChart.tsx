@@ -6,6 +6,7 @@ import { getBrowserImagePath } from '@/lib/analytics-icons';
 import { Monitor } from 'lucide-react';
 import Image from 'next/image';
 import React from 'react';
+import { useT } from '@/lib/i18n';
 
 interface TopBrowsersChartProps {
   data: any;
@@ -39,6 +40,7 @@ const getBrowserName = (browser: string) => {
 };
 
 export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoading }) => {
+  const t = useT().analytics.devices;
   if (isLoading) {
     return <Skeleton className="h-[400px] w-full" />;
   }
@@ -53,8 +55,8 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
       <div className="flex items-center justify-center text-muted-foreground py-12">
         <div className="text-center">
           <Monitor className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <p className="text-sm font-medium">No browser data available</p>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Browser data will appear here once visitors start browsing</p>
+          <p className="text-sm font-medium">{t.noBrowserData}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t.noBrowserDataHint}</p>
         </div>
       </div>
     );

@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2, LockKeyhole } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { useClientMode } from './ClientMode';
 import { canEditAccess, canView, editOnlyFallback, firstAllowedPath } from './routes';
 
@@ -14,6 +15,7 @@ import { canEditAccess, canView, editOnlyFallback, firstAllowedPath } from './ro
  */
 export function FeatureGate({ children }: { children: ReactNode }) {
   const ctx = useClientMode();
+  const t = useT().agency.clientMode;
   const router = useRouter();
   const pathname = usePathname() ?? '';
 
@@ -52,9 +54,9 @@ export function FeatureGate({ children }: { children: ReactNode }) {
         <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
           <LockKeyhole className="h-5 w-5" />
         </span>
-        <p className="text-sm font-semibold text-foreground">Nothing to show yet</p>
+        <p className="text-sm font-semibold text-foreground">{t.nothingTitle}</p>
         <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          Your agency has not shared any pages with you. Ask them to turn on the pages you need.
+          {t.nothingBody}
         </p>
       </div>
     );

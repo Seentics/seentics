@@ -7,6 +7,7 @@ import React from 'react';
 import { getPageIcon, getPathFromUrl } from './page-icon';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useControllableState } from '@/hooks/useControllableState';
+import { useT, type Messages } from '@/lib/i18n';
 
 export interface TopPagesChartProps {
   data: any; // Top pages data: { top_pages: [] }
@@ -24,19 +25,19 @@ export interface TopPagesChartProps {
 const uuidSegRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const getPageName = (page: string) => {
-  if (!page) return 'Unknown Page';
+const getPageName = (page: string, t: Messages['analytics']['topPages']) => {
+  if (!page) return t.unknownPage;
   const path = getPathFromUrl(page);
-  if (path === '/') return 'Homepage';
+  if (path === '/') return t.homepage;
 
   const segments = path.split('/').filter(Boolean);
   if (segments.length > 0) {
     const lastSegment = segments[segments.length - 1];
     if (segments[0] === 'websites' && uuidSegRe.test(lastSegment)) {
-      return 'Website dashboard';
+      return t.websiteDashboard;
     }
     if (uuidSegRe.test(lastSegment)) {
-      return 'Page';
+      return t.page;
     }
     return lastSegment.split(/[-_]/).map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
@@ -60,6 +61,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   onActiveTabChange,
   headerAction,
 }) => {
+  const t = useT().analytics.topPages;
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
     defaultValue: 'top' as const,
@@ -90,7 +92,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-xs font-medium text-muted-foreground/60">No page data</p>
+          <p className="text-xs font-medium text-muted-foreground/60">{t.noData}</p>
         </div>
       );
     }
@@ -102,9 +104,9 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       <div className="mt-2">
         {sortedItems.map((item, index) => {
           const val = item.views || item.sessions || 0;
-          const name = getPageName(item.page);
+          const name = getPageName(item.page, t);
           const path = getPathFromUrl(item.page);
-          const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
+          const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? t.bounce(item.bounce_rate) : item.exit_rate !== undefined ? t.exitRate(item.exit_rate) : null;
 
           return (
             <div key={index} className={cn("relative flex items-center justify-between gap-3 rounded-md px-2 py-1.5 hover:bg-accent/10 transition-colors group", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
@@ -138,13 +140,13 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'top' | 'entry' | 'exit')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
            <div className="flex items-center gap-1">
-             <h3 className="text-sm font-semibold tracking-tight">Top Pages</h3>
+             <h3 className="text-sm font-semibold tracking-tight">{t.title}</h3>
              {headerAction}
            </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg shrink-0">
-             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
-             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
-             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
+             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.top}</TabsTrigger>
+             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.entry}</TabsTrigger>
+             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.exit}</TabsTrigger>
            </TabsList>
         </div>
         

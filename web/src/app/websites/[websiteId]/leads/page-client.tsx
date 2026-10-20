@@ -3,11 +3,12 @@
 import { usePathSegment, useIsPathOverridden } from '@/lib/path-segment';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Contact, Download, Plus, Upload } from 'lucide-react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiModeButton } from '@/components/ai/AiModeButton';
 import { Button } from '@/components/ui/button';
-import { GHOST_BUTTON, LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { CountTabs } from '@/components/ui/collection';
+import { LIST_PAGE, PageBar } from '@/components/ui/linear-list';
 import { usePermissions } from '@/hooks/use-permissions';
 import { AddContactDialog } from '@/components/leads/AddContactDialog';
 import { ContactDrawer } from '@/components/leads/ContactDrawer';
@@ -19,14 +20,18 @@ import { leadsApi } from '@/features/leads/api';
 import { useContacts, useSiteSubmissions } from '@/features/leads/queries';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
+import { useT } from '@/lib/i18n';
+
+/** The heading's secondary actions (Export, Import): outlined, as tall as the primary button beside them. */
+const HEADER_BUTTON = 'inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50';
 
 /**
  * Route composition only: which tab, which contact is open, the dialogs, and export. Each tab,
  * the drawer and the dialogs are components under `components/leads`; data lives in
  * `features/leads`.
  *
- * Laid out like the other list pages: a top bar with the two tabs and the page's actions, then
- * each tab's toolbar and layouts (see `components/ui/collection`).
+ * Laid out like the other list pages: the heading with the page's actions, then each tab's list
+ * with the two tabs and its controls as the list's top row (see `components/ui/collection`).
  *
  * Two views of the same people. Submissions are every form's entries, kept for 90 days;
  * contacts are the people behind them, kept until deleted, and can also be added by hand or
@@ -46,6 +51,7 @@ function writeUrl(tab: Tab, contact: string | null) {
 }
 
 export default function LeadsPage() {
+  const t = useT().leads.page;
   const websiteId = usePathSegment(1) ?? '';
   // In the landing page's preview the URL is the landing page's: tab and contact stay in memory.
   const embedded = useIsPathOverridden();
@@ -81,7 +87,18 @@ export default function LeadsPage() {
   const monthAgo = useMemo(() => new Date((now ?? Date.now()) - 30 * DAY).toISOString(), [now]);
   const recent = useSiteSubmissions(websiteId, { search: '', form: '', from: monthAgo, to: '', limit: 1, offset: 0 });
   const everyone = useContacts(websiteId, { search: '', status: '', tag: '', source: '', sort: 'last_activity', limit: 1, offset: 0 });
-  const count = (n: number | undefined) => (n === undefined ? '' : ` ${n.toLocaleString()}`);
+  /** The two tabs, on the left of whichever tab's toolbar is open. */
+  const tabs = (
+    <CountTabs
+      label={t.title}
+      tabs={[
+        { id: 'contacts' as const, label: t.people, count: everyone.data?.total },
+        { id: 'submissions' as const, label: t.submissions, count: recent.data?.total },
+      ]}
+      value={tab}
+      onChange={go}
+    />
+  );
 
   const exportCsv = async () => {
     setExporting(true);
@@ -91,7 +108,7 @@ export default function LeadsPage() {
         : await leadsApi.exportSubmissions(websiteId, submissionFilters ?? { search: '', form: '', from: '', to: '' });
       downloadBlob(blob, tab === 'contacts' ? 'contacts.csv' : 'submissions.csv');
     } catch {
-      toast.error('Could not export. Please try again.');
+      toast.error(t.exportFailed);
     } finally {
       setExporting(false);
     }
@@ -99,39 +116,25 @@ export default function LeadsPage() {
 
   return (
     <div className={LIST_PAGE}>
-      <PageBar
-        icon={<Contact />}
-        title="Leads"
-        views={
-          <ViewTabs
-            label="Leads"
-            tabs={[
-              { id: 'contacts', label: `People${count(everyone.data?.total)}` },
-              { id: 'submissions', label: `Submissions${count(recent.data?.total)}` },
-            ]}
-            value={tab}
-            onChange={go}
-          />
-        }
-      >
-        <button type="button" className={GHOST_BUTTON} onClick={exportCsv} disabled={exporting}>
-          <Download className="size-3.5" />Export
+      <PageBar title={t.title} description={t.description}>
+        <button type="button" className={HEADER_BUTTON} onClick={exportCsv} disabled={exporting}>
+          <Download className="size-3.5" />{t.export}
         </button>
         {tab === 'contacts' && canEdit && (
           <>
-            <button type="button" className={GHOST_BUTTON} onClick={() => setImporting(true)}>
-              <Upload className="size-3.5" />Import
+            <button type="button" className={HEADER_BUTTON} onClick={() => setImporting(true)}>
+              <Upload className="size-3.5" />{t.import}
             </button>
-            <Button className="h-7 gap-1.5 px-2.5 text-[12.5px]" onClick={() => setAdding(true)}>
-              <Plus className="size-3.5" />Add contact
+            <Button className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => setAdding(true)}>
+              <Plus className="size-3.5" />{t.addContact}
             </Button>
           </>
         )}
-        <AiModeButton websiteId={websiteId} className="h-7" />
+        <AiModeButton websiteId={websiteId} className="h-8" />
       </PageBar>
 
       {tab === 'submissions' ? (
-        <SubmissionsTab websiteId={websiteId} now={now} canEdit={canEdit} onOpenContact={openContact} onFiltersChange={setSubmissionFilters} />
+        <SubmissionsTab websiteId={websiteId} now={now} canEdit={canEdit} onOpenContact={openContact} onFiltersChange={setSubmissionFilters} tabs={tabs} />
       ) : (
         <ContactsTab
           websiteId={websiteId}
@@ -141,6 +144,7 @@ export default function LeadsPage() {
           onAdd={() => setAdding(true)}
           onImport={() => setImporting(true)}
           onFiltersChange={setContactFilters}
+          tabs={tabs}
         />
       )}
 

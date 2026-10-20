@@ -17,6 +17,7 @@ import {
 } from '@/lib/websites-api';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { useT } from '@/lib/i18n';
 
 interface ReplaySettingsComponentProps {
   websiteId: string;
@@ -24,6 +25,9 @@ interface ReplaySettingsComponentProps {
 
 export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentProps) {
   const queryClient = useQueryClient();
+  const tAll = useT();
+  const t = tAll.settings.replaySettings;
+  const th = tAll.settings.heatmapSettings;
   const [enabled, setEnabled] = useState(true);
   const [samplingRate, setSamplingRate] = useState(100);
   const [includePatterns, setIncludePatterns] = useState('');
@@ -55,7 +59,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
 
   const updateMutation = useMutation({
     mutationFn: async (vars: { enabled: boolean; rate: number; include: string; exclude: string; maskAll: boolean; maskPatterns: string }) => {
-      if (!website) throw new Error('Website data not loaded');
+      if (!website) throw new Error(t.notLoaded);
       return updateWebsite(website.id, {
         replayEnabled: vars.enabled,
         replaySamplingRate: vars.rate / 100,
@@ -68,10 +72,10 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website', websiteId] });
-      toast.success('Replay settings updated successfully');
+      toast.success(t.updated);
     },
     onError: (err: any) => {
-      toast.error(err?.message || 'Failed to update replay settings');
+      toast.error(err?.message || t.failed);
     },
     onSettled: () => {
       setIsSaving(false);
@@ -104,8 +108,8 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-sm font-semibold">Session Replay Configuration</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Control how user sessions are recorded and reconstructed.</p>
+              <h3 className="text-sm font-semibold">{t.title}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch
@@ -114,7 +118,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                 onCheckedChange={setEnabled}
               />
               <Label htmlFor="replay-toggle" className="text-xs font-medium text-muted-foreground">
-                {enabled ? 'Enabled' : 'Disabled'}
+                {enabled ? tAll.actions.enabled : tAll.actions.disabled}
               </Label>
             </div>
           </div>
@@ -122,9 +126,9 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
           {!enabled && (
             <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 mb-5">
               <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">Recordings Paused</AlertTitle>
+              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">{t.paused}</AlertTitle>
               <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 text-xs">
-                Session recording is currently disabled. No new interaction data will be collected until enabled.
+                {t.pausedBody}
               </AlertDescription>
             </Alert>
           )}
@@ -134,8 +138,8 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-xs font-medium text-muted-foreground">Sampling Rate</Label>
-                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Percentage of sessions to record.</p>
+                  <Label className="text-xs font-medium text-muted-foreground">{t.samplingRate}</Label>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">{t.samplingHint}</p>
                 </div>
                 <span className="text-lg font-semibold tabular-nums text-primary">
                   {samplingRate}<span className="text-xs text-muted-foreground ml-0.5">%</span>
@@ -150,48 +154,48 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                   step={1}
                 />
                 <div className="flex justify-between mt-2 text-[10px] text-muted-foreground/50">
-                  <span>Conservative</span>
-                  <span>Moderate</span>
-                  <span>Full Capture</span>
+                  <span>{t.conservative}</span>
+                  <span>{t.moderate}</span>
+                  <span>{t.full}</span>
                 </div>
               </div>
             </div>
 
             <p className="text-[11px] text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
-              High sampling rates provide more data but may consume your plan's session recording limits faster.
+              {t.samplingNote}
             </p>
 
             {/* URL Patterns */}
             <div className="space-y-4 pt-4 border-t border-border">
               <div className="space-y-1.5">
                 <Label htmlFor="include-patterns" className="text-xs font-medium text-muted-foreground">
-                  Include Patterns
+                  {th.include}
                 </Label>
                 <Textarea
                   id="include-patterns"
-                  placeholder="e.g. /products/*, /pricing"
+                  placeholder={th.includePlaceholder}
                   className="min-h-[80px] text-sm bg-muted/20 border-border"
                   value={includePatterns}
                   onChange={(e) => setIncludePatterns(e.target.value)}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Enter URL patterns to specifically record. Leave empty to track all pages. One pattern per line.
+                  {t.includeHint}
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="exclude-patterns" className="text-xs font-medium text-muted-foreground">
-                  Exclude Patterns
+                  {th.exclude}
                 </Label>
                 <Textarea
                   id="exclude-patterns"
-                  placeholder="e.g. /admin/*, /checkout/success"
+                  placeholder={th.excludePlaceholder}
                   className="min-h-[80px] text-sm bg-muted/20 border-border"
                   value={excludePatterns}
                   onChange={(e) => setExcludePatterns(e.target.value)}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Enter URL patterns to exclude from recording. Useful for sensitive pages.
+                  {t.excludeHint}
                 </p>
               </div>
             </div>
@@ -201,23 +205,21 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                 snapshots carry page text too. */}
             <div className="space-y-4 pt-4 border-t border-border">
               <div>
-                <h4 className="text-xs font-semibold">Text masking</h4>
+                <h4 className="text-xs font-semibold">{t.masking}</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Typed input, editable regions and anything marked <code>data-seentics-mask</code> are always masked.
-                  These cover the rest of the page&apos;s text, in recordings and heatmap snapshots alike: each character
-                  becomes <code>*</code>, so the layout and clicks still show.
+                  {t.maskingBefore}<code>data-seentics-mask</code>{t.maskingMiddle}<code>*</code>{t.maskingAfter}
                 </p>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <Label htmlFor="mask-all-text" className="text-xs font-medium text-muted-foreground">Mask all text on every page</Label>
-                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">For sites where any page can show who a visitor is.</p>
+                  <Label htmlFor="mask-all-text" className="text-xs font-medium text-muted-foreground">{t.maskAll}</Label>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">{t.maskAllHint}</p>
                 </div>
-                <Switch id="mask-all-text" checked={maskAllText} onCheckedChange={setMaskAllText} aria-label="Mask all text on every page" />
+                <Switch id="mask-all-text" checked={maskAllText} onCheckedChange={setMaskAllText} aria-label={t.maskAll} />
               </div>
               <div className={cn('space-y-1.5', maskAllText && 'opacity-50 pointer-events-none')}>
                 <Label htmlFor="mask-patterns" className="text-xs font-medium text-muted-foreground">
-                  Mask all text on these pages
+                  {t.maskPages}
                 </Label>
                 <Textarea
                   id="mask-patterns"
@@ -227,8 +229,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                   onChange={(e) => setMaskPatterns(e.target.value)}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  One pattern per line, matched against the page address. By default the pages that usually show a
-                  visitor&apos;s own details: account, profile, settings, checkout, billing and orders.
+                  {t.maskPagesHint}
                 </p>
               </div>
             </div>
@@ -245,7 +246,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              Save Changes
+              {th.saveChanges}
             </Button>
           </div>
         </CardContent>

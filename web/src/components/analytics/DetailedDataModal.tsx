@@ -11,6 +11,7 @@ import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TopCountriesChart } from '@/components/analytics/TopCountriesChart';
 import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
 import { TopBrowsersChart } from '@/components/analytics/TopBrowsersChart';
+import { useT, type Messages } from '@/lib/i18n';
 
 interface DetailedDataModalProps {
   isOpen: boolean;
@@ -20,34 +21,10 @@ interface DetailedDataModalProps {
   isLoading: any;
 }
 
-const getModalTitle = (modalType: string) => {
-  switch (modalType) {
-    case 'traffic':
-      return 'Traffic Overview';
-    case 'pages':
-      return 'Top Pages';
-    case 'sources':
-      return 'Top Sources';
-    case 'countries':
-      return 'Top Countries';
-    case 'devices':
-      return 'Top Devices';
-    case 'browsers':
-      return 'Top Browsers';
-    case 'visitors':
-      return 'Visitor Analytics';
-    case 'pageviews':
-      return 'Page View Analytics';
-    case 'engagement':
-      return 'Engagement Analytics';
-    case 'bounce':
-      return 'Bounce Rate Analytics';
-    default:
-      return 'Detailed Analytics';
-  }
-};
+const getModalTitle = (modalType: string, t: Messages['analytics']) => t.modal.titles[modalType] ?? t.modal.fallbackTitle;
 
-const getModalContent = (modalType: string, data: any, isLoading: any) => {
+const getModalContent = (modalType: string, data: any, isLoading: any, t: Messages['analytics']) => {
+  const c = t.common;
   const metrics = data.dashboard || {};
   const legacyMetrics = metrics.metrics || {};
   const sessionCount = metrics.sessions ?? legacyMetrics.sessions ?? 0;
@@ -59,19 +36,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Page Views</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Unique Visitors</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.uniqueVisitors}</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(sessionCount)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Sessions</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.sessions}</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Bounce Rate</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.bounceRate}</div>
             </div>
           </div>
           <TrafficChart data={data.dailyStats} isLoading={isLoading.dailyStats} />
@@ -84,19 +61,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Page Views</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">Unique Visitors</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.uniqueVisitors}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.pages_per_session || legacyMetrics.pages_per_session || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Pages per Session</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.pagesPerSession}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Time on Page</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.avgTimeOnPage}</div>
             </div>
           </div>
           <TopPagesChart data={data.topPages} isLoading={isLoading.topPages} />
@@ -109,19 +86,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalVisitors}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.new_visitors || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">New Visitors</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.newVisitors}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.returning_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Returning Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.returningVisitors}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Bounce Rate</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.bounceRate}</div>
             </div>
           </div>
           <TopSourcesChart data={data.topReferrers} isLoading={isLoading.topReferrers} />
@@ -134,19 +111,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalVisitors}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.sessions}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Session Time</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.avgSessionTime}</div>
             </div>
           </div>
           <TopCountriesChart data={data.topCountries} isLoading={isLoading.topCountries} />
@@ -159,19 +136,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalVisitors}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.sessions}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Session Time</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.avgSessionTime}</div>
             </div>
           </div>
           <TopDevicesChart data={data.topDevices} isLoading={isLoading.topDevices} />
@@ -184,19 +161,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalVisitors}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.sessions}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Bounce Rate</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.bounceRate}</div>
             </div>
           </div>
           <TopBrowsersChart data={data.topBrowsers} isLoading={isLoading.topBrowsers} />
@@ -209,41 +186,41 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalVisitors}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.new_visitors || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">New Visitors</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.newVisitors}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.returning_visitors || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Returning Visitors</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.returningVisitors}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatNumber(sessionCount)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Sessions</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.sessions}</div>
             </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Visitor Breakdown</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{t.modal.visitorBreakdown}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">New Visitors</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{c.newVisitors}</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.new_visitors || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Returning Visitors</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{c.returningVisitors}</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.returning_visitors || 0)}</span>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Sessions</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{c.sessions}</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(sessionCount)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Avg Session Time</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{c.avgSessionTime}</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</span>
                 </div>
               </div>
@@ -258,19 +235,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Page Views</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.totalPageViews}</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
-              <div className="text-sm text-green-700 dark:text-green-300 font-medium">Unique Visitors</div>
+              <div className="text-sm text-green-700 dark:text-green-300 font-medium">{c.uniqueVisitors}</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
               <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.pages_per_session || legacyMetrics.pages_per_session || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Pages per Session</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{c.pagesPerSession}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Time on Page</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">{c.avgTimeOnPage}</div>
             </div>
           </div>
           <TopPagesChart data={data.topPages} isLoading={isLoading.topPages} />
@@ -283,16 +260,16 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatDuration(data.dashboard?.enhanced_metrics?.avg_time_on_page || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Avg Time on Page</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.avgTimeOnPage}</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.enhanced_metrics?.engagement_score || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Engagement Score</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{c.engagementScore}</div>
             </div>
           </div>
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.avg_session_time || 0)}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Avg Session Time</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{c.avgSessionTime}</div>
           </div>
         </div>
       );
@@ -302,11 +279,11 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatPercentage(data.dashboard?.metrics?.bounce_rate || 0)}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Bounce Rate</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{c.bounceRate}</div>
           </div>
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total Sessions</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{c.totalSessions}</div>
           </div>
         </div>
       );
@@ -315,8 +292,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
       return (
         <div className="space-y-6">
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics Data</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Select a specific metric to view detailed data</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t.modal.analyticsData}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{t.modal.selectMetric}</div>
           </div>
         </div>
       );
@@ -330,16 +307,17 @@ export const DetailedDataModal: React.FC<DetailedDataModalProps> = ({
   data, 
   isLoading 
 }) => {
+  const t = useT().analytics;
   if (!modalType) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle className="text-gray-900 dark:text-gray-100">{getModalTitle(modalType)}</DialogTitle>
+          <DialogTitle className="text-gray-900 dark:text-gray-100">{getModalTitle(modalType, t)}</DialogTitle>
         </DialogHeader>
         <div className="mt-4">
-          {getModalContent(modalType, data, isLoading)}
+          {getModalContent(modalType, data, isLoading, t)}
         </div>
       </DialogContent>
     </Dialog>

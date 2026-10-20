@@ -9,6 +9,8 @@ import { rangeLabel } from '@/features/ai/ask-link';
 import { normalizeHeatmapPagePath } from './api';
 import { isDemo } from '@/lib/demo';
 import { demoDelay, demoHeatmapInsights } from '@/lib/demo/ai';
+import { heatmapsEn, type HeatmapsMessages } from '@/lib/i18n/messages/heatmaps-en';
+import { aiEn, type AiMessages } from '@/lib/i18n/messages/ai-en';
 
 export type InsightDevice = 'all' | 'desktop' | 'tablet' | 'mobile';
 
@@ -135,18 +137,17 @@ export function parseRefreshInsights(res: Pick<AxiosResponse, 'status' | 'data'>
 }
 
 /** Device as a sentence reads it. */
-export function deviceLabel(device: InsightDevice): string {
-  return device === 'all' ? 'All devices' : device.charAt(0).toUpperCase() + device.slice(1);
+export function deviceLabel(device: InsightDevice, m: HeatmapsMessages = heatmapsEn): string {
+  return m.devices[device] ?? device.charAt(0).toUpperCase() + device.slice(1);
 }
 
 /**
  * The scroll headline: "Half of page views stop by 45% of the page — the fold is at 22%."
  * `null` without scroll data.
  */
-export function scrollHeadline(scroll: ScrollStats | null): string | null {
+export function scrollHeadline(scroll: ScrollStats | null, m: HeatmapsMessages = heatmapsEn): string | null {
   if (!scroll) return null;
-  const fold = scroll.fold_pct === null ? '' : ` — the fold is at ${scroll.fold_pct}%`;
-  return `Half of page views stop by ${scroll.median_depth}% of the page${fold}.`;
+  return m.insights.headline(scroll.median_depth, scroll.fold_pct);
 }
 
 /** The reach rows of the scroll summary: how many page views got at least this far. */
@@ -161,32 +162,39 @@ export function reachRows(scroll: ScrollStats | null): Array<{ depth: number; pc
 }
 
 /** A clicked element's one-line description: "40% of clicks · 75% down · 30% reach it". */
-export function targetSummary(t: ClickTarget): string {
-  const parts = [`${t.share}% of clicks`];
-  if (t.pinned) parts.push('always on screen');
+export function targetSummary(t: ClickTarget, m: HeatmapsMessages = heatmapsEn): string {
+  const w = m.insights;
+  const parts = [w.targetShare(t.share)];
+  if (t.pinned) parts.push(w.alwaysOnScreen);
   else {
-    parts.push(`${t.depth_pct}% down`);
-    if (t.reach_pct !== null) parts.push(`${t.reach_pct}% reach it`);
+    parts.push(w.down(t.depth_pct));
+    if (t.reach_pct !== null) parts.push(w.reachIt(t.reach_pct));
   }
   return parts.join(' · ');
 }
 
 /** How long until a refresh is allowed, in words. */
-export function formatRetry(sec: number | null | undefined): string | null {
+export function formatRetry(sec: number | null | undefined, m: HeatmapsMessages = heatmapsEn): string | null {
   if (!sec || sec <= 0) return null;
   const min = Math.ceil(sec / 60);
-  if (min <= 1) return 'in a minute';
-  if (min < 60) return `in ${min} min`;
+  if (min <= 1) return m.insights.inMinute;
+  if (min < 60) return m.insights.inMinutes(min);
   const h = Math.ceil(min / 60);
-  return `in ${h} hour${h === 1 ? '' : 's'}`;
+  return m.insights.inHours(h);
 }
 
 /** The question the panel's "Ask AI" opens the assistant with: about this page, this range. */
-export function askAboutHeatmapPage(pagePath: string, days: number, device: InsightDevice) {
+export function askAboutHeatmapPage(
+  pagePath: string,
+  days: number,
+  device: InsightDevice,
+  m: HeatmapsMessages = heatmapsEn,
+  range: AiMessages['ask']['range'] = aiEn.ask.range,
+) {
   const path = normalizeHeatmapPagePath(pagePath);
-  const on = device === 'all' ? '' : ` on ${device}`;
+  const on = device === 'all' ? null : m === heatmapsEn ? device : m.devices[device];
   return {
-    question: `What does the heatmap for ${path} show over the last ${rangeLabel(days)}${on}? Where do people stop scrolling, what do they click that isn't a link, and what should I change on the page?`,
-    context: `Heatmap ${path}`.slice(0, 60),
+    question: m.insights.askQuestion(path, rangeLabel(days, range), on),
+    context: m.insights.askContext(path).slice(0, 60),
   };
 }

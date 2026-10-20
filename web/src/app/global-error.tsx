@@ -1,5 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { readLocaleCookie, type Locale } from '@/lib/i18n/locale';
+import { dashboardEn } from '@/lib/i18n/messages/dashboard-en';
+import { dashboardBn } from '@/lib/i18n/messages/dashboard-bn';
+
 export default function GlobalError({
   error,
   reset,
@@ -7,8 +12,13 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // This replaces the root layout, language provider included: the visitor's chosen language
+  // is read from its cookie once mounted.
+  const [locale, setLocale] = useState<Locale>('en');
+  useEffect(() => setLocale(readLocaleCookie() ?? 'en'), []);
+  const t = (locale === 'bn' ? dashboardBn : dashboardEn).errorPages;
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', background: '#0a0a0a', color: '#fafafa' }}>
         <div style={{
           minHeight: '100vh',
@@ -33,10 +43,10 @@ export default function GlobalError({
             </div>
 
             <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>
-              Critical Error
+              {t.criticalTitle}
             </h1>
             <p style={{ color: '#a1a1aa', marginBottom: '32px', lineHeight: 1.6 }}>
-              The application encountered a critical error. Please try refreshing the page.
+              {t.criticalBody}
             </p>
 
             <button
@@ -52,7 +62,7 @@ export default function GlobalError({
                 fontSize: '14px',
               }}
             >
-              Refresh page
+              {t.refresh}
             </button>
           </div>
         </div>

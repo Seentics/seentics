@@ -1,3 +1,4 @@
+import { funnelsEn, type FunnelsMessages } from '@/lib/i18n/messages/funnels-en';
 import type { Funnel, FunnelAnalyticsItem } from './queries';
 
 export type FunnelGroupId = 'worse' | 'better' | 'leak' | 'low_traffic' | 'paused';
@@ -29,7 +30,7 @@ export function previousFrom(current: FunnelAnalyticsItem | undefined, doubled: 
 }
 
 /** The step people leave most, as "A → B" with the share lost. */
-export function biggestLeak(funnel: Funnel, a: FunnelAnalyticsItem): { from: string; to: string; rate: number } | null {
+export function biggestLeak(funnel: Funnel, a: FunnelAnalyticsItem, t: FunnelsMessages['line'] = funnelsEn.line): { from: string; to: string; rate: number } | null {
   // Core reports each step's drop-off as the share lost on the way INTO it from the step
   // before (funnel-report-calculation.service.ts), so the first step's is always 0. This
   // read it as the share lost out of each step: it named "first → second" at 0.0% and
@@ -40,7 +41,7 @@ export function biggestLeak(funnel: Funnel, a: FunnelAnalyticsItem): { from: str
   const worst = leaks.reduce((x, y) => (y.drop_off_rate > x.drop_off_rate ? y : x));
   const name = (n: number) =>
     (metrics.find((s) => s.step === n) as { name?: string } | undefined)?.name
-    ?? funnel.steps?.[n - 1]?.name ?? `Step ${n}`;
+    ?? funnel.steps?.[n - 1]?.name ?? t.step(n);
   return { from: name(worst.step - 1), to: name(worst.step), rate: worst.drop_off_rate };
 }
 
@@ -72,19 +73,20 @@ export function funnelLine(
   prev: FunnelPrevious | null,
   /** False where the rate is already shown beside the line, as in the funnels table. */
   withRate = true,
+  t: FunnelsMessages['line'] = funnelsEn.line,
 ): string {
-  if (!funnel.is_active) return 'Paused — not tracking';
-  if (!a || !a.total_starts) return 'Nobody has entered it in this period';
+  if (!funnel.is_active) return t.paused;
+  if (!a || !a.total_starts) return t.nobody;
   const now = rate(a.total_conversions, a.total_starts);
-  const parts = [`Converts ${pct(now)} (${a.total_conversions.toLocaleString()} of ${a.total_starts.toLocaleString()})`];
-  if (a.total_starts < MIN_STARTS) return `${parts[0]} — too few entries to judge`;
-  const leak = biggestLeak(funnel, a);
-  if (leak) parts.push(`most leave at ${leak.from} → ${leak.to} (${pct(leak.rate)})`);
-  const t = trend(a, prev);
-  if (t && prev) parts.push(`${t === 'worse' ? 'down' : 'up'} from ${pct(rate(prev.conversions, prev.starts))}`);
+  const parts = [t.converts(pct(now), a.total_conversions.toLocaleString('en-US'), a.total_starts.toLocaleString('en-US'))];
+  if (a.total_starts < MIN_STARTS) return t.tooFew(parts[0]!);
+  const leak = biggestLeak(funnel, a, t);
+  if (leak) parts.push(t.mostLeave(leak.from, leak.to, pct(leak.rate)));
+  const dir = trend(a, prev);
+  if (dir && prev) parts.push((dir === 'worse' ? t.down : t.up)(pct(rate(prev.conversions, prev.starts))));
   if (!withRate) {
     const rest = parts.slice(1).join(' · ');
-    return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : 'No step stands out';
+    return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : t.nothingStandsOut;
   }
   return parts.join(' · ');
 }

@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useT } from '@/lib/i18n';
 
 /** Platforms with a setup guide in the docs, each linking to it. */
 const PLATFORMS: Array<{ name: string; href: string }> = [
@@ -13,10 +16,11 @@ const PLATFORMS: Array<{ name: string; href: string }> = [
 ];
 
 export default function PlatformStrip() {
+  const t = useT();
   return (
     <section aria-labelledby="platforms" className="lx-container pt-20 sm:pt-28">
       <p id="platforms" className="lx-dim text-center text-[15px]">
-        One script tag on any site. <span style={{ color: 'var(--lx-text)' }}>Guides for the stack you already use.</span>
+        {t.platforms.lead} <span style={{ color: 'var(--lx-text)' }}>{t.platforms.rest}</span>
       </p>
       <ul className="mx-auto mt-8 flex max-w-4xl flex-wrap items-center justify-center gap-x-9 gap-y-4">
         {PLATFORMS.map((p) => (

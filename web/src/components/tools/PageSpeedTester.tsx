@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AlertCircle, ArrowRight, Gauge, Loader2, Smartphone, Monitor, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 type Strategy = 'mobile' | 'desktop';
@@ -60,6 +61,7 @@ function ScoreGauge({ label, score }: { label: string; score: number }) {
 }
 
 export function PageSpeedTester() {
+  const t = useT().site.speedTest;
   const [url, setUrl] = useState('');
   const [strategy, setStrategy] = useState<Strategy>('mobile');
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ export function PageSpeedTester() {
     e.preventDefault();
     let target = url.trim();
     if (!target) {
-      setError('Enter a URL to test');
+      setError(t.enterUrl);
       return;
     }
     if (!/^https?:\/\//i.test(target)) target = `https://${target}`;
@@ -85,10 +87,10 @@ export function PageSpeedTester() {
         body: JSON.stringify({ url: target, strategy }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Something went wrong');
+      if (!res.ok) throw new Error(body.error || t.failed);
       setReport(body.data);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || t.failed);
     } finally {
       setLoading(false);
     }
@@ -99,12 +101,11 @@ export function PageSpeedTester() {
       <div className="mx-auto max-w-2xl text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
           <Zap className="h-3.5 w-3.5 text-primary" />
-          Free tool, no signup required
+          {t.badge}
         </span>
-        <h1 className="landing-h1 mt-4">Website Speed Test</h1>
+        <h1 className="landing-h1 mt-4">{t.title}</h1>
         <p className="landing-lead mt-3">
-          Paste any URL and get a real performance report — Core Web Vitals, load time, and the top
-          fixes that would actually move the needle.
+          {t.lead}
         </p>
       </div>
 
@@ -113,14 +114,14 @@ export function PageSpeedTester() {
           <Input
             type="text"
             inputMode="url"
-            placeholder="yoursite.com"
+            placeholder={t.placeholder}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={loading}
             className="h-12 flex-1 text-base"
           />
           <Button type="submit" disabled={loading} className="h-12 px-6 font-semibold">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Test my page <ArrowRight className="h-4 w-4" /></>}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{t.submit} <ArrowRight className="h-4 w-4" /></>}
           </Button>
         </div>
 
@@ -134,7 +135,7 @@ export function PageSpeedTester() {
               strategy === 'mobile' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Smartphone className="h-3.5 w-3.5" /> Mobile
+            <Smartphone className="h-3.5 w-3.5" /> {t.mobile}
           </button>
           <button
             type="button"
@@ -145,7 +146,7 @@ export function PageSpeedTester() {
               strategy === 'desktop' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Monitor className="h-3.5 w-3.5" /> Desktop
+            <Monitor className="h-3.5 w-3.5" /> {t.desktop}
           </button>
         </div>
 
@@ -158,7 +159,7 @@ export function PageSpeedTester() {
 
         {loading && (
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Analyzing {url || 'the page'}… this usually takes 15–30 seconds.
+            {t.analyzing(url || t.thePage)}
           </p>
         )}
       </form>
@@ -167,19 +168,19 @@ export function PageSpeedTester() {
         <div className="mx-auto mt-12 max-w-3xl space-y-8">
           <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
             <p className="mb-5 truncate text-sm text-muted-foreground">
-              Results for <span className="font-medium text-foreground">{report.url}</span> ({report.strategy})
+              {t.resultsFor} <span className="font-medium text-foreground">{report.url}</span> ({t.strategy[report.strategy]})
             </p>
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <ScoreGauge label="Performance" score={report.scores.performance} />
-              <ScoreGauge label="Accessibility" score={report.scores.accessibility} />
-              <ScoreGauge label="Best Practices" score={report.scores.bestPractices} />
-              <ScoreGauge label="SEO" score={report.scores.seo} />
+              <ScoreGauge label={t.performance} score={report.scores.performance} />
+              <ScoreGauge label={t.accessibility} score={report.scores.accessibility} />
+              <ScoreGauge label={t.bestPractices} score={report.scores.bestPractices} />
+              <ScoreGauge label={t.seo} score={report.scores.seo} />
             </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
-              <Gauge className="h-4 w-4 text-primary" /> Core Web Vitals
+              <Gauge className="h-4 w-4 text-primary" /> {t.vitals}
             </h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {report.metrics.map((metric) => (
@@ -195,7 +196,7 @@ export function PageSpeedTester() {
 
           {report.opportunities.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-              <h2 className="mb-4 text-base font-semibold text-foreground">Top opportunities</h2>
+              <h2 className="mb-4 text-base font-semibold text-foreground">{t.opportunities}</h2>
               <ul className="space-y-4">
                 {report.opportunities.map((op) => (
                   <li key={op.id} className="border-l-2 border-primary/40 pl-4">
@@ -215,13 +216,13 @@ export function PageSpeedTester() {
           )}
 
           <div className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-6 text-center sm:p-8">
-            <h2 className="text-lg font-bold text-foreground">Want to catch regressions before your users do?</h2>
+            <h2 className="text-lg font-bold text-foreground">{t.ctaTitle}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Seentics analytics shows how real visitors experience your site, page by page — free to start.
+              {t.ctaBody}
             </p>
             <Link href="/signup">
               <Button className="mt-5 h-10 rounded-lg px-5 text-sm font-semibold">
-                Try Seentics free <ArrowRight className="h-4 w-4" />
+                {t.cta} <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>

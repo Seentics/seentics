@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_WAIT_MS = 60_000;
 
 export default function CheckoutSuccessPage() {
   const router = useRouter();
+  const t = useT();
   const [status, setStatus] = useState<'waiting' | 'done' | 'timeout'>('waiting');
   const initialPlan = useRef<string | null>(null);
   const startedAt = useRef(Date.now());
@@ -66,8 +68,8 @@ export default function CheckoutSuccessPage() {
                 <Loader2 className="h-7 w-7 text-primary animate-spin" />
               </div>
             </div>
-            <h1 className="text-xl font-semibold mb-2">Activating your plan…</h1>
-            <p className="text-sm text-muted-foreground">Confirming your subscription. This takes just a moment.</p>
+            <h1 className="text-xl font-semibold mb-2">{t.checkout.activating}</h1>
+            <p className="text-sm text-muted-foreground">{t.checkout.confirming}</p>
           </>
         )}
 
@@ -78,8 +80,8 @@ export default function CheckoutSuccessPage() {
                 <CheckCircle className="h-7 w-7 text-emerald-500" />
               </div>
             </div>
-            <h1 className="text-xl font-semibold mb-2">You&apos;re all set!</h1>
-            <p className="text-sm text-muted-foreground">Your plan is active. Taking you to your dashboard…</p>
+            <h1 className="text-xl font-semibold mb-2">{t.checkout.allSet}</h1>
+            <p className="text-sm text-muted-foreground">{t.checkout.active}</p>
           </>
         )}
 
@@ -90,8 +92,8 @@ export default function CheckoutSuccessPage() {
                 <CheckCircle className="h-7 w-7 text-primary" />
               </div>
             </div>
-            <h1 className="text-xl font-semibold mb-2">Payment received!</h1>
-            <p className="text-sm text-muted-foreground">Your subscription will activate shortly. Taking you to your dashboard…</p>
+            <h1 className="text-xl font-semibold mb-2">{t.checkout.received}</h1>
+            <p className="text-sm text-muted-foreground">{t.checkout.soon}</p>
           </>
         )}
       </div>

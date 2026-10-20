@@ -8,6 +8,7 @@
  * Pure functions, so the question each panel asks and the URL it builds are testable
  * without rendering a dashboard.
  */
+import { aiEn, type AiMessages } from '@/lib/i18n/messages/ai-en';
 
 /** Long enough for any question a panel writes; short enough to keep the URL sane. */
 export const ASK_MAX_LENGTH = 500;
@@ -46,63 +47,37 @@ export function readAskParams(search: Pick<URLSearchParams, 'get'> | null | unde
   return rec && UUID.test(rec) ? { q, ctx, rec } : { q, ctx };
 }
 
-/** "7 days", "24 hours", "12 months" — the dashboard's range as a question reads it. */
-export function rangeLabel(days: number): string {
-  if (!Number.isFinite(days) || days <= 1) return '24 hours';
-  if (days === 365) return '12 months';
-  return `${Math.round(days)} days`;
+/**
+ * "7 days", "24 hours", "12 months" — the dashboard's range as a question reads it. `t` is
+ * `useT().ai.ask.range` for the viewer's language; English without it.
+ */
+export function rangeLabel(days: number, t: AskMessages['range'] = aiEn.ask.range): string {
+  if (!Number.isFinite(days) || days <= 1) return t.hours24;
+  if (days === 365) return t.months12;
+  return t.days(Math.round(days));
 }
+
+type AskMessages = AiMessages['ask'];
 
 /**
  * The question each panel's "Ask AI" button asks, and the label it carries.
  *
  * Phrased as something the assistant's tools can actually answer for the range on screen,
- * rather than "tell me about this", which gets a description of the chart back.
+ * rather than "tell me about this", which gets a description of the chart back. Each takes
+ * `useT().ai.ask` last so the question is typed in the viewer's language (the assistant
+ * answers in the language it is asked in); English without it.
  */
 export const askAbout = {
-  pages: (days: number) => ({
-    question: `Which of my top pages changed the most in the last ${rangeLabel(days)}, and why?`,
-    context: 'Top pages',
-  }),
-  sources: (days: number) => ({
-    question: `Which traffic sources grew or dropped the most in the last ${rangeLabel(days)}, and why?`,
-    context: 'Traffic sources',
-  }),
-  devices: (days: number) => ({
-    question: `How do visitors on different devices, browsers and operating systems behave in the last ${rangeLabel(days)}? Is any of them doing noticeably worse?`,
-    context: 'Devices',
-  }),
-  geography: (days: number) => ({
-    question: `Which countries changed the most in the last ${rangeLabel(days)}, and what is driving it?`,
-    context: 'Locations',
-  }),
-  utm: (days: number) => ({
-    question: `Which UTM campaigns performed best and worst in the last ${rangeLabel(days)}?`,
-    context: 'UTM breakdown',
-  }),
-  traffic: (days: number) => ({
-    question: `Explain my traffic trend over the last ${rangeLabel(days)}.`,
-    context: 'Traffic overview',
-  }),
-  funnels: (days: number) => ({
-    question: `Which of my funnels converts worst over the last ${rangeLabel(days)}, and where do people drop off?`,
-    context: 'Funnels',
-  }),
-  funnel: (name: string) => ({
-    question: `Where do people drop off in the ${name} funnel and what should I fix?`,
-    context: `${name} funnel`,
-  }),
-  replays: (days: number) => ({
-    question: `Which session recordings from the last ${rangeLabel(days)} should I watch first, and why?`,
-    context: 'Session replays',
-  }),
+  pages: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.pages(rangeLabel(days, t.range)), context: t.pagesContext }),
+  sources: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.sources(rangeLabel(days, t.range)), context: t.sourcesContext }),
+  devices: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.devices(rangeLabel(days, t.range)), context: t.devicesContext }),
+  geography: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.geography(rangeLabel(days, t.range)), context: t.geographyContext }),
+  utm: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.utm(rangeLabel(days, t.range)), context: t.utmContext }),
+  traffic: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.traffic(rangeLabel(days, t.range)), context: t.trafficContext }),
+  funnels: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.funnels(rangeLabel(days, t.range)), context: t.funnelsContext }),
+  funnel: (name: string, t: AskMessages = aiEn.ask) => ({ question: t.funnel(name), context: t.funnelContext(name) }),
+  replays: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.replays(rangeLabel(days, t.range)), context: t.replaysContext }),
   /** Names the session so the assistant can call `get_session_summary` with it. */
-  session: (sessionId: string) => ({
-    question: `Why did this visitor struggle in session ${sessionId}? What went wrong, and what should I fix?`,
-    context: 'Session replay',
-  }),
-  heatmaps: (days: number) => ({
-    question: `What do my heatmaps from the last ${rangeLabel(days)} say about where people click and how far they scroll? What should I change?`,
-    context: 'Heatmaps',
-  }),
+  session: (sessionId: string, t: AskMessages = aiEn.ask) => ({ question: t.session(sessionId), context: t.sessionContext }),
+  heatmaps: (days: number, t: AskMessages = aiEn.ask) => ({ question: t.heatmaps(rangeLabel(days, t.range)), context: t.heatmapsContext }),
 } as const;

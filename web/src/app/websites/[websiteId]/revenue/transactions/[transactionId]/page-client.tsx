@@ -11,18 +11,15 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Receipt, Globe, Share2, Package, UserRound, Copy, CalendarClock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-function fmtTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
-}
+import { fmtTime } from '@/features/revenue/format';
+import { useLocale, useT } from '@/lib/i18n';
 
 export default function RevenueTransactionPage() {
   const params = { websiteId: usePathSegment(1) ?? '', transactionId: usePathSegment(4) ?? '' };
   const router = useRouter();
+  const all = useT();
+  const t = all.revenue.transaction;
+  const { locale } = useLocale();
   const websiteId = params?.websiteId as string;
   const transactionId = params?.transactionId as string;
   const { data, isLoading } = useRevenueDashboard(websiteId, 90);
@@ -42,13 +39,13 @@ export default function RevenueTransactionPage() {
   if (!tx) {
     return (
       <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1100px] mx-auto text-center">
-        <p className="text-sm text-muted-foreground">This transaction is not in the last 90 days of data, or the id is invalid.</p>
+        <p className="text-sm text-muted-foreground">{t.notFound}</p>
         <div className="mt-4 flex justify-center gap-2">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back
+            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> {all.actions.back}
           </Button>
           <Button variant="default" size="sm" asChild>
-            <Link href={`/websites/${websiteId}/revenue`}>Revenue overview</Link>
+            <Link href={`/websites/${websiteId}/revenue`}>{t.overview}</Link>
           </Button>
         </div>
       </div>
@@ -62,7 +59,7 @@ export default function RevenueTransactionPage() {
       ? [{ sku: '', name: tx.product_name, qty: 1, price: tx.value }]
       : [];
   const itemsTotal = items.reduce((sum, it) => sum + it.price * it.qty, 0);
-  const customer = tx.user_type === 'new' ? 'New customer' : tx.user_type === 'returning' ? 'Returning customer' : 'Unknown';
+  const customer = tx.user_type === 'new' ? t.newCustomer : tx.user_type === 'returning' ? t.returningCustomer : t.unknown;
   const medium = tx.medium && tx.medium !== 'none' ? tx.medium : '—';
 
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -89,7 +86,7 @@ export default function RevenueTransactionPage() {
         className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        All revenue
+        {t.allRevenue}
       </button>
 
       {/* Summary */}
@@ -102,20 +99,20 @@ export default function RevenueTransactionPage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-lg font-bold tracking-tight text-foreground">
-                  {tx.order_id ? `Order #${tx.order_id}` : 'Transaction'}
+                  {tx.order_id ? all.revenue.page.order(tx.order_id) : all.revenue.page.transaction}
                 </h1>
                 <Badge className="h-5 gap-1 border-0 bg-emerald-500/10 px-2 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3 w-3" /> Purchase
+                  <CheckCircle2 className="h-3 w-3" /> {t.purchase}
                 </Badge>
               </div>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CalendarClock className="h-3.5 w-3.5" />
-                {fmtTime(tx.occurred_at)}
+                {fmtTime(tx.occurred_at, locale, 'full')}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Order total</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t.orderTotal}</p>
             <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{money(tx.value)}</p>
           </div>
         </div>
@@ -127,23 +124,23 @@ export default function RevenueTransactionPage() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Order items</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t.orderItems}</h3>
             </div>
             <span className="text-[11px] text-muted-foreground">
-              {items.length} item{items.length === 1 ? '' : 's'}
+              {t.items(items.length)}
             </span>
           </div>
 
           {items.length === 0 ? (
             <p className="px-4 py-12 text-center text-sm text-muted-foreground">
-              No line items were sent with this purchase.
+              {t.noItems}
             </p>
           ) : (
             <>
               <div className="grid grid-cols-[1fr_56px_96px] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <span>Item</span>
-                <span className="text-right">Qty</span>
-                <span className="text-right">Price</span>
+                <span>{t.item}</span>
+                <span className="text-right">{t.qty}</span>
+                <span className="text-right">{t.price}</span>
               </div>
               <ul className="divide-y divide-border">
                 {items.map((it, i) => (
@@ -165,12 +162,12 @@ export default function RevenueTransactionPage() {
               <div className="space-y-1.5 border-t border-border bg-muted/20 px-4 py-3 text-[13px]">
                 {Math.abs(itemsTotal - tx.value) > 0.005 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Items subtotal</span>
+                    <span>{t.subtotal}</span>
                     <span className="tabular-nums">{money(itemsTotal)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-foreground">
-                  <span>Total</span>
+                  <span>{t.total}</span>
                   <span className="tabular-nums">{money(tx.value)}</span>
                 </div>
               </div>
@@ -180,29 +177,29 @@ export default function RevenueTransactionPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <SideCard icon={Share2} title="Attribution">
-            <Row label="Source">{tx.source || 'direct'}</Row>
-            <Row label="Medium">{medium}</Row>
-            <Row label="Campaign">{tx.campaign && tx.campaign !== '(none)' ? tx.campaign : '—'}</Row>
+          <SideCard icon={Share2} title={t.attribution}>
+            <Row label={t.source}>{tx.source || 'direct'}</Row>
+            <Row label={t.medium}>{medium}</Row>
+            <Row label={t.campaign}>{tx.campaign && tx.campaign !== '(none)' ? tx.campaign : '—'}</Row>
           </SideCard>
 
-          <SideCard icon={UserRound} title="Customer">
-            <Row label="Type">{customer}</Row>
+          <SideCard icon={UserRound} title={t.customer}>
+            <Row label={t.type}>{customer}</Row>
           </SideCard>
 
-          <SideCard icon={Globe} title="Location">
-            <Row label="Country">{tx.country || '—'}</Row>
+          <SideCard icon={Globe} title={t.location}>
+            <Row label={t.country}>{tx.country || '—'}</Row>
           </SideCard>
 
-          <SideCard icon={Receipt} title="Reference">
-            <Row label="Order ID">{tx.order_id ?? '—'}</Row>
+          <SideCard icon={Receipt} title={t.reference}>
+            <Row label={t.orderId}>{tx.order_id ?? '—'}</Row>
             <div className="flex items-center justify-between gap-4 py-2.5 text-[13px]">
-              <span className="text-muted-foreground">Event ID</span>
+              <span className="text-muted-foreground">{t.eventId}</span>
               <button
                 type="button"
-                onClick={() => { navigator.clipboard?.writeText(tx.id); toast.success('Copied'); }}
+                onClick={() => { navigator.clipboard?.writeText(tx.id); toast.success(t.copied); }}
                 className="inline-flex min-w-0 items-center gap-1.5 font-mono text-xs text-foreground hover:text-primary"
-                title="Copy"
+                title={t.copy}
               >
                 <span className="truncate">{tx.id}</span>
                 <Copy className="h-3 w-3 shrink-0 opacity-60" />

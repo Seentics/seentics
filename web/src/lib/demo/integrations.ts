@@ -26,7 +26,7 @@ export const DEMO_DESTINATIONS = {
 } as const;
 
 export const DEMO_DESTINATION_NAMES: Record<string, { name: string; provider: Connection['provider'] }> = {
-  [DEMO_DESTINATIONS.crm]: { name: 'Leads platform', provider: 'zapier' },
+  [DEMO_DESTINATIONS.crm]: { name: 'Leads to Google Sheets', provider: 'zapier' },
   [DEMO_DESTINATIONS.mailchimp]: { name: 'Newsletter audience', provider: 'mailchimp' },
   [DEMO_DESTINATIONS.slack]: { name: 'Slack alerts', provider: 'zapier' },
 };
@@ -78,7 +78,7 @@ const base = (id: string, hint: string): Connection => ({
 });
 
 export const demoConnections = (): Connection[] => [
-  base(DEMO_DESTINATIONS.crm, '/8f3a2c'),
+  base(DEMO_DESTINATIONS.crm, 'hooks.zapier.com /8f3a2c'),
   // Retrying: the last attempt hit a 503, one submission is waiting for its next try.
   {
     ...base(DEMO_DESTINATIONS.mailchimp, '-us21'),
@@ -88,7 +88,7 @@ export const demoConnections = (): Connection[] => [
   },
   // Switched off after repeated failures: the endpoint answers 410 Gone.
   {
-    ...base(DEMO_DESTINATIONS.slack, '/b71d90'),
+    ...base(DEMO_DESTINATIONS.slack, 'hooks.slack.com /b71d90'),
     enabled: false, status: 'error', consecutive_failures: 5,
     last_error: 'Webhook returned 410 (gone)', last_attempt_at: ago(20 * HOUR), last_success_at: ago(2 * DAY),
   },

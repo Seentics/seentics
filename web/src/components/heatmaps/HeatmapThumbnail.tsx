@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useT } from '@/lib/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { getPageIcon } from '@/components/analytics/page-icon';
 import { DemoHeatmapPage, DEMO_HEATMAP_PAGE_HEIGHT } from '@/components/heatmaps/DemoHeatmapPage';
@@ -191,10 +192,11 @@ function LiveThumb({
 }
 
 function Placeholder({ url, loading }: { url: string; loading: boolean }) {
+  const t = useT().heatmaps.viewer;
   return (
     <span className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground [&_svg]:size-6">
       {getPageIcon(url, 'h-6 w-6')}
-      <span className="text-xs">{loading ? 'Loading preview…' : 'No preview yet'}</span>
+      <span className="text-xs">{loading ? t.loadingPreview : t.noPreview}</span>
     </span>
   );
 }

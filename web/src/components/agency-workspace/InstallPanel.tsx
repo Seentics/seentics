@@ -1,27 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
 import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { errorMessage, verifyWebsite } from '@/features/agency/api';
+import { verifyWebsite } from '@/features/agency/api';
 import { INSTALL_METHODS } from '@/features/agency/constants';
 import { agencyKeys, useAgencyMutation, useInstall } from '@/features/agency/queries';
 import type { InstallMethod, Verification, WebsiteInstall } from '@/features/agency/types';
+import { useLocale, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { CodeBlock, ErrorNote, LoadingRow, Pill, type Tone } from './ui';
+import { CodeBlock, ErrorNote, LoadingRow, Pill, timeAgo, useErrorText, type Tone } from './ui';
 
-const VERIFICATION: Record<Verification['status'], { label: string; tone: Tone; icon: typeof CheckCircle2; hint: string }> = {
-  receiving: { label: 'Receiving events', tone: 'green', icon: CheckCircle2, hint: 'Tracking works.' },
-  not_seen: { label: 'No events yet', tone: 'amber', icon: Clock, hint: 'Install the snippet, open the site in a browser, then check again.' },
-  stale: { label: 'Stopped', tone: 'red', icon: XCircle, hint: 'Events used to arrive but none came in the last 24 hours. Check that the snippet is still on the site.' },
+const VERIFICATION: Record<Verification['status'], { tone: Tone; icon: typeof CheckCircle2 }> = {
+  receiving: { tone: 'green', icon: CheckCircle2 },
+  not_seen: { tone: 'amber', icon: Clock },
+  stale: { tone: 'red', icon: XCircle },
 };
 
 export function VerificationBadge({ verification }: { verification: Verification }) {
+  const t = useT().agency.install;
   const v = VERIFICATION[verification.status];
   const Icon = v.icon;
-  return <Pill tone={v.tone} data-testid="verification-status"><Icon className="h-3 w-3" />{v.label}</Pill>;
+  return <Pill tone={v.tone} data-testid="verification-status"><Icon className="h-3 w-3" />{t.verification[verification.status].label}</Pill>;
 }
 
 /**
@@ -29,6 +30,9 @@ export function VerificationBadge({ verification }: { verification: Verification
  * instructions, and the tracking check. `initial` is the install a create call answered with.
  */
 export function InstallPanel({ websiteId, initial }: { websiteId: string; initial?: WebsiteInstall }) {
+  const t = useT().agency.install;
+  const { locale } = useLocale();
+  const errorMessage = useErrorText();
   const queryClient = useQueryClient();
   const query = useInstall(initial ? null : websiteId);
   const [fresh, setFresh] = useState<WebsiteInstall | undefined>(initial);
@@ -39,7 +43,7 @@ export function InstallPanel({ websiteId, initial }: { websiteId: string; initia
 
   if (!install) {
     if (query.isError) return <ErrorNote>{errorMessage(query.error)}</ErrorNote>;
-    return <LoadingRow label="Loading install instructions…" />;
+    return <LoadingRow label={t.loading} />;
   }
 
   const v = install.verification;
@@ -61,26 +65,26 @@ export function InstallPanel({ websiteId, initial }: { websiteId: string; initia
         <div className="min-w-0 space-y-0.5">
           <VerificationBadge verification={v} />
           <p className="text-[11px] text-muted-foreground">
-            {VERIFICATION[v.status].hint}
-            {v.last_event_at && ` Last event ${formatDistanceToNow(new Date(v.last_event_at), { addSuffix: true })}.`}
-            {v.status === 'receiving' && ` ${v.events_24h.toLocaleString()} events in 24 hours.`}
+            {t.verification[v.status].hint}
+            {v.last_event_at && t.lastEvent(timeAgo(v.last_event_at, locale))}
+            {v.status === 'receiving' && t.events24h(v.events_24h.toLocaleString('en'))}
           </p>
         </div>
         <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={check} disabled={verify.isPending}>
           {verify.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          Verify installation
+          {t.verify}
         </Button>
       </div>
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-foreground">Tracking snippet</p>
-        <CodeBlock code={install.snippet_html} label="Copy snippet" />
-        <p className="text-[11px] text-muted-foreground">Tracking ID <code className="font-mono">{install.tracking_id}</code></p>
+        <p className="text-xs font-medium text-foreground">{t.snippet}</p>
+        <CodeBlock code={install.snippet_html} label={t.copySnippet} />
+        <p className="text-[11px] text-muted-foreground">{t.trackingId} <code className="font-mono">{install.tracking_id}</code></p>
       </div>
 
       <div className="space-y-2">
-        <div role="tablist" aria-label="Platform" className="flex flex-wrap gap-1">
+        <div role="tablist" aria-label={t.platform} className="flex flex-wrap gap-1">
           {INSTALL_METHODS.map(m => (
             <button
               key={m.id}
@@ -101,7 +105,7 @@ export function InstallPanel({ websiteId, initial }: { websiteId: string; initia
           <p className="whitespace-pre-wrap break-words text-foreground">{install.instructions[method]?.summary}</p>
           {install.instructions[method]?.docs_url && (
             <a href={install.instructions[method].docs_url} target="_blank" rel="noreferrer" className="mt-2 inline-block font-medium text-primary hover:underline">
-              Full guide
+              {t.fullGuide}
             </a>
           )}
         </div>

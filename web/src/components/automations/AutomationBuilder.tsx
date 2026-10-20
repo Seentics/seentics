@@ -14,6 +14,8 @@ import {
 import { motion } from 'framer-motion';
 import { Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap, AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout, Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2, Settings, X, Filter, GripVertical, Braces, CheckCircle2, AlertCircle, GitBranch, Hourglass, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
+import { automationsEn, type AutomationsMessages } from '@/lib/i18n/messages/automations-en';
 import { usePathSegment } from '@/lib/path-segment';
 import { useFunnels } from '@/features/funnels/queries';
 import { getGoals } from '@/features/websites/api';
@@ -80,23 +82,14 @@ export interface AutomationDefinition {
  */
 export type FrequencyMode = 'every_trigger' | 'once_per_session' | 'once_every';
 
-export const FREQUENCY_MODES: Array<{ value: FrequencyMode; label: string; hint: string }> = [
-  {
-    value: 'every_trigger',
-    label: 'Every trigger',
-    hint: 'Fires as often as the trigger happens. No limit.',
-  },
-  {
-    value: 'once_per_session',
-    label: 'Once per session',
-    hint: 'Fires at most once per visit, however many times the trigger happens.',
-  },
-  {
-    value: 'once_every',
-    label: 'Once every…',
-    hint: 'Fires once, then stays quiet for the visitor until the cooldown elapses.',
-  },
+/** The modes, in order. Labels and hints are `automations.builder.frequency[value]`. */
+export const FREQUENCY_MODES: Array<{ value: FrequencyMode }> = [
+  { value: 'every_trigger' },
+  { value: 'once_per_session' },
+  { value: 'once_every' },
 ];
+
+type BuilderMessages = AutomationsMessages['builder'];
 
 /** The mode a stored cap set represents. A cooldown wins, being the stricter rule. */
 export function frequencyMode(frequency: AutomationDefinition['frequency']): FrequencyMode {
@@ -121,9 +114,9 @@ export function frequencyToCaps(
  * The graph's own rules come from the shared validator, which mirrors the server's; this
  * adds only what the graph does not know about — that an automation needs a trigger.
  */
-export function validateDefinition(def: AutomationDefinition): string[] {
+export function validateDefinition(def: AutomationDefinition, m: Pick<BuilderMessages, 'noTrigger'> = automationsEn.builder): string[] {
   const errors: string[] = [];
-  if (!def.triggers?.length) errors.push('Add at least one trigger.');
+  if (!def.triggers?.length) errors.push(m.noTrigger);
   return [...errors, ...validateGraph(def.graph)];
 }
 
@@ -178,48 +171,46 @@ type SelectedNode =
  * distinguishable without the node stopping looking like a trigger.
  */
 type TriggerType = {
-  value: string;
-  label: string;
+  value: keyof BuilderMessages['triggers'];
   icon: React.ElementType;
-  description: string;
   hasConfig: boolean;
   iconBg: string;
   iconColor: string;
 };
 
 const TRIGGER_TYPES: TriggerType[] = [
-  { value: 'page_view',    label: 'Page View',       icon: Globe,         description: 'Triggers when a user visits a specific page', hasConfig: true, iconBg: 'bg-sky-500/10', iconColor: 'text-sky-500' },
-  { value: 'click',        label: 'Click',            icon: MousePointer,  description: 'Triggers when a user clicks an element',      hasConfig: true, iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500' },
-  { value: 'scroll_depth', label: 'Scroll Depth',     icon: TrendingDown,  description: 'Triggers when a user scrolls to a depth',     hasConfig: true, iconBg: 'bg-teal-500/10', iconColor: 'text-teal-500' },
-  { value: 'time_on_page', label: 'Time on Page',     icon: Clock,         description: 'Triggers after a user spends time on page',   hasConfig: true, iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500' },
-  { value: 'exit_intent',  label: 'Exit Intent',      icon: LogOut,        description: 'Triggers when a user is about to leave',      hasConfig: false, iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500' },
-  { value: 'inactivity',   label: 'Inactivity',       icon: Coffee,        description: 'Triggers after a user is inactive',           hasConfig: true, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500' },
-  { value: 'rage_click',   label: 'Rage Click',       icon: Zap,           description: 'Triggers on repeated rapid clicks',           hasConfig: false, iconBg: 'bg-red-500/10', iconColor: 'text-red-500' },
-  { value: 'form_abandon', label: 'Form Abandonment', icon: AlertTriangle, description: 'Triggers when a form is abandoned',           hasConfig: false, iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-600' },
-  { value: 'js_error',     label: 'JS Error',         icon: AlertTriangle, description: 'Triggers on a JavaScript error',              hasConfig: false, iconBg: 'bg-rose-600/10', iconColor: 'text-rose-600' },
-  { value: 'tab_hidden',   label: 'Tab Hidden',       icon: EyeOff,        description: 'Triggers when the tab is hidden',             hasConfig: false, iconBg: 'bg-slate-500/10', iconColor: 'text-slate-500' },
-  { value: 'tab_visible',  label: 'Tab Visible',      icon: Eye,           description: 'Triggers when the tab becomes visible again', hasConfig: false, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
-  { value: 'custom_event', label: 'Custom Event',     icon: Zap,           description: 'Triggers on a named custom event',            hasConfig: true, iconBg: 'bg-violet-500/10', iconColor: 'text-violet-500' },
-  { value: 'identify',     label: 'Identify',         icon: UserCheck,     description: 'Triggers when a user is identified',          hasConfig: false, iconBg: 'bg-fuchsia-500/10', iconColor: 'text-fuchsia-500' },
-  { value: 'goal_reached', label: 'Goal Reached',     icon: Target,        description: 'Triggers when a visitor reaches one of your goals', hasConfig: true, iconBg: 'bg-lime-500/10', iconColor: 'text-lime-500' },
-  { value: 'funnel',       label: 'Funnel',           icon: Filter,        description: 'Triggers on funnel entry, a step, drop-off or completion', hasConfig: true, iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-500' },
+  { value: 'page_view',    icon: Globe,         hasConfig: true, iconBg: 'bg-sky-500/10', iconColor: 'text-sky-500' },
+  { value: 'click',        icon: MousePointer,  hasConfig: true, iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500' },
+  { value: 'scroll_depth', icon: TrendingDown,  hasConfig: true, iconBg: 'bg-teal-500/10', iconColor: 'text-teal-500' },
+  { value: 'time_on_page', icon: Clock,         hasConfig: true, iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500' },
+  { value: 'exit_intent',  icon: LogOut,        hasConfig: false, iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500' },
+  { value: 'inactivity',   icon: Coffee,        hasConfig: true, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500' },
+  { value: 'rage_click',   icon: Zap,           hasConfig: false, iconBg: 'bg-red-500/10', iconColor: 'text-red-500' },
+  { value: 'form_abandon', icon: AlertTriangle, hasConfig: false, iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-600' },
+  { value: 'js_error',     icon: AlertTriangle, hasConfig: false, iconBg: 'bg-rose-600/10', iconColor: 'text-rose-600' },
+  { value: 'tab_hidden',   icon: EyeOff,        hasConfig: false, iconBg: 'bg-slate-500/10', iconColor: 'text-slate-500' },
+  { value: 'tab_visible',  icon: Eye,           hasConfig: false, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
+  { value: 'custom_event', icon: Zap,           hasConfig: true, iconBg: 'bg-violet-500/10', iconColor: 'text-violet-500' },
+  { value: 'identify',     icon: UserCheck,     hasConfig: false, iconBg: 'bg-fuchsia-500/10', iconColor: 'text-fuchsia-500' },
+  { value: 'goal_reached', icon: Target,        hasConfig: true, iconBg: 'bg-lime-500/10', iconColor: 'text-lime-500' },
+  { value: 'funnel',       icon: Filter,        hasConfig: true, iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-500' },
 ];
 
 type ActionType = {
-  value: string; label: string; icon: React.ElementType;
-  strip: string; iconBg: string; iconColor: string; description: string;
+  value: keyof BuilderMessages['actions']; icon: React.ElementType;
+  strip: string; iconBg: string; iconColor: string;
 };
 
 const ACTION_TYPES: ActionType[] = [
-  { value: 'show_modal',          label: 'Show Modal',          icon: MessageSquare, strip: 'bg-blue-500',    iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-400',    description: 'Display a popup modal to the visitor' },
-  { value: 'show_toast',          label: 'Show Toast',          icon: Bell,          strip: 'bg-emerald-500', iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400', description: 'Show a small notification toast' },
-  { value: 'show_banner',         label: 'Show Banner',         icon: Layout,        strip: 'bg-violet-500',  iconBg: 'bg-violet-500/15',  iconColor: 'text-violet-400',  description: 'Display a full-width page banner' },
-  { value: 'highlight_element',   label: 'Highlight Element',   icon: Highlighter,   strip: 'bg-yellow-500',  iconBg: 'bg-yellow-500/15',  iconColor: 'text-yellow-400',  description: 'Draw attention to a page element' },
-  { value: 'show_tooltip',        label: 'Show Tooltip',        icon: FileText,      strip: 'bg-indigo-500',  iconBg: 'bg-indigo-500/15',  iconColor: 'text-indigo-400',  description: 'Attach a tooltip to any element' },
-  { value: 'personalize_content', label: 'Personalize Content', icon: FileText,      strip: 'bg-teal-500',    iconBg: 'bg-teal-500/15',    iconColor: 'text-teal-400',    description: 'Swap text or HTML on the page' },
-  { value: 'redirect',            label: 'Redirect',            icon: ExternalLink,  strip: 'bg-orange-500',  iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-400',  description: 'Send the visitor to another URL' },
-  { value: 'tag_session',         label: 'Tag Session',         icon: Tag,           strip: 'bg-pink-500',    iconBg: 'bg-pink-500/15',    iconColor: 'text-pink-400',    description: 'Label the session for filtering' },
-  { value: 'webhook',             label: 'Webhook',             icon: Webhook,       strip: 'bg-slate-400',   iconBg: 'bg-slate-400/15',   iconColor: 'text-slate-300',   description: 'POST data to an external endpoint' },
+  { value: 'show_modal',          icon: MessageSquare, strip: 'bg-blue-500',    iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-400' },
+  { value: 'show_toast',          icon: Bell,          strip: 'bg-emerald-500', iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400' },
+  { value: 'show_banner',         icon: Layout,        strip: 'bg-violet-500',  iconBg: 'bg-violet-500/15',  iconColor: 'text-violet-400' },
+  { value: 'highlight_element',   icon: Highlighter,   strip: 'bg-yellow-500',  iconBg: 'bg-yellow-500/15',  iconColor: 'text-yellow-400' },
+  { value: 'show_tooltip',        icon: FileText,      strip: 'bg-indigo-500',  iconBg: 'bg-indigo-500/15',  iconColor: 'text-indigo-400' },
+  { value: 'personalize_content', icon: FileText,      strip: 'bg-teal-500',    iconBg: 'bg-teal-500/15',    iconColor: 'text-teal-400' },
+  { value: 'redirect',            icon: ExternalLink,  strip: 'bg-orange-500',  iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-400' },
+  { value: 'tag_session',         icon: Tag,           strip: 'bg-pink-500',    iconBg: 'bg-pink-500/15',    iconColor: 'text-pink-400' },
+  { value: 'webhook',             icon: Webhook,       strip: 'bg-slate-400',   iconBg: 'bg-slate-400/15',   iconColor: 'text-slate-300' },
 ];
 
 /**
@@ -234,12 +225,12 @@ const ACTION_TYPES: ActionType[] = [
  * `scrollPercent`/`timeOnPage` are observed by the page during a Wait until; the
  * rest come from the visitor profile, which ingest now fills from the same request.
  */
-const FACT_SUGGESTIONS: { group: string; facts: string[] }[] = [
-  { group: 'Page', facts: ['page', 'url', 'title', 'referrer'] },
-  { group: 'Visitor', facts: ['country', 'region', 'city', 'device', 'browser', 'os', 'language'] },
-  { group: 'History', facts: ['visitCount', 'totalPageViews', 'firstSeenAt', 'lastSeenAt'] },
-  { group: 'During a wait', facts: ['scrollPercent', 'timeOnPage'] },
-  { group: 'This trigger', facts: ['trigger.type', 'session.id', 'variant', 'trigger.funnel_id', 'trigger.step', 'trigger.step_name', 'trigger.event', 'trigger.goal_name'] },
+const FACT_SUGGESTIONS: { group: keyof BuilderMessages['factGroups']; facts: string[] }[] = [
+  { group: 'page', facts: ['page', 'url', 'title', 'referrer'] },
+  { group: 'visitor', facts: ['country', 'region', 'city', 'device', 'browser', 'os', 'language'] },
+  { group: 'history', facts: ['visitCount', 'totalPageViews', 'firstSeenAt', 'lastSeenAt'] },
+  { group: 'wait', facts: ['scrollPercent', 'timeOnPage'] },
+  { group: 'trigger', facts: ['trigger.type', 'session.id', 'variant', 'trigger.funnel_id', 'trigger.step', 'trigger.step_name', 'trigger.event', 'trigger.goal_name'] },
 ];
 
 const ALL_FACT_SUGGESTIONS = FACT_SUGGESTIONS.flatMap(g => g.facts);
@@ -260,79 +251,76 @@ function getActionType(type: string): ActionType {
   return ACTION_TYPES.find(a => a.value === type) ?? ACTION_TYPES[0]!;
 }
 
+const triggerText = (m: BuilderMessages, type: TriggerType['value']) => m.triggers[type];
+const actionText = (m: BuilderMessages, type: ActionType['value']) => m.actions[type];
+
 /** Card styling and title for a step, so the canvas can draw all three kinds uniformly. */
-function nodeVisual(node: GraphNode): {
+function nodeVisual(node: GraphNode, m: BuilderMessages): {
   strip: string; iconBg: string; iconColor: string; icon: React.ElementType; title: string;
 } {
   if (node.kind === 'if') {
     return {
       strip: 'bg-amber-500', iconBg: 'bg-amber-500/15', iconColor: 'text-amber-400',
-      icon: Filter, title: 'If / else',
+      icon: Filter, title: m.kinds.if,
     };
   }
   if (node.kind === 'switch') {
     return {
       strip: 'bg-fuchsia-500', iconBg: 'bg-fuchsia-500/15', iconColor: 'text-fuchsia-400',
-      icon: GitBranch, title: 'Switch',
+      icon: GitBranch, title: m.kinds.switch,
     };
   }
   if (node.kind === 'wait_until') {
     return {
       strip: 'bg-cyan-500', iconBg: 'bg-cyan-500/15', iconColor: 'text-cyan-400',
-      icon: Hourglass, title: 'Wait until',
+      icon: Hourglass, title: m.kinds.wait_until,
     };
   }
   if (node.kind === 'delay') {
     return {
       strip: 'bg-sky-500', iconBg: 'bg-sky-500/15', iconColor: 'text-sky-400',
-      icon: Clock, title: 'Delay',
+      icon: Clock, title: m.kinds.delay,
     };
   }
   const at = getActionType(node.action.type);
-  return { strip: at.strip, iconBg: at.iconBg, iconColor: at.iconColor, icon: at.icon, title: at.label };
+  return { strip: at.strip, iconBg: at.iconBg, iconColor: at.iconColor, icon: at.icon, title: actionText(m, at.value).label };
 }
 
 /** A one-line description of a node, for its canvas card. */
-function nodeSummary(node: GraphNode): string {
-  if (node.kind === 'delay') {
-    return node.seconds === 1 ? 'Wait 1 second' : `Wait ${node.seconds} seconds`;
-  }
+function nodeSummary(node: GraphNode, m: BuilderMessages): string {
+  const s = m.summary;
+  if (node.kind === 'delay') return s.waitSeconds(node.seconds);
   if (node.kind === 'wait_until') {
     const n = node.group.rules.length;
-    return n === 0
-      ? `No rules — waits the full ${node.timeoutSeconds}s`
-      : `${n} rule${n === 1 ? '' : 's'} · up to ${node.timeoutSeconds}s`;
+    return n === 0 ? s.waitNoRules(node.timeoutSeconds) : s.waitRules(n, node.timeoutSeconds);
   }
   if (node.kind === 'if') {
     const n = node.group.rules.length;
-    return n === 0
-      ? 'No rules — always takes Yes'
-      : `${n} rule${n === 1 ? '' : 's'} · ${node.group.operator}`;
+    return n === 0 ? s.ifNoRules : s.ifRules(n, node.group.operator);
   }
-  if (node.kind === 'switch') {
-    const n = node.cases.length;
-    return `${n} case${n === 1 ? '' : 's'} + otherwise`;
-  }
-  return actionSummary(node.action);
+  if (node.kind === 'switch') return s.cases(node.cases.length);
+  return actionSummary(node.action, m);
 }
 
-function actionSummary(action: { type: string; [k: string]: unknown }): string {
+function actionSummary(action: { type: string; [k: string]: unknown }, m: BuilderMessages): string {
   const t = action.type;
-  if (t === 'show_modal')          return String(action.title || 'Untitled modal');
-  if (t === 'show_toast')          return String(action.message || 'Toast notification');
-  if (t === 'show_banner')         return String(action.message || 'Banner');
-  if (t === 'highlight_element')   return `Highlight: ${String(action.selector || '?')}`;
-  if (t === 'show_tooltip')        return String(action.message || 'Tooltip');
-  if (t === 'personalize_content') return `Set content on ${String(action.selector || '?')}`;
+  const s = m.summary;
+  if (t === 'show_modal')          return String(action.title || s.untitledModal);
+  if (t === 'show_toast')          return String(action.message || s.toast);
+  if (t === 'show_banner')         return String(action.message || s.banner);
+  if (t === 'highlight_element')   return s.highlight(String(action.selector || '?'));
+  if (t === 'show_tooltip')        return String(action.message || s.tooltip);
+  if (t === 'personalize_content') return s.personalize(String(action.selector || '?'));
   if (t === 'redirect')            return `→ ${String(action.url || '?')}`;
-  if (t === 'tag_session')         return `Tag: ${String(action.tag || '?')}`;
-  if (t === 'webhook')             return String(action.url || 'Webhook URL');
+  if (t === 'tag_session')         return s.tag(String(action.tag || '?'));
+  if (t === 'webhook')             return String(action.url || s.webhookUrl);
   return t;
 }
 
-function defaultAction(type: string): { type: string; [k: string]: unknown } {
+/** A fresh action of a type. The modal's button text is the builder's language, as a starting point the owner edits. */
+function defaultAction(type: string, buttonText = automationsEn.builder.defaultButtonText): { type: string; [k: string]: unknown } {
   switch (type) {
-    case 'show_modal':          return { type, title: '', body: '', button_text: 'Get started', button_url: '' };
+    case 'show_modal':          return { type, title: '', body: '', button_text: buttonText, button_url: '' };
     case 'show_toast':          return { type, message: '', position: 'bottom-right', duration_ms: 4000 };
     case 'show_banner':         return { type, message: '', position: 'top', button_text: '', button_url: '', duration_ms: 0 };
     case 'highlight_element':   return { type, selector: '', duration_ms: 3000, scroll_into_view: true };
@@ -359,12 +347,7 @@ function FieldGroup({ label, hint, children }: { label: string; hint?: string; c
 
 // ─── Funnel trigger ───────────────────────────────────────────────────────────
 
-const FUNNEL_EVENTS = [
-  { value: 'entry',    label: 'Enters the funnel',   hint: 'The visitor reaches the first step.' },
-  { value: 'step',     label: 'Reaches a step',      hint: 'Each time the visitor reaches a step: every step, or the one you pick below.' },
-  { value: 'dropoff',  label: 'Drops off',           hint: 'The visitor started the funnel and then stalls, or looks about to leave, before finishing it.' },
-  { value: 'complete', label: 'Completes the funnel', hint: 'The visitor reaches the last step.' },
-];
+const FUNNEL_EVENTS = ['entry', 'step', 'dropoff', 'complete'] as const;
 
 /**
  * Which funnel, and what happens in it. Anything left open matches any: any funnel, and for a
@@ -374,6 +357,7 @@ const FUNNEL_EVENTS = [
 function FunnelTriggerFields({
   config, set, onChange,
 }: { config: Record<string, unknown>; set: (key: string, val: unknown) => void; onChange: (cfg: Record<string, unknown>) => void }) {
+  const m = useT().automations.builder.funnel;
   const websiteId = usePathSegment(1) ?? '';
   const { data: funnels = [] } = useFunnels(websiteId);
   const event = String(config.event ?? 'entry');
@@ -383,7 +367,7 @@ function FunnelTriggerFields({
 
   return (
     <div className="space-y-3">
-      <FieldGroup label="Funnel">
+      <FieldGroup label={m.funnel}>
         <Select
           value={String(config.funnel_id ?? 'any')}
           // A step belongs to one funnel, so changing the funnel clears it.
@@ -391,25 +375,25 @@ function FunnelTriggerFields({
         >
           <SelectTrigger className={input}><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="any">Any funnel</SelectItem>
+            <SelectItem value="any">{m.anyFunnel}</SelectItem>
             {funnels.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="When a visitor" hint={FUNNEL_EVENTS.find(e => e.value === event)?.hint}>
+      <FieldGroup label={m.whenVisitor} hint={(m.events as Record<string, { hint: string }>)[event]?.hint}>
         <Select value={event} onValueChange={v => set('event', v)}>
           <SelectTrigger className={input}><SelectValue /></SelectTrigger>
           <SelectContent>
-            {FUNNEL_EVENTS.map(e => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
+            {FUNNEL_EVENTS.map(e => <SelectItem key={e} value={e}>{m.events[e].label}</SelectItem>)}
           </SelectContent>
         </Select>
       </FieldGroup>
 
       {(event === 'step' || event === 'dropoff') && (
         <FieldGroup
-          label={event === 'dropoff' ? 'At step (optional)' : 'Step (optional)'}
-          hint={funnel ? undefined : 'Steps belong to a funnel. Pick a funnel above to choose one, or leave this for any step.'}
+          label={event === 'dropoff' ? m.atStep : m.step}
+          hint={funnel ? undefined : m.stepHint}
         >
           <Select
             value={config.step == null ? 'any' : String(config.step)}
@@ -418,22 +402,22 @@ function FunnelTriggerFields({
           >
             <SelectTrigger className={input}><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="any">Any step</SelectItem>
-              {steps.map((s, i) => <SelectItem key={s.id ?? i} value={String(i + 1)}>{i + 1}. {s.name || `Step ${i + 1}`}</SelectItem>)}
+              <SelectItem value="any">{m.anyStep}</SelectItem>
+              {steps.map((s, i) => <SelectItem key={s.id ?? i} value={String(i + 1)}>{i + 1}. {s.name || m.stepN(i + 1)}</SelectItem>)}
             </SelectContent>
           </Select>
         </FieldGroup>
       )}
 
       {event === 'dropoff' && (
-        <FieldGroup label="Counts as stalled after" hint="Or as soon as the visitor looks about to leave, whichever comes first.">
+        <FieldGroup label={m.stalledAfter} hint={m.stalledHint}>
           <Select value={String(config.seconds ?? '60')} onValueChange={v => set('seconds', Number(v))}>
             <SelectTrigger className={input}><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="30">30 seconds idle</SelectItem>
-              <SelectItem value="60">1 minute idle</SelectItem>
-              <SelectItem value="120">2 minutes idle</SelectItem>
-              <SelectItem value="300">5 minutes idle</SelectItem>
+              <SelectItem value="30">{m.idle30}</SelectItem>
+              <SelectItem value="60">{m.idle60}</SelectItem>
+              <SelectItem value="120">{m.idle120}</SelectItem>
+              <SelectItem value="300">{m.idle300}</SelectItem>
             </SelectContent>
           </Select>
         </FieldGroup>
@@ -446,6 +430,7 @@ function FunnelTriggerFields({
 function GoalTriggerFields({
   config, set,
 }: { config: Record<string, unknown>; set: (key: string, val: unknown) => void }) {
+  const m = useT().automations.builder.goal;
   const websiteId = usePathSegment(1) ?? '';
   const { data: goals = [] } = useQuery({ queryKey: ['automation-goals', websiteId], queryFn: () => getGoals(websiteId), enabled: Boolean(websiteId), staleTime: 60_000 });
   const goal = goals.find(g => g.id === config.goal_id);
@@ -453,17 +438,17 @@ function GoalTriggerFields({
 
   return (
     <FieldGroup
-      label="Goal"
+      label={m.goal}
       hint={goals.length === 0
-        ? 'No goals yet. Add one under Settings → Goal Conversions, then pick it here.'
+        ? m.noGoals
         : goal
-          ? (goal.type === 'pageview' ? `Fires when a visitor views ${goal.identifier}.` : goal.selector ? `Fires when a visitor clicks ${goal.selector}.` : `Fires when your site tracks the event "${goal.identifier}".`)
-          : 'Fires for any goal. Pick one to name it.'}
+          ? (goal.type === 'pageview' ? m.firesOnView(goal.identifier) : goal.selector ? m.firesOnClick(goal.selector) : m.firesOnEvent(goal.identifier))
+          : m.anyGoalHint}
     >
       <Select value={String(config.goal_id ?? 'any')} onValueChange={v => set('goal_id', v === 'any' ? undefined : v)}>
         <SelectTrigger className={input}><SelectValue /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="any">Any goal</SelectItem>
+          <SelectItem value="any">{m.anyGoal}</SelectItem>
           {goals.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
         </SelectContent>
       </Select>
@@ -476,22 +461,23 @@ function GoalTriggerFields({
 function TriggerConfigForm({
   type, config, onChange,
 }: { type: string; config: Record<string, unknown>; onChange: (cfg: Record<string, unknown>) => void }) {
+  const m = useT().automations.builder.triggerForm;
   const set = (key: string, val: unknown) => onChange({ ...config, [key]: val });
 
   if (type === 'page_view') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="Page Path" hint="Leave empty to match all pages">
+        <FieldGroup label={m.pagePath} hint={m.pagePathHint}>
           <Input placeholder="/pricing" value={String(config.path ?? '')} onChange={e => set('path', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
         </FieldGroup>
-        <FieldGroup label="Match Type">
+        <FieldGroup label={m.matchType}>
           <Select value={String(config.match_type ?? 'contains')} onValueChange={v => set('match_type', v)}>
             <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="exact">Exact</SelectItem>
-              <SelectItem value="contains">Contains</SelectItem>
-              <SelectItem value="starts_with">Starts with</SelectItem>
-              <SelectItem value="regex">Regex</SelectItem>
+              <SelectItem value="exact">{m.exact}</SelectItem>
+              <SelectItem value="contains">{m.contains}</SelectItem>
+              <SelectItem value="starts_with">{m.startsWith}</SelectItem>
+              <SelectItem value="regex">{m.regex}</SelectItem>
             </SelectContent>
           </Select>
         </FieldGroup>
@@ -500,14 +486,14 @@ function TriggerConfigForm({
   }
   if (type === 'click') {
     return (
-      <FieldGroup label="CSS Selector" hint="e.g. #cta-button or .btn-primary">
+      <FieldGroup label={m.cssSelector} hint={m.selectorHint}>
         <Input placeholder="#submit-button" value={String(config.selector ?? '')} onChange={e => set('selector', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
   if (type === 'scroll_depth') {
     return (
-      <FieldGroup label="Scroll Depth">
+      <FieldGroup label={m.scrollDepth}>
         <Select value={String(config.depth ?? '50')} onValueChange={v => set('depth', Number(v))}>
           <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -522,21 +508,21 @@ function TriggerConfigForm({
   }
   if (type === 'time_on_page') {
     return (
-      <FieldGroup label="Seconds on Page">
+      <FieldGroup label={m.secondsOnPage}>
         <Input type="number" min={1} placeholder="30" value={String(config.seconds ?? '')} onChange={e => set('seconds', Number(e.target.value))} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
   if (type === 'inactivity') {
     return (
-      <FieldGroup label="Inactivity Duration">
+      <FieldGroup label={m.inactivityDuration}>
         <Select value={String(config.seconds ?? '60')} onValueChange={v => set('seconds', Number(v))}>
           <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="30">30 seconds</SelectItem>
-            <SelectItem value="60">1 minute</SelectItem>
-            <SelectItem value="120">2 minutes</SelectItem>
-            <SelectItem value="300">5 minutes</SelectItem>
+            <SelectItem value="30">{m.sec30}</SelectItem>
+            <SelectItem value="60">{m.min1}</SelectItem>
+            <SelectItem value="120">{m.min2}</SelectItem>
+            <SelectItem value="300">{m.min5}</SelectItem>
           </SelectContent>
         </Select>
       </FieldGroup>
@@ -546,12 +532,12 @@ function TriggerConfigForm({
   if (type === 'goal_reached') return <GoalTriggerFields config={config} set={set} />;
   if (type === 'custom_event') {
     return (
-      <FieldGroup label="Event Name" hint="Exact name used in snc('track', ...)">
+      <FieldGroup label={m.eventName} hint={m.eventNameHint}>
         <Input placeholder="checkout_started" value={String(config.name ?? '')} onChange={e => set('name', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
-  return <p className="text-xs text-muted-foreground italic">No configuration needed for this trigger.</p>;
+  return <p className="text-xs text-muted-foreground italic">{m.noConfig}</p>;
 }
 
 // ─── Custom code ──────────────────────────────────────────────────────────────
@@ -569,6 +555,7 @@ const CUSTOM_CODE_ACTIONS = new Set(['show_modal', 'show_toast', 'show_banner', 
 function CustomCodeFields({
   action, set,
 }: { action: { type: string; [k: string]: unknown }; set: (key: string, val: unknown) => void }) {
+  const m = useT().automations.builder.customCode;
   const code = 'bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs';
   const hasCode = ['custom_html', 'custom_css', 'custom_js'].some(k => String(action[k] ?? '').trim() !== '');
   const root = action.type.replace('show_', '');
@@ -576,17 +563,17 @@ function CustomCodeFields({
   return (
     <details open={hasCode} className="group rounded-lg border border-border">
       <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-foreground">
-        Custom HTML, CSS and JavaScript
-        <span className="ml-2 font-normal text-muted-foreground">optional</span>
+        {m.title}
+        <span className="ml-2 font-normal text-muted-foreground">{m.optional}</span>
       </summary>
       <div className="space-y-3 border-t border-border p-3">
-        <FieldGroup label="HTML" hint={`Replaces the built-in ${root} content. Visitor values like {{page}} are escaped.`}>
+        <FieldGroup label="HTML" hint={m.htmlHint(root)}>
           <Textarea value={String(action.custom_html ?? '')} onChange={e => set('custom_html', e.target.value)} rows={4} spellCheck={false} placeholder={'<h3>Hello {{user.firstName | default:there}}</h3>'} className={code} />
         </FieldGroup>
-        <FieldGroup label="CSS" hint={`Style the ${root} with [data-snc="${root}"] or your own classes.`}>
+        <FieldGroup label="CSS" hint={m.cssHint(root)}>
           <Textarea value={String(action.custom_css ?? '')} onChange={e => set('custom_css', e.target.value)} rows={4} spellCheck={false} placeholder={`[data-snc="${root}"] { border-radius: 16px; }`} className={code} />
         </FieldGroup>
-        <FieldGroup label="JavaScript" hint="Runs once it is shown, with `root` (the element) and `action` in scope. A site that blocks inline scripts will skip it.">
+        <FieldGroup label="JavaScript" hint={m.jsHint}>
           <Textarea value={String(action.custom_js ?? '')} onChange={e => set('custom_js', e.target.value)} rows={4} spellCheck={false} placeholder={"root.querySelector('button')?.addEventListener('click', () => { /* … */ });"} className={code} />
         </FieldGroup>
       </div>
@@ -613,8 +600,10 @@ function ActionConfigForm({
 function ActionFields({
   action, onChange,
 }: { action: { type: string; [k: string]: unknown }; onChange: (a: { type: string; [k: string]: unknown }) => void }) {
+  const b = useT().automations.builder;
+  const m = b.actionForm;
   const set = (key: string, val: unknown) => onChange({ ...action, [key]: val });
-  const tplHint = 'Supports {{user.firstName | default:there}}, {{user.plan}}, {{page}}';
+  const tplHint = m.tplHint;
   const t = action.type;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
   const ta = 'bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs';
@@ -622,29 +611,29 @@ function ActionFields({
   if (t === 'show_modal') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="Title" hint={tplHint}>
-          <Input value={String(action.title ?? '')} onChange={e => set('title', e.target.value)} placeholder="Headline" className={inp} />
+        <FieldGroup label={m.title} hint={tplHint}>
+          <Input value={String(action.title ?? '')} onChange={e => set('title', e.target.value)} placeholder={m.titlePlaceholder} className={inp} />
         </FieldGroup>
-        <FieldGroup label="Body" hint={tplHint}>
-          <Textarea value={String(action.body ?? '')} onChange={e => set('body', e.target.value)} placeholder="Modal body text…" rows={3} className={ta} />
+        <FieldGroup label={m.body} hint={tplHint}>
+          <Textarea value={String(action.body ?? '')} onChange={e => set('body', e.target.value)} placeholder={m.bodyPlaceholder} rows={3} className={ta} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Button Text">
-            <Input value={String(action.button_text ?? '')} onChange={e => set('button_text', e.target.value)} placeholder="Get started" className={inp} />
+          <FieldGroup label={m.buttonText}>
+            <Input value={String(action.button_text ?? '')} onChange={e => set('button_text', e.target.value)} placeholder={b.defaultButtonText} className={inp} />
           </FieldGroup>
-          <FieldGroup label="Button URL">
+          <FieldGroup label={m.buttonUrl}>
             <Input value={String(action.button_url ?? '')} onChange={e => set('button_url', e.target.value)} placeholder="/signup" className={inp} />
           </FieldGroup>
         </div>
-        <FieldGroup label="Image URL (optional)">
+        <FieldGroup label={m.imageUrl}>
           <Input value={String(action.image_url ?? '')} onChange={e => set('image_url', e.target.value)} placeholder="https://…" className={inp} />
         </FieldGroup>
         <PopupTypeFields action={action as PopupAction} onChange={a => onChange(a)} />
         <LeadFormFields form={action.form as LeadForm | undefined} onChange={form => set('form', form)} />
         <div className="grid grid-cols-3 gap-2">
-          <FieldGroup label="BG Color"><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
-          <FieldGroup label="Text Color"><Input value={String(action.text_color ?? '')} onChange={e => set('text_color', e.target.value)} placeholder="#000" className={inp} /></FieldGroup>
-          <FieldGroup label="Btn Color"><Input value={String(action.button_color ?? '')} onChange={e => set('button_color', e.target.value)} placeholder="#06f" className={inp} /></FieldGroup>
+          <FieldGroup label={m.bgColor}><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
+          <FieldGroup label={m.textColor}><Input value={String(action.text_color ?? '')} onChange={e => set('text_color', e.target.value)} placeholder="#000" className={inp} /></FieldGroup>
+          <FieldGroup label={m.btnColor}><Input value={String(action.button_color ?? '')} onChange={e => set('button_color', e.target.value)} placeholder="#06f" className={inp} /></FieldGroup>
         </div>
       </div>
     );
@@ -653,28 +642,28 @@ function ActionFields({
   if (t === 'show_toast') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="Message" hint={tplHint}>
-          <Input value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} placeholder="Notification text" className={inp} />
+        <FieldGroup label={m.message} hint={tplHint}>
+          <Input value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} placeholder={m.toastPlaceholder} className={inp} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Position">
+          <FieldGroup label={m.position}>
             <Select value={String(action.position ?? 'bottom-right')} onValueChange={v => set('position', v)}>
               <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="top-left">Top Left</SelectItem>
-                <SelectItem value="top-right">Top Right</SelectItem>
-                <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                <SelectItem value="top-left">{m.topLeft}</SelectItem>
+                <SelectItem value="top-right">{m.topRight}</SelectItem>
+                <SelectItem value="bottom-left">{m.bottomLeft}</SelectItem>
+                <SelectItem value="bottom-right">{m.bottomRight}</SelectItem>
               </SelectContent>
             </Select>
           </FieldGroup>
-          <FieldGroup label="Duration (ms)">
+          <FieldGroup label={m.durationMs}>
             <Input type="number" min={0} value={String(action.duration_ms ?? 4000)} onChange={e => set('duration_ms', Number(e.target.value))} className={inp} />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="BG Color"><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#1a1a1a" className={inp} /></FieldGroup>
-          <FieldGroup label="Text Color"><Input value={String(action.text_color ?? '')} onChange={e => set('text_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
+          <FieldGroup label={m.bgColor}><Input value={String(action.background_color ?? '')} onChange={e => set('background_color', e.target.value)} placeholder="#1a1a1a" className={inp} /></FieldGroup>
+          <FieldGroup label={m.textColor}><Input value={String(action.text_color ?? '')} onChange={e => set('text_color', e.target.value)} placeholder="#fff" className={inp} /></FieldGroup>
         </div>
       </div>
     );
@@ -683,26 +672,26 @@ function ActionFields({
   if (t === 'show_banner') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="Message" hint={tplHint}>
-          <Input value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} placeholder="Banner message" className={inp} />
+        <FieldGroup label={m.message} hint={tplHint}>
+          <Input value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} placeholder={m.bannerPlaceholder} className={inp} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Position">
+          <FieldGroup label={m.position}>
             <Select value={String(action.position ?? 'top')} onValueChange={v => set('position', v)}>
               <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="top">Top</SelectItem>
-                <SelectItem value="bottom">Bottom</SelectItem>
+                <SelectItem value="top">{m.top}</SelectItem>
+                <SelectItem value="bottom">{m.bottom}</SelectItem>
               </SelectContent>
             </Select>
           </FieldGroup>
-          <FieldGroup label="Duration (ms, 0=sticky)">
+          <FieldGroup label={m.durationSticky}>
             <Input type="number" min={0} value={String(action.duration_ms ?? 0)} onChange={e => set('duration_ms', Number(e.target.value))} className={inp} />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Button Text"><Input value={String(action.button_text ?? '')} onChange={e => set('button_text', e.target.value)} placeholder="Learn more" className={inp} /></FieldGroup>
-          <FieldGroup label="Button URL"><Input value={String(action.button_url ?? '')} onChange={e => set('button_url', e.target.value)} placeholder="/features" className={inp} /></FieldGroup>
+          <FieldGroup label={m.buttonText}><Input value={String(action.button_text ?? '')} onChange={e => set('button_text', e.target.value)} placeholder={m.learnMore} className={inp} /></FieldGroup>
+          <FieldGroup label={m.buttonUrl}><Input value={String(action.button_url ?? '')} onChange={e => set('button_url', e.target.value)} placeholder="/features" className={inp} /></FieldGroup>
         </div>
         {/* A sticky bar: an inline email form, a countdown and a coupon, all optional. */}
         <LeadFormFields form={action.form as LeadForm | undefined} onChange={form => set('form', form)} />
@@ -715,17 +704,17 @@ function ActionFields({
   if (t === 'highlight_element') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="CSS Selector">
+        <FieldGroup label={m.cssSelector}>
           <Input value={String(action.selector ?? '')} onChange={e => set('selector', e.target.value)} placeholder=".feature-section" className={inp} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Duration (ms)">
+          <FieldGroup label={m.durationMs}>
             <Input type="number" min={0} value={String(action.duration_ms ?? 3000)} onChange={e => set('duration_ms', Number(e.target.value))} className={inp} />
           </FieldGroup>
-          <FieldGroup label="Scroll Into View">
+          <FieldGroup label={m.scrollIntoView}>
             <div className="flex items-center gap-2 pt-2">
               <Switch checked={Boolean(action.scroll_into_view ?? true)} onCheckedChange={v => set('scroll_into_view', v)} />
-              <span className="text-xs text-muted-foreground">{Boolean(action.scroll_into_view ?? true) ? 'Yes' : 'No'}</span>
+              <span className="text-xs text-muted-foreground">{Boolean(action.scroll_into_view ?? true) ? m.yes : m.no}</span>
             </div>
           </FieldGroup>
         </div>
@@ -736,13 +725,13 @@ function ActionFields({
   if (t === 'show_tooltip') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="CSS Selector">
+        <FieldGroup label={m.cssSelector}>
           <Input value={String(action.selector ?? '')} onChange={e => set('selector', e.target.value)} placeholder="#pricing-btn" className={inp} />
         </FieldGroup>
-        <FieldGroup label="Message" hint={tplHint}>
-          <Textarea value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} rows={2} placeholder="Tooltip text…" className={ta} />
+        <FieldGroup label={m.message} hint={tplHint}>
+          <Textarea value={String(action.message ?? '')} onChange={e => set('message', e.target.value)} rows={2} placeholder={m.tooltipPlaceholder} className={ta} />
         </FieldGroup>
-        <FieldGroup label="Duration (ms)">
+        <FieldGroup label={m.durationMs}>
           <Input type="number" min={0} value={String(action.duration_ms ?? 5000)} onChange={e => set('duration_ms', Number(e.target.value))} className={inp} />
         </FieldGroup>
       </div>
@@ -752,13 +741,13 @@ function ActionFields({
   if (t === 'personalize_content') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="CSS Selector">
+        <FieldGroup label={m.cssSelector}>
           <Input value={String(action.selector ?? '')} onChange={e => set('selector', e.target.value)} placeholder=".hero-title" className={inp} />
         </FieldGroup>
-        <FieldGroup label="Text Content" hint={tplHint}>
+        <FieldGroup label={m.textContent} hint={tplHint}>
           <Input value={String(action.text ?? '')} onChange={e => set('text', e.target.value)} placeholder="Hello {{user.firstName | default:there}}!" className={inp} />
         </FieldGroup>
-        <FieldGroup label="HTML Content (overrides text)">
+        <FieldGroup label={m.htmlContent}>
           <Textarea value={String(action.html ?? '')} onChange={e => set('html', e.target.value)} rows={2} placeholder="<strong>Hello!</strong>" className={ta} />
         </FieldGroup>
       </div>
@@ -768,17 +757,17 @@ function ActionFields({
   if (t === 'redirect') {
     return (
       <div className="space-y-3">
-        <FieldGroup label="Redirect URL">
+        <FieldGroup label={m.redirectUrl}>
           <Input value={String(action.url ?? '')} onChange={e => set('url', e.target.value)} placeholder="https://example.com/page" className={inp} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Delay (ms)">
+          <FieldGroup label={m.delayMs}>
             <Input type="number" min={0} value={String(action.delay_ms ?? 0)} onChange={e => set('delay_ms', Number(e.target.value))} className={inp} />
           </FieldGroup>
-          <FieldGroup label="New Tab">
+          <FieldGroup label={m.newTab}>
             <div className="flex items-center gap-2 pt-2">
               <Switch checked={Boolean(action.new_tab)} onCheckedChange={v => set('new_tab', v)} />
-              <span className="text-xs text-muted-foreground">{Boolean(action.new_tab) ? 'Yes' : 'No'}</span>
+              <span className="text-xs text-muted-foreground">{Boolean(action.new_tab) ? m.yes : m.no}</span>
             </div>
           </FieldGroup>
         </div>
@@ -788,8 +777,8 @@ function ActionFields({
 
   if (t === 'tag_session') {
     return (
-      <FieldGroup label="Tag" hint="A string label applied to the session">
-        <Input value={String(action.tag ?? '')} onChange={e => set('tag', e.target.value)} placeholder="e.g. high-intent" className={inp} />
+      <FieldGroup label={m.tag} hint={m.tagHint}>
+        <Input value={String(action.tag ?? '')} onChange={e => set('tag', e.target.value)} placeholder={m.tagPlaceholder} className={inp} />
       </FieldGroup>
     );
   }
@@ -799,10 +788,10 @@ function ActionFields({
     const bodyStr = typeof action.body === 'string' ? action.body : JSON.stringify(action.body ?? {}, null, 2);
     return (
       <div className="space-y-3">
-        <FieldGroup label="Webhook URL">
+        <FieldGroup label={m.webhookUrl}>
           <Input value={String(action.url ?? '')} onChange={e => set('url', e.target.value)} placeholder="https://hooks.slack.com/…" className={inp} />
         </FieldGroup>
-        <FieldGroup label="HTTP Method">
+        <FieldGroup label={m.httpMethod}>
           <Select value={String(action.method ?? 'POST')} onValueChange={v => set('method', v)}>
             <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -812,17 +801,17 @@ function ActionFields({
             </SelectContent>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Headers (JSON)">
+        <FieldGroup label={m.headersJson}>
           <Textarea value={headersStr} onChange={e => { try { set('headers', JSON.parse(e.target.value)); } catch { set('headers', e.target.value); } }} rows={3} className={ta} placeholder={'{\n  "Content-Type": "application/json"\n}'} />
         </FieldGroup>
-        <FieldGroup label="Body (JSON)">
+        <FieldGroup label={m.bodyJson}>
           <Textarea value={bodyStr} onChange={e => { try { set('body', JSON.parse(e.target.value)); } catch { set('body', e.target.value); } }} rows={4} className={ta} placeholder={'{\n  "text": "{{user.firstName}} triggered…"\n}'} />
         </FieldGroup>
       </div>
     );
   }
 
-  return <p className="text-xs text-muted-foreground italic">No configuration for this action type.</p>;
+  return <p className="text-xs text-muted-foreground italic">{m.noConfig}</p>;
 }
 
 // ─── Right Sidebar Panels ─────────────────────────────────────────────────────
@@ -836,6 +825,8 @@ function TriggerPanel({
   frequency?: AutomationDefinition['frequency'];
   onFrequencyChange?: (f: AutomationDefinition['frequency']) => void;
 }) {
+  const b = useT().automations.builder;
+  const m = b.triggerPanel;
   const td = getTriggerType(trigger.type);
   const { type, ...config } = trigger;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
@@ -844,7 +835,7 @@ function TriggerPanel({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trigger Type</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{m.triggerType}</p>
         <Select value={type} onValueChange={v => onChange({ type: v })}>
           <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -852,26 +843,26 @@ function TriggerPanel({
               <SelectItem key={tt.value} value={tt.value}>
                 <div className="flex items-center gap-2">
                   <tt.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{tt.label}</span>
+                  <span>{triggerText(b, tt.value).label}</span>
                 </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-muted-foreground mt-2">{td.description}</p>
+        <p className="text-[11px] text-muted-foreground mt-2">{triggerText(b, td.value).description}</p>
       </div>
       {td.hasConfig && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Configuration</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{m.configuration}</p>
           <TriggerConfigForm type={type} config={config as Record<string, unknown>} onChange={cfg => onChange({ type, ...cfg })} />
         </div>
       )}
 
       {onFrequencyChange && (
         <div className="border-t border-border pt-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Frequency</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{m.frequency}</p>
           <p className="mb-3 text-[11px] text-muted-foreground">
-            How often this automation may fire for the same visitor.
+            {m.frequencyHint}
           </p>
 
           {/*
@@ -887,14 +878,14 @@ function TriggerPanel({
           <Select value={frequencyMode(frequency)} onValueChange={v => onFrequencyChange(frequencyToCaps(v as FrequencyMode, cooldownDays))}>
             <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
             <SelectContent>
-              {FREQUENCY_MODES.map(m => (
-                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              {FREQUENCY_MODES.map(fm => (
+                <SelectItem key={fm.value} value={fm.value}>{b.frequency[fm.value].label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {FREQUENCY_MODES.find(m => m.value === frequencyMode(frequency))?.hint}
+            {b.frequency[frequencyMode(frequency)].hint}
           </p>
 
           {frequencyMode(frequency) === 'once_every' && (
@@ -907,7 +898,7 @@ function TriggerPanel({
                 onChange={e => onFrequencyChange(frequencyToCaps('once_every', Number(e.target.value)))}
                 className={cn(inp, 'w-24')}
               />
-              <span className="text-sm text-muted-foreground">days</span>
+              <span className="text-sm text-muted-foreground">{m.days}</span>
             </div>
           )}
         </div>
@@ -922,7 +913,7 @@ function TriggerPanel({
             onClick={onDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Delete Trigger
+            {m.deleteTrigger}
           </Button>
         </div>
       )}
@@ -936,13 +927,15 @@ function isRule(node: ConditionRule | ConditionGroup): node is ConditionRule {
 }
 
 function ConditionPanel({
-  group, onChange, onDelete, deleteLabel = 'Delete node',
+  group, onChange, onDelete, deleteLabel,
 }: {
   group: ConditionGroup;
   onChange: (c: ConditionGroup) => void;
   onDelete?: () => void;
   deleteLabel?: string;
 }) {
+  const b = useT().automations.builder;
+  const m = b.conditions;
   const rules = group.rules;
   const operator = group.operator;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs';
@@ -955,7 +948,7 @@ function ConditionPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Conditions</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.title}</p>
       {rules.length > 1 && (
         <div className="flex gap-2">
           {(['AND', 'OR'] as const).map(op => (
@@ -968,7 +961,7 @@ function ConditionPanel({
               {op}
             </button>
           ))}
-          <span className="text-[10px] text-muted-foreground self-center">{operator === 'AND' ? 'all must match' : 'any can match'}</span>
+          <span className="text-[10px] text-muted-foreground self-center">{operator === 'AND' ? m.allMatch : m.anyMatch}</span>
         </div>
       )}
       <div className="space-y-2">
@@ -978,7 +971,7 @@ function ConditionPanel({
           // configuration the engine happily evaluates.
           <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-muted/50 p-2.5">
             <span className="text-[11px] text-muted-foreground">
-              Nested {rule.operator} group ({rule.rules.length} rules) — edit via JSON
+              {m.nested(rule.operator, rule.rules.length)}
             </span>
             <button type="button" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-400">
               <X className="h-3 w-3" />
@@ -987,12 +980,12 @@ function ConditionPanel({
         ) : (
           <div key={i} className="rounded-lg border border-border bg-muted p-2.5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">Rule {i + 1}</span>
+              <span className="text-[10px] text-muted-foreground">{m.rule(i + 1)}</span>
               <button type="button" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
             </div>
             <Input
               list="seentics-fact-suggestions"
-              placeholder="what to check (e.g. country)"
+              placeholder={m.factPlaceholder}
               value={rule.fact}
               onChange={e => updateRule(i, { ...rule, fact: e.target.value })}
               className={inp}
@@ -1009,7 +1002,7 @@ function ConditionPanel({
               </SelectContent>
             </Select>
             <Input
-              placeholder="value"
+              placeholder={m.valuePlaceholder}
               value={String(rule.value ?? '')}
               onChange={e => updateRule(i, { ...rule, value: e.target.value })}
               disabled={['isSet', 'isNotSet', 'isTrue', 'isFalse'].includes(rule.operator)}
@@ -1020,11 +1013,11 @@ function ConditionPanel({
       </div>
       <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs border-border bg-muted text-muted-foreground hover:bg-muted hover:text-foreground" onClick={addRule}>
         <Plus className="h-3 w-3" />
-        Add Rule
+        {m.addRule}
       </Button>
       {rules.length === 0 && (
         <p className="text-[11px] italic text-amber-600 dark:text-amber-400">
-          No rules — this checkpoint passes for everyone and gates nothing.
+          {m.noRules}
         </p>
       )}
 
@@ -1036,7 +1029,7 @@ function ConditionPanel({
           className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {deleteLabel}
+          {deleteLabel ?? m.deleteNode}
         </Button>
       )}
     </div>
@@ -1046,11 +1039,13 @@ function ConditionPanel({
 function DelayPanel({
   seconds, onChange, onDelete,
 }: { seconds: number; onChange: (s: number) => void; onDelete: () => void }) {
+  const b = useT().automations.builder;
+  const m = b.delay;
   const invalid = !Number.isFinite(seconds) || seconds <= 0 || seconds > MAX_DELAY_SECONDS;
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Wait for</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{m.waitFor}</p>
         <div className="flex items-center gap-2">
           <Input
             type="number"
@@ -1060,11 +1055,11 @@ function DelayPanel({
             onChange={e => onChange(Number(e.target.value))}
             className="h-9 w-32 bg-muted border-border text-foreground"
           />
-          <span className="text-sm text-muted-foreground">seconds</span>
+          <span className="text-sm text-muted-foreground">{b.delay.seconds}</span>
         </div>
         {invalid && (
           <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-            Enter between 1 and {MAX_DELAY_SECONDS} seconds.
+            {b.delay.range(MAX_DELAY_SECONDS)}
           </p>
         )}
       </div>
@@ -1076,9 +1071,7 @@ function DelayPanel({
       */}
       <div className="rounded-lg border border-border bg-muted/40 p-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          The visitor&apos;s browser waits this long before performing the next on-page
-          action. Webhooks and conditions after this step still run immediately — the
-          delay schedules what people see, not server-side work.
+          {m.note}
         </p>
       </div>
 
@@ -1089,7 +1082,7 @@ function DelayPanel({
         className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
       >
         <Trash2 className="h-3.5 w-3.5" />
-        Delete node
+        {b.conditions.deleteNode}
       </Button>
     </div>
   );
@@ -1098,18 +1091,20 @@ function DelayPanel({
 function ActionPanel({
   action, onChange, onDelete,
 }: { action: { type: string; [k: string]: unknown }; onChange: (a: { type: string; [k: string]: unknown }) => void; onDelete: () => void }) {
+  const b = useT().automations.builder;
+  const m = b.actionPanel;
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Action Type</p>
-        <Select value={action.type} onValueChange={v => onChange(defaultAction(v))}>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{m.actionType}</p>
+        <Select value={action.type} onValueChange={v => onChange(defaultAction(v, b.defaultButtonText))}>
           <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ACTION_TYPES.map(a => (
               <SelectItem key={a.value} value={a.value}>
                 <div className="flex items-center gap-2">
                   <a.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{a.label}</span>
+                  <span>{actionText(b, a.value).label}</span>
                 </div>
               </SelectItem>
             ))}
@@ -1117,7 +1112,7 @@ function ActionPanel({
         </Select>
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Configuration</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{m.configuration}</p>
         <ActionConfigForm action={action} onChange={onChange} />
       </div>
       <div className="pt-2 border-t border-border">
@@ -1128,7 +1123,7 @@ function ActionPanel({
           onClick={onDelete}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Delete Action
+          {m.deleteAction}
         </Button>
       </div>
     </div>
@@ -1144,20 +1139,20 @@ function ActionPanel({
 function IfPanel({
   node, onChange, onDelete,
 }: { node: Extract<GraphNode, { kind: 'if' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  const b = useT().automations.builder;
+  const m = b.ifPanel;
   return (
     <div className="space-y-5">
       <div className="rounded-lg border border-border bg-muted/40 p-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Everything wired to <strong className="text-foreground">Yes</strong> runs when these
-          rules pass; everything on <strong className="text-foreground">No</strong> runs when they
-          do not. Both branches can rejoin later.
+          {m.before} <strong className="text-foreground">{b.outlets.yes}</strong> {m.middle}{' '}
+          <strong className="text-foreground">{b.outlets.no}</strong> {m.after}
         </p>
       </div>
       <ConditionPanel
         group={node.group}
         onChange={g => onChange({ ...node, group: g })}
         onDelete={onDelete}
-        deleteLabel="Delete node"
       />
     </div>
   );
@@ -1173,6 +1168,8 @@ function IfPanel({
 function SwitchPanel({
   node, onChange, onDelete,
 }: { node: Extract<GraphNode, { kind: 'switch' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  const b = useT().automations.builder;
+  const m = b.switchPanel;
   const setCase = (i: number, patch: Partial<SwitchCase>) =>
     onChange({ ...node, cases: node.cases.map((c, idx) => (idx === i ? { ...c, ...patch } : c)) });
 
@@ -1183,7 +1180,7 @@ function SwitchPanel({
         ...node.cases,
         {
           id: `case_${Date.now().toString(36)}_${node.cases.length}`,
-          label: `Case ${node.cases.length + 1}`,
+          label: m.caseN(node.cases.length + 1),
           group: { operator: 'AND', rules: [] },
         },
       ],
@@ -1196,9 +1193,8 @@ function SwitchPanel({
     <div className="space-y-5">
       <div className="rounded-lg border border-border bg-muted/40 p-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Cases are checked <strong className="text-foreground">in order</strong>. The first that
-          matches wins, so put the most specific one first. If none match, the
-          <strong className="text-foreground"> Otherwise</strong> branch runs.
+          {m.before} <strong className="text-foreground">{m.inOrder}</strong>{m.middle}
+          <strong className="text-foreground"> {b.outlets.otherwise}</strong> {m.after}
         </p>
       </div>
 
@@ -1207,7 +1203,7 @@ function SwitchPanel({
           <div className="flex items-center justify-between gap-2">
             <Input
               value={c.label ?? ''}
-              placeholder={`Case ${i + 1}`}
+              placeholder={m.caseN(i + 1)}
               onChange={e => setCase(i, { label: e.target.value })}
               className="h-8 flex-1 bg-muted text-xs"
             />
@@ -1216,7 +1212,7 @@ function SwitchPanel({
                 type="button"
                 onClick={() => removeCase(i)}
                 className="shrink-0 text-muted-foreground transition-colors hover:text-red-400"
-                aria-label={`Remove case ${i + 1}`}
+                aria-label={m.removeCase(i + 1)}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1234,7 +1230,7 @@ function SwitchPanel({
           className="h-7 gap-1.5 border-border bg-muted text-xs text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
-          Add case
+          {m.addCase}
         </Button>
       )}
 
@@ -1245,7 +1241,7 @@ function SwitchPanel({
         className="h-8 gap-1.5 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400"
       >
         <Trash2 className="h-3.5 w-3.5" />
-        Delete node
+        {b.conditions.deleteNode}
       </Button>
     </div>
   );
@@ -1262,6 +1258,8 @@ function SwitchPanel({
 function WaitPanel({
   node, onChange, onDelete,
 }: { node: Extract<GraphNode, { kind: 'wait_until' }>; onChange: (n: GraphNode) => void; onDelete: () => void }) {
+  const b = useT().automations.builder;
+  const m = b.waitPanel;
   const invalid =
     !Number.isFinite(node.timeoutSeconds) || node.timeoutSeconds <= 0 || node.timeoutSeconds > MAX_DELAY_SECONDS;
 
@@ -1269,7 +1267,7 @@ function WaitPanel({
     <div className="space-y-5">
       <div>
         <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          Give up after
+          {m.giveUpAfter}
         </p>
         <div className="flex items-center gap-2">
           <Input
@@ -1280,21 +1278,19 @@ function WaitPanel({
             onChange={e => onChange({ ...node, timeoutSeconds: Number(e.target.value) })}
             className="h-9 w-32 border-border bg-muted text-foreground"
           />
-          <span className="text-sm text-muted-foreground">seconds</span>
+          <span className="text-sm text-muted-foreground">{b.delay.seconds}</span>
         </div>
         {invalid && (
           <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
-            Enter between 1 and {MAX_DELAY_SECONDS} seconds.
+            {b.delay.range(MAX_DELAY_SECONDS)}
           </p>
         )}
       </div>
 
       <div className="rounded-lg border border-border bg-muted/40 p-3">
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          The page watches these rules and takes <strong className="text-foreground">When true</strong> as
-          soon as they pass, or <strong className="text-foreground">On timeout</strong> if they never do.
-          Because the wait happens in the browser, a webhook cannot come after it — put
-          any webhook before the wait.
+          {m.before} <strong className="text-foreground">{b.outlets.met}</strong> {m.middle}{' '}
+          <strong className="text-foreground">{b.outlets.timeout}</strong> {m.after}
         </p>
       </div>
 
@@ -1302,7 +1298,6 @@ function WaitPanel({
         group={node.group}
         onChange={g => onChange({ ...node, group: g })}
         onDelete={onDelete}
-        deleteLabel="Delete node"
       />
     </div>
   );
@@ -1315,6 +1310,7 @@ function SettingsPanel({
   onAbTestChange: (ab: AutomationDefinition['abTest']) => void;
   onPriorityChange: (p: number) => void;
 }) {
+  const m = useT().automations.builder.settings;
   const { abTest, priority = 50 } = definition;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
 
@@ -1333,18 +1329,18 @@ function SettingsPanel({
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Priority</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.priority}</p>
           <Badge variant="outline" className="text-[10px] tabular-nums border-border text-muted-foreground">{priority}</Badge>
         </div>
         <Slider min={1} max={100} step={1} value={[priority]} onValueChange={([v]) => onPriorityChange(v!)} className="w-full" />
         <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-          <span>1 (lowest)</span><span>100 (highest)</span>
+          <span>{m.lowest}</span><span>{m.highest}</span>
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">A/B Testing</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.abTesting}</p>
           <Switch checked={abTest?.enabled ?? false} onCheckedChange={v => onAbTestChange({ enabled: v, variants: abTest?.variants ?? [] })} />
         </div>
         {abTest?.enabled && (
@@ -1359,7 +1355,7 @@ function SettingsPanel({
             ))}
             <Button variant="outline" size="sm" className="h-7 gap-1 text-xs border-border bg-muted text-muted-foreground hover:bg-muted hover:text-foreground" onClick={addVariant}>
               <Plus className="h-3 w-3" />
-              Add Variant
+              {m.addVariant}
             </Button>
           </div>
         )}
@@ -1379,6 +1375,9 @@ function JsonEditorModal({
   onApply: (def: AutomationDefinition) => void;
   onClose: () => void;
 }) {
+  const b = useT().automations.builder;
+  const m = b.json;
+  const cancel = useT().actions.cancel;
   const [text, setText] = useState(() => JSON.stringify(definition, null, 2));
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
@@ -1387,12 +1386,12 @@ function JsonEditorModal({
     try {
       const parsed = JSON.parse(text) as AutomationDefinition;
       if (!Array.isArray(parsed.triggers) || !parsed.graph) {
-        setError('JSON must have a "triggers" array and a "graph" object.');
+        setError(m.shapeError);
         return;
       }
       // Run the same checks the canvas does, so hand-edited JSON cannot smuggle in a
       // chain the save button would have refused.
-      const problems = validateDefinition(parsed);
+      const problems = validateDefinition(parsed, b);
       if (problems.length) {
         setError(problems.join(' '));
         return;
@@ -1402,7 +1401,7 @@ function JsonEditorModal({
       setApplied(true);
       setTimeout(() => setApplied(false), 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid JSON');
+      setError(e instanceof Error ? e.message : m.invalid);
     }
   };
 
@@ -1411,7 +1410,7 @@ function JsonEditorModal({
       setText(JSON.stringify(JSON.parse(text), null, 2));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid JSON');
+      setError(e instanceof Error ? e.message : m.invalid);
     }
   };
 
@@ -1427,7 +1426,7 @@ function JsonEditorModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
             <Braces className="h-4 w-4 text-violet-400" />
-            <span className="text-sm font-semibold text-foreground">JSON Config</span>
+            <span className="text-sm font-semibold text-foreground">{m.title}</span>
             <span className="text-[10px] text-muted-foreground bg-muted border border-border rounded-lg px-1.5 py-0.5">AutomationDefinition</span>
           </div>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -1442,7 +1441,7 @@ function JsonEditorModal({
             onChange={e => { setText(e.target.value); setError(null); setApplied(false); }}
             spellCheck={false}
             className="w-full h-full min-h-[340px] rounded-lg border border-border bg-muted/40 text-[13px] font-mono text-foreground p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-muted-foreground"
-            placeholder="Paste or edit your automation JSON here…"
+            placeholder={m.placeholder}
           />
         </div>
 
@@ -1457,7 +1456,7 @@ function JsonEditorModal({
           {applied && !error && (
             <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/15 rounded-lg px-3 py-2">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              <span>Applied — canvas updated.</span>
+              <span>{m.applied}</span>
             </div>
           )}
         </div>
@@ -1469,11 +1468,11 @@ function JsonEditorModal({
             onClick={handleFormat}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           >
-            Format JSON
+            {m.format}
           </button>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={onClose}>
-              Cancel
+              {cancel}
             </Button>
             <Button
               size="sm"
@@ -1481,7 +1480,7 @@ function JsonEditorModal({
               onClick={handleApply}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Apply
+              {m.apply}
             </Button>
           </div>
         </div>
@@ -1544,14 +1543,16 @@ function NodePalette({
   onAddWait?: () => void;
   onAddDelay?: () => void;
 }) {
+  const b = useT().automations.builder;
+  const m = b.palette;
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 border-b border-border p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
+            <h3 className="text-sm font-semibold text-foreground">{m.title}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Drag onto the canvas to place it, then drag between handles to connect.
+              {m.hint}
             </p>
           </div>
           {onClose && (
@@ -1559,7 +1560,7 @@ function NodePalette({
               type="button"
               onClick={onClose}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Close panel"
+              aria-label={m.closePanel}
             >
               <X className="h-4 w-4" />
             </button>
@@ -1572,11 +1573,11 @@ function NodePalette({
               type="button"
               onClick={() => onTab(t)}
               className={cn(
-                'rounded-lg py-1.5 text-xs font-semibold capitalize transition-colors',
+                'rounded-lg py-1.5 text-xs font-semibold transition-colors',
                 tab === t ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {t}
+              {m.tabs[t]}
             </button>
           ))}
         </div>
@@ -1589,8 +1590,8 @@ function NodePalette({
                 icon={t.icon}
                 iconBg={t.iconBg}
                 iconColor={t.iconColor}
-                label={t.label}
-                hint={t.description}
+                label={triggerText(b, t.value).label}
+                hint={triggerText(b, t.value).description}
                 onDragStart={e => onDragStart(e, 'trigger', t.value)}
                 onClick={() => onAddTrigger(t.value)}
               />
@@ -1603,8 +1604,8 @@ function NodePalette({
               icon={a.icon}
               iconBg={a.iconBg}
               iconColor={a.iconColor}
-              label={a.label}
-              hint={a.description}
+              label={actionText(b, a.value).label}
+              hint={actionText(b, a.value).description}
               onDragStart={e => onDragStart(e, 'action', a.value)}
               onClick={() => onAddAction(a.value)}
             />
@@ -1632,8 +1633,8 @@ function NodePalette({
                 icon={Filter}
                 iconBg="bg-amber-500/10"
                 iconColor="text-amber-500"
-                label="If / else"
-                hint="Split the flow on a set of rules"
+                label={b.kinds.if}
+                hint={m.ifHint}
                 onDragStart={e => onDragStart(e, 'condition', 'if')}
                 onClick={onAddCondition}
               />
@@ -1644,8 +1645,8 @@ function NodePalette({
                 icon={GitBranch}
                 iconBg="bg-fuchsia-500/10"
                 iconColor="text-fuchsia-500"
-                label="Switch"
-                hint="Several cases, first match wins"
+                label={b.kinds.switch}
+                hint={m.switchHint}
                 onDragStart={e => onDragStart(e, 'switch', 'switch')}
                 onClick={onAddSwitch}
               />
@@ -1656,8 +1657,8 @@ function NodePalette({
                 icon={Hourglass}
                 iconBg="bg-cyan-500/10"
                 iconColor="text-cyan-500"
-                label="Wait until"
-                hint="Hold until rules pass, or time out"
+                label={b.kinds.wait_until}
+                hint={m.waitHint}
                 onDragStart={e => onDragStart(e, 'wait', 'wait_until')}
                 onClick={onAddWait}
               />
@@ -1668,16 +1669,15 @@ function NodePalette({
                 icon={Clock}
                 iconBg="bg-sky-500/10"
                 iconColor="text-sky-500"
-                label="Delay"
-                hint="Pause before the next on-page action"
+                label={b.kinds.delay}
+                hint={m.delayHint}
                 onDragStart={e => onDragStart(e, 'delay', 'delay')}
                 onClick={onAddDelay}
               />
             )}
 
             <p className="px-1 pt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Branches can rejoin: point two of them at the same node and it runs once,
-              whichever way the visitor got there.
+              {m.rejoin}
             </p>
           </>
         )}
@@ -1698,7 +1698,7 @@ const DEFAULT_DEFINITION: AutomationDefinition = {
 };
 
 /** A fresh node of each kind, as the palette adds them. */
-function newNode(kind: GraphNode['kind'], actionType?: string): GraphNode {
+function newNode(kind: GraphNode['kind'], m: BuilderMessages, actionType?: string): GraphNode {
   const id = newNodeId(kind);
   switch (kind) {
     case 'if':
@@ -1707,19 +1707,20 @@ function newNode(kind: GraphNode['kind'], actionType?: string): GraphNode {
       return {
         id,
         kind: 'switch',
-        cases: [{ id: `case_${Date.now().toString(36)}`, label: 'Case 1', group: { operator: 'AND', rules: [] } }],
+        cases: [{ id: `case_${Date.now().toString(36)}`, label: m.switchPanel.caseN(1), group: { operator: 'AND', rules: [] } }],
       };
     case 'wait_until':
       return { id, kind: 'wait_until', group: { operator: 'AND', rules: [] }, timeoutSeconds: 30 };
     case 'delay':
       return { id, kind: 'delay', seconds: 5 };
     default:
-      return { id, kind: 'action', action: defaultAction(actionType ?? 'show_modal') };
+      return { id, kind: 'action', action: defaultAction(actionType ?? 'show_modal', m.defaultButtonText) };
   }
 }
 
 export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationBuilderProps>(
   function AutomationBuilder({ initialDefinition, onSave, isSaving, className, onChange }, ref) {
+  const m = useT().automations.builder;
   const [definition, setDefinition] = useState<AutomationDefinition>(() => {
     const base = initialDefinition ?? DEFAULT_DEFINITION;
     return {
@@ -1739,7 +1740,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
   const graph = definition.graph;
   const triggers = definition.triggers ?? [];
   const hasTrigger = triggers.length > 0;
-  const errors = validateDefinition(definition);
+  const errors = validateDefinition(definition, m);
 
   // Recomputed only when the graph changes: layout walks every node and edge twice, and
   // the canvas re-renders on pan, zoom and selection as well.
@@ -1763,13 +1764,16 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
   const triggerMeta = useCallback((type: string) => {
     const td = getTriggerType(type);
     return {
-      label: td.label,
-      description: td.description,
+      label: triggerText(m, td.value).label,
+      description: triggerText(m, td.value).description,
       icon: td.icon,
       iconBg: td.iconBg,
       iconColor: td.iconColor,
     };
-  }, []);
+  }, [m]);
+
+  const visualOf = useCallback((node: GraphNode) => nodeVisual(node, m), [m]);
+  const summaryOf = useCallback((node: GraphNode) => nodeSummary(node, m), [m]);
 
   const selectTrigger = useCallback((index: number) => setSelected({ kind: 'trigger', index }), []);
   const selectNode = useCallback((id: NodeId) => setSelected({ kind: 'node', id }), []);
@@ -1823,7 +1827,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
    */
   const addNode = (kind: GraphNode['kind'], actionType?: string, position?: { x: number; y: number }) => {
     setDefinition(d => {
-      const node = { ...newNode(kind, actionType), ...(position ? { position } : {}) };
+      const node = { ...newNode(kind, m, actionType), ...(position ? { position } : {}) };
       const nodes = [...d.graph.nodes, node];
       // The first node is also the entry; there is nothing else it could be.
       const entry = d.graph.entry || node.id;
@@ -1857,8 +1861,8 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
   });
 
   useEffect(() => {
-    onChangeRef.current?.(definition, validateDefinition(definition));
-  }, [definition]);
+    onChangeRef.current?.(definition, validateDefinition(definition, m));
+  }, [definition, m]);
 
   useImperativeHandle(
     ref,
@@ -1903,9 +1907,9 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
   };
 
   const emptyHint = !hasTrigger
-    ? 'Drag a trigger from the panel to start.'
+    ? m.canvas.emptyNoTrigger
     : graph.nodes.length === 0
-      ? 'Drag an action, condition or delay from the panel.'
+      ? m.canvas.emptyNoNodes
       : null;
 
   const selectedNode =
@@ -1922,8 +1926,8 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           triggerMeta={triggerMeta}
           onDeleteTrigger={deleteTrigger}
           onSelectTrigger={selectTrigger}
-          nodeVisual={nodeVisual}
-          nodeSummary={nodeSummary}
+          nodeVisual={visualOf}
+          nodeSummary={summaryOf}
           invalidNodes={invalidNodes}
           onSelectNode={selectNode}
           onDeleteNode={deleteNode}
@@ -1937,7 +1941,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           className="absolute right-3 top-3 z-10 inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-md md:hidden"
         >
           <Plus className="h-4 w-4" />
-          Add node
+          {m.canvas.addNode}
         </button>
 
         {/*
@@ -1973,7 +1977,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
             role="alert"
             className="pointer-events-none absolute bottom-4 right-4 max-w-sm rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 shadow-lg dark:text-amber-300"
           >
-            <p className="font-semibold">Not ready to save</p>
+            <p className="font-semibold">{m.canvas.notReady}</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-4">
               {errors.map(e => <li key={e}>{e}</li>)}
             </ul>
@@ -2002,7 +2006,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Add a node"
+            aria-label={m.palette.title}
             className="absolute inset-x-0 bottom-0 flex h-[75dvh] flex-col overflow-hidden rounded-t-xl border-t border-border bg-card shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
@@ -2032,26 +2036,26 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             role="dialog"
             aria-modal="true"
-            aria-label="Node settings"
+            aria-label={m.canvas.nodeSettings}
             className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
               {(() => {
-                const nv = selectedNode ? nodeVisual(selectedNode) : null;
+                const nv = selectedNode ? nodeVisual(selectedNode, m) : null;
                 const tdSel = selected.kind === 'trigger' ? getTriggerType(triggers[selected.index]?.type ?? '') : null;
                 const sub =
-                  selectedNode?.kind === 'if' ? 'Branches on whether these rules pass'
-                  : selectedNode?.kind === 'switch' ? 'Takes the first matching case'
-                  : selectedNode?.kind === 'wait_until' ? 'Holds until the rules pass, or times out'
-                  : selectedNode?.kind === 'delay' ? 'Holds the next on-page action back'
-                  : 'What happens when it fires';
+                  selectedNode?.kind === 'if' ? m.modal.subIf
+                  : selectedNode?.kind === 'switch' ? m.modal.subSwitch
+                  : selectedNode?.kind === 'wait_until' ? m.modal.subWait
+                  : selectedNode?.kind === 'delay' ? m.modal.subDelay
+                  : m.modal.subAction;
                 const meta =
                   selected.kind === 'trigger'
-                    ? { icon: tdSel!.icon, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: tdSel!.label, sub: 'When this event happens…' }
+                    ? { icon: tdSel!.icon, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: triggerText(m, tdSel!.value).label, sub: m.modal.subTrigger }
                     : selected.kind === 'node' && nv
                       ? { icon: nv.icon, color: nv.iconColor, bg: nv.iconBg, title: nv.title, sub }
-                      : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Workflow settings', sub: 'Priority & A/B testing' };
+                      : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: m.modal.settingsTitle, sub: m.modal.settingsSub };
                 const Icon = meta.icon;
                 return (
                   <div className="flex min-w-0 items-center gap-3">
@@ -2069,7 +2073,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
                 type="button"
                 onClick={() => setSelected(null)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Close"
+                aria-label={m.canvas.close}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -2120,7 +2124,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
             </div>
 
             <div className="shrink-0 border-t border-border bg-muted/20 p-3">
-              <Button className="h-10 w-full font-semibold" onClick={() => setSelected(null)}>Done</Button>
+              <Button className="h-10 w-full font-semibold" onClick={() => setSelected(null)}>{m.canvas.done}</Button>
             </div>
           </motion.div>
         </div>

@@ -1,7 +1,12 @@
+'use client';
+
 import { FileQuestion, Home, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n';
 
 export default function NotFound() {
+  const all = useT();
+  const t = all.dashboard.errorPages;
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
@@ -11,10 +16,10 @@ export default function NotFound() {
 
         <h1 className="text-6xl font-bold text-foreground mb-2">404</h1>
         <h2 className="text-xl font-semibold text-foreground mb-2">
-          Page not found
+          {t.notFoundTitle}
         </h2>
         <p className="text-muted-foreground mb-8">
-          The page you&apos;re looking for doesn&apos;t exist or has been moved.
+          {t.notFoundBody}
         </p>
 
         <div className="flex items-center justify-center gap-3">
@@ -23,14 +28,14 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
           >
             <Home className="h-4 w-4" />
-            Dashboard
+            {all.common.dashboard}
           </Link>
           <Link
             href="/"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-medium hover:bg-accent transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Home
+            {t.home}
           </Link>
         </div>
       </div>

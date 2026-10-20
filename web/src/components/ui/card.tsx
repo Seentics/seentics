@@ -9,10 +9,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      // Light: a faint translucent edge (--panel-edge) instead of a drawn grey border,
-      // as in Linear's light mode. The transparent border keeps the box model, so a
-      // caller's border colour still shows. Dark: the surface step alone.
-      "rounded-lg bg-card text-muted-foreground border border-transparent shadow-[var(--panel-edge)] dark:border-none dark:shadow-none",
+      // White on the grey page, no outline in either theme: the surface step is the edge. The
+      // transparent border keeps the box model, so a caller's border colour still shows.
+      "rounded-lg bg-card text-muted-foreground border border-transparent dark:border-none",
       className
     )}
     {...props}

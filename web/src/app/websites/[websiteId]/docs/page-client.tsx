@@ -8,6 +8,7 @@ import { ReportPage } from '@/components/ui/linear-list';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Copy, Check, Zap, Code2 } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -130,12 +131,12 @@ export default function DocsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
   const [tab, setTab] = useState<Tab>('Node.js');
+  const d = useT().developers.sdkDocs;
 
   return (
     <ReportPage
-      icon={<BookOpen />}
-      title="Documentation"
-      description="Integrate Seentics into your services using the official SDKs."
+      title={d.title}
+      description={d.description}
       websiteId={websiteId}
       width="max-w-[900px]"
     >
@@ -164,12 +165,12 @@ export default function DocsPage() {
           <div className="flex items-start gap-3">
             <Code2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <div className="space-y-1 text-xs">
-              <p className="font-semibold text-foreground">Your project credentials</p>
+              <p className="font-semibold text-foreground">{d.credentials}</p>
               <p className="text-muted-foreground">
-                Project ID: <code className="font-mono bg-muted px-1.5 py-0.5 rounded-lg text-foreground">{websiteId}</code>
+                {d.projectId} <code className="font-mono bg-muted px-1.5 py-0.5 rounded-lg text-foreground">{websiteId}</code>
               </p>
               <p className="text-muted-foreground">
-                Find your API key under <strong>Settings → Tracking</strong>.
+                {d.findKeyBefore} <strong>{d.findKeyPlace}</strong>{d.findKeyAfter}
               </p>
             </div>
           </div>
@@ -177,36 +178,36 @@ export default function DocsPage() {
       </Card>
 
       {/* Installation */}
-      <Section title="Installation" icon={Zap}>
+      <Section title={d.installation} icon={Zap}>
         <CodeBlock code={INSTALL[tab]} lang={tab === 'Go' ? 'bash' : 'bash'} />
       </Section>
 
       {/* Quick start */}
-      <Section title="Quick start" icon={Code2}>
+      <Section title={d.quickStart} icon={Code2}>
         <CodeBlock code={QUICKSTART[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
       </Section>
 
       {/* Next.js */}
       {tab === 'Node.js' && (
-        <Section title="Next.js Integration">
+        <Section title={d.nextjs}>
           <p className="text-xs text-muted-foreground mb-2">
-            Use Next.js 14 <code className="font-mono bg-muted px-1 rounded-lg">instrumentation.ts</code> to initialise the SDK once per process and share it across route handlers.
+            {d.nextjsBefore} <code className="font-mono bg-muted px-1 rounded-lg">instrumentation.ts</code> {d.nextjsAfter}
           </p>
           <CodeBlock code={NEXTJS_SNIPPET} lang="typescript" />
         </Section>
       )}
 
       {/* API reference */}
-      <Section title="HTTP API Reference" icon={BookOpen}>
+      <Section title={d.apiReference} icon={BookOpen}>
         <Card className="border border-border">
           <CardContent className="p-0">
             {[
-              { method: 'POST', path: '/api/v1/collect',                        desc: 'Ingest pageview or custom event' },
-              { method: 'GET',  path: '/api/v1/websites/:id/stats',             desc: 'Summary stats (visitors, pageviews, bounce rate, duration)' },
-              { method: 'GET',  path: '/api/v1/websites/:id/pageviews',         desc: 'Pageview time series (granularity: hour|day|month)' },
-              { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: 'Custom event counts and property breakdowns' },
-              { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: 'Goal list with conversion rates' },
-              { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
+              { method: 'POST', path: '/api/v1/collect',                        desc: d.endpoints.collect },
+              { method: 'GET',  path: '/api/v1/websites/:id/stats',             desc: d.endpoints.stats },
+              { method: 'GET',  path: '/api/v1/websites/:id/pageviews',         desc: d.endpoints.pageviews },
+              { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: d.endpoints.events },
+              { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: d.endpoints.goals },
+              { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: d.endpoints.funnel },
             ].map((r, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
                 <Badge
@@ -227,8 +228,8 @@ export default function DocsPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground mt-3">
-          All requests must include <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>.
-          The full OpenAPI reference is available in the dashboard under <strong>Developers &rarr; Docs</strong>.
+          {d.authBefore} <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>{d.authAfter}
+          {' '}{d.openApiBefore} <strong>{d.openApiPlace}</strong>{d.openApiAfter}
         </p>
       </Section>
     </ReportPage>

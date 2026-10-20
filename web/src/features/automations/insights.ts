@@ -1,13 +1,15 @@
+import { automationsEn, type AutomationsMessages } from '@/lib/i18n/messages/automations-en';
 import type { Automation } from './types';
 
 export type AutomationGroupId = 'failing' | 'never_fired' | 'working' | 'off';
 export type AutomationTone = AutomationGroupId;
 
-export const AUTOMATION_GROUP_META: Array<{ id: AutomationGroupId; label: string; description: string; dot: string }> = [
-  { id: 'failing',     label: 'Failing',            description: 'At least one in ten runs fails',        dot: 'bg-red-500' },
-  { id: 'never_fired', label: 'Live, never fired',   description: 'Switched on, but its trigger has not happened', dot: 'bg-amber-400' },
-  { id: 'working',     label: 'Working',            description: 'Live and running cleanly',               dot: 'bg-emerald-500' },
-  { id: 'off',         label: 'Switched off',       description: 'Not running',                            dot: 'bg-muted-foreground/40' },
+/** The groups, in order. Labels and descriptions are `automations.groups[id]`. */
+export const AUTOMATION_GROUP_META: Array<{ id: AutomationGroupId; dot: string }> = [
+  { id: 'failing',     dot: 'bg-red-500' },
+  { id: 'never_fired', dot: 'bg-amber-400' },
+  { id: 'working',     dot: 'bg-emerald-500' },
+  { id: 'off',         dot: 'bg-muted-foreground/40' },
 ];
 
 const FAILING_RATE = 90;
@@ -27,21 +29,19 @@ export const AUTOMATION_TONE_DOT: Record<AutomationTone, string> = Object.fromEn
 ) as Record<AutomationTone, string>;
 export const AUTOMATION_TONE_RANK: Record<AutomationTone, number> = { failing: 3, never_fired: 2, working: 1, off: 0 };
 
-const times = (n: number) => `${n.toLocaleString()} time${n === 1 ? '' : 's'}`;
-
 /** One line on what an automation has done, in plain words, from its run counts. */
-export function automationLine(a: Automation): string {
+export function automationLine(a: Automation, t: AutomationsMessages['line'] = automationsEn.line): string {
   const s = a.stats;
   const runs = s?.totalExecutions ?? 0;
   const recent = s?.last30Days ?? 0;
   switch (automationTone(a)) {
     case 'failing':
-      return `Failing — ${s!.failureCount.toLocaleString()} of ${runs.toLocaleString()} runs failed (${Math.round(s!.successRate)}% succeeded)`;
+      return t.failing(s!.failureCount, runs, Math.round(s!.successRate));
     case 'never_fired':
-      return 'Live, but its trigger has not happened yet';
+      return t.neverFired;
     case 'off':
-      return runs > 0 ? `Switched off · ran ${times(runs)} before` : 'Switched off · never ran';
+      return runs > 0 ? t.offRan(runs) : t.offNever;
     case 'working':
-      return `Ran ${times(runs)}${recent ? ` · ${recent.toLocaleString()} in the last 30 days` : ''} · ${Math.round(s?.successRate ?? 100)}% succeeded`;
+      return t.working(runs, recent, Math.round(s?.successRate ?? 100));
   }
 }

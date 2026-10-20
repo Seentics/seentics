@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { format } from 'date-fns';
 import { COUNTRIES } from '@/utils/countries';
+import { useLocale, useT } from '@/lib/i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,23 +72,17 @@ export interface FilterModalProps {
 }
 
 type ChipOption = {
+  /** The filter value sent to the API (and shown, unless `display` is given). */
   label: string;
+  /** What the chip says, when it differs from the value (a translated device name). */
+  display?: string;
   icon?: React.ReactNode;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DATE_PRESETS = [
-  { value: '0',      label: 'Today' },
-  { value: '1',      label: 'Yesterday' },
-  { value: '7',      label: '7 days' },
-  { value: '14',     label: '14 days' },
-  { value: '30',     label: '30 days' },
-  { value: '90',     label: '90 days' },
-  { value: '180',    label: '6 months' },
-  { value: '365',    label: '12 months' },
-  { value: 'custom', label: 'Custom' },
-];
+/** Names are in `analytics.filters.presets`, keyed by value. */
+const DATE_PRESETS = ['0', '1', '7', '14', '30', '90', '180', '365', 'custom'] as const;
 
 const DEVICE_OPTIONS: ChipOption[] = [
   { label: 'Desktop', icon: <Monitor className="h-3 w-3" /> },
@@ -114,17 +109,6 @@ const OS_OPTIONS: ChipOption[] = [
 ];
 
 const UTM_MEDIUMS     = ['organic', 'cpc', 'email', 'social', 'referral', 'direct'];
-
-const FILTER_LABELS: Record<string, string> = {
-  country:      'Country',
-  device:       'Device',
-  browser:      'Browser',
-  os:           'OS',
-  utm_source:   'UTM Source',
-  utm_medium:   'UTM Medium',
-  utm_campaign: 'UTM Campaign',
-  page_path:    'Page Path',
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,7 +157,7 @@ function ChipGroup({
                 {opt.icon}
               </span>
             )}
-            {opt.label}
+            {opt.display ?? opt.label}
           </button>
         );
       })}
@@ -218,6 +202,7 @@ function CountrySelect({
   value: string | undefined;
   onChange: (v: string | undefined) => void;
 }) {
+  const t = useT().analytics.filters;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -254,7 +239,7 @@ function CountrySelect({
               <span className="truncate text-foreground">{selected.name}</span>
             </span>
           ) : (
-            <span>Select country…</span>
+            <span>{t.selectCountry}</span>
           )}
           <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         </button>
@@ -272,7 +257,7 @@ function CountrySelect({
             ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search country…"
+            placeholder={t.searchCountry}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
           />
           {search && (
@@ -290,14 +275,14 @@ function CountrySelect({
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40 border-b border-border transition-colors"
           >
             <X className="h-3 w-3" />
-            Clear selection
+            {t.clearSelection}
           </button>
         )}
 
         {/* Scrollable list — plain div to avoid Radix ScrollArea quirks inside Dialog+Popover */}
         <div className="max-h-52 overflow-y-auto overscroll-contain">
           {filtered.length === 0 ? (
-            <p className="px-3 py-4 text-xs text-muted-foreground text-center">No countries found</p>
+            <p className="px-3 py-4 text-xs text-muted-foreground text-center">{t.noCountries}</p>
           ) : (
             <div className="py-1">
               {filtered.map((c) => {
@@ -343,6 +328,12 @@ export function FilterModal({
   open,
   onOpenChange,
 }: FilterModalProps) {
+  const t = useT().analytics.filters;
+  const common = useT().analytics.common;
+  const { locale } = useLocale();
+  const deviceOptions = DEVICE_OPTIONS.map((o) => ({ ...o, display: common.devices[o.label] ?? o.label }));
+  const fmtDay = (d: Date) =>
+    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' }) : format(d, 'MMM d, yyyy');
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
   const setOpen = (nextOpen: boolean) => {
@@ -393,7 +384,7 @@ export function FilterModal({
           className={cn(GHOST_CONTROL, 'h-8 px-3 font-medium gap-1.5 relative')}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Filters</span>
+          <span className="hidden sm:inline">{t.button}</span>
           {totalCount > 0 && (
             <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold">
               {totalCount}
@@ -410,10 +401,10 @@ export function FilterModal({
             <div>
               <DialogTitle className="text-base font-semibold flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-primary" />
-                Filters
+                {t.title}
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Narrow your analytics by time, audience, traffic source, and content.
+                {t.subtitle}
               </p>
             </div>
             {(totalCount > 0 || advancedCount > 0) && (
@@ -423,7 +414,7 @@ export function FilterModal({
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors shrink-0 mt-0.5"
               >
                 <RotateCcw className="h-3 w-3" />
-                Reset all
+                {t.resetAll}
               </button>
             )}
           </div>
@@ -436,8 +427,8 @@ export function FilterModal({
                   key={key}
                   className="inline-flex items-center gap-1 h-6 pl-2.5 pr-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary"
                 >
-                  <span className="text-primary/70 font-normal">{FILTER_LABELS[key] ?? key}:</span>
-                  <span>{String(value)}</span>
+                  <span className="text-primary/70 font-normal">{t.labels[key] ?? key}:</span>
+                  <span>{key === 'device' ? (common.devices[String(value)] ?? String(value)) : String(value)}</span>
                   <button type="button" onClick={() => clearFilter(key)} className="ml-0.5 hover:text-primary/60 transition-colors">
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -452,25 +443,25 @@ export function FilterModal({
 
           {/* Time Period */}
           <div className="space-y-2.5">
-            <p className="text-xs font-semibold text-muted-foreground">Time Period</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.timePeriod}</p>
             <div className="flex flex-wrap gap-1.5">
-              {DATE_PRESETS.map((p) => {
-                const isActive = p.value === currentDateValue;
+              {DATE_PRESETS.map((value) => {
+                const isActive = value === currentDateValue;
                 return (
                   <button
-                    key={p.value}
+                    key={value}
                     type="button"
-                    onClick={() => onDateRangeChange(p.value)}
+                    onClick={() => onDateRangeChange(value)}
                     className={cn(
                       'h-7 px-3 rounded-lg text-xs font-medium border transition-all duration-100',
                       isActive
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-transparent text-muted-foreground border-border hover:border-border hover:text-foreground hover:bg-muted/50',
-                      p.value === 'custom' && !isActive && 'border-dashed',
+                      value === 'custom' && !isActive && 'border-dashed',
                     )}
                   >
                     {isActive && <Check className="inline h-2.5 w-2.5 mr-1 -mt-0.5" />}
-                    {p.label}
+                    {t.presets[value]}
                   </button>
                 );
               })}
@@ -480,7 +471,7 @@ export function FilterModal({
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
                 <CalendarIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="text-xs text-foreground font-medium">
-                  {DATE_PRESETS.find((p) => p.value === currentDateValue)?.label ?? 'Custom'}
+                  {t.presets[currentDateValue] ?? t.custom}
                 </span>
               </div>
             )}
@@ -489,8 +480,8 @@ export function FilterModal({
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
                   {customStartDate && customEndDate
-                    ? `${format(customStartDate, 'MMM d, yyyy')} → ${format(customEndDate, 'MMM d, yyyy')}`
-                    : 'Select start and end dates'}
+                    ? `${fmtDay(customStartDate)} → ${fmtDay(customEndDate)}`
+                    : t.selectStartEnd}
                 </p>
                 <div className="rounded-lg border border-border overflow-hidden">
                   <Calendar
@@ -512,25 +503,25 @@ export function FilterModal({
 
           {/* Country */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">Country</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.country}</p>
             <CountrySelect value={draft.country} onChange={set('country')} />
           </div>
 
           {/* Device */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">Device</p>
-            <ChipGroup options={DEVICE_OPTIONS} value={draft.device} onChange={set('device')} />
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.device}</p>
+            <ChipGroup options={deviceOptions} value={draft.device} onChange={set('device')} />
           </div>
 
           {/* Browser */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">Browser</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.browser}</p>
             <ChipGroup options={BROWSER_OPTIONS} value={draft.browser} onChange={set('browser')} />
           </div>
 
           {/* OS */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">Operating System</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.operatingSystem}</p>
             <ChipGroup options={OS_OPTIONS} value={draft.os} onChange={set('os')} />
           </div>
 
@@ -538,9 +529,9 @@ export function FilterModal({
 
           {/* UTM Source */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">UTM Source</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.utm_source}</p>
             <ClearableInput
-              placeholder="e.g. google, newsletter, twitter…"
+              placeholder={t.utmSourcePlaceholder}
               value={draft.utm_source ?? ''}
               onChange={(v) => set('utm_source')(v || undefined)}
             />
@@ -548,14 +539,14 @@ export function FilterModal({
 
           {/* UTM Medium */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">UTM Medium</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.utm_medium}</p>
             <ChipGroup
               options={UTM_MEDIUMS.map((m) => ({ label: m }))}
               value={UTM_MEDIUMS.includes(draft.utm_medium ?? '') ? draft.utm_medium : undefined}
               onChange={set('utm_medium')}
             />
             <ClearableInput
-              placeholder="Or type a custom medium…"
+              placeholder={t.utmMediumPlaceholder}
               value={UTM_MEDIUMS.includes(draft.utm_medium ?? '') ? '' : (draft.utm_medium ?? '')}
               onChange={(v) => set('utm_medium')(v || undefined)}
             />
@@ -563,9 +554,9 @@ export function FilterModal({
 
           {/* UTM Campaign */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">UTM Campaign</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.utm_campaign}</p>
             <ClearableInput
-              placeholder="e.g. spring_sale, product_launch…"
+              placeholder={t.utmCampaignPlaceholder}
               value={draft.utm_campaign ?? ''}
               onChange={(v) => set('utm_campaign')(v || undefined)}
             />
@@ -575,13 +566,13 @@ export function FilterModal({
 
           {/* Page Path */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">Page Path</p>
+            <p className="text-xs font-semibold text-muted-foreground">{t.labels.page_path}</p>
             <ClearableInput
-              placeholder="e.g. /blog, /pricing, /docs/…"
+              placeholder={t.pagePathPlaceholder}
               value={draft.page_path ?? ''}
               onChange={(v) => set('page_path')(v || undefined)}
             />
-            <p className="text-[10px] text-muted-foreground/60">Partial match — shows pages starting with this path.</p>
+            <p className="text-[10px] text-muted-foreground/60">{t.pagePathHint}</p>
           </div>
 
         </div>
@@ -589,9 +580,7 @@ export function FilterModal({
         {/* ── Footer ── */}
         <div className="px-5 py-3.5 border-t border-border flex items-center justify-between gap-3 shrink-0 bg-muted/20">
           <p className="text-xs text-muted-foreground">
-            {advancedCount > 0
-              ? `${advancedCount} filter${advancedCount > 1 ? 's' : ''} selected`
-              : 'No filters selected'}
+            {advancedCount > 0 ? t.selected(advancedCount) : t.noneSelected}
           </p>
           <div className="flex items-center gap-2">
             {advancedCount > 0 && (
@@ -602,11 +591,11 @@ export function FilterModal({
                 onClick={() => setDraft({})}
                 className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5"
               >
-                Clear
+                {t.clear}
               </Button>
             )}
             <Button type="button" onClick={applyAndClose} size="sm" className="h-8 px-4 text-xs font-medium">
-              Apply filters
+              {t.apply}
             </Button>
           </div>
         </div>

@@ -56,6 +56,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { isDemo, demoMutationGuard, demoWebsite } from '@/lib/demo';
 import { usePathSegment } from '@/lib/path-segment';
+import { formatDate, useLocale, useT } from '@/lib/i18n';
 
 function trackingSnippetFor(id: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://analytics.seentics.com';
@@ -78,6 +79,9 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const tAll = useT();
+  const t = tAll.settings.websites;
+  const { locale } = useLocale();
 
   // The shared reader of the site in the path (lib/path-segment), like the rest of the app:
   // it also answers for the landing page's preview, which shows this page as the demo's.
@@ -115,14 +119,14 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
     } catch (e) {
       console.error(e);
       toast({
-        title: 'Could not load websites',
-        description: 'Please refresh the page or try again later.',
+        title: t.loadFailed,
+        description: t.loadFailedBody,
         variant: 'destructive',
       });
     } finally {
       setListLoading(false);
     }
-  }, [toast, router, redirectWhenEmpty]);
+  }, [toast, router, redirectWhenEmpty, t]);
 
   useEffect(() => {
     if (!user && !onDemoSite) return;
@@ -146,25 +150,25 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
     const n = editName.trim();
     let u = editUrl.trim();
     if (!n || !u) {
-      toast({ title: 'Validation', description: 'Name and URL are required.', variant: 'destructive' });
+      toast({ title: t.validation, description: t.required, variant: 'destructive' });
       return;
     }
     try {
       new URL(u.startsWith('http') ? u : `https://${u}`);
     } catch {
-      toast({ title: 'Invalid URL', description: 'Enter a valid website URL.', variant: 'destructive' });
+      toast({ title: t.invalidUrl, description: t.invalidUrlBody, variant: 'destructive' });
       return;
     }
     if (!u.startsWith('http')) u = `https://${u}`;
     setEditSaving(true);
     try {
       await updateWebsite(editSite.id, { name: n, url: u }, user.id);
-      toast({ title: 'Saved', description: 'Website updated.' });
+      toast({ title: t.saved, description: t.savedBody });
       setEditSite(null);
       await refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Could not update website.';
-      toast({ title: 'Update failed', description: msg, variant: 'destructive' });
+      const msg = e instanceof Error ? e.message : t.updateFailedBody;
+      toast({ title: t.updateFailed, description: msg, variant: 'destructive' });
     } finally {
       setEditSaving(false);
     }
@@ -176,7 +180,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
     setDeleteLoading(true);
     try {
       await deleteWebsite(deleteSite.id, user.id);
-      toast({ title: 'Deleted', description: `${deleteSite.name} was removed.` });
+      toast({ title: t.deleted, description: t.deletedBody(deleteSite.name) });
       setDeleteSite(null);
       const next = await getWebsites();
       if (next.length === 0 && redirectWhenEmpty) {
@@ -185,8 +189,8 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       }
       setWebsites(next);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Could not delete website.';
-      toast({ title: 'Delete failed', description: msg, variant: 'destructive' });
+      const msg = e instanceof Error ? e.message : t.deleteFailedBody;
+      toast({ title: t.deleteFailed, description: msg, variant: 'destructive' });
     } finally {
       setDeleteLoading(false);
     }
@@ -199,7 +203,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       setSnippetCopied(true);
       setTimeout(() => setSnippetCopied(false), 2000);
     } catch {
-      toast({ title: 'Copy failed', description: 'Could not copy to clipboard.', variant: 'destructive' });
+      toast({ title: t.copyFailed, description: t.copyFailedBody, variant: 'destructive' });
     }
   };
 
@@ -208,7 +212,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-border bg-card/30">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading websites…</p>
+          <p className="text-sm text-muted-foreground">{t.loading}</p>
         </div>
       </div>
     );
@@ -221,11 +225,11 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
         <Card className="surface">
           <CardContent className="flex flex-col items-center justify-center gap-4 py-14 text-center">
             <p className="text-sm text-muted-foreground max-w-sm">
-              You don&apos;t have any websites yet. Add a property to get a tracking snippet and dashboard.
+              {t.empty}
             </p>
             <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />
-              Add website
+              {t.add}
             </Button>
           </CardContent>
         </Card>
@@ -241,7 +245,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
-            Add website
+            {t.add}
           </Button>
         </div>
       )}
@@ -249,21 +253,21 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       <Dialog open={!!editSite} onOpenChange={(o) => !o && setEditSite(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit website</DialogTitle>
-            <DialogDescription>Update the display name and URL for this property.</DialogDescription>
+            <DialogTitle>{t.editTitle}</DialogTitle>
+            <DialogDescription>{t.editDescription}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="settings-websites-edit-name">Name</Label>
+              <Label htmlFor="settings-websites-edit-name">{t.name}</Label>
               <Input
                 id="settings-websites-edit-name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                placeholder="My site"
+                placeholder={t.namePlaceholder}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="settings-websites-edit-url">Website URL</Label>
+              <Label htmlFor="settings-websites-edit-url">{t.url}</Label>
               <Input
                 id="settings-websites-edit-url"
                 value={editUrl}
@@ -274,10 +278,10 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditSite(null)}>
-              Cancel
+              {tAll.actions.cancel}
             </Button>
             <Button onClick={saveEdit} disabled={editSaving}>
-              {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+              {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : tAll.actions.save}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -286,18 +290,17 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       <Dialog open={!!deleteSite} onOpenChange={(o) => !o && setDeleteSite(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete website?</DialogTitle>
+            <DialogTitle>{t.deleteTitle}</DialogTitle>
             <DialogDescription>
-              This removes <span className="font-medium text-foreground">{deleteSite?.name}</span> and its
-              configuration. Analytics data may be retained per your plan and retention policy.
+              {t.deleteBefore}<span className="font-medium text-foreground">{deleteSite?.name}</span>{t.deleteAfter}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeleteSite(null)}>
-              Cancel
+              {tAll.actions.cancel}
             </Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleteLoading}>
-              {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+              {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : tAll.actions.delete}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -308,16 +311,16 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
           <SheetHeader className="bg-card">
             <SheetTitle className="flex items-center gap-2">
               <Code2 className="h-4 w-4 text-muted-foreground" />
-              Tracking code
+              {t.trackingCode}
             </SheetTitle>
             <SheetDescription>
-              Install on <span className="font-medium text-foreground">{snippetSite?.name}</span> to start collecting data.
+              {t.installBefore}<span className="font-medium text-foreground">{snippetSite?.name}</span>{t.installAfter}
             </SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 space-y-3 overflow-y-auto bg-muted/40 p-4">
             <div className="space-y-2 rounded-lg border bg-card p-3.5 shadow-sm">
-              <p className="text-xs font-medium text-muted-foreground">Website ID</p>
+              <p className="text-xs font-medium text-muted-foreground">{t.websiteId}</p>
               <div className="flex items-center gap-2">
                 <code className="min-w-0 flex-1 truncate rounded-md border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground select-all">
                   {snippetSite?.id}
@@ -326,12 +329,12 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 shrink-0 bg-card"
-                  aria-label="Copy website ID"
+                  aria-label={t.copyId}
                   onClick={() => {
                     if (!snippetSite) return;
                     navigator.clipboard?.writeText(snippetSite.id).then(
-                      () => toast({ title: 'Copied', description: 'Website ID copied.' }),
-                      () => toast({ title: 'Copy failed', variant: 'destructive' }),
+                      () => toast({ title: t.copied, description: t.idCopied }),
+                      () => toast({ title: t.copyFailed, variant: 'destructive' }),
                     );
                   }}
                 >
@@ -349,7 +352,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   className="inline-flex items-center gap-1 text-[11px] text-zinc-400 transition-colors hover:text-zinc-100"
                 >
                   {snippetCopied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  {snippetCopied ? 'Copied' : 'Copy code'}
+                  {snippetCopied ? t.copied : t.copyCode}
                 </button>
               </div>
               <pre className="overflow-x-auto p-3.5 font-mono text-xs leading-relaxed text-zinc-200">
@@ -360,16 +363,16 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
             <ol className="space-y-2.5 rounded-lg border bg-card p-3.5 text-[13px] text-muted-foreground shadow-sm">
               <li className="flex gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">1</span>
-                <span>Paste it into the <code className="rounded bg-muted px-1 font-mono text-xs text-foreground">{`<head>`}</code> of every page you want to track.</span>
+                <span>{t.step1Before}<code className="rounded bg-muted px-1 font-mono text-xs text-foreground">{`<head>`}</code>{t.step1After}</span>
               </li>
               <li className="flex gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">2</span>
                 <span>
-                  Deploy, open your site, then check the{' '}
+                  {t.step2Before}
                   {snippetSite ? (
-                    <Link href={`/websites/${snippetSite.id}`} className="font-medium text-primary hover:underline">Overview</Link>
-                  ) : 'Overview'}{' '}
-                  for your first visit.
+                    <Link href={`/websites/${snippetSite.id}`} className="font-medium text-primary hover:underline">{t.overview}</Link>
+                  ) : t.overview}
+                  {t.step2After}
                 </span>
               </li>
             </ol>
@@ -381,10 +384,10 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden sm:table-cell">URL</TableHead>
-              <TableHead className="hidden md:table-cell">Added</TableHead>
-              <TableHead className="hidden lg:table-cell">Status</TableHead>
+              <TableHead>{t.name}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t.colUrl}</TableHead>
+              <TableHead className="hidden md:table-cell">{t.colAdded}</TableHead>
+              <TableHead className="hidden lg:table-cell">{t.colStatus}</TableHead>
               <TableHead className="w-[190px] text-right"> </TableHead>
             </TableRow>
           </TableHeader>
@@ -403,17 +406,17 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   {w.url}
                 </TableCell>
                 <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                  {w.createdAt ? formatDistanceToNow(new Date(w.createdAt), { addSuffix: true }) : '—'}
+                  {w.createdAt ? (locale === 'bn' ? formatDate(w.createdAt, locale) : formatDistanceToNow(new Date(w.createdAt), { addSuffix: true })) : '—'}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {w.isActive !== false ? (
                       <Badge variant="secondary" className="text-[10px] font-medium">
-                        Active
+                        {t.active}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] font-medium">
-                        Paused
+                        {t.paused}
                       </Badge>
                     )}
                     {w.isVerified ? (
@@ -421,7 +424,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                         variant="outline"
                         className="text-[10px] font-medium border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
                       >
-                        Verified
+                        {t.verified}
                       </Badge>
                     ) : null}
                   </div>
@@ -435,7 +438,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                     onClick={() => setSnippetSite(w)}
                   >
                     <Code2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Tracking code</span>
+                    <span className="hidden sm:inline">{t.trackingCode}</span>
                   </Button>
                   {/* Not modal: its items open a dialog, and a modal menu left pointer-events: none on the
                       page when that dialog closed — nothing on the page could be clicked until a reload. */}
@@ -443,14 +446,14 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Open menu</span>
+                        <span className="sr-only">{t.openMenu}</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
                       <DropdownMenuItem asChild>
                         <Link href={`/websites/${w.id}`} className="flex cursor-pointer items-center gap-2">
                           <LayoutDashboard className="h-4 w-4" />
-                          Open dashboard
+                          {t.openDashboard}
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -458,18 +461,18 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                         onClick={() => setSnippetSite(w)}
                       >
                         <Code2 className="h-4 w-4" />
-                        View tracking snippet
+                        {t.viewSnippet}
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href={`/websites/${w.id}/settings`} className="flex cursor-pointer items-center gap-2">
                           <Settings className="h-4 w-4" />
-                          Site settings
+                          {t.siteSettings}
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="gap-2" onClick={() => openEdit(w)} disabled={isDemo(w.id)}>
                         <Pencil className="h-4 w-4" />
-                        Edit
+                        {tAll.actions.edit}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="gap-2 text-destructive focus:text-destructive"
@@ -480,7 +483,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                         disabled={isDemo(w.id)}
                       >
                         <Trash2 className="h-4 w-4" />
-                        Delete
+                        {tAll.actions.delete}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

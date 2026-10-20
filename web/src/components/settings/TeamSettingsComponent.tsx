@@ -30,9 +30,9 @@ import { getMembers, removeMember, updateMemberRole, listPendingInvitations, rev
 import { isValidId } from '@/lib/utils';
 import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import { useAuth } from '@/stores/useAuthStore';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useLocale, useT } from '@/lib/i18n';
 
 interface TeamSettingsComponentProps {
   websiteId: string;
@@ -43,6 +43,11 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
   const [confirm, confirmDialog] = useConfirm();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const t = useT().settings.team;
+  const { locale } = useLocale();
+  const day = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const roleLabel = (role: string) => t.roles[role] ?? role;
   const { canManageMembers, canChangeRoles, canInviteMembers, isViewer, isLoading: permLoading } = usePermissions(websiteId);
 
   const { data: members = [], isLoading } = useQuery({
@@ -60,11 +65,11 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
   const deleteMutation = useMutation({
     mutationFn: (userId: string) => removeMember(websiteId, userId),
     onSuccess: () => {
-      toast.success('Member removed successfully');
+      toast.success(t.removed);
       queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || error.message || 'Failed to remove member');
+      toast.error(error.response?.data?.error || error.message || t.removeFailed);
     },
   });
 
@@ -72,22 +77,22 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
     mutationFn: ({ userId, role }: { userId: string; role: string }) =>
       updateMemberRole(websiteId, userId, role),
     onSuccess: () => {
-      toast.success('Role updated successfully');
+      toast.success(t.roleUpdated);
       queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || error.message || 'Failed to update role');
+      toast.error(error.response?.data?.error || error.message || t.roleFailed);
     },
   });
 
   const revokeInvMutation = useMutation({
     mutationFn: (invitationId: string) => revokeInvitation(websiteId, invitationId),
     onSuccess: () => {
-      toast.success('Invitation revoked');
+      toast.success(t.revoked);
       queryClient.invalidateQueries({ queryKey: ['invitations', websiteId] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || error.message || 'Failed to revoke invitation');
+      toast.error(error.response?.data?.error || error.message || t.revokeFailed);
     },
   });
 
@@ -97,9 +102,9 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
 
   const handleRemoveMember = async (memberUserId: string) => {
     const ok = await confirm({
-      title: 'Remove this member?',
-      description: 'They lose access to this website immediately. You can invite them again later.',
-      confirmLabel: 'Remove member',
+      title: t.removeTitle,
+      description: t.removeBody,
+      confirmLabel: t.removeConfirm,
       destructive: true,
     });
     if (ok) deleteMutation.mutate(memberUserId);
@@ -119,11 +124,11 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-xl font-bold tracking-tight">Team Management</h2>
+          <h2 className="text-xl font-bold tracking-tight">{t.title}</h2>
           <p className="text-muted-foreground text-sm">
             {isViewer
-              ? 'View team members with access to this website.'
-              : 'Manage who has access to this website\'s analytics.'}
+              ? t.viewerDescription
+              : t.description}
           </p>
         </div>
         {canInviteMembers && (
@@ -132,7 +137,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
             className="h-10 px-5 font-bold rounded-lg gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
           >
             <UserPlus className="h-4 w-4" />
-            Invite Member
+            {t.invite}
           </Button>
         )}
       </div>
@@ -145,7 +150,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
           </div>
         ) : members.length === 0 ? (
           <div className="text-center py-12 bg-muted/20 rounded-lg border border-dashed">
-            <p className="text-muted-foreground">No team members besides you. Invite someone to collaborate.</p>
+            <p className="text-muted-foreground">{t.empty}</p>
           </div>
         ) : (
           members.map((member: WebsiteMember) => (
@@ -159,9 +164,9 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                 </div>
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">{member.userName || 'Unknown User'}</h4>
+                    <h4 className="text-sm font-bold text-foreground">{member.userName || t.unknownUser}</h4>
                     <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider px-1.5 h-4 bg-muted/50">
-                      {member.role}
+                      {roleLabel(member.role)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -171,7 +176,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                     </span>
                     <span className="flex items-center gap-1 font-medium">
                       <Clock className="h-3 w-3 opacity-50" />
-                      Joined {format(new Date(member.createdAt), 'MMM d, yyyy')}
+                      {t.joined(day(member.createdAt))}
                     </span>
                   </div>
                 </div>
@@ -181,7 +186,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                 {member.role !== 'owner' && member.userId !== user?.id && canManageMembers && (
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" aria-label={t.memberActions}>
                         <MoreVertical className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -190,7 +195,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                         <DropdownMenuSub>
                           <DropdownMenuSubTrigger className="rounded-lg gap-2 cursor-pointer flex items-center">
                             <Shield className="h-4 w-4 text-muted-foreground" />
-                            Change Role
+                            {t.changeRole}
                           </DropdownMenuSubTrigger>
                           <DropdownMenuSubContent className="w-36 rounded-lg p-1">
                             <DropdownMenuItem
@@ -199,8 +204,8 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                               className="rounded-lg gap-2 cursor-pointer"
                             >
                               <Shield className="h-4 w-4 text-indigo-500" />
-                              Admin
-                              {member.role === 'admin' && <span className="ml-auto text-[10px] text-muted-foreground">Current</span>}
+                              {t.roles.admin}
+                              {member.role === 'admin' && <span className="ml-auto text-[10px] text-muted-foreground">{t.current}</span>}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleChangeRole(member.userId, 'viewer')}
@@ -208,8 +213,8 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                               className="rounded-lg gap-2 cursor-pointer"
                             >
                               <Users className="h-4 w-4 text-muted-foreground" />
-                              Viewer
-                              {member.role === 'viewer' && <span className="ml-auto text-[10px] text-muted-foreground">Current</span>}
+                              {t.roles.viewer}
+                              {member.role === 'viewer' && <span className="ml-auto text-[10px] text-muted-foreground">{t.current}</span>}
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuSub>
@@ -219,7 +224,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                         className="rounded-lg gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
-                        Remove Member
+                        {t.removeMember}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -235,7 +240,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <SendHorizonal className="h-4 w-4 text-muted-foreground" />
-            Pending Invitations
+            {t.pending}
           </h3>
           <div className="grid grid-cols-1 gap-2">
             {pendingInvitations.map((inv: WebsiteInvitation) => (
@@ -245,7 +250,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                   <div>
                     <p className="text-sm font-medium">{inv.email}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      Invited as <span className="font-bold uppercase">{inv.role}</span> · Expires {format(new Date(inv.expiresAt), 'MMM d, yyyy')}
+                      {t.invitedAs} <span className="font-bold uppercase">{roleLabel(inv.role)}</span> · {t.expires(day(inv.expiresAt))}
                     </p>
                   </div>
                 </div>
@@ -255,6 +260,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                   className="h-7 w-7 text-muted-foreground hover:text-rose-500"
                   onClick={() => revokeInvMutation.mutate(inv.id)}
                   disabled={revokeInvMutation.isPending}
+                  aria-label={t.revoke}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -267,11 +273,9 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
       <div className="bg-muted/30 p-4 rounded-lg border border-border flex gap-4">
         <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
         <div className="space-y-1">
-          <p className="text-xs font-bold text-foreground">Advanced Permissions</p>
+          <p className="text-xs font-bold text-foreground">{t.advanced}</p>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Owners can manage billing and delete websites.
-            Admins have full access to settings and reports.
-            Viewers have read-only access to all analytics data.
+            {t.advancedBody}
           </p>
         </div>
       </div>

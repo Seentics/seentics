@@ -1,4 +1,7 @@
+'use client';
+
 import { Search } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { formatCostUsd } from '@/features/ai/format';
 import type { ChatMessage } from '@/features/ai/types';
@@ -33,6 +36,7 @@ export function toolLabel(name: string): string {
 export function ChatMessageView({
   message, showUsage, onConfirmProposal, onDismissProposal, isConfirming, viewerRole, className,
 }: ChatMessageViewProps) {
+  const t = useT().ai.chat;
   const isUser = message.role === 'user';
 
   // The visitor's turn is a quiet bubble on the right; the answer is plain text across the
@@ -54,7 +58,7 @@ export function ChatMessageView({
         {message.pending && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-            Thinking…
+            {t.thinking}
           </div>
         )}
 
@@ -83,15 +87,14 @@ export function ChatMessageView({
         {!isUser && !!message.toolsUsed?.length && (
           <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
             <Search className="h-3 w-3" aria-hidden />
-            Looked at {message.toolsUsed.map(toolLabel).join(', ')}
+            {t.lookedAt(message.toolsUsed.map(toolLabel).join(', '))}
           </p>
         )}
 
         {/* Operator-only. Shown per message because that is the grain the cost is recorded at. */}
         {showUsage && message.usage && (
           <p className="text-[11px] tabular-nums text-muted-foreground">
-            {message.usage.tokens.input.toLocaleString()} in ·{' '}
-            {message.usage.tokens.output.toLocaleString()} out ·{' '}
+            {t.usage(message.usage.tokens.input.toLocaleString('en-US'), message.usage.tokens.output.toLocaleString('en-US'))} ·{' '}
             {formatCostUsd(message.usage.costUsd)} · {message.usage.ms}ms
           </p>
         )}

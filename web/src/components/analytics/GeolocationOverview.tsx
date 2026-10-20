@@ -9,18 +9,24 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useControllableState } from '@/hooks/useControllableState';
 import { getCountryFlag } from '@/utils/countries';
+import { useT } from '@/lib/i18n';
+
+function MapLoading() {
+    const t = useT().analytics.geo;
+    return (
+        <div className="h-[400px] rounded-lg flex items-center justify-center">
+            <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-sm text-muted-foreground">{t.loadingMap}</p>
+            </div>
+        </div>
+    );
+}
 
 // Dynamically import WorldMap to avoid SSR issues
 const WorldMap = dynamic(() => import('./WorldMap'), {
     ssr: false,
-    loading: () => (
-        <div className="h-[400px] rounded-lg flex items-center justify-center">
-            <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-sm text-muted-foreground">Loading map...</p>
-            </div>
-        </div>
-    )
+    loading: () => <MapLoading />
 });
 
 interface TopItem {
@@ -50,6 +56,7 @@ interface GeolocationOverviewProps {
 }
 
 export function GeolocationOverview({ data, isLoading = false, className = '', onFilter, activeTab, onActiveTabChange, headerAction }: GeolocationOverviewProps) {
+    const t = useT().analytics.geo;
     const [selectedTab, handleTabChange] = useControllableState({
         value: activeTab,
         defaultValue: 'map2d' as const,
@@ -95,17 +102,17 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 space-y-0 p-4 border-b border-border">
                 <div className="flex items-center gap-1">
                     <CardTitle className="text-sm font-semibold tracking-tight">
-                        Locations
+                        {t.title}
                     </CardTitle>
                     {headerAction}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents')}>
                         <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5 flex-wrap">
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">2D map</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">3D map</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">Countries</TabsTrigger>
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">Cities</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">{t.map2d}</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">{t.map3d}</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">{t.countries}</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">{t.cities}</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 </div>
@@ -115,10 +122,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {!hasGeoBreakdown && !isLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-lg border border-dashed border-border">
                             <Globe className="h-14 w-14 mb-4 text-muted-foreground/25" />
-                            <p className="text-sm font-medium text-muted-foreground mb-1">No geographic data yet</p>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">{t.noData}</p>
                             <p className="text-xs text-muted-foreground/80 max-w-sm leading-relaxed">
-                                Needs recent <span className="font-medium text-foreground/85">pageviews</span>. In development, private/docker client IPs default to <span className="font-medium text-foreground/85">BD</span> on the map; set{' '}
-                                <code className="text-[11px] bg-muted/80 px-1 rounded-lg">GEO_FALLBACK_COUNTRY=US</code> (etc.) if you want a different fallback.
+                                {t.noDataHintBefore}<span className="font-medium text-foreground/85">{t.noDataHintPageviews}</span>{t.noDataHintMiddle}<span className="font-medium text-foreground/85">BD</span>{t.noDataHintSet}
+                                <code className="text-[11px] bg-muted/80 px-1 rounded-lg">GEO_FALLBACK_COUNTRY=US</code>{t.noDataHintAfter}
                             </p>
                         </div>
                     ) : (
@@ -154,7 +161,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
                                             <Image
                                                 src={getCountryFlag(country.name)}
-                                                alt={`${country.name} flag`}
+                                                alt={t.flag(country.name)}
                                                 fill
                                                 className="object-cover"
                                                 onError={(e) => {
@@ -170,7 +177,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{country.name}</p>
-                                            <p className="text-xs text-muted-foreground">{country.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="text-xs text-muted-foreground">{t.ofTraffic(country.percentage.toFixed(1))}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -185,9 +192,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                             {(!displayData?.cities?.length) && (
                                 <div className="col-span-2 flex flex-col items-center justify-center py-16 text-center">
                                     <MapPin className="h-10 w-10 mb-3 text-muted-foreground/25" />
-                                    <p className="text-sm font-medium text-muted-foreground mb-1">No city data yet</p>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">{t.noCityData}</p>
                                     <p className="text-xs text-muted-foreground/70 max-w-xs leading-relaxed">
-                                        City-level resolution requires the MaxMind GeoIP database or Cloudflare city headers. New pageviews will populate this tab going forward.
+                                        {t.noCityHint}
                                     </p>
                                 </div>
                             )}
@@ -199,7 +206,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                             <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
                                                 <Image
                                                     src={`/images/country/${city.code.toLowerCase()}.png`}
-                                                    alt={`${city.code} flag`}
+                                                    alt={t.flag(city.code)}
                                                     fill
                                                     className="object-cover"
                                                     onError={(e) => {
@@ -220,7 +227,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         )}
                                         <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{city.name}</p>
-                                            <p className="text-xs text-muted-foreground">{city.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="text-xs text-muted-foreground">{t.ofTraffic(city.percentage.toFixed(1))}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -241,7 +248,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{continent.name}</p>
-                                            <p className="text-xs text-muted-foreground">{continent.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="text-xs text-muted-foreground">{t.ofTraffic(continent.percentage.toFixed(1))}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">

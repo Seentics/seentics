@@ -9,14 +9,8 @@ import { formatCostUsd } from '@/features/ai/format';
 import { ChatComposer } from './ChatComposer';
 import { ConversationView } from './ConversationView';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useT } from '@/lib/i18n';
 
-/** Offered on an empty conversation. Each is a question the tools can actually answer. */
-const STARTERS = [
-  'How is traffic doing this week?',
-  'Which pages have the worst bounce rate?',
-  'What errors are my visitors hitting?',
-  'Create an exit-intent popup offering 10% off',
-];
 
 export interface AssistantChatProps {
   websiteId: string;
@@ -59,6 +53,8 @@ export function AssistantChat({
   websiteId, showUsage, conversationId, onConversationChange, resetKey, onNewChat, headerActions,
   initialPrompt, promptContext, recommendationId, className,
 }: AssistantChatProps) {
+  const ai = useT().ai;
+  const t = ai.chat;
   const chat = useAssistantChat(websiteId, conversationId, initialPrompt, recommendationId);
   // Drafts that need an admin say so to a member before they click, rather than after.
   const { role } = usePermissions(websiteId);
@@ -89,12 +85,12 @@ export function AssistantChat({
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2 md:invisible">
           <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Seentics AI</span>
+          <span className="text-sm font-medium text-foreground">{ai.brand}</span>
         </div>
         <div className="flex items-center gap-2">
           {showUsage && chat.sessionCostUsd > 0 && (
             <span className="text-[11px] tabular-nums text-muted-foreground">
-              session {formatCostUsd(chat.sessionCostUsd)}
+              {t.session(formatCostUsd(chat.sessionCostUsd))}
             </span>
           )}
           {headerActions}
@@ -105,7 +101,7 @@ export function AssistantChat({
             className="h-7 gap-1 text-xs md:hidden"
             onClick={onNewChat ?? chat.reset}
           >
-            <Plus className="h-3.5 w-3.5" /> New
+            <Plus className="h-3.5 w-3.5" /> {t.newShort}
           </Button>
         </div>
       </div>
@@ -118,9 +114,10 @@ export function AssistantChat({
         <div className="mx-auto w-full max-w-3xl">
           <ConversationView
             messages={chat.messages}
-            starters={STARTERS}
+            starters={t.starters}
             onStarter={(p) => void chat.send(p)}
-            emptyBody="Traffic, funnels, recordings, heatmaps, errors and automations. I can also draft new automations, funnels and goals, or changes to existing ones and to your settings, for you to confirm."
+            emptyTitle={t.emptyTitle}
+            emptyBody={t.emptyBody}
             showUsage={showUsage}
             isLoading={chat.isRestoring}
             confirmingIds={chat.confirmingIds}
@@ -138,7 +135,7 @@ export function AssistantChat({
           {promptContext && chat.messages.length === 0 && (
             <p className="mb-1.5 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
               <Sparkles className="h-3 w-3 text-primary" />
-              Asking about <span className="font-medium text-foreground">{promptContext}</span>
+              {t.askingAbout} <span className="font-medium text-foreground">{promptContext}</span>
             </p>
           )}
           <ChatComposer
@@ -148,7 +145,8 @@ export function AssistantChat({
             onSend={() => void chat.send(chat.draft)}
             isSending={chat.isSending}
             disabled={chat.isRestoring}
-            placeholder="Ask about traffic, funnels, errors… or ask me to set something up"
+            placeholder={t.placeholder}
+            sendLabel={t.send}
           />
         </div>
       </div>

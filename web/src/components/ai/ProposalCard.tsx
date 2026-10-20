@@ -1,6 +1,9 @@
+'use client';
+
 import { AlertTriangle, Check, ExternalLink, Loader2, Lock, PauseCircle, Radio, ShieldAlert, Bell, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { ActionProposal, ProposalRisk } from '@/features/ai/types';
 import {
@@ -48,10 +51,11 @@ const RISK_STYLE: Record<ProposalRisk['kind'], { icon: typeof AlertTriangle; ton
 export function ProposalCard({
   proposal, onConfirm, onDismiss, isConfirming, applied, error, stale, role, className,
 }: ProposalCardProps) {
+  const t = useT().ai.proposal;
   const isCreate = operationOf(proposal) === 'create';
-  const rows = (proposal.diff ?? []).map(diffRow);
-  const risks = riskCallouts(proposal);
-  const permission = confirmPermission(role, proposal);
+  const rows = (proposal.diff ?? []).map((c) => diffRow(c, t));
+  const risks = riskCallouts(proposal, t);
+  const permission = confirmPermission(role, proposal, t);
   // A change's summary lines repeat its diff; the diff is the clearer of the two when there is one.
   const lines = !isCreate && rows.length
     ? proposal.summary.lines.filter((l) => !(proposal.diff ?? []).some((d) => l.startsWith(`${d.label}:`)))
@@ -60,17 +64,17 @@ export function ProposalCard({
   return (
     <div className={cn('rounded-xl border border-border bg-card p-4', className)}>
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="text-[10px]">{proposalBadge(proposal)}</Badge>
+        <Badge variant="outline" className="text-[10px]">{proposalBadge(proposal, t)}</Badge>
         {applied ? (
           <Badge variant="secondary" className="gap-1 text-[10px]">
-            <Check className="h-3 w-3" /> {doneLabel(proposal)}
+            <Check className="h-3 w-3" /> {doneLabel(proposal, t)}
           </Badge>
         ) : (
-          <Badge variant="secondary" className="text-[10px]">{pendingLabel(proposal)}</Badge>
+          <Badge variant="secondary" className="text-[10px]">{pendingLabel(proposal, t)}</Badge>
         )}
         {adminRequired(proposal) && (
           <Badge variant="outline" className="gap-1 text-[10px]">
-            <Lock className="h-3 w-3" /> Owner or admin
+            <Lock className="h-3 w-3" /> {t.ownerOrAdmin}
           </Badge>
         )}
       </div>
@@ -78,7 +82,7 @@ export function ProposalCard({
       <p className="mt-2 font-medium text-foreground">{proposal.summary.title}</p>
 
       {rows.length > 0 && (
-        <dl className="mt-2 space-y-2" aria-label="What changes">
+        <dl className="mt-2 space-y-2" aria-label={t.whatChanges}>
           {rows.map((row, i) => (
             <div key={i} className="text-sm">
               <dt className="text-xs font-medium text-muted-foreground">{row.label}</dt>
@@ -104,7 +108,7 @@ export function ProposalCard({
                         <span aria-hidden className="mr-1 inline-block w-3">
                           {item.change === 'added' ? '+' : item.change === 'removed' ? '−' : ''}
                         </span>
-                        <span className="sr-only">{item.change === 'kept' ? '' : `${item.change}: `}</span>
+                        <span className="sr-only">{item.change === 'kept' ? '' : `${item.change === 'added' ? t.added : t.removed}: `}</span>
                         {item.text}
                       </li>
                     ))}
@@ -137,7 +141,7 @@ export function ProposalCard({
       {stale && !applied && (
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           <RefreshCw className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error ?? 'This draft is out of date. Ask the assistant to draft it again.'}</span>
+          <span>{error ?? t.stale}</span>
         </div>
       )}
 
@@ -155,11 +159,11 @@ export function ProposalCard({
             onClick={onConfirm}
           >
             {isConfirming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            {confirmLabel(proposal)}
+            {confirmLabel(proposal, t)}
           </Button>
           {onDismiss && (
             <Button size="sm" variant="ghost" className="h-8" disabled={isConfirming} onClick={onDismiss}>
-              Not now
+              {t.notNow}
             </Button>
           )}
           {!permission.allowed && (
@@ -171,7 +175,7 @@ export function ProposalCard({
       {applied && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <ExternalLink className="h-3 w-3" />
-          {appliedNoteFor(proposal)}
+          {appliedNoteFor(proposal, t)}
         </p>
       )}
     </div>

@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  * by the demo guard, which is why this only opens the connect dialog rather than connecting.
  */
 test.describe('Conversions page (demo)', () => {
-  test('shows the connected platforms, the figures and the events sent', async ({ page }) => {
+  test('shows the connected platforms, then every conversion in a table with a tab per status', async ({ page }) => {
     await page.goto('/websites/demo/conversions');
 
     await expect(page.getByRole('heading', { level: 1, name: 'Conversions' })).toBeVisible();
@@ -14,12 +14,17 @@ test.describe('Conversions page (demo)', () => {
     await expect(page.getByRole('article', { name: /^Google Analytics 4/ })).toBeVisible();
     await expect(page.getByRole('article', { name: /^TikTok/ })).toBeVisible();
     await expect(page.getByRole('article', { name: /^LinkedIn/ })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Summary' }).getByText('Accepted')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'How they were matched' })).toBeVisible();
 
     const rows = page.locator('tbody tr');
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBeGreaterThan(5);
+
+    // The Failed tab narrows the table to failures, each with a retry.
+    await page.getByRole('tab', { name: 'Failed' }).click();
+    await expect(page.getByRole('tab', { name: 'Failed' })).toHaveAttribute('aria-selected', 'true');
+    await expect(rows.first()).toContainText('Failed');
+    await expect(rows.first().getByRole('button', { name: 'Retry' })).toBeVisible();
+    for (const row of await rows.all()) await expect(row).toContainText('Failed');
   });
 
   test('opens the connect dialog for Meta, asking for the pixel and token', async ({ page }) => {

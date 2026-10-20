@@ -11,12 +11,13 @@ import {
   bulkDeleteDashboardFunnels,
 } from '@/lib/funnels-dashboard';
 import { analyticsKeys } from '@/features/analytics/queries';
+import { useT } from '@/lib/i18n';
 import type { DashboardFunnel as Funnel } from '@/lib/funnels-dashboard';
 
 /** What the server said was wrong with a funnel, so a refused save explains itself. */
-const saveFailure = (error: unknown) => {
+const saveFailure = (fallback: string) => (error: unknown) => {
   const data = (error as { response?: { data?: { error?: string; issues?: string[] } } })?.response?.data;
-  toast.error(data?.issues?.length ? data.issues.join(' ') : data?.error || (error instanceof Error ? error.message : '') || 'Could not save the funnel');
+  toast.error(data?.issues?.length ? data.issues.join(' ') : data?.error || (error instanceof Error ? error.message : '') || fallback);
 };
 
 /**
@@ -36,6 +37,7 @@ const invalidateAllFunnelQueries = (qc: ReturnType<typeof useQueryClient>, websi
 
 export const useCreateFunnel = () => {
   const queryClient = useQueryClient();
+  const failed = useT().funnels.saveFailed;
 
   return useMutation({
     mutationFn: ({ websiteId, funnelData }: { websiteId: string; funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'> }) =>
@@ -43,12 +45,13 @@ export const useCreateFunnel = () => {
     onSuccess: (_, v) => {
       invalidateAllFunnelQueries(queryClient, v.websiteId);
     },
-    onError: saveFailure,
+    onError: saveFailure(failed),
   });
 };
 
 export const useUpdateFunnel = () => {
   const queryClient = useQueryClient();
+  const failed = useT().funnels.saveFailed;
 
   return useMutation({
     mutationFn: ({ websiteId, funnelId, funnelData }: { websiteId: string; funnelId: string; funnelData: Partial<Funnel> }) =>
@@ -56,7 +59,7 @@ export const useUpdateFunnel = () => {
     onSuccess: (_, v) => {
       invalidateAllFunnelQueries(queryClient, v.websiteId);
     },
-    onError: saveFailure,
+    onError: saveFailure(failed),
   });
 };
 

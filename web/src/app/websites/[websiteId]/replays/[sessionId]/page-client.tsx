@@ -32,6 +32,7 @@ import { noRecordingReason } from '@/components/replays/no-recording';
 import { DEMO_REPLAY_URL, demoReplaySessionMeta } from '@/lib/demo/replay-recording';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useT } from '@/lib/i18n';
 import {
   ReplayPlaybackProvider,
   SessionReplaySurface,
@@ -67,6 +68,8 @@ export function ReplayDetailView({
 }) {
   const router = useAppNavigation();
   const { toast } = useToast();
+  const m = useT().replays;
+  const t = m.detail;
   const siteSegment = usePathSegment(1);
   const sessionSegment = usePathSegment(3);
   const websiteId = websiteIdProp ?? siteSegment ?? '';
@@ -162,9 +165,9 @@ export function ReplayDetailView({
   const copyShareLink = useCallback(() => {
     const full = typeof window !== 'undefined' ? window.location.href : '';
     void navigator.clipboard.writeText(full).then(() => {
-      toast({ title: 'Link copied', description: 'Anyone with access can open this replay.' });
+      toast({ title: t.linkCopied, description: t.linkCopiedBody });
     });
-  }, [toast]);
+  }, [toast, t]);
 
   const listHref = `/websites/${websiteId}/replays`;
   const hasRecording = events.length > 0;
@@ -173,7 +176,7 @@ export function ReplayDetailView({
   const noRecording = noRecordingReason({
     durationSeconds: session?.durationSeconds,
     signalTypes: sessionSignals.map((e) => e.eventType),
-  });
+  }, m);
 
   useEffect(() => {
     setReplayBridge(null);
@@ -254,8 +257,8 @@ export function ReplayDetailView({
                 <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                 <p className="text-xs font-medium text-muted-foreground">
                   {chunkProgress && chunkProgress.total > 1
-                    ? `Loading recording… ${chunkProgress.loaded} / ${chunkProgress.total} chunks`
-                    : 'Loading recording…'}
+                    ? t.loadingChunks(chunkProgress.loaded, chunkProgress.total)
+                    : t.loading}
                 </p>
                 {chunkProgress && chunkProgress.total > 1 && (
                   <div className="w-40 h-1 rounded-full bg-muted overflow-hidden">
@@ -272,15 +275,15 @@ export function ReplayDetailView({
                   <Video className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div className="max-w-md space-y-2">
-                  <p className="text-sm font-semibold text-foreground">Couldn&apos;t load replay</p>
+                  <p className="text-sm font-semibold text-foreground">{t.loadFailed}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {chunksError ?? (queryError instanceof Error
                       ? queryError.message
-                      : 'The session may have been deleted, the API returned an error (for example 404), or the recording bytes could not be read from storage.')}
+                      : t.loadFailedBody)}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
-                  Back to replays
+                  {t.backToReplays}
                 </Button>
               </div>
             ) : recordingPending ? (
@@ -289,12 +292,11 @@ export function ReplayDetailView({
                   <Video className="h-7 w-7 text-primary/60" />
                 </div>
                 <div className="max-w-md space-y-2">
-                  <p className="text-sm font-semibold text-foreground">Preparing recording…</p>
+                  <p className="text-sm font-semibold text-foreground">{t.preparing}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Replay bytes are written to object storage shortly after recording goes idle (usually within about a minute).
-                    If this never finishes, the analytics core may not reach MinIO/S3—check core logs for
+                    {t.preparingBody}
                     {' '}<span className="font-mono text-[11px]">replay spool: bundle upload failed</span>
-                    {' '}and verify <span className="font-mono text-[11px]">S3_*</span> / MinIO settings.
+                    {' '}{t.preparingAnd} <span className="font-mono text-[11px]">S3_*</span> {t.preparingSettings}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -303,10 +305,10 @@ export function ReplayDetailView({
                     size="sm"
                     onClick={() => queryClient.invalidateQueries({ queryKey: ['replay', websiteId, sessionId] })}
                   >
-                    Retry now
+                    {t.retryNow}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
-                    Back to replays
+                    {t.backToReplays}
                   </Button>
                 </div>
               </div>
@@ -327,7 +329,7 @@ export function ReplayDetailView({
                   <p className="text-xs text-muted-foreground leading-relaxed">{noRecording.body}</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
-                  Back to replays
+                  {t.backToReplays}
                 </Button>
               </div>
             ) : (
@@ -359,9 +361,7 @@ export function ReplayDetailView({
                   >
                     <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-[11px] leading-snug text-amber-800 dark:text-amber-200">
-                      {missingChunks} of {chunkProgress?.total ?? missingChunks} segments couldn&apos;t be
-                      loaded, so this replay has gaps. Reloading may recover them; if it does not,
-                      check object storage access for this session.
+                      {t.gaps(missingChunks, chunkProgress?.total ?? missingChunks)}
                     </p>
                   </div>
                 )}

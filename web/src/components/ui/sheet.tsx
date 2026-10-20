@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
+import { useT } from "@/lib/i18n"
 
 import { cn } from "@/lib/utils"
 
@@ -46,7 +47,7 @@ const SheetContent = React.forwardRef<
       {children}
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <CloseLabel />
       </SheetPrimitive.Close>
     </SheetPrimitive.Content>
   </SheetPortal>
@@ -78,3 +79,8 @@ const SheetDescription = React.forwardRef<
 SheetDescription.displayName = "SheetDescription"
 
 export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription }
+
+/** The close button's name for screen readers, in the dashboard's language. */
+function CloseLabel() {
+  return <span className="sr-only">{useT().actions.close}</span>
+}

@@ -10,10 +10,10 @@ import { AskAiButton } from '@/components/ai/AskAiButton';
 import { askAbout } from '@/features/ai/ask-link';
 import { GitBranch, Trash2, Plus } from 'lucide-react';
 import {
-  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+  COLLECTION_SURFACE, CollectionEmpty, CollectionSkeleton, CountTabs, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
 } from '@/components/ui/collection';
-import { LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
-import { FUNNEL_TONE_LABEL, FunnelCards, FunnelList, FunnelTable } from '@/components/funnels/FunnelViews';
+import { GHOST_BUTTON, LIST_PAGE, PageBar } from '@/components/ui/linear-list';
+import { FUNNEL_TONES, FunnelCards, FunnelList, FunnelTable } from '@/components/funnels/FunnelViews';
 import { isDemo } from '@/lib/demo';
 import { useCreateFunnel, useUpdateFunnel, useDeleteFunnel, useDeleteFunnels } from '@/features/funnels/mutations';
 import { useFunnels, useFunnelsAnalytics, type Funnel } from '@/features/funnels/queries';
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { DEFAULT_FUNNEL_DAYS, FUNNEL_RANGES, FunnelRangeSelect, MAX_FUNNEL_DAYS } from '@/components/funnels/FunnelRangeSelect';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { FUNNEL_TONE_DOT, FUNNEL_TONE_RANK, funnelTone, previousFrom, type FunnelPrevious, type FunnelTone } from '@/features/funnels/insights';
 import type { FunnelAnalyticsItem } from '@/lib/funnels-dashboard';
@@ -49,6 +50,8 @@ export default function FunnelsPage() {
   const { canEdit } = usePermissions(websiteId);
   const isDemoMode = isDemo(websiteId);
 
+  const all = useT();
+  const t = all.funnels.list;
   const [dateRange, setDateRange] = useState<number>(DEFAULT_FUNNEL_DAYS);
   const [confirm, confirmDialog] = useConfirm();
   const [search, setSearch] = useState('');
@@ -89,7 +92,8 @@ export default function FunnelsPage() {
   const [sort, setSort] = useState<Sort>('attention');
   const [trend, setTrend] = useState<FunnelTone | ''>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [layout, setLayout] = useLayoutPreference<FunnelLayout>('funnels', LAYOUTS, 'list');
+  // Table first: the funnels side by side, with checkboxes for acting on several at once.
+  const [layout, setLayout] = useLayoutPreference<FunnelLayout>('funnels', LAYOUTS, 'table');
   const createFunnelMutation = useCreateFunnel();
   const updateFunnelMutation = useUpdateFunnel();
   const deleteFunnelMutation = useDeleteFunnel();
@@ -118,9 +122,9 @@ export default function FunnelsPage() {
 
   const handleDeleteFunnel = async (id: string) => {
     const ok = await confirm({
-      title: 'Delete this funnel?',
-      description: 'The funnel and its conversion history are removed. Your analytics data is not affected.',
-      confirmLabel: 'Delete funnel',
+      title: t.deleteTitle,
+      description: t.deleteBody,
+      confirmLabel: t.deleteConfirm,
       destructive: true,
     });
     if (ok) deleteFunnelMutation.mutate({ websiteId, funnelId: id });
@@ -128,22 +132,23 @@ export default function FunnelsPage() {
 
   const toneOf = (f: Funnel) => funnelTone(f, reportOf(f.id), previousOf(f.id));
   const SORTS: Record<Sort, { label: string; compare: (a: Funnel, b: Funnel) => number }> = {
-    attention: { label: 'Needs attention first', compare: (a, b) => FUNNEL_TONE_RANK[toneOf(b)] - FUNNEL_TONE_RANK[toneOf(a)] || (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
-    rate: { label: 'Best converting', compare: (a, b) => rateOf(reportOf(b.id)) - rateOf(reportOf(a.id)) },
-    starts: { label: 'Most entries', compare: (a, b) => (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
-    name: { label: 'Name', compare: (a, b) => a.name.localeCompare(b.name) },
+    attention: { label: t.sortAttention, compare: (a, b) => FUNNEL_TONE_RANK[toneOf(b)] - FUNNEL_TONE_RANK[toneOf(a)] || (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
+    rate: { label: t.sortRate, compare: (a, b) => rateOf(reportOf(b.id)) - rateOf(reportOf(a.id)) },
+    starts: { label: t.sortStarts, compare: (a, b) => (reportOf(b.id)?.total_starts ?? 0) - (reportOf(a.id)?.total_starts ?? 0) },
+    name: { label: t.sortName, compare: (a, b) => a.name.localeCompare(b.name) },
   };
 
   const q = search.trim().toLowerCase();
-  const shown = funnels
-    .filter((f) => view === 'all' || ['worse', 'leak'].includes(toneOf(f)))
+  /** The funnels the search and Trend filter keep, before the tab narrows them. */
+  const matching = funnels
     .filter((f) => !trend || toneOf(f) === trend)
-    .filter((f) => !q || f.name.toLowerCase().includes(q) || (f.description ?? '').toLowerCase().includes(q))
-    .sort(SORTS[sort].compare);
+    .filter((f) => !q || f.name.toLowerCase().includes(q) || (f.description ?? '').toLowerCase().includes(q));
+  const inView = (f: Funnel, v: View) => v === 'all' || ['worse', 'leak'].includes(toneOf(f));
+  const shown = matching.filter((f) => inView(f, view)).sort(SORTS[sort].compare);
 
   const fields: FilterField[] = [{
-    id: 'trend', label: 'Trend', value: trend, onChange: (v) => setTrend(v as FunnelTone | ''),
-    options: (Object.keys(FUNNEL_TONE_LABEL) as FunnelTone[]).map((t) => ({ value: t, label: FUNNEL_TONE_LABEL[t], icon: <span aria-hidden className={cn('size-1.5 rounded-full', FUNNEL_TONE_DOT[t])} /> })),
+    id: 'trend', label: t.trend, value: trend, onChange: (v) => setTrend(v as FunnelTone | ''),
+    options: FUNNEL_TONES.map((tone) => ({ value: tone, label: all.funnels.tones[tone], icon: <span aria-hidden className={cn('size-1.5 rounded-full', FUNNEL_TONE_DOT[tone])} /> })),
   }];
 
   const open = (f: Funnel) => router.push(`/websites/${websiteId}/funnels/${f.id}`);
@@ -155,64 +160,74 @@ export default function FunnelsPage() {
   const chosen = [...selected].filter((id) => shown.some((f) => f.id === id));
   const narrowed = !!(q || trend || view !== 'all');
 
+  const views: { id: View; label: string }[] = [{ id: 'all', label: t.allFunnels }, { id: 'attention', label: t.needsAttention }];
+  /** The panel's top row: the views with their counts on the left, every control on the right. */
+  const toolbar = (
+    <FilterToolbar
+      leading={
+        <CountTabs
+          label={t.views}
+          tabs={views.map((v) => ({ ...v, count: funnelsLoading ? undefined : matching.filter((f) => inView(f, v.id)).length }))}
+          value={view}
+          onChange={setView}
+        />
+      }
+      sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
+      filters={fields}
+      search={{ value: search, onChange: setSearch, placeholder: t.searchPlaceholder, label: t.search }}
+    >
+      <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+    </FilterToolbar>
+  );
+
+  /** Under the toolbar while funnels are ticked: how many, clear, delete. */
+  const bulkBar = chosen.length > 0 && layout === 'table' && canEdit ? (
+    <div className="flex items-center gap-2 border-b border-border/70 bg-muted/60 px-4 py-1.5 text-[13px]">
+      <span className="font-medium text-foreground">{t.selected(chosen.length)}</span>
+      <button type="button" className={GHOST_BUTTON} onClick={() => setSelected(new Set())}>{all.actions.clear}</button>
+      <button
+        type="button"
+        className={cn(GHOST_BUTTON, 'gap-1.5 text-destructive hover:text-destructive')}
+        disabled={bulkDeleteMutation.isPending}
+        onClick={async () => {
+          const ok = await confirm({
+            title: t.deleteManyTitle(chosen.length),
+            description: t.deleteManyBody,
+            confirmLabel: all.actions.delete,
+            destructive: true,
+          });
+          if (ok) bulkDeleteMutation.mutate({ websiteId, funnelIds: chosen }, { onSuccess: () => setSelected(new Set()) });
+        }}
+      >
+        <Trash2 className="size-3.5" />{all.actions.delete}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className={LIST_PAGE}>
       {confirmDialog}
-      <PageBar
-        icon={<GitBranch />}
-        title="Funnels"
-        views={<ViewTabs label="Views" tabs={[{ id: 'all', label: 'All funnels' }, { id: 'attention', label: 'Needs attention' }]} value={view} onChange={setView} />}
-      >
-        <AskAiButton websiteId={websiteId} {...askAbout.funnels(dateRange)} />
+      <PageBar title={t.title} description={t.description}>
+        <AskAiButton websiteId={websiteId} {...askAbout.funnels(dateRange, all.ai.ask)} />
         <FunnelRangeSelect value={dateRange} onChange={setDateRange} />
         {canEdit && (
           <Button onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }} className="h-7 gap-1.5 px-2.5 text-[12.5px]">
-            <Plus className="size-3.5" /> New funnel
+            <Plus className="size-3.5" /> {t.newFunnel}
           </Button>
         )}
       </PageBar>
 
-      <FilterToolbar
-        sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
-        filters={fields}
-        search={{ value: search, onChange: setSearch, placeholder: 'Search funnels…', label: 'Search funnels' }}
-        count={funnelsLoading ? undefined : `${shown.length} of ${funnels.length}`}
-      >
-        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
-      </FilterToolbar>
-
-      {chosen.length > 0 && layout === 'table' && (
-        <div className="flex items-center gap-2 border-b border-border bg-primary/[0.04] px-4 py-1.5 text-[13px]">
-          <span className="font-medium">{chosen.length} selected</span>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelected(new Set())}>Clear</Button>
-          <Button
-            variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-destructive hover:text-destructive"
-            disabled={bulkDeleteMutation.isPending}
-            onClick={async () => {
-              const ok = await confirm({
-                title: `Delete ${chosen.length} funnel${chosen.length === 1 ? '' : 's'}?`,
-                description: 'The funnels and their conversion history are removed. Your analytics data is not affected.',
-                confirmLabel: 'Delete',
-                destructive: true,
-              });
-              if (ok) bulkDeleteMutation.mutate({ websiteId, funnelIds: chosen }, { onSuccess: () => setSelected(new Set()) });
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" />Delete
-          </Button>
-        </div>
-      )}
-
-      {funnelsLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
-        <CollectionEmpty
+      {funnelsLoading ? <div className={COLLECTION_SURFACE}>{toolbar}<CollectionSkeleton /></div> : shown.length === 0 ? (
+        <div className={COLLECTION_SURFACE}>{toolbar}<CollectionEmpty
           icon={<GitBranch />}
-          title={narrowed ? 'No matches' : 'No funnels yet'}
-          description={narrowed ? 'No funnel matches this view, filter or search.' : 'A funnel is the steps visitors take to convert, such as pricing → signup → paid. Make one to see where people drop off.'}
-          action={!narrowed && canEdit ? <Button size="sm" className="gap-1.5" onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}><Plus className="h-3.5 w-3.5" />New funnel</Button> : undefined}
-        />
+          title={narrowed ? t.noMatches : t.empty}
+          description={narrowed ? t.noMatchesBody : t.emptyBody}
+          action={!narrowed && canEdit ? <Button size="sm" className="gap-1.5" onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}><Plus className="h-3.5 w-3.5" />{t.newFunnel}</Button> : undefined}
+        /></div>
       ) : layout === 'table' ? (
         <FunnelTable
           {...props}
+          toolbar={<>{toolbar}{bulkBar}</>}
           sortedBy={sort}
           selection={canEdit ? {
             selected,
@@ -221,9 +236,9 @@ export default function FunnelsPage() {
           } : undefined}
         />
       ) : layout === 'cards' ? (
-        <FunnelCards {...props} />
+        <FunnelCards {...props} toolbar={toolbar} />
       ) : (
-        <FunnelList {...props} />
+        <FunnelList {...props} toolbar={toolbar} />
       )}
 
       {/* Create/Edit Funnel Sheet */}

@@ -5,6 +5,7 @@ import { Globe, Monitor, Smartphone, Tablet } from 'lucide-react';
 import { getBrowserImagePath, getOsImagePath } from '@/lib/analytics-icons';
 import { getCountryFlag } from '@/utils/countries';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /** Drop trailing semver-style versions from Bowser-style labels (e.g. `Chrome 147.0.0.0` → `Chrome`). */
 export function stripClientVersionLabel(raw: string): string {
@@ -60,10 +61,11 @@ function knownLabel(raw: string | undefined, unknown: string): { known: boolean;
 }
 
 export function SessionCountryVisual({ country }: { country: string }) {
-  const { known, label } = knownLabel(country, 'Unknown');
+  const t = useT().replays.environment;
+  const { known, label } = knownLabel(country, t.unknown);
 
   return (
-    <div className="flex min-w-0 items-center gap-2" title={known ? label : 'Unknown location'}>
+    <div className="flex min-w-0 items-center gap-2" title={known ? label : t.unknownLocation}>
       <LocalIcon
         src={known ? getCountryFlag(label) : null}
         label={label}
@@ -87,11 +89,14 @@ export function SessionClientRowStack({
   os: string;
   device: string;
 }) {
-  const br = knownLabel(browser, 'Unknown browser');
-  const osN = knownLabel(os, 'Unknown OS');
+  const m = useT().replays;
+  const br = knownLabel(browser, m.environment.unknownBrowser);
+  const osN = knownLabel(os, m.environment.unknownOs);
 
   const d = device?.trim().toLowerCase() ?? '';
-  const deviceLabel = d && d !== 'unknown' ? d.charAt(0).toUpperCase() + d.slice(1) : 'Desktop';
+  const deviceLabel = d && d !== 'unknown'
+    ? m.devices[d as keyof typeof m.devices] ?? d.charAt(0).toUpperCase() + d.slice(1)
+    : m.devices.desktop;
   const deviceIcon =
     d === 'mobile' ? <Smartphone /> : d === 'tablet' ? <Tablet /> : <Monitor />;
 

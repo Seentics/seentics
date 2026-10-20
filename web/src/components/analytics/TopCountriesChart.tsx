@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Globe } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useT } from '@/lib/i18n';
 
 interface TopCountriesChartProps {
   data?: {
@@ -158,6 +158,7 @@ export const getCountryCode = (countryName: string): string => {
 };
 
 export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
+  const t = useT().analytics.geo;
   // Use real data if available, otherwise show empty state
   const countryData = data?.top_countries?.map((item, index) => {
     const colors = ['#2563EB', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];
@@ -204,7 +205,7 @@ export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
         <Globe className="h-10 w-10 mb-2 opacity-20" />
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No country data</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">{t.noCountryData}</p>
       </div>
     );
   }
@@ -216,7 +217,7 @@ export function TopCountriesChart({ data, isLoading }: TopCountriesChartProps) {
                 <div className="relative w-8 h-6 rounded-lg overflow-hidden shadow-sm border border-border">
                 <Image
                     src={item.flag}
-                    alt={`${item.country} flag`}
+                    alt={t.flag(item.country)}
                     fill
                     className="object-cover"
                     onError={(e) => {

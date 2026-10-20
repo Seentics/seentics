@@ -12,6 +12,7 @@ import { getGoals, deleteGoal, Goal } from '@/lib/websites-api';
 import { AddGoalModal } from '../websites/modals/AddGoalModal';
 import { toast } from 'sonner';
 import { EditGuard } from '@/features/client-mode/ClientMode';
+import { useT } from '@/lib/i18n';
 
 interface GoalsSettingsComponentProps {
   websiteId: string;
@@ -21,6 +22,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
   const queryClient = useQueryClient();
+  const t = useT().settings.goals;
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals', websiteId],
@@ -31,21 +33,21 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
   const deleteMutation = useMutation({
     mutationFn: (goalId: string) => deleteGoal(websiteId, goalId),
     onSuccess: () => {
-      toast.success('Goal deleted successfully');
+      toast.success(t.deleted);
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
       queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
     },
     onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : 'Failed to delete goal';
+      const message = error instanceof Error ? error.message : t.deleteFailed;
       toast.error(message);
     },
   });
 
   const handleDelete = async (goalId: string) => {
     const ok = await confirm({
-      title: 'Delete this goal?',
-      description: 'Its conversion counts stop being tracked. Your analytics events are kept.',
-      confirmLabel: 'Delete goal',
+      title: t.deleteTitle,
+      description: t.deleteBody,
+      confirmLabel: t.deleteConfirm,
       destructive: true,
     });
     if (ok) deleteMutation.mutate(goalId);
@@ -57,8 +59,8 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Goal Conversions</h2>
-          <p className="text-muted-foreground text-sm">Define what success looks like for your website.</p>
+          <h2 className="text-xl font-bold tracking-tight">{t.title}</h2>
+          <p className="text-muted-foreground text-sm">{t.description}</p>
         </div>
         <EditGuard feature="goals">
         <Button 
@@ -66,7 +68,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           className="h-10 px-5 font-bold rounded-lg gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
         >
           <Plus className="h-4 w-4" />
-          Create New Goal
+          {t.create}
         </Button>
         </EditGuard>
       </div>
@@ -79,7 +81,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           </div>
         ) : (!goals || goals.length === 0) ? (
           <div className="text-center py-12 bg-muted/20 rounded-lg border border-dashed">
-            <p className="text-muted-foreground">No goals defined yet. Create your first goal to track success.</p>
+            <p className="text-muted-foreground">{t.empty}</p>
           </div>
         ) : (
           goals.map((goal: Goal) => (
@@ -102,19 +104,19 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
                   <div className="flex items-center gap-2">
                     <h3 className="text-[14px] font-bold text-foreground">{goal.name}</h3>
                     <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest px-1.5 h-4 bg-muted/50 border-muted-foreground/10">
-                      {goal.type === 'event' ? 'Custom Event' : 'Page Visit'}
+                      {goal.type === 'event' ? t.customEvent : t.pageVisit}
                     </Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
-                    <span className="opacity-50">Identity:</span> {goal.identifier}
+                    <span className="opacity-50">{t.identity}</span> {goal.identifier}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-8 sm:gap-12 ml-auto sm:ml-0">
                 <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5 opacity-60">Status</p>
-                  <p className="text-sm font-bold text-emerald-500">Active</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5 opacity-60">{t.status}</p>
+                  <p className="text-sm font-bold text-emerald-500">{t.active}</p>
                 </div>
                 <div className="h-10 w-px bg-border/40 hidden sm:block mx-2" />
                 <EditGuard feature="goals">
@@ -122,7 +124,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    aria-label="Delete goal"
+                    aria-label={t.deleteConfirm}
                     onClick={() => handleDelete(goal.id)}
                     className="h-9 w-9 rounded-lg hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                   >
@@ -139,7 +141,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
       <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border">
         <Info className="h-5 w-5 text-muted-foreground shrink-0" />
         <p className="text-xs text-muted-foreground font-medium">
-          New goals may take up to 5 minutes to appear in your dashboard after the first event is received.
+          {t.delay}
         </p>
       </div>
 

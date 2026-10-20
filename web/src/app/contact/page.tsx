@@ -10,13 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Mail, MessageSquare, MapPin, Clock, Send, ExternalLink, Github } from 'lucide-react';
 import { FaDiscord } from 'react-icons/fa';
 import { Logo } from '@/components/ui/logo';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 export default function ContactPage() {
   const { toast } = useToast();
+  const t = useT().site.contact;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -35,8 +38,8 @@ export default function ContactPage() {
     
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
+        title: t.invalidTitle,
+        description: t.invalidBody,
         variant: "destructive",
       });
       return;
@@ -55,8 +58,8 @@ export default function ContactPage() {
       });
 
       toast({
-        title: "Message Sent!",
-        description: "Thank you for contacting us. We'll get back to you within 24 hours.",
+        title: t.sentTitle,
+        description: t.sentBody,
       });
 
       setFormData({
@@ -68,8 +71,8 @@ export default function ContactPage() {
       });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to send message. Please try again.",
+        title: t.errorTitle,
+        description: error.message || t.errorBody,
         variant: "destructive",
       });
     } finally {
@@ -85,9 +88,12 @@ export default function ContactPage() {
           <Link href="/" className="flex items-center">
             <Logo size="lg" showText={true} textClassName="font-headline text-2xl font-bold" />
           </Link>
-          <Button asChild>
-            <Link href="/">Go to Home</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Button asChild>
+              <Link href="/">{t.goHome}</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -97,10 +103,10 @@ export default function ContactPage() {
           {/* Hero Section */}
           <div className="text-center mb-12">
             <h1 className="font-headline scroll-m-20 text-4xl font-bold tracking-tight mb-4">
-              Get in Touch
+              {t.title}
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Have questions about Seentics? Need help with implementation? We're here to help you succeed with your analytics and automation goals.
+              {t.lead}
             </p>
           </div>
 
@@ -111,71 +117,71 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
-                    Send us a Message
+                    {t.formTitle}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Full Name *</Label>
+                        <Label htmlFor="name">{t.name}</Label>
                         <Input
                           id="name"
                           value={formData.name}
                           onChange={(e) => handleInputChange('name', e.target.value)}
-                          placeholder="John Doe"
+                          placeholder={t.namePlaceholder}
                           required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address *</Label>
+                        <Label htmlFor="email">{t.email}</Label>
                         <Input
                           id="email"
                           type="email"
                           value={formData.email}
                           onChange={(e) => handleInputChange('email', e.target.value)}
-                          placeholder="john@company.com"
+                          placeholder={t.emailPlaceholder}
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="company">Company (Optional)</Label>
+                      <Label htmlFor="company">{t.company}</Label>
                       <Input
                         id="company"
                         value={formData.company}
                         onChange={(e) => handleInputChange('company', e.target.value)}
-                        placeholder="Your Company Name"
+                        placeholder={t.companyPlaceholder}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="subject">Subject *</Label>
+                      <Label htmlFor="subject">{t.subject}</Label>
                       <Select value={formData.subject} onValueChange={(value) => handleInputChange('subject', value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a subject" />
+                          <SelectValue placeholder={t.subjectPlaceholder} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="general">General Inquiry</SelectItem>
-                          <SelectItem value="technical">Technical Support</SelectItem>
-                          {isEnterprise && <SelectItem value="billing">Billing & Pricing</SelectItem>}
-                          <SelectItem value="integration">Integration Help</SelectItem>
-                          {isEnterprise && <SelectItem value="enterprise">Enterprise Sales</SelectItem>}
-                          <SelectItem value="partnership">Partnership</SelectItem>
-                          <SelectItem value="bug">Bug Report</SelectItem>
-                          <SelectItem value="feature">Feature Request</SelectItem>
+                          <SelectItem value="general">{t.subjects.general}</SelectItem>
+                          <SelectItem value="technical">{t.subjects.technical}</SelectItem>
+                          {isEnterprise && <SelectItem value="billing">{t.subjects.billing}</SelectItem>}
+                          <SelectItem value="integration">{t.subjects.integration}</SelectItem>
+                          {isEnterprise && <SelectItem value="enterprise">{t.subjects.enterprise}</SelectItem>}
+                          <SelectItem value="partnership">{t.subjects.partnership}</SelectItem>
+                          <SelectItem value="bug">{t.subjects.bug}</SelectItem>
+                          <SelectItem value="feature">{t.subjects.feature}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="message">Message *</Label>
+                      <Label htmlFor="message">{t.message}</Label>
                       <Textarea
                         id="message"
                         value={formData.message}
                         onChange={(e) => handleInputChange('message', e.target.value)}
-                        placeholder="Tell us how we can help you..."
+                        placeholder={t.messagePlaceholder}
                         rows={6}
                         required
                       />
@@ -185,12 +191,12 @@ export default function ContactPage() {
                       {isSubmitting ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Sending...
+                          {t.sending}
                         </>
                       ) : (
                         <>
                           <Send className="h-5 w-5 mr-3" />
-                          Send message
+                          {t.send}
                         </>
                       )}
                     </Button>
@@ -204,13 +210,13 @@ export default function ContactPage() {
               {/* Contact Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Contact Information</CardTitle>
+                  <CardTitle>{t.info}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start gap-3">
                     <Mail className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Email</p>
+                      <p className="font-medium">{t.emailLabel}</p>
                       <a href="mailto:seentics@gmail.com" className="text-muted-foreground hover:text-primary block">
                         seentics@gmail.com
                       </a>
@@ -223,9 +229,9 @@ export default function ContactPage() {
                   <div className="flex items-start gap-3">
                     <MapPin className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Location</p>
+                      <p className="font-medium">{t.location}</p>
                       <p className="text-muted-foreground">
-                        Dhaka, Bangladesh
+                        {t.locationValue}
                       </p>
                     </div>
                   </div>
@@ -233,10 +239,10 @@ export default function ContactPage() {
                   <div className="flex items-start gap-3">
                     <Clock className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Response Time</p>
+                      <p className="font-medium">{t.responseTime}</p>
                       <p className="text-muted-foreground">
-                        We typically respond<br />
-                        within 24 hours
+                        {t.responseA}<br />
+                        {t.responseB}
                       </p>
                     </div>
                   </div>
@@ -246,23 +252,23 @@ export default function ContactPage() {
               {/* Quick Links */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Quick Links</CardTitle>
+                  <CardTitle>{t.quickLinks}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link href="/docs" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                     <ExternalLink className="h-4 w-4" />
-                    Documentation
+                    {t.docs}
                   </Link>
                   {isEnterprise && (
                     <Link href="/signup" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                       <ExternalLink className="h-4 w-4" />
-                      Start Free Trial
+                      {t.startTrial}
                     </Link>
                   )}
                   {isEnterprise && (
                     <Link href="/pricing" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                       <ExternalLink className="h-4 w-4" />
-                      View Pricing
+                      {t.viewPricing}
                     </Link>
                   )}
                 </CardContent>
@@ -271,7 +277,7 @@ export default function ContactPage() {
               {/* Community */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Community</CardTitle>
+                  <CardTitle>{t.community}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <a href="https://github.com/Seentics/seentics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
@@ -290,52 +296,19 @@ export default function ContactPage() {
           {/* FAQ Section */}
           <div className="mt-16">
             <h2 className="font-headline text-3xl font-bold text-center mb-8">
-              Frequently Asked Questions
+              {t.faqTitle}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">How quickly can I get started?</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    You can start tracking visitors in under 5 minutes. Simply sign up, add your website, and paste our tracking code. No complex setup required.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Do you offer custom integrations?</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Yes! We offer custom integrations and enterprise solutions. Contact our sales team to discuss your specific requirements.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Is there a free trial?</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Absolutely! Our free plan includes 1 website, 1 workflow, 1 funnel, and 1K events per month. No credit card required.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">How is my data protected?</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    We take privacy seriously. All data is encrypted, GDPR compliant, and stored securely. You maintain full control over your data.
-                  </p>
-                </CardContent>
-              </Card>
+              {t.faq.map((item) => (
+                <Card key={item.q}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{item.q}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">{item.a}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </div>

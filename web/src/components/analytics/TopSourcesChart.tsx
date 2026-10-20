@@ -9,6 +9,7 @@ import { formatNumber } from '@/features/analytics/format';
 import { categorizeReferrer } from '@/features/analytics/selectors';
 
 import { useControllableState } from '@/hooks/useControllableState';
+import { useT } from '@/lib/i18n';
 
 interface TopSourcesChartProps {
   data?: {
@@ -80,6 +81,10 @@ export function TopSourcesChart({
   onActiveTabChange,
   headerAction,
 }: TopSourcesChartProps) {
+  const t = useT().analytics;
+  // 'Direct' and 'Internal Navigation' are the dashboard's own names (selectors.ts), not a site's.
+  const sourceName = (label: string) =>
+    label === 'Direct' ? t.common.direct : label === 'Internal Navigation' ? t.common.internalNavigation : label;
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
     defaultValue: 'overview' as const,
@@ -160,9 +165,9 @@ export function TopSourcesChart({
 
     if (items.length === 0) {
       const emptyMessages: Record<'overview' | 'search' | 'social', string> = {
-        overview: 'No traffic data available',
-        search: 'No search engine traffic',
-        social: 'No social media traffic',
+        overview: t.sources.emptyAll,
+        search: t.sources.emptySearch,
+        social: t.sources.emptySocial,
       };
 
       return (
@@ -222,7 +227,7 @@ export function TopSourcesChart({
                   )}
                   {!directIcon && !sourceImg && <Globe className="h-4 w-4 text-primary hidden" />}
                 </div>
-                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={item.label}>{item.label}</span>
+                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors" title={sourceName(item.label)}>{sourceName(item.label)}</span>
               </div>
 
               <div className="relative shrink-0 text-right text-[13px] font-semibold tabular-nums">
@@ -240,13 +245,13 @@ export function TopSourcesChart({
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'overview' | 'search' | 'social')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
            <div className="flex items-center gap-1">
-             <h3 className="text-sm font-semibold tracking-tight">Traffic Sources</h3>
+             <h3 className="text-sm font-semibold tracking-tight">{t.sources.title}</h3>
              {headerAction}
            </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted p-0.5 rounded-lg">
-             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
-             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
-             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
+             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.sources.all}</TabsTrigger>
+             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.sources.search}</TabsTrigger>
+             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.sources.social}</TabsTrigger>
            </TabsList>
         </div>
 

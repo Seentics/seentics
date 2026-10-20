@@ -1,3 +1,5 @@
+import { heatmapsEn, type HeatmapsMessages } from '@/lib/i18n/messages/heatmaps-en';
+
 /** The figures a page row carries for its one-line read; see core HeatmapPageSummary. */
 export type HeatmapPageFacts = {
   views: number;
@@ -43,17 +45,17 @@ export function inHeatmapGroup(p: HeatmapPageFacts, id: HeatmapGroupId): boolean
 }
 
 /** One line on what visitors do on a page, in plain words, from its counted clicks and scrolls. */
-export function heatmapLine(p: HeatmapPageFacts): string {
+export function heatmapLine(p: HeatmapPageFacts, t: HeatmapsMessages['line'] = heatmapsEn.line): string {
   const f = flags(p);
-  if (!f.enough) return 'Not enough visits yet to judge';
+  if (!f.enough) return t.notEnough;
   const parts: string[] = [];
-  if (f.dead) parts.push(`${p.dead_click_pct}% of clicks hit things that do nothing`);
-  if (f.low) parts.push(`only ${p.reach_half_pct}% scroll past halfway`);
-  if (f.gap) parts.push(`mobile scrolls ${p.mobile_avg_scroll}% vs desktop ${p.desktop_avg_scroll}%`);
+  if (f.dead) parts.push(t.dead(p.dead_click_pct ?? 0));
+  if (f.low) parts.push(t.low(p.reach_half_pct ?? 0));
+  if (f.gap) parts.push(t.gap(p.mobile_avg_scroll ?? 0, p.desktop_avg_scroll ?? 0));
   if (!parts.length) {
     return p.reach_half_pct != null
-      ? `Healthy — ${p.reach_half_pct}% scroll past halfway${p.dead_click_pct != null ? `, ${p.dead_click_pct}% dead clicks` : ''}`
-      : 'Nothing stands out';
+      ? t.healthy(p.reach_half_pct, p.dead_click_pct ?? null)
+      : t.nothing;
   }
   const line = parts.join(' · ');
   return line.charAt(0).toUpperCase() + line.slice(1);
@@ -77,16 +79,27 @@ export const HEATMAP_TONE_DOT: Record<HeatmapTone, string> = {
 export const HEATMAP_TONE_RANK: Record<HeatmapTone, number> = { problem: 2, healthy: 1, unknown: 0 };
 
 
+const STATUS_ORDER: HeatmapGroupId[] = ['dead_clicks', 'low_scroll', 'mobile_gap', 'too_little'];
+
 /** A page's one status for its label: the most pressing group it is in. */
 export function pageStatus(p: HeatmapPageFacts): HeatmapGroupId {
-  const order: HeatmapGroupId[] = ['dead_clicks', 'low_scroll', 'mobile_gap', 'too_little'];
-  return order.find((id) => inHeatmapGroup(p, id)) ?? 'healthy';
+  return STATUS_ORDER.find((id) => inHeatmapGroup(p, id)) ?? 'healthy';
+}
+
+/**
+ * Every group a page is in, most pressing first: a page can have dead clicks and be worse on
+ * mobile. "Not enough data" stands alone, since the others mean little without it; none is Healthy.
+ */
+export function pageSignals(p: HeatmapPageFacts): HeatmapGroupId[] {
+  const hits = STATUS_ORDER.filter((id) => inHeatmapGroup(p, id));
+  if (hits.includes('too_little')) return ['too_little'];
+  return hits.length > 0 ? hits : ['healthy'];
 }
 
 /** A readable name for a page from its path: `/` is Home, `/blog/why-real-time` is "Why real time". */
-export function pageName(path: string): string {
+export function pageName(path: string, home: string = heatmapsEn.rows.home): string {
   const last = path.split('?')[0].split('/').filter(Boolean).pop();
-  if (!last) return 'Home';
+  if (!last) return home;
   if (last === ':id') return path;
   const words = decodeURIComponent(last).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : path;

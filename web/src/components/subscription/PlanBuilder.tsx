@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { usePlans } from '@/features/plans/queries';
 import type { BillingInterval, FoundingSpots, Plan } from '@/features/plans/types';
 import {
-  COMPARE_GROUPS, FOUNDING_OFFER, type FoundingNote, OFFER_YEARLY, TIER_PITCH, cardSectionsFor, formatMoney, foundingNote, foundingPrice, monthlyPrice, yearlySavingLabel,
+  FOUNDING_OFFER, type FoundingNote, OFFER_YEARLY, cardSectionsFor, compareGroups, formatMoney, formatTaka, foundingNote, foundingPrice, monthlyPrice, yearlySavingLabel,
 } from '@/features/plans/pricing-spec';
+import { offersManualPayments, useLocale, useT, type Messages } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
@@ -18,6 +19,8 @@ export interface PlanSelection {
   interval: BillingInterval;
   /** A discount code the visitor claimed: the founding code (FOUNDING_OFFER), on Pro or Agency. */
   discount?: string;
+  /** Paid in taka with bKash, Nagad or Rocket: an invoice, not a card checkout. `price` is then in taka. */
+  manual?: true;
 }
 
 interface PlanBuilderProps {
@@ -31,7 +34,9 @@ interface PlanBuilderProps {
   founding?: FoundingSpots | null;
 }
 
-const CTA: Record<Plan['tier'], string> = { free: 'Start free', starter: 'Get Starter', pro: 'Get Pro', agency: 'Get Agency' };
+/** A plan's taka price a month on an interval: the year's spread over twelve months. Null when it has none. */
+const monthlyTaka = (plan: Plan, interval: BillingInterval): number | null =>
+  interval === 'year' && plan.priceYearlyBdt ? plan.priceYearlyBdt / 12 : (plan.priceMonthlyBdt ?? null);
 
 /**
  * Free, Starter, Pro and Agency, from gateway's GET /api/v1/plans: a card each with one short list
@@ -39,16 +44,26 @@ const CTA: Record<Plan['tier'], string> = { free: 'Start free', starter: 'Get St
  * An older catalogue without Agency shows its three plans in three columns.
  * Monthly is the default; Yearly shows the year's price as a monthly figure with the yearly total
  * beside it.
+ *
+ * A visitor in Bangladesh, when the catalogue has taka prices, sees them and pays with bKash, Nagad
+ * or Rocket; a toggle above the cards switches to paying by card in dollars instead.
  */
 export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval, founding: spots }: PlanBuilderProps) {
   const { data: plans, isLoading, isError } = usePlans();
+  const t = useT();
+  const copy = t.pricing;
+  const { region } = useLocale();
+  const takaOffered = offersManualPayments(region) && !!plans?.length && plans.every((p) => p.priceMonthly === 0 || p.priceMonthlyBdt != null);
+  const [payWith, setPayWith] = React.useState<'local' | 'card'>('local');
+  const local = takaOffered && payWith === 'local';
   const [comparing, setComparing] = React.useState(false);
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
   const [chosen, setChosen] = React.useState<BillingInterval>('month');
   // The toggle only means something once yearly is offered (OFFER_YEARLY) and the catalogue has a
   // yearly price. Until then every plan is monthly and nothing is offered that cannot be bought.
   // Once every founding spot is taken the box goes, Claim button and all.
-  const note = foundingNote(spots);
+  // The founding code is a card checkout's discount: not offered on the taka prices.
+  const note: FoundingNote = local ? { show: false } : foundingNote(spots, copy);
   const hasYearly = OFFER_YEARLY && !!plans?.some((p) => p.priceYearly != null);
   const interval: BillingInterval = hasYearly ? chosen : 'month';
 
@@ -60,6 +75,12 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
   const handleSubscribe = (plan: Plan) => {
     if (!onSubscribe) return;
     setLoadingPlan(plan.id);
+    if (local) {
+      onSubscribe(plan.priceMonthly > 0
+        ? { plan: plan.id, price: monthlyTaka(plan, interval) ?? 0, interval, manual: true }
+        : { plan: plan.id, price: 0, interval });
+      return;
+    }
     if (note.show && FOUNDING_OFFER.plans.includes(plan.tier)) {
       const price = foundingPrice(plan, interval);
       onSubscribe({ plan: plan.id, price: interval === 'year' ? price / 12 : price, interval, discount: FOUNDING_OFFER.code });
@@ -75,7 +96,9 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
     // A card is the current plan when it is the plan, and for the paid ones the interval too: the
     // other interval is a switch the customer can make.
     const isCurrent = !!currentPlan && currentPlan === plan.id && (!paid || !currentInterval || currentInterval === interval);
-    const yearly = paid && interval === 'year' && plan.priceYearly != null;
+    const yearly = paid && interval === 'year' && (local ? plan.priceYearlyBdt != null : plan.priceYearly != null);
+    const price = local && paid ? formatTaka(monthlyTaka(plan, interval) ?? 0) : formatMoney(monthlyPrice(plan, interval));
+    const yearTotal = local ? formatTaka(plan.priceYearlyBdt ?? 0) : formatMoney(plan.priceYearly ?? 0);
     return (
       <div
         key={plan.id}
@@ -91,26 +114,26 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
         <div className="mb-3 h-5">
           {featured && (
             <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
-              Most popular
+              {t.planBuilder.mostPopular}
             </span>
           )}
           {agency && (
             <span className="inline-flex rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-background">
-              For agencies
+              {t.planBuilder.forAgencies}
             </span>
           )}
         </div>
 
         <h3 className="text-lg font-semibold">{plan.name}</h3>
-        <p className="mt-1 text-sm text-muted-foreground lg:min-h-10">{TIER_PITCH[plan.tier]}</p>
+        <p className="mt-1 text-sm text-muted-foreground lg:min-h-10">{copy.tierPitch[plan.tier]}</p>
 
         <div className="mt-4 flex items-baseline gap-1.5">
-          <span className="text-4xl font-bold tracking-tight">{formatMoney(monthlyPrice(plan, interval))}</span>
-          <span className="text-sm text-muted-foreground">/month</span>
+          <span className="text-4xl font-bold tracking-tight">{price}</span>
+          <span className="text-sm text-muted-foreground">{t.planBuilder.perMonth}</span>
         </div>
         {/* One short line: the saving is on the Yearly toggle, not repeated on every card. */}
         <p className="mt-1 h-5 text-[13px] text-muted-foreground">
-          {!paid ? 'Free forever' : yearly ? `${formatMoney(plan.priceYearly!)} billed yearly` : 'Billed monthly'}
+          {!paid ? t.planBuilder.freeForever : yearly ? t.planBuilder.billedYearly(yearTotal) : t.planBuilder.billedMonthly}
         </p>
 
         <Button
@@ -122,14 +145,14 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
           {loading && loadingPlan === plan.id ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : isCurrent ? (
-            'Current plan'
+            t.planBuilder.currentPlan
           ) : (
-            <>{CTA[plan.tier] ?? `Get ${plan.name}`} <ArrowRight className="h-4 w-4" /></>
+            <>{t.planBuilder.cta[plan.tier] ?? t.planBuilder.getPlan(plan.name)} <ArrowRight className="h-4 w-4" /></>
           )}
         </Button>
 
         <div className="mt-6 space-y-6 border-t border-border pt-6">
-          {cardSectionsFor(plan).map((section) => (
+          {cardSectionsFor(plan, copy).map((section) => (
             <div key={section.title}>
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{section.title}</p>
               <ul className="space-y-2.5">
@@ -144,7 +167,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
                         <span className="text-muted-foreground">{item.label}</span>
                       )}
                       {item.soon && (
-                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Soon</span>
+                        <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t.planBuilder.soon}</span>
                       )}
                     </span>
                   </li>
@@ -157,7 +180,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
     );
   };
 
-  const savingLabel = plans ? yearlySavingLabel(plans) : '';
+  const savingLabel = plans ? yearlySavingLabel(plans, copy) : '';
 
   return (
     <div className="w-full">
@@ -168,14 +191,36 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
       )}
 
       {isError && (
-        <p className="py-16 text-center text-sm text-muted-foreground">Couldn&apos;t load pricing right now. Please refresh the page.</p>
+        <p className="py-16 text-center text-sm text-muted-foreground">{t.planBuilder.loadFailed}</p>
       )}
 
       {plans && (
         <>
+          {takaOffered && (
+            <div className="mb-4 flex flex-col items-center gap-2">
+              <div role="group" aria-label={t.planBuilder.payWith} className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
+                {(['local', 'card'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={payWith === value}
+                    onClick={() => setPayWith(value)}
+                    className={cn(
+                      'rounded-full px-4 py-1.5 transition-colors',
+                      payWith === value ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {value === 'local' ? t.planBuilder.payLocal : t.planBuilder.payCard}
+                  </button>
+                ))}
+              </div>
+              {local && <p className="text-[13px] text-muted-foreground">{t.planBuilder.localNote}</p>}
+            </div>
+          )}
+
           {hasYearly && (
           <div className="mb-8 flex justify-center">
-            <div role="group" aria-label="Billing interval" className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
+            <div role="group" aria-label={t.planBuilder.billingInterval} className="inline-flex rounded-full border border-border bg-card p-1 text-sm font-medium">
               {(['month', 'year'] as const).map((value) => (
                 <button
                   key={value}
@@ -187,14 +232,14 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
                     interval === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {value === 'month' ? 'Monthly' : `Yearly${savingLabel ? ` (${savingLabel})` : ''}`}
+                  {value === 'month' ? t.planBuilder.monthly : t.planBuilder.yearly(savingLabel)}
                 </button>
               ))}
             </div>
           </div>
           )}
 
-          {note.show && <FoundingBanner plans={plans} note={note} />}
+          {note.show && <FoundingBanner plans={plans} note={note} t={t} />}
 
           {/* Four plans side by side from lg; an older catalogue's three keep three columns. */}
           <div
@@ -209,12 +254,12 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
 
           <div className="mt-8 flex justify-center">
             <Button variant="ghost" onClick={() => setComparing((open) => !open)} aria-expanded={comparing} className="gap-1.5">
-              {comparing ? 'Hide feature comparison' : 'Compare all features'}
+              {comparing ? t.planBuilder.hideCompare : t.planBuilder.compare}
               <ChevronDown className={cn('h-4 w-4 transition-transform', comparing && 'rotate-180')} />
             </Button>
           </div>
 
-          {comparing && <CompareTable plans={plans} interval={interval} />}
+          {comparing && <CompareTable plans={plans} interval={interval} local={local} t={t} />}
         </>
       )}
     </div>
@@ -226,13 +271,14 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, currentInterval
  * apply the code while the offer is open. The availability part reads "first 50 customers" until
  * the real count is worth showing (foundingNote).
  */
-function FoundingBanner({ plans, note }: { plans: Plan[]; note: Extract<FoundingNote, { show: true }> }) {
+function FoundingBanner({ plans, note, t }: { plans: Plan[]; note: Extract<FoundingNote, { show: true }>; t: Messages }) {
   const names = plans.filter((p) => FOUNDING_OFFER.plans.includes(p.tier) && p.priceMonthly > 0).map((p) => p.name);
   if (names.length === 0) return null;
-  const availability = note.text.startsWith('Limited to the ') ? note.text.replace('Limited to the ', '') : note.text;
+  const prefix = t.pricing.founding.limitedPrefix;
+  const availability = note.text.startsWith(prefix) ? note.text.slice(prefix.length) : note.text;
   return (
     <p data-testid="founding-offer" className="mx-auto mb-6 max-w-3xl text-center text-sm text-muted-foreground">
-      <span className="font-semibold text-foreground">Founding offer:</span> {FOUNDING_OFFER.percentOff}% off {names.join(' and ')} for life with code{' '}
+      <span className="font-semibold text-foreground">{t.planBuilder.foundingLabel}</span> {t.planBuilder.founding(FOUNDING_OFFER.percentOff, names.join(t.planBuilder.and))}{' '}
       <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] font-semibold text-foreground">{FOUNDING_OFFER.code}</code>
       <span aria-hidden> · </span>
       <span
@@ -246,7 +292,10 @@ function FoundingBanner({ plans, note }: { plans: Plan[]; note: Extract<Founding
   );
 }
 
-function CompareTable({ plans, interval }: { plans: Plan[]; interval: BillingInterval }) {
+function CompareTable({ plans, interval, local, t }: { plans: Plan[]; interval: BillingInterval; local: boolean; t: Messages }) {
+  const groups = compareGroups(t.pricing);
+  const perMonth = (plan: Plan) =>
+    `${local ? formatTaka(monthlyTaka(plan, interval) ?? 0) : formatMoney(monthlyPrice(plan, interval))}${t.planBuilder.perMonthShort}`;
   return (
     <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card">
       <table className="w-full min-w-[720px] text-sm">
@@ -256,12 +305,12 @@ function CompareTable({ plans, interval }: { plans: Plan[]; interval: BillingInt
             {plans.map((plan) => (
               <th key={plan.id} className={cn('px-4 py-4 text-center font-semibold', plan.tier === 'pro' && 'text-primary', plan.tier === 'agency' && 'bg-muted/40')}>
                 {plan.name}
-                <span className="block text-xs font-normal text-muted-foreground">{plan.priceMonthly > 0 ? `${formatMoney(monthlyPrice(plan, interval))}/mo` : 'Free'}</span>
+                <span className="block text-xs font-normal text-muted-foreground">{plan.priceMonthly > 0 ? perMonth(plan) : t.pricing.free}</span>
               </th>
             ))}
           </tr>
         </thead>
-        {COMPARE_GROUPS.map((group) => (
+        {groups.map((group) => (
           <tbody key={group.title}>
             <tr className="bg-muted/40">
               <th colSpan={plans.length + 1} className="px-5 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -276,9 +325,9 @@ function CompareTable({ plans, interval }: { plans: Plan[]; interval: BillingInt
                   return (
                     <td key={plan.id} className="px-4 py-3 text-center font-medium">
                       {value === true ? (
-                        <Check className="mx-auto h-4 w-4 text-primary" aria-label="Included" />
+                        <Check className="mx-auto h-4 w-4 text-primary" aria-label={t.planBuilder.included} />
                       ) : value === false ? (
-                        <Minus className="mx-auto h-4 w-4 text-muted-foreground" aria-label="Not included" />
+                        <Minus className="mx-auto h-4 w-4 text-muted-foreground" aria-label={t.planBuilder.notIncluded} />
                       ) : (
                         value
                       )}

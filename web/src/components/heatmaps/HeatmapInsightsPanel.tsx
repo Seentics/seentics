@@ -12,6 +12,7 @@ import {
 import { useHeatmapInsights, useRefreshHeatmapInsights } from '@/features/heatmaps/insights-queries';
 import { usePermissions } from '@/hooks/use-permissions';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export interface HeatmapInsightsPanelProps {
   websiteId: string;
@@ -31,6 +32,9 @@ export interface HeatmapInsightsPanelProps {
  * branding. Callers leave it out on embeds and the demo.
  */
 export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClose, className }: HeatmapInsightsPanelProps) {
+  const messages = useT();
+  const m = messages.heatmaps;
+  const t = m.insights;
   const insights = useHeatmapInsights(websiteId, pagePath, days, device);
   const status = useAiStatus(true, websiteId);
   const aiConfigured = insights.data?.ai_configured ?? status.data?.configured ?? false;
@@ -57,31 +61,31 @@ export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClos
       const outcome = await refresh.mutateAsync();
       if (outcome.kind === 'forbidden') setForbidden(true);
     } catch {
-      setRefreshError('Could not refresh right now. Try again later.');
+      setRefreshError(t.refreshFailed);
     }
   };
 
-  const ask = askAboutHeatmapPage(pagePath, days, device);
+  const ask = askAboutHeatmapPage(pagePath, days, device, m, messages.ai.ask.range);
   const canRefresh = aiConfigured && !isViewer && !forbidden;
-  const waitLabel = retryUntil ? formatRetry(Math.ceil((retryUntil - Date.now()) / 1000)) : null;
+  const waitLabel = retryUntil ? formatRetry(Math.ceil((retryUntil - Date.now()) / 1000), m) : null;
 
   return (
     <aside
       className={cn('flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card', className)}
-      aria-label="Page insights"
+      aria-label={t.label}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5">
         {aiConfigured
           ? <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           : <Lightbulb className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <h2 className="text-sm font-semibold tracking-tight text-foreground">
-          {aiConfigured ? 'AI insights' : 'Page insights'}
+          {aiConfigured ? t.aiTitle : t.title}
         </h2>
-        <span className="truncate text-xs text-muted-foreground">{deviceLabel(device)}</span>
+        <span className="truncate text-xs text-muted-foreground">{deviceLabel(device, m)}</span>
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {canRefresh && (
             <IconButton
-              label={waitLabel ? `Refresh available ${waitLabel}` : 'Reword these findings now'}
+              label={waitLabel ? t.refreshIn(waitLabel) : t.reword}
               onClick={() => void onRefresh()}
               disabled={refresh.isPending || insights.isPending || !!waitLabel || !insights.data?.analysis.sufficient}
             >
@@ -90,7 +94,7 @@ export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClos
           )}
           {aiConfigured && <AskAiButton websiteId={websiteId} question={ask.question} context={ask.context} />}
           {onClose && (
-            <IconButton label="Hide insights" onClick={onClose}>
+            <IconButton label={t.hide} onClick={onClose}>
               <X className="h-4 w-4" />
             </IconButton>
           )}
@@ -109,17 +113,17 @@ export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClos
           <div className="space-y-2 text-[13px]">
             <p className="flex items-center gap-1.5 font-medium text-foreground">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-              Insights could not be loaded
+              {t.loadFailed}
             </p>
             <button type="button" onClick={() => void insights.refetch()} className="text-xs font-medium text-primary hover:underline">
-              Try again
+              {t.tryAgain}
             </button>
           </div>
         ) : !insights.data.analysis.sufficient ? (
           <div className="text-[13px]">
-            <p className="font-medium text-foreground">Not enough data yet</p>
+            <p className="font-medium text-foreground">{t.notEnough}</p>
             <p className="mt-0.5 text-muted-foreground">
-              {insights.data.analysis.reason ?? 'Check back once more visitors have used this page.'}
+              {insights.data.analysis.reason ?? t.notEnoughBody}
             </p>
           </div>
         ) : (
@@ -128,7 +132,7 @@ export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClos
 
         {(refreshError || forbidden) && (
           <p className="text-xs text-destructive">
-            {forbidden ? 'Your role on this website cannot refresh insights.' : refreshError}
+            {forbidden ? t.forbidden : refreshError}
           </p>
         )}
       </div>
@@ -137,18 +141,20 @@ export function HeatmapInsightsPanel({ websiteId, pagePath, days, device, onClos
 }
 
 function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured: boolean }) {
+  const m = useT().heatmaps;
+  const t = m.insights;
   const { analysis, insights } = data;
   const scroll = analysis.overall.scroll;
   const clicks = analysis.overall.clicks;
-  const headline = scrollHeadline(scroll);
+  const headline = scrollHeadline(scroll, m);
 
   return (
     <>
       {scroll && (
         <section className="space-y-2">
-          <SectionTitle icon={<ScrollText className="h-3.5 w-3.5" />}>Scroll depth</SectionTitle>
+          <SectionTitle icon={<ScrollText className="h-3.5 w-3.5" />}>{t.scrollDepth}</SectionTitle>
           {headline && <p className="text-[13px] leading-relaxed text-foreground">{headline}</p>}
-          <ul className="space-y-1" aria-label="Share of page views reaching each depth">
+          <ul className="space-y-1" aria-label={t.reachLabel}>
             {reachRows(scroll).map((r) => (
               <li key={r.depth} className="flex items-center gap-2 text-xs">
                 <span className="w-9 shrink-0 tabular-nums text-muted-foreground">{r.depth}%</span>
@@ -160,27 +166,27 @@ function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured
             ))}
           </ul>
           <p className="text-[11px] text-muted-foreground">
-            {scroll.page_views.toLocaleString()} page views
-            {clicks ? ` · ${clicks.clicks.toLocaleString()} clicks` : ''}
-            {scroll.stayed_above_fold_pct !== null ? ` · ${scroll.stayed_above_fold_pct}% never scroll past the first screen` : ''}
+            {t.pageViews(scroll.page_views.toLocaleString())}
+            {clicks ? t.clicks(clicks.clicks.toLocaleString()) : ''}
+            {scroll.stayed_above_fold_pct !== null ? t.aboveFold(scroll.stayed_above_fold_pct) : ''}
           </p>
         </section>
       )}
 
       <section className="space-y-2">
         <SectionTitle icon={<Lightbulb className="h-3.5 w-3.5" />}>
-          Findings
+          {t.findings}
           {insights.source === 'rules' && (
             <span
               className="ml-1.5 font-normal normal-case tracking-normal text-muted-foreground/80"
-              title={insights.reason ?? 'Worked out from the data by fixed rules.'}
+              title={insights.reason ?? t.rulesHint}
             >
-              · {aiConfigured ? 'rule-based' : 'from the data'}
+              · {aiConfigured ? t.ruleBased : t.fromData}
             </span>
           )}
         </SectionTitle>
         {insights.findings.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">Nothing on this page stood out.</p>
+          <p className="text-[13px] text-muted-foreground">{t.nothing}</p>
         ) : (
           <ul className="space-y-2.5">
             {insights.findings.map((f) => (
@@ -189,12 +195,12 @@ function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured
                   {f.finding}
                   {f.device !== 'all' && analysis.device === 'all' && (
                     <span className="ml-1.5 inline-flex rounded-md border border-border px-1.5 py-px align-middle text-[11px] leading-4 text-muted-foreground">
-                      {deviceLabel(f.device)}
+                      {deviceLabel(f.device, m)}
                     </span>
                   )}
                 </p>
                 <p className="rounded-md bg-primary/5 px-2 py-1 text-xs text-foreground/90">
-                  <span className="font-medium text-primary">Fix: </span>{f.fix}
+                  <span className="font-medium text-primary">{t.fix}</span>{f.fix}
                 </p>
               </li>
             ))}
@@ -207,25 +213,25 @@ function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured
 
       {clicks && clicks.top.length > 0 && (
         <section className="space-y-2">
-          <SectionTitle icon={<MousePointerClick className="h-3.5 w-3.5" />}>Most clicked</SectionTitle>
+          <SectionTitle icon={<MousePointerClick className="h-3.5 w-3.5" />}>{t.mostClicked}</SectionTitle>
           <ul className="space-y-1.5">
-            {clicks.top.slice(0, 5).map((t) => (
-              <li key={t.selector} className="text-xs">
+            {clicks.top.slice(0, 5).map((target) => (
+              <li key={target.selector} className="text-xs">
                 <div className="flex items-center gap-1.5">
-                  <code className="min-w-0 truncate font-mono text-foreground" title={t.selector}>{t.selector}</code>
-                  {t.interactive === false && (
-                    <span className="shrink-0 rounded bg-amber-500/10 px-1 text-[10px] font-medium text-amber-700 dark:text-amber-400" title="Not a link or button: a possible dead click">
-                      not clickable?
+                  <code className="min-w-0 truncate font-mono text-foreground" title={target.selector}>{target.selector}</code>
+                  {target.interactive === false && (
+                    <span className="shrink-0 rounded bg-amber-500/10 px-1 text-[10px] font-medium text-amber-700 dark:text-amber-400" title={t.notClickableHint}>
+                      {t.notClickable}
                     </span>
                   )}
                 </div>
-                <p className="text-muted-foreground">{targetSummary(t)}</p>
+                <p className="text-muted-foreground">{targetSummary(target, m)}</p>
               </li>
             ))}
           </ul>
           {clicks.dead_clicks.known_share >= 50 && clicks.dead_clicks.clicks > 0 && (
             <p className="text-[11px] text-muted-foreground">
-              {clicks.dead_clicks.share}% of clicks land on elements that are not links or buttons (dead-click candidates).
+              {t.deadShare(clicks.dead_clicks.share)}
             </p>
           )}
         </section>
@@ -236,7 +242,7 @@ function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured
       <details className="group text-[11px] text-muted-foreground">
         <summary className="flex cursor-pointer list-none items-center gap-1 font-medium hover:text-foreground">
           <ChevronDown className="h-3 w-3 -rotate-90 transition-transform group-open:rotate-0" />
-          What these numbers can&apos;t tell you
+          {t.limits}
         </summary>
         <ul className="mt-1.5 list-disc space-y-1 pl-4">
           {analysis.limits.map((l) => <li key={l}>{l}</li>)}
@@ -247,22 +253,24 @@ function PanelBody({ data, aiConfigured }: { data: HeatmapInsights; aiConfigured
 }
 
 function DeviceTable({ devices }: { devices: DeviceAnalysis[] }) {
+  const m = useT().heatmaps;
+  const t = m.insights;
   return (
     <section className="space-y-2">
-      <SectionTitle>By device</SectionTitle>
+      <SectionTitle>{t.byDevice}</SectionTitle>
       <table className="w-full text-xs">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground">
-            <th className="pb-1 font-medium">Device</th>
-            <th className="pb-1 text-right font-medium" title="Where half of page views stop, as % of the page">Median stop</th>
-            <th className="pb-1 text-right font-medium" title="How much of the page shows without scrolling">Fold</th>
-            <th className="pb-1 text-right font-medium">Clicks/view</th>
+            <th className="pb-1 font-medium">{t.colDevice}</th>
+            <th className="pb-1 text-right font-medium" title={t.colMedianHint}>{t.colMedian}</th>
+            <th className="pb-1 text-right font-medium" title={t.colFoldHint}>{t.colFold}</th>
+            <th className="pb-1 text-right font-medium">{t.colClicksView}</th>
           </tr>
         </thead>
         <tbody>
           {devices.map((d) => (
             <tr key={d.device} className="border-t border-border/60">
-              <td className="py-1 text-foreground">{deviceLabel(d.device)}</td>
+              <td className="py-1 text-foreground">{deviceLabel(d.device, m)}</td>
               <td className="py-1 text-right tabular-nums">{d.scroll ? `${d.scroll.median_depth}%` : '—'}</td>
               <td className="py-1 text-right tabular-nums">{d.scroll?.fold_pct != null ? `${d.scroll.fold_pct}%` : '—'}</td>
               <td className="py-1 text-right tabular-nums">{d.clicks?.clicks_per_view != null ? d.clicks.clicks_per_view.toFixed(1) : '—'}</td>

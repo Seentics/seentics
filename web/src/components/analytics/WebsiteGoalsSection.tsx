@@ -20,12 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Target, PlusCircle, CheckCircle2, TrendingUp, Globe, Pencil, Trash2 } from 'lucide-react';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
-
-const GOAL_TYPE_LABEL: Record<string, string> = {
-  pageview: 'Page Visit',
-  event: 'Custom Event',
-  click: 'CSS Click',
-};
+import { useT } from '@/lib/i18n';
 
 type GoalRow = {
   id?: string | number;
@@ -47,6 +42,7 @@ export function WebsiteGoalsSection({
   /** False holds both reads back — the dashboard loads this section after what is above it. */
   enabled?: boolean;
 }) {
+  const t = useT().analytics.goals;
   const queryClient = useQueryClient();
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
@@ -81,12 +77,12 @@ export function WebsiteGoalsSection({
   const deleteGoalMutation = useMutation({
     mutationFn: (goalId: string) => deleteGoal(websiteId, goalId),
     onSuccess: () => {
-      toast.success('Goal deleted');
+      toast.success(t.deleted);
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
       queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
     },
     onError: (e: Error) => {
-      toast.error(e.message || 'Failed to delete goal');
+      toast.error(e.message || t.deleteFailed);
     },
   });
 
@@ -94,7 +90,7 @@ export function WebsiteGoalsSection({
     () => [
       {
         id: 'name',
-        header: ({ column }) => <SortableHeader column={column}>Goal</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>{t.goal}</SortableHeader>,
         accessorKey: 'name',
         cell: ({ row }) => (
           <div className="flex min-w-0 items-baseline gap-2">
@@ -107,7 +103,7 @@ export function WebsiteGoalsSection({
       },
       {
         id: 'type',
-        header: 'Type',
+        header: t.type,
         accessorKey: 'goal_type',
         size: 120,
         cell: ({ getValue }) => {
@@ -117,14 +113,14 @@ export function WebsiteGoalsSection({
               variant="secondary"
               className="text-xs font-normal text-muted-foreground border-0 bg-muted/60 whitespace-nowrap"
             >
-              {GOAL_TYPE_LABEL[type] ?? type}
+              {t.types[type] ?? type}
             </Badge>
           );
         },
       },
       {
         id: 'completions',
-        header: ({ column }) => <SortableHeader column={column}>Completions</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>{t.completions}</SortableHeader>,
         accessorKey: 'completions',
         size: 120,
         cell: ({ getValue }) => (
@@ -135,7 +131,7 @@ export function WebsiteGoalsSection({
       },
       {
         id: 'conversion_rate',
-        header: ({ column }) => <SortableHeader column={column}>Conversion</SortableHeader>,
+        header: ({ column }) => <SortableHeader column={column}>{t.conversion}</SortableHeader>,
         accessorKey: 'conversion_rate',
         size: 160,
         cell: ({ getValue }) => {
@@ -176,8 +172,8 @@ export function WebsiteGoalsSection({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                title="Edit goal"
-                aria-label="Edit goal"
+                title={t.edit}
+                aria-label={t.edit}
                 onClick={() => {
                   setEditingGoalForModal(def ?? fallback);
                   setShowGoalModal(true);
@@ -190,14 +186,14 @@ export function WebsiteGoalsSection({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                title="Delete goal"
-                aria-label="Delete goal"
+                title={t.delete}
+                aria-label={t.delete}
                 disabled={deleteGoalMutation.isPending}
                 onClick={async () => {
                   const ok = await confirm({
-                    title: 'Delete this goal?',
-                    description: 'Its conversion counts stop being tracked. This cannot be undone.',
-                    confirmLabel: 'Delete goal',
+                    title: t.deleteTitle,
+                    description: t.deleteBody,
+                    confirmLabel: t.delete,
                     destructive: true,
                   });
                   if (ok) deleteGoalMutation.mutate(id);
@@ -210,7 +206,7 @@ export function WebsiteGoalsSection({
         },
       },
     ],
-    [goalDefinitions, websiteId, deleteGoalMutation.isPending],
+    [goalDefinitions, websiteId, deleteGoalMutation.isPending, t],
   );
 
   if (!websiteId) return null;
@@ -221,7 +217,7 @@ export function WebsiteGoalsSection({
       <Card className="border border-border bg-card overflow-hidden">
         <CardHeader className="p-4 border-b border-border">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-sm font-semibold tracking-tight">Goals</h3>
+            <h3 className="text-sm font-semibold tracking-tight">{t.title}</h3>
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs w-fit"
@@ -231,7 +227,7 @@ export function WebsiteGoalsSection({
               }}
             >
               <PlusCircle className="h-3.5 w-3.5" />
-              Add goal
+              {t.add}
             </Button>
           </div>
         </CardHeader>
@@ -243,8 +239,8 @@ export function WebsiteGoalsSection({
             isLoading={isLoading}
             onRowClick={(row) => setDetailGoal(row as GoalRow)}
             emptyIcon={<Target className="h-6 w-6" />}
-            emptyTitle="No goals yet"
-            emptyDescription="Add a goal to track conversions for this site."
+            emptyTitle={t.emptyTitle}
+            emptyDescription={t.emptyBody}
             emptyAction={
               <Button
                 size="sm"
@@ -254,7 +250,7 @@ export function WebsiteGoalsSection({
                 }}
               >
                 <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
-                Add goal
+                {t.add}
               </Button>
             }
           />
@@ -270,13 +266,13 @@ export function WebsiteGoalsSection({
                   <Target className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <DialogTitle className="text-lg font-semibold leading-snug">
-                      {detailGoal.name ?? 'Goal'}
+                      {detailGoal.name ?? t.goal}
                     </DialogTitle>
                     <Badge
                       variant="secondary"
                       className="text-xs font-normal text-muted-foreground border-0 bg-muted/60 mt-2 w-fit"
                     >
-                      {GOAL_TYPE_LABEL[detailGoal.goal_type ?? ''] ?? detailGoal.goal_type}
+                      {t.types[detailGoal.goal_type ?? ''] ?? detailGoal.goal_type}
                     </Badge>
                     {detailGoal.target ? (
                       <p className="text-xs text-muted-foreground font-mono mt-2 break-all">{detailGoal.target}</p>
@@ -290,21 +286,21 @@ export function WebsiteGoalsSection({
                   <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
                     <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-medium uppercase tracking-wide">Completions</span>
+                      <span className="text-[10px] font-medium uppercase tracking-wide">{t.completions}</span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">{(detailGoal.completions ?? 0).toLocaleString()}</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
                     <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                       <TrendingUp className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-medium uppercase tracking-wide">Conv.</span>
+                      <span className="text-[10px] font-medium uppercase tracking-wide">{t.conversionShort}</span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">{(detailGoal.conversion_rate ?? 0).toFixed(1)}%</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
                     <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
                       <Globe className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-medium uppercase tracking-wide">Visitors</span>
+                      <span className="text-[10px] font-medium uppercase tracking-wide">{t.visitors}</span>
                     </div>
                     <p className="text-lg font-bold tabular-nums">
                       {(detailGoal.unique_visitors ??
@@ -315,7 +311,7 @@ export function WebsiteGoalsSection({
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Conversion rate</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">{t.conversionRate}</p>
                   <div className="flex items-center gap-3">
                     <Progress value={Math.min(detailGoal.conversion_rate ?? 0, 100)} className="flex-1 h-2" />
                     <span className="text-base font-bold text-primary tabular-nums">

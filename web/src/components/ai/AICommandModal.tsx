@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,19 +54,21 @@ const CHART_COLORS = [
   '#f472b6', '#a78bfa', '#38bdf8', '#4ade80', '#fbbf24', '#f87171',
 ];
 
+/** Labels are `useT().ai.command.loadingSteps`, by position. */
 const LOADING_STEPS = [
-  { label: 'Routing your question…',     icon: Bot },
-  { label: 'Generating SQL query…',      icon: Code2 },
-  { label: 'Running on your data…',      icon: Database },
+  { icon: Bot },
+  { icon: Code2 },
+  { icon: Database },
 ];
 
+/** Labels are `useT().ai.command.suggestions`, by position: the question each chip asks. */
 const GLOBAL_SUGGESTIONS = [
-  { label: 'Top 10 pages this week',          icon: BarChart2,    color: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-100 dark:bg-violet-500/10' },
-  { label: 'Revenue by country last month',   icon: DollarSign,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10' },
-  { label: 'Sessions with rage clicks',       icon: Zap,          color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-100 dark:bg-red-500/10' },
-  { label: 'Daily visitors trend last 14 days', icon: Activity,   color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-100 dark:bg-indigo-500/10' },
-  { label: 'Where are users dropping off?',   icon: Filter,       color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-100 dark:bg-orange-500/10' },
-  { label: 'Total recorded sessions',         icon: Video,        color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-100 dark:bg-purple-500/10' },
+  { icon: BarChart2,    color: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-100 dark:bg-violet-500/10' },
+  { icon: DollarSign,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10' },
+  { icon: Zap,          color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-100 dark:bg-red-500/10' },
+  { icon: Activity,   color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-100 dark:bg-indigo-500/10' },
+  { icon: Filter,       color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-100 dark:bg-orange-500/10' },
+  { icon: Video,        color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-100 dark:bg-purple-500/10' },
 ];
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -173,6 +176,7 @@ function ResultBarChart({ rows, xKey, yKey, columns }: {
   yKey: string | null;
   columns: Column[];
 }) {
+  const valueLabel = useT().ai.command.value;
   const xk = xKey ?? columns[0]?.key ?? 'name';
   const yk = yKey ?? columns[1]?.key ?? 'count';
   const data = rows.slice(0, 20).map((r) => ({ ...r, [xk]: String(r[xk] ?? '') }));
@@ -215,7 +219,7 @@ function ResultBarChart({ rows, xKey, yKey, columns }: {
             contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
             labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
             cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
-            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
+            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? valueLabel] as [string, string]}
           />
           <Bar dataKey={yk} fill="url(#barGrad)" radius={[0, 5, 5, 0]} barSize={26}>
             <LabelList
@@ -237,6 +241,7 @@ function ResultAreaChart({ rows, xKey, yKey, columns }: {
   yKey: string | null;
   columns: Column[];
 }) {
+  const valueLabel = useT().ai.command.value;
   const xk = xKey ?? columns[0]?.key ?? 'day';
   const yk = yKey ?? columns[1]?.key ?? 'count';
   const data = rows.map((r) => ({
@@ -270,7 +275,7 @@ function ResultAreaChart({ rows, xKey, yKey, columns }: {
           <Tooltip
             contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
             labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
-            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
+            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? valueLabel] as [string, string]}
             cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }}
           />
           <Area
@@ -292,6 +297,7 @@ function ResultLineChart({ rows, xKey, yKey, columns }: {
   yKey: string | null;
   columns: Column[];
 }) {
+  const valueLabel = useT().ai.command.value;
   const xk = xKey ?? columns[0]?.key ?? 'day';
   const yk = yKey ?? columns[1]?.key ?? 'count';
   const data = rows.map((r) => ({
@@ -317,7 +323,7 @@ function ResultLineChart({ rows, xKey, yKey, columns }: {
           <Tooltip
             contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
             labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
-            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
+            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? valueLabel] as [string, string]}
             cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }}
           />
           <Line
@@ -446,6 +452,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
   prompt: string;
 }) {
   const { rows, viz_type, title, insight, tips, x_key, y_key, columns, sql, execution_time_ms } = result;
+  const t = useT().ai.command;
   const [sqlOpen, setSqlOpen] = useState(false);
   const tipList = tips ? tips.split('\n').filter((t) => t.trim().length > 0) : [];
   const hasInsights = !!(insight || tipList.length > 0);
@@ -464,8 +471,8 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
           <BarChart2 className="h-8 w-8 opacity-40" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium">No data returned</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your query or date range</p>
+          <p className="text-sm font-medium">{t.noData}</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">{t.noDataHint}</p>
         </div>
       </div>
     );
@@ -505,7 +512,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                   <Database className="h-3 w-3" />
-                  {rows.length} row{rows.length !== 1 ? 's' : ''}
+                  {t.rows(rows.length)}
                 </span>
                 <span className="text-muted-foreground/30">·</span>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
@@ -523,7 +530,8 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
           <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => exportCSV(rows, columns, title)}
-              title="Download CSV"
+              title={t.downloadCsv}
+              aria-label={t.downloadCsv}
               className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
@@ -534,10 +542,11 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New query</span>
+              <span className="hidden sm:inline">{t.newQuery}</span>
             </button>
             <button
               onClick={() => onOpenChange(false)}
+              aria-label={t.close}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X className="h-4 w-4" />
@@ -564,7 +573,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
                     <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/15">
                       <Bot className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">Key Insight</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">{t.keyInsight}</p>
                   </div>
                   <p className="text-sm text-foreground/80 leading-relaxed">{insight}</p>
                 </div>
@@ -576,7 +585,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
                     <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-500/15">
                       <Zap className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">Improvement Tips</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">{t.tips}</p>
                   </div>
                   <div className="space-y-2">
                     {tipList.map((tip, i) => (
@@ -596,7 +605,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
         <div className="shrink-0 border-t border-border bg-muted/50 dark:bg-muted/20">
           {/* Prompt bar */}
           <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Query</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t.query}</span>
             <span className="flex-1 truncate text-[11px] text-muted-foreground/80">{prompt}</span>
             {sql && (
               <button
@@ -893,6 +902,8 @@ function randomDemoResult(domain: AIDomain): AIQueryResult {
 // ─── Main Command Modal ───────────────────────────────────────────────────────
 
 export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props) {
+  const ai = useT().ai;
+  const t = ai.command;
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadStep, setLoadStep] = useState(0);
@@ -960,19 +971,19 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
       const ax = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
       const status = ax?.response?.status;
       const backendMsg = ax?.response?.data?.error;
-      let msg = backendMsg || ax?.message || 'Something went wrong. Please try again.';
+      let msg = backendMsg || ax?.message || t.errorGeneric;
       if (status === 429) {
-        msg = backendMsg || 'You have reached the AI query limit. Please try again later.';
+        msg = backendMsg || t.errorRateLimit;
       } else if (status === 503) {
-        msg = backendMsg || 'AI is temporarily unavailable.';
+        msg = backendMsg || t.errorUnavailable;
       } else if ((backendMsg ?? '').includes('LIMIT_REACHED')) {
-        msg = 'Monthly limit reached. Upgrade your plan to run more AI queries.';
+        msg = t.errorMonthly;
       }
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [loading, websiteId, isDemoMode, domain, fetchHistory, openResult]);
+  }, [loading, websiteId, isDemoMode, domain, fetchHistory, openResult, t]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -1018,7 +1029,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
           'w-[calc(100vw-1rem)] max-w-[700px]',
           '[&>button:last-child]:hidden',
         )}>
-          <DialogTitle className="sr-only">Seentics AI</DialogTitle>
+          <DialogTitle className="sr-only">{ai.brand}</DialogTitle>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3.5 border-b border-border">
@@ -1027,8 +1038,8 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                 <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Seentics AI</p>
-                <p className="text-[11px] text-muted-foreground leading-none mt-0.5">Ask anything about your data</p>
+                <p className="text-sm font-semibold text-foreground">{ai.brand}</p>
+                <p className="text-[11px] text-muted-foreground leading-none mt-0.5">{t.subtitle}</p>
               </div>
             </div>
 
@@ -1041,7 +1052,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                   :               'border-border bg-muted/60 text-muted-foreground',
                 )}>
                   {unlimited ? (
-                    <span>{aiUsage.current} used</span>
+                    <span>{t.used(aiUsage.current)}</span>
                   ) : (
                     <div className="flex items-center gap-1.5">
                       <div className="h-1.5 w-12 rounded-full bg-border overflow-hidden">
@@ -1057,6 +1068,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
               )}
               <button
                 onClick={() => onOpenChange(false)}
+                aria-label={t.close}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
@@ -1072,9 +1084,9 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
               <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/8">
                 <Lock className="h-4 w-4 text-red-600 shrink-0 mt-0.5 dark:text-red-400" />
                 <div>
-                  <p className="text-sm font-medium text-red-700 dark:text-red-400">Monthly limit reached</p>
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">{t.limitTitle}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    You&apos;ve used all {aiUsage?.limit} AI analyses. Upgrade to continue.
+                    {t.limitBody(aiUsage?.limit ?? '')}
                   </p>
                 </div>
               </div>
@@ -1099,7 +1111,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                       handleSubmit(e as unknown as React.FormEvent);
                     }
                   }}
-                  placeholder="Ask anything about your data… e.g. 'Top 10 pages this week'"
+                  placeholder={t.placeholder}
                   rows={2}
                   maxLength={500}
                   disabled={loading || (!isDemoMode && !!limitReached)}
@@ -1118,8 +1130,8 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                     )}
                   >
                     {loading
-                      ? <><Loader2 className="h-3 w-3 animate-spin" /> Analyzing…</>
-                      : <><Send className="h-3 w-3" /> Ask</>
+                      ? <><Loader2 className="h-3 w-3 animate-spin" /> {t.analyzing}</>
+                      : <><Send className="h-3 w-3" /> {t.ask}</>
                     }
                   </button>
                 </div>
@@ -1132,10 +1144,10 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                 {/* Suggestions */}
                 <div className="space-y-2">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Quick questions
+                    {t.quickQuestions}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {GLOBAL_SUGGESTIONS.map(({ label, icon: Icon, color, bg }) => (
+                    {GLOBAL_SUGGESTIONS.map(({ icon: Icon, color, bg }, i) => ({ label: t.suggestions[i] ?? '', Icon, color, bg })).map(({ label, Icon, color, bg }) => (
                       <button
                         key={label}
                         onClick={() => handleSuggestion(label)}
@@ -1156,7 +1168,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                 {history.length > 0 && !isDemoMode && (
                   <div className="space-y-2">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                      <History className="h-3 w-3" /> Recent
+                      <History className="h-3 w-3" /> {t.recent}
                     </p>
                     <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
                       {history.map((item) => (
@@ -1224,7 +1236,8 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                   </div>
                 </div>
                 <div className="w-full space-y-3">
-                  {LOADING_STEPS.map(({ label, icon: Icon }, i) => {
+                  {LOADING_STEPS.map(({ icon: Icon }, i) => {
+                    const label = t.loadingSteps[i];
                     const done = i < loadStep;
                     const active = i === loadStep;
                     return (
@@ -1263,7 +1276,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                     onClick={() => setError(null)}
                     className="mt-1.5 text-xs text-muted-foreground hover:text-foreground underline transition-colors"
                   >
-                    Dismiss
+                    {t.dismiss}
                   </button>
                 </div>
               </div>
@@ -1274,15 +1287,15 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
           <div className="border-t border-border bg-muted/50 px-4 sm:px-5 py-2 flex items-center gap-3 text-[10px] text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground/60">
             <span className="flex items-center gap-1">
               <kbd className="rounded-lg border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">↵</kbd>
-              <span>send</span>
+              <span>{t.send}</span>
             </span>
             <span className="flex items-center gap-1">
               <kbd className="rounded-lg border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">⇧↵</kbd>
-              <span>newline</span>
+              <span>{t.newline}</span>
             </span>
             <span className="ml-auto flex items-center gap-1">
               <kbd className="rounded-lg border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">⌘K</kbd>
-              <span>toggle</span>
+              <span>{t.toggle}</span>
             </span>
           </div>
         </DialogContent>

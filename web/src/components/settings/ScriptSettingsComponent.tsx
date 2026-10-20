@@ -10,10 +10,12 @@ import { Loader2, Zap, Target, Info, Bug } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const t = useT().settings.scripts;
 
   const { data: website, isLoading } = useQuery({
     queryKey: ['website', websiteId],
@@ -27,15 +29,15 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
       funnelEnabled?: boolean;
       errorsEnabled?: boolean;
     }) => {
-      if (!user?.id) throw new Error("User ID required");
+      if (!user?.id) throw new Error(t.userRequired);
       return await updateWebsite(websiteId, data, user.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website', websiteId] });
-      toast.success('Script settings updated');
+      toast.success(t.updated);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update settings');
+      toast.error(error.message || t.failed);
     },
   });
 
@@ -50,8 +52,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   const toggles = [
     {
       id: 'automation',
-      title: 'Automations',
-      description: 'Enable automated workflows, popups, and user engagement scripts.',
+      ...t.automation,
       icon: Zap,
       enabled: website?.automationEnabled ?? true,
       onToggle: (val: boolean) => updateMutation.mutate({ automationEnabled: val }),
@@ -60,8 +61,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
     },
     {
       id: 'funnels',
-      title: 'Funnels',
-      description: 'Track multi-step conversion paths and drop-off points.',
+      ...t.funnels,
       icon: Target,
       enabled: website?.funnelEnabled ?? true,
       onToggle: (val: boolean) => updateMutation.mutate({ funnelEnabled: val }),
@@ -70,8 +70,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
     },
     {
       id: 'errors',
-      title: 'Error tracking',
-      description: 'Report uncaught JavaScript errors from your pages. Off, none are collected or stored.',
+      ...t.errors,
       icon: Bug,
       enabled: website?.errorsEnabled ?? true,
       onToggle: (val: boolean) => updateMutation.mutate({ errorsEnabled: val }),
@@ -83,8 +82,8 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <h3 className="text-sm font-semibold">Script Management</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Control which scripts are active on your website. Disabling unused features improves page load performance.</p>
+        <h3 className="text-sm font-semibold">{t.title}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
       </div>
 
       <div className="space-y-3">
@@ -115,11 +114,10 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
       <div className="bg-muted/30 border border-border rounded-lg p-4">
         <div className="flex items-center gap-2 mb-1.5">
           <Info className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium">Dynamic Loading</span>
+          <span className="text-xs font-medium">{t.dynamic}</span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          The main Seentics core script will automatically handle loading only the parts you've enabled here.
-          Changes are reflected immediately across all your traffic without requiring script re-installation.
+          {t.dynamicBody}
         </p>
       </div>
     </div>

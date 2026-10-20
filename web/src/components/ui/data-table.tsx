@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import {
   ChevronLeft,
   ChevronRight,
@@ -115,36 +116,47 @@ export function SortableHeader({
 
 // ─── Selection column factory ─────────────────────────────────────────────────
 
+/** The checkboxes are components of their own, so they can read the dashboard's language. */
+function SelectAllCheckbox({ table }: { table: ReturnType<typeof useReactTable<any>> }) {
+  const t = useT().ui.table;
+  return (
+    <Checkbox
+      checked={
+        table.getIsAllPageRowsSelected()
+          ? true
+          : table.getIsSomePageRowsSelected()
+          ? 'indeterminate'
+          : false
+      }
+      onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+      aria-label={t.selectAll}
+      className="border-muted-foreground/40"
+    />
+  );
+}
+
+function SelectRowCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  const t = useT().ui.table;
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(v) => onChange(!!v)}
+        aria-label={t.selectRow}
+        className="border-muted-foreground/40"
+      />
+    </div>
+  );
+}
+
 export function selectionColumn<TData>(): ColumnDef<TData, unknown> {
   return {
     id: '__select__',
     size: 40,
     enableSorting: false,
     enableHiding: false,
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected()
-            ? true
-            : table.getIsSomePageRowsSelected()
-            ? 'indeterminate'
-            : false
-        }
-        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-        aria-label="Select all"
-        className="border-muted-foreground/40"
-      />
-    ),
-    cell: ({ row }) => (
-      <div onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(v) => row.toggleSelected(!!v)}
-          aria-label="Select row"
-          className="border-muted-foreground/40"
-        />
-      </div>
-    ),
+    header: ({ table }) => <SelectAllCheckbox table={table} />,
+    cell: ({ row }) => <SelectRowCheckbox checked={row.getIsSelected()} onChange={(v) => row.toggleSelected(v)} />,
   };
 }
 
@@ -157,6 +169,7 @@ function TablePagination({
   table: ReturnType<typeof useReactTable<any>>;
   totalRows: number;
 }) {
+  const t = useT().ui.table;
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
   const from = pageIndex * pageSize + 1;
@@ -180,8 +193,8 @@ function TablePagination({
     <div className="px-4 py-3 border-t border-border bg-muted/5 flex flex-col sm:flex-row items-center justify-between gap-3">
       <p className="text-xs text-muted-foreground">
         {totalRows === 0
-          ? 'No results'
-          : `${from}–${to} of ${totalRows} rows`}
+          ? t.noResults
+          : t.rowsRange(from, to, totalRows)}
       </p>
 
       {pageCount > 1 && (
@@ -190,6 +203,7 @@ function TablePagination({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t.firstPage}
             onClick={() => table.firstPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -199,6 +213,7 @@ function TablePagination({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t.previousPage}
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -235,6 +250,7 @@ function TablePagination({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t.nextPage}
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
@@ -244,6 +260,7 @@ function TablePagination({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            aria-label={t.lastPage}
             onClick={() => table.lastPage()}
             disabled={!table.getCanNextPage()}
           >
@@ -277,11 +294,12 @@ export function DataTable<TData>({
   isLoading = false,
   loadingRows = 5,
   emptyIcon,
-  emptyTitle = 'No results',
+  emptyTitle,
   emptyDescription,
   emptyAction,
   className,
 }: DataTableProps<TData>) {
+  const tTable = useT().ui.table;
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -390,7 +408,7 @@ export function DataTable<TData>({
               {emptyIcon}
             </div>
           )}
-          <h3 className="text-sm font-semibold text-foreground">{emptyTitle}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{emptyTitle ?? tTable.noResults}</h3>
           {emptyDescription && (
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">{emptyDescription}</p>
           )}

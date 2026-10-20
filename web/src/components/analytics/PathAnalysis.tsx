@@ -12,6 +12,7 @@ import { isDemo, demoPathAnalysis } from '@/lib/demo';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { getVisitorInsights } from '@/features/analytics/api';
 import { pathAnalysisFrom } from '@/features/analytics/path-analysis';
+import { useT } from '@/lib/i18n';
 
 interface PageFlow {
   from_page: string;
@@ -83,6 +84,7 @@ function EmptyState({ message }: { message: string }) {
 
 export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; dateRange: number }) {
   const { data, isLoading } = usePathAnalysis(websiteId, dateRange);
+  const t = useT().analytics;
 
   const topFlowCount = data?.page_flows?.[0]?.count || 1;
   const entryMax = data?.top_entry_pages?.[0]?.count || 1;
@@ -92,11 +94,11 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
     <div className="space-y-4">
       <div className="flex items-center gap-2 px-1">
         <Route className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold tracking-tight">Path Analysis & User Journeys</h2>
+        <h2 className="text-sm font-semibold tracking-tight">{t.paths.heading}</h2>
         <div className="h-px bg-border flex-1 ml-3" />
       </div>
 
-      <ChartErrorBoundary label="Path Analysis">
+      <ChartErrorBoundary label={t.sections.pathAnalysis}>
         <div className="space-y-4">
           {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="p-5 flex items-center gap-4 border border-border">
@@ -121,7 +123,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                 <LogIn className="h-5 w-5 text-emerald-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">Top Entry Page</p>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">{t.paths.topEntryPage}</p>
                 {isLoading ? (
                   <Skeleton className="h-5 w-32 rounded-lg" />
                 ) : (
@@ -137,7 +139,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                 <LogOut className="h-5 w-5 text-rose-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground font-medium mb-0.5">Top Exit Page</p>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">{t.paths.topExitPage}</p>
                 {isLoading ? (
                   <Skeleton className="h-5 w-32 rounded-lg" />
                 ) : (
@@ -156,15 +158,15 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                   <LogIn className="h-3.5 w-3.5 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold">Entry Pages</h3>
-                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">First page visitors land on</p>
+                  <h3 className="text-sm font-semibold">{t.paths.entryPages}</h3>
+                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{t.paths.entryPagesHint}</p>
                 </div>
               </div>
               <div className="p-3">
                 {isLoading ? (
                   <PageListSkeleton />
                 ) : (data?.top_entry_pages || []).length === 0 ? (
-                  <EmptyState message="No entry page data yet" />
+                  <EmptyState message={t.paths.noEntry} />
                 ) : (
                   <div className="space-y-0.5">
                     {(data?.top_entry_pages || []).map((item, idx) => {
@@ -206,15 +208,15 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                   <LogOut className="h-3.5 w-3.5 text-rose-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold">Exit Pages</h3>
-                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Last page before visitors leave</p>
+                  <h3 className="text-sm font-semibold">{t.paths.exitPages}</h3>
+                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{t.paths.exitPagesHint}</p>
                 </div>
               </div>
               <div className="p-3">
                 {isLoading ? (
                   <PageListSkeleton />
                 ) : (data?.top_exit_pages || []).length === 0 ? (
-                  <EmptyState message="No exit page data yet" />
+                  <EmptyState message={t.paths.noExit} />
                 ) : (
                   <div className="space-y-0.5">
                     {(data?.top_exit_pages || []).map((item, idx) => {
@@ -257,8 +259,8 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                 <TrendingUp className="h-3.5 w-3.5 text-indigo-500" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold">Page Flows</h3>
-                <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Most common transitions between pages</p>
+                <h3 className="text-sm font-semibold">{t.paths.pageFlows}</h3>
+                <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{t.paths.pageFlowsHint}</p>
               </div>
             </div>
 
@@ -276,7 +278,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                   ))}
                 </div>
               ) : (data?.page_flows || []).length === 0 ? (
-                <EmptyState message="Not enough navigation data yet" />
+                <EmptyState message={t.paths.noFlows} />
               ) : (
                 <div className="space-y-0.5">
                   {(data?.page_flows || []).map((flow, idx) => {

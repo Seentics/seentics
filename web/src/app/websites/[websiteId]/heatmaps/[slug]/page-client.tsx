@@ -32,6 +32,7 @@ import {
 import { normalizeWebsiteOriginForPreview } from '@/lib/website-preview-url';
 import { getWebsiteByAnyId } from '@/lib/websites-api';
 import { useToast } from '@/hooks/use-toast';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
 import { RangeSelect } from '@/components/ui/range-select';
@@ -62,6 +63,10 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
   const slug       = slugProp ?? slugSegment ?? '';
   const isDemoMode = isDemo(websiteId);
   const { toast }  = useToast();
+  const messages = useT();
+  const m = messages.heatmaps;
+  const t = m.detail;
+  const ranges = HEATMAP_RANGES.map((r) => ({ days: r.days, label: m.ranges[`d${r.days}` as keyof typeof m.ranges] ?? r.label }));
 
   const queryClient = useQueryClient();
 
@@ -153,17 +158,17 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
 
   const previewModeOptions = useMemo(() => {
     const pageHint = pageScreenshot
-      ? 'Background captured for this page path.'
+      ? t.hintCaptured
       : screenshotLoading
-        ? 'Capturing screenshot…'
+        ? t.hintCapturing
         : layoutCaptureOff
-          ? 'No background: layout capture is off for this site, so visitors’ browsers do not capture pages. Use “Capture screenshot” from the menu.'
-          : 'No background yet. A visitor’s browser captures each page about once a day per device; one will appear after the next visit, or use “Capture screenshot” from the menu.';
+          ? t.hintLayoutOff
+          : t.hintNone;
     return [
-      ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
-      ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
+      ['screenshot', ImageIcon, t.screenshot, pageHint] as const,
+      ['heat-only', Layers, t.heatOnly, t.heatOnlyHint] as const,
     ];
-  }, [pageScreenshot, screenshotLoading, layoutCaptureOff]);
+  }, [pageScreenshot, screenshotLoading, layoutCaptureOff, t]);
 
   const demoPointsNormalized: HeatPoint[] = useMemo(() => {
     const raw = demoHeatmapPoints(heatType === 'scroll' ? 'move' : 'click');
@@ -220,19 +225,19 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
     const url = activePreviewUrl;
     if (!url || capturing) return;
     if (!isAbsoluteHttpUrl(url)) {
-      toast({ title: 'No preview URL', description: 'Set an https:// preview URL first.', variant: 'destructive' });
+      toast({ title: t.noPreviewUrl, description: t.noPreviewUrlBody, variant: 'destructive' });
       return;
     }
     setCapturing(true);
     try {
       const result = await triggerPlaywrightScreenshot(websiteId, url, urlPath, { force: true });
-      if (!result) throw new Error('Screenshot capture failed — check that the page URL is reachable.');
+      if (!result) throw new Error(t.captureFailedReach);
       await queryClient.invalidateQueries({ queryKey: ['heatmap-screenshot', websiteId, urlPath] });
       setPreviewTouched(true);
       setPreviewUnderlay('screenshot');
-      toast({ title: 'Screenshot captured', description: 'Background image saved successfully.' });
+      toast({ title: t.captured, description: t.capturedBody });
     } catch (e) {
-      toast({ title: 'Capture failed', description: (e as Error).message ?? String(e), variant: 'destructive' });
+      toast({ title: t.captureFailed, description: (e as Error).message ?? String(e), variant: 'destructive' });
     } finally {
       setCapturing(false);
     }
@@ -265,14 +270,16 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
     <>
       {isParamPath && (
         <div className="rounded-lg border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
-          <span className="font-medium">Parameterized path</span> — enter a real example URL
-          (e.g. replace <code className="font-mono">{urlPath.replace(/:id/g, 'abc123')}</code>) to capture a screenshot.
+          {t.paramPathPopover(
+            <span key="p" className="font-medium">{t.paramPath}</span>,
+            <code key="e" className="font-mono">{urlPath.replace(/:id/g, 'abc123')}</code>,
+          )}
         </div>
       )}
       <div>
-        <p className="text-sm font-medium text-foreground">Preview URL</p>
+        <p className="text-sm font-medium text-foreground">{t.previewUrl}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Must match this path so clicks and scroll line up with the captured page.
+          {t.previewUrlHint}
         </p>
       </div>
       <div className="flex gap-2">
@@ -284,11 +291,11 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
           className="h-9 font-mono text-xs"
         />
         <Button type="button" size="sm" className="h-9 shrink-0" onClick={applyUrl}>
-          Apply
+          {t.apply}
         </Button>
       </div>
       <Button type="button" variant="ghost" size="sm" className="h-8 w-full text-xs" onClick={resetPreviewUrl}>
-        Reset to suggested
+        {t.resetSuggested}
       </Button>
     </>
   );
@@ -297,7 +304,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       {isError && !isDemoMode && (
         <div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          {(error as Error)?.message ?? 'Failed to load heatmap data.'}
+          {(error as Error)?.message ?? t.loadFailed}
         </div>
       )}
 
@@ -305,7 +312,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
         <div
           className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-2 py-1.5 md:px-4"
           role="toolbar"
-          aria-label="Heatmap"
+          aria-label={t.toolbar}
         >
           <Button
             variant="ghost"
@@ -314,16 +321,16 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
             onClick={() => router.push(`/websites/${websiteId}/heatmaps`)}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Heatmaps
+            {t.back}
           </Button>
           {isDemoMode ? (
             <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px] font-medium">
-              Demo
+              {t.demo}
             </Badge>
           ) : null}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
             {points.length > 0 ? (
-              <span className="shrink-0 tabular-nums">{points.length.toLocaleString()} pts</span>
+              <span className="shrink-0 tabular-nums">{t.pts(points.length.toLocaleString())}</span>
             ) : null}
             {points.length > 0 ? <span className="shrink-0 text-border" aria-hidden>·</span> : null}
             <span className="shrink-0">{getPageIcon(pathForHeading, 'h-4 w-4')}</span>
@@ -338,8 +345,8 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                 variant="ghost"
                 size="icon"
                 className={cn(GHOST_CONTROL, 'h-8 w-8', insightsOpen && 'bg-primary/10 text-primary')}
-                title={insightsOpen ? 'Hide insights' : 'Show insights'}
-                aria-label={insightsOpen ? 'Hide insights' : 'Show insights'}
+                title={insightsOpen ? t.hideInsights : t.showInsights}
+                aria-label={insightsOpen ? t.hideInsights : t.showInsights}
                 aria-pressed={insightsOpen}
                 onClick={() => setInsightsOpen(o => !o)}
               >
@@ -348,7 +355,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
             )}
             <Popover open={previewPopoverOpen} onOpenChange={setPreviewPopoverOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn(GHOST_CONTROL, 'h-8 w-8')} title="Preview URL" aria-label="Preview URL">
+                <Button variant="ghost" size="icon" className={cn(GHOST_CONTROL, 'h-8 w-8')} title={t.previewUrl} aria-label={t.previewUrl}>
                   <Link2 className="h-3.5 w-3.5" />
                 </Button>
               </PopoverTrigger>
@@ -359,8 +366,8 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
 
             <div className="flex rounded-lg border border-border bg-white p-0.5 shadow-sm dark:bg-muted">
               {([
-                ['click', MousePointer, 'Clicks', 'Where people click'],
-                ['scroll', TrendingDown, 'Scroll', 'How far they scroll'],
+                ['click', MousePointer, t.clicks, t.clicksHint],
+                ['scroll', TrendingDown, t.scroll, t.scrollHint],
               ] as const).map(([type, Icon, label, hint]) => (
                 <button
                   key={type}
@@ -380,20 +387,20 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
               ))}
             </div>
 
-            <RangeSelect value={days} onChange={setDays} ranges={HEATMAP_RANGES} />
+            <RangeSelect value={days} onChange={setDays} ranges={ranges} />
 
             <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
               <SelectTrigger
                 className={cn(GHOST_CONTROL, 'h-8 w-auto gap-1.5 px-2.5 text-[13px]')}
-                title="Device"
+                title={t.device}
               >
-                <SelectValue placeholder="Device" />
+                <SelectValue placeholder={t.device} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">All devices</SelectItem>
-                <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
-                <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
-                <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
+                <SelectItem value="all" className="text-xs">{m.devices.all}</SelectItem>
+                <SelectItem value="desktop" className="text-xs">{m.devices.desktop}</SelectItem>
+                <SelectItem value="mobile" className="text-xs">{m.devices.mobile}</SelectItem>
+                <SelectItem value="tablet" className="text-xs">{m.devices.tablet}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -414,7 +421,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                   <Icon className="h-3.5 w-3.5" />
                   {mode === 'screenshot' ? (
                     <>
-                      <span className="sm:hidden">Shot</span>
+                      <span className="sm:hidden">{t.shot}</span>
                       <span className="hidden sm:inline">{label}</span>
                     </>
                   ) : (
@@ -427,7 +434,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
             {!isDemoMode && !embed && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="More">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label={t.more}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -437,7 +444,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                       className="text-xs"
                       onClick={() => window.open(activePreviewUrl, '_blank', 'noopener,noreferrer')}
                     >
-                      Open preview tab
+                      {t.openPreview}
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
@@ -446,12 +453,12 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                     onClick={isParamPath && !activePreviewUrl ? () => setPreviewPopoverOpen(true) : captureScreenshot}
                   >
                     <Camera className="mr-2 h-3.5 w-3.5" />
-                    {capturing ? 'Capturing…' : isParamPath && !activePreviewUrl ? 'Set preview URL…' : 'Capture screenshot'}
+                    {capturing ? t.capturing : isParamPath && !activePreviewUrl ? t.setPreviewUrl : t.captureScreenshot}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-xs" onClick={() => refetch()}>
                     <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                    Refresh data
+                    {t.refreshData}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -463,16 +470,19 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
       {isParamPath && !pageScreenshot && !isDemoMode && (
         <div className="shrink-0 border-b border-amber-200/60 bg-amber-50/80 px-4 py-2 dark:border-amber-500/20 dark:bg-amber-500/5">
           <p className="text-xs text-amber-800 dark:text-amber-400">
-            <span className="font-medium">Parameterized path</span> — <code className="rounded-lg bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code> aggregates
-            all matching URLs. Screenshots come from real visitors via the tracker, or enter a specific example URL in{' '}
-            <button
-              type="button"
-              className="font-medium underline underline-offset-2 hover:no-underline"
-              onClick={() => setPreviewPopoverOpen(true)}
-            >
-              Preview URL
-            </button>{' '}
-            and use <span className="font-medium">Capture screenshot</span> from the menu.
+            {t.paramPathBanner(
+              <span key="p" className="font-medium">{t.paramPath}</span>,
+              <code key="u" className="rounded-lg bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code>,
+              <button
+                key="b"
+                type="button"
+                className="font-medium underline underline-offset-2 hover:no-underline"
+                onClick={() => setPreviewPopoverOpen(true)}
+              >
+                {t.previewUrl}
+              </button>,
+              <span key="c" className="font-medium">{t.captureScreenshot}</span>,
+            )}
           </p>
         </div>
       )}
@@ -480,9 +490,10 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
       {isParamPath && !isDemoMode && pageScreenshot?.source_path ? (
         <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-1.5">
           <p className="text-xs text-muted-foreground">
-            Background from <code className="rounded bg-muted px-1 font-mono text-foreground">{pageScreenshot.source_path}</code>,
-            one of the pages <code className="font-mono">{urlPath}</code> combines. Clicks from the others are drawn on the
-            same elements where those exist here.
+            {t.backgroundFrom(
+              <code key="s" className="rounded bg-muted px-1 font-mono text-foreground">{pageScreenshot.source_path}</code>,
+              <code key="u" className="font-mono">{urlPath}</code>,
+            )}
           </p>
         </div>
       ) : null}
@@ -491,9 +502,9 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
           {!activePreviewUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-              <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
+              <p className="text-sm font-medium text-foreground">{t.addPreviewTitle}</p>
               <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-                Set your site URL in Settings, or use Preview URL above so the heatmap aligns with your page.
+                {t.addPreviewBody}
               </p>
             </div>
           ) : (
@@ -518,8 +529,8 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
                   <div className="rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-sm">
                     <p className="text-xs font-medium text-white/70">
                       {heatType === 'click'
-                        ? 'No click data yet — try switching to Scroll'
-                        : 'No scroll data yet — try switching to Clicks'}
+                        ? t.noClicks
+                        : t.noScroll}
                     </p>
                   </div>
                 </div>
@@ -531,7 +542,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
             <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-background/50">
               <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-                <span className="text-xs font-medium text-foreground">Loading…</span>
+                <span className="text-xs font-medium text-foreground">{t.loading}</span>
               </div>
             </div>
           )}

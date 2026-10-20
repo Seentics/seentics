@@ -30,51 +30,51 @@ import {
   Webhook,
   Zap
 } from 'lucide-react';
+import { automationsEn, type AutomationsMessages } from '@/lib/i18n/messages/automations-en';
 
-export const TRIGGERS: Record<string, { label: string; icon: React.ElementType }> = {
-  page_view:    { label: 'Page View',        icon: Globe },
-  click:        { label: 'Element Click',    icon: MousePointer },
-  scroll_depth: { label: 'Scroll Depth',     icon: TrendingDown },
-  time_on_page: { label: 'Time on Page',     icon: Clock },
-  exit_intent:  { label: 'Exit Intent',      icon: LogOut },
-  inactivity:   { label: 'Inactivity',       icon: Coffee },
-  rage_click:   { label: 'Rage Click',       icon: Zap },
-  form_abandon: { label: 'Form Abandonment', icon: AlertTriangle },
-  js_error:     { label: 'JS Error',         icon: AlertTriangle },
-  tab_hidden:   { label: 'Tab Hidden',       icon: EyeOff },
-  tab_visible:  { label: 'Tab Visible',      icon: Eye },
-  custom_event: { label: 'Custom Event',     icon: Zap },
-  identify:     { label: 'Identify',         icon: UserCheck },
-  funnel:       { label: 'Funnel',           icon: Filter },
-  goal_reached: { label: 'Goal Reached',     icon: Target },
+/** Each trigger's icon. Names come from the `automations.catalog` messages, by the same key. */
+export const TRIGGERS: Record<string, { icon: React.ElementType }> = {
+  page_view:    { icon: Globe },
+  click:        { icon: MousePointer },
+  scroll_depth: { icon: TrendingDown },
+  time_on_page: { icon: Clock },
+  exit_intent:  { icon: LogOut },
+  inactivity:   { icon: Coffee },
+  rage_click:   { icon: Zap },
+  form_abandon: { icon: AlertTriangle },
+  js_error:     { icon: AlertTriangle },
+  tab_hidden:   { icon: EyeOff },
+  tab_visible:  { icon: Eye },
+  custom_event: { icon: Zap },
+  identify:     { icon: UserCheck },
+  funnel:       { icon: Filter },
+  goal_reached: { icon: Target },
 };
 
 /**
- * `label` is the chip in the automations table, where width is tight; `detailLabel` is
- * the full name the detail view uses. They were two separate maps in two files that
- * agreed on every entry except these, which is how the difference was found.
+ * Each action's icon. The table's chip uses the short name (`catalog.actions`), the detail
+ * view the full one (`catalog.actionsLong`) where they differ.
  */
-export const ACTIONS: Record<string, { label: string; detailLabel?: string; icon: React.ElementType }> = {
-  show_modal:          { label: 'Show Modal',          icon: MessageSquare },
-  show_toast:          { label: 'Show Toast',          icon: Bell },
-  show_banner:         { label: 'Show Banner',         icon: Megaphone },
-  highlight_element:   { label: 'Highlight',           icon: Highlighter },
-  show_tooltip:        { label: 'Show Tooltip',        icon: Info },
-  personalize_content: { label: 'Personalize', detailLabel: 'Personalize Content',         icon: Feather },
-  redirect:            { label: 'Redirect',            icon: ExternalLink },
-  tag_session:         { label: 'Tag Session',         icon: Tag },
-  webhook:             { label: 'Webhook',             icon: Webhook },
+export const ACTIONS: Record<string, { icon: React.ElementType }> = {
+  show_modal:          { icon: MessageSquare },
+  show_toast:          { icon: Bell },
+  show_banner:         { icon: Megaphone },
+  highlight_element:   { icon: Highlighter },
+  show_tooltip:        { icon: Info },
+  personalize_content: { icon: Feather },
+  redirect:            { icon: ExternalLink },
+  tag_session:         { icon: Tag },
+  webhook:             { icon: Webhook },
   // Legacy action types still present on older rows.
-  email:               { label: 'Email',               icon: Zap },
-  banner:              { label: 'Banner',              icon: Megaphone },
-  modal:               { label: 'Modal',               icon: MessageSquare },
-  notification:        { label: 'Notification',        icon: Bell },
-  hide_element:        { label: 'Hide Element',        icon: Eye },
-  script:              { label: 'Script',              icon: Zap },
+  email:               { icon: Zap },
+  banner:              { icon: Megaphone },
+  modal:               { icon: MessageSquare },
+  notification:        { icon: Bell },
+  hide_element:        { icon: Eye },
+  script:              { icon: Zap },
 };
 
-/** Success-rate colour. The old thresholds had no dark variants, so `text-green-600`
-    on a dark table row was close to unreadable. */
+type CatalogMessages = AutomationsMessages['catalog'];
 
 /**
  * Lookups with a sensible answer for a key the catalog does not know.
@@ -82,15 +82,15 @@ export const ACTIONS: Record<string, { label: string; detailLabel?: string; icon
  * An automation can carry a trigger this build has never heard of — an older definition,
  * or a newer one after a rollback — and showing the raw key beats rendering nothing.
  */
-export function triggerLabel(key: string): string {
-  return TRIGGERS[key]?.label ?? key;
+export function triggerLabel(key: string, t: CatalogMessages = automationsEn.catalog): string {
+  return (t.triggers as Record<string, string>)[key] ?? key;
 }
 
 /** The detail view's full name, falling back to the table's short one. */
-export function actionLabel(key: string, long = false): string {
-  const a = ACTIONS[key];
-  if (!a) return key;
-  return long ? a.detailLabel ?? a.label : a.label;
+export function actionLabel(key: string, long = false, t: CatalogMessages = automationsEn.catalog): string {
+  const short = (t.actions as Record<string, string>)[key];
+  if (!short) return key;
+  return long ? (t.actionsLong as Record<string, string>)[key] ?? short : short;
 }
 
 export function triggerIcon(key: string): React.ElementType | undefined {

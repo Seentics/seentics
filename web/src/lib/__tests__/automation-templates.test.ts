@@ -10,7 +10,7 @@ import { TEMPLATES } from '@/features/automations/templates';
  * opened a builder whose Save button was disabled, with nothing on screen to say why.
  */
 describe('automation templates', () => {
-  it.each(TEMPLATES.map(t => [t.name, t] as const))('%s passes the builder\'s validation', (_name, template) => {
+  it.each(TEMPLATES.map(t => [t.id, t] as const))('%s passes the builder\'s validation', (_name, template) => {
     expect(validateDefinition(template.definition)).toEqual([]);
   });
 

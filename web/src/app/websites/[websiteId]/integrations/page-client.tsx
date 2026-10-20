@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { ReportPage } from '@/components/ui/linear-list';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { AddDestination } from '@/components/integrations/AddDestination';
 import { ConnectDialog } from '@/components/integrations/ConnectDialog';
@@ -12,11 +12,12 @@ import {
   useCreateDestination, useRemoveDestination, useRetryDelivery, useTestDestination, useUpdateDestination,
 } from '@/features/integrations/mutations';
 import { useIntegrationDeliveries, useIntegrations } from '@/features/integrations/queries';
-import type { Connection, Provider } from '@/features/integrations/types';
-import { describeTest } from '@/lib/integration-form';
+import type { Connection, Provider, TestOutcome } from '@/features/integrations/types';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
+import { usePermissions } from '@/hooks/use-permissions';
 import { usePathSegment } from '@/lib/path-segment';
+import { useT } from '@/lib/i18n';
 
 /** Which dialog is open: adding a provider, or editing a destination. */
 type Editing = { provider: Provider; connection: Connection | null };
@@ -25,15 +26,28 @@ type Editing = { provider: Provider; connection: Connection | null };
  * Route composition only: which dialog is open and what the last test said. Data access is
  * `features/integrations`; the markup is components taking props.
  *
- * Whether the viewer may change things is the server's call (members and above). The buttons are
- * shown to everyone but the demo, and a viewer who presses one gets the server's refusal.
+ * Whether the viewer may change things is the server's call (members and above); the buttons are
+ * shown to those who may. The demo shows them too, and each answers with its demo notice.
  */
 export default function IntegrationsPage() {
   const websiteId = usePathSegment(1) ?? '';
   const demo = isDemo(websiteId);
+  // Members and up change things; the demo shows every control and answers each with its demo notice.
+  const { canEdit } = usePermissions(websiteId);
   // Sample data is dated against a fixed clock; relative times read against it too.
   const now = demo ? DEMO_REFERENCE_DATE.getTime() : undefined;
   const [confirm, confirmDialog] = useConfirm();
+  const tAll = useT();
+  const t = tAll.settings.integrationsPage;
+  // As `describeTest` in lib/integration-form, in the current language.
+  const describe = (outcome: TestOutcome): { ok: boolean; message: string } => {
+    const ti = tAll.settings.integrations;
+    switch (outcome.kind) {
+      case 'ok': return { ok: true, message: ti.testSent };
+      case 'skipped': return { ok: true, message: outcome.reason };
+      case 'failed': return { ok: false, message: outcome.auth ? ti.rejected(outcome.message) : outcome.message };
+    }
+  };
 
   const { data, isLoading, error } = useIntegrations(websiteId);
   const providers = data?.providers ?? [];
@@ -55,17 +69,17 @@ export default function IntegrationsPage() {
 
   const runTest = async (c: Connection) => {
     const ok = await confirm({
-      title: `Send a test to ${c.name}?`,
-      description: 'It sends a sample submission for seentics-test@example.com. For list-based tools that adds a test contact you can delete afterwards.',
-      confirmLabel: 'Send test',
+      title: t.testTitle(c.name),
+      description: t.testBody,
+      confirmLabel: t.sendTest,
     });
     if (!ok) return;
     setTesting(c.id);
     setNotice(null);
     try {
-      setNotice(describeTest(await test.mutateAsync(c.id)));
+      setNotice(describe(await test.mutateAsync(c.id)));
     } catch (err) {
-      fail(err instanceof Error ? err : new Error('The test failed.'));
+      fail(err instanceof Error ? err : new Error(t.testFailed));
     } finally {
       setTesting(null);
     }
@@ -73,33 +87,27 @@ export default function IntegrationsPage() {
 
   const runRemove = async (c: Connection) => {
     const ok = await confirm({
-      title: `Delete ${c.name}?`,
-      description: 'Its saved credentials are deleted and submissions waiting for it are dropped. Forms that sent to it stop sending there; what it already received stays where it is.',
-      confirmLabel: 'Delete destination',
+      title: t.deleteTitle(c.name),
+      description: t.deleteBody,
+      confirmLabel: t.deleteConfirm,
       destructive: true,
     });
     if (ok) await remove.mutateAsync(c.id).catch(fail);
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <DashboardPageHeader
-        title="Integrations"
-        description="Where your forms send what visitors submit. Pick the destinations for each form in its settings. Credentials are encrypted and never shown again."
-      />
+    // Its own page beside Conversions, in the same heading and frame as the other report pages.
+    <ReportPage title={t.title} description={t.description} websiteId={websiteId} bodyClassName="space-y-6">
 
-      {demo && (
-        <Alert><AlertDescription>Destinations can’t be changed on the demo site.</AlertDescription></Alert>
-      )}
       {error && <Alert variant="destructive"><AlertDescription>{(error as Error).message}</AlertDescription></Alert>}
       {notice && (
         <Alert variant={notice.ok ? 'default' : 'destructive'} role="status"><AlertDescription>{notice.message}</AlertDescription></Alert>
       )}
 
       <section aria-labelledby="destinations">
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <h2 id="destinations" className="text-sm font-semibold">Your destinations</h2>
-          <span className="text-xs text-muted-foreground">Failed sends are retried automatically, over several hours.</span>
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 id="destinations" className="text-[15px] font-semibold">{t.yourDestinations}</h2>
+          <span className="text-xs text-muted-foreground">{t.retried}</span>
         </div>
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -107,9 +115,9 @@ export default function IntegrationsPage() {
           </div>
         ) : connections.length === 0 ? (
           <div className="surface px-4 py-8 text-center">
-            <p className="text-sm font-medium">No destinations yet</p>
+            <p className="text-sm font-medium">{t.empty}</p>
             <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-              Submissions are still listed on each form’s page for 90 days. Add a destination below to send them to your email tool, CRM or a webhook as they arrive.
+              {t.emptyBody}
             </p>
           </div>
         ) : (
@@ -119,7 +127,7 @@ export default function IntegrationsPage() {
                 key={c.id}
                 connection={c}
                 provider={providerOf(c)}
-                canEdit={!demo}
+                canEdit={canEdit}
                 busy={update.isPending || remove.isPending}
                 testing={testing === c.id}
                 now={now}
@@ -134,7 +142,7 @@ export default function IntegrationsPage() {
       </section>
 
       {!isLoading && (
-        <AddDestination providers={providers} count={connections.length} disabled={demo} onPick={(provider) => setEditing({ provider, connection: null })} />
+        <AddDestination providers={providers} count={connections.length} disabled={!canEdit} onPick={(provider) => setEditing({ provider, connection: null })} />
       )}
 
       <DeliveryLog
@@ -149,8 +157,7 @@ export default function IntegrationsPage() {
       />
 
       <p className="text-xs text-muted-foreground">
-        Each submission is delivered at least once: a destination that is down gets it again later, so a webhook may see the same
-        submission twice. Use the <code className="rounded bg-muted px-1">Idempotency-Key</code> header to skip repeats.
+        {t.atLeastOnceBefore}<code className="rounded bg-muted px-1">Idempotency-Key</code>{t.atLeastOnceAfter}
       </p>
 
       {editing && (
@@ -165,11 +172,12 @@ export default function IntegrationsPage() {
           onSubmit={async (body, isEdit) => {
             if (isEdit && editing.connection) await update.mutateAsync({ connectionId: editing.connection.id, input: body as Parameters<typeof update.mutateAsync>[0]['input'] });
             else await create.mutateAsync(body as Parameters<typeof create.mutateAsync>[0]);
-            setNotice({ ok: true, message: `${(body as { name?: string }).name || editing.provider.label} ${isEdit ? 'updated' : 'added'}.` });
+            const label = (body as { name?: string }).name || editing.provider.label;
+            setNotice({ ok: true, message: isEdit ? t.updated(label) : t.added(label) });
           }}
         />
       )}
       {confirmDialog}
-    </div>
+    </ReportPage>
   );
 }

@@ -10,6 +10,9 @@ import { addWebsite } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Loader2 } from 'lucide-react';
 import { TrackingCodeModal } from './tracking-code-modal';
+import { useT } from '@/lib/i18n';
+import { ProfilePicker } from './ProfilePicker';
+import type { WebsiteProfile } from '@/features/websites/types';
 
 interface AddWebsiteModalProps {
   open: boolean;
@@ -20,10 +23,13 @@ interface AddWebsiteModalProps {
 export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteModalProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [profile, setProfile] = useState<WebsiteProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [newWebsiteId, setNewWebsiteId] = useState<string | null>(null);
   const { toast } = useToast();
+  const all = useT();
+  const t = all.dashboard.addWebsite;
   const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,8 +37,8 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
     
     if (!name.trim() || !url.trim()) {
       toast({
-        title: 'Validation Error',
-        description: 'Please fill in all fields',
+        title: t.validationError,
+        description: t.fillAll,
         variant: 'destructive',
       });
       return;
@@ -43,8 +49,8 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
       new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     } catch {
       toast({
-        title: 'Invalid URL',
-        description: 'Please enter a valid website URL',
+        title: t.invalidUrl,
+        description: t.invalidUrlBody,
         variant: 'destructive',
       });
       return;
@@ -52,8 +58,8 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
 
     if (!user?.id) {
       toast({
-        title: 'Authentication Error',
-        description: 'You must be logged in to add a website',
+        title: t.authError,
+        description: t.mustLogIn,
         variant: 'destructive',
       });
       return;
@@ -63,11 +69,11 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
 
     try {
       const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-      const website = await addWebsite({ name: name.trim(), url: normalizedUrl }, user.id);
+      const website = await addWebsite({ name: name.trim(), url: normalizedUrl, ...(profile ? { profile } : {}) }, user.id);
       
       toast({
-        title: 'Success!',
-        description: `${name} has been added successfully`,
+        title: t.success,
+        description: t.added(name),
       });
 
       // Reset form
@@ -82,8 +88,8 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
     } catch (error: any) {
       console.error('Error adding website:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to add website. Please try again.',
+        title: t.error,
+        description: error.message || t.failed,
         variant: 'destructive',
       });
     } finally {
@@ -101,22 +107,20 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
               <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Loader2 className={isLoading ? "h-4 w-4 animate-spin text-primary" : "h-4 w-4 text-primary"} />
               </div>
-              Add New Website
+              {t.title}
             </DialogTitle>
-            <DialogDescription>
-              Enter your website details to start tracking.
-            </DialogDescription>
+            <DialogDescription>{t.description}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 ml-1">
-                  Website Name
+                  {t.name}
                 </Label>
                 <Input
                   id="name"
-                  placeholder="e.g. My Awesome Site"
+                  placeholder={t.namePlaceholder}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isLoading}
@@ -126,7 +130,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
               </div>
               <div className="space-y-2">
                 <Label htmlFor="url" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 ml-1">
-                  Website URL
+                  {t.url}
                 </Label>
                 <Input
                   id="url"
@@ -138,9 +142,13 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                 />
                 <p className="px-1 text-[11px] text-amber-600 font-medium flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-700">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Note: Tracking script must be installed on the same domain.
+                  {t.sameDomain}
                 </p>
               </div>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-foreground">{all.dashboard.profiles.question}</legend>
+                <ProfilePicker value={profile} onChange={setProfile} disabled={isLoading} name="add-website-profile" />
+              </fieldset>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -151,7 +159,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                 disabled={isLoading}
                 className="flex-1 rounded-lg h-11"
               >
-                Cancel
+                {all.actions.cancel}
               </Button>
               <Button 
                 type="submit" 
@@ -161,10 +169,10 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
+                    {t.adding}
                   </>
                 ) : (
-                  'Create Website'
+                  t.create
                 )}
               </Button>
             </div>

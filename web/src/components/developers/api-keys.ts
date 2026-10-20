@@ -23,17 +23,6 @@ export const ACCOUNT_SCOPES = [
 
 export type AccountScope = (typeof ACCOUNT_SCOPES)[number];
 
-/** What each scope allows, for the custom picker. */
-export const SCOPE_LABELS: Record<AccountScope, string> = {
-  'websites:read': 'List and fetch websites and their tracking snippets',
-  'websites:write': 'Create, update and delete websites',
-  'analytics:read': 'Read traffic, pages, sources, events, goals and exports',
-  'replays:read': 'Read session replay listings and metadata',
-  'heatmaps:read': 'Read heatmap pages and interaction points',
-  'agency:read': 'Agency API: read clients, websites, install status, branding, embeds, usage',
-  'agency:write': 'Agency API: change clients, websites, branding, feature visibility, embeds',
-};
-
 /** `key` is present only in the response that created it. */
 export interface AccountAPIKey {
   id: string;

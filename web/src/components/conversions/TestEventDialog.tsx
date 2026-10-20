@@ -13,18 +13,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTestDestination } from '@/features/conversions/mutations';
 import type { Destination, TestResult } from '@/features/conversions/types';
+import { useT } from '@/lib/i18n';
 import { PLATFORMS } from './conversion-format';
-
-const TEST_COPY: Record<Destination['platform'], string> = {
-  meta: 'Sends a test Purchase to your pixel. With a test event code it appears under Events Manager → Test events and is not counted as a real sale.',
-  ga4: 'Checks a test purchase against Google’s validation endpoint. Nothing is added to your GA4 reports.',
-  tiktok: 'Sends a test purchase to your pixel. With a test event code it appears under Events Manager → Test events and is not counted as a real sale.',
-  linkedin: 'LinkedIn has no test mode, so nothing is sent: this checks the token and that each mapped conversion rule exists in the ad account.',
-};
 
 export function TestEventDialog({
   websiteId, destination, onClose,
 }: { websiteId: string; destination: Destination | null; onClose: () => void }) {
+  const all = useT();
+  const t = all.conversions.test;
   const test = useTestDestination(websiteId);
   const [code, setCode] = useState('');
   const [result, setResult] = useState<TestResult | null>(null);
@@ -37,9 +33,9 @@ export function TestEventDialog({
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Send a test event</DialogTitle>
+          <DialogTitle>{t.title}</DialogTitle>
           <DialogDescription>
-            {TEST_COPY[destination.platform]}
+            {t.copy[destination.platform]}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -49,13 +45,13 @@ export function TestEventDialog({
             setResult(null);
             test.mutate(
               { id: destination.id, testEventCode: code.trim() || undefined },
-              { onSuccess: setResult, onError: (err) => setResult({ ok: false, message: err instanceof Error ? err.message : 'The test could not be sent.' }) },
+              { onSuccess: setResult, onError: (err) => setResult({ ok: false, message: err instanceof Error ? err.message : t.notSent }) },
             );
           }}
         >
           {testCode && (
             <div className="space-y-1.5">
-              <Label htmlFor="test-code" className="text-xs text-muted-foreground">Test event code (optional)</Label>
+              <Label htmlFor="test-code" className="text-xs text-muted-foreground">{t.code}</Label>
               <Input id="test-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="TEST12345" className="font-mono text-sm" autoComplete="off" />
             </div>
           )}
@@ -66,9 +62,9 @@ export function TestEventDialog({
             </p>
           )}
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>{result?.ok ? 'Done' : 'Cancel'}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>{result?.ok ? all.actions.done : all.actions.cancel}</Button>
             <Button type="submit" size="sm" disabled={test.isPending}>
-              {test.isPending ? (testCode || destination.platform === 'ga4' ? 'Sending…' : 'Checking…') : destination.platform === 'linkedin' ? 'Check connection' : `Send to ${PLATFORMS[destination.platform].label}`}
+              {test.isPending ? (testCode || destination.platform === 'ga4' ? t.sending : t.checking) : destination.platform === 'linkedin' ? t.checkConnection : t.sendTo(PLATFORMS[destination.platform].label)}
             </Button>
           </DialogFooter>
         </form>

@@ -6,12 +6,14 @@
  * importing a page component.
  */
 import type { AutomationDefinition } from '@/components/automations/AutomationBuilder';
+import type { AutomationsMessages } from '@/lib/i18n/messages/automations-en';
+
+/** Names and descriptions are `automations.templates[id]`; category labels `automations.categories[category]`. */
+export type TemplateCategory = Exclude<keyof AutomationsMessages['categories'], 'all'>;
 
 export interface Template {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
+  id: keyof AutomationsMessages['templates'];
+  category: TemplateCategory;
   categoryColor: string;
   definition: AutomationDefinition;
 }
@@ -19,9 +21,7 @@ export interface Template {
 export const TEMPLATES: Template[] = [
   {
     id: 'spin-to-win',
-    name: 'Spin to Win Wheel',
-    description: 'Visitors enter their email to spin a prize wheel. The prize is drawn on the server, so it cannot be gamed.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'time_on_page', seconds: 15 }],
@@ -58,9 +58,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'countdown-sale-bar',
-    name: 'Countdown Sale Bar',
-    description: 'A bar with a per-visitor countdown that drives urgency toward a sale page.',
-    category: 'Conversion',
+    category: 'conversion',
     categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300',
     definition: {
       triggers: [{ type: 'page_view' }],
@@ -91,9 +89,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'multi-step-quiz',
-    name: 'Multi-Step Quiz Signup',
-    description: 'Ask two easy questions first, then the email. Answers are stored with the lead.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'scroll_depth', depth: 50 }],
@@ -132,9 +128,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'sticky-email-bar',
-    name: 'Sticky Announcement Bar with Email',
-    description: 'A bar pinned to the bottom of the page that collects an email without covering content.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'time_on_page', seconds: 10 }],
@@ -162,9 +156,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'teaser-tab-offer',
-    name: 'Teaser Tab Offer',
-    description: 'A small tab on the page edge that opens an offer with an email form when clicked.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'time_on_page', seconds: 5 }],
@@ -193,9 +185,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'coupon-reveal',
-    name: 'Coupon Reveal',
-    description: 'Show a coupon code only after the visitor leaves their email, as the visitor is about to leave.',
-    category: 'Conversion',
+    category: 'conversion',
     categoryColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300',
     definition: {
       triggers: [{ type: 'exit_intent' }],
@@ -223,9 +213,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'exit-intent-newsletter',
-    name: 'Exit-Intent Newsletter Signup',
-    description: 'Collect an email from visitors about to leave. Submissions are listed on the automation page and sent to your destinations.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'exit_intent' }],
@@ -252,9 +240,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'scroll-lead-magnet',
-    name: 'Scroll-Depth Lead Magnet',
-    description: 'Offer a download to readers who reach 75% of a page, in exchange for their email.',
-    category: 'Lead capture',
+    category: 'lead_capture',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'scroll_depth', depth: 75 }],
@@ -280,9 +266,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'exit-intent-discount',
-    name: 'Exit-Intent Discount Modal',
-    description: 'Show a last-chance offer when a visitor is about to leave.',
-    category: 'Conversion',
+    category: 'conversion',
     categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300',
     definition: {
       triggers: [{ type: 'exit_intent' }],
@@ -306,9 +290,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'welcome-new-visitors',
-    name: 'Welcome New Visitors',
-    description: 'Greet first-time visitors with a friendly toast notification.',
-    category: 'Engagement',
+    category: 'engagement',
     categoryColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300',
     definition: {
       triggers: [{ type: 'page_view' }],
@@ -336,9 +318,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'rage-click-support',
-    name: 'Rage Click → Live Support',
-    description: 'Offer help when a visitor clicks the same spot repeatedly out of frustration.',
-    category: 'Support',
+    category: 'support',
     categoryColor: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300',
     definition: {
       triggers: [{ type: 'rage_click' }],
@@ -357,9 +337,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'pricing-page-followup',
-    name: 'Pricing Page Follow-up',
-    description: 'Catch returning visitors on your pricing page and offer a demo.',
-    category: 'Conversion',
+    category: 'conversion',
     categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300',
     definition: {
       triggers: [{ type: 'page_view', path: '/pricing', match_type: 'exact' }],
@@ -387,9 +365,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'form-abandon-recovery',
-    name: 'Form Abandonment Recovery',
-    description: 'Offer help when a visitor starts a form but navigates away.',
-    category: 'Recovery',
+    category: 'recovery',
     categoryColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300',
     definition: {
       triggers: [{ type: 'form_abandon' }],
@@ -412,9 +388,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'scroll-depth-subscribe',
-    name: 'Scroll-Depth Subscribe Banner',
-    description: 'Prompt engaged readers to subscribe after they scroll 75% of the page.',
-    category: 'Engagement',
+    category: 'engagement',
     categoryColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300',
     definition: {
       triggers: [{ type: 'scroll_depth', depth: 75 }],
@@ -438,9 +412,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'long-session-upsell',
-    name: 'Long Session Upsell',
-    description: 'Surface an upsell modal after a visitor has been engaged for 2 minutes.',
-    category: 'Upsell',
+    category: 'upsell',
     categoryColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300',
     definition: {
       triggers: [{ type: 'time_on_page', seconds: 120 }],
@@ -464,9 +436,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'js-error-recovery',
-    name: 'JS Error Recovery',
-    description: 'Apologize and alert your team when a JS error hits a visitor.',
-    category: 'Support',
+    category: 'support',
     categoryColor: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300',
     definition: {
       triggers: [{ type: 'js_error' }],
@@ -485,9 +455,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'inactivity-reengage',
-    name: 'Inactivity Re-engage',
-    description: 'Nudge visitors who have been idle for 60 seconds.',
-    category: 'Re-engagement',
+    category: 'reengagement',
     categoryColor: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300',
     definition: {
       triggers: [{ type: 'inactivity', seconds: 60 }],
@@ -511,9 +479,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'cta-click-webhook',
-    name: 'CTA Click → Webhook',
-    description: 'Fire a webhook to your CRM whenever a visitor clicks the main CTA.',
-    category: 'Integration',
+    category: 'integration',
     categoryColor: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300',
     definition: {
       triggers: [{ type: 'click', selector: '#cta-button, .cta-primary' }],
@@ -536,9 +502,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'identify-tag-session',
-    name: 'Identify → Tag Session',
-    description: 'Automatically tag sessions by user plan when a visitor identifies.',
-    category: 'Segmentation',
+    category: 'segmentation',
     categoryColor: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300',
     definition: {
       triggers: [{ type: 'identify' }],
@@ -556,9 +520,7 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: 'tab-return-banner',
-    name: 'Tab Return Banner',
-    description: "Welcome visitors back when they return to the tab after switching away.",
-    category: 'Engagement',
+    category: 'engagement',
     categoryColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300',
     definition: {
       triggers: [{ type: 'tab_visible' }],
@@ -583,4 +545,4 @@ export const TEMPLATES: Template[] = [
   },
 ];
 
-export const CATEGORIES = ['All', 'Conversion', 'Engagement', 'Support', 'Recovery', 'Upsell', 'Re-engagement', 'Integration', 'Segmentation'];
+export const CATEGORIES: Array<'all' | TemplateCategory> = ['all', 'conversion', 'engagement', 'support', 'recovery', 'upsell', 'reengagement', 'integration', 'segmentation'];

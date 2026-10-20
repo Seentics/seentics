@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+import { agencyEn, type AgencyMessages } from '@/lib/i18n/messages/agency-en';
 import { demoAgencyResponse, type DemoDomainState } from '@/lib/demo/agency';
 import { AgencyDemoRefusal, agencyDemoGuard, isAgencyDemo } from '@/lib/demo/agency-mode';
 import type {
@@ -109,37 +110,43 @@ export interface AgencyError {
 }
 
 /** Any failure from these calls, as `{status, code, message}` read from the API's error envelope. */
-export function agencyError(e: unknown): AgencyError {
+export function agencyError(e: unknown, fallback = agencyEn.errors.fallback): AgencyError {
   const response = (e as { response?: { status?: number; data?: Partial<AgencyErrorBody> & { message?: string } } })?.response;
   const body = response?.data?.error;
   const status = response?.status ?? null;
   if (body && typeof body === 'object') {
-    return { status, code: body.code, message: body.message || 'Something went wrong', details: body.details };
+    return { status, code: body.code, message: body.message || fallback, details: body.details };
   }
-  return { status, code: status === 503 ? 'unavailable' : 'unknown', message: (e as Error)?.message || 'Something went wrong' };
+  return { status, code: status === 503 ? 'unavailable' : 'unknown', message: (e as Error)?.message || fallback };
 }
 
-/** A sentence to show for a failure, with the codes the workspace can explain better than the server. */
-export function errorMessage(e: unknown): string {
-  const err = agencyError(e);
+/**
+ * A sentence to show for a failure, with the codes the workspace can explain better than the
+ * server. `m` is the current language's `useT().agency.errors` (English when left out).
+ */
+export function errorMessage(e: unknown, m: AgencyMessages['errors'] = agencyEn.errors): string {
+  const err = agencyError(e, m.fallback);
   switch (err.code) {
-    case 'agency_plan_required': return 'This needs the Agency plan.';
-    case 'rate_limited': return 'Too many requests. Please wait a moment and try again.';
-    case 'idempotency_conflict': return 'That request was already sent with different details. Please try again.';
-    case 'provider_error': return 'Our provider could not complete that just now. Please try again in a few minutes.';
+    case 'agency_plan_required': return m.agencyPlanRequired;
+    case 'rate_limited': return m.rateLimited;
+    case 'idempotency_conflict': return m.idempotencyConflict;
+    case 'provider_error': return m.providerError;
     default: return err.message;
   }
 }
 
-/** The custom-domain failures in words, including the 503 the gateway sends when domains are switched off. */
-export function domainErrorMessage(e: unknown): string {
+/**
+ * The custom-domain failures in words, including the 503 the gateway sends when domains are
+ * switched off. `m` is `useT().agency.domainErrors` (English when left out).
+ */
+export function domainErrorMessage(e: unknown, m: AgencyMessages['domainErrors'] = agencyEn.domainErrors): string {
   const err = agencyError(e);
-  if (err.status === 503) return 'Custom domains are unavailable right now. Please try again later.';
-  if (err.code === 'conflict') return 'That hostname is already in use by another account.';
-  if (err.code === 'validation_failed') return err.message || 'That is not a hostname you can use. Try one like reports.youragency.com.';
-  if (err.code === 'provider_error' || err.status === 502) return 'Our certificate provider could not take the domain just now. Please try again in a few minutes.';
-  if (err.code === 'rate_limited' || err.status === 429) return 'Too many domain changes in the last hour. Please wait a while and try again.';
-  if (err.code === 'not_found') return 'There is no custom domain to check. Add one first.';
+  if (err.status === 503) return m.unavailable;
+  if (err.code === 'conflict') return m.conflict;
+  if (err.code === 'validation_failed') return err.message || m.invalid;
+  if (err.code === 'provider_error' || err.status === 502) return m.provider;
+  if (err.code === 'rate_limited' || err.status === 429) return m.rateLimited;
+  if (err.code === 'not_found') return m.notFound;
   return err.message;
 }
 

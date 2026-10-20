@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { getBrowserImagePath, getDeviceImagePath, getOsImagePath } from '@/lib/analytics-icons';
 import { useControllableState } from '@/hooks/useControllableState';
+import { useT } from '@/lib/i18n';
 
 interface TopDevicesChartProps {
   data?: any; // { top_devices: [] }
@@ -34,6 +35,7 @@ const getSystemImage = (label: string, type: 'device' | 'os') => {
 };
 
 export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter, activeTab, onActiveTabChange, headerAction }: TopDevicesChartProps) {
+  const t = useT().analytics;
   const [selectedTab, handleTabChange] = useControllableState({
     value: activeTab,
     defaultValue: 'os' as const,
@@ -68,7 +70,7 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-xs font-medium text-muted-foreground">No data available</p>
+          <p className="text-xs font-medium text-muted-foreground">{t.devices.noData}</p>
         </div>
       );
     }
@@ -123,7 +125,9 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
                     </>
                   )}
                 </div>
-                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">{label}</span>
+                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">
+                  {label === 'Unknown' ? t.common.unknown : type === 'device' ? (t.common.devices[label] ?? label) : label}
+                </span>
               </div>
 
               <div className="relative shrink-0 text-right text-[13px] font-semibold tabular-nums">
@@ -141,13 +145,13 @@ export function TopDevicesChart({ data, osData, browserData, isLoading, onFilter
       <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'os' | 'devices' | 'browsers')} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border shrink-0">
            <div className="flex items-center gap-1">
-             <h3 className="text-sm font-semibold tracking-tight">System Insights</h3>
+             <h3 className="text-sm font-semibold tracking-tight">{t.devices.title}</h3>
              {headerAction}
            </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted p-0.5 rounded-lg shrink-0">
-             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
-             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
-             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
+             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.devices.os}</TabsTrigger>
+             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.devices.devices}</TabsTrigger>
+             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t.devices.browsers}</TabsTrigger>
            </TabsList>
         </div>
         

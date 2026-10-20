@@ -30,7 +30,7 @@ describe('FormSubmissions (demo)', () => {
       expect(screen.getAllByText(label, { exact: true }).length).toBeGreaterThan(0);
     }
     expect(screen.getByText('SPIN20')).toBeInTheDocument();
-    expect(screen.getAllByText(/Leads platform: delivered/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Leads to Google Sheets: delivered/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Newsletter audience: retrying/i)).toBeInTheDocument();
   });
 
@@ -111,7 +111,7 @@ describe('DestinationCard', () => {
 
   it('shows the name, status and the credential only as a hint', () => {
     card();
-    expect(screen.getByText('Leads platform')).toBeInTheDocument();
+    expect(screen.getByText('Leads to Google Sheets')).toBeInTheDocument();
     expect(screen.getByText('Connected')).toBeInTheDocument();
     expect(screen.getByText('…/8f3a2c')).toBeInTheDocument();
   });

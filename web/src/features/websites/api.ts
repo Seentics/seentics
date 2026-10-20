@@ -7,6 +7,7 @@ import type {
   WebsiteMember,
   WebsiteRole,
 } from './types';
+import { isWebsiteProfile, type WebsiteProfile } from './types';
 
 
 
@@ -35,6 +36,7 @@ export async function getWebsites(): Promise<Website[]> {
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       errorsEnabled: w.errors_enabled ?? true,
+      profile: isWebsiteProfile(w.profile) ? w.profile : null,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,
@@ -66,7 +68,7 @@ export async function getWebsites(): Promise<Website[]> {
 
 
 // Adds a new website.
-export async function addWebsite(website: { name: string; url: string }, userId: string): Promise<Website> {
+export async function addWebsite(website: { name: string; url: string; profile?: WebsiteProfile }, userId: string): Promise<Website> {
   try {
     const response: any = await api.post('/user/websites', { ...website, userId });
 
@@ -90,6 +92,7 @@ export async function addWebsite(website: { name: string; url: string }, userId:
       automationEnabled: websiteData.automation_enabled ?? true,
       funnelEnabled: websiteData.funnel_enabled ?? true,
       errorsEnabled: websiteData.errors_enabled ?? true,
+      profile: isWebsiteProfile(websiteData.profile) ? websiteData.profile : null,
       heatmapEnabled: websiteData.heatmap_enabled ?? true,
       heatmapLayoutEnabled: websiteData.heatmap_layout_enabled ?? true,
       heatmapIncludePatterns: websiteData.heatmap_include_patterns,
@@ -166,6 +169,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       errorsEnabled: w.errors_enabled ?? true,
+      profile: isWebsiteProfile(w.profile) ? w.profile : null,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,
@@ -200,7 +204,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
 // Updates an existing website.
 export async function updateWebsite(
   websiteId: string,
-  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'errorsEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'maskAllText' | 'maskTextPatterns' | 'settings'>>,
+  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'errorsEnabled' | 'profile' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'maskAllText' | 'maskTextPatterns' | 'settings'>>,
   userId: string
 ): Promise<Website> {
   try {
@@ -237,6 +241,7 @@ export async function updateWebsite(
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       errorsEnabled: w.errors_enabled ?? true,
+      profile: isWebsiteProfile(w.profile) ? w.profile : null,
       heatmapEnabled: w.heatmap_enabled ?? true,
       heatmapIncludePatterns: w.heatmap_include_patterns,
       heatmapExcludePatterns: w.heatmap_exclude_patterns,

@@ -47,6 +47,8 @@ const NAV = [
 
 export type MockNavLabel = (typeof NAV)[number]['label'];
 
+const DEFAULT_ORDER: readonly MockNavLabel[] = NAV.map((item) => item.label);
+
 /**
  * Set by the landing hero to make the mock explorable: the sidebar items it has a screen
  * for become buttons that switch to it. Everywhere else (no provider) the mock stays a
@@ -55,6 +57,8 @@ export type MockNavLabel = (typeof NAV)[number]['label'];
 export const MockNavContext = createContext<{
   views: readonly MockNavLabel[];
   onSelect: (label: MockNavLabel) => void;
+  /** The sidebar's items in this order (a website type's, features/sidebar/profiles.ts); the usual list without it. */
+  order?: readonly MockNavLabel[];
 } | null>(null);
 
 /**
@@ -72,10 +76,10 @@ export function useMockContentProps(): { inert?: boolean } {
 }
 
 /**
- * The page's frame, as the dashboard draws it from md up (app/websites/[websiteId]/layout.tsx):
- * a rounded, hairline-edged panel inset from the window, with the sidebar on the chrome around it.
+ * The page beside the sidebar, as the dashboard draws it from md up (app/websites/[websiteId]/layout.tsx):
+ * edge to edge, the page's grey against the sidebar in the cards' colour, no line between.
  */
-export const MOCK_FRAME = 'my-2 mr-2 overflow-hidden rounded-xl border border-border app-frame app-frame-lit shadow-[var(--panel-edge)]';
+export const MOCK_FRAME = 'overflow-hidden app-frame';
 
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
   const nav = useContext(MockNavContext);
@@ -97,11 +101,11 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
       {/* Nav */}
       <nav className="flex-1 px-3 py-2">
         <ul className="space-y-0.5">
-          {NAV.map((item) => {
+          {(nav?.order ?? DEFAULT_ORDER).map((label) => NAV.find((item) => item.label === label)!).map((item) => {
             const isActive = item.label === active;
             const className = cn(
               'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left',
-              isActive ? 'bg-accent text-foreground' : 'text-foreground/60',
+              isActive ? 'bg-muted text-foreground dark:bg-white/[0.08]' : 'text-foreground/60',
             );
             const body = (
               <>

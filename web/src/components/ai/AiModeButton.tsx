@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useCanSeeFeature } from '@/features/client-mode/ClientMode';
 
@@ -21,7 +22,8 @@ export interface AiModeButtonProps {
  * link: a bordered card button, a muted pill, and a tinted one. A single tinted pill
  * reads as a mode switch rather than another button in the row.
  */
-export function AiModeButton({ websiteId, size = 'sm', label = 'AI Mode', className }: AiModeButtonProps) {
+export function AiModeButton({ websiteId, size = 'sm', label, className }: AiModeButtonProps) {
+  const t = useT().ai.modeButton;
   const md = size === 'md';
   // A client user (client mode) gets AI mode only where their agency allows AI.
   const aiAllowed = useCanSeeFeature('ai');
@@ -29,7 +31,7 @@ export function AiModeButton({ websiteId, size = 'sm', label = 'AI Mode', classN
   return (
     <Link
       href={`/websites/${websiteId}/ai`}
-      title="Open AI Mode"
+      title={t.title}
       className={cn(
         'flex shrink-0 items-center rounded-lg bg-primary/10 font-semibold text-primary transition-colors hover:bg-primary/15',
         md ? 'h-9 gap-2 px-3 text-sm' : 'h-8 gap-1.5 px-2.5 text-xs',
@@ -37,7 +39,7 @@ export function AiModeButton({ websiteId, size = 'sm', label = 'AI Mode', classN
       )}
     >
       <Sparkles className={cn('shrink-0', md ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
-      <span>{label}</span>
+      <span>{label ?? t.label}</span>
     </Link>
   );
 }

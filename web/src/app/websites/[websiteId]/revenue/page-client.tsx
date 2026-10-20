@@ -19,10 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { DataTable, SortableHeader, type ColumnDef } from '@/components/ui/data-table';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Receipt,
-  ExternalLink,
-  BookOpen, CircleDollarSign } from 'lucide-react';
+import { Receipt, ExternalLink, BookOpen } from 'lucide-react';
 
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -31,8 +28,11 @@ import { RevenueDocsSheet } from '@/components/revenue/RevenueDocsSheet';
 import { DimTable } from '@/components/revenue/DimTable';
 import { RevenueOrdersChart } from '@/components/revenue/RevenueOrdersChart';
 import { fmtTime } from '@/features/revenue/format';
+import { useLocale, useT } from '@/lib/i18n';
 
 export default function RevenuePage() {
+  const t = useT().revenue.page;
+  const { locale } = useLocale();
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
   const [days, setDays] = useState(30);
@@ -54,31 +54,31 @@ export default function RevenuePage() {
     if (!summary) return [];
     return [
       {
-        label: 'Total revenue',
+        label: t.totalRevenue,
         value: formatMoney(summary.total_revenue, cur),
         subtext: prior
-          ? `${prior.change_pct >= 0 ? '+' : ''}${prior.change_pct.toFixed(1)}% vs prior period`
+          ? t.vsPrior(`${prior.change_pct >= 0 ? '+' : ''}${prior.change_pct.toFixed(1)}`)
           : undefined,
       },
       {
-        label: 'Orders',
+        label: t.orders,
         value: summary.orders,
         subtext: orderChangePct !== undefined
-          ? `${orderChangePct >= 0 ? '+' : ''}${orderChangePct.toFixed(1)}% vs prior period`
+          ? t.vsPrior(`${orderChangePct >= 0 ? '+' : ''}${orderChangePct.toFixed(1)}`)
           : undefined,
       },
       {
-        label: 'Avg. order value',
+        label: t.aov,
         value: formatMoney(summary.aov, cur),
-        subtext: `ARPU ${formatMoney(summary.arpu, cur)}`,
+        subtext: t.arpu(formatMoney(summary.arpu, cur)),
       },
       {
-        label: 'Revenue / session',
+        label: t.revenuePerSession,
         value: formatMoney(summary.revenue_per_session, cur),
-        subtext: `${summary.sessions.toLocaleString()} sessions`,
+        subtext: t.sessions(summary.sessions.toLocaleString()),
       },
     ];
-  }, [summary, cur, prior, orderChangePct]);
+  }, [summary, cur, prior, orderChangePct, t]);
 
   const chartData = useMemo(() =>
     (data?.daily ?? []).map((d) => ({ date: d.date, revenue: d.revenue, orders: d.orders })),
@@ -89,12 +89,12 @@ export default function RevenuePage() {
     {
       id: 'time',
       accessorKey: 'occurred_at',
-      header: ({ column }) => <SortableHeader column={column}>Time</SortableHeader>,
+      header: ({ column }) => <SortableHeader column={column}>{t.time}</SortableHeader>,
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-foreground">{fmtTime(row.original.occurred_at)}</p>
+          <p className="text-[13px] font-medium text-foreground">{fmtTime(row.original.occurred_at, locale)}</p>
           <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground" title={row.original.order_id ?? ''}>
-            {row.original.order_id ? `#${row.original.order_id}` : 'No order ID'}
+            {row.original.order_id ? `#${row.original.order_id}` : t.noOrderId}
           </p>
         </div>
       ),
@@ -102,7 +102,7 @@ export default function RevenuePage() {
     {
       id: 'value',
       accessorKey: 'value',
-      header: ({ column }) => <SortableHeader column={column}>Value</SortableHeader>,
+      header: ({ column }) => <SortableHeader column={column}>{t.value}</SortableHeader>,
       cell: ({ row }) => (
         <span className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
           {formatMoney(row.original.value, row.original.currency || cur)}
@@ -111,7 +111,7 @@ export default function RevenuePage() {
     },
     {
       id: 'attribution',
-      header: 'Attribution',
+      header: t.attribution,
       cell: ({ row }) => {
         const tx = row.original;
         return (
@@ -125,10 +125,10 @@ export default function RevenuePage() {
     },
     {
       id: 'customer',
-      header: 'Customer',
+      header: t.customer,
       cell: ({ row }) => (
         <Badge variant="secondary" className="h-5 px-2 text-[10px] font-normal">
-          {row.original.user_type === 'new' ? 'New' : row.original.user_type === 'returning' ? 'Returning' : '—'}
+          {row.original.user_type === 'new' ? t.newCustomer : row.original.user_type === 'returning' ? t.returning : '—'}
         </Badge>
       ),
     },
@@ -145,13 +145,13 @@ export default function RevenuePage() {
             asChild
           >
             <Link href={`/websites/${websiteId}/revenue/transactions/${encodeURIComponent(row.original.id)}`}>
-              Open <ExternalLink className="h-3 w-3 opacity-60" />
+              {t.open} <ExternalLink className="h-3 w-3 opacity-60" />
             </Link>
           </Button>
         </div>
       ),
     },
-  ], [cur, websiteId]);
+  ], [cur, websiteId, t, locale]);
 
   if (isLoading) {
     return (
@@ -174,9 +174,8 @@ export default function RevenuePage() {
 
   return (
     <ReportPage
-      icon={<CircleDollarSign />}
-      title="Revenue"
-      description="Purchase revenue, order economics, and channel attribution."
+      title={t.title}
+      description={t.description}
       websiteId={websiteId}
       actions={<>
         <div className="flex items-center gap-2">
@@ -187,7 +186,7 @@ export default function RevenuePage() {
             onClick={() => setShowDocs(true)}
           >
             <BookOpen className="h-3.5 w-3.5" />
-            Track revenue
+            {t.trackRevenue}
           </Button>
 
           <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
@@ -196,7 +195,7 @@ export default function RevenuePage() {
             </SelectTrigger>
             <SelectContent>
               {[7, 14, 30, 90].map((d) => (
-                <SelectItem key={d} value={String(d)} className="text-xs">Last {d} days</SelectItem>
+                <SelectItem key={d} value={String(d)} className="text-xs">{t.lastDays(d)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -214,38 +213,32 @@ export default function RevenuePage() {
         <Tabs defaultValue="source" className="w-full">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Attribution</h3>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Where revenue comes from</p>
+              <h3 className="text-sm font-semibold text-foreground">{t.attribution}</h3>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{t.attributionHint}</p>
             </div>
             <TabsList className="h-8 max-w-full justify-start overflow-x-auto bg-muted/60 p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {([
-                ['source', 'Source'],
-                ['medium', 'Medium'],
-                ['campaign', 'Campaign'],
-                ['product', 'Product'],
-                ['country', 'Country'],
-              ] as const).map(([val, label]) => (
+              {(['source', 'medium', 'campaign', 'product', 'country'] as const).map((val) => (
                 <TabsTrigger key={val} value={val} className="h-7 px-3 text-xs">
-                  {label}
+                  {t.dims[val]}
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
           <CardContent className="p-4">
             <TabsContent value="source" className="mt-0">
-              <DimTable icon="source" rows={data?.by_source ?? []} currency={cur} emptyMessage="No source data. Add UTM parameters to your marketing links." />
+              <DimTable icon="source" rows={data?.by_source ?? []} currency={cur} emptyMessage={t.emptySource} />
             </TabsContent>
             <TabsContent value="medium" className="mt-0">
-              <DimTable rows={data?.by_medium ?? []} currency={cur} emptyMessage="No medium data yet." />
+              <DimTable rows={data?.by_medium ?? []} currency={cur} emptyMessage={t.emptyMedium} />
             </TabsContent>
             <TabsContent value="campaign" className="mt-0">
-              <DimTable rows={data?.by_campaign ?? []} currency={cur} emptyMessage="No campaign data. Add utm_campaign to your links." />
+              <DimTable rows={data?.by_campaign ?? []} currency={cur} emptyMessage={t.emptyCampaign} />
             </TabsContent>
             <TabsContent value="product" className="mt-0">
-              <DimTable rows={data?.by_product ?? []} currency={cur} emptyMessage="No product data. Add product_name to your purchase events." />
+              <DimTable rows={data?.by_product ?? []} currency={cur} emptyMessage={t.emptyProduct} />
             </TabsContent>
             <TabsContent value="country" className="mt-0">
-              <DimTable icon="country" rows={data?.by_country ?? []} currency={cur} emptyMessage="No country data yet." />
+              <DimTable icon="country" rows={data?.by_country ?? []} currency={cur} emptyMessage={t.emptyCountry} />
             </TabsContent>
           </CardContent>
         </Tabs>
@@ -259,12 +252,12 @@ export default function RevenuePage() {
         onRowClick={setOpenTx}
         pageSize={10}
         emptyIcon={<Receipt className="h-8 w-8 opacity-30" />}
-        emptyTitle="No transactions yet"
-        emptyDescription="Each seentics.track('purchase', { value, currency, order_id }) call appears here."
+        emptyTitle={t.noTransactions}
+        emptyDescription={t.noTransactionsBody}
         toolbarLeft={
           <div>
-            <h3 className="font-semibold text-foreground">Recent transactions</h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Last 50 purchases — click a row for attribution detail.</p>
+            <h3 className="font-semibold text-foreground">{t.recentTransactions}</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{t.recentHint}</p>
           </div>
         }
       />
@@ -279,9 +272,9 @@ export default function RevenuePage() {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <Receipt className="h-4 w-4 text-muted-foreground" />
-                  {openTx.order_id ? `Order #${openTx.order_id}` : 'Transaction'}
+                  {openTx.order_id ? t.order(openTx.order_id) : t.transaction}
                 </SheetTitle>
-                <SheetDescription>{fmtTime(openTx.occurred_at)}</SheetDescription>
+                <SheetDescription>{fmtTime(openTx.occurred_at, locale)}</SheetDescription>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
                 <div className="flex items-baseline justify-between gap-4">
@@ -290,10 +283,10 @@ export default function RevenuePage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {[
-                    { label: 'Source', value: openTx.source ?? '—' },
-                    { label: 'Medium', value: openTx.medium ?? '—' },
-                    { label: 'Campaign', value: openTx.campaign ?? '—' },
-                    { label: 'Customer', value: openTx.user_type === 'new' ? 'New' : openTx.user_type === 'returning' ? 'Returning' : '—' },
+                    { label: t.dims.source, value: openTx.source ?? '—' },
+                    { label: t.dims.medium, value: openTx.medium ?? '—' },
+                    { label: t.dims.campaign, value: openTx.campaign ?? '—' },
+                    { label: t.customer, value: openTx.user_type === 'new' ? t.newCustomer : openTx.user_type === 'returning' ? t.returning : '—' },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg border border-border p-2.5">
                       <p className="text-muted-foreground">{label}</p>
@@ -303,7 +296,7 @@ export default function RevenuePage() {
                 </div>
                 {openTx.product_name && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">Line items</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">{t.lineItems}</p>
                     <ul className="space-y-1.5">
                       {(openTx.items && openTx.items.length > 0
                         ? openTx.items
@@ -323,7 +316,7 @@ export default function RevenuePage() {
                 )}
                 <Button className="w-full" variant="outline" asChild>
                   <Link href={`/websites/${websiteId}/revenue/transactions/${encodeURIComponent(openTx.id)}`}>
-                    Open full page <ExternalLink className="h-3.5 w-3.5 ml-2 opacity-50" />
+                    {t.openFullPage} <ExternalLink className="h-3.5 w-3.5 ml-2 opacity-50" />
                   </Link>
                 </Button>
               </div>

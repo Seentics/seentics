@@ -42,6 +42,8 @@ import {
   SkipForward,
 } from 'lucide-react';
 import type { RRWebEvent, SessionCustomEvent } from '@/lib/replays-api';
+import { useT } from '@/lib/i18n';
+import { replaysEn, type ReplaysMessages } from '@/lib/i18n/messages/replays-en';
 
 type PlayerInstance = InstanceType<typeof PlayerCtor>;
 
@@ -398,9 +400,12 @@ export function buildReplayLogEntries(
     hasRageClicks?: boolean;
     websiteId?: string;
     errorDetails?: SessionErrorDetail[];
+    /** The words for each kind of moment; English by default. */
+    labels?: ReplaysMessages['log'];
   },
 ): ReplayLogEntry[] {
   if (events.length < 2) return [];
+  const L = opts?.labels ?? replaysEn.log;
   const t0 = events[0].timestamp;
   const websiteId = opts?.websiteId;
   const out: ReplayLogEntry[] = [];
@@ -408,7 +413,7 @@ export function buildReplayLogEntries(
   out.push({
     id: 'start',
     kind: 'start',
-    title: 'Recording start',
+    title: L.start,
     detail: opts?.entryPage?.trim() ? formatReplayLogPathDetail(opts.entryPage.trim(), websiteId) : undefined,
     offsetMs: 0,
   });
@@ -446,7 +451,7 @@ export function buildReplayLogEntries(
     out.push({
       id: `page-${pageSeq}-${off}`,
       kind: 'page',
-      title: 'Page',
+      title: L.page,
       detail: formatReplayLogPathDetail(htrim, websiteId),
       offsetMs: off,
     });
@@ -457,8 +462,8 @@ export function buildReplayLogEntries(
     out.push({
       id: `rage-${ri}-${ts}`,
       kind: 'rage',
-      title: 'Rage click pattern',
-      detail: '3+ fast clicks within ~1s in ~50px',
+      title: L.ragePattern,
+      detail: L.rageDetail,
       offsetMs: ts,
     });
   });
@@ -467,8 +472,8 @@ export function buildReplayLogEntries(
     out.push({
       id: 'rage-session-flag',
       kind: 'rage',
-      title: 'Rage clicks (session)',
-      detail: 'Flagged when saved; no matching click cluster in this event stream',
+      title: L.rageSession,
+      detail: L.rageSessionDetail,
       offsetMs: null,
     });
   }
@@ -493,8 +498,8 @@ export function buildReplayLogEntries(
     out.push({
       id: 'client-error',
       kind: 'error',
-      title: 'Client error',
-      detail: 'JavaScript error or unhandled rejection (time not pinned in recording)',
+      title: L.clientError,
+      detail: L.clientErrorDetail,
       offsetMs: null,
     });
   }
@@ -541,6 +546,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
   embedded?: boolean;
 }) {
   const { syncNow } = useReplayPlayback();
+  const t = useT().replays.log;
   if (entries.length === 0) {
     return (
       <div
@@ -549,7 +555,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
           embedded ? 'rounded-lg' : 'rounded-lg',
         )}
       >
-        <p className="text-xs text-muted-foreground">No key moments indexed for this recording.</p>
+        <p className="text-xs text-muted-foreground">{t.empty}</p>
       </div>
     );
   }
@@ -604,7 +610,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
               <button
                 type="button"
                 disabled={!canSeek}
-                title={canSeek ? 'Jump to this moment' : undefined}
+                title={canSeek ? t.jump : undefined}
                 className={cn(
                   'flex w-full items-start gap-2 px-2.5 py-2 text-left transition-colors',
                   'text-[11px] leading-snug',
@@ -872,6 +878,7 @@ function ReplayScrubberTrack({
   durationMs: number;
 }) {
   const { currentMs, playing, syncNow } = useReplayPlayback();
+  const t = useT().replays.player;
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const scrubMovedRef = useRef(false);
@@ -944,7 +951,7 @@ function ReplayScrubberTrack({
       ref={trackRef}
       role="slider"
       tabIndex={0}
-      aria-label="Seek — drag on the bar, or arrow keys for 5 seconds"
+      aria-label={t.seek}
       aria-valuemin={0}
       aria-valuemax={durationMs}
       aria-valuenow={Math.round(currentMs)}
@@ -983,6 +990,7 @@ function SessionReplayTransportBar({
   const { currentMs, playing, syncNow } = useReplayPlayback();
   const [speed, setSpeed] = useState(1);
   const [skipInactive, setSkipInactive] = useState(true);
+  const t = useT().replays.player;
 
   const seekRel = (deltaMs: number) => {
     const next = Math.min(durationMs, Math.max(0, currentMs + deltaMs));
@@ -999,8 +1007,8 @@ function SessionReplayTransportBar({
             variant="ghost"
             size="icon"
             className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
-            aria-label="Back 10 seconds"
-            title="Back 10s"
+            aria-label={t.back10}
+            title={t.back10Short}
             onClick={() => seekRel(-SEEK_STEP_MS)}
           >
             <Rewind className="h-3.5 w-3.5" />
@@ -1009,7 +1017,7 @@ function SessionReplayTransportBar({
             type="button"
             size="icon"
             className="h-8 w-8 shrink-0 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-            aria-label={playing ? 'Pause' : 'Play'}
+            aria-label={playing ? t.pause : t.play}
             onClick={() => {
               try {
                 player.toggle();
@@ -1029,8 +1037,8 @@ function SessionReplayTransportBar({
             variant="ghost"
             size="icon"
             className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
-            aria-label="Forward 10 seconds"
-            title="Forward 10s"
+            aria-label={t.forward10}
+            title={t.forward10Short}
             onClick={() => seekRel(SEEK_STEP_MS)}
           >
             <FastForward className="h-3.5 w-3.5" />
@@ -1056,8 +1064,8 @@ function SessionReplayTransportBar({
               'h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8',
               skipInactive && 'bg-white/[0.07] text-zinc-200',
             )}
-            aria-label={skipInactive ? 'Skip idle time (on)' : 'Skip idle time (off)'}
-            title={skipInactive ? 'Skip idle: on' : 'Skip idle: off'}
+            aria-label={skipInactive ? t.skipIdleOn : t.skipIdleOff}
+            title={skipInactive ? t.skipIdleOnShort : t.skipIdleOffShort}
             onClick={() => {
               try {
                 player.toggleSkipInactive();
@@ -1076,8 +1084,8 @@ function SessionReplayTransportBar({
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-0.5 rounded-lg px-1.5 text-[10px] font-medium tabular-nums text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:px-2 sm:text-[11px]"
-                aria-label="Playback speed"
-                title="Speed"
+                aria-label={t.speed}
+                title={t.speedShort}
               >
                 <Gauge className="h-3 w-3 opacity-80" />
                 {speed}×
@@ -1097,7 +1105,7 @@ function SessionReplayTransportBar({
                     }
                   }}
                 >
-                  {s}×{s === 1 ? ' normal' : ''}
+                  {s}×{s === 1 ? ` ${t.normal}` : ''}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -1107,8 +1115,8 @@ function SessionReplayTransportBar({
             variant="ghost"
             size="icon"
             className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
-            aria-label="Fullscreen"
-            title="Fullscreen"
+            aria-label={t.fullscreen}
+            title={t.fullscreen}
             onClick={() => {
               try {
                 player.toggleFullscreen();
@@ -1179,6 +1187,7 @@ function ReplayIdleOverlay({
   t0: number;
 }) {
   const { currentMs, syncNow } = useReplayPlayback();
+  const t = useT().replays.player;
   /** Offsets (ms from the first event) of the stretch being skipped. */
   const [idle, setIdle] = useState<{ fromMs: number; toMs: number } | null>(null);
 
@@ -1227,8 +1236,8 @@ function ReplayIdleOverlay({
       <div className="flex w-[min(20rem,calc(100%-2rem))] flex-col items-center gap-3 text-center">
         <Moon className="h-5 w-5 text-zinc-400" aria-hidden />
         <div>
-          <p className="text-sm font-medium text-zinc-100">Visitor idle · {fmtIdle(span)}</p>
-          <p className="mt-0.5 text-xs text-zinc-400">No mouse, scroll or typing — fast-forwarding</p>
+          <p className="text-sm font-medium text-zinc-100">{t.idle(fmtIdle(span))}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">{t.idleBody}</p>
         </div>
         <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-700/60">
           <div className="h-full rounded-full bg-white/70" style={{ width: `${pct}%` }} />
@@ -1240,7 +1249,7 @@ function ReplayIdleOverlay({
           className="h-7 gap-1 rounded-lg px-3 text-xs"
           onClick={skip}
         >
-          Skip
+          {t.skip}
           <SkipForward className="h-3 w-3" aria-hidden />
         </Button>
       </div>
@@ -1273,6 +1282,7 @@ export function SessionReplaySurface({
   knownDurationMs?: number;
   className?: string;
 }) {
+  const logLabels = useT().replays.log;
   const wrapRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   /** Unpadded box — ResizeObserver contentRect matches space available for the player */
@@ -1332,9 +1342,10 @@ export function SessionReplaySurface({
         hasRageClicks: Boolean(sessionSummary?.hasRageClicks),
         websiteId,
         errorDetails,
+        labels: logLabels,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks, websiteId, errorDetails],
+    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks, websiteId, errorDetails, logLabels],
   );
 
   useLayoutEffect(() => {

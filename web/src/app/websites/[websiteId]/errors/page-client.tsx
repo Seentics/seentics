@@ -8,17 +8,18 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { Button } from '@/components/ui/button';
 import { RangeSelect } from '@/components/ui/range-select';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Bug, ChevronLeft } from 'lucide-react';
+import { Bug, Check, ChevronLeft, EyeOff } from 'lucide-react';
 import {
-  CollectionEmpty, CollectionSkeleton, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
+  COLLECTION_SURFACE, CollectionEmpty, CollectionSkeleton, CountTabs, FilterToolbar, LayoutSwitch, useLayoutPreference, type FilterField,
 } from '@/components/ui/collection';
-import { LIST_PAGE, PageBar, ViewTabs } from '@/components/ui/linear-list';
+import { GHOST_BUTTON, LIST_PAGE, PageBar } from '@/components/ui/linear-list';
 import { ErrorGroupDetail } from '@/components/errors/error-group-detail';
 import { ErrorList, ErrorTable } from '@/components/errors/ErrorViews';
 import { errorTypeOf } from '@/features/errors/format';
 import { useErrorGroup, useErrorGroups } from '@/features/errors/queries';
-import { useSetErrorStatus } from '@/features/errors/mutations';
+import { useSetErrorStatus, useSetErrorStatuses } from '@/features/errors/mutations';
 import { isDemo } from '@/lib/demo';
 import { DEMO_REFERENCE_DATE } from '@/lib/demo/fixture-utils';
 import { ERROR_BUCKETS, errorBucket, errorLine, type ErrorBucket } from '@/features/errors/insights';
@@ -34,27 +35,30 @@ import type { ErrorGroup } from '@/features/errors/types';
  */
 
 const RANGES = [
-  { days: 1,  label: 'Last 24 hours' },
-  { days: 7,  label: 'Last 7 days' },
-  { days: 30, label: 'Last 30 days' },
+  { days: 1,  id: 'day' },
+  { days: 7,  id: 'week' },
+  { days: 30, id: 'month' },
 ] as const;
 
 type Status = 'unresolved' | 'resolved' | 'ignored' | 'all';
+const STATUSES: Status[] = ['unresolved', 'resolved', 'ignored', 'all'];
 type Sort = 'count' | 'visitors' | 'recent' | 'new';
 
 const LAYOUTS = ['list', 'table'] as const;
 type ErrorLayout = (typeof LAYOUTS)[number];
 
-const SORTS: Record<Sort, { label: string; compare: (a: ErrorGroup, b: ErrorGroup) => number }> = {
-  count: { label: 'Most frequent', compare: (a, b) => (b.window?.count ?? b.event_count) - (a.window?.count ?? a.event_count) },
-  visitors: { label: 'Most visitors', compare: (a, b) => (b.window?.sessions ?? 0) - (a.window?.sessions ?? 0) },
-  recent: { label: 'Last seen', compare: (a, b) => b.last_seen.localeCompare(a.last_seen) },
-  new: { label: 'Newest', compare: (a, b) => b.first_seen.localeCompare(a.first_seen) },
+const SORTS: Record<Sort, { compare: (a: ErrorGroup, b: ErrorGroup) => number }> = {
+  count: { compare: (a, b) => (b.window?.count ?? b.event_count) - (a.window?.count ?? a.event_count) },
+  visitors: { compare: (a, b) => (b.window?.sessions ?? 0) - (a.window?.sessions ?? 0) },
+  recent: { compare: (a, b) => b.last_seen.localeCompare(a.last_seen) },
+  new: { compare: (a, b) => b.first_seen.localeCompare(a.first_seen) },
 };
 
 export default function ErrorsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const router    = useRouter();
+  const all = useT();
+  const t = all.errors;
   const websiteId = params?.websiteId as string;
 
   const [days,   setDays]   = useState(7);
@@ -64,21 +68,28 @@ export default function ErrorsPage() {
   const [sort, setSort] = useState<Sort>('count');
   const [trend, setTrend] = useState<ErrorBucket | ''>('');
   const [kind, setKind] = useState('');
-  const [layout, setLayout] = useLayoutPreference<ErrorLayout>('errors', LAYOUTS, 'list');
+  // Table first: the errors side by side, with checkboxes for resolving or ignoring several at once.
+  const [layout, setLayout] = useLayoutPreference<ErrorLayout>('errors', LAYOUTS, 'table');
+  /** Errors ticked in the table, by fingerprint. */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // The API treats an empty status as "every status"; the tabs call that "All".
   const filters = { days, status: status === 'all' ? '' : status, search };
 
   const { data: groups, isLoading, error } = useErrorGroups(websiteId, filters);
+  // Every status at once, for the tabs' counts; the same request as the list when All is open.
+  const { data: everyStatus } = useErrorGroups(websiteId, { ...filters, status: '' });
   const detail    = useErrorGroup(websiteId, openFingerprint, days);
   const setStatusMutation = useSetErrorStatus(websiteId);
+  const bulkStatus = useSetErrorStatuses(websiteId);
   const { canEdit } = usePermissions(websiteId);
 
   // Demo data is dated against a fixed clock; relative times read against it too.
   const now = isDemo(websiteId) ? DEMO_REFERENCE_DATE.getTime() : undefined;
   const rangeStart = (now ?? Date.now()) - days * 86_400_000;
-  const periodLabel = days === 1 ? 'in the last 24 hours' : `in the last ${days} days`;
-  const lineFor = (g: ErrorGroup) => errorLine(g, rangeStart, periodLabel);
+  const periodLabel = t.period(days);
+  const lineFor = (g: ErrorGroup) => errorLine(g, rangeStart, periodLabel, t.line);
+  const ranges = RANGES.map((r) => ({ days: r.days, label: t.ranges[r.id] }));
 
   const list = useMemo(() => groups ?? [], [groups]);
   const kinds = [...new Set(list.map((g) => errorTypeOf(g.message)))].sort();
@@ -86,13 +97,21 @@ export default function ErrorsPage() {
     .filter((g) => !trend || errorBucket(g, rangeStart) === trend)
     .filter((g) => !kind || errorTypeOf(g.message) === kind)
     .sort(SORTS[sort].compare), [list, trend, kind, sort, rangeStart]);
+  /** Each tab's count: the same search, trend and kind, by status. */
+  const countFor = (s: Status): number | undefined => {
+    if (!everyStatus) return undefined;
+    const kept = everyStatus
+      .filter((g) => !trend || errorBucket(g, rangeStart) === trend)
+      .filter((g) => !kind || errorTypeOf(g.message) === kind);
+    return s === 'all' ? kept.length : kept.filter((g) => g.status === s).length;
+  };
 
   const fields: FilterField[] = [
     {
-      id: 'trend', label: 'Trend', value: trend, onChange: (v) => setTrend(v as ErrorBucket | ''),
-      options: ERROR_BUCKETS.map((b) => ({ value: b.id, label: b.label, icon: <span aria-hidden className={cn('size-1.5 rounded-full', b.dot)} /> })),
+      id: 'trend', label: t.page.trend, value: trend, onChange: (v) => setTrend(v as ErrorBucket | ''),
+      options: ERROR_BUCKETS.map((b) => ({ value: b.id, label: t.buckets[b.id], icon: <span aria-hidden className={cn('size-1.5 rounded-full', b.dot)} /> })),
     },
-    { id: 'kind', label: 'Kind', value: kind, onChange: setKind, options: kinds.map((k) => ({ value: k, label: k })) },
+    { id: 'kind', label: t.page.kind, value: kind, onChange: setKind, options: kinds.map((k) => ({ value: k, label: k })) },
   ];
 
   const watchReplay = (sessionId: string) =>
@@ -106,7 +125,7 @@ export default function ErrorsPage() {
           onClick={() => setOpenFingerprint(null)}
           className="-ml-2 h-8 gap-1 px-2"
         >
-          <ChevronLeft className="h-4 w-4" /> All errors
+          <ChevronLeft className="h-4 w-4" /> {t.page.allErrors}
         </Button>
         {detail.isLoading || !detail.data?.group ? (
           <div className="mt-3 h-40 animate-pulse rounded-xl bg-muted/50" />
@@ -127,34 +146,49 @@ export default function ErrorsPage() {
     );
   }
 
-  const props = { groups: shown, periodStart: rangeStart, lineFor, now, onOpen: setOpenFingerprint };
   const narrowed = !!(search.trim() || trend || kind);
+  /** The panel's top row: the statuses with their counts on the left, every control on the right. */
+  const toolbar = (
+    <FilterToolbar
+      leading={
+        <CountTabs
+          label={t.page.statusLabel}
+          tabs={STATUSES.map((s) => ({ id: s, label: t.tabs[s], count: countFor(s) }))}
+          value={status}
+          onChange={setStatus}
+        />
+      }
+      sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: t.sorts[id] })) }}
+      filters={fields}
+      search={{ value: search, onChange: setSearch, placeholder: t.page.searchPlaceholder, label: t.page.searchLabel }}
+    >
+      <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
+    </FilterToolbar>
+  );
+  const props = { groups: shown, periodStart: rangeStart, lineFor, now, onOpen: setOpenFingerprint, toolbar };
+  /** The ticked errors still shown: a tab, filter or search that hides one leaves it out. */
+  const chosen = [...selected].filter((fp) => shown.some((g) => g.fingerprint === fp));
+  const setChosen = (next: 'resolved' | 'ignored') =>
+    bulkStatus.mutate({ fingerprints: chosen, status: next }, { onSuccess: () => setSelected(new Set()) });
+  /** Under the toolbar while errors are ticked: how many, clear, resolve, ignore. */
+  const bulkBar = chosen.length > 0 && layout === 'table' && canEdit ? (
+    <div className="flex items-center gap-2 border-b border-border/70 bg-muted/60 px-4 py-1.5 text-[13px]">
+      <span className="font-medium text-foreground">{t.page.selected(chosen.length)}</span>
+      <button type="button" className={GHOST_BUTTON} onClick={() => setSelected(new Set())}>{all.actions.clear}</button>
+      <button type="button" className={GHOST_BUTTON} disabled={bulkStatus.isPending} onClick={() => setChosen('resolved')}>
+        <Check className="size-3.5" />{t.detail.resolve}
+      </button>
+      <button type="button" className={GHOST_BUTTON} disabled={bulkStatus.isPending} onClick={() => setChosen('ignored')}>
+        <EyeOff className="size-3.5" />{t.detail.ignore}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className={LIST_PAGE}>
-      <PageBar
-        icon={<Bug />}
-        title="Errors"
-        views={
-          <ViewTabs
-            label="Status"
-            tabs={[{ id: 'unresolved', label: 'Unresolved' }, { id: 'resolved', label: 'Resolved' }, { id: 'ignored', label: 'Ignored' }, { id: 'all', label: 'All' }]}
-            value={status}
-            onChange={setStatus}
-          />
-        }
-      >
-        <RangeSelect value={days} onChange={setDays} ranges={RANGES} />
+      <PageBar title={t.page.title} description={t.page.description}>
+        <RangeSelect value={days} onChange={setDays} ranges={ranges} />
       </PageBar>
-
-      <FilterToolbar
-        sort={{ value: sort, onChange: (v) => setSort(v as Sort), options: (Object.keys(SORTS) as Sort[]).map((id) => ({ value: id, label: SORTS[id].label })) }}
-        filters={fields}
-        search={{ value: search, onChange: setSearch, placeholder: 'Search errors…', label: 'Search errors' }}
-        count={groups ? `${shown.length} ${shown.length === 1 ? 'error' : 'errors'}` : undefined}
-      >
-        <LayoutSwitch layouts={LAYOUTS} value={layout} onChange={setLayout} />
-      </FilterToolbar>
 
       {error && (
         <Alert variant="destructive" className="m-4 w-auto">
@@ -162,16 +196,25 @@ export default function ErrorsPage() {
         </Alert>
       )}
 
-      {isLoading ? <CollectionSkeleton /> : shown.length === 0 ? (
-        <CollectionEmpty
+      {isLoading ? <div className={COLLECTION_SURFACE}>{toolbar}<CollectionSkeleton /></div> : shown.length === 0 ? (
+        <div className={COLLECTION_SURFACE}>{toolbar}<CollectionEmpty
           icon={<Bug />}
-          title={narrowed ? 'No matches' : status === 'unresolved' ? 'No unresolved errors' : 'No errors here'}
+          title={narrowed ? t.page.noMatches : status === 'unresolved' ? t.page.noUnresolved : t.page.noErrors}
           description={narrowed
-            ? 'No error matches these filters or that search in this range.'
-            : `Nothing ${status === 'all' ? '' : `${status} `}${periodLabel}. Uncaught JavaScript errors from real visitors appear here, grouped by fault.`}
-        />
+            ? t.page.noMatchesBody
+            : t.page.emptyBody(status === 'all' ? '' : status, periodLabel)}
+        /></div>
       ) : layout === 'table' ? (
-        <ErrorTable {...props} sortedBy={sort} />
+        <ErrorTable
+          {...props}
+          sortedBy={sort}
+          toolbar={<>{toolbar}{bulkBar}</>}
+          selection={canEdit ? {
+            selected,
+            labelOf: (fp) => shown.find((g) => g.fingerprint === fp)?.message ?? fp,
+            onChange: (fps, on) => setSelected((prev) => { const next = new Set(prev); fps.forEach((fp) => (on ? next.add(fp) : next.delete(fp))); return next; }),
+          } : undefined}
+        />
       ) : (
         <ErrorList {...props} />
       )}

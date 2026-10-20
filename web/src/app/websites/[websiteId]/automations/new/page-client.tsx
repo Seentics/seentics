@@ -13,16 +13,19 @@ import {
   type AutomationDefinition,
 } from '@/components/automations/AutomationBuilder';
 import { useCreateAutomation } from '@/lib/automations-api';
+import { useT } from '@/lib/i18n';
 
 const TPL_KEY = 'snc_auto_tpl';
 
 export default function NewAutomationPage() {
+  const t = useT();
+  const m = t.automations.editor;
   const params = { websiteId: usePathSegment(1) ?? '' };
   const router    = useRouter();
   const searchParams = useSearchParams();
   const websiteId = params?.websiteId as string;
 
-  const [name, setName] = useState('Untitled Automation');
+  const [name, setName] = useState(m.untitled);
   const [initial, setInitial] = useState<AutomationDefinition | undefined>(undefined);
 
   // The header renders Save, so it tracks what the builder currently holds and whether
@@ -63,7 +66,7 @@ export default function NewAutomationPage() {
       {
         websiteId,
         data: {
-          name:       name.trim() || 'Untitled Automation',
+          name:       name.trim() || m.untitled,
           definition: definition as unknown as Record<string, unknown>,
         },
       },
@@ -80,7 +83,7 @@ export default function NewAutomationPage() {
             size="sm"
             className="h-9 w-9 shrink-0 rounded-full"
             onClick={() => router.push(`/websites/${websiteId}/automations`)}
-            aria-label="Back to automations"
+            aria-label={m.backToList}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -92,11 +95,11 @@ export default function NewAutomationPage() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="h-8 min-w-0 border-none bg-transparent px-0 py-0 text-sm font-semibold shadow-none focus-visible:ring-0 md:h-9 md:text-base md:font-bold"
-                placeholder="Automation name"
+                placeholder={m.namePlaceholder}
               />
             </div>
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Automation builder · Draft
+              {m.draft}
             </p>
           </div>
         </div>
@@ -108,7 +111,7 @@ export default function NewAutomationPage() {
             onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Browse templates</span>
+            <span className="hidden sm:inline">{m.browseTemplates}</span>
           </Button>
 
           <Button
@@ -116,8 +119,8 @@ export default function NewAutomationPage() {
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => builderRef.current?.openSettings()}
-            title="Workflow settings"
-            aria-label="Workflow settings"
+            title={m.workflowSettings}
+            aria-label={m.workflowSettings}
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -127,8 +130,8 @@ export default function NewAutomationPage() {
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => builderRef.current?.openJson()}
-            title="View or edit JSON"
-            aria-label="View or edit JSON"
+            title={m.viewJson}
+            aria-label={m.viewJson}
           >
             <Braces className="h-4 w-4" />
           </Button>
@@ -138,10 +141,10 @@ export default function NewAutomationPage() {
             className="h-8 gap-1.5 text-xs"
             onClick={() => draft && handleSave(draft)}
             disabled={!draft || errors.length > 0 || createMutation.isPending}
-            title={errors[0] ?? 'Save automation'}
+            title={errors[0] ?? m.saveAutomation}
           >
             <Save className="h-3.5 w-3.5" />
-            {createMutation.isPending ? 'Saving…' : 'Save'}
+            {createMutation.isPending ? t.actions.saving : t.actions.save}
           </Button>
         </div>
       </header>

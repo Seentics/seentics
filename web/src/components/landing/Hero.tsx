@@ -5,6 +5,8 @@ import { ArrowRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '@/stores/useAuthStore';
 import { HeroExplorer } from './HeroExplorer';
+import { useLocale, useT } from '@/lib/i18n';
+import { isEnterprise } from '@/lib/features';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -17,6 +19,10 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 export default function Hero() {
   const reduce = useReducedMotion();
   const { isAuthenticated } = useAuth();
+  const t = useT();
+  // Visitors from Bangladesh are mostly Facebook sellers: point them at the page made for them.
+  const { region } = useLocale();
+  const fcommerce = isEnterprise && region?.region === 'bd';
 
   // Always animated, never conditionally: the server renders the first frame, and a
   // client that then dropped the animation for reduced motion left the hero invisible.
@@ -31,27 +37,39 @@ export default function Hero() {
     <section className="relative overflow-hidden pt-40 sm:pt-52 lg:pt-64">
       <div className="lx-container relative">
 
+        {fcommerce && (
+          <Link
+            href="/f-commerce"
+            className="mb-6 inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-accent"
+            style={{ borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}
+          >
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+            <span className="truncate">{t.hero.fcommerceBanner}</span>
+            <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+          </Link>
+        )}
+
         <motion.p {...rise(0)} className="landing-eyebrow">
-          Analytics · Lead capture · Server-side tracking
+          {t.hero.eyebrow}
         </motion.p>
 
         <motion.h1
           {...rise(0.08)}
           className="lx-display max-w-[26ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
         >
-          Turn more ad clicks<br className="hidden sm:block" /> into customers.
+          {t.hero.titleA}<br className="hidden sm:block" /> {t.hero.titleB}
         </motion.h1>
 
         <motion.div {...rise(0.16)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <p className="lx-dim max-w-[46rem] text-base leading-relaxed sm:text-lg">
-            Seentics shows you what visitors do on your site, captures them with popups and forms before they leave, and sends every conversion to Meta and Google with server-side tracking. One tool instead of three.
+            {t.hero.body}
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <Link href={isAuthenticated ? '/websites' : '/signup'} className="lx-btn lx-btn-primary">
-              {isAuthenticated ? 'Open dashboard' : 'Start for free'}
+              {isAuthenticated ? t.common.openDashboard : t.common.startFree}
             </Link>
             <Link href="/websites/demo" className="lx-btn lx-btn-ghost">
-              Explore the demo <ArrowRight className="h-4 w-4" />
+              {t.common.exploreDemo} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </motion.div>
@@ -66,9 +84,9 @@ export default function Hero() {
             <HeroExplorer />
           </motion.div>
           <p className="lx-faint mt-6 text-center text-sm">
-            The real dashboard, with demo data. Use the sidebar to look around, or{' '}
+            {t.hero.caption}{' '}
             <Link href="/websites/demo" className="underline decoration-[color:var(--lx-line-strong)] underline-offset-4 hover:text-[color:var(--lx-text)]">
-              open the full demo
+              {t.hero.captionLink}
             </Link>
             .
           </p>

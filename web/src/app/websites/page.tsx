@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getWebsites, addWebsite } from '@/lib/websites-api';
@@ -19,6 +19,10 @@ import { cn } from '@/lib/utils';
 import { useClientAccess } from '@/features/client-mode/useClientAccess';
 import { firstAllowedPath } from '@/features/client-mode/routes';
 import { clientSignInHref } from '@/features/client-mode/session';
+import { useT } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { ProfilePicker } from '@/components/websites/ProfilePicker';
+import { isWebsiteProfile, type WebsiteProfile } from '@/features/websites/types';
 
 /**
  * First-time entry: users with no websites add their first property here.
@@ -31,8 +35,15 @@ export default function WebsitesOnboardingPage() {
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<'loading' | 'onboarding' | 'snippet'>('loading');
+  const all = useT();
+  const t = all.dashboard.onboarding;
+  const addT = all.dashboard.addWebsite;
+  // The effect below reads the strings without re-running when the language changes.
+  const tRef = useRef(t);
+  tRef.current = t;
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [profile, setProfile] = useState<WebsiteProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newlyAddedSiteId, setNewlyAddedSiteId] = useState<string | null>(null);
   const [trackingCode, setTrackingCode] = useState('');
@@ -61,6 +72,9 @@ export default function WebsitesOnboardingPage() {
 
   useEffect(() => {
     if (isClient) return;
+    // `?profile=store` (a landing page's sign-up, e.g. /bd): that answer already picked.
+    const asked = new URLSearchParams(window.location.search).get('profile');
+    if (isWebsiteProfile(asked)) setProfile(asked);
     // The site opened last time: straight there, without waiting for the session check and
     // the websites list. The dashboard confirms it and comes back here if it is gone.
     const last = rememberedWebsite();
@@ -86,8 +100,8 @@ export default function WebsitesOnboardingPage() {
         console.error(e);
         if (!cancelled) {
           toast({
-            title: 'Could not load websites',
-            description: 'Please refresh the page or try again later.',
+            title: tRef.current.loadFailed,
+            description: tRef.current.loadFailedBody,
             variant: 'destructive',
           });
           setPhase('onboarding');
@@ -104,10 +118,10 @@ export default function WebsitesOnboardingPage() {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast({ title: 'Copied!', description: 'Tracking code copied to clipboard' });
+      toast({ title: all.actions.copied, description: t.codeCopied });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast({ title: 'Error', description: 'Failed to copy code', variant: 'destructive' });
+      toast({ title: addT.error, description: t.copyFailed, variant: 'destructive' });
     }
   };
 
@@ -115,8 +129,8 @@ export default function WebsitesOnboardingPage() {
     e.preventDefault();
     if (!name.trim() || !url.trim()) {
       toast({
-        title: 'Validation Error',
-        description: 'Please fill in all fields',
+        title: addT.validationError,
+        description: addT.fillAll,
         variant: 'destructive',
       });
       return;
@@ -125,8 +139,8 @@ export default function WebsitesOnboardingPage() {
       new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
     } catch {
       toast({
-        title: 'Invalid URL',
-        description: 'Please enter a valid website URL',
+        title: addT.invalidUrl,
+        description: addT.invalidUrlBody,
         variant: 'destructive',
       });
       return;
@@ -135,19 +149,19 @@ export default function WebsitesOnboardingPage() {
     setIsSubmitting(true);
     try {
       const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-      const website = await addWebsite({ name: name.trim(), url: normalizedUrl }, user.id);
+      const website = await addWebsite({ name: name.trim(), url: normalizedUrl, ...(profile ? { profile } : {}) }, user.id);
       setNewlyAddedSiteId(website.id);
       const origin = window.location.origin;
       setTrackingCode(
         `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${website.id}" \n  src="${origin}/trackers/seentics.min.js"\n></script>`,
       );
-      toast({ title: 'Success!', description: `${name} has been added successfully` });
+      toast({ title: addT.success, description: addT.added(name) });
       setPhase('snippet');
     } catch (error: any) {
       console.error('Error adding website:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to add website. Please try again.',
+        title: addT.error,
+        description: error.message || addT.failed,
         variant: 'destructive',
       });
     } finally {
@@ -159,12 +173,12 @@ export default function WebsitesOnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-sm text-center" data-testid="client-no-websites">
-          <p className="text-sm font-semibold text-foreground">No websites shared with you yet</p>
+          <p className="text-sm font-semibold text-foreground">{t.clientNone}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Your agency has not shared a website with you. Ask them to add you to your client&apos;s websites.
+            {t.clientNoneBody}
           </p>
           <Button variant="outline" size="sm" className="mt-5 gap-1.5" onClick={() => { const href = clientSignInHref(user?.agency?.slug); logout(); router.push(href); }}>
-            <LogOut className="h-3.5 w-3.5" />Log out
+            <LogOut className="h-3.5 w-3.5" />{all.dashboard.sidebar.logOut}
           </Button>
         </div>
       </div>
@@ -177,8 +191,8 @@ export default function WebsitesOnboardingPage() {
         <div className="flex flex-col items-center gap-4 text-center">
           <Logo className="h-8 w-auto opacity-90" />
           <div>
-            <p className="text-sm font-semibold text-foreground">Loading your workspace</p>
-            <p className="mt-1 text-xs text-muted-foreground">Checking your websites…</p>
+            <p className="text-sm font-semibold text-foreground">{t.loading}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t.checking}</p>
           </div>
           <div className="flex gap-1">
             {[0, 1, 2].map((i) => (
@@ -209,11 +223,12 @@ export default function WebsitesOnboardingPage() {
           </Link>
           {user && (
             <div className="flex items-center gap-1">
+            <LanguageSwitcher />
             {hasAgency && (
               <Button variant="outline" size="sm" className="shrink-0 gap-2" asChild>
                 <Link href={AGENCY_WORKSPACE_HREF}>
                   <Briefcase className="h-4 w-4" />
-                  <span>Agency workspace</span>
+                  <span>{all.dashboard.sidebar.agencyWorkspace}</span>
                 </Link>
               </Button>
             )}
@@ -227,7 +242,7 @@ export default function WebsitesOnboardingPage() {
               className="shrink-0 gap-2 text-muted-foreground hover:text-destructive"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Log out</span>
+              <span className="hidden sm:inline">{all.dashboard.sidebar.logOut}</span>
             </Button>
             </div>
           )}
@@ -246,23 +261,23 @@ export default function WebsitesOnboardingPage() {
               >
                 <Card className="border-border shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
                   <CardHeader className="space-y-3 px-6 pb-2 pt-8 sm:px-8">
-                    <CardTitle className="text-2xl font-bold tracking-tight">Add your website</CardTitle>
+                    <CardTitle className="text-2xl font-bold tracking-tight">{t.title}</CardTitle>
                     <CardDescription className="text-sm leading-relaxed">
-                      Choose a dashboard label, then the site&apos;s hostname (e.g.{' '}
+                      {t.descA}
                       <span className="font-mono text-xs text-foreground/80">example.com</span>
-                      ). Skip <span className="font-mono text-xs">https://</span>
-                      — we normalize the URL. You&apos;ll get the tracking snippet on the next screen.
+                      {t.descB}<span className="font-mono text-xs">https://</span>
+                      {t.descC}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="px-6 pb-8 pt-2 sm:px-8">
                     <form onSubmit={handleFirstSiteSubmit} className="space-y-5">
                       <div className="space-y-1.5">
                         <Label htmlFor="onboard-name" className="text-sm font-medium text-foreground">
-                          Website name
+                          {t.name}
                         </Label>
                         <Input
                           id="onboard-name"
-                          placeholder="My site"
+                          placeholder={t.namePlaceholder}
                           value={name}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                           className={cn(
@@ -278,7 +293,7 @@ export default function WebsitesOnboardingPage() {
 
                       <div className="space-y-1.5">
                         <Label htmlFor="onboard-url" className="text-sm font-medium text-foreground">
-                          Website domain
+                          {t.domain}
                         </Label>
                         <Input
                           id="onboard-url"
@@ -300,12 +315,18 @@ export default function WebsitesOnboardingPage() {
                         />
                       </div>
 
+                      <fieldset className="space-y-2">
+                        <legend className="text-sm font-medium text-foreground">{all.dashboard.profiles.question}</legend>
+                        <p className="text-xs text-muted-foreground">{all.dashboard.profiles.hint}</p>
+                        <ProfilePicker value={profile} onChange={setProfile} disabled={isSubmitting} name="onboard-profile" />
+                      </fieldset>
+
                       <Button type="submit" disabled={isSubmitting} className="h-11 w-full rounded-lg text-sm font-semibold">
                         {isSubmitting ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                           <span className="flex items-center justify-center gap-2">
-                            Add website
+                            {t.submit}
                             <ArrowRight className="h-4 w-4" />
                           </span>
                         )}
@@ -329,22 +350,24 @@ export default function WebsitesOnboardingPage() {
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                       <CheckCircle className="h-5 w-5" strokeWidth={2} />
                     </div>
-                    <CardTitle className="text-2xl font-bold tracking-tight">Tracking code</CardTitle>
+                    <CardTitle className="text-2xl font-bold tracking-tight">{t.codeTitle}</CardTitle>
                     <CardDescription className="text-sm">
-                      Add to <span className="font-mono text-foreground/90">{'<head>'}</span> on{' '}
-                      <span className="font-medium text-foreground">{name}</span>.
+                      {t.addTo(
+                        <span className="font-mono text-foreground/90">{'<head>'}</span>,
+                        <span className="font-medium text-foreground">{name}</span>,
+                      ).map((part, i) => <Fragment key={i}>{part}</Fragment>)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6 px-6 pb-8 sm:px-8">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-foreground">Code</span>
+                        <span className="text-sm font-medium text-foreground">{t.code}</span>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(trackingCode)}
                           className="text-xs font-medium text-primary hover:underline"
                         >
-                          {copied ? 'Copied' : 'Copy'}
+                          {copied ? all.actions.copied : all.actions.copy}
                         </button>
                       </div>
                       <pre className="max-h-[220px] overflow-auto rounded-lg border border-border bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-200 shadow-inner dark:bg-zinc-950">
@@ -354,10 +377,10 @@ export default function WebsitesOnboardingPage() {
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-stretch">
                       <Button className="h-11 flex-1 rounded-lg font-semibold" asChild>
-                        <Link href={`/websites/${newlyAddedSiteId}`}>Open dashboard</Link>
+                        <Link href={`/websites/${newlyAddedSiteId}`}>{all.common.openDashboard}</Link>
                       </Button>
                       <Button variant="outline" className="h-11 flex-1 rounded-lg font-semibold" asChild>
-                        <Link href="/websites/manage">Manage websites</Link>
+                        <Link href="/websites/manage">{t.manage}</Link>
                       </Button>
                     </div>
                   </CardContent>
@@ -369,7 +392,7 @@ export default function WebsitesOnboardingPage() {
 
         <footer className="mt-8 text-center">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-            <Link href="/">Home</Link>
+            <Link href="/">{t.home}</Link>
           </Button>
         </footer>
       </div>

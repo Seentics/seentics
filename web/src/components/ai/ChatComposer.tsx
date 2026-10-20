@@ -12,6 +12,8 @@ export interface ChatComposerProps {
   /** Blocks sending (not typing) — e.g. while a stored thread is still loading. */
   disabled?: boolean;
   placeholder?: string;
+  /** The send button's accessible name. */
+  sendLabel?: string;
   /** Matches the server's own prompt ceiling, so the limit is felt before the refusal. */
   maxLength?: number;
   /** Focus on mount, caret at the end — for a prefilled question the visitor should read first. */
@@ -21,7 +23,7 @@ export interface ChatComposerProps {
 
 /** The input. Controlled, so the parent owns the draft and can prefill it. */
 export function ChatComposer({
-  value, onChange, onSend, isSending, disabled, placeholder, maxLength = 2000, autoFocus, className,
+  value, onChange, onSend, isSending, disabled, placeholder, sendLabel = 'Send', maxLength = 2000, autoFocus, className,
 }: ChatComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -83,6 +85,8 @@ export function ChatComposer({
       />
       <Button
         size="icon"
+        aria-label={sendLabel}
+        title={sendLabel}
         className="absolute bottom-2.5 right-2.5 h-9 w-9"
         disabled={!value.trim() || isSending || disabled}
         onClick={onSend}

@@ -17,8 +17,10 @@ import { Loader2, Zap, Globe, CalendarIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useT } from '@/lib/i18n';
 
 export default function PublicDashboardPage() {
+    const t = useT().sharing.public;
     const params = { publicId: usePathSegment(1) ?? '' };
     const publicId = params?.publicId as string;
     const [dateRange, setDateRange] = useState(7);
@@ -38,7 +40,7 @@ export default function PublicDashboardPage() {
         return (
             <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="font-black text-sm uppercase tracking-widest text-muted-foreground animate-pulse">Loading Public Dashboard...</p>
+                <p className="font-black text-sm uppercase tracking-widest text-muted-foreground animate-pulse">{t.loading}</p>
             </div>
         );
     }
@@ -49,11 +51,11 @@ export default function PublicDashboardPage() {
                 <div className="h-20 w-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
                     <Globe className="h-10 w-10 text-rose-500" />
                 </div>
-                <h1 className="text-3xl font-black tracking-tighter mb-2">Dashboard Not Found</h1>
+                <h1 className="text-3xl font-black tracking-tighter mb-2">{t.notFoundTitle}</h1>
                 <p className="text-muted-foreground max-w-sm mb-8">
-                    This dashboard may have been made private or the link is invalid.
+                    {t.notFoundBody}
                 </p>
-                <a href="/" className="text-primary font-bold hover:underline">Go back to Seentics</a>
+                <a href="/" className="text-primary font-bold hover:underline">{t.back}</a>
             </div>
         );
     }
@@ -68,7 +70,7 @@ export default function PublicDashboardPage() {
                         </div>
                         <div>
                             <h1 className="text-lg font-black tracking-tight leading-none uppercase italic">Seentics</h1>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Public Analytics</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{t.publicAnalytics}</p>
                         </div>
                     </div>
 
@@ -76,13 +78,10 @@ export default function PublicDashboardPage() {
                         <Select value={dateRange.toString()} onValueChange={(v) => setDateRange(parseInt(v))}>
                             <SelectTrigger className="w-[180px] h-10 font-bold bg-muted/20 border-none ring-0 focus:ring-0">
                                 <CalendarIcon className="h-4 w-4 mr-2" />
-                                <SelectValue placeholder="Select range" />
+                                <SelectValue placeholder={t.selectRange} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="1">Last 24 Hours</SelectItem>
-                                <SelectItem value="7">Last 7 Days</SelectItem>
-                                <SelectItem value="30">Last 30 Days</SelectItem>
-                                <SelectItem value="90">Last 90 Days</SelectItem>
+                                {['1', '7', '30', '90'].map((v) => <SelectItem key={v} value={v}>{t.ranges[v]}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <ThemeToggle />
@@ -94,7 +93,7 @@ export default function PublicDashboardPage() {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
                         <h2 className="text-4xl font-black tracking-tighter uppercase italic">{dashboardData.website_id}</h2>
-                        <p className="text-muted-foreground font-bold text-sm">Real-time engagement and traffic insights.</p>
+                        <p className="text-muted-foreground font-bold text-sm">{t.subtitle}</p>
                     </div>
                     <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                        <span className="relative flex h-2 w-2">
@@ -102,7 +101,7 @@ export default function PublicDashboardPage() {
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
                         <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">
-                           {dashboardData.live_visitors} Live Visitors
+                           {t.liveVisitors(dashboardData.live_visitors)}
                         </span>
                     </div>
                 </div>
@@ -127,7 +126,7 @@ export default function PublicDashboardPage() {
                          <div className="text-center">
                             <Zap className="h-12 w-12 text-slate-200 mx-auto mb-4" />
                             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                               Analytics Powered by\nSeentics Platform
+                               {t.poweredBy}
                             </p>
                          </div>
                     </div>
@@ -137,10 +136,10 @@ export default function PublicDashboardPage() {
             <footer className="border-t py-12 mt-20">
                 <div className="text-center space-y-2">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                        Generated by Seentics Open Source Analytics
+                        {t.generatedBy}
                     </p>
                     <p className="text-[10px] text-muted-foreground/60 italic">
-                        Real-time, privacy-friendly website performance tracking.
+                        {t.tagline}
                     </p>
                 </div>
             </footer>

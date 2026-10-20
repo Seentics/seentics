@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Trash2, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useLocale, useT } from '@/lib/i18n';
 
 export interface EventAnnotation {
   id: string;
@@ -35,6 +36,14 @@ interface EventAnnotationsProps {
 }
 
 export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotationsProps) {
+  const t = useT().analytics.annotations;
+  const actions = useT().actions;
+  const { locale } = useLocale();
+  // Bangla month names with Latin digits; English keeps date-fns' own formats.
+  const longDate = (d: Date) =>
+    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }) : format(d, 'PPP');
+  const shortDate = (d: Date) =>
+    locale === 'bn' ? d.toLocaleDateString('bn-BD-u-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' }) : format(d, 'MMM d, yyyy');
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [title, setTitle] = useState('');
@@ -42,12 +51,12 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
   const [color, setColor] = useState('#2563eb');
 
   const colors = [
-    { name: 'Blue', value: '#2563eb' },
-    { name: 'Green', value: '#10b981' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Purple', value: '#2563eb' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Pink', value: '#ec4899' },
+    { name: t.colors.blue, value: '#2563eb' },
+    { name: t.colors.green, value: '#10b981' },
+    { name: t.colors.red, value: '#ef4444' },
+    { name: t.colors.purple, value: '#2563eb' },
+    { name: t.colors.orange, value: '#f97316' },
+    { name: t.colors.pink, value: '#ec4899' },
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -73,20 +82,20 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
         <DialogTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-3 font-medium text-xs text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground rounded-lg border-0">
             <Tag className="h-3.5 w-3.5" />
-            Annotate
+            {t.annotate}
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Add Event Annotation</DialogTitle>
+              <DialogTitle>{t.title}</DialogTitle>
               <DialogDescription>
-                Mark important events on your analytics charts like product launches or campaigns.
+                {t.description}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date">{t.date}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -97,7 +106,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                      {date ? longDate(date) : <span>{t.pickDate}</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -111,27 +120,27 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                 </Popover>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="title">Event Title *</Label>
+                <Label htmlFor="title">{t.eventTitle}</Label>
                 <Input
                   id="title"
-                  placeholder="e.g., Product Launch, Sale Campaign"
+                  placeholder={t.eventTitlePlaceholder}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">{t.descriptionLabel}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Add more details about this event..."
+                  placeholder={t.descriptionPlaceholder}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Color</Label>
+                <Label>{t.color}</Label>
                 <div className="flex gap-2">
                   {colors.map((c) => (
                     <button
@@ -151,10 +160,10 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {actions.cancel}
               </Button>
               <Button type="submit" disabled={!title.trim()}>
-                Add Event
+                {t.add}
               </Button>
             </DialogFooter>
           </form>
@@ -162,7 +171,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
           {/* Annotations List */}
           {annotations.length > 0 && (
             <div className="mt-8 border-t pt-6">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Recent Events</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">{t.recent}</p>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                 {annotations
                   .sort((a, b) => b.date.getTime() - a.date.getTime())
@@ -180,7 +189,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{annotation.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(annotation.date, 'MMM d, yyyy')}
+                            {shortDate(annotation.date)}
                           </p>
                         </div>
                       </div>
@@ -188,6 +197,8 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        aria-label={t.delete}
+                        title={t.delete}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDelete(annotation.id);

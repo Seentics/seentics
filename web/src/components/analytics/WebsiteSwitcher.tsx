@@ -3,6 +3,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /** Only what the switcher needs — not the full `Website`, so fixtures stay small. */
 export interface WebsiteOption {
@@ -39,10 +40,11 @@ export function WebsiteSwitcher({
   value,
   onChange,
   onAddWebsite,
-  placeholder = 'Select website',
-  addLabel = 'Add Website',
+  placeholder,
+  addLabel,
   className,
 }: WebsiteSwitcherProps) {
+  const t = useT().analytics.switcher;
   const ADD = '__add_website__';
   const current = websites.find((w) => w.id === value);
 
@@ -60,7 +62,7 @@ export function WebsiteSwitcher({
         <div className="flex items-center truncate">
           <Globe className="mr-1.5 h-3 w-3 shrink-0 text-primary" />
           <span className="truncate font-medium text-foreground">
-            {current?.name || placeholder}
+            {current?.name || placeholder || t.placeholder}
           </span>
         </div>
       </SelectTrigger>
@@ -76,7 +78,7 @@ export function WebsiteSwitcher({
             <SelectItem value={ADD} className="rounded-lg py-1.5 text-xs text-primary">
               <div className="flex items-center font-medium">
                 <PlusCircle className="mr-1.5 h-3 w-3" />
-                {addLabel}
+                {addLabel ?? t.add}
               </div>
             </SelectItem>
           </>

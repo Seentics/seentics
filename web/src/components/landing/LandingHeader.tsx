@@ -21,6 +21,8 @@ import { INTEGRATIONS } from '@/lib/integrations';
 import { GROUPS, USE_CASES, useCasesIn } from '@/lib/use-cases';
 import { UseCaseIcon } from '@/components/use-cases/UseCaseIcon';
 import { HashLinks } from './HashLinks';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useT } from '@/lib/i18n';
 
 // The Products & Tools menu was removed: the header keeps Use cases, Integrations, Docs, For agencies
 // and Pricing. The free Speed Test is linked from the footer.
@@ -31,6 +33,7 @@ import { HashLinks } from './HashLinks';
  * behaviour and panel positioning are the same as the Integrations menu.
  */
 function UseCasesNavItem() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,7 +76,7 @@ function UseCasesNavItem() {
         aria-expanded={open}
         className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
-        Use cases
+        {t.header.useCases}
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -103,7 +106,7 @@ function UseCasesNavItem() {
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-primary hover:underline"
               >
-                See all use cases <ArrowRight className="h-3.5 w-3.5" />
+                {t.header.seeAllUseCases} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </motion.div>
@@ -119,6 +122,7 @@ function UseCasesNavItem() {
  * cluster, and a panel this wide anchored to it would run off one edge or the other.
  */
 function IntegrationsNavItem() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -148,7 +152,7 @@ function IntegrationsNavItem() {
         aria-expanded={open}
         className="flex items-center gap-1 whitespace-nowrap text-[14px] font-medium text-foreground/65 hover:text-foreground transition-colors"
       >
-        Integrations
+        {t.header.integrations}
         <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -165,7 +169,7 @@ function IntegrationsNavItem() {
             className="absolute left-1/2 top-full z-50 mt-3 w-[min(760px,calc(100vw-3rem))] rounded-xl border border-border bg-card p-3 shadow-lg"
           >
             <p className="px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
-              Works with
+              {t.header.worksWith}
             </p>
             <div className="grid grid-cols-2 gap-x-1 gap-y-0.5">
               {featured.map((item) => (
@@ -179,7 +183,7 @@ function IntegrationsNavItem() {
                   <span className="min-w-0">
                     <span className="block text-[14.5px] font-semibold text-foreground">{item.name}</span>
                     <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
-                      {item.description}
+                      {t.site.integrations.descriptions[item.name] ?? item.description}
                     </span>
                   </span>
                 </Link>
@@ -191,7 +195,7 @@ function IntegrationsNavItem() {
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-primary hover:underline"
               >
-                See all integrations <ArrowRight className="h-3.5 w-3.5" />
+                {t.header.seeAllIntegrations} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </motion.div>
@@ -202,6 +206,7 @@ function IntegrationsNavItem() {
 }
 
 export default function LandingHeader({ alwaysBordered = false }: { alwaysBordered?: boolean }) {
+  const t = useT();
   const { isAuthenticated: authed } = useAuth();
   /*
    * The auth store hydrates from localStorage, so the server renders the signed-out
@@ -233,10 +238,10 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
   // between this, the logo, and the Products & Tools menu, the header was
   // getting crowded.
   const navLinks = [
-    { name: 'Docs',      href: '/docs' },
+    { name: t.header.docs,      href: '/docs' },
     // Cloud only, like the page itself.
-    ...(isEnterprise ? [{ name: 'For agencies', href: '/agencies' }] : []),
-    { name: 'Pricing',   href: anchorHref('#pricing') },
+    ...(isEnterprise ? [{ name: t.header.forAgencies, href: '/agencies' }] : []),
+    { name: t.header.pricing,   href: anchorHref('#pricing') },
   ];
 
   return (
@@ -284,23 +289,24 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
             <span className="mx-2 hidden h-5 w-px bg-border xl:block" aria-hidden />
 
+            <LanguageSwitcher />
             <ThemeToggle />
             {isAuthenticated ? (
               <Link href="/websites" className="ml-2">
                 <Button className="h-8 rounded-full bg-foreground px-4 text-[13.5px] font-medium text-background shadow-none hover:bg-foreground/85">
-                  Dashboard
+                  {t.common.dashboard}
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/signin" className="ml-1">
                   <Button variant="ghost" className="h-8 rounded-full px-3 text-[13.5px] font-medium text-foreground/80">
-                    Sign in
+                    {t.common.signIn}
                   </Button>
                 </Link>
                 <Link href="/signup" className="ml-1.5">
                   <Button className="h-8 rounded-full bg-foreground px-4 text-[13.5px] font-medium text-background shadow-none hover:bg-foreground/85">
-                    Get started
+                    {t.common.getStarted}
                   </Button>
                 </Link>
               </>
@@ -310,10 +316,11 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
         {/* Mobile */}
         <div className="flex items-center gap-1.5 lg:hidden">
+          <LanguageSwitcher />
           <ThemeToggle />
           <button
             type="button"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-label={mobileOpen ? t.header.closeMenu : t.header.openMenu}
             aria-expanded={mobileOpen}
             className="rounded-lg p-2 transition-colors hover:bg-accent"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -335,7 +342,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
           >
             <div className="landing-container py-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
-                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Use cases</p>
+                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">{t.header.useCases}</p>
                 {USE_CASES.map((u) => (
                   <Link
                     key={u.slug}
@@ -349,7 +356,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                 ))}
               </div>
               <div className="flex flex-col gap-1 pb-3 border-b border-border/40">
-                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Integrations</p>
+                <p className="px-0 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">{t.header.integrations}</p>
                 {INTEGRATIONS.filter((i) => i.featured).map((item) => (
                   <Link
                     key={item.name}
@@ -366,7 +373,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-1.5 py-2 text-sm font-semibold text-primary"
                 >
-                  See all integrations <ArrowRight className="h-3.5 w-3.5" />
+                  {t.header.seeAllIntegrations} <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
               <nav className="flex flex-col gap-1">
@@ -389,19 +396,19 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
-                    Live Demo
+                    {t.common.liveDemo}
                   </Button>
                 </Link>
                 {isAuthenticated ? (
                   <Link href="/websites" onClick={() => setMobileOpen(false)}>
                     <Button className="w-full h-10 text-sm font-medium rounded-lg">
-                      Dashboard
+                      {t.common.dashboard}
                     </Button>
                   </Link>
                 ) : (
                   <Link href="/signup" onClick={() => setMobileOpen(false)}>
                     <Button size={'lg'} className="w-full   font-medium rounded-lg">
-                      Get Started
+                      {t.common.getStarted}
                     </Button>
                   </Link>
                 )}

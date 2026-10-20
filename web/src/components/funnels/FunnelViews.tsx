@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { Edit, GitBranch, MoreVertical, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,14 +12,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { biggestLeak, FUNNEL_TONE_DOT, funnelLine, funnelTone, type FunnelPrevious, type FunnelTone } from '@/features/funnels/insights';
 import type { Funnel } from '@/features/funnels/queries';
 import type { FunnelAnalyticsItem } from '@/lib/funnels-dashboard';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-export const FUNNEL_TONE_LABEL: Record<FunnelTone, string> = {
-  worse: 'Getting worse', leak: 'Big leak', better: 'Improving', steady: 'Steady', quiet: 'Quiet or paused',
-};
-const ORDER: FunnelTone[] = ['worse', 'leak', 'better', 'steady', 'quiet'];
-const GROUPS: CollectionGroup[] = ORDER.map((id) => ({
-  id, label: FUNNEL_TONE_LABEL[id], icon: <span aria-hidden className={cn('size-2 rounded-full', FUNNEL_TONE_DOT[id])} />,
+export const FUNNEL_TONES: FunnelTone[] = ['worse', 'leak', 'better', 'steady', 'quiet'];
+const groupsOf = (labels: Record<FunnelTone, string>): CollectionGroup[] => FUNNEL_TONES.map((id) => ({
+  id, label: labels[id], icon: <span aria-hidden className={cn('size-2 rounded-full', FUNNEL_TONE_DOT[id])} />,
 }));
 
 export interface FunnelLayoutProps {
@@ -31,6 +30,8 @@ export interface FunnelLayoutProps {
   onOpen: (f: Funnel) => void;
   onEdit: (f: Funnel) => void;
   onDelete: (f: Funnel) => void;
+  /** The panel's top row: the view tabs and the list's controls. */
+  toolbar?: ReactNode;
 }
 
 const key = (f: Funnel) => f.id;
@@ -51,18 +52,19 @@ function Name({ funnel: f, onOpen, className }: { funnel: Funnel; onOpen: (f: Fu
 }
 
 function Menu({ funnel: f, canEdit, onEdit, onDelete }: Pick<FunnelLayoutProps, 'canEdit' | 'onEdit' | 'onDelete'> & { funnel: Funnel }) {
+  const t = useT();
   if (!canEdit) return null;
   return (
     <span onClick={(e) => e.stopPropagation()} className="shrink-0">
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-7 text-muted-foreground" aria-label={`Options for ${f.name}`}>
+          <Button variant="ghost" size="icon" className="size-7 text-muted-foreground" aria-label={t.funnels.views.options(f.name)}>
             <MoreVertical className="size-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
-          <DropdownMenuItem onClick={() => onEdit(f)}><Edit size={12} className="mr-2" /> Edit funnel</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onDelete(f)} className="font-medium text-destructive"><Trash2 size={12} className="mr-2" /> Delete</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit(f)}><Edit size={12} className="mr-2" /> {t.funnels.views.editFunnel}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onDelete(f)} className="font-medium text-destructive"><Trash2 size={12} className="mr-2" /> {t.actions.delete}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </span>
@@ -103,12 +105,14 @@ function Rate({ report, loading }: { report?: FunnelAnalyticsItem; loading: bool
 // ── List ─────────────────────────────────────────────────────────────────────
 
 /** Grouped by how each is doing: getting worse, a big leak, improving, steady, quiet. */
-export function FunnelList({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete }: FunnelLayoutProps) {
+export function FunnelList({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete, toolbar }: FunnelLayoutProps) {
+  const t = useT().funnels;
   return (
     <GroupedRows
+      toolbar={toolbar}
       items={funnels}
       getKey={key}
-      groups={loading ? undefined : GROUPS}
+      groups={loading ? undefined : groupsOf(t.tones)}
       groupOf={(f) => funnelTone(f, reportOf(f.id), previousOf(f.id))}
       renderRow={(f) => (
         <CollectionRow onOpen={() => onOpen(f)} className="min-h-[52px]">
@@ -116,10 +120,10 @@ export function FunnelList({ funnels, reportOf, previousOf, loading, canEdit, on
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="flex min-w-0 items-baseline gap-2">
               <Name funnel={f} onOpen={onOpen} />
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{f.steps?.length ?? 0} steps</span>
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{t.views.steps(f.steps?.length ?? 0)}</span>
             </span>
             {loading ? <Skeleton className="h-3 w-56" /> : (
-              <span className="truncate text-xs text-muted-foreground">{funnelLine(f, reportOf(f.id), previousOf(f.id), false)}</span>
+              <span className="truncate text-xs text-muted-foreground">{funnelLine(f, reportOf(f.id), previousOf(f.id), false, t.line)}</span>
             )}
           </span>
           <StepBars funnel={f} report={reportOf(f.id)} className="hidden h-6 w-28 shrink-0 md:flex" />
@@ -133,42 +137,46 @@ export function FunnelList({ funnels, reportOf, previousOf, loading, canEdit, on
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-export function FunnelTable({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete, selection, sortedBy }: FunnelLayoutProps & { selection?: RowSelection; sortedBy: string }) {
+export function FunnelTable({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete, selection, sortedBy, toolbar }: FunnelLayoutProps & { selection?: RowSelection; sortedBy: string }) {
+  const t = useT().funnels;
+  const v = t.views;
+  // What decides which funnel to open: its state, how many entered and how many made it through.
+  // The step-by-step detail (converted, biggest drop, shape) is on the funnel's own screen.
   const columns: CollectionColumn<Funnel>[] = [
     {
-      id: 'name', header: 'Funnel', width: '24%', sorted: sortedBy === 'name',
+      id: 'name', header: v.colFunnel, sorted: sortedBy === 'name',
       cell: (f) => (
-        <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className={cn('size-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[funnelTone(f, reportOf(f.id), previousOf(f.id))])} />
-          <Name funnel={f} onOpen={onOpen} />
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&_svg]:size-3.5"><GitBranch /></span>
+          <span className="flex min-w-0 flex-col leading-tight">
+            <Name funnel={f} onOpen={onOpen} className="font-medium" />
+            <span className="truncate text-[12px] text-muted-foreground">{v.steps(f.steps?.length ?? 0)}</span>
+          </span>
         </span>
       ),
     },
-    { id: 'steps', header: 'Steps', width: '70px', align: 'right', cell: (f) => <span className="tabular-nums text-foreground/80">{f.steps?.length ?? 0}</span> },
-    { id: 'starts', header: 'Entered', width: '100px', align: 'right', sorted: sortedBy === 'starts', cell: (f) => <span className="tabular-nums text-foreground/80">{reportOf(f.id)?.total_starts?.toLocaleString() ?? '—'}</span> },
-    { id: 'conv', header: 'Converted', width: '100px', align: 'right', cell: (f) => <span className="tabular-nums text-foreground/80">{reportOf(f.id)?.total_conversions?.toLocaleString() ?? '—'}</span> },
-    { id: 'rate', header: 'Rate', width: '80px', align: 'right', sorted: sortedBy === 'rate', cell: (f) => <Rate report={reportOf(f.id)} loading={loading} /> },
     {
-      id: 'leak', header: 'Biggest drop',
+      id: 'trend', header: v.colTrend, width: '170px', sorted: sortedBy === 'attention',
       cell: (f) => {
-        const a = reportOf(f.id);
-        const leak = a ? biggestLeak(f, a) : null;
-        return leak ? <span className="text-foreground/80" title={`${leak.from} → ${leak.to}`}>{leak.from} → {leak.to} <span className="text-muted-foreground">({pct(leak.rate)})</span></span> : <span className="text-muted-foreground">—</span>;
+        const tone = funnelTone(f, reportOf(f.id), previousOf(f.id));
+        return <span className="flex items-center gap-2 text-foreground/80"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[tone])} />{t.tones[tone]}</span>;
       },
     },
-    { id: 'trend', header: 'Trend', width: '140px', sorted: sortedBy === 'attention', cell: (f) => <span className="text-foreground/80">{FUNNEL_TONE_LABEL[funnelTone(f, reportOf(f.id), previousOf(f.id))]}</span> },
-    { id: 'shape', header: 'Shape', width: '120px', cell: (f) => <StepBars funnel={f} report={reportOf(f.id)} className="h-5 w-24" /> },
-    ...(canEdit ? [{ id: 'menu', header: <span className="sr-only">Options</span>, width: '52px', align: 'right' as const, cell: (f: Funnel) => <span className="flex justify-end"><Menu funnel={f} canEdit={canEdit} onEdit={onEdit} onDelete={onDelete} /></span> }] : []),
+    { id: 'starts', header: v.colEntered, width: '110px', align: 'right', sorted: sortedBy === 'starts', cell: (f) => <span className="tabular-nums text-foreground/80">{reportOf(f.id)?.total_starts?.toLocaleString() ?? '—'}</span> },
+    { id: 'rate', header: v.colRate, width: '100px', align: 'right', sorted: sortedBy === 'rate', cell: (f) => <Rate report={reportOf(f.id)} loading={loading} /> },
+    ...(canEdit ? [{ id: 'menu', header: <span className="sr-only">{v.optionsShort}</span>, width: '52px', align: 'right' as const, cell: (f: Funnel) => <span className="flex justify-end"><Menu funnel={f} canEdit={canEdit} onEdit={onEdit} onDelete={onDelete} /></span> }] : []),
   ];
-  return <CollectionTable label="Funnels" items={funnels} getKey={key} columns={columns} onOpen={onOpen} selection={selection} minWidth={1100} />;
+  return <CollectionTable label={t.list.title} items={funnels} getKey={key} columns={columns} onOpen={onOpen} selection={selection} minWidth={720} rowClassName="h-14" toolbar={toolbar} />;
 }
 
 // ── Cards ────────────────────────────────────────────────────────────────────
 
 /** The funnel's shape at a glance: a bar per step, the rate, and what stands out. */
-export function FunnelCards({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete }: FunnelLayoutProps) {
+export function FunnelCards({ funnels, reportOf, previousOf, loading, canEdit, onOpen, onEdit, onDelete, toolbar }: FunnelLayoutProps) {
+  const t = useT().funnels;
   return (
     <CardGrid
+      toolbar={toolbar}
       items={funnels}
       getKey={key}
       minCardWidth={300}
@@ -179,7 +187,7 @@ export function FunnelCards({ funnels, reportOf, previousOf, loading, canEdit, o
         return (
           <div onClick={() => onOpen(f)} className={cn(CARD, 'cursor-pointer gap-3')}>
             <span className="flex min-w-0 items-center gap-2">
-              <span aria-hidden className={cn('size-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[tone])} title={FUNNEL_TONE_LABEL[tone]} />
+              <span aria-hidden className={cn('size-2 shrink-0 rounded-full', FUNNEL_TONE_DOT[tone])} title={t.tones[tone]} />
               <Name funnel={f} onOpen={onOpen} className="font-medium" />
               <span className="ml-auto flex items-center gap-1 text-lg font-semibold tracking-tight"><Rate report={a} loading={loading} /></span>
               <Menu funnel={f} canEdit={canEdit} onEdit={onEdit} onDelete={onDelete} />
@@ -189,11 +197,11 @@ export function FunnelCards({ funnels, reportOf, previousOf, loading, canEdit, o
               {steps.map((s, i) => <span key={i} className="flex-1 truncate" title={s.name}>{s.name}</span>)}
             </span>
             {loading ? <Skeleton className="h-3 w-3/4" /> : (
-              <span className="line-clamp-2 min-h-[2.4em] text-[12.5px] leading-snug text-muted-foreground">{funnelLine(f, a, previousOf(f.id), false)}</span>
+              <span className="line-clamp-2 min-h-[2.4em] text-[12.5px] leading-snug text-muted-foreground">{funnelLine(f, a, previousOf(f.id), false, t.line)}</span>
             )}
             <span className="flex gap-4 border-t border-border/60 pt-2 text-xs text-muted-foreground">
-              <span><span className="tabular-nums text-foreground">{a?.total_starts?.toLocaleString() ?? '—'}</span> entered</span>
-              <span><span className="tabular-nums text-foreground">{a?.total_conversions?.toLocaleString() ?? '—'}</span> converted</span>
+              <span><span className="tabular-nums text-foreground">{a?.total_starts?.toLocaleString() ?? '—'}</span> {t.views.entered}</span>
+              <span><span className="tabular-nums text-foreground">{a?.total_conversions?.toLocaleString() ?? '—'}</span> {t.views.converted}</span>
             </span>
           </div>
         );

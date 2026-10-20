@@ -14,6 +14,7 @@ import {
 } from '@/features/ai/insights/card-state';
 import type { DailyInsight, InsightLine } from '@/features/ai/insights/types';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useLocale, useT, type Messages } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export interface InsightsCardProps {
@@ -32,6 +33,8 @@ export interface InsightsCardProps {
  * and there is nothing to show, and when the visitor has dismissed today's insight.
  */
 export function InsightsCard({ websiteId, className }: InsightsCardProps) {
+  const t = useT().ai.insights;
+  const { locale } = useLocale();
   const insight = useDailyInsight(websiteId);
   const status = useAiStatus(true, websiteId);
   const { isViewer } = usePermissions(websiteId);
@@ -68,7 +71,7 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
       if (outcome.kind === 'forbidden') setForbidden(true);
       else if (outcome.kind === 'cooldown') setCooldownUntil(Date.now() + outcome.retryAfterSec * 1000);
     } catch {
-      setRefreshError('Could not generate insights right now. Try again later.');
+      setRefreshError(t.refreshError);
     }
   };
 
@@ -92,21 +95,21 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
     <Card className={cn('surface overflow-hidden', className)}>
       <div className={cn('flex items-center gap-2 px-4 py-3', !collapsed && 'border-b border-border')}>
         <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">Today&apos;s insights</h2>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">{t.title}</h2>
         {data?.date && (
-          <span className="text-xs text-muted-foreground">{formatDay(data.date)}</span>
+          <span className="text-xs text-muted-foreground">{formatDay(data.date, locale === 'bn' ? 'bn-BD-u-nu-latn' : undefined)}</span>
         )}
         {data?.source === 'rules' && (
           <span
             className="hidden text-[11px] text-muted-foreground/80 sm:inline"
-            title="The AI model was unavailable, so these were worked out from fixed rules."
+            title={t.ruleBasedTitle}
           >
-            · rule-based
+            {t.ruleBased}
           </span>
         )}
         {collapsed && counts && (
           <span className="truncate text-xs text-muted-foreground">
-            · {plural(counts.findings, 'finding')}{counts.actions > 0 && `, ${plural(counts.actions, 'suggestion')}`}
+            · {t.findings(counts.findings)}{counts.actions > 0 && `, ${t.suggestions(counts.actions)}`}
           </span>
         )}
 
@@ -114,8 +117,8 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
           {canRefresh && (
             <HeaderButton
               label={cooldownUntil != null
-                ? `Refresh available ${formatWait(cooldownUntil - Date.now())}`
-                : 'Generate a fresh read'}
+                ? t.refreshAvailable(formatWait(cooldownUntil - Date.now(), t.wait))
+                : t.generate}
               onClick={() => void onRefresh()}
               disabled={refresh.isPending || coolingDown || insight.isPending}
             >
@@ -125,14 +128,14 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
             </HeaderButton>
           )}
           <HeaderButton
-            label={collapsed ? 'Expand' : 'Collapse'}
+            label={collapsed ? t.expand : t.collapse}
             onClick={toggleCollapsed}
             aria-expanded={!collapsed}
           >
             <ChevronDown className={cn('h-4 w-4 transition-transform', collapsed && '-rotate-90')} />
           </HeaderButton>
           <HeaderButton
-            label="Hide until tomorrow"
+            label={t.hide}
             onClick={() => { dismiss(websiteId, day); setDismissedDay(day); }}
           >
             <X className="h-4 w-4" />
@@ -150,16 +153,15 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
             </div>
           ) : data == null ? (
             <p className="text-[13px] text-muted-foreground">
-              No read for today yet. Seentics looks over your traffic once a day and writes up
-              what changed{canRefresh ? ' — or refresh to generate one now.' : '.'}
+              {t.noRead(canRefresh)}
             </p>
           ) : data.status === 'insufficient_data' ? (
-            <Notice title="Not enough data yet">
-              {data.reason ?? 'There is not enough recent traffic to say anything useful. Check back once more visits come in.'}
+            <Notice title={t.notEnoughTitle}>
+              {data.reason ?? t.notEnoughBody}
             </Notice>
           ) : data.status === 'failed' ? (
-            <Notice title="Today's insights could not be generated">
-              {data.reason ?? 'Something went wrong while writing them up.'}
+            <Notice title={t.failedTitle}>
+              {data.reason ?? t.failedBody}
             </Notice>
           ) : (
             <>
@@ -170,7 +172,7 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
 
           {(refreshError || forbidden) && (
             <p className="mt-2 text-xs text-destructive">
-              {forbidden ? 'Your role on this website cannot refresh insights.' : refreshError}
+              {forbidden ? t.forbidden : refreshError}
             </p>
           )}
         </div>
@@ -180,11 +182,12 @@ export function InsightsCard({ websiteId, className }: InsightsCardProps) {
 }
 
 function InsightLines({ websiteId, insight }: { websiteId: string; insight: DailyInsight }) {
+  const t = useT().ai.insights;
   const findings = insight.lines.filter((l) => l.kind === 'finding');
   const actions = insight.lines.filter((l) => l.kind === 'action');
 
   if (insight.lines.length === 0) {
-    return <p className="text-[13px] text-muted-foreground">Nothing stood out today.</p>;
+    return <p className="text-[13px] text-muted-foreground">{t.nothing}</p>;
   }
 
   return (
@@ -205,7 +208,7 @@ function InsightLines({ websiteId, insight }: { websiteId: string; insight: Dail
 
       {actions.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Suggested</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t.suggested}</p>
           <ul className="space-y-1.5">
             {actions.map((line, i) => (
               <li
@@ -221,12 +224,12 @@ function InsightLines({ websiteId, insight }: { websiteId: string; insight: Dail
                 </span>
                 {line.action?.prompt && (
                   <Link
-                    href={buildAskAiHref(websiteId, line.action.prompt, line.action.title || 'Daily insight')}
-                    title={line.action.title || 'Ask AI about this'}
+                    href={buildAskAiHref(websiteId, line.action.prompt, line.action.title || t.dailyInsightContext)}
+                    title={line.action.title || t.askAi}
                     className="ml-5 inline-flex shrink-0 items-center gap-1 self-start rounded-md px-1.5 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 sm:ml-0"
                   >
                     <Sparkles className="h-3 w-3" />
-                    Ask AI
+                    {t.askAi}
                   </Link>
                 )}
               </li>
@@ -287,22 +290,17 @@ function countLines(lines: InsightLine[]) {
   return { findings: lines.length - actions, actions };
 }
 
-function plural(n: number, word: string) {
-  return `${n} ${word}${n === 1 ? '' : 's'}`;
-}
-
 /** `2026-10-14` as "Oct 14", read in the visitor's calendar rather than shifted through UTC. */
-function formatDay(date: string) {
+function formatDay(date: string, dateLocale?: string) {
   const d = new Date(`${date}T00:00:00`);
   return Number.isNaN(d.getTime())
     ? date
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    : d.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' });
 }
 
-function formatWait(ms: number) {
+function formatWait(ms: number, t: Messages['ai']['insights']['wait']) {
   const min = Math.ceil(Math.max(0, ms) / 60000);
-  if (min <= 1) return 'in a minute';
-  if (min < 60) return `in ${min} min`;
-  const h = Math.ceil(min / 60);
-  return `in ${h} hour${h === 1 ? '' : 's'}`;
+  if (min <= 1) return t.minute;
+  if (min < 60) return t.minutes(min);
+  return t.hours(Math.ceil(min / 60));
 }

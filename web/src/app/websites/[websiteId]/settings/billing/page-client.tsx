@@ -18,7 +18,8 @@ import { Progress } from '@/components/ui/progress';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
-import { useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
+import { useInvoices, useManualSubscription, useMeter, useSaveSpendCap, useTurnOffExtraUsage } from '@/features/billing/queries';
+import { InvoiceList, TakaBilling } from '@/components/subscription/TakaBilling';
 import type { MeterState } from '@/features/billing/types';
 import { OFFER_YEARLY, RATES_LINE } from '@/features/plans/pricing-spec';
 import api from '@/lib/api';
@@ -27,6 +28,7 @@ import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
+import { formatDate, offersManualPayments, useLocale, useT, type Messages } from '@/lib/i18n';
 
 const GB = 1024 ** 3;
 
@@ -36,13 +38,14 @@ const fmt = (n: number) => {
   return n.toLocaleString();
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
-const fmtDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
 
 export default function BillingSettingsPage() {
   const websiteId = usePathSegment(1) ?? '';
   const router = useRouter();
   const demo = isDemo(websiteId);
+  const t = useT();
+  const { locale, region } = useLocale();
+  const fmtDate = (iso?: string) => formatDate(iso, locale);
 
   useEffect(() => {
     if (!isEnterprise && !demo) router.replace(`/websites/${websiteId}/settings`);
@@ -55,16 +58,21 @@ export default function BillingSettingsPage() {
   const isPaid = isPro || isStarter || isAgency;
   // Extra usage is an add-on to Pro and Agency: the plans that can go past their included amounts.
   const canExtra = isPro || isAgency;
-  const planName = isAgency ? 'Agency' : isPro ? 'Pro' : isStarter ? 'Starter' : 'Free';
+  const planName = isAgency ? 'Agency' : isPro ? 'Pro' : isStarter ? 'Starter' : t.pricing.free;
   const yearly = subscription?.billingInterval === 'year';
   const meter = useMeter({ demo, enabled: canExtra });
   const extraUsageOn = !!meter.data;
   const [busy, setBusy] = useState<string | null>(null);
+  // Paying in taka: an account with a plan paid that way, or a free account in Bangladesh (which
+  // buys with an invoice; /pricing still offers a card). A card subscription keeps the card's page.
+  const manual = useManualSubscription({ enabled: isEnterprise && !demo });
+  const invoices = useInvoices({ enabled: isEnterprise && !demo });
+  const paysInTaka = !!manual.data || (!isPaid && offersManualPayments(region));
 
   if (!isEnterprise && !demo) return null;
 
   const notOnDemo = () => {
-    if (demo) toast.info('Billing is not available on the demo site.');
+    if (demo) toast.info(t.billing.notOnDemo);
     return demo;
   };
 
@@ -74,7 +82,7 @@ export default function BillingSettingsPage() {
       setBusy(`${plan}:${interval}`);
       await startCheckout(plan, interval);
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Could not start the checkout. Please try again.');
+      toast.error(e?.response?.data?.error || t.billing.checkoutFailed);
     } finally {
       setBusy(null);
     }
@@ -93,13 +101,13 @@ export default function BillingSettingsPage() {
       if (tab) tab.location.href = url; else window.location.href = url;
     } catch {
       tab?.close();
-      toast.error('Could not open the billing portal. Please try again.');
+      toast.error(t.billing.portalFailed);
     } finally {
       setBusy(null);
     }
   };
 
-  if (loading) {
+  if (loading || (isEnterprise && !demo && manual.isLoading)) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
@@ -109,8 +117,12 @@ export default function BillingSettingsPage() {
 
   return (
     <div className={cn(websiteWorkspaceShellClass, 'space-y-6')}>
-      <DashboardPageHeader websiteId={websiteId} title="Billing" description="Your plan, extra usage and what it costs." />
+      <DashboardPageHeader websiteId={websiteId} title={t.billing.title} description={t.billing.description} />
 
+      {paysInTaka ? (
+        <TakaBilling demo={demo} />
+      ) : (
+      <>
       {/* Plan */}
       <Card className="border border-border">
         <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -118,26 +130,26 @@ export default function BillingSettingsPage() {
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold">{planName}</h2>
               {isPaid && yearly && (
-                <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium">Yearly</Badge>
+                <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium">{t.billing.yearly}</Badge>
               )}
               {subscription?.cancelAtPeriodEnd ? (
-                <Badge className="h-5 border border-amber-500/20 bg-amber-500/10 px-1.5 text-[11px] font-medium text-amber-600">Ending</Badge>
+                <Badge className="h-5 border border-amber-500/20 bg-amber-500/10 px-1.5 text-[11px] font-medium text-amber-600">{t.billing.ending}</Badge>
               ) : (
-                <Badge className="h-5 border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[11px] font-medium text-emerald-600">Active</Badge>
+                <Badge className="h-5 border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[11px] font-medium text-emerald-600">{t.billing.active}</Badge>
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {isPaid
                 ? subscription?.cancelAtPeriodEnd
-                  ? `Ends ${fmtDate(subscription.currentPeriodEnd)}, then your account moves to Free.`
-                  : `${yearly ? `$${subscription?.priceYearly ?? ''} a year` : `$${subscription?.priceMonthly ?? ''} a month`}. Renews ${fmtDate(subscription?.currentPeriodEnd)}.`
-                : 'Monthly limits. Collection pauses at a limit until the month resets.'}
+                  ? t.billing.endsThenFree(fmtDate(subscription.currentPeriodEnd))
+                  : t.billing.renews(yearly ? t.billing.aYear(`$${subscription?.priceYearly ?? ''}`) : t.billing.aMonth(`$${subscription?.priceMonthly ?? ''}`), fmtDate(subscription?.currentPeriodEnd))
+                : t.billing.freeLimits}
             </p>
             {isStarter && (
-              <p className="mt-1 text-sm text-muted-foreground">Pro has five times the events, more recordings and observability, and optional extra usage.</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t.billing.starterUpsell}</p>
             )}
             {isPro && (
-              <p className="mt-1 text-sm text-muted-foreground">Running client sites? Agency adds client workspaces and embeds, with 15M events a month.</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t.billing.proUpsell}</p>
             )}
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -146,31 +158,31 @@ export default function BillingSettingsPage() {
                 {isStarter && (
                   <Button size="sm" className="gap-1.5" onClick={() => checkout('pro', yearly ? 'year' : 'month')} disabled={busy !== null}>
                     {busy?.startsWith('pro:') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
+                    {t.billing.upgradeToPro} <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 )}
                 {OFFER_YEARLY && !yearly && !subscription?.cancelAtPeriodEnd && (
                   <Button variant="outline" size="sm" onClick={() => checkout(isAgency ? 'agency' : isPro ? 'pro' : 'starter', 'year')} disabled={busy !== null}>
-                    Switch to yearly and save
+                    {t.billing.switchYearly}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" className="gap-1.5" onClick={openPortal} disabled={busy !== null}>
                   {busy === 'portal' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-                  Invoices, payment & cancelling
+                  {t.billing.portal}
                 </Button>
               </>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/pricing">Compare plans</Link>
+                  <Link href="/pricing">{t.billing.comparePlans}</Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => checkout('starter')} disabled={busy !== null}>
                   {busy === 'starter:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Get Starter
+                  {t.billing.getStarter}
                 </Button>
                 <Button size="sm" className="gap-1.5" onClick={() => checkout('pro')} disabled={busy !== null}>
                   {busy === 'pro:month' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Upgrade to Pro <ArrowRight className="h-3.5 w-3.5" />
+                  {t.billing.upgradeToPro} <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </>
             )}
@@ -182,41 +194,42 @@ export default function BillingSettingsPage() {
         <Card className="border border-border"><CardContent className="flex justify-center p-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
       )}
       {canExtra && meter.isError && (
-        <p className="text-sm text-muted-foreground">Extra usage could not be measured right now. Try again in a minute.</p>
+        <p className="text-sm text-muted-foreground">{t.billing.meterFailed}</p>
       )}
       {canExtra && meter.isSuccess && !meter.data && (
-        <ExtraUsageOff plan={planName} onTurnOn={() => checkout('extra_usage')} busy={busy === 'extra_usage:month'} disabled={busy !== null} />
+        <ExtraUsageOff plan={planName} onTurnOn={() => checkout('extra_usage')} busy={busy === 'extra_usage:month'} disabled={busy !== null} t={t} />
       )}
       {canExtra && meter.data && (
         <>
-          <ExtraUsagePeriod meter={meter.data} demo={demo} plan={planName} />
-          <SpendCap meter={meter.data} demo={demo} plan={planName} />
+          <ExtraUsagePeriod meter={meter.data} demo={demo} plan={planName} t={t} fmtDate={fmtDate} />
+          <SpendCap meter={meter.data} demo={demo} plan={planName} t={t} />
         </>
       )}
+      {/* A card customer who once paid in taka still sees those invoices. */}
+      {!!invoices.data?.length && <InvoiceList invoices={invoices.data} />}
+      </>
+      )}
 
-      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn} title={canExtra && extraUsageOn ? 'Other usage' : 'Usage this month'} />
+      <LimitsGrid usage={subscription?.usage} hideMetered={extraUsageOn && !paysInTaka} title={canExtra && extraUsageOn && !paysInTaka ? t.billing.otherUsage : t.billing.usageThisMonth} t={t} />
     </div>
   );
 }
 
 /** Pro or Agency without Extra usage: what turning it on means, and the button that does. */
-function ExtraUsageOff({ plan, onTurnOn, busy, disabled }: { plan: string; onTurnOn: () => void; busy: boolean; disabled: boolean }) {
+function ExtraUsageOff({ plan, onTurnOn, busy, disabled, t }: { plan: string; onTurnOn: () => void; busy: boolean; disabled: boolean; t: Messages }) {
   return (
     <Card className="border border-border">
       <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div className="flex gap-3">
           <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Extra usage is off</h3>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Collection stops at {plan}&apos;s included amounts until your next period. Turn on extra usage to keep collecting
-              past them, billed at the end of each month: {RATES_LINE}. You can set a spend cap once it&apos;s on.
-            </p>
+            <h3 className="text-sm font-semibold">{t.billing.extraOff.title}</h3>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">{t.billing.extraOff.body(plan, RATES_LINE)}</p>
           </div>
         </div>
         <Button size="sm" className="shrink-0 gap-1.5" onClick={onTurnOn} disabled={disabled}>
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          Turn on extra usage
+          {t.billing.extraOff.turnOn}
         </Button>
       </CardContent>
     </Card>
@@ -224,33 +237,33 @@ function ExtraUsageOff({ plan, onTurnOn, busy, disabled }: { plan: string; onTur
 }
 
 /** This Extra usage period: what it has cost so far, and each metered resource against what the plan includes. */
-function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: boolean; plan: string }) {
+function ExtraUsagePeriod({ meter, demo, plan, t, fmtDate }: { meter: MeterState; demo: boolean; plan: string; t: Messages; fmtDate: (iso?: string) => string }) {
   const turnOff = useTurnOffExtraUsage();
   const [confirm, confirmDialog] = useConfirm();
   const rows = [
-    { icon: BarChart3, label: 'Events', used: meter.used.events, included: meter.included.events, show: fmt, cost: meter.overage.credits.events },
-    { icon: Video, label: 'Session recordings', used: meter.used.replays, included: meter.included.replays, show: fmt, cost: meter.overage.credits.replays },
+    { icon: BarChart3, label: t.billing.extra.events, used: meter.used.events, included: meter.included.events, show: fmt, cost: meter.overage.credits.events },
+    { icon: Video, label: t.billing.extra.recordings, used: meter.used.replays, included: meter.included.replays, show: fmt, cost: meter.overage.credits.replays },
     {
-      icon: Activity, label: 'Logs, traces & metrics', used: meter.used.observeBytes / GB, included: meter.included.observeGb,
+      icon: Activity, label: t.billing.extra.observe, used: meter.used.observeBytes / GB, included: meter.included.observeGb,
       show: (n: number) => `${n < 10 ? n.toFixed(1) : Math.round(n)} GB`, cost: meter.overage.credits.observe,
     },
   ];
   const capped = meter.billableCents < meter.overage.credits.total;
 
   const off = async () => {
-    if (demo) { toast.info('Billing is not available on the demo site.'); return; }
+    if (demo) { toast.info(t.billing.notOnDemo); return; }
     const ok = await confirm({
-      title: 'Turn off extra usage?',
-      description: `Collection stops at ${plan}'s included amounts right away. Extra usage already collected this period is still billed at the end of it.`,
-      confirmLabel: 'Turn off',
+      title: t.billing.extra.confirmTitle,
+      description: t.billing.extra.confirmBody(plan),
+      confirmLabel: t.billing.extra.turnOff,
       destructive: true,
     });
     if (!ok) return;
     try {
       await turnOff.mutateAsync();
-      toast.success('Extra usage is off.');
+      toast.success(t.billing.extra.turnedOff);
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Could not turn extra usage off.');
+      toast.error(e?.response?.data?.error || t.billing.extra.turnOffFailed);
     }
   };
 
@@ -260,7 +273,7 @@ function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: bool
       <CardContent className="p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Extra usage this period</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t.billing.extra.thisPeriod}</p>
             <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">{money(meter.billableCents)}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -271,7 +284,7 @@ function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: bool
               </p>
             )}
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={off} disabled={turnOff.isPending}>
-              {turnOff.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Turn off'}
+              {turnOff.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.billing.extra.turnOff}
             </Button>
           </div>
         </div>
@@ -279,7 +292,7 @@ function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: bool
         {meter.paused && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>Your spend cap is reached. Usage past {plan}&apos;s included amounts isn&apos;t being collected until the next period, or until you raise the cap.</span>
+            <span>{t.billing.extra.capReached(plan)}</span>
           </div>
         )}
 
@@ -294,19 +307,18 @@ function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: bool
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     {label}
                   </span>
-                  <span className={cn('tabular-nums', cost === 0 && 'text-muted-foreground')}>{cost === 0 ? 'Included' : money(cost)}</span>
+                  <span className={cn('tabular-nums', cost === 0 && 'text-muted-foreground')}>{cost === 0 ? t.billing.extra.included : money(cost)}</span>
                 </div>
                 <Progress value={share} className={cn('mt-2 h-1.5', over && '[&>div]:bg-amber-500')} />
                 <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-                  {show(used)} of {show(included)} included{over ? ` · ${show(used - included)} extra` : ''}
+                  {t.billing.extra.ofIncluded(show(used), show(included))}{over ? t.billing.extra.extra(show(used - included)) : ''}
                 </p>
               </li>
             );
           })}
         </ul>
         <p className="mt-2 text-xs text-muted-foreground">
-          {RATES_LINE}.{capped ? ' Billed up to your spend cap.' : ''} Billed at the end of the period, separately from
-          {plan}; under $1 in a period is not billed.
+          {t.billing.extra.footer(RATES_LINE, capped, plan)}
         </p>
       </CardContent>
     </Card>
@@ -314,7 +326,7 @@ function ExtraUsagePeriod({ meter, demo, plan }: { meter: MeterState; demo: bool
 }
 
 /** The most extra usage may cost in a month. */
-function SpendCap({ meter, demo, plan }: { meter: MeterState; demo: boolean; plan: string }) {
+function SpendCap({ meter, demo, plan, t }: { meter: MeterState; demo: boolean; plan: string; t: Messages }) {
   const save = useSaveSpendCap();
   const [dollars, setDollars] = useState(meter.spendCapCents != null ? String(meter.spendCapCents / 100) : '');
   useEffect(() => {
@@ -322,12 +334,12 @@ function SpendCap({ meter, demo, plan }: { meter: MeterState; demo: boolean; pla
   }, [meter.spendCapCents]);
 
   const submit = async (cents: number | null) => {
-    if (demo) { toast.info('Billing is not available on the demo site.'); return; }
+    if (demo) { toast.info(t.billing.notOnDemo); return; }
     try {
       await save.mutateAsync(cents);
-      toast.success(cents == null ? 'Spend cap removed.' : `Extra usage capped at $${(cents / 100).toFixed(2)} a month.`);
+      toast.success(cents == null ? t.billing.cap.removed : t.billing.cap.saved(money(cents)));
     } catch (e: any) {
-      toast.error(e?.response?.data?.error || 'Could not save the spend cap.');
+      toast.error(e?.response?.data?.error || t.billing.cap.failed);
     }
   };
 
@@ -341,11 +353,11 @@ function SpendCap({ meter, demo, plan }: { meter: MeterState; demo: boolean; pla
         <div className="flex gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
           <div>
-            <h3 className="text-sm font-semibold">Spend cap on extra usage</h3>
+            <h3 className="text-sm font-semibold">{t.billing.cap.title}</h3>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
               {meter.spendCapCents == null
-                ? `No cap: usage past ${plan}’s included amounts is always collected and billed.`
-                : `Extra usage never costs more than ${money(meter.spendCapCents)} a month. At the cap, collection past the included amounts pauses.`}
+                ? t.billing.cap.none(plan)
+                : t.billing.cap.set(money(meter.spendCapCents))}
             </p>
           </div>
         </div>
@@ -359,17 +371,17 @@ function SpendCap({ meter, demo, plan }: { meter: MeterState; demo: boolean; pla
               value={dollars}
               onChange={(e) => setDollars(e.target.value)}
               inputMode="decimal"
-              placeholder="No cap"
+              placeholder={t.billing.cap.placeholder}
               className="h-9 w-28 pl-6 tabular-nums"
-              aria-label="Spend cap in dollars"
+              aria-label={t.billing.cap.ariaLabel}
             />
           </div>
           <Button type="submit" size="sm" disabled={!valid || save.isPending}>
-            {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+            {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.billing.cap.save}
           </Button>
           {meter.spendCapCents != null && (
             <Button type="button" variant="ghost" size="sm" disabled={save.isPending} onClick={() => void submit(null)}>
-              Remove
+              {t.billing.cap.remove}
             </Button>
           )}
         </form>
@@ -382,17 +394,17 @@ function SpendCap({ meter, demo, plan }: { meter: MeterState; demo: boolean; pla
  * Everything with a count against a limit. With Extra usage on, events and recordings are shown
  * with its period above instead.
  */
-function LimitsGrid({ usage, hideMetered, title }: { usage?: SubscriptionUsage; hideMetered: boolean; title: string }) {
+function LimitsGrid({ usage, hideMetered, title, t }: { usage?: SubscriptionUsage; hideMetered: boolean; title: string; t: Messages }) {
   const items: Array<{ name: string; icon: typeof BarChart3; status?: { current: number; limit: number } }> = [
     ...(hideMetered ? [] : [
-      { name: 'Events this month', icon: BarChart3, status: usage?.monthlyEvents },
-      { name: 'Session recordings', icon: Video, status: usage?.replays },
+      { name: t.billing.limits.events, icon: BarChart3, status: usage?.monthlyEvents },
+      { name: t.billing.limits.replays, icon: Video, status: usage?.replays },
     ]),
-    { name: 'AI analyses', icon: Sparkles, status: usage?.aiAnalyses },
-    { name: 'Websites', icon: Globe, status: usage?.websites },
-    { name: 'Heatmap pages', icon: Map, status: usage?.heatmaps },
-    { name: 'Funnels', icon: Filter, status: usage?.funnels },
-    { name: 'Automations', icon: Workflow, status: usage?.workflows },
+    { name: t.billing.limits.ai, icon: Sparkles, status: usage?.aiAnalyses },
+    { name: t.billing.limits.websites, icon: Globe, status: usage?.websites },
+    { name: t.billing.limits.heatmaps, icon: Map, status: usage?.heatmaps },
+    { name: t.billing.limits.funnels, icon: Filter, status: usage?.funnels },
+    { name: t.billing.limits.automations, icon: Workflow, status: usage?.workflows },
   ];
 
   return (
@@ -411,12 +423,12 @@ function LimitsGrid({ usage, hideMetered, title }: { usage?: SubscriptionUsage; 
                   <Icon className="h-4 w-4 text-muted-foreground" />
                   {name}
                   {!unlimited && pct >= 100 && (
-                    <Badge className="ml-auto h-4 border border-red-500/20 bg-red-500/10 px-1.5 text-[10px] text-red-600">Limit reached</Badge>
+                    <Badge className="ml-auto h-4 border border-red-500/20 bg-red-500/10 px-1.5 text-[10px] text-red-600">{t.billing.limitReached}</Badge>
                   )}
                 </div>
                 <div className="mt-3 flex items-baseline justify-between">
                   <span className="text-xl font-semibold tabular-nums">{fmt(current)}</span>
-                  <span className="text-xs text-muted-foreground">of {unlimited ? 'Unlimited' : fmt(limit)}</span>
+                  <span className="text-xs text-muted-foreground">{t.billing.of(unlimited ? t.billing.unlimited : fmt(limit))}</span>
                 </div>
                 {!unlimited && (
                   <Progress value={pct} className={cn('mt-2 h-1.5', pct >= 100 ? '[&>div]:bg-red-500' : pct >= 80 && '[&>div]:bg-amber-500')} />

@@ -14,6 +14,7 @@ import {
   MAX_NAME_LENGTH, defaultName, initialValues, missingRequired, toCreateInput, toUpdateInput, type FormValues,
 } from '@/lib/integration-form';
 import type { Connection, CreateInput, Provider, UpdateInput } from '@/features/integrations/types';
+import { useT } from '@/lib/i18n';
 
 export interface ConnectDialogProps {
   provider: Provider;
@@ -37,6 +38,8 @@ export interface ConnectDialogProps {
  */
 export function ConnectDialog({ provider, connection, existing, open, onOpenChange, onSubmit }: ConnectDialogProps) {
   const isEdit = connection !== null;
+  const tAll = useT();
+  const t = tAll.settings.integrations;
   const [name, setName] = useState(() => connection?.name ?? defaultName(provider, existing));
   const [values, setValues] = useState<FormValues>(() => initialValues(provider.fields, connection));
   const [error, setError] = useState<string | null>(null);
@@ -47,15 +50,15 @@ export function ConnectDialog({ provider, connection, existing, open, onOpenChan
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { setError('Give this destination a name.'); return; }
-    if (missing.length) { setError(`${missing[0]!.label} is required.`); return; }
+    if (!name.trim()) { setError(t.needName); return; }
+    if (missing.length) { setError(t.required(missing[0]!.label)); return; }
     setBusy(true);
     setError(null);
     try {
       await onSubmit(isEdit ? toUpdateInput(provider.fields, values, name) : toCreateInput(provider, name, values), isEdit);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(err instanceof Error ? err.message : t.failed);
     } finally {
       setBusy(false);
     }
@@ -66,20 +69,20 @@ export function ConnectDialog({ provider, connection, existing, open, onOpenChan
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit} autoComplete="off" className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{connection ? `Edit ${connection.name}` : `Add ${provider.label}`}</DialogTitle>
+            <DialogTitle>{connection ? t.editTitle(connection.name) : t.addProvider(provider.label)}</DialogTitle>
             <DialogDescription>
               {provider.description}{' '}
-              <a href={provider.docs_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">Provider docs</a>
+              <a href={provider.docs_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{t.providerDocs}</a>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-1.5">
-            <Label htmlFor="f-destination-name">Name</Label>
+            <Label htmlFor="f-destination-name">{t.name}</Label>
             <Input
               id="f-destination-name" value={name} maxLength={MAX_NAME_LENGTH} onChange={(e) => setName(e.target.value)}
-              placeholder="Newsletter audience" autoComplete="off"
+              placeholder={t.namePlaceholder} autoComplete="off"
             />
-            <p className="text-xs text-muted-foreground">Shown when you choose where a form sends its submissions.</p>
+            <p className="text-xs text-muted-foreground">{t.nameHint}</p>
           </div>
 
           {provider.fields.map((f) =>
@@ -96,7 +99,7 @@ export function ConnectDialog({ provider, connection, existing, open, onOpenChan
                   type={f.type === 'password' ? 'password' : 'text'}
                   value={String(values[f.name] ?? '')}
                   onChange={(e) => set(f.name, e.target.value)}
-                  placeholder={f.kind === 'credential' && isEdit ? `Saved (…${connection?.credentials_hint || '••••'}). Leave blank to keep.` : f.placeholder}
+                  placeholder={f.kind === 'credential' && isEdit ? t.savedSecret(connection?.credentials_hint || '••••') : f.placeholder}
                   autoComplete={f.type === 'password' ? 'new-password' : 'off'}
                   spellCheck={false}
                   data-1p-ignore
@@ -113,10 +116,10 @@ export function ConnectDialog({ provider, connection, existing, open, onOpenChan
           )}
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>{tAll.actions.cancel}</Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Save and verify' : 'Verify and add'}
+              {isEdit ? t.saveVerify : t.verifyAdd}
             </Button>
           </DialogFooter>
         </form>

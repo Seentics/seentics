@@ -1,5 +1,8 @@
+'use client';
+
 import { Check, EyeOff, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { relativeTime } from '@/features/errors/format';
 import type { ErrorGroup, ErrorSample, ErrorStatus } from '@/features/errors/types';
@@ -28,6 +31,8 @@ export interface ErrorGroupDetailProps {
 export function ErrorGroupDetail({
   group, samples, onSetStatus, onWatchReplay, isUpdating, now, className,
 }: ErrorGroupDetailProps) {
+  const t = useT().errors;
+  const d = t.detail;
   return (
     <div className={className}>
       <div className="surface p-4">
@@ -46,33 +51,33 @@ export function ErrorGroupDetail({
           </div>
           <span
             className={cn(
-              'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize',
+              'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
               group.status === 'unresolved' && 'bg-red-500/10 text-red-700 dark:text-red-300',
               group.status === 'resolved' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
               group.status === 'ignored' && 'bg-muted text-muted-foreground',
             )}
           >
-            {group.status}
+            {t.status[group.status] ?? group.status}
           </span>
         </div>
 
         <dl className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-3">
           <div>
-            <dt className="text-xs text-muted-foreground">Occurrences</dt>
+            <dt className="text-xs text-muted-foreground">{d.occurrences}</dt>
             <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-              {group.event_count.toLocaleString()}
+              {group.event_count.toLocaleString('en-US')}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">First seen</dt>
+            <dt className="text-xs text-muted-foreground">{d.firstSeen}</dt>
             <dd className="mt-0.5 text-lg font-semibold text-foreground">
-              {relativeTime(group.first_seen, now)}
+              {relativeTime(group.first_seen, now, t.time)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Last seen</dt>
+            <dt className="text-xs text-muted-foreground">{d.lastSeen}</dt>
             <dd className="mt-0.5 text-lg font-semibold text-foreground">
-              {relativeTime(group.last_seen, now)}
+              {relativeTime(group.last_seen, now, t.time)}
             </dd>
           </div>
         </dl>
@@ -84,14 +89,14 @@ export function ErrorGroupDetail({
               disabled={isUpdating || group.status === 'resolved'}
               onClick={() => onSetStatus('resolved')}
             >
-              <Check className="h-3.5 w-3.5" /> Resolve
+              <Check className="h-3.5 w-3.5" /> {d.resolve}
             </Button>
             <Button
               size="sm" variant="outline" className="h-8 gap-1.5"
               disabled={isUpdating || group.status === 'ignored'}
               onClick={() => onSetStatus('ignored')}
             >
-              <EyeOff className="h-3.5 w-3.5" /> Ignore
+              <EyeOff className="h-3.5 w-3.5" /> {d.ignore}
             </Button>
             {group.status !== 'unresolved' && (
               <Button
@@ -99,18 +104,17 @@ export function ErrorGroupDetail({
                 disabled={isUpdating}
                 onClick={() => onSetStatus('unresolved')}
               >
-                <RotateCcw className="h-3.5 w-3.5" /> Reopen
+                <RotateCcw className="h-3.5 w-3.5" /> {d.reopen}
               </Button>
             )}
           </div>
         )}
       </div>
 
-      <h3 className={cn('mt-5 text-sm font-semibold text-foreground')}>Recent occurrences</h3>
+      <h3 className={cn('mt-5 text-sm font-semibold text-foreground')}>{d.recent}</h3>
       {!samples.length ? (
         <p className="mt-2 text-sm text-muted-foreground">
-          No samples kept in this range — occurrences are retained for a shorter period
-          than the counts above.
+          {d.noSamples}
         </p>
       ) : (
         <div className="surface mt-2 divide-y divide-border overflow-hidden">

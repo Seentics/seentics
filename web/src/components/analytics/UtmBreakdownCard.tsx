@@ -3,14 +3,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export type UtmTab = 'sources' | 'mediums' | 'campaigns' | 'terms' | 'content';
 
-const TABS: { value: UtmTab; label: string }[] = [
-  { value: 'sources',   label: 'Sources' },
-  { value: 'mediums',   label: 'Mediums' },
-  { value: 'campaigns', label: 'Campaigns' },
-];
+/** Tab names are in `analytics.utm`, keyed by value. */
+const TABS: ('sources' | 'mediums' | 'campaigns')[] = ['sources', 'mediums', 'campaigns'];
 
 export interface UtmBreakdownCardProps {
   /** `utm_performance` from the custom-events payload. */
@@ -39,16 +37,17 @@ export function UtmBreakdownCard({
   tab,
   onTabChange,
   isLoading,
-  title = 'UTM breakdown',
+  title,
   headerAction,
   className,
 }: UtmBreakdownCardProps) {
+  const t = useT().analytics.utm;
   return (
     <Card className={cn('overflow-hidden border border-border bg-card', className)}>
       <CardHeader className="border-b border-border p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex shrink-0 items-center gap-1">
-            <h3 className="min-w-0 shrink-0 whitespace-nowrap text-sm font-semibold tracking-tight">{title}</h3>
+            <h3 className="min-w-0 shrink-0 whitespace-nowrap text-sm font-semibold tracking-tight">{title ?? t.title}</h3>
             {headerAction}
           </div>
           <Tabs
@@ -57,13 +56,13 @@ export function UtmBreakdownCard({
             className="w-full shrink-0 md:w-auto"
           >
             <TabsList className="grid h-8 w-full grid-cols-3 rounded-lg bg-muted p-0.5">
-              {TABS.map((t) => (
+              {TABS.map((value) => (
                 <TabsTrigger
-                  key={t.value}
-                  value={t.value}
+                  key={value}
+                  value={value}
                   className="h-7 rounded-lg text-xs font-medium data-[state=active]:bg-card data-[state=inactive]:bg-transparent data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground data-[state=active]:shadow-sm"
                 >
-                  {t.label}
+                  {t[value]}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -71,7 +70,7 @@ export function UtmBreakdownCard({
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-2">
-        <ChartErrorBoundary label="UTM breakdown">
+        <ChartErrorBoundary label={t.title}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <UTMPerformanceChart data={data as any} isLoading={isLoading} controlledTab={tab} />
         </ChartErrorBoundary>

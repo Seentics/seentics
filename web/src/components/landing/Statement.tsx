@@ -1,4 +1,7 @@
+'use client';
+
 import type { ReactNode } from 'react';
+import { useT } from '@/lib/i18n';
 
 /**
  * What the product is for, then the three things that are true of all of it. The figures
@@ -54,36 +57,20 @@ function FigOpen() {
   );
 }
 
-const FIGURES: Array<{ fig: string; title: string; body: string; art: ReactNode }> = [
-  {
-    fig: 'Fig 0.1',
-    title: 'Private by default',
-    body: 'Cookieless out of the box. Visitors who have not consented are counted under a daily anonymous id, and no IP address is stored.',
-    art: <FigPrivacy />,
-  },
-  {
-    fig: 'Fig 0.2',
-    title: 'One script',
-    body: 'Add one tag and analytics, replays, heatmaps and errors start together. No events to define before the first numbers arrive.',
-    art: <FigScript />,
-  },
-  {
-    fig: 'Fig 0.3',
-    title: 'Open source',
-    body: 'Read the code, run it on your own servers with Docker, or let us run it for you. The product is the same either way.',
-    art: <FigOpen />,
-  },
+/** The figures in order; their titles and text are the language's (`statement.figures`). */
+const FIGURES: Array<{ fig: string; art: ReactNode }> = [
+  { fig: 'Fig 0.1', art: <FigPrivacy /> },
+  { fig: 'Fig 0.2', art: <FigScript /> },
+  { fig: 'Fig 0.3', art: <FigOpen /> },
 ];
 
 export default function Statement() {
+  const t = useT();
   return (
     <section className="lx-container pt-28 sm:pt-40">
       <p className="lx-heading max-w-[44rem] text-xl sm:text-2xl">
-        Most analytics stops at the number.{' '}
-        <span className="lx-dim">
-          Seentics shows the session behind it, the click that went nowhere and the step where people gave up, then
-          helps you act on it.
-        </span>
+        {t.statement.lead}{' '}
+        <span className="lx-dim">{t.statement.rest}</span>
       </p>
 
       <div className="mt-16 grid border-t sm:grid-cols-3" style={{ borderColor: 'var(--lx-line)' }}>
@@ -95,8 +82,8 @@ export default function Statement() {
           >
             <div className="h-28" aria-hidden>{f.art}</div>
             <p className="lx-mono lx-faint mt-8 uppercase">{f.fig}</p>
-            <h3 className="lx-heading mt-2 text-lg">{f.title}</h3>
-            <p className="lx-dim mt-2 text-[15px] leading-relaxed">{f.body}</p>
+            <h3 className="lx-heading mt-2 text-lg">{t.statement.figures[i]?.title}</h3>
+            <p className="lx-dim mt-2 text-[15px] leading-relaxed">{t.statement.figures[i]?.body}</p>
           </article>
         ))}
       </div>

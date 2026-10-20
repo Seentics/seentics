@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Layout, Copy, Check, Code2, Eye, Users, TrendingUp, Globe, Zap, ExternalLink, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 import {
   LiveVisitorsBadge, PageViewsBadge, MiniSparkline,
   StatsWidget, TopPagesWidget, CountryWidget,
 } from '@/components/ui-blocks/preview-widgets';
+import type { UiBlocksMessages } from '@/lib/i18n/messages/ui-blocks-en';
 
 /**
  * Every embeddable block, with its snippet and preview.
@@ -27,10 +29,9 @@ import {
  */
 export const CATEGORIES = ['all', 'badge', 'chart', 'widget', 'embed'] as const;
 
+/** Names and descriptions are `uiBlocks.blocks[id]`. */
 export interface Block {
-  id:          string;
-  name:        string;
-  description: string;
+  id:          keyof UiBlocksMessages['blocks'];
   category:    'embed' | 'badge' | 'chart' | 'widget';
   tags:        string[];
   preview:     React.ReactNode;
@@ -41,8 +42,8 @@ export interface Block {
    * snippet that loads a script that does not exist fails silently on the customer's site.
    */
   available:   boolean;
-  /** Where the block is actually set up, when that is not a copy-paste. */
-  setup?:      { label: string; href: string };
+  /** Where the block is actually set up, when that is not a copy-paste. The label is `uiBlocks.setup[label]`. */
+  setup?:      { label: keyof UiBlocksMessages['setup']; href: string };
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -52,12 +53,14 @@ export const CATEGORY_COLORS: Record<string, string> = {
   widget: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300',
 };
 
+function IframeLabel() {
+  return <>{useT().uiBlocks.preview.iframeEmbed}</>;
+}
+
 export function buildBlocks(websiteId: string): Block[] {
   return [
     {
       id: 'live-visitors-badge',
-      name: 'Live Visitors Badge',
-      description: 'Real-time active visitor count with animated pulse indicator.',
       category: 'badge',
       tags: ['realtime', 'inline'],
       preview: <LiveVisitorsBadge />,
@@ -71,8 +74,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'pageviews-badge',
-      name: 'Page Views Badge',
-      description: 'Today\'s page view count — great for landing pages or marketing sites.',
       category: 'badge',
       tags: ['pageviews', 'inline'],
       preview: <PageViewsBadge />,
@@ -87,8 +88,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'sparkline',
-      name: 'Traffic Sparkline',
-      description: 'Compact 7-day traffic trend line — inline, lightweight, and responsive.',
       category: 'chart',
       tags: ['chart', 'trend', 'inline'],
       preview: <MiniSparkline />,
@@ -105,8 +104,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'stats-widget',
-      name: 'Stats Widget',
-      description: '3-column summary strip: visitors, pageviews, and events.',
       category: 'widget',
       tags: ['stats', 'summary'],
       preview: <StatsWidget />,
@@ -121,8 +118,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'top-pages-widget',
-      name: 'Top Pages Widget',
-      description: 'Ranked list of your most viewed pages with a relative bar chart.',
       category: 'widget',
       tags: ['pages', 'list'],
       preview: <TopPagesWidget />,
@@ -137,8 +132,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'country-widget',
-      name: 'Country Breakdown',
-      description: 'Top countries by visitor share with flag icons and progress bars.',
       category: 'widget',
       tags: ['geo', 'countries'],
       preview: <CountryWidget />,
@@ -153,17 +146,15 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'full-embed',
-      name: 'Full Dashboard Embed',
-      description: 'Embed the complete Seentics analytics dashboard inside any iframe.',
       category: 'embed',
       tags: ['iframe', 'full'],
       preview: (
         <div className="rounded-lg border-2 border-dashed border-border flex items-center justify-center w-48 h-24 text-muted-foreground/50 text-xs gap-2">
-          <Layout className="h-4 w-4" /> iframe embed
+          <Layout className="h-4 w-4" /> <IframeLabel />
         </div>
       ),
       available: true,
-      setup: { label: 'Create embed link', href: '/agency/websites' },
+      setup: { label: 'createEmbed', href: '/agency/websites' },
       code: `<!-- Create the link in the Agency workspace: it carries the token the embed needs. -->
 <iframe
   src="EMBED_LINK_FROM_AGENCY_WORKSPACE"
@@ -174,8 +165,6 @@ export function buildBlocks(websiteId: string): Block[] {
     },
     {
       id: 'react-component',
-      name: 'React Components',
-      description: 'Render your data in your own React app with @seentics/ui (used from source until it is on npm).',
       category: 'embed',
       tags: ['react', 'typescript'],
       preview: (
@@ -185,7 +174,7 @@ export function buildBlocks(websiteId: string): Block[] {
         </div>
       ),
       available: true,
-      setup: { label: 'Read the guide', href: '/docs/ui-blocks' },
+      setup: { label: 'readGuide', href: '/docs/ui-blocks' },
       code: `// @seentics/ui is not on npm yet: build it from the Seentics repo (ui/blocks)
 // and install the folder — see /docs/ui-blocks.
 import { SeenticsProvider, AnalyticsSummary, TrafficChart } from '@seentics/ui';

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,7 @@ import {
   LogOut, PanelLeftClose, Menu,
   User, CreditCard, LifeBuoy, Banknote,
   Code2, Bug, Sparkles, ArrowUpRight, Contact, Send, SlidersHorizontal, Briefcase,
+  ChevronRight, MoreHorizontal, Plug,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,11 +22,18 @@ import { useEntitlements } from '@/features/suite/queries';
 import { workspaceIncludes } from '@/features/suite/workspace';
 import { isEnterprise } from '@/lib/features';
 import { useHiddenNav, visibleItems, type NavId } from '@/features/sidebar/nav-prefs';
+import { arrangeNav } from '@/features/sidebar/profiles';
+import { getWebsiteByAnyId } from '@/features/websites/api';
+import { isWebsiteProfile, type WebsiteProfile } from '@/features/websites/types';
+import { isDemo } from '@/lib/demo';
 import { SidebarCustomizeDialog } from './SidebarCustomizeDialog';
 import { useClientMode } from '@/features/client-mode/ClientMode';
 import { brandLogo } from '@/features/client-mode/brand';
 import { clientSettingsHref, firstAllowedPath, navAllowed } from '@/features/client-mode/routes';
 import { clientSignInHref, useIsClientSession } from '@/features/client-mode/session';
+import { useT } from '@/lib/i18n';
+import type { DashboardMessages } from '@/lib/i18n/messages/dashboard-en';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 interface SuiteNavItem {
   label: string;
@@ -52,29 +61,33 @@ interface NavItem {
   hint:  string;
 }
 
-function buildMainNav(websiteId: string): NavItem[] {
+type NavText = DashboardMessages['sidebar']['nav'];
+
+function buildMainNav(websiteId: string, nav: NavText): NavItem[] {
   return [
     // `?dashboard=1`: picking Overview means the dashboard, even where AI mode is the default.
-    { id: 'overview',    label: 'Overview',    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard, hint: 'Visitors, pages, sources and goals' },
+    { id: 'overview',    label: nav.overview.label,    href: `/websites/${websiteId}?dashboard=1`, icon: LayoutDashboard, hint: nav.overview.hint },
     // What a visitor did, where they clicked and where they dropped out, then what to do
     // about it; errors last, beside the developer tools that follow.
-    { id: 'recording',   label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video,     hint: 'Replays of visitor sessions' },
-    { id: 'heatmaps',    label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame,     hint: 'Clicks and scroll depth on each page' },
-    { id: 'funnels',     label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch, hint: 'Where visitors drop out of a flow' },
-    { id: 'automations', label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot,       hint: 'Popups, emails and webhooks on triggers' },
-    { id: 'leads',       label: 'Leads',       href: `/websites/${websiteId}/leads`,       icon: Contact,   hint: 'Form submissions and contacts' },
-    { id: 'revenue',     label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote,  hint: 'Sales and where they came from' },
+    { id: 'recording',   label: nav.recording.label,   href: `/websites/${websiteId}/replays`,     icon: Video,     hint: nav.recording.hint },
+    { id: 'heatmaps',    label: nav.heatmaps.label,    href: `/websites/${websiteId}/heatmaps`,    icon: Flame,     hint: nav.heatmaps.hint },
+    { id: 'funnels',     label: nav.funnels.label,     href: `/websites/${websiteId}/funnels`,     icon: GitBranch, hint: nav.funnels.hint },
+    { id: 'automations', label: nav.automations.label, href: `/websites/${websiteId}/automations`, icon: Bot,       hint: nav.automations.hint },
+    { id: 'leads',       label: nav.leads.label,       href: `/websites/${websiteId}/leads`,       icon: Contact,   hint: nav.leads.hint },
+    { id: 'revenue',     label: nav.revenue.label,     href: `/websites/${websiteId}/revenue`,     icon: Banknote,  hint: nav.revenue.hint },
     // Where those sales and leads are sent: the ad platforms, from Seentics' servers.
-    { id: 'conversions', label: 'Conversions', href: `/websites/${websiteId}/conversions`, icon: Send,      hint: 'Sales and leads sent to ad platforms' },
-    { id: 'ai-reports',  label: 'AI Reports',  href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles,  hint: 'Written reports on your traffic' },
-    { id: 'errors',      label: 'Errors',      href: `/websites/${websiteId}/errors`,      icon: Bug,       hint: 'JavaScript errors your visitors hit' },
+    { id: 'conversions', label: nav.conversions.label, href: `/websites/${websiteId}/conversions`, icon: Send,      hint: nav.conversions.hint },
+    // Where form submissions go: Zapier, Mailchimp and the rest.
+    { id: 'integrations', label: nav.integrations.label, href: `/websites/${websiteId}/integrations`, icon: Plug,   hint: nav.integrations.hint },
+    { id: 'ai-reports',  label: nav.aiReports.label,   href: `/websites/${websiteId}/ai-reports`,  icon: Sparkles,  hint: nav.aiReports.hint },
+    { id: 'errors',      label: nav.errors.label,      href: `/websites/${websiteId}/errors`,      icon: Bug,       hint: nav.errors.hint },
   ];
 }
 
-function buildSecondaryNav(websiteId: string): NavItem[] {
+function buildSecondaryNav(websiteId: string, nav: NavText): NavItem[] {
   return [
-    { id: 'developers', label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2, hint: 'API keys, API reference and setup guides' },
-    { id: 'settings', label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings, hint: 'Website, tracking and team' },
+    { id: 'developers', label: nav.developers.label, href: `/websites/${websiteId}/developers`, icon: Code2, hint: nav.developers.hint },
+    { id: 'settings', label: nav.settings.label, href: `/websites/${websiteId}/settings`, icon: Settings, hint: nav.settings.hint },
   ];
 }
 
@@ -114,16 +127,50 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   const brand = client?.brand ?? null;
   const brandMark = brandLogo(brand);
   const homeHref = client ? firstAllowedPath(websiteId, clientFeatures) ?? `/websites/${websiteId}` : '/';
-  const mainNav = buildMainNav(websiteId).filter((item) => !client || navAllowed(item.id, clientFeatures));
-  const secondNav = buildSecondaryNav(websiteId)
+  const t = useT().dashboard.sidebar;
+  const mainNav = buildMainNav(websiteId, t.nav).filter((item) => !client || navAllowed(item.id, clientFeatures));
+  const secondNav = buildSecondaryNav(websiteId, t.nav)
     .filter((item) => !client || navAllowed(item.id, clientFeatures))
-    .map((item) => (client && item.id === 'settings' ? { ...item, href: clientSettingsHref(websiteId, clientFeatures), hint: 'Goals and privacy' } : item));
+    .map((item) => (client && item.id === 'settings' ? { ...item, href: clientSettingsHref(websiteId, clientFeatures), hint: t.clientSettingsHint } : item));
   const [accountOpen, setAccountOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [hidden, setHidden] = useHiddenNav(user?.id);
   const allNav = [...mainNav, ...secondNav];
   const activeId = allNav.find((item) => isNavActive(item.href, pathname))?.id ?? null;
-  const shownNav = visibleItems(allNav, client ? [] : hidden, activeId);
+  // The site's kind of business puts its pages first and the rest under More (features/sidebar/profiles.ts).
+  // A client sees the agency's choice of pages in the usual order.
+  const { data: website } = useQuery({
+    queryKey: ['website', websiteId],
+    queryFn: () => getWebsiteByAnyId(websiteId),
+    enabled: !client && Boolean(websiteId),
+    staleTime: 60_000,
+  });
+  // The demo takes its profile from the link that opened it (`/websites/demo?profile=store`, a
+  // landing page's Live Demo). Read once, when the dashboard opens: the sidebar stays mounted while
+  // the visitor moves between its pages, so the choice lasts the visit. Opened any other way (the
+  // homepage's demo link), it shows every page.
+  const [demoProfile, setDemoProfile] = useState<WebsiteProfile | null>(null);
+  useEffect(() => {
+    if (!isDemo(websiteId)) return;
+    const asked = new URLSearchParams(window.location.search).get('profile');
+    setDemoProfile(isWebsiteProfile(asked) ? asked : null);
+  }, [websiteId]);
+  // The demo's profile comes only from the link that opened it.
+  const profile = client ? null : isDemo(websiteId) ? demoProfile : (website?.profile ?? null);
+  const { primary: primaryNav, more: moreNav } = arrangeNav(visibleItems(mainNav, client ? [] : hidden, activeId), profile);
+  const shownSecond = visibleItems(secondNav, client ? [] : hidden, activeId);
+  const moreHasActive = moreNav.some((item) => item.id === activeId);
+  // Open unless this person folded it: every page stays in sight by default.
+  const [moreOpenPref, setMoreOpenPref] = useState(() => {
+    try { return localStorage.getItem('sidebar-more-open') !== 'false'; } catch { return true; }
+  });
+  // The page you are on is never folded away.
+  const moreOpen = moreOpenPref || moreHasActive;
+  const toggleMore = () => {
+    const next = !moreOpen;
+    setMoreOpenPref(next);
+    try { localStorage.setItem('sidebar-more-open', String(next)); } catch { /* storage blocked */ }
+  };
   const { data: entitlements } = useEntitlements();
   // Suite plans only, free included (features/suite/workspace.ts): a customer
   // who bought Analytics alone is not offered the other apps.
@@ -185,11 +232,10 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           className={cn(
             'flex items-center gap-3 rounded-lg transition-colors',
             collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
-            // Light: a white pill with a hairline edge — the grey accent sat a shade off the
-            // grey sidebar and barely showed. Dark keeps the accent fill.
+            // A grey pill on the sidebar; in dark a white tint, since the sidebar is the cards' grey.
             active
-              ? 'bg-card text-foreground shadow-[0_0_0_1px_rgb(15_15_20/0.07),0_1px_2px_rgb(15_15_20/0.06)] dark:bg-accent dark:shadow-none'
-              : 'text-foreground/60 hover:text-foreground hover:bg-black/[0.045] dark:hover:bg-muted/50',
+              ? 'bg-muted text-foreground dark:bg-white/[0.08]'
+              : 'text-foreground/60 hover:text-foreground hover:bg-black/[0.045] dark:hover:bg-white/[0.05]',
           )}
         >
           <item.icon className="h-[17px] w-[17px] shrink-0" />
@@ -213,7 +259,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         className={cn(
           'flex items-center gap-3 rounded-lg transition-colors',
           collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
-          'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+          'text-foreground/60 hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.05]',
         )}
       >
         <item.icon className="h-[17px] w-[17px] shrink-0" />
@@ -251,9 +297,9 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           <button
             type="button"
             onClick={() => persist(false)}
-            title="Expand sidebar"
-            aria-label="Expand sidebar"
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            title={t.expand}
+            aria-label={t.expand}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 dark:hover:bg-white/[0.05] hover:text-foreground"
           >
             {renderMark()}
           </button>
@@ -266,9 +312,9 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             {!inDrawer && <button
               type="button"
               onClick={() => persist(true)}
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              title={t.collapse}
+              aria-label={t.collapse}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 dark:hover:bg-white/[0.05] hover:text-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>}
@@ -279,23 +325,48 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
         <ul className="space-y-0.5">
-          {shownNav.map((item) => renderItem(item, collapsed))}
+          {primaryNav.map((item) => renderItem(item, collapsed))}
+          {moreNav.length > 0 && (
+            <li>
+              <button
+                type="button"
+                onClick={toggleMore}
+                aria-expanded={moreOpen}
+                title={collapsed ? t.more : undefined}
+                aria-label={collapsed ? t.more : undefined}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg text-foreground/50 transition-colors hover:bg-muted/50 dark:hover:bg-white/[0.05] hover:text-foreground',
+                  collapsed ? 'mx-auto h-9 w-10 justify-center' : 'h-9 w-full px-3',
+                )}
+              >
+                {collapsed ? <MoreHorizontal className="h-4 w-4 shrink-0" /> : (
+                  <>
+                    <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', moreOpen && 'rotate-90')} />
+                    <span className="flex-1 text-left text-[13px] font-medium">{t.more}</span>
+                    <span className="text-[11.5px] tabular-nums text-foreground/40">{moreNav.length}</span>
+                  </>
+                )}
+              </button>
+            </li>
+          )}
+          {moreOpen && moreNav.map((item) => renderItem(item, collapsed))}
+          {shownSecond.map((item) => renderItem(item, collapsed))}
           {!client && <li>
             <button
               type="button"
               onClick={() => setCustomizing(true)}
-              title={collapsed ? (hidden.length ? `Customize sidebar · ${hidden.length} hidden` : 'Customize sidebar') : undefined}
-              aria-label={collapsed ? 'Customize sidebar' : undefined}
+              title={collapsed ? (hidden.length ? `${t.customizeSidebar} · ${t.hiddenCount(hidden.length)}` : t.customizeSidebar) : undefined}
+              aria-label={collapsed ? t.customizeSidebar : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-lg text-foreground/45 transition-colors hover:bg-muted/50 hover:text-foreground',
+                'flex items-center gap-3 rounded-lg text-foreground/45 transition-colors hover:bg-muted/50 dark:hover:bg-white/[0.05] hover:text-foreground',
                 collapsed ? 'mx-auto h-9 w-10 justify-center' : 'h-9 w-full px-3',
               )}
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" />
               {!collapsed && (
                 <>
-                  <span className="flex-1 text-left text-[13px] font-medium">Customize</span>
-                  {hidden.length > 0 && <span className="text-[11.5px] tabular-nums text-foreground/40">{hidden.length} hidden</span>}
+                  <span className="flex-1 text-left text-[13px] font-medium">{t.customize}</span>
+                  {hidden.length > 0 && <span className="text-[11.5px] tabular-nums text-foreground/40">{t.hiddenCount(hidden.length)}</span>}
                 </>
               )}
             </button>
@@ -308,22 +379,22 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       {(suiteNav.length > 0 || hasAgency) && (
         <div className={cn('shrink-0 border-t border-sidebar-border pt-3 pb-2 dark:border-border/60', collapsed ? 'px-2' : 'px-3')}>
           {!collapsed && (
-            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">Workspace</p>
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground/40">{t.workspace}</p>
           )}
           <ul className="space-y-0.5">
             {hasAgency && (
               <li>
                 <Link
                   href={AGENCY_WORKSPACE_HREF}
-                  title={collapsed ? 'Agency workspace' : undefined}
+                  title={collapsed ? t.agencyWorkspace : undefined}
                   className={cn(
                     'flex items-center gap-3 rounded-lg transition-colors',
                     collapsed ? 'justify-center h-9 w-10 mx-auto' : 'h-9 px-3',
-                    'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+                    'text-foreground/60 hover:text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.05]',
                   )}
                 >
                   <Briefcase className="h-[17px] w-[17px] shrink-0" />
-                  {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Agency workspace</span>}
+                  {!collapsed && <span className="flex-1 text-[13.5px] font-medium">{t.agencyWorkspace}</span>}
                 </Link>
               </li>
             )}
@@ -338,11 +409,11 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           <PopoverTrigger asChild>
             <button
               type="button"
-              title={user?.name || user?.email || 'Account'}
-              aria-label="Account menu"
+              title={user?.name || user?.email || t.account}
+              aria-label={t.accountMenu}
               className={cn(
                 'flex items-center gap-3 rounded-lg transition-colors w-full',
-                'text-foreground hover:bg-muted/50',
+                'text-foreground hover:bg-muted/50 dark:hover:bg-white/[0.05]',
                 collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-2',
               )}
             >
@@ -364,7 +435,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
               )}
               {!collapsed && (
                 <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-medium text-foreground/90">
-                  {user?.name?.trim() || user?.email || 'Account'}
+                  {user?.name?.trim() || user?.email || t.account}
                 </span>
               )}
             </button>
@@ -377,7 +448,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             collisionPadding={12}
           >
             <div className="border-b border-border bg-muted/25 px-3 py-3">
-              <p className="truncate text-sm font-semibold text-foreground">{user?.name?.trim() || 'Account'}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{user?.name?.trim() || t.account}</p>
               {user?.email ? (
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
               ) : null}
@@ -391,12 +462,12 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                       className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-foreground/80 hover:bg-muted/80 hover:text-foreground"
                     >
                       <LifeBuoy className="h-4 w-4 shrink-0 opacity-70" />
-                      Contact {brand.brand_name || 'your agency'}
+                      {t.contact(brand.brand_name || '')}
                     </a>
                   )}
                   {brand?.footer_text && <p className="px-2.5 py-1 text-[11.5px] text-muted-foreground">{brand.footer_text}</p>}
                   {!brand?.hide_seentics && (
-                    <p className="px-2.5 py-1 text-[11.5px] text-muted-foreground">Powered by Seentics</p>
+                    <p className="px-2.5 py-1 text-[11.5px] text-muted-foreground">{t.poweredBy}</p>
                   )}
                 </div>
               )
@@ -411,7 +482,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 )}
               >
                 <User className="h-4 w-4 shrink-0 opacity-70" />
-                Profile
+                {t.profile}
               </Link>
               <Link
                 href={`/websites/${websiteId}/settings/billing`}
@@ -422,7 +493,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 )}
               >
                 <CreditCard className="h-4 w-4 shrink-0 opacity-70" />
-                Billing
+                {t.billing}
               </Link>
               <Link
                 href={`/websites/${websiteId}/settings/support`}
@@ -433,12 +504,13 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 )}
               >
                 <LifeBuoy className="h-4 w-4 shrink-0 opacity-70" />
-                Support
+                {t.support}
               </Link>
             </nav>
             )}
             <Separator className="bg-border/60" />
-            <div className="p-1.5">
+            <div className="flex flex-col p-1.5">
+              <LanguageSwitcher className="h-auto w-full justify-start gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground/80 hover:bg-muted/80 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:opacity-70" />
               <button
                 type="button"
                 onClick={() => {
@@ -454,7 +526,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 )}
               >
                 <LogOut className="h-4 w-4 shrink-0 opacity-80" />
-                Log out
+                {t.logOut}
               </button>
             </div>
           </PopoverContent>
@@ -469,8 +541,8 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open navigation"
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+          aria-label={t.openNavigation}
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-muted/60 dark:hover:bg-white/[0.05] hover:text-foreground"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -483,7 +555,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       <SidebarCustomizeDialog open={customizing} onOpenChange={setCustomizing} items={allNav} hidden={hidden} onChange={setHidden} />
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="left" className="w-[264px] max-w-[85vw] border-sidebar-border bg-sidebar p-0 md:hidden">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetTitle className="sr-only">{t.navigation}</SheetTitle>
           {panel(false, true)}
         </SheetContent>
       </Sheet>

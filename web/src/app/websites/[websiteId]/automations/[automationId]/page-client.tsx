@@ -30,8 +30,12 @@ import {
 import { FormSubmissions } from '@/components/automations/submissions/FormSubmissions';
 import { formInfoOf } from '@/lib/form-routing';
 import { EditGuard } from '@/features/client-mode/ClientMode';
+import { useT } from '@/lib/i18n';
 
 export default function AutomationDetailPage() {
+  const t = useT();
+  const m = t.automations;
+  const d = m.detail;
   const params = { websiteId: usePathSegment(1) ?? '', automationId: usePathSegment(3) ?? '' };
   const router        = useRouter();
   const searchParams  = useSearchParams();
@@ -63,9 +67,9 @@ export default function AutomationDetailPage() {
   if (!automation && !isLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        <p className="text-sm">Automation not found.</p>
+        <p className="text-sm">{d.notFound}</p>
         <Button variant="ghost" size="sm" className="mt-4" onClick={() => router.back()}>
-          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Back
+          <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> {t.actions.back}
         </Button>
       </div>
     );
@@ -99,9 +103,9 @@ export default function AutomationDetailPage() {
   const handleToggle = () => toggle({ websiteId, automationId: automation.id });
   const handleDelete = async () => {
     const ok = await confirm({
-      title: `Delete "${automation.name}"?`,
-      description: 'The automation stops running and its run history is removed.',
-      confirmLabel: 'Delete automation',
+      title: d.deleteTitle(automation.name),
+      description: d.deleteBody,
+      confirmLabel: d.deleteConfirm,
       destructive: true,
     });
     if (!ok) return;
@@ -124,7 +128,7 @@ export default function AutomationDetailPage() {
           }}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {editMode ? 'Cancel edit' : 'Back to Automations'}
+          {editMode ? d.cancelEdit : d.backToList}
         </Button>
       </div>
 
@@ -155,7 +159,7 @@ export default function AutomationDetailPage() {
                     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                     : 'border-border bg-muted text-muted-foreground',
                 )}>
-                  {automation.isActive ? 'active' : 'paused'}
+                  {automation.isActive ? d.active : d.paused}
                 </Badge>
               </div>
             )}
@@ -172,8 +176,8 @@ export default function AutomationDetailPage() {
                 size="sm"
                 className="h-8 w-8 p-0"
                 onClick={() => builderRef.current?.openSettings()}
-                title="Workflow settings"
-                aria-label="Workflow settings"
+                title={m.editor.workflowSettings}
+                aria-label={m.editor.workflowSettings}
               >
                 <Settings className="h-4 w-4" />
               </Button>
@@ -182,8 +186,8 @@ export default function AutomationDetailPage() {
                 size="sm"
                 className="h-8 w-8 p-0"
                 onClick={() => builderRef.current?.openJson()}
-                title="View or edit JSON"
-                aria-label="View or edit JSON"
+                title={m.editor.viewJson}
+                aria-label={m.editor.viewJson}
               >
                 <Braces className="h-4 w-4" />
               </Button>
@@ -192,10 +196,10 @@ export default function AutomationDetailPage() {
                 className="h-8 gap-1.5"
                 onClick={() => draft && handleEditSave(draft)}
                 disabled={!draft || errors.length > 0 || saving}
-                title={errors[0] ?? 'Save automation'}
+                title={errors[0] ?? m.editor.saveAutomation}
               >
                 <Save className="h-3.5 w-3.5" />
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t.actions.saving : t.actions.save}
               </Button>
             </>
           )}
@@ -208,7 +212,7 @@ export default function AutomationDetailPage() {
                 className="h-8 gap-1.5"
                 onClick={() => { setEditName(automation.name); setEditMode(true); }}
               >
-                <Pencil className="h-3.5 w-3.5" />Edit
+                <Pencil className="h-3.5 w-3.5" />{t.actions.edit}
               </Button>
               <Button
                 variant="outline"
@@ -217,7 +221,7 @@ export default function AutomationDetailPage() {
                 onClick={handleToggle}
                 disabled={toggling}
               >
-                {automation.isActive ? <><Pause className="h-3.5 w-3.5" />Pause</> : <><Play className="h-3.5 w-3.5" />Activate</>}
+                {automation.isActive ? <><Pause className="h-3.5 w-3.5" />{d.pause}</> : <><Play className="h-3.5 w-3.5" />{d.activate}</>}
               </Button>
               <Button
                 variant="outline"
@@ -226,7 +230,7 @@ export default function AutomationDetailPage() {
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                <Trash2 className="h-3.5 w-3.5" />Delete
+                <Trash2 className="h-3.5 w-3.5" />{t.actions.delete}
               </Button>
             </EditGuard>
           )}
@@ -252,10 +256,10 @@ export default function AutomationDetailPage() {
             cards={[
               // Only failures keep a tone, and only when there are any. Four
               // coloured figures in a row read as four warnings, not one summary.
-              { label: 'Total runs',   value: automation.stats?.totalExecutions ?? 0 },
-              { label: 'Success rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%` },
-              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0 },
-              { label: 'Failures',     value: automation.stats?.failureCount ?? 0, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
+              { label: d.totalRuns,   value: automation.stats?.totalExecutions ?? 0 },
+              { label: d.successRate, value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%` },
+              { label: d.last30Days, value: automation.stats?.last30Days ?? 0 },
+              { label: d.failures,     value: automation.stats?.failureCount ?? 0, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
             ]}
           />
 
@@ -263,8 +267,8 @@ export default function AutomationDetailPage() {
             {/* Chart */}
             <Card className="lg:col-span-2 border border-border">
               <CardHeader className="px-5 py-4 border-b border-border">
-                <CardTitle className="text-sm font-semibold">Run history</CardTitle>
-                <p className="mt-0.5 text-xs text-muted-foreground">Last 14 days</p>
+                <CardTitle className="text-sm font-semibold">{d.runHistory}</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">{d.last14Days}</p>
               </CardHeader>
               <CardContent className="p-5">
                 <ResponsiveContainer width="100%" height={200}>
@@ -275,7 +279,7 @@ export default function AutomationDetailPage() {
                     <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
                     {/* Softened: fourteen full-primary bars beside coloured stat
                         tiles left nothing quiet on the page. */}
-                    <Bar dataKey="runs" fill="hsl(var(--primary) / 0.55)" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="runs" name={d.runs} fill="hsl(var(--primary) / 0.55)" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -291,18 +295,18 @@ export default function AutomationDetailPage() {
             */}
             <Card className="border border-border">
               <CardHeader className="px-5 py-4 border-b border-border">
-                <CardTitle className="text-sm font-semibold">What it does</CardTitle>
-                <p className="mt-0.5 text-xs text-muted-foreground">In the order it runs</p>
+                <CardTitle className="text-sm font-semibold">{d.whatItDoes}</CardTitle>
+                <p className="mt-0.5 text-xs text-muted-foreground">{d.inOrder}</p>
               </CardHeader>
               <CardContent className="space-y-3 p-5">
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    When
+                    {d.when}
                   </p>
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
                     <TriggerIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">
-                      {triggerLabel(automation.triggerType) ?? automation.triggerType}
+                      {triggerLabel(automation.triggerType, m.catalog)}
                     </span>
                   </div>
                 </div>
@@ -313,11 +317,11 @@ export default function AutomationDetailPage() {
 
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Then
+                    {d.then}
                   </p>
                   {automation.actions.length === 0 ? (
                     <p className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                      No action yet — this automation will do nothing.
+                      {d.noAction}
                     </p>
                   ) : (
                     <ol className="space-y-2">
@@ -333,7 +337,7 @@ export default function AutomationDetailPage() {
                             </span>
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                              {actionLabel(a.actionType, true) ?? a.actionType}
+                              {actionLabel(a.actionType, true, m.catalog)}
                             </span>
                           </li>
                         );
@@ -343,8 +347,8 @@ export default function AutomationDetailPage() {
                 </div>
 
                 <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-                  Branches and delays are not shown here — open{' '}
-                  <span className="font-medium text-foreground">Edit</span> to see the full graph.
+                  {d.graphNoteBefore}{' '}
+                  <span className="font-medium text-foreground">{d.graphNoteEdit}</span> {d.graphNoteAfter}
                 </p>
               </CardContent>
             </Card>

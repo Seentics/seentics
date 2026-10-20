@@ -7,11 +7,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addClientWebsite, createWebsite, errorMessage } from '@/features/agency/api';
+import { addClientWebsite, createWebsite } from '@/features/agency/api';
 import { useAgencyMutation, useClients } from '@/features/agency/queries';
 import type { CreatedWebsite } from '@/features/agency/types';
 import { InstallPanel } from './InstallPanel';
-import { ErrorNote } from './ui';
+import { useT } from '@/lib/i18n';
+import { ErrorNote, useErrorText } from './ui';
 
 const NONE = '__none__';
 
@@ -20,6 +21,9 @@ const NONE = '__none__';
  * its snippet and the tracking check in the same dialog.
  */
 export function AddWebsiteDialog({ open, onOpenChange, clientId }: { open: boolean; onOpenChange: (open: boolean) => void; clientId?: string }) {
+  const all = useT().agency;
+  const t = all.addWebsite;
+  const errorMessage = useErrorText();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [pick, setPick] = useState<string>(NONE);
@@ -48,35 +52,35 @@ export function AddWebsiteDialog({ open, onOpenChange, clientId }: { open: boole
         {created ? (
           <div className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Install {created.name}</DialogTitle>
-              <DialogDescription>Add this snippet to every page of {created.url}, then verify.</DialogDescription>
+              <DialogTitle>{t.installTitle(created.name)}</DialogTitle>
+              <DialogDescription>{t.installBody(created.url)}</DialogDescription>
             </DialogHeader>
             <InstallPanel websiteId={created.id} initial={created.install} />
             <DialogFooter>
-              <Button size="sm" onClick={() => onOpenChange(false)}>Done</Button>
+              <Button size="sm" onClick={() => onOpenChange(false)}>{all.common.done}</Button>
             </DialogFooter>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Add website</DialogTitle>
-              <DialogDescription>You get the tracking snippet as soon as it is added.</DialogDescription>
+              <DialogTitle>{t.title}</DialogTitle>
+              <DialogDescription>{t.body}</DialogDescription>
             </DialogHeader>
             <div className="space-y-1.5">
-              <Label htmlFor="site-name" className="text-xs">Name</Label>
+              <Label htmlFor="site-name" className="text-xs">{t.name}</Label>
               <Input id="site-name" value={name} onChange={e => setName(e.target.value)} placeholder="Acme Bakery" autoFocus className="h-9" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="site-url" className="text-xs">URL</Label>
+              <Label htmlFor="site-url" className="text-xs">{t.url}</Label>
               <Input id="site-url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://acmebakery.com" className="h-9" />
             </div>
             {!clientId && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Client</Label>
+                <Label className="text-xs">{t.client}</Label>
                 <Select value={pick} onValueChange={setPick}>
-                  <SelectTrigger className="h-9" aria-label="Client"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9" aria-label={t.client}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>No client</SelectItem>
+                    <SelectItem value={NONE}>{all.common.noClient}</SelectItem>
                     {clients.items.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -84,10 +88,10 @@ export function AddWebsiteDialog({ open, onOpenChange, clientId }: { open: boole
             )}
             {error && <ErrorNote>{error}</ErrorNote>}
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>{all.common.cancel}</Button>
               <Button type="submit" size="sm" disabled={!name.trim() || !url.trim() || create.isPending} className="gap-1.5">
                 {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Add website
+                {t.submit}
               </Button>
             </DialogFooter>
           </form>

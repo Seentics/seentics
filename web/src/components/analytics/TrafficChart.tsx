@@ -8,6 +8,10 @@ import {
 } from 'recharts';
 import { formatNumber } from '@/features/analytics/format';
 import type { EventAnnotation } from './EventAnnotations';
+import { useLocale, useT } from '@/lib/i18n';
+
+/** Chart dates in the reader's language, digits kept Latin. */
+const dateLocale = (locale: string) => (locale === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US');
 
 interface TrafficChartProps {
   data: any;
@@ -24,9 +28,11 @@ const PAGEVIEWS_COLOR = '#a78bfa'; // soft violet — secondary to visitors, rea
 const PREVIOUS_COLOR = 'hsl(var(--muted-foreground))';
 
 function CustomTooltip({ active, payload, label }: any) {
+  const t = useT().analytics.common;
+  const { locale } = useLocale();
   if (!active || !payload?.length) return null;
 
-  const date = new Date(label).toLocaleDateString('en-US', {
+  const date = new Date(label).toLocaleDateString(dateLocale(locale), {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 
@@ -37,9 +43,9 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 
   const meta: Record<string, string> = {
-    views:  'Page Views',
-    unique: 'Visitors',
-    previous: 'Previous period',
+    views:  t.pageViews,
+    unique: t.visitors,
+    previous: t.previousPeriod,
   };
 
   return (
@@ -77,6 +83,7 @@ function TooltipCursor({ points, width, height }: any) {
 function LegendItem({
   color, label, total, dashed, off, onToggle,
 }: { color: string; label: string; total?: number; dashed?: boolean; off?: boolean; onToggle?: () => void }) {
+  const t = useT().analytics.traffic;
   const content = (
     <>
       <span
@@ -93,7 +100,7 @@ function LegendItem({
       type="button"
       onClick={onToggle}
       aria-pressed={!off}
-      title={off ? `Show ${label}` : `Hide ${label}`}
+      title={off ? t.show(label) : t.hide(label)}
       className={`flex items-center gap-2 rounded px-1 text-xs transition-opacity hover:opacity-80 ${off ? 'opacity-40 line-through' : ''}`}
     >
       {content}
@@ -104,6 +111,8 @@ function LegendItem({
 export const TrafficChart: React.FC<TrafficChartProps> = ({
   data, isLoading, previousData, showComparison, annotations = [],
 }) => {
+  const t = useT().analytics;
+  const { locale } = useLocale();
   // Page views run ~3x visitors, which flattens the visitors line; the legend hides either series.
   const [hidden, setHidden] = useState<{ views?: boolean; unique?: boolean }>({});
   const toggle = (key: 'views' | 'unique') => setHidden((h) => ({ ...h, [key]: !h[key] }));
@@ -129,8 +138,8 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">No traffic data yet</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Data will appear once visitors arrive</p>
+          <p className="text-sm text-muted-foreground">{t.traffic.noData}</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">{t.traffic.noDataHint}</p>
         </div>
       </div>
     );
@@ -144,9 +153,9 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
   return (
     <div className="flex h-full flex-col px-1">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 pb-1 pt-1">
-        <LegendItem color={VISITORS_COLOR} label="Visitors" total={totalVisitors} off={hidden.unique} onToggle={() => toggle('unique')} />
-        <LegendItem color={PAGEVIEWS_COLOR} label="Page views" total={totalViews} off={hidden.views} onToggle={() => toggle('views')} />
-        {hasPrevious && <LegendItem color={PREVIOUS_COLOR} label="Previous period" dashed />}
+        <LegendItem color={VISITORS_COLOR} label={t.common.visitors} total={totalVisitors} off={hidden.unique} onToggle={() => toggle('unique')} />
+        <LegendItem color={PAGEVIEWS_COLOR} label={t.common.pageViews} total={totalViews} off={hidden.views} onToggle={() => toggle('views')} />
+        {hasPrevious && <LegendItem color={PREVIOUS_COLOR} label={t.common.previousPeriod} dashed />}
       </div>
       <div className="min-h-0 flex-1">
       <ResponsiveContainer width="100%" height="100%">
@@ -169,7 +178,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            tickFormatter={d => new Date(d).toLocaleDateString(dateLocale(locale), { month: 'short', day: 'numeric' })}
             tick={{ fill: 'hsl(var(--muted-foreground))' }}
             interval="preserveStartEnd"
             minTickGap={48}

@@ -17,8 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Globe, BarChart3, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useT } from '@/lib/i18n';
 
 export default function PublicDashboardPage() {
+    const t = useT().sharing.share;
     const params = { publicId: usePathSegment(1) ?? '' };
     const publicId = params?.publicId as string;
     const [dateRange, setDateRange] = useState(7);
@@ -29,11 +31,11 @@ export default function PublicDashboardPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center space-y-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
-                <h1 className="text-2xl font-black uppercase tracking-tight">Dashboard Not Available</h1>
+                <h1 className="text-2xl font-black uppercase tracking-tight">{t.unavailableTitle}</h1>
                 <p className="text-muted-foreground max-w-md font-medium">
-                    This dashboard might be private, the link might be expired, or the website has been removed.
+                    {t.unavailableBody}
                 </p>
-                <a href="/" className="text-primary font-bold hover:underline">Go to Seentics Home</a>
+                <a href="/" className="text-primary font-bold hover:underline">{t.home}</a>
             </div>
         );
     }
@@ -48,10 +50,10 @@ export default function PublicDashboardPage() {
                         </div>
                         <div>
                             <h1 className="text-sm font-black uppercase tracking-tighter">
-                                {isLoading ? <Skeleton className="h-4 w-32" /> : data?.website_id || 'Analytics Dashboard'}
+                                {isLoading ? <Skeleton className="h-4 w-32" /> : data?.website_id || t.fallbackTitle}
                             </h1>
                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <Globe className="h-3 w-3" /> Public Dashboard
+                                <Globe className="h-3 w-3" /> {t.publicDashboard}
                             </p>
                         </div>
                     </div>
@@ -115,10 +117,10 @@ export default function PublicDashboardPage() {
             <footer className="border-t border-border/40 py-8 bg-white dark:bg-slate-900">
                 <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center space-y-2">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                        Powered by <span className="text-primary">Seentics Analytics</span>
+                        {t.poweredBy} <span className="text-primary">Seentics Analytics</span>
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                        Simple, Privacy-focused Google Analytics Alternative.
+                        {t.tagline}
                     </p>
                 </div>
             </footer>

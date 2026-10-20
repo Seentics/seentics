@@ -1,6 +1,7 @@
 import api from '@/lib/api';
 import { getApiUrl } from '@/lib/config';
 import type { User } from '@/types';
+import { agencyEn, type AgencyMessages } from '@/lib/i18n/messages/agency-en';
 import type { ClientBrand, ClientMe } from './types';
 
 /**
@@ -17,9 +18,13 @@ async function send(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
+/** Which failure, as a key of `useT().agency.clientAuthErrors`, for the page to show in the visitor's language. */
+export type ClientAuthErrorReason = keyof AgencyMessages['clientAuthErrors'];
+
+/** A client sign-in failure. `message` is English; pages show `useT().agency.clientAuthErrors[reason]`. */
 export class ClientAuthError extends Error {
-  constructor(public code: 'invalid_link' | 'rate_limited' | 'unavailable', message: string) {
-    super(message);
+  constructor(public code: 'invalid_link' | 'rate_limited' | 'unavailable', public reason: ClientAuthErrorReason) {
+    super(agencyEn.clientAuthErrors[reason]);
   }
 }
 
@@ -33,10 +38,10 @@ export async function requestMagicLink(email: string, agency?: string | null): P
     const body = agency ? { email, agency } : { email };
     res = await send('/client-auth/magic-link', { method: 'POST', body: JSON.stringify(body) });
   } catch {
-    throw new ClientAuthError('unavailable', 'We could not reach the server. Check your connection and try again.');
+    throw new ClientAuthError('unavailable', 'unreachable');
   }
-  if (res.status === 429) throw new ClientAuthError('rate_limited', 'Too many sign-in links were asked for. Please wait a while and try again.');
-  if (!res.ok) throw new ClientAuthError('unavailable', 'We could not send a link just now. Please try again in a moment.');
+  if (res.status === 429) throw new ClientAuthError('rate_limited', 'tooManyLinks');
+  if (!res.ok) throw new ClientAuthError('unavailable', 'sendFailed');
 }
 
 export interface VerifiedSession {
@@ -65,15 +70,15 @@ export async function verifyMagicLink(token: string): Promise<VerifiedSession> {
   try {
     res = await send('/client-auth/verify', { method: 'POST', body: JSON.stringify({ token }) });
   } catch {
-    throw new ClientAuthError('unavailable', 'We could not reach the server. Check your connection and try again.');
+    throw new ClientAuthError('unavailable', 'unreachable');
   }
-  if (res.status === 429) throw new ClientAuthError('rate_limited', 'Too many attempts. Please wait a minute and try again.');
-  if (res.status >= 500) throw new ClientAuthError('unavailable', 'Signing in is unavailable just now. Please try again in a moment.');
+  if (res.status === 429) throw new ClientAuthError('rate_limited', 'tooManyAttempts');
+  if (res.status >= 500) throw new ClientAuthError('unavailable', 'signinUnavailable');
   const body = (await res.json().catch(() => ({}))) as VerifyBody;
   const data = body.data;
   const access = data?.tokens?.access_token ?? data?.access_token;
   const refresh = data?.tokens?.refresh_token ?? data?.refresh_token ?? '';
-  if (!res.ok || !data?.user || !access) throw new ClientAuthError('invalid_link', 'This link is invalid or has expired.');
+  if (!res.ok || !data?.user || !access) throw new ClientAuthError('invalid_link', 'invalidLink');
   const agency = data.agency ?? data.user.agency ?? { owner_id: '', slug: null };
   return { user: { ...data.user, kind: 'client', agency }, access_token: access, refresh_token: refresh, agency };
 }

@@ -9,11 +9,14 @@ import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { WebsitesSettingsPanel } from '@/components/settings/WebsitesSettingsPanel';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useT } from '@/lib/i18n';
 
 /** Full-page entry to manage all websites. Prefer Settings → Websites from any dashboard. */
 export default function WebsitesManagePage() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const t = useT().dashboard;
 
   return (
     <div className="min-h-screen bg-background">
@@ -25,9 +28,10 @@ export default function WebsitesManagePage() {
               <span className="text-lg font-bold tracking-tight text-foreground">Seentics</span>
             </Link>
             <span className="hidden text-muted-foreground sm:inline">/</span>
-            <h1 className="truncate text-lg font-semibold text-foreground">Websites</h1>
+            <h1 className="truncate text-lg font-semibold text-foreground">{t.manage.title}</h1>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {user && (
               <Button
                 variant="ghost"
@@ -39,7 +43,7 @@ export default function WebsitesManagePage() {
                 className="gap-1.5 text-muted-foreground"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Log out</span>
+                <span className="hidden sm:inline">{t.sidebar.logOut}</span>
               </Button>
             )}
           </div>
@@ -52,7 +56,7 @@ export default function WebsitesManagePage() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/" className="gap-2 text-muted-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Home
+              {t.onboarding.home}
             </Link>
           </Button>
         </div>

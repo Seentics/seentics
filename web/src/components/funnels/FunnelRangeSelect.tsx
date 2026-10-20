@@ -2,6 +2,8 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
+import { useT } from '@/lib/i18n';
+import type { FunnelsMessages } from '@/lib/i18n/messages/funnels-en';
 import { useRangeDates } from '@/lib/range-dates';
 import { cn } from '@/lib/utils';
 
@@ -22,12 +24,14 @@ export const DEFAULT_FUNNEL_DAYS = 31;
 /** The API's cap on a funnel report (core funnel-report-calculation.service.ts MAX_REPORT_DAYS). */
 export const MAX_FUNNEL_DAYS = 31;
 
-export function funnelRangeLabel(days: number): string {
-  return FUNNEL_RANGES.find((r) => r.days === days)?.label ?? `Last ${days} days`;
+export function funnelRangeLabel(days: number, t?: FunnelsMessages['ranges']): string {
+  if (!t) return FUNNEL_RANGES.find((r) => r.days === days)?.label ?? `Last ${days} days`;
+  return days === 1 ? t.last24Hours : t.lastDays(days);
 }
 
 export function FunnelRangeSelect({ value, onChange }: { value: number; onChange: (days: number) => void }) {
   const dates = useRangeDates(value);
+  const t = useT().funnels.ranges;
   return (
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
       <SelectTrigger className={cn(GHOST_CONTROL, 'h-8 w-auto gap-2 px-3 text-xs')}>
@@ -35,7 +39,7 @@ export function FunnelRangeSelect({ value, onChange }: { value: number; onChange
       </SelectTrigger>
       <SelectContent>
         {FUNNEL_RANGES.map((r) => (
-          <SelectItem key={r.days} value={String(r.days)} className="text-xs">{r.label}</SelectItem>
+          <SelectItem key={r.days} value={String(r.days)} className="text-xs">{funnelRangeLabel(r.days, t)}</SelectItem>
         ))}
       </SelectContent>
     </Select>

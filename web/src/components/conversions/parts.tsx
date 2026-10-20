@@ -4,7 +4,8 @@
 import { useId } from 'react';
 import type { ConversionStatus, MatchKey } from '@/features/conversions/types';
 import { cn } from '@/lib/utils';
-import { MATCH_LABEL, PLATFORMS, STATUS_META } from './conversion-format';
+import { useT } from '@/lib/i18n';
+import { PLATFORMS, STATUS_META } from './conversion-format';
 
 /**
  * A platform's own logo, on the tile its brand puts it on: Meta's and Google Analytics' marks on
@@ -68,22 +69,24 @@ export function PlatformMark({ platform, className }: { platform: keyof typeof P
 
 export function StatusLabel({ status, className }: { status: ConversionStatus; className?: string }) {
   const meta = STATUS_META[status];
+  const t = useT().conversions;
   return (
     <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]', className)}>
       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', meta.dot)} aria-hidden />
-      {meta.label}
+      {t.statuses[status]}
     </span>
   );
 }
 
 /** The keys a conversion was matched with, as quiet chips. */
 export function MatchChips({ keys }: { keys: readonly MatchKey[] }) {
+  const t = useT().conversions;
   if (keys.length === 0) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="flex gap-1">
       {keys.map((k) => (
         <span key={k} className="whitespace-nowrap rounded border border-border px-1.5 py-px text-[11px] text-foreground/75">
-          {MATCH_LABEL[k]}
+          {t.match[k]}
         </span>
       ))}
     </span>
