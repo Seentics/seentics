@@ -147,6 +147,8 @@ export const conversionsBn: ConversionsMessages = {
     valueNone: 'Value সহ কোনো Conversion এখনো নেই।',
     byKind: 'ধরন অনুযায়ী',
     acceptedShort: 'গৃহীত',
+    moreStats: 'আরও Stats দেখুন',
+    lessStats: 'Stats লুকান',
   },
   searchPlaceholder: 'Order ID বা Event…',
 

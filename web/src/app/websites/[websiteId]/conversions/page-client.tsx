@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConnectDialog, type ConnectMode } from '@/components/conversions/ConnectDialog';
-import { ConversionInsights, ConversionStats } from '@/components/conversions/ConversionsOverview';
+import { ConversionStats } from '@/components/conversions/ConversionsOverview';
 import { PLATFORM_ORDER, PLATFORMS } from '@/components/conversions/conversion-format';
 import { DestinationCard, type CardAction } from '@/components/conversions/DestinationCard';
 import { EmptyState } from '@/components/conversions/EmptyState';
@@ -122,10 +122,9 @@ export default function ConversionsPage() {
               />
             ))}
           </section>
-          {/* What people come for first: each platform, the counts, every event; then what is behind them. */}
+          {/* What people come for first: each platform, the counts (more on demand), every event. */}
           <ConversionStats websiteId={websiteId} days={days} />
           <EventsTable websiteId={websiteId} destinations={list} now={now} canEdit={canEdit} days={days} />
-          <ConversionInsights websiteId={websiteId} days={days} />
         </>
       )}
 

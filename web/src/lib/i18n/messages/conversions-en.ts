@@ -145,6 +145,8 @@ export const conversionsEn = {
     valueNone: 'No conversion with a value yet.',
     byKind: 'By kind',
     acceptedShort: 'accepted',
+    moreStats: 'View more stats',
+    lessStats: 'Hide stats',
   },
   searchPlaceholder: 'Order ID or event…',
 

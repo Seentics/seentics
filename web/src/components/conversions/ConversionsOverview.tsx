@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useConversionSummary } from '@/features/conversions/queries';
 import { MATCH_KEYS, type EventKind } from '@/features/conversions/types';
 import { useT } from '@/lib/i18n';
@@ -23,6 +25,8 @@ export function ConversionStats({ websiteId, days }: { websiteId: string; days: 
   // Sent is what went out, whatever came of it: never derived from the total, which counts the
   // ones not sent too (and the demo's did not), so a share of it can never pass 100%.
   const sent = totals ? totals.accepted + totals.failed + totals.pending : 0;
+  // The rest (per day, matching, value, kinds) opens here on demand, so the events stay near the top.
+  const [more, setMore] = useState(false);
   return (
     <section aria-label={t.sent} className="mx-3 mt-3 md:mx-4">
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -31,12 +35,22 @@ export function ConversionStats({ websiteId, days }: { websiteId: string; days: 
         <Tile label={t.failed} value={totals?.failed} tone={totals?.failed ? 'bad' : undefined} />
         <Tile label={t.notSent} value={totals?.skipped} hint={t.notSentHint} />
       </dl>
+      <button
+        type="button"
+        onClick={() => setMore(!more)}
+        aria-expanded={more}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+      >
+        {more ? t.lessStats : t.moreStats}
+        <ChevronDown className={cn('size-4 transition-transform', more && 'rotate-180')} />
+      </button>
+      {more && <div className="mt-2"><ConversionInsights websiteId={websiteId} days={days} /></div>}
     </section>
   );
 }
 
 /**
- * Behind the numbers, below the events: accepted and failed per day; how well they match a person
+ * Behind the numbers, opened from "View more stats": accepted and failed per day; how well they match a person
  * (the share carrying each detail, with the tip when too few carry an email); the value each
  * platform was told about; and the accepted ones by kind.
  */
@@ -48,7 +62,7 @@ export function ConversionInsights({ websiteId, days }: { websiteId: string; day
   const peak = Math.max(1, ...days_.map((d) => d.accepted + d.failed));
   const match = data?.match;
   return (
-    <section aria-label={t.perDay} className="mx-3 mb-4 space-y-3 md:mx-4">
+    <section aria-label={t.perDay} className="space-y-3">
 
       {/* The days, wide: accepted (green) under failed (red), one bar a day, scaled to the busiest. */}
       <Block title={t.perDay} aside={(
