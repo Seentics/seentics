@@ -99,7 +99,8 @@ export function HeroExplorer({ order, initial = 'Overview', label = 'Seentics da
   initial?: MockNavLabel;
   label?: string;
 } = {}) {
-  const views = order ?? VIEWS;
+  // Every screen opens, whatever the order: a type's pages first, the rest from More.
+  const views = VIEWS;
   const [view, setView] = useState<MockNavLabel>(initial);
   useEffect(() => setView(initial), [initial]);
 

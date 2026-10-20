@@ -8,8 +8,8 @@ import type { WebsiteProfile } from '@/features/websites/types';
 import type { NavId } from './nav-prefs';
 
 export const PROFILE_NAV: Record<WebsiteProfile, readonly NavId[]> = {
-  fcommerce: ['overview', 'conversions', 'recording', 'heatmaps', 'funnels'],
-  store: ['overview', 'conversions', 'revenue', 'funnels', 'recording', 'heatmaps'],
+  fcommerce: ['overview', 'conversions', 'recording', 'heatmaps', 'funnels', 'integrations'],
+  store: ['overview', 'conversions', 'revenue', 'funnels', 'recording', 'heatmaps', 'integrations'],
   leads: ['overview', 'leads', 'automations', 'integrations', 'conversions', 'recording'],
   other: ['overview', 'funnels', 'recording', 'heatmaps', 'errors', 'ai-reports'],
 };

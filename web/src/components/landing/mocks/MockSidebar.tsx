@@ -5,6 +5,7 @@ import {
   Send,
   Bot,
   Bug,
+  ChevronRight,
   Code2,
   Contact,
   Flame,
@@ -16,7 +17,7 @@ import {
   Sparkles,
   Video,
 } from 'lucide-react';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,8 @@ const NAV = [
 export type MockNavLabel = (typeof NAV)[number]['label'];
 
 const DEFAULT_ORDER: readonly MockNavLabel[] = NAV.map((item) => item.label);
+/** Always last, below the rest, as in the dashboard. */
+const BOTTOM: readonly MockNavLabel[] = ['Developers', 'Settings'];
 
 /**
  * Set by the landing hero to make the mock explorable: the sidebar items it has a screen
@@ -85,6 +88,49 @@ export const MOCK_FRAME = 'overflow-hidden app-frame';
 
 export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) {
   const nav = useContext(MockNavContext);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // A website type's order puts its pages first; the rest wait under More, as in the dashboard.
+  const primary = (nav?.order ?? DEFAULT_ORDER.filter((l) => !BOTTOM.includes(l))).map((label) => NAV.find((item) => item.label === label)!);
+  const more = nav?.order
+    ? NAV.filter((item) => !nav.order!.includes(item.label) && !BOTTOM.includes(item.label))
+    : [];
+  // The screen on show is never folded away.
+  const moreShown = moreOpen || more.some((item) => item.label === active);
+
+  const renderItem = (item: (typeof NAV)[number]) => {
+    const isActive = item.label === active;
+    const className = cn(
+      'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left',
+      isActive ? 'bg-muted text-foreground dark:bg-white/[0.08]' : 'text-foreground/60',
+    );
+    const body = (
+      <>
+        <item.icon className="h-[17px] w-[17px] shrink-0" />
+        <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
+      </>
+    );
+    const explorable = nav?.views.includes(item.label);
+    return (
+      <li key={item.label}>
+        {explorable ? (
+          <button
+            type="button"
+            onClick={() => nav!.onSelect(item.label)}
+            aria-current={isActive ? 'page' : undefined}
+            className={cn(
+              className,
+              'cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              !isActive && 'hover:bg-muted/60 hover:text-foreground',
+            )}
+          >
+            {body}
+          </button>
+        ) : (
+          <span className={cn(className, nav && 'opacity-60')}>{body}</span>
+        )}
+      </li>
+    );
+  };
   return (
     <aside className="flex h-full w-[216px] shrink-0 flex-col overflow-hidden bg-sidebar">
       {/* Header — logo, wordmark, collapse control */}
@@ -100,43 +146,28 @@ export function MockSidebar({ active = 'Overview' }: { active?: MockNavLabel }) 
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-2">
+      {/* Nav — as the real sidebar lays it out: a website type's pages first, the rest under More,
+          Developers and Settings last. */}
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
         <ul className="space-y-0.5">
-          {(nav?.order ?? DEFAULT_ORDER).map((label) => NAV.find((item) => item.label === label)!).map((item) => {
-            const isActive = item.label === active;
-            const className = cn(
-              'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left',
-              isActive ? 'bg-muted text-foreground dark:bg-white/[0.08]' : 'text-foreground/60',
-            );
-            const body = (
-              <>
-                <item.icon className="h-[17px] w-[17px] shrink-0" />
-                <span className="flex-1 text-[13.5px] font-medium">{item.label}</span>
-              </>
-            );
-            const explorable = nav?.views.includes(item.label);
-            return (
-              <li key={item.label}>
-                {explorable ? (
-                  <button
-                    type="button"
-                    onClick={() => nav!.onSelect(item.label)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      className,
-                      'cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      !isActive && 'hover:bg-muted/60 hover:text-foreground',
-                    )}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <span className={cn(className, nav && 'opacity-60')}>{body}</span>
-                )}
-              </li>
-            );
-          })}
+          {primary.map(renderItem)}
+          {more.length > 0 && (
+            <li>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(!moreShown)}
+                aria-expanded={moreShown}
+                disabled={!nav}
+                className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-foreground/50 transition-colors enabled:hover:bg-muted/60 enabled:hover:text-foreground"
+              >
+                <ChevronRight className={cn('h-4 w-4 shrink-0 transition-transform', moreShown && 'rotate-90')} />
+                <span className="flex-1 text-[13px] font-medium">More</span>
+                <span className="text-[11.5px] tabular-nums text-foreground/40">{more.length}</span>
+              </button>
+            </li>
+          )}
+          {moreShown && more.map(renderItem)}
+          {BOTTOM.map((label) => NAV.find((item) => item.label === label)!).map(renderItem)}
         </ul>
       </nav>
 

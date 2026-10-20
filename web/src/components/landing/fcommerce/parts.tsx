@@ -76,8 +76,8 @@ export function Points({ points }: { points: string[] }) {
 
 /** The preview's sidebar for each website type, as the dashboard orders it (features/sidebar/profiles.ts). */
 const PROFILE_ORDER: Record<'store' | 'fcommerce', readonly MockNavLabel[]> = {
-  store: ['Overview', 'Conversions', 'Revenue', 'Funnels', 'Recording', 'Heatmaps'],
-  fcommerce: ['Overview', 'Conversions', 'Recording', 'Heatmaps', 'Funnels'],
+  store: ['Overview', 'Conversions', 'Revenue', 'Funnels', 'Recording', 'Heatmaps', 'Integrations'],
+  fcommerce: ['Overview', 'Conversions', 'Recording', 'Heatmaps', 'Funnels', 'Integrations'],
 };
 
 /**
