@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { HeroExplorer } from '@/components/landing/HeroExplorer';
 import type { MockNavLabel } from '@/components/landing/mocks/MockSidebar';
@@ -85,7 +85,35 @@ const PROFILE_ORDER: Record<'store' | 'fcommerce', readonly MockNavLabel[]> = {
  * the product window, with the sidebar of this website type and clickable between its screens.
  */
 export function LiveDashboard({ profile, initial }: { profile: 'store' | 'fcommerce'; initial: MockNavLabel }) {
-  return <HeroExplorer order={PROFILE_ORDER[profile]} initial={initial} />;
+  // The preview pulls in the whole dashboard, and on a phone it is a third of its size and unreadable:
+  // so it is left out below md (the page offers the Live Demo instead), and from md up mounts only
+  // once it nears the viewport. Most visitors here come from Facebook ads, on phones, on mobile data.
+  const ref = useRef<HTMLDivElement>(null);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const wide = window.matchMedia('(min-width: 768px)');
+    let observer: IntersectionObserver | null = null;
+    const watch = () => {
+      if (!wide.matches || observer) return;
+      observer = new IntersectionObserver(([entry]) => {
+        if (entry?.isIntersecting) { setShow(true); observer?.disconnect(); }
+      }, { rootMargin: '400px' });
+      observer.observe(el);
+    };
+    watch();
+    wide.addEventListener('change', watch);
+    return () => { observer?.disconnect(); wide.removeEventListener('change', watch); };
+  }, []);
+  return (
+    <div ref={ref} className="hidden md:block">
+      {show
+        ? <HeroExplorer order={PROFILE_ORDER[profile]} initial={initial} />
+        // Holds the window's place, so nothing jumps when it arrives.
+        : <div aria-hidden className="aspect-[16/10] w-full rounded-xl bg-[var(--fc-soft)]" />}
+    </div>
+  );
 }
 
 /** The screen each tab opens on. */

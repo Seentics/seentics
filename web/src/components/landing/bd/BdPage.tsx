@@ -226,7 +226,8 @@ export default function BdPage() {
                 <Marked text={copy.title} block />
               </h1>
               <p className="lx-dim mx-auto mt-6 max-w-[42rem] text-[17px] leading-relaxed sm:text-lg"><Marked text={copy.lead} /></p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              {/* Stacked full width on a phone, for the thumb; side by side from sm up. */}
+              <div className="mx-auto mt-8 flex max-w-sm flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
                 <StartLink label={copy.start} openLabel={copy.openDashboard} next={STORE_NEXT} />
                 <Link href={DEMO_HREF} className={outlineBtn} style={{ borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}>
                   <PlayCircle className="h-5 w-5 text-[var(--fc-text)]" />{copy.demo}
@@ -243,7 +244,7 @@ export default function BdPage() {
             {/* The homepage hero's preview, with an online store's sidebar, opening on Conversions */}
             <div className="w-full min-w-0">
               <LiveDashboard profile="store" initial="Conversions" />
-              <p className="lx-faint mt-6 text-center text-sm">
+              <p className="lx-faint mt-6 hidden text-center text-sm md:block">
                 {copy.previewCaption}{' '}
                 <Link href={DEMO_HREF} className="underline decoration-[color:var(--lx-line-strong)] underline-offset-4 hover:text-[color:var(--lx-text)]">{copy.demo}</Link>
               </p>

@@ -56,7 +56,8 @@ export default function FcommercePage() {
               <p className="lx-dim mx-auto mt-6 max-w-[42rem] text-[17px] leading-relaxed sm:text-lg">
                 <Marked text={copy.lead} />
               </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              {/* Stacked full width on a phone, for the thumb; side by side from sm up. */}
+              <div className="mx-auto mt-8 flex max-w-sm flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
                 <StartLink next={STORE_START} label={copy.start} openLabel={copy.openDashboard} />
                 <Link href="#pricing" className={outlineBtn} style={{ borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}>
                   {copy.seePlans}
@@ -71,10 +72,13 @@ export default function FcommercePage() {
             {/* The same order page on a laptop and a phone; the phone overlaps the laptop's corner from md up */}
             <div className="w-full min-w-0 max-w-[68rem] rounded-3xl bg-[var(--fc-soft)] px-4 py-8 sm:px-10 sm:py-12">
               <div className="relative md:pb-16 md:pr-[150px]">
-                <MacbookFrame designWidth={1100} designHeight={688} url="seentics.shop/rupa-fashion/smart-watch">
-                  <CheckoutDesktop />
-                </MacbookFrame>
-                <div className="mt-8 flex justify-center md:absolute md:-bottom-4 md:right-0 md:mt-0 md:block">
+                {/* The laptop from md up: on a phone it would be a third of its size; the phone says it all there. */}
+                <div className="hidden md:block">
+                  <MacbookFrame designWidth={1100} designHeight={688} url="seentics.shop/rupa-fashion/smart-watch">
+                    <CheckoutDesktop />
+                  </MacbookFrame>
+                </div>
+                <div className="flex justify-center md:absolute md:-bottom-4 md:right-0 md:block">
                   <CheckoutPhone className="md:origin-bottom-right md:scale-[0.72] lg:scale-[0.8]" />
                 </div>
               </div>
