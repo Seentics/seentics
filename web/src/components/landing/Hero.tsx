@@ -49,7 +49,7 @@ export default function Hero() {
           </Link>
         )}
 
-        <motion.p {...rise(0)} className="landing-eyebrow">
+        <motion.p {...rise(0)} className="landing-eyebrow !text-[10px] !font-medium !tracking-[0.16em] sm:!text-[10.5px]">
           {t.hero.eyebrow}
         </motion.p>
 

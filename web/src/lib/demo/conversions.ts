@@ -44,8 +44,7 @@ const DESTINATIONS: Destination[] = [
     status: 'active',
     last_error: null,
     credentials_hint: 'G-7QX2LM4K9P',
-    // GA4 does not take leads here: those events show as skipped.
-    config: { events: { ...DEFAULT_EVENTS.ga4, lead: null }, custom: [], test_event_code: null },
+    config: { events: { ...DEFAULT_EVENTS.ga4 }, custom: [], test_event_code: null },
     created_at: iso(NOW - 33 * DAY),
     updated_at: iso(NOW - 33 * DAY),
     stats: { sent_7d: 0, failed_7d: 0, last_sent_at: null },
@@ -110,7 +109,9 @@ function buildEvents(): ConversionEvent[] {
     const kind: EventKind = roll < 0.55 ? 'purchase' : roll < 0.78 ? 'lead' : roll < 0.92 ? 'sign_up' : 'custom';
     const name = kind === 'custom' ? 'checkout_started' : kind;
     const order = kind === 'purchase' ? `#${1000 + Math.floor(rnd() * 900)}` : null;
-    const value = kind === 'purchase' ? Math.round((20 + rnd() * 160) * 100) / 100 : null;
+    // Every kind carries a value, as the platforms optimise best with one: a sale its total, a
+    // checkout its cart, a lead and a sign-up what one is worth to the business.
+    const value = kind === 'purchase' || kind === 'custom' ? Math.round((20 + rnd() * 160) * 100) / 100 : kind === 'lead' ? 15 : 25;
     // IP and browser come with every server event; the _fbp/_ga id only where the site runs the pixel too.
     const keys: MatchKey[] = ['ip_ua'];
     if (rnd() < 0.55) keys.push('browser_id');

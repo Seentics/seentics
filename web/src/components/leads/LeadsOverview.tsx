@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Mail, MessageSquare, QrCode } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Mail, MessageSquare, QrCode } from 'lucide-react';
 import { getSourceImage } from '@/components/analytics/TopSourcesChart';
 import { ProviderIcon } from '@/components/integrations/ProviderIcon';
 import { useLeadsOverview } from '@/features/leads/queries';
@@ -28,9 +28,9 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
     // campaigns side by side, each its own block.
     <section aria-label={t.label} className="mx-3 mt-5 md:mx-4 md:mt-6">
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label={t.leads} value={data?.submissions} />
-        <Tile label={t.newContacts} value={data?.new_contacts} />
-        <Tile label={t.customers} value={data?.customers} hint={data ? t.ofNew(pct) : undefined} />
+        <Tile label={t.leads} value={data?.submissions} previous={data?.previous?.submissions} />
+        <Tile label={t.newContacts} value={data?.new_contacts} previous={data?.previous?.new_contacts} />
+        <Tile label={t.customers} value={data?.customers} previous={data?.previous?.customers} hint={data ? t.ofNew(pct) : undefined} />
         <div className="min-w-0 rounded-lg bg-card px-4 py-3">
           <dt className="text-[13px] font-medium text-foreground/60">{t.failed}</dt>
           <dd className={cn('mt-1 text-[22px] font-semibold leading-tight tabular-nums', data?.failed_deliveries ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
@@ -42,6 +42,9 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
         </div>
       </dl>
 
+      {/* Every lead's source in one bar: each source's share, then a legend with its logo and count. */}
+      <SourceShare data={data} />
+
       <button
         type="button"
         onClick={() => setMore(!more)}
@@ -51,33 +54,7 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
         {more ? t.lessStats : t.moreStats}
         <ChevronDown className={cn('size-4 transition-transform', more && 'rotate-180')} />
       </button>
-      {more && <div className="mt-2 grid gap-3 md:grid-cols-2">
-        <div className="min-w-0 rounded-lg bg-card px-5 py-4">
-          <p className="-mx-5 border-b border-border/60 px-5 pb-3 text-[13px] font-semibold text-foreground">{t.channels}</p>
-          {data && data.by_source.length > 0 ? (
-            // The sites themselves (Facebook, Google…), each with its logo; channels when none is known.
-            <ul className="mt-3.5 space-y-2.5">
-              {data.by_source.slice(0, 5).map((s) => (
-                <li key={s.source} className="flex items-center gap-3 text-[13.5px]">
-                  <SourceLogo source={s.source} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex justify-between gap-2"><span className="truncate font-medium text-foreground">{sourceName(s.source)}</span><span className="tabular-nums text-muted-foreground">{s.count.toLocaleString()}</span></span>
-                    <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${Math.max(4, (s.count / sourceTotal) * 100)}%` }} /></span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : data && total > 0 ? (
-            <ul className="mt-3.5 space-y-2.5">
-              {data.by_channel.slice(0, 5).map((c) => (
-                <li key={c.channel} className="text-[13.5px]">
-                  <span className="flex justify-between gap-2"><span className="truncate text-foreground">{all.leads.channels[c.channel]}</span><span className="tabular-nums text-muted-foreground">{c.count.toLocaleString()}</span></span>
-                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/70" style={{ width: `${Math.max(4, (c.count / total) * 100)}%` }} /></span>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="mt-2 text-[13px] text-muted-foreground">{t.none}</p>}
-        </div>
+      {more && <div className="mt-2">
         <div className="min-w-0 rounded-lg bg-card px-5 py-4">
           <p className="-mx-5 border-b border-border/60 px-5 pb-3 text-[13px] font-semibold text-foreground">{t.campaigns}</p>
           {data && data.by_campaign.length > 0 ? (
@@ -149,12 +126,75 @@ function SourceLogo({ source }: { source: string }) {
   );
 }
 
-function Tile({ label, value, hint }: { label: string; value: number | undefined; hint?: string }) {
+/** Each source's colour: its brand's for the big ones, calm greys for the rest, a pale one for direct. */
+const BRAND_COLOR: Record<string, string> = {
+  facebook: '#1877F2', instagram: '#E1306C', google: '#EA4335', youtube: '#FF0000', tiktok: '#111111',
+  x: '#000000', linkedin: '#0A66C2', whatsapp: '#25D366', messenger: '#0866FF', bing: '#00809D',
+  mailchimp: '#FFE01B', klaviyo: '#232426', hubspot: '#FF7A59',
+};
+const SPARE = ['#3346C9', '#E07B24', '#8A93B8', '#5B8DEF', '#B4729A', '#6BA292'];
+const DIRECT = '#C9CEDD';
+/** A brand colour, softened toward the page so the bar reads calm in either theme. */
+const soft = (color: string) => `color-mix(in srgb, ${color} 60%, hsl(var(--card)))`;
+
+function SourceShare({ data }: { data: ReturnType<typeof useLeadsOverview>['data'] }) {
+  const t = useT().leads.overview;
+  if (!data || data.submissions === 0) return null;
+  let spare = 0;
+  const parts = data.by_source.map((s) => ({ key: s.source, label: sourceName(s.source), count: s.count, color: BRAND_COLOR[s.source] ?? SPARE[spare++ % SPARE.length]! }));
+  // Leads with no known source (typed in, a bookmark) or beyond the top six.
+  const rest = data.submissions - parts.reduce((n, p) => n + p.count, 0);
+  if (rest > 0) parts.push({ key: '__direct', label: t.directOther, count: rest, color: DIRECT });
+  const share = (n: number) => (n / data.submissions) * 100;
+  return (
+    <section aria-labelledby="lead-sources" className="mt-3 flex flex-col gap-2.5 rounded-lg bg-card px-4 py-3">
+      <h2 id="lead-sources" className="text-[13px] font-medium text-foreground/60">{t.channels}</h2>
+      <div className="flex h-2 gap-px overflow-hidden rounded-full" role="img" aria-label={parts.map((p) => `${p.label} ${Math.round(share(p.count))}%`).join(', ')}>
+        {parts.map((p) => <div key={p.key} style={{ width: `${share(p.count)}%`, background: soft(p.color) }} title={`${p.label}: ${p.count.toLocaleString()} (${Math.round(share(p.count))}%)`} />)}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px]">
+        {parts.map((p) => (
+          <li key={p.key} className="flex items-center gap-2">
+            <span aria-hidden className="size-2 rounded-[2px]" style={{ background: soft(p.color) }} />
+            {p.key !== '__direct' && <span className="[&>*]:size-4 [&>*]:rounded"><SourceLogo source={p.key} /></span>}
+            <span className="text-foreground">{p.label}</span>
+            <span className="font-semibold tabular-nums text-foreground">{p.count.toLocaleString()}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Tile({ label, value, previous, hint }: { label: string; value: number | undefined; previous?: number; hint?: string }) {
   return (
     <div className="min-w-0 rounded-lg bg-card px-4 py-3">
       <dt className="text-[13px] font-medium text-foreground/60">{label}</dt>
       <dd className="mt-1 text-[22px] font-semibold leading-tight tabular-nums text-foreground">{value === undefined ? '—' : value.toLocaleString()}</dd>
+      {value !== undefined && previous !== undefined && <Change value={value} previous={previous} />}
       {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
     </div>
+  );
+}
+
+/**
+ * Up or down against the 30 days before, as a share: green up, red down, grey when level; "New"
+ * when there was nothing before to compare with.
+ */
+function Change({ value, previous }: { value: number; previous: number }) {
+  const t = useT().leads.overview;
+  if (previous === 0 && value === 0) return null;
+  const title = t.vsPrevious(previous.toLocaleString());
+  const change = previous === 0 ? null : Math.round(((value - previous) / previous) * 100);
+  const Icon = change !== null && change < 0 ? ArrowDownRight : ArrowUpRight;
+  const tone = change === null || change > 0 ? 'text-emerald-700 dark:text-emerald-400' : change < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-muted-foreground';
+  return (
+    <p title={title} className="mt-1 flex items-center gap-1 text-[12px]">
+      <span className={cn('inline-flex items-center gap-0.5 font-semibold tabular-nums', tone)}>
+        {change !== 0 && <Icon className="size-3.5" aria-hidden />}
+        {change === null ? t.newChange : `${Math.abs(change)}%`}
+      </span>
+      <span className="text-muted-foreground">{t.vsLast}</span>
+    </p>
   );
 }

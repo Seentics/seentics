@@ -28,8 +28,33 @@ export function ConversionStats({ websiteId, days }: { websiteId: string; days: 
   // The counts and the rest (per day, matching, value, kinds) open here on demand: the platforms and
   // the events are what the page is for.
   const [more, setMore] = useState(false);
+  const purchases = data?.by_kind.find((k) => k.kind === 'purchase')?.accepted ?? 0;
+  // Every platform is told about the same sales, so per currency the most any one was told is the
+  // revenue; the currency with the most sales leads.
+  const revenue = new Map<string, { value: number; count: number }>();
+  for (const v of data?.value ?? []) {
+    const r = revenue.get(v.currency);
+    if (!r || v.value > r.value) revenue.set(v.currency, { value: v.value, count: Math.max(v.count, r?.count ?? 0) });
+  }
+  const [currency, top] = [...revenue.entries()].sort((a, b) => b[1].count - a[1].count)[0] ?? [];
+  const emailShare = data?.match ? pct(data.match.email, data.match.total) : 0;
   return (
     <section aria-label={t.sent} className="mx-3 mt-3 md:mx-4">
+      {/* What the tracking is doing for them, always in view. */}
+      <dl className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile label={t.purchases} value={data ? purchases : undefined} hint={t.purchasesHint} />
+        <div className="min-w-0 rounded-lg bg-card px-4 py-3">
+          <dt className="text-[13px] font-medium text-foreground/60">{t.acceptedBy}</dt>
+          <dd className="mt-1 text-[22px] font-semibold leading-tight tabular-nums text-emerald-600 dark:text-emerald-400">{totals ? totals.accepted.toLocaleString() : '—'}</dd>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">{totals ? t.ofSent(pct(totals.accepted, sent)) : '\u00a0'}</p>
+        </div>
+        <div className="min-w-0 rounded-lg bg-card px-4 py-3">
+          <dt className="text-[13px] font-medium text-foreground/60">{t.revenue}</dt>
+          <dd className="mt-1 truncate text-[22px] font-semibold leading-tight tabular-nums text-foreground">{data ? (top ? formatValue(top.value, currency!) : '—') : '—'}</dd>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">{top ? t.revenueHint(top.count) : t.valueNone}</p>
+        </div>
+        <Tile label={t.matchEmail} value={undefined} display={data?.match ? `${emailShare}%` : undefined} hint={t.matchEmailHint} />
+      </dl>
       <button
         type="button"
         onClick={() => setMore(!more)}
@@ -41,9 +66,8 @@ export function ConversionStats({ websiteId, days }: { websiteId: string; days: 
       </button>
       {more && (
         <div className="mt-2 space-y-3">
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Tile label={t.sent} value={totals ? sent : undefined} />
-            <Tile label={t.accepted} value={totals?.accepted} hint={totals ? t.ofSent(pct(totals.accepted, sent)) : undefined} tone="good" />
             <Tile label={t.failed} value={totals?.failed} tone={totals?.failed ? 'bad' : undefined} />
             <Tile label={t.notSent} value={totals?.skipped} hint={t.notSentHint} />
           </dl>
@@ -164,12 +188,12 @@ export function ConversionInsights({ websiteId, days }: { websiteId: string; day
   );
 }
 
-function Tile({ label, value, hint, tone }: { label: string; value: number | undefined; hint?: string; tone?: 'good' | 'bad' }) {
+function Tile({ label, value, display, hint, tone }: { label: string; value: number | undefined; display?: string; hint?: string; tone?: 'good' | 'bad' }) {
   return (
     <div className="min-w-0 rounded-lg bg-card px-4 py-3">
       <dt className="text-[13px] font-medium text-foreground/60">{label}</dt>
       <dd className={cn('mt-1 text-[22px] font-semibold leading-tight tabular-nums', tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
-        {value === undefined ? '—' : value.toLocaleString()}
+        {display ?? (value === undefined ? '—' : value.toLocaleString())}
       </dd>
       {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
     </div>

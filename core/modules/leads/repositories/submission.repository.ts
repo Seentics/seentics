@@ -219,9 +219,11 @@ export async function submissionOrigins(websiteId: string, since: Date, cap: num
 }
 
 /** How many submissions the window holds, uncapped. */
-export async function submissionCountSince(websiteId: string, since: Date): Promise<number> {
+/** Submissions from `since`, up to `until` (exclusive) when given. */
+export async function submissionCountSince(websiteId: string, since: Date, until?: Date): Promise<number> {
   const [row] = await sql<[{ c: number }]>`
     SELECT COUNT(*)::int AS c FROM form_submissions WHERE website_id = ${websiteId}::uuid AND created_at >= ${since}
+      ${until ? sql`AND created_at < ${until}` : sql``}
   `;
   return row?.c ?? 0;
 }

@@ -159,4 +159,6 @@ export type LeadsOverview = {
   /** The top five campaigns, each with the source that sent most of it. */
   by_campaign: { campaign: string; count: number; source: string | null }[];
   failed_deliveries: number;
+  /** The same counts over the window before it, as long: to show what went up or down. */
+  previous: { submissions: number; new_contacts: number; customers: number };
 };

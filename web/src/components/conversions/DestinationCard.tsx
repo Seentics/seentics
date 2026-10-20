@@ -31,46 +31,50 @@ export function DestinationCard({
   const stateLabel = !d.enabled ? t.paused : d.status === 'error' ? t.needsAttention : t.sending;
 
   return (
-    <article className="surface flex flex-col gap-4 p-4" aria-label={`${info.label} — ${stateLabel}`}>
-      <header className="flex items-start gap-3">
-        <PlatformMark platform={d.platform} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold text-foreground">{d.name || info.label}</p>
-          <p className="truncate font-mono text-[11px] text-muted-foreground">{d.credentials_hint}</p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="-mr-1 h-7 w-7 text-muted-foreground" aria-label={t.options(info.label)}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => onAction('test')} disabled={!canEdit}>{t.sendTest}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('events')} disabled={!canEdit}>{t.editEvents}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('credentials')} disabled={!canEdit}>{t.editCredentials}</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onAction('delete')} disabled={!canEdit} className="text-destructive focus:text-destructive">
-              {t.disconnect}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
-
-
-      <footer className="mt-auto flex items-start gap-2 border-t border-border pt-3 text-xs">
-        <span className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', healthy ? 'bg-emerald-500' : !d.enabled ? 'bg-muted-foreground/50' : 'bg-rose-500')} aria-hidden />
-        <span className={cn('min-w-0', d.status === 'error' && d.enabled ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground')}>
+    // One slim row: logo, name and ID, the switch and the menu. A failure's reason is on the
+    // status's hover.
+    <article className="surface flex items-center gap-2.5 px-3 py-2.5" aria-label={`${info.label} — ${stateLabel}`}>
+      <PlatformMark platform={d.platform} className="h-8 w-8 rounded-md" />
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-[13.5px] font-semibold leading-tight text-foreground">
+          <span className="truncate">{d.name || info.label}</span>
+          {healthy && <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" title={stateLabel} aria-hidden />}
+        </p>
+        <p className="truncate font-mono text-[11px] text-muted-foreground">{d.credentials_hint}</p>
+      </div>
+      {/* Sending is the green dot by the name; paused or failing says so in words. */}
+      {!healthy && (
+        <span
+          className={cn('flex shrink-0 items-center gap-1.5 text-[12px]', d.enabled ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground')}
+          title={d.status === 'error' && d.last_error ? d.last_error : undefined}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', d.enabled ? 'bg-rose-500' : 'bg-muted-foreground/50')} aria-hidden />
           {stateLabel}
-          {d.status === 'error' && d.last_error ? ` — ${d.last_error}` : ''}
         </span>
-        <Switch
-          checked={d.enabled}
-          onCheckedChange={onToggle}
-          disabled={!canEdit}
-          aria-label={d.enabled ? t.pause(info.label) : t.resume(info.label)}
-          className="-my-0.5 ml-auto shrink-0"
-        />
-      </footer>
+      )}
+      <Switch
+        checked={d.enabled}
+        onCheckedChange={onToggle}
+        disabled={!canEdit}
+        aria-label={d.enabled ? t.pause(info.label) : t.resume(info.label)}
+        className="shrink-0 scale-90"
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="-mr-1 h-7 w-7 shrink-0 text-muted-foreground" aria-label={t.options(info.label)}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onSelect={() => onAction('test')} disabled={!canEdit}>{t.sendTest}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onAction('events')} disabled={!canEdit}>{t.editEvents}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onAction('credentials')} disabled={!canEdit}>{t.editCredentials}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => onAction('delete')} disabled={!canEdit} className="text-destructive focus:text-destructive">
+            {t.disconnect}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </article>
   );
 }

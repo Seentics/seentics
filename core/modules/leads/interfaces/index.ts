@@ -307,6 +307,8 @@ export type LeadsOverview = {
   by_campaign: { campaign: string; count: number; source: string | null }[];
   /** The window's submissions that at least one destination could not take. */
   failed_deliveries: number;
+  /** The same counts over the window before it, as long: to show what went up or down. */
+  previous: { submissions: number; new_contacts: number; customers: number };
 };
 
 export interface ContactMutations {

@@ -3,7 +3,7 @@
 /** Every conversion sent, newest first: what it was, where it went, how it was matched, and how it went. */
 import { useEffect, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { ArrowRight, RotateCw, Send } from 'lucide-react';
+import { RotateCw, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ import { relativeTime } from '@/features/errors/format';
 import { useRetryConversion, useRetryConversions } from '@/features/conversions/mutations';
 import { conversionsApi } from '@/features/conversions/api';
 import { conversionKeys, useConversionEvents } from '@/features/conversions/queries';
-import type { ConversionEvent, ConversionStatus, Destination, EventKind } from '@/features/conversions/types';
+import type { ConversionEvent, ConversionStatus, Destination, EventKind, MatchKey } from '@/features/conversions/types';
 import { cn } from '@/lib/utils';
 import { useLocale, useT } from '@/lib/i18n';
 import { formatValue, PLATFORMS } from './conversion-format';
@@ -25,6 +25,15 @@ import { PlatformMark, StatusLabel } from './parts';
 const PAGE_SIZE = 50;
 
 const STATUSES: ConversionStatus[] = ['success', 'failed', 'pending', 'skipped'];
+
+type MatchLevel = 'strong' | 'good' | 'weak';
+const MATCH_DOT: Record<MatchLevel, string> = { strong: 'bg-emerald-500', good: 'bg-amber-500', weak: 'bg-rose-500' };
+/** Strong: the ad click and the person (email or phone); good: either; weak: only the browser's hints. */
+function matchLevel(keys: readonly MatchKey[]): MatchLevel {
+  const click = keys.includes('click_id');
+  const person = keys.includes('email') || keys.includes('phone');
+  return click && person ? 'strong' : click || person ? 'good' : 'weak';
+}
 
 export function EventsTable({
   websiteId, destinations, now, canEdit, days,
@@ -98,28 +107,54 @@ export function EventsTable({
 
   const columns: CollectionColumn<ConversionEvent>[] = [
     {
-      // The platform's mark in a tile, then what was sent and as what, over where and which kind.
+      // What happened, as people say it (a purchase and its order, a lead), over where it went and
+      // the name that platform knows it by.
       id: 'event', header: t.event,
       cell: (e) => (
         <span className="flex min-w-0 items-center gap-2.5">
           <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted"><PlatformMark platform={e.platform} className="h-4 w-4" /></span>
           <span className="block min-w-0">
-            <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground">
-              <span className="truncate font-mono text-[12.5px]">{e.event_name}</span>
-              <ArrowRight className="size-3 shrink-0 text-muted-foreground" aria-label={t.sentAs} />
-              <span className="truncate font-mono text-[12.5px] text-foreground/80">{e.platform_event}</span>
+            <span className="block truncate text-[13.5px] font-medium text-foreground">
+              {e.kind === 'custom' ? <span className="font-mono text-[12.5px]">{e.event_name}</span> : kinds[e.kind]}
+              {e.order_id && <span className="font-normal text-muted-foreground"> · <span className="font-mono text-[12.5px] text-foreground/80">#{e.order_id.replace(/^#/, '')}</span></span>}
             </span>
-            <span className="block truncate text-xs text-muted-foreground">{PLATFORMS[e.platform].label} · {kinds[e.kind]}{e.order_id ? t.order(e.order_id) : ''}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {PLATFORMS[e.platform].label}
+              {e.platform_event && e.status !== 'skipped' && <> · {t.sentAs} <span className="font-mono">{e.platform_event}</span></>}
+            </span>
           </span>
         </span>
       ),
     },
-    { id: 'value', header: t.value, width: '110px', align: 'right', cell: (e) => <span className="tabular-nums text-foreground">{formatValue(e.value, e.currency)}</span> },
     {
-      id: 'status', header: all.actions.status, width: '28%',
+      // How surely the platform can tie it to the person: the strength, then the details it carried.
+      id: 'match', header: t.matchedWith, width: '22%',
+      cell: (e) => {
+        // A skipped event never left: there was nothing for the platform to match.
+        if (e.status === 'skipped') return <span className="text-xs text-muted-foreground">{t.nothingSent}</span>;
+        if (e.match_keys.length === 0) return <span className="text-muted-foreground">—</span>;
+        const level = matchLevel(e.match_keys);
+        return (
+          <span className="block min-w-0">
+            <span className="inline-flex items-center gap-1.5 text-[13px] text-foreground">
+              <span className={cn('size-1.5 shrink-0 rounded-full', MATCH_DOT[level])} aria-hidden />{t.matchLevel[level]}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground" title={e.match_keys.map((k) => all.conversions.match[k]).join(', ')}>
+              {e.match_keys.map((k) => all.conversions.match[k]).join(' · ')}
+            </span>
+          </span>
+        );
+      },
+    },
+    { id: 'value', header: t.value, width: '100px', align: 'right', cell: (e) => <span className={cn('tabular-nums', e.value === null ? 'text-muted-foreground' : 'font-medium text-foreground')}>{formatValue(e.value, e.currency)}</span> },
+    {
+      id: 'status', header: all.actions.status, width: '26%',
       cell: (e) => (
         <span className="block min-w-0">
-          <StatusLabel status={e.status} />
+          <span className="flex items-center gap-1.5">
+            <StatusLabel status={e.status} />
+            {e.attempt_count > 1 && <span className="text-xs text-muted-foreground">· {t.tries(e.attempt_count)}</span>}
+          </span>
           {e.error && <span className={cn('block truncate text-xs', e.status === 'failed' ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground')} title={e.error}>{e.error}</span>}
         </span>
       ),
@@ -195,7 +230,7 @@ export function EventsTable({
         /></div>
       ) : (
         <CollectionTable
-          label={all.conversions.page.title} items={events} getKey={(e) => e.id} columns={columns} minWidth={820} rowClassName="h-14"
+          label={all.conversions.page.title} items={events} getKey={(e) => e.id} columns={columns} minWidth={940} rowClassName="h-14"
           onOpen={setOpened}
           toolbar={<>{toolbar}{bulkBar}</>}
           selection={canEdit ? {

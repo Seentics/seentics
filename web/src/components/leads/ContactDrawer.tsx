@@ -97,6 +97,12 @@ export function ContactDrawer({
     );
   };
   const ago = (iso: string) => relativeTime(iso, now, time);
+  /** Their latest visit with a recording, for "Watch session replay". */
+  const latestReplay = submissions.find((x) => x.has_replay && x.session_id)?.session_id ?? null;
+  const setStatus = (status: ContactStatus) => {
+    if (!contact) return;
+    update.mutate({ id: contact.id, patch: { status } }, { onSuccess: () => toast.success(td.saved), onError: () => toast.error(td.saveFailed) });
+  };
 
   return (
     <Sheet open={!!contactId} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -136,14 +142,8 @@ export function ContactDrawer({
                   </dl>
                 </section>
 
-                <section aria-labelledby="contact-origin">
-                  <h3 id="contact-origin" className="mb-2 text-[14px] font-semibold text-foreground">{td.origin}</h3>
-                  <dl className="divide-y divide-border/60 rounded-md bg-card text-[13.5px]">
-                    <Row label={td.landedOnLabel} value={contact.first_page_url ? <span className="font-mono text-[12px]">{pathOf(contact.first_page_url) || '/'}</span> : '—'} title={contact.first_page_url ?? undefined} />
-                    <Row label={td.referrer} value={contact.first_referrer || td.direct} title={contact.first_referrer ?? undefined} />
-                    <Row label={td.firstSeenLabel} value={`${t.sources[contact.source]} · ${new Date(contact.first_seen_at).toLocaleString()}`} />
-                  </dl>
-                </section>
+                {/* How they got here and what happened since, oldest first. */}
+                <Journey contact={contact} submissions={submissions} ago={ago} />
 
                 <section aria-labelledby="contact-activity">
                   <h3 id="contact-activity" className="mb-2 text-[14px] font-semibold text-foreground">
@@ -161,6 +161,21 @@ export function ContactDrawer({
 
               {/* What can be changed, and where their data goes */}
               <aside className="space-y-6 bg-card px-6 py-5">
+                {/* The usual next steps: watch their latest visit, move them along. */}
+                <div className="flex flex-col gap-2">
+                  {latestReplay && (
+                    <Button asChild className="h-10 gap-2">
+                      <Link href={`/websites/${websiteId}/replays/${latestReplay}`}><PlayCircle className="h-4 w-4" />{td.watchLatest}</Link>
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" className="h-10 text-[13px]" disabled={contact.status === 'contacted' || update.isPending} onClick={() => setStatus('contacted')}>{td.markContacted}</Button>
+                      <Button variant="outline" className="h-10 text-[13px]" disabled={contact.status === 'customer' || update.isPending} onClick={() => setStatus('customer')}>{td.markCustomer}</Button>
+                    </div>
+                  )}
+                </div>
+
                 <section aria-labelledby="contact-details" className="space-y-4">
                   <h3 id="contact-details" className="text-sm font-semibold">{td.details}</h3>
                   <Field label={t.fields.name} id="contact-name">
@@ -299,20 +314,60 @@ function DeliveryRow({ d, ago, onRetry }: { d: SubmissionDelivery; ago: (iso: st
   );
 }
 
+type Step = { key: string; title: string; note?: string | null; dot: string };
+
+/**
+ * A contact's way here and since, as a timeline: where they came from and the page they landed on,
+ * each form they filled in, where each was sent (or could not be), and where they stand now.
+ */
+function Journey({ contact, submissions, ago }: { contact: Contact; submissions: SiteSubmission[]; ago: (iso: string) => string }) {
+  const t = useT().leads;
+  const td = t.drawer;
+  const steps: Step[] = [{
+    key: 'came',
+    title: td.cameFromStep(contact.first_channel ? cameFrom(t, contact.first_channel, contact.first_campaign ?? null) : t.sources[contact.source]),
+    note: td.landedNote(contact.first_page_url ? pathOf(contact.first_page_url) || '/' : '—', ago(contact.first_seen_at)),
+    dot: 'bg-sky-500',
+  }];
+  for (const s of [...submissions].reverse()) {
+    steps.push({ key: s.id, title: td.filledIn(formLabel(s, t.form).text), note: `${ago(s.created_at)} · ${pathOf(s.page_url) || '/'}`, dot: 'bg-violet-500' });
+    for (const d of s.deliveries) {
+      const failed = d.status === 'failed';
+      steps.push({
+        key: d.id,
+        title: failed ? td.failedToStep(d.connection_name) : td.sentToStep(d.connection_name),
+        note: failed ? d.error : d.completed_at ? ago(d.completed_at) : null,
+        dot: failed ? 'bg-rose-500' : d.status === 'success' ? 'bg-emerald-500' : 'bg-amber-500',
+      });
+    }
+  }
+  steps.push({ key: 'now', title: td.nowStep(t.statuses[contact.status]), note: td.nowNote, dot: 'bg-foreground' });
+  return (
+    <section aria-labelledby="contact-journey" className="rounded-md bg-card px-4 py-4">
+      <h3 id="contact-journey" className="mb-3 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{td.journey}</h3>
+      <ol>
+        {steps.map((step, i) => (
+          <li key={step.key} className="flex gap-3">
+            <div className="flex flex-col items-center" aria-hidden>
+              <span className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', step.dot)} />
+              {i < steps.length - 1 && <span className="mt-1 w-px flex-1 bg-foreground/15" />}
+            </div>
+            <div className={cn('min-w-0', i < steps.length - 1 && 'pb-3.5')}>
+              <p className="text-[13.5px] font-semibold text-foreground">{step.title}</p>
+              {step.note && <p className="text-[12.5px] text-muted-foreground">{step.note}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-md bg-card px-4 py-3">
       <dt className="text-[12px] font-medium text-foreground/60">{label}</dt>
       <dd className="mt-1 truncate text-[16px] font-semibold text-foreground">{value}</dd>
-    </div>
-  );
-}
-
-function Row({ label, value, title }: { label: string; value: React.ReactNode; title?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 px-3.5 py-2.5">
-      <dt className="shrink-0 font-medium text-foreground/60">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-medium text-foreground" title={title}>{value}</dd>
     </div>
   );
 }

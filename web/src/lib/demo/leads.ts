@@ -176,6 +176,8 @@ export function demoLeadsOverview(days: number): LeadsOverview {
   const since = demoIso(-days * DAY);
   const recent = SUBMISSIONS.filter((s) => s.created_at >= since);
   const fresh = CONTACTS.filter((c) => c.first_seen_at >= since);
+  const before = demoIso(-2 * days * DAY);
+  const earlier = CONTACTS.filter((c) => c.first_seen_at >= before && c.first_seen_at < since);
   const tally = <K extends string>(keys: (K | null)[]) => {
     const m = new Map<K, number>();
     for (const k of keys) if (k) m.set(k, (m.get(k) ?? 0) + 1);
@@ -192,5 +194,11 @@ export function demoLeadsOverview(days: number): LeadsOverview {
       campaign, count, source: tally(recent.filter((s) => s.utm_campaign === campaign).map(demoSource))[0]?.[0] ?? null,
     })),
     failed_deliveries: recent.filter((s) => s.deliveries.some((d) => d.status === 'failed')).length,
+    // The demo's history is short: a steady earlier window, a little behind, so the change reads.
+    previous: {
+      submissions: Math.max(SUBMISSIONS.filter((s) => s.created_at >= before && s.created_at < since).length, Math.round(recent.length * 0.8)),
+      new_contacts: Math.max(earlier.length, Math.round(fresh.length * 1.1)),
+      customers: Math.max(earlier.filter((c) => c.status === 'customer').length, Math.max(0, fresh.filter((c) => c.status === 'customer').length - 1)),
+    },
   };
 }

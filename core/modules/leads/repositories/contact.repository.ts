@@ -263,10 +263,11 @@ export async function importContacts(
  * The window's new contacts for the leads overview: how many were first seen in it, and how many
  * of those are customers now (their status today, not when they arrived).
  */
-export async function newContactsSince(websiteId: string, since: Date): Promise<{ total: number; customers: number }> {
+export async function newContactsSince(websiteId: string, since: Date, until?: Date): Promise<{ total: number; customers: number }> {
   const [row] = await sql<[{ total: number; customers: number }]>`
     SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'customer')::int AS customers
     FROM contacts WHERE website_id = ${websiteId}::uuid AND first_seen_at >= ${since}
+      ${until ? sql`AND first_seen_at < ${until}` : sql``}
   `;
   return { total: row?.total ?? 0, customers: row?.customers ?? 0 };
 }

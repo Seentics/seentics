@@ -116,11 +116,15 @@ export class SiteLeadService implements SiteLeadQueries {
    */
   async overview(websiteId: string, days: number): Promise<LeadsOverview> {
     const since = new Date(Date.now() - days * DAY_MS);
-    const [submissions, origins, contacts, failed] = await Promise.all([
+    // The window before, as long, to compare against.
+    const before = new Date(since.getTime() - days * DAY_MS);
+    const [submissions, origins, contacts, failed, previousSubmissions, previousContacts] = await Promise.all([
       submissionCountSince(websiteId, since),
       submissionOrigins(websiteId, since, OVERVIEW_ORIGINS_CAP),
       newContactsSince(websiteId, since),
       this.deps.sink.failedSubmissionIds(websiteId, since, OVERVIEW_ORIGINS_CAP),
+      submissionCountSince(websiteId, before, since),
+      newContactsSince(websiteId, before, since),
     ]);
     const channels = new Map<LeadChannel, number>();
     const sources = new Map<string, number>();
@@ -150,6 +154,7 @@ export class SiteLeadService implements SiteLeadQueries {
         campaign, count, source: most(campaignSources.get(campaign) ?? new Map<string, number>())[0]?.[0] ?? null,
       })),
       failed_deliveries: failed.length,
+      previous: { submissions: previousSubmissions, new_contacts: previousContacts.total, customers: previousContacts.customers },
     };
   }
 
