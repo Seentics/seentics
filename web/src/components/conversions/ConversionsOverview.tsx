@@ -69,29 +69,40 @@ export function ConversionInsights({ websiteId, days }: { websiteId: string; day
   return (
     <section aria-label={t.perDay} className="space-y-3">
 
-      {/* The days, wide: accepted (green) under failed (red), one bar a day, scaled to the busiest. */}
+      {/* The days, wide: accepted (green) under failed (red), one bar a day, against a scale. */}
       <Block title={t.perDay} aside={(
-        <span className="flex items-center gap-3 text-[12px] font-normal text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-emerald-500" />{t.accepted}</span>
-          <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-rose-500" />{t.failed}</span>
+        <span className="flex items-center gap-3 text-[12.5px] font-medium">
+          <span className="flex items-center gap-1.5 text-foreground"><span className="size-2 rounded-sm bg-emerald-500" />{t.acceptedTotal(data?.totals.accepted ?? 0)}</span>
+          <span className="flex items-center gap-1.5 text-foreground"><span className="size-2 rounded-sm bg-rose-500" />{t.failedTotal(data?.totals.failed ?? 0)}</span>
         </span>
       )}>
+        <p className="-mt-1 mb-4 text-[12.5px] text-muted-foreground">{t.perDayHint}</p>
         {days_.length === 0 ? <p className="py-8 text-center text-[13px] text-muted-foreground">—</p> : (
-          <>
-            <div className="flex h-40 items-end gap-1" role="img" aria-label={t.perDay}>
-              {days_.map((d) => (
-                <div key={d.day} className="group flex h-full min-w-0 flex-1 flex-col justify-end" title={`${d.day}: ${d.accepted} ${t.acceptedShort} · ${d.failed} ${t.failed.toLowerCase()}`}>
-                  {d.failed > 0 && <div className="w-full rounded-t bg-rose-500/85" style={{ height: `${(d.failed / peak) * 100}%` }} />}
-                  <div className={cn('w-full bg-emerald-500/85 group-hover:bg-emerald-600', d.failed === 0 && 'rounded-t')} style={{ height: `${(d.accepted / peak) * 100}%`, minHeight: d.accepted ? 3 : 0 }} />
-                </div>
-              ))}
+          <div className="flex gap-2">
+            {/* The scale: the busiest day's count at the top, half way, and 0. */}
+            <div className="flex h-40 w-7 shrink-0 flex-col justify-between text-right text-[11px] tabular-nums text-muted-foreground">
+              <span className="-mt-1.5">{peak}</span>
+              <span>{Math.round(peak / 2)}</span>
+              <span className="-mb-1.5">0</span>
             </div>
-            <div className="mt-2 flex justify-between text-[11.5px] tabular-nums text-muted-foreground">
-              <span>{shortDay(days_[0]!.day)}</span>
-              <span>{shortDay(days_[Math.floor(days_.length / 2)]!.day)}</span>
-              <span>{shortDay(days_[days_.length - 1]!.day)}</span>
+            <div className="min-w-0 flex-1">
+              <div className="relative flex h-40 items-end gap-1 border-b border-border" role="img" aria-label={t.perDay}>
+                <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-border/70" />
+                <span aria-hidden className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-border/50" />
+                {days_.map((d) => (
+                  <div key={d.day} className="group relative flex h-full min-w-0 flex-1 flex-col justify-end" title={`${shortDay(d.day)}: ${t.acceptedTotal(d.accepted)} · ${t.failedTotal(d.failed)}`}>
+                    {d.failed > 0 && <div className="w-full rounded-t bg-rose-500/85" style={{ height: `${(d.failed / peak) * 100}%` }} />}
+                    <div className={cn('w-full bg-emerald-500/85 group-hover:bg-emerald-600', d.failed === 0 && 'rounded-t')} style={{ height: `${(d.accepted / peak) * 100}%`, minHeight: d.accepted ? 3 : 0 }} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between text-[11.5px] tabular-nums text-muted-foreground">
+                <span>{shortDay(days_[0]!.day)}</span>
+                <span>{shortDay(days_[Math.floor(days_.length / 2)]!.day)}</span>
+                <span>{shortDay(days_[days_.length - 1]!.day)}</span>
+              </div>
             </div>
-          </>
+          </div>
         )}
       </Block>
 
