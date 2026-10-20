@@ -1,6 +1,8 @@
 'use client';
 
+import { Mail, MessageSquare, QrCode } from 'lucide-react';
 import { getSourceImage } from '@/components/analytics/TopSourcesChart';
+import { ProviderIcon } from '@/components/integrations/ProviderIcon';
 import { useLeadsOverview } from '@/features/leads/queries';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -90,14 +92,38 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
 const SOURCE_NAMES: Record<string, string> = {
   facebook: 'Facebook', instagram: 'Instagram', google: 'Google', youtube: 'YouTube', tiktok: 'TikTok',
   x: 'X', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', messenger: 'Messenger', bing: 'Bing',
+  mailchimp: 'Mailchimp', klaviyo: 'Klaviyo', hubspot: 'HubSpot',
 };
-const sourceName = (source: string) => SOURCE_NAMES[source] ?? source;
+/** A known name as written, a site as its host, any other name with a capital (newsletter → Newsletter). */
+const sourceName = (source: string) =>
+  SOURCE_NAMES[source] ?? (source.includes('.') ? source : source.charAt(0).toUpperCase() + source.slice(1));
+
+/** Kinds of source that are not a site (utm_source=newsletter, sms…): an icon on their colour. */
+const KINDS: [RegExp, React.ElementType, string][] = [
+  [/mail|newsletter|digest|edm/, Mail, '#F59E0B'],
+  [/^sms$|text|message/, MessageSquare, '#16A34A'],
+  [/qr/, QrCode, '#18181B'],
+];
+
+/** A steady colour per name, so an unknown source looks the same everywhere it appears. */
+function hueOf(name: string): number {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+}
 
 /**
- * A source's own logo: the analytics pages' images (getSourceImage), Messenger's mark, or for any
- * other site its initial on a tile.
+ * A source's own logo: the analytics pages' images (getSourceImage), Messenger's mark, the email
+ * tools' logos (Mailchimp, Klaviyo, HubSpot), an icon for a kind of source (newsletter, sms, qr),
+ * or for any other name its initial on a colour of its own.
  */
 function SourceLogo({ source }: { source: string }) {
+  if (source === 'mailchimp' || source === 'klaviyo' || source === 'hubspot') return <ProviderIcon provider={source} className="size-6 rounded-md" />;
+  const kind = KINDS.find(([pattern]) => pattern.test(source));
+  if (kind) {
+    const [, Icon, color] = kind;
+    return <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md text-white" style={{ background: color }}><Icon className="size-3.5" /></span>;
+  }
   if (source === 'messenger') {
     const mask = 'url(/integrations/messenger.svg) center / 62% no-repeat';
     return <span aria-hidden className="size-6 shrink-0 rounded-md bg-[#0866FF]"><span className="block h-full w-full bg-white" style={{ WebkitMask: mask, mask }} /></span>;
@@ -105,7 +131,7 @@ function SourceLogo({ source }: { source: string }) {
   const image = getSourceImage(source === 'x' ? 'x.com' : source);
   if (image) return <img src={image} alt="" aria-hidden className="size-6 shrink-0 rounded-md object-contain" />;
   return (
-    <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold uppercase text-foreground/70">
+    <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold uppercase text-white" style={{ background: `hsl(${hueOf(source)} 55% 45%)` }}>
       {source.replace(/^www\./, '')[0]}
     </span>
   );
