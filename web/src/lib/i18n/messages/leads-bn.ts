@@ -139,6 +139,8 @@ export const leadsBn: LeadsMessages = {
     channels: 'কোথা থেকে এসেছেন',
     campaigns: 'সেরা Campaign',
     none: 'এখনো কোনো Lead নেই',
+    moreStats: 'আরও Stats দেখুন',
+    lessStats: 'Stats লুকান',
   },
   failedTab: 'পাঠানো যায়নি',
   channel: 'Channel',

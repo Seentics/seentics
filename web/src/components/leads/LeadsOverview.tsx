@@ -1,6 +1,7 @@
 'use client';
 
-import { Mail, MessageSquare, QrCode } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Mail, MessageSquare, QrCode } from 'lucide-react';
 import { getSourceImage } from '@/components/analytics/TopSourcesChart';
 import { ProviderIcon } from '@/components/integrations/ProviderIcon';
 import { useLeadsOverview } from '@/features/leads/queries';
@@ -19,27 +20,38 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
   const pct = data && data.new_contacts > 0 ? Math.round((data.customers / data.new_contacts) * 100) : 0;
   const total = data?.by_channel.reduce((n, c) => n + c.count, 0) ?? 0;
   const sourceTotal = data?.by_source.reduce((n, s) => n + s.count, 0) ?? 0;
+  // Where they came from and the campaigns open on demand, so the people and submissions stay near the top.
+  const [more, setMore] = useState(false);
 
   return (
     // Two rows with room to breathe: the four numbers across the width, then the channels and the
     // campaigns side by side, each its own block.
-    <section aria-label={t.label} className="mx-3 mt-5 space-y-3 md:mx-4 md:mt-6">
+    <section aria-label={t.label} className="mx-3 mt-5 md:mx-4 md:mt-6">
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.leads} value={data?.submissions} />
         <Tile label={t.newContacts} value={data?.new_contacts} />
         <Tile label={t.customers} value={data?.customers} hint={data ? t.ofNew(pct) : undefined} />
-        <div className="min-w-0 rounded-lg bg-card px-5 py-4">
+        <div className="min-w-0 rounded-lg bg-card px-4 py-3">
           <dt className="text-[13px] font-medium text-foreground/60">{t.failed}</dt>
-          <dd className={cn('mt-1.5 text-[26px] font-semibold leading-none tabular-nums', data?.failed_deliveries ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
+          <dd className={cn('mt-1 text-[22px] font-semibold leading-tight tabular-nums', data?.failed_deliveries ? 'text-rose-600 dark:text-rose-400' : 'text-foreground')}>
             {data ? data.failed_deliveries.toLocaleString() : '—'}
           </dd>
           {!!data?.failed_deliveries && (
-            <button type="button" onClick={onShowFailed} className="mt-2 text-[12.5px] font-medium text-foreground/70 underline underline-offset-2 hover:text-foreground">{t.fix}</button>
+            <button type="button" onClick={onShowFailed} className="mt-0.5 text-[12px] font-medium text-foreground/70 underline underline-offset-2 hover:text-foreground">{t.fix}</button>
           )}
         </div>
       </dl>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <button
+        type="button"
+        onClick={() => setMore(!more)}
+        aria-expanded={more}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+      >
+        {more ? t.lessStats : t.moreStats}
+        <ChevronDown className={cn('size-4 transition-transform', more && 'rotate-180')} />
+      </button>
+      {more && <div className="mt-2 grid gap-3 md:grid-cols-2">
         <div className="min-w-0 rounded-lg bg-card px-5 py-4">
           <p className="-mx-5 border-b border-border/60 px-5 pb-3 text-[13px] font-semibold text-foreground">{t.channels}</p>
           {data && data.by_source.length > 0 ? (
@@ -83,7 +95,7 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
             </ul>
           ) : <p className="mt-2 text-[13px] text-muted-foreground">—</p>}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
@@ -139,10 +151,10 @@ function SourceLogo({ source }: { source: string }) {
 
 function Tile({ label, value, hint }: { label: string; value: number | undefined; hint?: string }) {
   return (
-    <div className="min-w-0 rounded-lg bg-card px-5 py-4">
+    <div className="min-w-0 rounded-lg bg-card px-4 py-3">
       <dt className="text-[13px] font-medium text-foreground/60">{label}</dt>
-      <dd className="mt-1.5 text-[26px] font-semibold leading-none tabular-nums text-foreground">{value === undefined ? '—' : value.toLocaleString()}</dd>
-      {hint && <p className="mt-2 text-[12.5px] text-muted-foreground">{hint}</p>}
+      <dd className="mt-1 text-[22px] font-semibold leading-tight tabular-nums text-foreground">{value === undefined ? '—' : value.toLocaleString()}</dd>
+      {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }

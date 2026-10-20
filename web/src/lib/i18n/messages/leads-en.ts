@@ -137,6 +137,8 @@ export const leadsEn = {
     channels: 'Where they came from',
     campaigns: 'Top campaigns',
     none: 'No leads yet',
+    moreStats: 'View more stats',
+    lessStats: 'Hide stats',
   },
   failedTab: 'Failed to send',
   channel: 'Channel',
