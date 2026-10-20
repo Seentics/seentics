@@ -67,7 +67,7 @@ function stripWebsiteDashboardPrefix(path: string, websiteId: string): string {
  * `normalizeHeatmapPagePath`. Handles legacy rows already stored with raw IDs.
  */
 const DYNAMIC_SEGMENT_RE =
-  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16 }|[a-z0-9]{24 }|\d{6 })$/i;
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16,}|[a-z0-9]{24,}|\d{6,})$/i;
 
 function normalizeDynamicIds(path: string): string {
   return path

@@ -188,7 +188,9 @@ function PayInvoice({ invoice }: { invoice: Invoice }) {
     try {
       await submit.mutateAsync({ method: method.id, payerNumber: normalisePayerNumber(payer), transactionId: trx.trim().toUpperCase() });
     } catch (err: any) {
-      toast.error(err?.response?.status === 409 ? t.invoice.duplicate : err?.response?.data?.error || t.invoice.submitFailed);
+      // Not every 409 is a reused transaction id: the invoice may have been paid, cancelled or sent for verification meanwhile.
+      const code = err?.response?.data?.code;
+      toast.error(code === 'duplicate_transaction' ? t.invoice.duplicate : code === 'not_payable' ? t.invoice.notPayable : err?.response?.data?.error || t.invoice.submitFailed);
     }
   };
 

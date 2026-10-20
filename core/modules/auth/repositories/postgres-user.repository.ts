@@ -75,6 +75,11 @@ export class PostgresUserRepository implements UserRepository {
     await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
   }
 
+  async setName(id: string, name: string): Promise<UserRow | null> {
+    const [row] = await db.update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+    return row ?? null;
+  }
+
   async recordLogin(id: string): Promise<UserRow | null> {
     const now = new Date();
     // `login_count + 1` in SQL rather than a read-modify-write, so two concurrent

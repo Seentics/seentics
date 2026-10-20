@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { isValidId } from '@/lib/utils';
 
 
-import { getDashboardFunnelsAnalytics, fetchDashboardFunnelList, getDashboardFunnel, getDashboardFunnelAnalytics } from '@/lib/funnels-dashboard';
+import { getDashboardFunnelsAnalytics, fetchDashboardFunnelList, getDashboardFunnelAnalytics } from '@/lib/funnels-dashboard';
 import type {
   DashboardFunnel as Funnel,
   DashboardFunnelStep as FunnelStep,
@@ -34,23 +34,14 @@ export const useFunnels = (websiteId: string) => {
   });
 };
 
-export const useFunnel = (websiteId: string, funnelId: string) => {
-  return useQuery<Funnel>({
-    queryKey: [...analyticsKeys.all, 'funnel', websiteId, funnelId],
-    queryFn: () => getDashboardFunnel(websiteId, funnelId),
-    enabled: isValidId(websiteId) && !!funnelId,
-    staleTime: 5 * 60 * 1000,
-  });
-};
-
-const funnelAnalyticsQuery = (funnelId: string, dateRange: number, websiteId?: string) => ({
-  queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange, websiteId ?? ''] as const,
+const funnelAnalyticsQuery = (funnelId: string, dateRange: number, websiteId: string) => ({
+  queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange, websiteId] as const,
   queryFn: () => getDashboardFunnelAnalytics(funnelId, dateRange, websiteId),
-  enabled: !!funnelId,
+  enabled: !!funnelId && isValidId(websiteId),
   staleTime: 2 * 60 * 1000,
 });
 
-export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7, websiteId?: string) => {
+export const useFunnelAnalytics = (funnelId: string, dateRange: number, websiteId: string) => {
   return useQuery<FunnelAnalyticsResponse>(funnelAnalyticsQuery(funnelId, dateRange, websiteId));
 };
 

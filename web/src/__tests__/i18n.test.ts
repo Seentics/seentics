@@ -79,6 +79,9 @@ describe('taka payments', () => {
     expect(normalisePayerNumber('+8801712345678')).toBe('01712345678');
     expect(isBdMobile('01212345678')).toBe(false);
     expect(isBdMobile('0171234567')).toBe(false);
+    // Rocket's carry a twelfth check digit, which the gateway accepts.
+    expect(isBdMobile('018123456789')).toBe(true);
+    expect(isBdMobile('0181234567890')).toBe(false);
     expect(isTransactionId(' 9GH7K2LMNP ')).toBe(true);
     expect(isTransactionId('abc')).toBe(false);
     expect(isTransactionId('9GH7-K2LMNP')).toBe(false);

@@ -1,7 +1,9 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays } from "./shared";
 import { pagePathSql } from "../lib/dimension-sql";
-import { ensureFresh, rollupWindow, rollupsEnabled, siteUniques } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
+import type { AnalyticsSpan } from "../lib/analytics-window";
+import { ensureFresh, rollupsEnabled, siteUniques } from "../rollups/reads";
 
 type GoalRow = {
   id: string;
@@ -18,9 +20,9 @@ type GoalRow = {
  * `event` rollup by type or the `custom_name` rollup by a legacy custom event's name.
  * Goals are few and the window's page and event rows small, so the OR join is cheap.
  */
-async function goalRowsFromRollups(websiteId: string, days: number): Promise<GoalRow[]> {
+async function goalRowsFromRollups(websiteId: string, span: AnalyticsSpan): Promise<GoalRow[]> {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
+  const w = { from: span.fromDay, to: span.toDay };
   return pgSql<GoalRow[]>`
     WITH win AS (
       SELECT dimension, value, pageviews, visitors
@@ -48,14 +50,15 @@ async function goalRowsFromRollups(websiteId: string, days: number): Promise<Goa
 }
 
 export async function getGoalsStats(websiteId: string, query: Record<string, string | undefined>) {
-  const days = parseDays(query.days);
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 86400000);
-  const startIso = start.toISOString();
-  const endIso = end.toISOString();
+  const { span, filters, useRollups } = readScope(query);
+  const days = span.days;
+  const { start: startIso, end: endIso } = span;
+  // Every completion and the site's visitors are narrowed by the same filters (the event's
+  // own country, device, page…), so a conversion rate stays a share of the same population.
+  const where = () => filterSql(filters, websiteId, span);
 
-  const [siteUvRows, rows] = rollupsEnabled()
-    ? await Promise.all([siteUniques(websiteId, days).then((uv) => [{ uv }]), goalRowsFromRollups(websiteId, days)])
+  const [siteUvRows, rows] = useRollups
+    ? await Promise.all([siteUniques(websiteId, span).then((uv) => [{ uv }]), goalRowsFromRollups(websiteId, span)])
     : await Promise.all([
     pgSql<{ uv: number }[]>`
       SELECT
@@ -67,7 +70,8 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
-        AND occurred_at <= ${endIso}
+        AND occurred_at < ${endIso}
+        ${where()}
     `,
     pgSql<
       {
@@ -93,7 +97,8 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
           ON ae.website_id = ${websiteId}
           AND ae.event_type = 'pageview'
           AND ae.occurred_at >= ${startIso}
-          AND ae.occurred_at <= ${endIso}
+          AND ae.occurred_at < ${endIso}
+          ${where()}
           -- The page's path, not the stored value: page is the full href
           -- (https://host/pricing?utm=…), so comparing it to a goal's '/pricing' never
           -- matched and every pageview goal reported zero completions.
@@ -126,7 +131,8 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
           ON ae.website_id = ${websiteId}
           AND ae.event_type = g.identifier
           AND ae.occurred_at >= ${startIso}
-          AND ae.occurred_at <= ${endIso}
+          AND ae.occurred_at < ${endIso}
+          ${where()}
         WHERE g.website_id = ${websiteId}::uuid
           AND (g."type" = 'event' OR g."type" = 'click')
         UNION ALL
@@ -140,7 +146,8 @@ export async function getGoalsStats(websiteId: string, query: Record<string, str
           AND ae.event_type = 'custom'
           AND coalesce(ae.properties->>'name', '') = g.identifier
           AND ae.occurred_at >= ${startIso}
-          AND ae.occurred_at <= ${endIso}
+          AND ae.occurred_at < ${endIso}
+          ${where()}
         WHERE g.website_id = ${websiteId}::uuid
           AND (g."type" = 'event' OR g."type" = 'click')
       ),

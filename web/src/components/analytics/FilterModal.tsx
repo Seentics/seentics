@@ -213,7 +213,9 @@ function CountrySelect({
     return COUNTRY_LIST.filter((c) => c.name.toLowerCase().includes(q));
   }, [search]);
 
-  const selected = value ? COUNTRIES[value] ?? null : null;
+  // The value is the ISO code — what analytics stores and the API filters on. A country name
+  // never matched a row, so the country filter used to empty every chart.
+  const selected = value ? COUNTRY_LIST.find((c) => c.code === value.toUpperCase()) ?? null : null;
 
   useEffect(() => {
     if (open) {
@@ -286,12 +288,12 @@ function CountrySelect({
           ) : (
             <div className="py-1">
               {filtered.map((c) => {
-                const isSelected = value === c.name;
+                const isSelected = selected?.code === c.code;
                 return (
                   <button
                     key={c.code}
                     type="button"
-                    onClick={() => { onChange(c.name); setOpen(false); }}
+                    onClick={() => { onChange(c.code); setOpen(false); }}
                     className={cn(
                       'w-full flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors',
                       isSelected

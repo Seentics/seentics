@@ -23,6 +23,10 @@ export const funnelsActiveQuerySchema = z.object({
  */
 export const funnelsUpsertBodySchema = z.record(z.unknown());
 
+/**
+ * At least one id, required. It used to default a missing `ids` to an empty batch, so the
+ * dashboard — which sent `{ funnelIds }` — got a 204 for a delete that removed nothing.
+ */
 export const funnelsBulkDeleteSchema = z.object({
-  ids: z.array(zNonEmptyString.max(128)).max(500).optional().default([]),
+  ids: z.array(zNonEmptyString.max(128)).min(1).max(500),
 });

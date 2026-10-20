@@ -3,15 +3,17 @@
  * `name`, `count`, `percentage` (map pins use country centroids on the client when needed).
  */
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
+import { siteUniques, topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
+import type { AnalyticsSpan } from "../lib/analytics-window";
 
 /** The three result sets the raw queries below return, from the rollups. */
-async function geoRowsFromRollups(websiteId: string, days: number) {
+async function geoRowsFromRollups(websiteId: string, span: AnalyticsSpan) {
   const [uv, countries, cities] = await Promise.all([
-    siteUniques(websiteId, days),
-    topRows(websiteId, "country", days, 50, "unique_visitors"),
-    topRows(websiteId, "country_city", days, 40, "unique_visitors"),
+    siteUniques(websiteId, span),
+    topRows(websiteId, "country", span, 50, "unique_visitors"),
+    topRows(websiteId, "country_city", span, 40, "unique_visitors"),
   ]);
   return [
     [{ uv }],
@@ -39,10 +41,11 @@ export async function getGeolocationAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
+  const { span, filters, useRollups } = readScope(query);
+  const days = span.days;
+  const where = () => filterSql(filters, websiteId, span);
 
-  const [totalUvRows, countryRows, cityRows] = rollupsEnabled() ? await geoRowsFromRollups(websiteId, days) : await Promise.all([
+  const [totalUvRows, countryRows, cityRows] = useRollups ? await geoRowsFromRollups(websiteId, span) : await Promise.all([
     // Distinct visitors by grouping, not count(DISTINCT …), which always sorts and spilled
     // to disk on large windows (see pages.repository.ts). count(vk) skips a NULL key the
     // same way. The two breakdowns below get a name tiebreaker: ordering by visitors
@@ -54,7 +57,9 @@ export async function getGeolocationAnalytics(
         FROM analytics_events
         WHERE website_id = ${websiteId}
           AND event_type = 'pageview'
-          AND occurred_at >= ${startIso}
+          AND occurred_at >= ${span.start}
+          AND occurred_at < ${span.end}
+          ${where()}
         GROUP BY 1
       ) visitors
     `,
@@ -71,9 +76,11 @@ export async function getGeolocationAnalytics(
         FROM analytics_events
         WHERE website_id = ${websiteId}
           AND event_type = 'pageview'
-          AND occurred_at >= ${startIso}
+          AND occurred_at >= ${span.start}
+          AND occurred_at < ${span.end}
           AND country IS NOT NULL
           AND length(trim(country)) > 0
+          ${where()}
         GROUP BY 1, 2
       ) per_visitor
       GROUP BY country
@@ -94,11 +101,13 @@ export async function getGeolocationAnalytics(
         FROM analytics_events
         WHERE website_id = ${websiteId}
           AND event_type = 'pageview'
-          AND occurred_at >= ${startIso}
+          AND occurred_at >= ${span.start}
+          AND occurred_at < ${span.end}
           AND city IS NOT NULL
           AND length(trim(city)) > 0
           AND country IS NOT NULL
           AND length(trim(country)) > 0
+          ${where()}
         GROUP BY 1, 2, 3
       ) per_visitor
       GROUP BY city, country

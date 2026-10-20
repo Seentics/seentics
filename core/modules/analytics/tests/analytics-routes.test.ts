@@ -301,12 +301,16 @@ describe("analytics routes", () => {
       expect(analytics.onlyCall().args[1]).toMatchObject({ days: "99999" });
     });
 
-    it("forwards only the three recognised parameters, dropping the rest", async () => {
-      await request(`/dashboard/${WEBSITE}?days=7&utm_source=evil&extra=1`, OWNER);
+    it("forwards only the recognised parameters — range, timezone, limit, filters — dropping the rest", async () => {
+      await request(`/dashboard/${WEBSITE}?days=7&utm_source=news&country=US&extra=1`, OWNER);
       expect(analytics.onlyCall().args[1]).toEqual({
         days: "7",
+        from: undefined,
+        to: undefined,
         timezone: undefined,
         limit: undefined,
+        utm_source: "news",
+        country: "US",
       });
     });
 
@@ -460,6 +464,8 @@ describe("analytics routes", () => {
       for (const { path } of ALL_GUARDED_ROUTES) set.add(`GET /${path}/:website_id`);
       set.add("GET /public/dashboard/:public_id");
       set.add("POST /import");
+      // Guarded and exercised in revenue-transaction.controller.test.ts.
+      set.add("GET /revenue-transaction/:website_id");
       return set;
     }
 

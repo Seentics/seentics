@@ -30,8 +30,14 @@ export type AnalyticsIngestEvent = {
 
 /** Query parameters common to the windowed analytics endpoints. */
 export type AnalyticsWindow = {
-  /** Trailing window in days. Clamped to 1–365; defaults per endpoint. */
+  /** Today plus the days−1 local days before it; 0 is today. Clamped to 0–365; defaults per endpoint. */
   days?: string;
+  /**
+   * An explicit range instead of `days`: a date (`2026-10-19`, the whole local day, `to`
+   * inclusive) or an ISO timestamp. See lib/analytics-window.ts.
+   */
+  from?: string;
+  to?: string;
   /** IANA timezone for day bucketing. Invalid values fall back to UTC. */
   timezone?: string;
   limit?: string;

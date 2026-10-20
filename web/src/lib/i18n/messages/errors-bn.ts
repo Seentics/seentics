@@ -17,6 +17,10 @@ export const errorsBn: ErrorsMessages = {
     noUnresolved: 'কোনো অমীমাংসিত এরর নেই',
     noErrors: 'এখানে কোনো এরর নেই',
     noMatchesBody: 'এই সময়ে এই ফিল্টার বা সার্চের সাথে কোনো এরর মেলেনি।',
+    notFound: 'এই এররটা এই সাইটে আর নেই। হয়তো মুছে ফেলা হয়েছে।',
+    loadFailed: 'এররটা লোড করা যায়নি। একটু পরে আবার চেষ্টা করুন।',
+    capped: (shown, total) =>
+      `${total}টি এররের মধ্যে সবশেষে দেখা ${shown}টি দেখানো হচ্ছে। বাকিগুলো পেতে সার্চ করুন বা ছোট সময়সীমা বেছে নিন।`,
     emptyBody: (status, period) => {
       const label = status === 'unresolved' ? 'অমীমাংসিত ' : status === 'resolved' ? 'সমাধান হওয়া ' : status === 'ignored' ? 'ইগনোর করা ' : '';
       return `${period} কোনো ${label}এরর নেই। আসল ভিজিটরদের ব্রাউজারে ধরা না পড়া JavaScript এরর এখানে দেখাবে, সমস্যা অনুযায়ী গ্রুপ করে।`;

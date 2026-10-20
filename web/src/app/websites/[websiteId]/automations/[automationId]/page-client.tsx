@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
   useFetchAutomation, useToggleAutomation, useDeleteAutomation, useUpdateAutomation,
-  useAutomationDailyStats,
+  useAutomationDailyStats, useAutomationStats,
 } from '@/lib/automations-api';
 import {
   AutomationBuilder,
@@ -51,16 +51,21 @@ export default function AutomationDetailPage() {
   const [draft, setDraft] = useState<AutomationDefinition | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   const { data: automation, isLoading }         = useFetchAutomation(websiteId, automationId);
   const { mutate: toggle, isPending: toggling } = useToggleAutomation();
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
   const { mutate: update, isPending: saving }   = useUpdateAutomation();
   const { data: dailyStatsData } = useAutomationDailyStats(websiteId, automationId);
+  // The detail endpoint returns the row alone; its counters come from `/stats`. Reading
+  // `automation.stats` here showed 0 on every card.
+  const { data: stats } = useAutomationStats(websiteId, automationId);
 
   useEffect(() => {
     if (websiteId !== 'demo' || searchParams.get('contentState') !== 'edit' || !automation) return;
     setEditName(automation.name);
+    setEditDescription(automation.description);
     setEditMode(true);
   }, [automation, searchParams, websiteId]);
 
@@ -95,7 +100,15 @@ export default function AutomationDetailPage() {
 
   const handleEditSave = (definition: AutomationDefinition) => {
     update(
-      { websiteId, automationId, data: { name: editName || automation.name, definition: definition as unknown as Record<string, unknown> } },
+      {
+        websiteId,
+        automationId,
+        data: {
+          name: editName || automation.name,
+          description: editDescription.trim(),
+          definition: definition as unknown as Record<string, unknown>,
+        },
+      },
       { onSuccess: () => setEditMode(false) },
     );
   };
@@ -143,11 +156,21 @@ export default function AutomationDetailPage() {
           </div>
           <div>
             {editMode ? (
-              <Input
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                className="h-8 border-none bg-transparent px-0 text-xl font-bold shadow-none focus-visible:ring-0"
-              />
+              <>
+                <Input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="h-8 border-none bg-transparent px-0 text-xl font-bold shadow-none focus-visible:ring-0"
+                />
+                <Input
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  maxLength={500}
+                  placeholder={m.editor.descriptionPlaceholder}
+                  aria-label={m.editor.descriptionPlaceholder}
+                  className="h-7 border-none bg-transparent px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+                />
+              </>
             ) : (
               <div className="flex items-center gap-2 mb-0.5">
                 <h1 className="text-xl font-bold text-foreground">{automation.name}</h1>
@@ -210,7 +233,7 @@ export default function AutomationDetailPage() {
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1.5"
-                onClick={() => { setEditName(automation.name); setEditMode(true); }}
+                onClick={() => { setEditName(automation.name); setEditDescription(automation.description); setEditMode(true); }}
               >
                 <Pencil className="h-3.5 w-3.5" />{t.actions.edit}
               </Button>
@@ -256,10 +279,10 @@ export default function AutomationDetailPage() {
             cards={[
               // Only failures keep a tone, and only when there are any. Four
               // coloured figures in a row read as four warnings, not one summary.
-              { label: d.totalRuns,   value: automation.stats?.totalExecutions ?? 0 },
-              { label: d.successRate, value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%` },
-              { label: d.last30Days, value: automation.stats?.last30Days ?? 0 },
-              { label: d.failures,     value: automation.stats?.failureCount ?? 0, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
+              { label: d.totalRuns,   value: stats?.totalExecutions ?? 0 },
+              { label: d.successRate, value: `${(stats?.successRate ?? 0).toFixed(1)}%` },
+              { label: d.last30Days, value: stats?.last30Days ?? 0 },
+              { label: d.failures,     value: stats?.failureCount ?? 0, tone: 'danger', toneWhen: (stats?.failureCount ?? 0) > 0 },
             ]}
           />
 

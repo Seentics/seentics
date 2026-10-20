@@ -1,15 +1,16 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, sanitizeTimezone } from "./shared";
-import { dailyRows, rollupsEnabled } from "../rollups/reads";
+import { dailyRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
+import { datesBetween } from "../lib/analytics-window";
 
 export async function getDailyStatsAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days, 30);
-  const tz = sanitizeTimezone(query.timezone);
+  const { span, tz, filters, useRollups } = readScope(query, 30);
 
-  const rows = rollupsEnabled() ? await dailyRows(websiteId, days, tz) : await pgSql<{
+  const rows = useRollups ? await dailyRows(websiteId, span, tz) : await pgSql<{
     date: string;
     views: number;
     unique_visitors: number;
@@ -28,20 +29,24 @@ export async function getDailyStatsAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        -- The start of the viewer's local day, days-1 days back: a rolling now-minus-N-days window
-        -- began mid-day, so the first bar was a partial one.
-        AND occurred_at >= (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz}
+        -- From the start of the viewer's local day (lib/analytics-window.ts): a rolling
+        -- now-minus-N-days window began mid-day, so the first bar was a partial one.
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
+        ${filterSql(filters, websiteId, span)}
       GROUP BY 1, 2
     ) per_visitor
     GROUP BY date
     ORDER BY date ASC
   `;
 
+  // Every day of the window, a day without pageviews as zero. The chart and the comparison
+  // overlay line days up by position, and a skipped day shifted every later one.
+  const byDate = new Map(rows.map((x) => [x.date, x]));
   return {
-    daily_stats: rows.map((x) => ({
-      date:   x.date,
-      views:  Number(x.views),
-      unique: Number(x.unique_visitors),
-    })),
+    daily_stats: datesBetween(span.fromDate, span.toDate).map((date) => {
+      const x = byDate.get(date);
+      return { date, views: Number(x?.views ?? 0), unique: Number(x?.unique_visitors ?? 0) };
+    }),
   };
 }

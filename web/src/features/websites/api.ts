@@ -180,6 +180,7 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
       maskAllText: w.mask_all_text ?? false,
       maskTextPatterns: w.mask_text_patterns ?? null,
       verificationToken: w.verification_token,
+      publicShareId: w.public_share_id ?? null,
       settings: w.settings || {
         allowedOrigins: [],
         trackingEnabled: true,
@@ -199,6 +200,16 @@ async function getWebsite(websiteId: string): Promise<Website | null> {
     console.error('Error fetching website:', error);
     return null;
   }
+}
+
+/**
+ * Turn the website's public dashboard link on or off. Turning it on keeps an existing id, so a
+ * link already handed out stays valid; turning it off revokes it. Returns the id, null when off.
+ */
+export async function setPublicSharing(websiteId: string, enabled: boolean): Promise<string | null> {
+  if (demoMutationGuard(websiteId)) return null;
+  const response = await api.post(`/user/websites/${websiteId}/share`, { enabled });
+  return response.data?.data?.public_share_id ?? null;
 }
 
 // Updates an existing website.

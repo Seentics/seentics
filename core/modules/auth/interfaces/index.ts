@@ -4,7 +4,7 @@
  * Auth owns `users`. `UserDirectory` is the only capability peers need — nothing
  * outside this module has any business with password hashes or token signing.
  */
-export type { FrontendUser, UserProfile, UserDirectory } from "./auth.interface";
+export type { FrontendUser, ProfileEditor, UserProfile, UserDirectory } from "./auth.interface";
 
 /**
  * Storage and hashing, exported for this module's own composition and tests only.

@@ -10,6 +10,7 @@
  * payloads today, and inventing precise input types here would document a contract the
  * API does not actually keep. The *output* shapes are what the charts rely on.
  */
+import { isInternalEvent } from './internal-events';
 
 /**
  * Friendly name for a referring domain, matched on whole domain labels.
@@ -151,10 +152,9 @@ export function selectCustomEvents(src: any, pageViews: number = 0) {
       total_mediums: 0,
     };
 
-    // Filter out internal tracker events — these are already reflected in other dashboard sections
-    const internalEvents = new Set(['pageview', 'page_view', 'page_exit', 'scroll_depth', 'click']);
+    // Only the site's own events — the tracker's are reflected in other dashboard sections.
     const filteredEvents = (src?.top_events ?? []).filter(
-      (event: any) => !internalEvents.has(event.event_type)
+      (event: any) => !isInternalEvent(event.event_type)
     );
 
     return {

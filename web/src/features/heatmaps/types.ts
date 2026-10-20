@@ -73,8 +73,14 @@ export interface HeatmapPageScreenshot {
   stylesheet_token_expires_at?: string;
 }
 
+/** Core's `CaptureScreenshotResult`, which is camelCase on the wire. */
 export interface PlaywrightScreenshotResult {
+  success: boolean;
   stored: boolean;
-  s3_key?: string;
-  image_hash?: string;
+  s3Key?: string;
+  imageHash?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  sizeBytes?: number;
+  message?: string;
 }

@@ -5,6 +5,7 @@ import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 
 import { useCustomEvents, useDailyStats, useDashboardData, useGeolocationBreakdown, useHourlyStats, useDimensionsBulk, useVisitorInsights, usePreviousPeriodDailyStats } from '@/features/analytics/queries';
+import { customRange, presetRange } from '@/features/analytics/range';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { useDefaultModeRedirect } from '@/features/ai/default-mode';
@@ -13,7 +14,6 @@ import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
@@ -76,8 +76,6 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   );
   const { user } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
-  const [selectedModal, setSelectedModal] = useState<string | null>(null);
-  const [modalType, setModalType] = useState<string>('');
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
 
   // Filter state
@@ -230,10 +228,23 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
     loadWebsites();
   }, [user, isDemoMode, websiteId, router, embed, isClientMode]);
 
+  /*
+   * What every read below asks for. Today and the last N days are `days`; Yesterday and a
+   * picked range are their own dates (`features/analytics/range`). A custom range used to be
+   * sent as "the last N days ending now", whatever days were picked.
+   */
+  const customStartKey = customStartDate?.getTime();
+  const customEndKey = customEndDate?.getTime();
+  const range = useMemo(
+    () => (isCustomRange && customStartDate && customEndDate ? customRange(customStartDate, customEndDate) : presetRange(dateRange)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isCustomRange, customStartKey, customEndKey, dateRange],
+  );
+
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
-  const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
-  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, range, advancedFilters);
+  const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, range, advancedFilters);
+  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, range, advancedFilters);
 
   // ── DEFERRED: everything below the traffic chart ──
   // Asked for once the cards and chart have their answers and the section is near the screen.
@@ -249,36 +260,25 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
 
   // `isPending` rather than `isLoading`: a read still held back has no data and is not
   // loading, and its panel should show the skeleton, not "no data".
-  const { data: visitorInsights, isPending: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange, loadBelowFold);
-  const { data: dimensionsData, isPending: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(websiteId, dateRange, advancedFilters, loadBelowFold);
+  const { data: visitorInsights, isPending: visitorInsightsLoading } = useVisitorInsights(websiteId, range, loadBelowFold, advancedFilters);
+  const { data: dimensionsData, isPending: dimensionsLoading } = useDimensionsBulk(websiteId, range, advancedFilters, loadBelowFold);
   const topPages     = dimensionsData ? { top_pages:     dimensionsData.top_pages }     : undefined;
   const topReferrers = dimensionsData ? { top_referrers: dimensionsData.top_referrers } : undefined;
-  const topCountries = dimensionsData ? { top_countries: dimensionsData.top_countries } : undefined;
   const topBrowsers  = dimensionsData ? { top_browsers:  dimensionsData.top_browsers }  : undefined;
   const topDevices   = dimensionsData ? { top_devices:   dimensionsData.top_devices }   : undefined;
   const topOS        = dimensionsData ? { top_os:        dimensionsData.top_os }        : undefined;
   const pagesLoading    = !isDemoMode && dimensionsLoading;
-  const referrersLoading = pagesLoading;
-  const countriesLoading = pagesLoading;
-  const browsersLoading  = pagesLoading;
-  const devicesLoading   = pagesLoading;
-  const osLoading        = pagesLoading;
-  const { data: geolocationData, isPending: geolocationLoading } = useGeolocationBreakdown(websiteId, dateRange, loadBelowFold);
-  const { data: customEvents, isPending: customEventsLoading } = useCustomEvents(websiteId, dateRange, loadBelowFold);
+  const { data: geolocationData, isPending: geolocationLoading } = useGeolocationBreakdown(websiteId, range, loadBelowFold, advancedFilters);
+  const { data: customEvents, isPending: customEventsLoading } = useCustomEvents(websiteId, range, loadBelowFold, advancedFilters);
 
   // Previous period data for comparison overlay
-  const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, dateRange, showComparison);
+  const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, range, showComparison, advancedFilters);
 
   // Memoize demo data so demoAnalyticsData() is not called on every render
   const demoData = useMemo(() => (isDemoMode ? demoAnalyticsData() : null), [isDemoMode]);
 
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
-  const finalTopPages = isDemoMode ? demoData?.topPages : topPages;
-  const finalTopReferrers = isDemoMode ? demoData?.topReferrers : topReferrers;
-  const finalTopCountries = isDemoMode ? demoData?.topCountries : topCountries;
-  const finalTopBrowsers = isDemoMode ? demoData?.topBrowsers : topBrowsers;
-  const finalTopDevices = isDemoMode ? demoData?.topDevices : topDevices;
   const finalDailyStats = isDemoMode ? demoData?.dailyStats : dailyStats;
   const finalHourlyStats = isDemoMode ? demoData?.hourlyStats : hourlyStats;
   const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
@@ -293,11 +293,6 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   const transformedTopOS        = useMemo(() => selectTopOS(isDemoMode ? demoData?.topOS : topOS), [isDemoMode, demoData, topOS]);
   const transformedCustomEvents = useMemo(() => selectCustomEvents(isDemoMode ? demoData?.customEvents : customEvents, finalDashboardData?.page_views ?? 0), [isDemoMode, demoData, customEvents, finalDashboardData?.page_views]);
 
-  const handleModalClose = () => {
-    setSelectedModal(null);
-    setModalType('');
-  };
-
   const handleDateRangeChange = (value: string) => {
     if (value === 'custom') {
       setIsCustomRange(true);
@@ -310,12 +305,9 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
   const handleCustomDateChange = (start: Date | undefined, end: Date | undefined) => {
     setCustomStartDate(start);
     setCustomEndDate(end);
-    if (start && end) {
-      // Calculate days between dates for the API
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setDateRange(diffDays);
-    }
+    // The reads use the dates themselves (`range` above); the day count is for the labels
+    // and the AI prompts that speak in days. Both ends count, so one picked day is 1, not 0.
+    if (start && end) setDateRange(customRange(start, end).days);
   };
 
   const handleWebsiteAdded = (websiteId: string) => {
@@ -433,13 +425,13 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
             exitPages: finalVisitorInsights?.visitor_insights?.top_exit_pages,
             isLoading: pagesLoading || (!isDemoMode && visitorInsightsLoading),
           }}
-          sources={{ data: transformedTopReferrers, isLoading: referrersLoading }}
+          sources={{ data: transformedTopReferrers, isLoading: pagesLoading }}
           geolocation={{ data: finalGeolocationData, isLoading: !isDemoMode && geolocationLoading }}
           devices={{
             data: transformedTopDevices,
             osData: transformedTopOS,
             browserData: transformedTopBrowsers,
-            isLoading: devicesLoading || osLoading || browsersLoading,
+            isLoading: pagesLoading,
           }}
           utm={{
             data: transformedCustomEvents.utm_performance,
@@ -456,38 +448,12 @@ export function WebsiteOverview({ websiteId, embed = false, sample = false, head
           } : undefined}
           footer={embed ? undefined : (
             <ChartErrorBoundary label={t.sections.goals}>
-              <WebsiteGoalsSection websiteId={websiteId} days={dateRange} enabled={belowFoldReleased} />
+              <WebsiteGoalsSection websiteId={websiteId} range={range} filters={advancedFilters} enabled={belowFoldReleased} />
             </ChartErrorBoundary>
           )}
         />
         </div>
 
-        {/* Detailed Data Modal */}
-        {selectedModal && (
-          <DetailedDataModal
-            isOpen={!!selectedModal}
-            onClose={handleModalClose}
-            modalType={modalType}
-            data={{
-              topPages: finalTopPages,
-              topReferrers: finalTopReferrers,
-              topCountries: finalTopCountries,
-              topBrowsers: finalTopBrowsers,
-              topDevices: finalTopDevices,
-              dashboard: finalDashboardData,
-
-            }}
-            isLoading={{
-              topPages: pagesLoading,
-              topReferrers: referrersLoading,
-              topCountries: countriesLoading,
-              topBrowsers: browsersLoading,
-              topDevices: devicesLoading,
-              dashboard: dashboardLoading,
-
-            }}
-          />
-        )}
       </div>
   );
 

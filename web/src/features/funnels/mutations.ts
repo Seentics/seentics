@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 
-import { funnelKeys } from '@/lib/funnels-api';
 import {
   createDashboardFunnel,
   updateDashboardFunnel,
@@ -21,15 +20,14 @@ const saveFailure = (fallback: string) => (error: unknown) => {
 };
 
 /**
- * Funnels are keyed in two places — the legacy `analyticsKeys` namespace and
- * `funnelKeys` — so every write has to clear both or a list goes stale behind a
- * successful save. Kept private: callers should reach for the mutation hooks.
+ * Every funnel query lives under `analyticsKeys` (list, detail and reports), so a write
+ * clears each tree or a list goes stale behind a successful save. Kept private: callers
+ * should reach for the mutation hooks.
  */
 const invalidateAllFunnelQueries = (qc: ReturnType<typeof useQueryClient>, websiteId?: string) => {
   qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels'] });
   qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel'] });
   qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
-  qc.invalidateQueries({ queryKey: funnelKeys.lists() });
   if (websiteId) {
     qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels', websiteId] });
   }

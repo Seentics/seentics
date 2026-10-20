@@ -241,6 +241,15 @@ export async function fetchDashboardFunnelList(websiteId: string): Promise<Dashb
   return list.map((item: Record<string, unknown>) => normalizeDashboardFunnelFromApi(item));
 }
 
+/**
+ * The funnel out of a single-funnel response. Core wraps it as `{ data }`; this only looked
+ * for a bare row or `{ funnel }`, so it normalized the envelope itself and every field read empty.
+ */
+function unwrapFunnel(raw: Record<string, unknown>): Record<string, unknown> {
+  if (raw?.id) return raw;
+  return ((raw?.data ?? raw?.funnel) as Record<string, unknown> | undefined) ?? raw;
+}
+
 export async function createDashboardFunnel(
   websiteId: string,
   funnelData: Omit<DashboardFunnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>,
@@ -262,7 +271,7 @@ export async function createDashboardFunnel(
       conversion_window_hours: funnelData.conversion_window_hours ?? null,
     });
     const raw = response.data as Record<string, unknown>;
-    return normalizeDashboardFunnelFromApi(raw?.id ? raw : (raw?.funnel as Record<string, unknown>) ?? raw);
+    return normalizeDashboardFunnelFromApi(unwrapFunnel(raw));
   } catch (error: any) {
     console.error('Error creating funnel:', error);
     if (error.response?.status === 403 && error.response?.data?.error === 'Funnel limit reached') {
@@ -273,17 +282,6 @@ export async function createDashboardFunnel(
     }
     throw error;
   }
-}
-
-export async function getDashboardFunnel(websiteId: string, funnelId: string): Promise<DashboardFunnel> {
-  if (isDemo(websiteId)) {
-    const f = demoFunnels().funnels.find((x: { id: string }) => x.id === funnelId);
-    if (!f) throw new Error('Funnel not found');
-    return f as DashboardFunnel;
-  }
-  const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}`);
-  const raw = response.data as Record<string, unknown>;
-  return normalizeDashboardFunnelFromApi(raw?.id ? raw : (raw?.funnel as Record<string, unknown>) ?? raw);
 }
 
 export async function updateDashboardFunnel(
@@ -303,7 +301,7 @@ export async function updateDashboardFunnel(
   if (funnelData.steps !== undefined) body.steps = dashboardStepsToCore(funnelData.steps);
   const response = await api.put(`/websites/${websiteId}/funnels/${funnelId}`, body);
   const raw = response.data as Record<string, unknown>;
-  return normalizeDashboardFunnelFromApi(raw?.id ? raw : (raw?.funnel as Record<string, unknown>) ?? raw);
+  return normalizeDashboardFunnelFromApi(unwrapFunnel(raw));
 }
 
 export async function deleteDashboardFunnel(websiteId: string, funnelId: string): Promise<void> {
@@ -313,46 +311,34 @@ export async function deleteDashboardFunnel(websiteId: string, funnelId: string)
 
 export async function bulkDeleteDashboardFunnels(websiteId: string, funnelIds: string[]): Promise<void> {
   if (demoMutationGuard(websiteId)) return;
+  // Core reads `ids`. This sent `funnelIds`, which the schema ignored — a 204 that deleted nothing.
   await api.delete(`/websites/${websiteId}/funnels/bulk-delete`, {
-    data: { funnelIds },
+    data: { ids: funnelIds },
   });
 }
 
 export async function getDashboardFunnelAnalytics(
   funnelId: string,
-  dateRange: number = 7,
-  websiteId?: string,
+  dateRange: number,
+  websiteId: string,
 ): Promise<FunnelAnalyticsResponse> {
   const days = Math.min(366, Math.max(1, Math.round(Number(dateRange) || 7)));
-  if (funnelId.startsWith('demo-')) {
+  if (funnelId.startsWith('demo-') || isDemo(websiteId)) {
     const { demoFunnelAnalytics } = await import('./demo');
     return demoFunnelAnalytics(funnelId);
   }
-  if (websiteId && !isDemo(websiteId)) {
-    try {
-      const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`, {
-        params: { days },
-      });
-      const raw = response.data as Record<string, unknown>;
-      const s = (raw?.data ?? raw) as FunnelStatsPayload;
-      return funnelStatsToAnalyticsResponse(funnelId, websiteId, s);
-    } catch (error) {
-      console.warn(`Failed to fetch funnel stats for ${funnelId}:`, error);
-      return emptyFunnelAnalyticsResponse(funnelId, websiteId, 'error');
-    }
-  }
+  // Site-scoped `/stats` is the only report route core serves; the website-less
+  // `/funnels/:id/analytics` this used to fall back to does not exist.
   try {
-    const response = await api.get(`/funnels/${funnelId}/analytics`, {
+    const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`, {
       params: { days },
     });
-    if (response.data && typeof response.data === 'object') {
-      if ('data' in response.data) return response.data.data as FunnelAnalyticsResponse;
-      return response.data as FunnelAnalyticsResponse;
-    }
-    return emptyFunnelAnalyticsResponse(funnelId, websiteId ?? '', 'success');
+    const raw = response.data as Record<string, unknown>;
+    const s = (raw?.data ?? raw) as FunnelStatsPayload;
+    return funnelStatsToAnalyticsResponse(funnelId, websiteId, s);
   } catch (error) {
-    console.warn(`Failed to fetch funnel analytics for ${funnelId}:`, error);
-    return emptyFunnelAnalyticsResponse(funnelId, websiteId ?? '', 'error');
+    console.warn(`Failed to fetch funnel stats for ${funnelId}:`, error);
+    return emptyFunnelAnalyticsResponse(funnelId, websiteId, 'error');
   }
 }
 

@@ -18,9 +18,8 @@ describe('popupOf', () => {
     expect(popupOf(a)).toMatchObject({ type: 'show_modal', title: 'Spin', layout: 'spin_wheel' });
   });
 
-  it('falls back to the summary action, and has nothing for automations without a popup', () => {
-    expect(popupOf(auto({ actions: [{ actionType: 'modal', actionConfig: { title: 'Wait!' } }] }))).toMatchObject({ type: 'show_modal', title: 'Wait!' });
-    expect(popupOf(auto({ actions: [{ actionType: 'banner', actionConfig: { message: 'Sale' } }] }))).toMatchObject({ type: 'show_banner', message: 'Sale' });
-    expect(popupOf(auto({ actions: [{ actionType: 'webhook', actionConfig: {} }] }))).toBeNull();
+  it('has nothing for automations without a popup', () => {
+    expect(popupOf(auto({ definition: { graph: { nodes: [{ id: 'n0', kind: 'action', action: { type: 'webhook', url: 'x' } }] } } }))).toBeNull();
+    expect(popupOf(auto({}))).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ export const dashboardBn: DashboardMessages = {
       aiReports: { label: 'AI রিপোর্ট', hint: 'আপনার ট্রাফিক নিয়ে লেখা রিপোর্ট' },
       errors: { label: 'এরর', hint: 'ভিজিটরদের সামনে আসা JavaScript এরর' },
       developers: { label: 'ডেভেলপার', hint: 'API key, API রেফারেন্স আর সেটআপ গাইড' },
+      uiBlocks: { label: 'UI Blocks', hint: 'নিজের সাইটে বসানোর মতো উইজেট, ব্যাজ আর চার্ট' },
       settings: { label: 'সেটিংস', hint: 'ওয়েবসাইট, ট্র্যাকিং আর টিম' },
     },
     clientSettingsHint: 'গোল আর প্রাইভেসি',

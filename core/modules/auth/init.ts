@@ -23,9 +23,12 @@ export function initAuthModule(): AuthModule {
   const accounts = new AuthAccountQueryService(users);
   const controllers = { credentials, accounts };
 
+  const directory = new UserDirectoryService(users);
+
   return {
-    users: new UserDirectoryService(users),
+    users: directory,
     passwords: credentials,
+    profiles: directory,
     routes: createAuthRoutes(controllers),
     userRoutes: createUserAuthRoutes(controllers),
   };

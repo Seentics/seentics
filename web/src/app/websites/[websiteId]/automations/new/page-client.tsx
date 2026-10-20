@@ -26,6 +26,7 @@ export default function NewAutomationPage() {
   const websiteId = params?.websiteId as string;
 
   const [name, setName] = useState(m.untitled);
+  const [description, setDescription] = useState('');
   const [initial, setInitial] = useState<AutomationDefinition | undefined>(undefined);
 
   // The header renders Save, so it tracks what the builder currently holds and whether
@@ -67,6 +68,7 @@ export default function NewAutomationPage() {
         websiteId,
         data: {
           name:       name.trim() || m.untitled,
+          description: description.trim(),
           definition: definition as unknown as Record<string, unknown>,
         },
       },
@@ -98,9 +100,14 @@ export default function NewAutomationPage() {
                 placeholder={m.namePlaceholder}
               />
             </div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              {m.draft}
-            </p>
+            <Input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              maxLength={500}
+              placeholder={m.descriptionPlaceholder}
+              aria-label={m.descriptionPlaceholder}
+              className="h-6 min-w-0 border-none bg-transparent px-0 py-0 text-xs text-muted-foreground shadow-none focus-visible:ring-0"
+            />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

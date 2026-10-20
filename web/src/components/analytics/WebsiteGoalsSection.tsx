@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGoalStats, analyticsKeys } from '@/features/analytics/queries';
+import type { AnalyticsRange } from '@/features/analytics/range';
+import type { AnalyticsFilters } from '@/features/analytics/types';
 import { isValidId } from '@/lib/utils';
 import { getGoals, deleteGoal, type Goal } from '@/lib/websites-api';
 import { toast } from 'sonner';
@@ -34,11 +36,14 @@ type GoalRow = {
 
 export function WebsiteGoalsSection({
   websiteId,
-  days,
+  range,
+  filters,
   enabled = true,
 }: {
   websiteId: string;
-  days: number;
+  /** The dashboard's range and filters, so conversion rates are of the same visitors as the cards. */
+  range: AnalyticsRange;
+  filters?: AnalyticsFilters;
   /** False holds both reads back — the dashboard loads this section after what is above it. */
   enabled?: boolean;
 }) {
@@ -49,7 +54,7 @@ export function WebsiteGoalsSection({
   const [editingGoalForModal, setEditingGoalForModal] = useState<Goal | null>(null);
   const [detailGoal, setDetailGoal] = useState<GoalRow | null>(null);
 
-  const { data: goalData, isPending } = useGoalStats(websiteId, days, enabled);
+  const { data: goalData, isPending } = useGoalStats(websiteId, range, enabled, filters);
   const isLoading = enabled ? isPending : true;
 
   const { data: goalDefinitions = [] } = useQuery({

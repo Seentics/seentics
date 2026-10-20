@@ -10,6 +10,7 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { WebsitesSettingsPanel } from '@/components/settings/WebsitesSettingsPanel';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { WebsiteProfileCard } from '@/components/settings/WebsiteProfileCard';
+import { PublicShareCard } from '@/components/settings/PublicShareCard';
 import { useT } from '@/lib/i18n';
 
 export default function SettingsWebsitesPage() {
@@ -38,6 +39,7 @@ export default function SettingsWebsitesPage() {
       </DashboardPageHeader>
 
       {params.websiteId && <WebsiteProfileCard websiteId={params.websiteId} />}
+      {params.websiteId && <PublicShareCard websiteId={params.websiteId} />}
 
       <WebsitesSettingsPanel key={refreshKey} redirectWhenEmpty={false} hideAddButton={true} />
     </div>

@@ -60,11 +60,11 @@ export default function ProfileSettingsPage() {
     if (demoMutationGuard(params.websiteId)) return;
     setSavingProfile(true);
     try {
-      await api.put('/user/users/profile', { name: name.trim() });
-      setUser({ ...user!, name: name.trim() });
+      const res = await api.put('/user/users/profile', { name: name.trim() });
+      setUser({ ...user!, name: res.data?.data?.user?.name ?? name.trim() });
       toast({ title: t.profileUpdated, description: t.profileUpdatedBody });
-    } catch {
-      toast({ title: t.errorTitle, description: t.profileFailed, variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: t.errorTitle, description: err?.response?.data?.error || t.profileFailed, variant: 'destructive' });
     }
     setSavingProfile(false);
   };
@@ -94,8 +94,12 @@ export default function ProfileSettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch {
-      toast({ title: t.errorTitle, description: t.passwordFailed, variant: 'destructive' });
+    } catch (err: any) {
+      // The server says why: a social-only account, rate limited. A wrong current password
+      // keeps our own translated message, which tells the user what to check.
+      const data = err?.response?.data;
+      const description = data?.code === 'bad_current_password' ? t.passwordFailed : data?.error || t.passwordFailed;
+      toast({ title: t.errorTitle, description, variant: 'destructive' });
     }
     setSavingPassword(false);
   };

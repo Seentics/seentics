@@ -1,11 +1,24 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { isDemo, demoMutationGuard, demoAutomations } from '@/lib/demo';
 
 import { bulkDeleteAutomations, createAutomation, deleteAutomation, toggleAutomation, updateAutomation } from './api';
 import type {
+  Automation,
   CreateAutomationRequest,
 } from './types';
+
+/**
+ * Write the server's copy of one automation into its detail cache.
+ *
+ * Invalidating only the list left `['automation', …]` holding the pre-save row for its
+ * five-minute stale time, so the detail page showed the old version and the builder,
+ * seeded from it, could save that old version back over the edit.
+ */
+function syncDetail(queryClient: QueryClient, websiteId: string, automationId: string, updated: Automation) {
+    queryClient.setQueryData(['automation', websiteId, automationId], updated);
+    queryClient.invalidateQueries({ queryKey: ['automation', websiteId, automationId] });
+}
 
 
 export function useCreateAutomation() {
@@ -26,7 +39,8 @@ export function useUpdateAutomation() {
     return useMutation({
         mutationFn: ({ websiteId, automationId, data }: { websiteId: string; automationId: string; data: Partial<CreateAutomationRequest> }) =>
             updateAutomation(websiteId, automationId, data),
-        onSuccess: (_, variables) => {
+        onSuccess: (updated, variables) => {
+            syncDetail(queryClient, variables.websiteId, variables.automationId, updated);
             queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
@@ -39,6 +53,7 @@ export function useDeleteAutomation() {
         mutationFn: ({ websiteId, automationId }: { websiteId: string; automationId: string }) =>
             deleteAutomation(websiteId, automationId),
         onSuccess: (_, variables) => {
+            queryClient.removeQueries({ queryKey: ['automation', variables.websiteId, variables.automationId] });
             queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
@@ -51,6 +66,9 @@ export function useBulkDeleteAutomations() {
         mutationFn: ({ websiteId, automationIds }: { websiteId: string; automationIds: string[] }) =>
             bulkDeleteAutomations(websiteId, automationIds),
         onSuccess: (_, variables) => {
+            for (const id of variables.automationIds) {
+                queryClient.removeQueries({ queryKey: ['automation', variables.websiteId, id] });
+            }
             queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
@@ -62,7 +80,8 @@ export function useToggleAutomation() {
     return useMutation({
         mutationFn: ({ websiteId, automationId }: { websiteId: string; automationId: string }) =>
             toggleAutomation(websiteId, automationId),
-        onSuccess: (_, variables) => {
+        onSuccess: (updated, variables) => {
+            syncDetail(queryClient, variables.websiteId, variables.automationId, updated);
             queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });

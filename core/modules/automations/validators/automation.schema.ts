@@ -173,16 +173,30 @@ const actionSchema = z.union([webhookActionSchema, clientActionSchema]);
 
 const nodeIdSchema = zNonEmptyString.max(64);
 
+/**
+ * Where the builder placed the node on its canvas. Layout only — execution never reads
+ * it — but without it here Zod strips it, and every save snaps a hand-arranged graph back
+ * to the auto-layout.
+ */
+const nodePositionSchema = z
+  .object({
+    x: z.number().finite().min(-1_000_000).max(1_000_000),
+    y: z.number().finite().min(-1_000_000).max(1_000_000),
+  })
+  .optional();
+
 const graphNodeSchema = z.discriminatedUnion("kind", [
-  z.object({ id: nodeIdSchema, kind: z.literal("action"), action: actionSchema }),
+  z.object({ id: nodeIdSchema, kind: z.literal("action"), action: actionSchema, position: nodePositionSchema }),
   z.object({
     id: nodeIdSchema,
+    position: nodePositionSchema,
     kind: z.literal("delay"),
     seconds: z.number().positive().max(MAX_DELAY_SECONDS),
   }),
-  z.object({ id: nodeIdSchema, kind: z.literal("if"), group: boundedConditionGroupSchema }),
+  z.object({ id: nodeIdSchema, kind: z.literal("if"), group: boundedConditionGroupSchema, position: nodePositionSchema }),
   z.object({
     id: nodeIdSchema,
+    position: nodePositionSchema,
     kind: z.literal("switch"),
     cases: z
       .array(
@@ -197,6 +211,7 @@ const graphNodeSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     id: nodeIdSchema,
+    position: nodePositionSchema,
     kind: z.literal("wait_until"),
     group: boundedConditionGroupSchema,
     timeoutSeconds: z.number().positive().max(MAX_DELAY_SECONDS),
@@ -299,6 +314,7 @@ const withActive = <T extends { enabled?: boolean; is_active?: boolean }>({ enab
 
 export const automationsUpsertBodySchema = z.object({
   name: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
   enabled: z.boolean().optional(),
   is_active: z.boolean().optional(),
   definition: automationDefinitionSchema,
@@ -307,6 +323,7 @@ export const automationsUpsertBodySchema = z.object({
 /** A partial update: any field may be omitted, but a supplied one is validated in full. */
 export const automationsPatchBodySchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  description: z.string().max(500).optional(),
   enabled: z.boolean().optional(),
   is_active: z.boolean().optional(),
   definition: automationDefinitionSchema.optional(),

@@ -3,13 +3,15 @@ import { useQuery } from '@tanstack/react-query';
 import { isDemo, demoAnalyticsData } from '@/lib/demo';
 import { isValidId } from '@/lib/utils';
 import api from '@/lib/api';
-import { dashboardRefreshMs, getUserTimezone } from './format';
+import { dashboardRefreshMs } from './format';
+import { previousRange, rangeKey, toRangeSpec, type AnalyticsRange } from './range';
 import {
   getCustomEventsStats,
   getDailyStats,
   getDashboardData,
   getDimensionsBulk,
   getGeolocationBreakdown,
+  getGoalStats,
   getHourlyStats,
   getLiveVisitors,
   getTopBrowsers,
@@ -28,35 +30,35 @@ import type { AnalyticsFilters, GetDailyStatsResponse, GetHourlyStatsResponse, G
 // Query Keys
 export const analyticsKeys = {
   all: ['analytics'] as const,
-  dashboard: (websiteId: string, days: number) => [...analyticsKeys.all, 'dashboard', websiteId, days] as const,
-  topPages: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-pages', websiteId, days, filters] as const,
-  topReferrers: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-referrers', websiteId, days, filters] as const,
-  topCountries: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-countries', websiteId, days, filters] as const,
-  topBrowsers: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-browsers', websiteId, days, filters] as const,
-  topDevices: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-devices', websiteId, days, filters] as const,
-  topOS: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-os', websiteId, days, filters] as const,
-  dimensionsBulk: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'dimensions-bulk', websiteId, days, filters] as const,
+  dashboard: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'dashboard', websiteId, rangeKey(range)] as const,
+  topPages: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-pages', websiteId, rangeKey(range), filters] as const,
+  topReferrers: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-referrers', websiteId, rangeKey(range), filters] as const,
+  topCountries: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-countries', websiteId, rangeKey(range), filters] as const,
+  topBrowsers: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-browsers', websiteId, rangeKey(range), filters] as const,
+  topDevices: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-devices', websiteId, rangeKey(range), filters] as const,
+  topOS: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-os', websiteId, rangeKey(range), filters] as const,
+  dimensionsBulk: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'dimensions-bulk', websiteId, rangeKey(range), filters] as const,
   liveVisitors: (websiteId: string) => [...analyticsKeys.all, 'live-visitors', websiteId] as const,
-  trafficSummary: (websiteId: string, days: number) => [...analyticsKeys.all, 'traffic-summary', websiteId, days] as const,
-  hourlyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'hourly-stats', websiteId, days, filters] as const,
+  trafficSummary: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'traffic-summary', websiteId, rangeKey(range)] as const,
+  hourlyStats: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'hourly-stats', websiteId, rangeKey(range), filters] as const,
   activityTrends: (websiteId: string) => [...analyticsKeys.all, 'activity-trends', websiteId] as const,
-  dailyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'daily-stats', websiteId, days, filters] as const,
-  goalStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'goal-stats', websiteId, days] as const,
-  customEvents: (websiteId: string, days: number) => [...analyticsKeys.all, 'custom-events', websiteId, days] as const,
-  topResolutions: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-resolutions', websiteId, days] as const,
-  visitorInsights: (websiteId: string, days: number) => [...analyticsKeys.all, 'visitor-insights', websiteId, days] as const,
+  dailyStats: (websiteId: string, range: AnalyticsRange, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'daily-stats', websiteId, rangeKey(range), filters] as const,
+  goalStats: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'goal-stats', websiteId, rangeKey(range)] as const,
+  customEvents: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'custom-events', websiteId, rangeKey(range)] as const,
+  topResolutions: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'top-resolutions', websiteId, rangeKey(range)] as const,
+  visitorInsights: (websiteId: string, range: AnalyticsRange) => [...analyticsKeys.all, 'visitor-insights', websiteId, rangeKey(range)] as const,
 };
 
 // Dashboard Data - returns comprehensive data with enhanced metrics
-export const useDashboardData = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useDashboardData = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery({
-    queryKey: ['dashboard', websiteId, days, filters],
-    queryFn: () => getDashboardData(websiteId, days, filters),
+    queryKey: ['dashboard', websiteId, rangeKey(range), filters],
+    queryFn: () => getDashboardData(websiteId, range, filters),
     enabled: isValidId(websiteId),
     // Scaled to the range rather than fixed — see `dashboardRefreshMs`.
-    refetchInterval: dashboardRefreshMs(days),
+    refetchInterval: dashboardRefreshMs(toRangeSpec(range).days),
     refetchOnWindowFocus: true,
-    staleTime: Math.floor(dashboardRefreshMs(days) / 2),
+    staleTime: Math.floor(dashboardRefreshMs(toRangeSpec(range).days) / 2),
   });
 };
 
@@ -74,99 +76,99 @@ export const usePublicDashboardData = (publicId: string, days: number = 7) => {
   });
 };
 
-export const useTopLanguages = (websiteId: string, days: number = 7) => {
+export const useTopLanguages = (websiteId: string, range: AnalyticsRange = 7) => {
   return useQuery({
-    queryKey: [...analyticsKeys.all, 'top-languages', websiteId, days],
-    queryFn: () => getTopLanguages(websiteId, days),
+    queryKey: [...analyticsKeys.all, 'top-languages', websiteId, rangeKey(range)],
+    queryFn: () => getTopLanguages(websiteId, range),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
-export const useTopCities = (websiteId: string, days: number = 7) => {
+export const useTopCities = (websiteId: string, range: AnalyticsRange = 7) => {
   return useQuery({
-    queryKey: [...analyticsKeys.all, 'top-cities', websiteId, days],
-    queryFn: () => getTopCities(websiteId, days),
+    queryKey: [...analyticsKeys.all, 'top-cities', websiteId, rangeKey(range)],
+    queryFn: () => getTopCities(websiteId, range),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Pages Hook
-export const useTopPages = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopPages = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopPagesResponse>({
-    queryKey: analyticsKeys.topPages(websiteId, days, filters),
-    queryFn: () => getTopPages(websiteId, days, filters),
+    queryKey: analyticsKeys.topPages(websiteId, range, filters),
+    queryFn: () => getTopPages(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Referrers Hook
-export const useTopReferrers = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopReferrers = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopReferrersResponse>({
-    queryKey: analyticsKeys.topReferrers(websiteId, days, filters),
-    queryFn: () => getTopReferrers(websiteId, days, filters),
+    queryKey: analyticsKeys.topReferrers(websiteId, range, filters),
+    queryFn: () => getTopReferrers(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Countries Hook
-export const useTopCountries = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopCountries = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopCountriesResponse>({
-    queryKey: analyticsKeys.topCountries(websiteId, days, filters),
-    queryFn: () => getTopCountries(websiteId, days, filters),
+    queryKey: analyticsKeys.topCountries(websiteId, range, filters),
+    queryFn: () => getTopCountries(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Browsers Hook
-export const useTopBrowsers = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopBrowsers = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopBrowsersResponse>({
-    queryKey: analyticsKeys.topBrowsers(websiteId, days, filters),
-    queryFn: () => getTopBrowsers(websiteId, days, filters),
+    queryKey: analyticsKeys.topBrowsers(websiteId, range, filters),
+    queryFn: () => getTopBrowsers(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Devices Hook
-export const useTopDevices = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopDevices = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopDevicesResponse>({
-    queryKey: analyticsKeys.topDevices(websiteId, days, filters),
-    queryFn: () => getTopDevices(websiteId, days, filters),
+    queryKey: analyticsKeys.topDevices(websiteId, range, filters),
+    queryFn: () => getTopDevices(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top OS Hook
-export const useTopOS = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+export const useTopOS = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopOSResponse>({
-    queryKey: analyticsKeys.topOS(websiteId, days, filters),
-    queryFn: () => getTopOS(websiteId, days, filters),
+    queryKey: analyticsKeys.topOS(websiteId, range, filters),
+    queryFn: () => getTopOS(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Single hook that fetches all 6 dimension breakdowns in one request
-export const useDimensionsBulk = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}, enabled = true) => {
+export const useDimensionsBulk = (websiteId: string, range: AnalyticsRange = 7, filters: AnalyticsFilters = {}, enabled = true) => {
   return useQuery({
-    queryKey: analyticsKeys.dimensionsBulk(websiteId, days, filters),
-    queryFn:  () => getDimensionsBulk(websiteId, days, filters),
+    queryKey: analyticsKeys.dimensionsBulk(websiteId, range, filters),
+    queryFn:  () => getDimensionsBulk(websiteId, range, filters),
     enabled:  enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Resolutions Hook
-export const useTopResolutions = (websiteId: string, days: number = 7) => {
+export const useTopResolutions = (websiteId: string, range: AnalyticsRange = 7) => {
   return useQuery<any>({
-    queryKey: analyticsKeys.topResolutions(websiteId, days),
-    queryFn: () => getTopResolutions(websiteId, days),
+    queryKey: analyticsKeys.topResolutions(websiteId, range),
+    queryFn: () => getTopResolutions(websiteId, range),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
@@ -184,30 +186,30 @@ export const useLiveVisitors = (websiteId: string) => {
 };
 
 // Hourly Stats Hook
-export const useHourlyStats = (websiteId: string, days: number = 1, filters: AnalyticsFilters = {}) => {
+export const useHourlyStats = (websiteId: string, range: AnalyticsRange = 1, filters: AnalyticsFilters = {}) => {
   return useQuery<GetHourlyStatsResponse>({
-    queryKey: analyticsKeys.hourlyStats(websiteId, days, filters),
-    queryFn: () => getHourlyStats(websiteId, days, filters),
+    queryKey: analyticsKeys.hourlyStats(websiteId, range, filters),
+    queryFn: () => getHourlyStats(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Daily Stats Hook
-export const useDailyStats = (websiteId: string, days: number = 30, filters: AnalyticsFilters = {}) => {
+export const useDailyStats = (websiteId: string, range: AnalyticsRange = 30, filters: AnalyticsFilters = {}) => {
   return useQuery<GetDailyStatsResponse>({
-    queryKey: analyticsKeys.dailyStats(websiteId, days, filters),
-    queryFn: () => getDailyStats(websiteId, days, filters),
+    queryKey: analyticsKeys.dailyStats(websiteId, range, filters),
+    queryFn: () => getDailyStats(websiteId, range, filters),
     enabled: isValidId(websiteId),
     staleTime: 10 * 60 * 1000, // 10 minutes for daily stats
   });
 };
 
 // Custom Events Hook
-export const useCustomEvents = (websiteId: string, days: number = 30, enabled = true) => {
+export const useCustomEvents = (websiteId: string, range: AnalyticsRange = 30, enabled = true, filters: AnalyticsFilters = {}) => {
   return useQuery({
-    queryKey: analyticsKeys.customEvents(websiteId, days),
-    queryFn: () => getCustomEventsStats(websiteId, days),
+    queryKey: [...analyticsKeys.customEvents(websiteId, range), filters],
+    queryFn: () => getCustomEventsStats(websiteId, range, filters),
     enabled: enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -215,45 +217,50 @@ export const useCustomEvents = (websiteId: string, days: number = 30, enabled = 
 };
 
 // Goal Stats Hook
-export const useGoalStats = (websiteId: string, days: number = 30, enabled = true) => {
+export const useGoalStats = (websiteId: string, range: AnalyticsRange = 30, enabled = true, filters: AnalyticsFilters = {}) => {
   return useQuery({
-    queryKey: analyticsKeys.goalStats(websiteId, days),
-    queryFn: async () => {
-      if (isDemo(websiteId)) {
-        return demoAnalyticsData().goalStats;
-      }
-      const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
-      return response.data;
-    },
+    queryKey: [...analyticsKeys.goalStats(websiteId, range), filters],
+    queryFn: () => getGoalStats(websiteId, range, filters),
     enabled: enabled && isValidId(websiteId),
   });
 };
 
 // Visitor Insights Hook
-export const useVisitorInsights = (websiteId: string, days: number = 7, enabled = true) => {
+export const useVisitorInsights = (websiteId: string, range: AnalyticsRange = 7, enabled = true, filters: AnalyticsFilters = {}) => {
   return useQuery<GetVisitorInsightsResponse>({
-    queryKey: analyticsKeys.visitorInsights(websiteId, days),
-    queryFn: () => getVisitorInsights(websiteId, days),
+    queryKey: [...analyticsKeys.visitorInsights(websiteId, range), filters],
+    queryFn: () => getVisitorInsights(websiteId, range, filters),
     enabled: enabled && isValidId(websiteId),
     staleTime: 10 * 60 * 1000, // 10 minutes for insights
   });
 };
 
-// Hooks
-export const useGeolocationBreakdown = (websiteId: string, days: number = 7, enabled = true) => {
+// Geolocation Hook
+export const useGeolocationBreakdown = (websiteId: string, range: AnalyticsRange = 7, enabled = true, filters: AnalyticsFilters = {}) => {
   return useQuery({
-    queryKey: [...analyticsKeys.all, 'geolocation-breakdown', websiteId, days],
-    queryFn: () => getGeolocationBreakdown(websiteId, days),
+    queryKey: [...analyticsKeys.all, 'geolocation-breakdown', websiteId, rangeKey(range), filters],
+    queryFn: () => getGeolocationBreakdown(websiteId, range, filters),
     enabled: enabled && isValidId(websiteId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });
 };
 
-// Previous Period Daily Stats Hook — fetches 2× the date range and returns the older half
-export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7, enabled: boolean = true) => {
+/**
+ * The daily series of the period before `range` — same number of days, ending the day before
+ * it starts — for the comparison overlay. Asked for by its own dates (./range `previousRange`)
+ * and zero-filled by the server, so day N lines up with day N; it used to fetch twice the range
+ * and slice it by index, which shifted on every empty day and failed outright past 182 days.
+ */
+export const usePreviousPeriodDailyStats = (
+  websiteId: string,
+  range: AnalyticsRange = 7,
+  enabled: boolean = true,
+  filters: AnalyticsFilters = {},
+) => {
+  const previous = previousRange(range);
   return useQuery<GetDailyStatsResponse>({
-    queryKey: [...analyticsKeys.all, 'previous-daily-stats', websiteId, days],
+    queryKey: [...analyticsKeys.all, 'previous-daily-stats', websiteId, rangeKey(previous), filters],
     queryFn: async () => {
       if (isDemo(websiteId)) {
         const demo = demoAnalyticsData().dailyStats as any;
@@ -269,17 +276,7 @@ export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7,
           })),
         };
       }
-      const response = await api.get(
-        `/analytics/daily-stats/${websiteId}?days=${days * 2}&timezone=${getUserTimezone()}`
-      );
-      const allStats = (response.data?.daily_stats || []).sort(
-        (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      );
-      const previousStats = allStats.slice(0, Math.max(allStats.length - days, 0));
-      return {
-        ...response.data,
-        daily_stats: previousStats,
-      };
+      return getDailyStats(websiteId, previous, filters);
     },
     enabled: isValidId(websiteId) && enabled,
     staleTime: 10 * 60 * 1000,

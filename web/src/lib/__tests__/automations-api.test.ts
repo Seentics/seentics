@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Its job is the boundary between the definition document the builder edits and the
  * flattened rows the list and detail views render. The definition has to travel through
  * untouched - it is executable, and a field dropped here is configuration silently lost
- * on the next save - while the flattened projection is derived from the step chain
+ * on the next save - while the flattened projection is derived from `definition.graph`
  * rather than stored beside it.
  */
 
@@ -29,6 +29,16 @@ import {
 
 const SITE = 'ab12cd34';
 
+/** A graph of the given nodes, wired entry-to-last in the order given. */
+function chain(...nodes: Record<string, unknown>[]) {
+  const withIds = nodes.map((n, i) => ({ id: `n${i}`, ...n }));
+  return {
+    entry: 'n0',
+    nodes: withIds,
+    edges: withIds.slice(1).map((n, i) => ({ from: `n${i}`, to: n.id })),
+  };
+}
+
 /** A stored row as the API returns it. */
 function row(over: Record<string, unknown> = {}) {
   return {
@@ -41,7 +51,7 @@ function row(over: Record<string, unknown> = {}) {
     updated_at: '2026-03-01T10:00:00.000Z',
     definition: {
       triggers: [{ type: 'exit_intent' }],
-      steps: [{ kind: 'action', action: { type: 'show_banner', text: '10% off' } }],
+      graph: chain({ kind: 'action', action: { type: 'show_banner', text: '10% off' } }),
     },
     ...over,
   };
@@ -86,12 +96,12 @@ describe('normalisation', () => {
     // the next save.
     const definition = {
       triggers: [{ type: 'exit_intent' }, { type: 'page_view', path: '/pricing' }],
-      steps: [
-        { kind: 'condition', group: { operator: 'AND', rules: [{ fact: 'a', operator: 'isSet' }] } },
-        { kind: 'action', action: { type: 'show_banner', text: 'Hi' } },
+      graph: chain(
+        { kind: 'if', group: { operator: 'AND', rules: [{ fact: 'a', operator: 'isSet' }] } },
+        { kind: 'action', action: { type: 'show_banner', text: 'Hi' }, position: { x: 40, y: 120 } },
         { kind: 'delay', seconds: 5 },
         { kind: 'action', action: { type: 'show_toast', message: 'Bye' } },
-      ],
+      ),
       frequency: { maxPerSession: 1 },
       abTest: { enabled: true, variants: [{ id: 'a', weight: 1 }] },
       priority: 20,
@@ -103,28 +113,28 @@ describe('normalisation', () => {
 
   it('takes the row badge from the first trigger', async () => {
     get.mockResolvedValue({
-      data: { data: row({ definition: { triggers: [{ type: 'click' }, { type: 'page_view' }], steps: [] } }) },
+      data: { data: row({ definition: { triggers: [{ type: 'click' }, { type: 'page_view' }] } }) },
     });
     expect((await fetchAutomation(SITE, 'auto_1'))!.triggerType).toBe('click');
   });
 
   it('leaves the badge blank for a definition with no trigger', async () => {
     // Mid-edit, not broken - the row still has to render.
-    get.mockResolvedValue({ data: { data: row({ definition: { triggers: [], steps: [] } }) } });
+    get.mockResolvedValue({ data: { data: row({ definition: { triggers: [] } }) } });
     expect((await fetchAutomation(SITE, 'auto_1'))!.triggerType).toBe('');
   });
 
-  it('projects action steps into the flattened action list, in order', async () => {
+  it('projects action nodes into the flattened action list, in order', async () => {
     get.mockResolvedValue({
       data: {
         data: row({
           definition: {
             triggers: [{ type: 'exit_intent' }],
-            steps: [
+            graph: chain(
               { kind: 'action', action: { type: 'show_banner', text: 'first' } },
               { kind: 'delay', seconds: 3 },
               { kind: 'action', action: { type: 'show_toast', message: 'second' } },
-            ],
+            ),
           },
         }),
       },
@@ -136,16 +146,41 @@ describe('normalisation', () => {
     expect(out!.actions.map(a => a.orderIndex)).toEqual([0, 1]);
   });
 
+  it('orders actions by the edges from entry, not by where they sit in the node list', async () => {
+    // A node inserted between two others is appended to `nodes`, so stored order is the
+    // order nodes were added - not the order a run reaches them.
+    get.mockResolvedValue({
+      data: {
+        data: row({
+          definition: {
+            triggers: [{ type: 'exit_intent' }],
+            graph: {
+              entry: 'a',
+              nodes: [
+                { id: 'c', kind: 'action', action: { type: 'redirect', url: 'https://x.test' } },
+                { id: 'a', kind: 'action', action: { type: 'show_toast', message: 'hi' } },
+                { id: 'b', kind: 'action', action: { type: 'tag_session', tag: 't' } },
+              ],
+              edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }],
+            },
+          },
+        }),
+      },
+    });
+    const out = await fetchAutomation(SITE, 'auto_1');
+    expect(out!.actions.map(a => a.actionType)).toEqual(['show_toast', 'tag_session', 'redirect']);
+  });
+
   it('excludes conditions and delays from the action list', async () => {
     get.mockResolvedValue({
       data: {
         data: row({
           definition: {
             triggers: [{ type: 'exit_intent' }],
-            steps: [
-              { kind: 'condition', group: { operator: 'OR', rules: [] } },
+            graph: chain(
+              { kind: 'if', group: { operator: 'OR', rules: [] } },
               { kind: 'delay', seconds: 3 },
-            ],
+            ),
           },
         }),
       },
@@ -153,12 +188,12 @@ describe('normalisation', () => {
     expect((await fetchAutomation(SITE, 'auto_1'))!.actions).toEqual([]);
   });
 
-  it('projects condition steps separately, keeping their group', async () => {
+  it('projects condition nodes separately, keeping their group', async () => {
     const group = { operator: 'OR', rules: [{ fact: 'a', operator: 'isSet' }] };
     get.mockResolvedValue({
       data: {
         data: row({
-          definition: { triggers: [{ type: 'exit_intent' }], steps: [{ kind: 'condition', group }] },
+          definition: { triggers: [{ type: 'exit_intent' }], graph: chain({ kind: 'if', group }) },
         }),
       },
     });
@@ -175,7 +210,7 @@ describe('normalisation', () => {
         data: row({
           definition: {
             triggers: [{ type: 'exit_intent' }],
-            steps: [{ kind: 'action', action: { type: 'show_modal', title: 'T', body: 'B' } }],
+            graph: chain({ kind: 'action', action: { type: 'show_modal', title: 'T', body: 'B' } }),
           },
         }),
       },
@@ -187,7 +222,7 @@ describe('normalisation', () => {
 
   it('reads both snake_case and camelCase row fields', async () => {
     get.mockResolvedValue({
-      data: { data: { id: 'a1', websiteId: SITE, userId: 'u1', isActive: true, definition: { triggers: [], steps: [] } } },
+      data: { data: { id: 'a1', websiteId: SITE, userId: 'u1', isActive: true, definition: { triggers: [] } } },
     });
     const out = await fetchAutomation(SITE, 'a1');
     expect(out!.websiteId).toBe(SITE);
@@ -225,7 +260,7 @@ describe('createAutomation', () => {
   it('posts the definition verbatim', async () => {
     const definition = {
       triggers: [{ type: 'exit_intent' }],
-      steps: [{ kind: 'action', action: { type: 'show_banner' } }],
+      graph: chain({ kind: 'action', action: { type: 'show_banner' } }),
     };
     post.mockResolvedValue({ data: { data: row() } });
 
@@ -239,17 +274,17 @@ describe('createAutomation', () => {
     });
   });
 
-  it('does not reshape a chain on the way out', async () => {
-    // The server validates the chain; anything reordered or flattened here would be
+  it('does not reshape a graph on the way out', async () => {
+    // The server validates the graph; anything reordered or flattened here would be
     // rejected as a different automation than the one on screen.
     const definition = {
       triggers: [{ type: 'page_view' }],
-      steps: [
-        { kind: 'condition', group: { operator: 'AND', rules: [] } },
+      graph: chain(
+        { kind: 'if', group: { operator: 'AND', rules: [] } },
         { kind: 'action', action: { type: 'show_toast' } },
         { kind: 'delay', seconds: 5 },
         { kind: 'action', action: { type: 'redirect', url: 'https://x.test' } },
-      ],
+      ),
     };
     post.mockResolvedValue({ data: { data: row() } });
 
@@ -258,7 +293,7 @@ describe('createAutomation', () => {
   });
 
   it('skips the request entirely in demo mode', async () => {
-    await createAutomation('demo', { name: 'x', definition: { triggers: [], steps: [] } });
+    await createAutomation('demo', { name: 'x', definition: { triggers: [] } });
     expect(post).not.toHaveBeenCalled();
   });
 });
@@ -272,7 +307,7 @@ describe('updateAutomation', () => {
   });
 
   it('sends the definition when it is the thing that changed', async () => {
-    const definition = { triggers: [{ type: 'click' }], steps: [{ kind: 'action', action: { type: 'show_toast' } }] };
+    const definition = { triggers: [{ type: 'click' }], graph: chain({ kind: 'action', action: { type: 'show_toast' } }) };
     put.mockResolvedValue({ data: { data: row() } });
 
     await updateAutomation(SITE, 'auto_1', { definition });

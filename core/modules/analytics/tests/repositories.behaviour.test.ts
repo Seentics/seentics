@@ -4,8 +4,8 @@ import { fakeDbModule, fakeLogger, queueRows, resetDb, sqlCalls } from "./helper
 /**
  * Time series, journey analysis, and extraction.
  *
- * The recurring risk in this group is the window: `hourly-stats` clamps to a week on
- * top of the shared clamp, `daily-stats` and `export` default to thirty days rather
+ * The recurring risk in this group is the window: `hourly-stats` defaults to today and
+ * covers the whole range asked for, `daily-stats` and `export` default to thirty days rather
  * than seven, and `activity-trends` is a re-export whose contract is that it stays
  * identical to daily stats. Each of those is a place where a plausible edit changes
  * what a chart is actually showing without changing its label.
@@ -41,7 +41,9 @@ const SITE = "site_1";
 function windowDays(callIndex = 0): number {
   const values = sqlCalls[callIndex]!.values;
   const start = values.find((v): v is string => typeof v === "string" && v.endsWith("Z"));
-  if (start) return Math.round((Date.now() - new Date(start).getTime()) / 86_400_000);
+  // Local-day windows start at a midnight, so they reach back N−1 days and part of one more;
+  // rolling ones exactly N days (plus the test's own few milliseconds).
+  if (start) return Math.ceil((Date.now() - new Date(start).getTime()) / 86_400_000 - 0.001);
   // The per-day queries start at the viewer's local midnight and bind the days to go back
   // (today plus that many before it), instead of a rolling timestamp.
   const back = values.find((v): v is number => typeof v === "number")!;
@@ -60,7 +62,7 @@ function boundTimezone(callIndex = 0): unknown {
 describe("getDailyStatsAnalytics", () => {
   it("publishes rows under daily_stats with `views` and `unique`", async () => {
     queueRows([{ date: "2026-03-01", views: 120, unique_visitors: 80 }]);
-    expect(await getDailyStatsAnalytics(SITE, {})).toEqual({
+    expect(await getDailyStatsAnalytics(SITE, { from: "2026-03-01", to: "2026-03-01" })).toEqual({
       daily_stats: [{ date: "2026-03-01", views: 120, unique: 80 }],
     });
   });
@@ -95,9 +97,29 @@ describe("getDailyStatsAnalytics", () => {
     expect(boundTimezone()).toBe("UTC");
   });
 
-  it("returns an empty series rather than omitting the key", async () => {
+  it("zero-fills every day of the window, so the chart and the comparison line up by position", async () => {
+    queueRows([{ date: "2026-03-02", views: 4, unique_visitors: 3 }]);
+    expect(await getDailyStatsAnalytics(SITE, { from: "2026-03-01", to: "2026-03-03" })).toEqual({
+      daily_stats: [
+        { date: "2026-03-01", views: 0, unique: 0 },
+        { date: "2026-03-02", views: 4, unique: 3 },
+        { date: "2026-03-03", views: 0, unique: 0 },
+      ],
+    });
+  });
+
+  it("answers an explicit range with its local-day bounds, `to` inclusive", async () => {
     queueRows([]);
-    expect(await getDailyStatsAnalytics(SITE, {})).toEqual({ daily_stats: [] });
+    await getDailyStatsAnalytics(SITE, { from: "2026-03-01", to: "2026-03-02", timezone: "Asia/Dhaka" });
+    expect(sqlCalls[0]!.values).toContain("2026-02-28T18:00:00.000Z");
+    expect(sqlCalls[0]!.values).toContain("2026-03-02T18:00:00.000Z");
+  });
+
+  it("reads today for days=0, rather than falling back to the default", async () => {
+    queueRows([]);
+    const out = await getDailyStatsAnalytics(SITE, { days: "0" });
+    expect(windowDays()).toBe(1);
+    expect(out.daily_stats).toHaveLength(1);
   });
 
   it("preserves the query's chronological ordering", async () => {
@@ -105,7 +127,7 @@ describe("getDailyStatsAnalytics", () => {
       { date: "2026-03-01", views: 1, unique_visitors: 1 },
       { date: "2026-03-02", views: 2, unique_visitors: 2 },
     ]);
-    const out = await getDailyStatsAnalytics(SITE, {});
+    const out = await getDailyStatsAnalytics(SITE, { from: "2026-03-01", to: "2026-03-02" });
     expect(out.daily_stats.map((d: { date: string }) => d.date)).toEqual([
       "2026-03-01",
       "2026-03-02",
@@ -161,17 +183,18 @@ describe("getHourlyStatsAnalytics", () => {
     expect(windowDays()).toBe(1);
   });
 
-  it("clamps to seven days on top of the shared clamp", async () => {
-    // Aggregating the same clock hour across more than a week makes the chart a blur;
-    // this second clamp is the reason there is no `timestamp` on each bucket.
+  it("covers the whole range asked for, however long", async () => {
+    // It was held to seven days without saying so, so a 30-day view's hourly tab showed a
+    // different week from the daily tab. A bucket is that clock hour across every day,
+    // which is why there is no `timestamp` on each.
     queueRows([]);
     await getHourlyStatsAnalytics(SITE, { days: "30" });
-    expect(windowDays()).toBe(7);
+    expect(windowDays()).toBe(30);
 
     resetDb();
     queueRows([]);
     await getHourlyStatsAnalytics(SITE, { days: "365" });
-    expect(windowDays()).toBe(7);
+    expect(windowDays()).toBe(365);
   });
 
   it("honours a window inside the clamp", async () => {

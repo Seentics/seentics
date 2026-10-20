@@ -6,6 +6,7 @@ import type {
   ErrorSample,
 } from "../interfaces";
 import {
+  countErrorGroupsByStatus,
   getErrorGroup,
   listErrorGroups,
   listErrorGroupsByWindowCount,
@@ -23,9 +24,18 @@ import {
 export class ErrorQueryService implements ErrorQueries {
   async listGroups(
     websiteId: string,
-    q: { days: number; status?: string; search?: string; limit?: number },
-  ): Promise<{ groups: ErrorGroupSummary[] }> {
-    return { groups: await listErrorGroups(websiteId, q) };
+    q: { days: number; status?: string; search?: string; limit?: number; counts?: boolean },
+  ): Promise<{ groups: ErrorGroupSummary[]; total?: number; status_counts?: Record<string, number> }> {
+    if (!q.counts) return { groups: await listErrorGroups(websiteId, q) };
+    const [groups, statusCounts] = await Promise.all([
+      listErrorGroups(websiteId, q),
+      countErrorGroupsByStatus(websiteId, q),
+    ]);
+    const status = (q.status ?? "").trim();
+    const total = status
+      ? statusCounts[status] ?? 0
+      : Object.values(statusCounts).reduce((a, n) => a + n, 0);
+    return { groups, total, status_counts: statusCounts };
   }
 
   async listGroupsByWindowCount(

@@ -1,7 +1,9 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
-import { orNotSet, parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { orNotSet } from "./shared";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 /**
  * Top pages by pageview count over the trailing window.
@@ -13,10 +15,10 @@ export async function getPagesAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
+  const { span, filters, useRollups } = readScope(query);
 
-  const rows = rollupsEnabled()
-    ? (await topRows(websiteId, "page", days, 50)).map((r) => ({ page: r.k, views: r.views, unique_visitors: r.unique_visitors }))
+  const rows = useRollups
+    ? (await topRows(websiteId, "page", span, 50)).map((r) => ({ page: r.k, views: r.views, unique_visitors: r.unique_visitors }))
     : await pgSql<
     {
       page: string;
@@ -40,9 +42,11 @@ export async function getPagesAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${windowStartIso(days)}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND page IS NOT NULL
         AND length(trim(page)) > 0
+        ${filterSql(filters, websiteId, span)}
       GROUP BY 1, 2
     ) per_visitor
     GROUP BY page

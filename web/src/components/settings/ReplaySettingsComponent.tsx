@@ -63,8 +63,9 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
       return updateWebsite(website.id, {
         replayEnabled: vars.enabled,
         replaySamplingRate: vars.rate / 100,
-        replayIncludePatterns: vars.include || undefined,
-        replayExcludePatterns: vars.exclude || undefined,
+        // Emptied is sent as a clear: undefined left the key out, and core kept the old patterns.
+        replayIncludePatterns: vars.include.trim() || null,
+        replayExcludePatterns: vars.exclude.trim() || null,
         maskAllText: vars.maskAll,
         // Emptied means no pages masked in full, so it is sent as a clear, not left out.
         maskTextPatterns: vars.maskPatterns.trim() || null,

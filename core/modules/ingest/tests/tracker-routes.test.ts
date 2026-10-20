@@ -146,6 +146,7 @@ function makeAutomationRow(overrides: Partial<AutomationRow> = {}): AutomationRo
     websiteId: ACTIVE_WEBSITE.id,
     userId: "user1",
     name: "Exit popup",
+    description: "",
     definition: { trigger: "exit" },
     isActive: true,
     priority: 0,

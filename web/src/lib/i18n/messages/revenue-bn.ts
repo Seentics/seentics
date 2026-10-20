@@ -37,6 +37,9 @@ export const revenueBn: RevenueMessages = {
     transaction: 'লেনদেন',
     lineItems: 'আইটেম',
     openFullPage: 'পুরো পেজ খুলুন',
+    otherCurrencies: (currency, parts) =>
+      `মোট হিসাব ${currency}-এ, বেশিরভাগ অর্ডার যে কারেন্সিতে হয়েছে। রূপান্তর বা যোগ করা হয়নি: ${parts}।`,
+    ordersIn: (n, money) => `${n}টি অর্ডার (${money})`,
   },
 
   table: { name: 'নাম', revenue: 'রেভিনিউ', orders: 'অর্ডার', share: 'অংশ' },
@@ -52,7 +55,8 @@ export const revenueBn: RevenueMessages = {
   },
 
   transaction: {
-    notFound: 'এই লেনদেন গত 90 দিনের ডেটায় নেই, অথবা আইডিটা ভুল।',
+    notFound: 'এই সাইটে এই আইডির কোনো পারচেজ পাওয়া যায়নি।',
+    loadFailed: 'লেনদেনটা লোড করা যায়নি। একটু পরে আবার চেষ্টা করুন।',
     overview: 'রেভিনিউ ওভারভিউ',
     allRevenue: 'সব রেভিনিউ',
     purchase: 'পারচেজ',

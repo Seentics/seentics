@@ -6,7 +6,10 @@
  * Repositories call these only when `rollupsEnabled()` — a Postgres without the `hll`
  * extension has no rollup tables and keeps reading raw events.
  *
- * Windows are calendar days in UTC: "last N days" is today plus the N−1 days before it.
+ * Windows are a read's span (lib/analytics-window.ts) or a trailing day count. Reads of the
+ * hourly rollup use its exact bounds; the daily rollup is kept per UTC day, so a breakdown
+ * covers the UTC days most of which fall in the window ("last N days" in UTC: today plus the
+ * N−1 days before it). A read that is filtered never comes here (lib/analytics-filters.ts).
  * Unique visitors are HyperLogLog unions (~1% on large counts, exact on small ones);
  * every other number is exact.
  *
@@ -18,6 +21,7 @@
 import { analyticsReadSql as pgSql, sql } from "../../../db";
 import { log as baseLog } from "../../../platform/observability/logger";
 import { buildStaleRollups } from "./builder";
+import { resolveSpan, type AnalyticsSpan } from "../lib/analytics-window";
 
 const log = baseLog.child({ category: "analytics_rollups" });
 
@@ -107,6 +111,22 @@ const DAY_MS = 86_400_000;
 
 export type RollupWindow = { from: string; to: string; prevFrom: string; prevTo: string };
 
+/**
+ * A read's window, from either a day count (the trailing `days`, in `tz`) or a resolved span.
+ * The day-count form is what callers outside the dashboard reads still pass.
+ */
+export type RollupRange = number | AnalyticsSpan;
+
+function toSpan(range: RollupRange, tz = "UTC"): AnalyticsSpan {
+  return typeof range === "number" ? resolveSpan({ days: String(range) }, tz) : range;
+}
+
+/** The UTC days of the daily rollup a range reads, inclusive. */
+function rollupDays(range: RollupRange): { from: string; to: string } {
+  const span = toSpan(range);
+  return { from: span.fromDay, to: span.toDay };
+}
+
 /** Today plus the `days − 1` days before it, and the same length immediately before. */
 export function rollupWindow(days: number, now = Date.now()): RollupWindow {
   const today = Date.parse(new Date(now).toISOString().slice(0, 10) + "T00:00:00Z");
@@ -129,17 +149,18 @@ type TotalsRow = {
  * In UTC the window is whole UTC days. In any other zone it is the viewer's local days — the
  * same window the daily chart draws (`dailyRows`), so the headline numbers and the chart add up.
  */
-export async function dashboardRows(websiteId: string, days: number, tz = "UTC") {
+export async function dashboardRows(websiteId: string, range: RollupRange, tz = "UTC") {
   await ensureFresh(websiteId);
-  return shapeTotals(await localTotals(websiteId, days, tz));
+  return shapeTotals(await localTotals(websiteId, toSpan(range, tz)));
 }
 
 /**
  * Totals over the viewer's local days, from the hourly rollup: pageviews and visitors by the hour
  * they happened, sessions, bounces and duration by the hour each session began.
  *
- * The previous window stops as far into its last day as the current one is into today. It
- * used to run to the end of that day, so at 09:00 "today" (nine hours) was set against all
+ * Both windows are the span's (lib/analytics-window.ts), so the dashboard can ask for today,
+ * yesterday or any range. The previous window stops as far into its last day as the current
+ * one is into today. It used to run to the end of that day, so at 09:00 "today" (nine hours) was set against all
  * of yesterday and a flat day read as a 60% drop — the raw-event path compares equal spans.
  * UTC goes through here too: the daily rollup it read could not cut a day short.
  *
@@ -148,24 +169,24 @@ export async function dashboardRows(websiteId: string, days: number, tz = "UTC")
  * it is. Within the raw-event retention every day is rebuilt with them, so this is exact for any
  * recent window and close for an older one's first day.
  */
-async function localTotals(websiteId: string, days: number, tz: string): Promise<TotalsRow | undefined> {
+async function localTotals(websiteId: string, span: AnalyticsSpan): Promise<TotalsRow | undefined> {
   const [row] = await pgSql<TotalsRow[]>`
-    WITH b AS (
-      SELECT (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz} AS f,
-             (date_trunc('day', now() AT TIME ZONE ${tz}) - ${2 * days - 1} * interval '1 day') AT TIME ZONE ${tz} AS pf
-    ),
-    h AS (
-      SELECT r.pageviews, r.visitors, r.sessions, r.bounces, r.duration_s, r.hour, r.hour >= b.f AS cur
-      FROM analytics_rollup_hourly r, b
-      WHERE r.website_id = ${websiteId} AND r.hour >= b.pf
-        AND (r.hour >= b.f OR r.hour < b.pf + (now() - b.f))
+    WITH h AS (
+      SELECT r.pageviews, r.visitors, r.sessions, r.bounces, r.duration_s, r.hour, r.hour >= ${span.start}::timestamptz AS cur
+      FROM analytics_rollup_hourly r
+      WHERE r.website_id = ${websiteId}
+        AND ((r.hour >= ${span.start}::timestamptz AND r.hour < ${span.end}::timestamptz)
+          OR (r.hour >= ${span.prevStart}::timestamptz AND r.hour < ${span.prevEnd}::timestamptz))
     ),
     covered AS (SELECT DISTINCT (hour AT TIME ZONE 'UTC')::date AS day FROM h WHERE sessions IS NOT NULL),
     legacy AS (
-      SELECT d.sessions, d.bounces, d.duration_s, (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= b.f AS cur
-      FROM analytics_rollup_daily d, b
+      SELECT d.sessions, d.bounces, d.duration_s, (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= ${span.start}::timestamptz AS cur
+      FROM analytics_rollup_daily d
       WHERE d.website_id = ${websiteId} AND d.dimension = 'site'
-        AND (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= b.pf
+        AND (((d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= ${span.start}::timestamptz
+              AND (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' < ${span.end}::timestamptz)
+          OR ((d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' >= ${span.prevStart}::timestamptz
+              AND (d.day::timestamp AT TIME ZONE 'UTC') + interval '12 hours' < ${span.prevEnd}::timestamptz))
         AND d.day NOT IN (SELECT day FROM covered)
     ),
     s AS (
@@ -217,13 +238,13 @@ export type TopRow = { k: string; views: number; sessions: number; bounces: numb
 export async function topRows(
   websiteId: string,
   dimension: string,
-  days: number,
+  range: RollupRange,
   limit: number,
   orderBy: "views" | "unique_visitors" | "sessions" = "views",
   withUniques = true,
 ): Promise<TopRow[]> {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
+  const w = rollupDays(range);
   // Ranked by a plain sum, the top values are picked first and only their sketches are
   // unioned: `path` holds ~150k values on a large site, and unioning a sketch for each
   // before discarding all but 50 took 1.2 s over 90 days.
@@ -295,9 +316,9 @@ export async function topRows(
 }
 
 /** Unique visitors across the whole site over the window. */
-export async function siteUniques(websiteId: string, days: number): Promise<number> {
+export async function siteUniques(websiteId: string, range: RollupRange): Promise<number> {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
+  const w = rollupDays(range);
   const [row] = await pgSql<{ uv: number }[]>`
     SELECT ${uniques()} AS uv
     FROM analytics_rollup_daily
@@ -308,23 +329,24 @@ export async function siteUniques(websiteId: string, days: number): Promise<numb
 }
 
 /**
- * Pageviews and visitors per local day in `tz`, regrouped from UTC hours, for today and the
- * `days − 1` local days before it. Exact for whole-hour offsets; in a half-hour zone an hour
- * straddling local midnight is counted on the day it started.
+ * Pageviews and visitors per local day in `tz`, regrouped from UTC hours, over the window —
+ * today and the `days − 1` local days before it for a day count. Exact for whole-hour offsets;
+ * in a half-hour zone an hour straddling local midnight is counted on the day it started.
  */
-export async function dailyRows(websiteId: string, days: number, tz: string) {
+export async function dailyRows(websiteId: string, range: RollupRange, tz: string) {
   await ensureFresh(websiteId);
+  const span = toSpan(range, tz);
   const rows = await pgSql<{ date: string; views: number; unique_visitors: number }[]>`
     SELECT
       (hour AT TIME ZONE ${tz})::date::text AS date,
       sum(pageviews)::bigint AS views,
       ${uniques()} AS unique_visitors
     FROM analytics_rollup_hourly
-    -- From the start of the viewer's local day, days-1 days back — not from midnight UTC, which
-    -- is mid-afternoon or mid-morning where they are and made the first bar a partial day (or an
-    -- extra one) in every zone but UTC.
+    -- From the start of the viewer's local day — not from midnight UTC, which is mid-afternoon
+    -- or mid-morning where they are and made the first bar a partial day (or an extra one) in
+    -- every zone but UTC.
     WHERE website_id = ${websiteId}
-      AND hour >= (date_trunc('day', now() AT TIME ZONE ${tz}) - ${days - 1} * interval '1 day') AT TIME ZONE ${tz}
+      AND hour >= ${span.start}::timestamptz AND hour < ${span.end}::timestamptz
     GROUP BY 1
     ORDER BY 1
   `;
@@ -332,16 +354,17 @@ export async function dailyRows(websiteId: string, days: number, tz: string) {
 }
 
 /** Pageviews and visitors per hour of day in `tz`, over the window. */
-export async function hourlyRows(websiteId: string, days: number, tz: string) {
+export async function hourlyRows(websiteId: string, range: RollupRange, tz: string) {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
+  const span = toSpan(range, tz);
   const rows = await pgSql<{ h: number; views: number; unique: number }[]>`
     SELECT
       extract(hour FROM hour AT TIME ZONE ${tz})::int AS h,
       sum(pageviews)::bigint AS views,
       ${uniques()} AS unique
     FROM analytics_rollup_hourly
-    WHERE website_id = ${websiteId} AND hour >= ${w.from}::date
+    WHERE website_id = ${websiteId}
+      AND hour >= ${span.start}::timestamptz AND hour < ${span.end}::timestamptz
     GROUP BY 1
     ORDER BY 1
   `;
@@ -349,9 +372,9 @@ export async function hourlyRows(websiteId: string, days: number, tz: string) {
 }
 
 /** Visitors whose first-ever visit falls inside the window. */
-export async function newVisitorCount(websiteId: string, days: number): Promise<number> {
+export async function newVisitorCount(websiteId: string, range: RollupRange): Promise<number> {
   await ensureFresh(websiteId);
-  const w = rollupWindow(days);
+  const w = rollupDays(range);
   const [row] = await pgSql<{ n: number }[]>`
     SELECT count(*)::int AS n
     FROM analytics_rollup_visitor_first_seen

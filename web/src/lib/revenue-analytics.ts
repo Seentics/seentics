@@ -46,7 +46,19 @@ export interface RevenueTransaction {
   campaign?: string;
   country?: string;
   user_type?: 'new' | 'returning';
-  items?: Array<{ sku: string; name: string; qty: number; price: number }>;
+  /**
+   * The site's own line items, stored as sent — `{ sku, name, qty, price }` or GA4's
+   * `{ item_id, item_name, quantity, price }`. Read them through `lineItems()`
+   * (`features/revenue/format`), not directly.
+   */
+  items?: Array<Record<string, unknown>>;
+}
+
+/** Orders in a currency other than the dashboard's, which the totals leave out. */
+export interface RevenueOtherCurrency {
+  currency: string;
+  orders: number;
+  revenue: number;
 }
 
 export interface RevenueDashboardResponse {
@@ -61,6 +73,8 @@ export interface RevenueDashboardResponse {
   by_product: RevenueByRow[];
   by_country: RevenueByRow[];
   recent_transactions: RevenueTransaction[];
+  /** Present when some orders were in another currency: listed, not converted or totalled. */
+  other_currencies?: RevenueOtherCurrency[];
   /** Present when data_quality is not 'full' */
   data_note?: string;
 }
@@ -75,10 +89,42 @@ export async function getRevenueDashboard(websiteId: string, days: number = 30):
   return res.data;
 }
 
+/**
+ * One transaction by its event id, or `null` when the site has no such purchase.
+ *
+ * Read on its own rather than found in the dashboard's `recent_transactions`, which holds
+ * only the latest 50 — every older order used to read as "not found". A failed request
+ * throws, so the page can tell "no such order" from "could not load it".
+ */
+export async function getRevenueTransaction(websiteId: string, transactionId: string): Promise<RevenueTransaction | null> {
+  if (isDemo(websiteId)) {
+    return loadDemo(90).recent_transactions.find((t) => t.id === transactionId) ?? null;
+  }
+  try {
+    const res = await api.get<{ data: RevenueTransaction }>(`/analytics/revenue-transaction/${websiteId}`, {
+      params: { id: transactionId },
+    });
+    return res.data?.data ?? null;
+  } catch (error) {
+    if ((error as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw error;
+  }
+}
+
 export const revenueKeys = {
   all: ['revenue'] as const,
   dashboard: (websiteId: string, days: number) => [...revenueKeys.all, 'dashboard', websiteId, days] as const,
+  transaction: (websiteId: string, id: string) => [...revenueKeys.all, 'transaction', websiteId, id] as const,
 };
+
+export function useRevenueTransaction(websiteId: string, transactionId: string) {
+  return useQuery({
+    queryKey: revenueKeys.transaction(websiteId, transactionId),
+    queryFn: () => getRevenueTransaction(websiteId, transactionId),
+    enabled: isValidId(websiteId) && !!transactionId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 export function useRevenueDashboard(websiteId: string, days: number = 30) {
   return useQuery({

@@ -1,21 +1,24 @@
 import { Hono } from "hono";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
-import type { PasswordChanger, UserDirectory } from "../../modules/auth/interfaces";
+import type { PasswordChanger, ProfileEditor, UserDirectory } from "../../modules/auth/interfaces";
 
 /**
  * A factory now, so the user lookup arrives as a port. This file used to import
  * `getUserById` out of the former all-purpose auth service — the module that also held password
  * hashing and token signing.
  */
-export function createUserProfileRoutes(deps: { users: UserDirectory; passwords: PasswordChanger }) {
+export function createUserProfileRoutes(deps: { users: UserDirectory; passwords: PasswordChanger; profiles: ProfileEditor }) {
 const r = new Hono<{ Variables: AuthVars }>();
 r.use("*", authMiddleware);
 
+// This read the body and discarded it, so a rename answered 200 and changed nothing.
 r.put("/profile", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
-  void c.req.json().catch(() => null);
-  const user = await deps.users.getProfileForClient(uid);
+  const body = (await c.req.json().catch(() => null)) as { name?: unknown } | null;
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  if (!name || name.length > 255) return c.json({ error: "name (1-255 characters) is required" }, 400);
+  const user = await deps.profiles.updateName(uid, name);
   if (!user) return c.json({ error: "not found" }, 404);
   return c.json({ data: { user } });
 });

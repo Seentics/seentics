@@ -25,12 +25,15 @@ export type Website = {
   heatmapExcludePatterns?: string;
   replayEnabled: boolean;
   replaySamplingRate: number;
-  replayIncludePatterns?: string;
-  replayExcludePatterns?: string;
+  /** Null (or absent) when every page is recorded / none is left out. */
+  replayIncludePatterns?: string | null;
+  replayExcludePatterns?: string | null;
   /** Recordings and heatmap snapshots mask all page text: everywhere, or on these pages. */
   maskAllText?: boolean;
   maskTextPatterns?: string | null;
   verificationToken: string;
+  /** The public dashboard link's id (/share/<id>), or null while sharing is off. Read only on the detail fetch. */
+  publicShareId?: string | null;
   settings: {
     allowedOrigins: string[];
     trackingEnabled: boolean;

@@ -27,7 +27,7 @@ import { Receipt, ExternalLink, BookOpen } from 'lucide-react';
 import { RevenueDocsSheet } from '@/components/revenue/RevenueDocsSheet';
 import { DimTable } from '@/components/revenue/DimTable';
 import { RevenueOrdersChart } from '@/components/revenue/RevenueOrdersChart';
-import { fmtTime } from '@/features/revenue/format';
+import { fmtTime, lineItems } from '@/features/revenue/format';
 import { useLocale, useT } from '@/lib/i18n';
 
 export default function RevenuePage() {
@@ -206,6 +206,16 @@ export default function RevenuePage() {
       {/* ── 4 stat cards (same StatCards component as Funnels, Events pages) ── */}
       <StatCards cards={topCards} cols={4} isLoading={false} />
 
+      {/* Money in two currencies does not add up, so other currencies are listed, not totalled. */}
+      {(data?.other_currencies?.length ?? 0) > 0 && (
+        <p role="note" className="mb-4 text-xs text-muted-foreground">
+          {t.otherCurrencies(
+            cur,
+            data!.other_currencies!.map((c) => t.ordersIn(c.orders, formatMoney(c.revenue, c.currency))).join(', '),
+          )}
+        </p>
+      )}
+
       <RevenueOrdersChart chartData={chartData} currency={cur} />
 
       {/* ── Attribution breakdown ── */}
@@ -298,17 +308,14 @@ export default function RevenuePage() {
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-1">{t.lineItems}</p>
                     <ul className="space-y-1.5">
-                      {(openTx.items && openTx.items.length > 0
-                        ? openTx.items
-                        : [{ sku: '', name: openTx.product_name, qty: 1, price: openTx.value }]
-                      ).map((it, i) => (
+                      {lineItems(openTx).map((it, i) => (
                         <li key={i} className="flex justify-between text-xs border border-border rounded-lg px-3 py-2">
                           <span>
                             <span className="font-medium">{it.name}</span>
                             {it.sku && <span className="text-muted-foreground ml-1 font-mono">({it.sku})</span>}
                             <span className="text-muted-foreground"> ×{it.qty}</span>
                           </span>
-                          <span className="tabular-nums font-medium">{formatMoney(it.price, openTx.currency || cur)}</span>
+                          <span className="tabular-nums font-medium">{it.price === null ? '—' : formatMoney(it.price, openTx.currency || cur)}</span>
                         </li>
                       ))}
                     </ul>

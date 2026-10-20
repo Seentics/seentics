@@ -1,9 +1,12 @@
 /** High-level KPIs for the main dashboard (single scan where possible). */
 import { analyticsReadSql as pgSql } from "../../../db";
 import { log } from "../../../platform/observability/logger";
-import { parseDays, sanitizeTimezone } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
-import { dashboardRows, rollupsEnabled } from "../rollups/reads";
+import { dashboardRows } from "../rollups/reads";
+import type { AnalyticsFilters } from "../lib/analytics-filters";
+import { filteredSessionsSql, filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
+import type { AnalyticsSpan } from "../lib/analytics-window";
 
 /** The windowed pageview/visitor counts, current period and the one before it. */
 type TrafficAgg = {
@@ -40,14 +43,19 @@ type DashboardRows = {
  *
  * Separated from `getDashboardStats` so that reading the SQL and reading the arithmetic
  * around it are two different acts.
+ *
+ * The previous period is `[prevStart, prevEnd)`, which can end before the current one starts
+ * (lib/analytics-window.ts), so both are bounded explicitly. Filters narrow the pageviews, and
+ * the session figures to the sessions with a matching pageview (lib/analytics-filters.ts).
  */
 async function fetchDashboardRows(
   websiteId: string,
-  startIso: string,
-  endIso: string,
-  prevStartIso: string,
+  span: AnalyticsSpan,
+  filters: AnalyticsFilters,
   includeLive = true,
 ): Promise<DashboardRows> {
+  const { start: startIso, end: endIso, prevStart: prevStartIso, prevEnd: prevEndIso } = span;
+  const whole = { start: prevStartIso, end: endIso };
   const [[agg], [sess], liveRow] = await Promise.all([
     pgSql<TrafficAgg[]>`
       -- Pageviews and distinct visitors for both periods from one scan, in two
@@ -72,7 +80,9 @@ async function fetchDashboardRows(
           -- predicate, so the scan never reads the heap.
           AND event_type = 'pageview'
           AND occurred_at >= ${prevStartIso}
-          AND occurred_at <= ${endIso}
+          AND occurred_at < ${endIso}
+          AND (occurred_at >= ${startIso} OR occurred_at < ${prevEndIso})
+          ${filterSql(filters, websiteId, whole)}
         GROUP BY 1, 2
       ) per_visitor
     `,
@@ -90,7 +100,8 @@ async function fetchDashboardRows(
         FROM analytics_events
         WHERE website_id = ${websiteId}
           AND occurred_at >= ${prevStartIso}
-          AND occurred_at <= ${endIso}
+          AND occurred_at < ${endIso}
+          ${filteredSessionsSql(filters, websiteId, whole)}
       ),
       cur_s AS (
         SELECT
@@ -100,7 +111,7 @@ async function fetchDashboardRows(
           max(occurred_at) AS mx
         FROM e
         WHERE occurred_at >= ${startIso}
-          AND occurred_at <= ${endIso}
+          AND occurred_at < ${endIso}
           AND session_id IS NOT NULL
           AND length(trim(session_id)) > 0
         GROUP BY session_id
@@ -116,7 +127,7 @@ async function fetchDashboardRows(
           max(occurred_at) AS mx
         FROM e
         WHERE occurred_at >= ${prevStartIso}
-          AND occurred_at < ${startIso}
+          AND occurred_at < ${prevEndIso}
           AND session_id IS NOT NULL
           AND length(trim(session_id)) > 0
         GROUP BY session_id
@@ -285,31 +296,21 @@ export async function getDashboardStats(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
+  const { span, tz, filters, useRollups } = readScope(query);
+  const days = span.days;
 
-  // Rollups when available (see rollups/reads.ts); live visitors are always read raw,
-  // since they cover the last 30 seconds.
-  if (rollupsEnabled()) {
+  // Rollups when available and unfiltered (see rollups/reads.ts); live visitors are always
+  // read raw, since they cover the last 30 seconds.
+  if (useRollups) {
     const [{ agg, sess }, liveVisitors] = await Promise.all([
-      dashboardRows(websiteId, days, sanitizeTimezone(query.timezone)),
+      dashboardRows(websiteId, span, tz),
       query.live === '0' ? Promise.resolve(0) : fetchLiveVisitors(websiteId),
     ]);
     return shapeDashboardStats(websiteId, days, { agg, sess, liveVisitors });
   }
 
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 86400000);
-  const prevStart = new Date(start.getTime() - days * 86400000);
-
   /** The driver binds string timestamps, not `Date` (byteLength bind). */
-  const rows = await fetchDashboardRows(
-    websiteId,
-    start.toISOString(),
-    end.toISOString(),
-    prevStart.toISOString(),
-    query.live !== '0',
-  );
+  const rows = await fetchDashboardRows(websiteId, span, filters, query.live !== '0');
 
   return shapeDashboardStats(websiteId, days, rows);
 }
-

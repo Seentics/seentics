@@ -98,10 +98,15 @@ export type ErrorGroupWindowCount = {
 };
 
 export interface ErrorQueries {
+  /**
+   * At most `limit` faults (200 at most), most recently seen first. With `counts`, also how
+   * many match the window and search in all — `total` for the status asked, `status_counts`
+   * per status — so a capped list can say it is capped and its tabs can show real totals.
+   */
   listGroups(
     websiteId: string,
-    q: { days: number; status?: string; search?: string; limit?: number },
-  ): Promise<{ groups: ErrorGroupSummary[] }>;
+    q: { days: number; status?: string; search?: string; limit?: number; counts?: boolean },
+  ): Promise<{ groups: ErrorGroupSummary[]; total?: number; status_counts?: Record<string, number> }>;
   getGroup(
     websiteId: string,
     fingerprint: string,

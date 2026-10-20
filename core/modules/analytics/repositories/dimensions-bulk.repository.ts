@@ -1,8 +1,9 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql, withoutVersionSql } from "../lib/dimension-sql";
-import { parseDays, windowStartIso } from "./shared";
 import { sessionReferrerRows } from "./referrers.repository";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 /**
  * All six dimension breakdowns (pages, referrers, countries, browsers, devices, OS) behind
@@ -24,20 +25,23 @@ export async function getDimensionsBulkAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
+  const scope = readScope(query);
+  const { span, filters } = scope;
+  const days = span.days;
+  // Fresh per query: each scan carries its own copy of the filter predicate.
+  const where = () => filterSql(filters, websiteId, span);
 
   type DimRow  = { k: string | null; views: number; unique_visitors: number };
 
   // From the rollups when available: six small lookups instead of six scans.
-  if (rollupsEnabled()) {
+  if (scope.useRollups) {
     const [pages, referrers, countries, browsers, devices, os] = await Promise.all([
-      topRows(websiteId, "page", days, 50),
-      sessionReferrerRows(websiteId, days),
-      topRows(websiteId, "country", days, 50),
-      topRows(websiteId, "browser", days, 50),
-      topRows(websiteId, "device", days, 50),
-      topRows(websiteId, "os", days, 50),
+      topRows(websiteId, "page", span, 50),
+      sessionReferrerRows(websiteId, scope),
+      topRows(websiteId, "country", span, 50),
+      topRows(websiteId, "browser", span, 50),
+      topRows(websiteId, "device", span, 50),
+      topRows(websiteId, "os", span, 50),
     ]);
     return {
       website_id: websiteId,
@@ -68,8 +72,10 @@ export async function getDimensionsBulkAnalytics(
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
-            AND occurred_at >= ${startIso}
+            AND occurred_at >= ${span.start}
+            AND occurred_at < ${span.end}
             AND page IS NOT NULL AND length(trim(page)) > 0
+            ${where()}
           GROUP BY 1, 2
         ) per_visitor
         GROUP BY k
@@ -79,7 +85,7 @@ export async function getDimensionsBulkAnalytics(
       // Kept in step with referrers.repository.ts, which carries the full note: the
       // normalisation belongs inside the window, or NULL, empty and whitespace referrers
       // become three separate groups that all render as 'direct'.
-      sessionReferrerRows(websiteId, days),
+      sessionReferrerRows(websiteId, scope),
       pgSql<DimRow[]>`
         SELECT k, sum(n)::int AS views, count(vk)::int AS unique_visitors
         FROM (
@@ -87,8 +93,10 @@ export async function getDimensionsBulkAnalytics(
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
-            AND occurred_at >= ${startIso}
+            AND occurred_at >= ${span.start}
+            AND occurred_at < ${span.end}
             AND country IS NOT NULL AND length(trim(country)) > 0
+            ${where()}
           GROUP BY 1, 2
         ) per_visitor
         GROUP BY k
@@ -102,8 +110,10 @@ export async function getDimensionsBulkAnalytics(
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
-            AND occurred_at >= ${startIso}
+            AND occurred_at >= ${span.start}
+            AND occurred_at < ${span.end}
             AND browser IS NOT NULL AND length(trim(browser)) > 0
+            ${where()}
           GROUP BY 1, 2
         ) per_visitor
         GROUP BY k
@@ -117,8 +127,10 @@ export async function getDimensionsBulkAnalytics(
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
-            AND occurred_at >= ${startIso}
+            AND occurred_at >= ${span.start}
+            AND occurred_at < ${span.end}
             AND device IS NOT NULL AND length(trim(device)) > 0
+            ${where()}
           GROUP BY 1, 2
         ) per_visitor
         GROUP BY k
@@ -132,8 +144,10 @@ export async function getDimensionsBulkAnalytics(
           FROM analytics_events
           WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
-            AND occurred_at >= ${startIso}
+            AND occurred_at >= ${span.start}
+            AND occurred_at < ${span.end}
             AND os IS NOT NULL AND length(trim(os)) > 0
+            ${where()}
           GROUP BY 1, 2
         ) per_visitor
         GROUP BY k

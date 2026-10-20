@@ -85,7 +85,8 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
 
   // The shared reader of the site in the path (lib/path-segment), like the rest of the app:
   // it also answers for the landing page's preview, which shows this page as the demo's.
-  const onDemoSite = isDemo(usePathSegment(1) ?? '');
+  const currentSiteId = usePathSegment(1) ?? '';
+  const onDemoSite = isDemo(currentSiteId);
   const [listLoading, setListLoading] = useState(true);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -183,13 +184,21 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
       toast({ title: t.deleted, description: t.deletedBody(deleteSite.name) });
       setDeleteSite(null);
       const next = await getWebsites();
+      // Set first: the navigation below keeps this panel mounted (same page, new site id), so
+      // nothing else would refetch the list and the deleted row would linger.
+      setWebsites(next);
+      // Deleting the site these settings belong to left them showing a site that no longer exists.
+      if (deleteSite.id === currentSiteId) {
+        router.replace(next[0] ? `/websites/${next[0].id}/settings/websites` : '/websites');
+        return;
+      }
       if (next.length === 0 && redirectWhenEmpty) {
         router.replace('/websites');
         return;
       }
-      setWebsites(next);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t.deleteFailedBody;
+    } catch (e: any) {
+      // The server's reason (not the owner, a failed Observe erase) over axios's "status code 403".
+      const msg = e?.response?.data?.error || (e instanceof Error ? e.message : t.deleteFailedBody);
       toast({ title: t.deleteFailed, description: msg, variant: 'destructive' });
     } finally {
       setDeleteLoading(false);

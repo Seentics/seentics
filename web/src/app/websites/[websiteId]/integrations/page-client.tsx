@@ -149,7 +149,8 @@ export default function IntegrationsPage() {
         deliveries={deliveries.data ?? []}
         isLoading={deliveries.isLoading}
         now={now}
-        onRetry={demo ? undefined : (d) => {
+        // Retrying a delivery is a write the API refuses a viewer (403), so a viewer gets no button.
+        onRetry={demo || !canEdit ? undefined : (d) => {
           setRetrying(d.id);
           retry.mutate(d.id, { onError: fail, onSettled: () => setRetrying(null) });
         }}

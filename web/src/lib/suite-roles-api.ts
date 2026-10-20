@@ -13,7 +13,8 @@ export const ROLES = ['viewer', 'member', 'admin', 'owner'] as const;
 export type Role = (typeof ROLES)[number];
 
 export type SuiteTeam = { id: string; name: string; isPersonal: boolean; role: Role };
-export type SuiteMember = { userId: string; name: string; email: string; role: Role };
+/** `customRoleId`: the team's custom role the member holds, or null for their preset's permissions. */
+export type SuiteMember = { userId: string; name: string; email: string; role: Role; customRoleId: string | null };
 export type CustomRole = { id: string; name: string; baseRole: Role; permissions: string[] };
 export type Access = { teamId: string; role: Role; permissions: string[] };
 export type PermissionCatalogue = { permissions: string[]; presets: Record<Role, string[]> };

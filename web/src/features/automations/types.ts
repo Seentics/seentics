@@ -9,7 +9,10 @@ import { isDemo, demoMutationGuard, demoAutomations } from '@/lib/demo';
 export interface AutomationAction {
     id?: string;
     automationId?: string;
-    actionType: 'webhook' | 'email' | 'script' | 'banner' | 'modal' | 'notification' | 'redirect' | 'hide_element';
+    /** A graph action's `type`, as core validates it (`CLIENT_ACTION_TYPES` plus `webhook`). */
+    actionType:
+        | 'webhook' | 'show_modal' | 'show_toast' | 'show_banner' | 'highlight_element'
+        | 'show_tooltip' | 'personalize_content' | 'redirect' | 'tag_session';
     actionConfig: Record<string, any>;
     orderIndex?: number;
 }

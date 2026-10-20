@@ -410,6 +410,9 @@ export const settingsEn = {
   },
 
   privacy: {
+    ownerOnly: "Only the website's owner can view and change these privacy settings.",
+    loadFailed: "Privacy settings couldn't be loaded.",
+    retry: 'Try again',
     settingUpdated: 'Privacy setting updated',
     settingFailed: 'Failed to save setting',
     saved: 'Privacy settings saved.',
@@ -479,9 +482,9 @@ export const settingsEn = {
     dataRetention: 'Data Retention',
     retentionItems: {
       analytics: { label: 'Analytics', value: 'Plan-based' },
-      heatmaps: { label: 'Heatmaps', value: '90 days' },
+      heatmaps: { label: 'Heatmaps', value: '7 days' },
       replays: { label: 'Replays', value: '30 days' },
-      cleanup: { label: 'Cleanup', value: 'Weekly' },
+      cleanup: { label: 'Cleanup', value: 'Daily' },
     },
     byDesign: 'Privacy by Design',
     byDesignPoints: [

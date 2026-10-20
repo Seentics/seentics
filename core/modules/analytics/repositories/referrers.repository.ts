@@ -2,8 +2,9 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { referrerDomainSql } from "../lib/dimension-sql";
 import { arrivalPageviewSql, CHANNEL_CASE_SQL } from "../lib/traffic-channel";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope, type ReadScope } from "../lib/read-scope";
 
 export type SessionReferrerRow = { referrer: string; views: number; unique_visitors: number };
 
@@ -22,14 +23,20 @@ export type SessionReferrerRow = { referrer: string; views: number; unique_visit
  *
  * One grouping pass per session instead of `first_value() OVER (PARTITION BY session_id
  * ORDER BY occurred_at)`; the first arrival is taken with an ordered `array_agg`.
+ *
+ * Filtered, a session's pageviews are those that pass the filters, and its arrival the first
+ * of them that was one.
  */
-export async function sessionReferrerRows(websiteId: string, days: number, limit = 50): Promise<SessionReferrerRow[]> {
-  if (rollupsEnabled()) {
-    return (await topRows(websiteId, "referrer", days, limit)).map((r) => ({
+export async function sessionReferrerRows(
+  websiteId: string,
+  { span, filters, useRollups }: Pick<ReadScope, "span" | "filters" | "useRollups">,
+  limit = 50,
+): Promise<SessionReferrerRow[]> {
+  if (useRollups) {
+    return (await topRows(websiteId, "referrer", span, limit)).map((r) => ({
       referrer: r.k, views: r.views, unique_visitors: r.unique_visitors,
     }));
   }
-  const startIso = windowStartIso(days);
   return pgSql<SessionReferrerRow[]>`
     WITH per_session AS (
       SELECT
@@ -49,9 +56,11 @@ export async function sessionReferrerRows(websiteId: string, days: number, limit
         FROM analytics_events
         WHERE website_id = ${websiteId}
           AND event_type = 'pageview'
-          AND occurred_at >= ${startIso}
+          AND occurred_at >= ${span.start}
+          AND occurred_at < ${span.end}
           AND session_id IS NOT NULL
           AND length(trim(session_id)) > 0
+          ${filterSql(filters, websiteId, span)}
       ) pv
       GROUP BY session_id
     )
@@ -67,8 +76,7 @@ export async function getReferrersAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const rows = await sessionReferrerRows(websiteId, days);
+  const rows = await sessionReferrerRows(websiteId, readScope(query));
 
   return {
     top_referrers: rows.map((r) => ({

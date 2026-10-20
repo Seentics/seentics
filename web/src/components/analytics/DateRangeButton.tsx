@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { GHOST_CONTROL } from '@/components/ui/ghost-control';
-import { formatDateSpan, formatRangeDates, formatShortDate } from '@/lib/range-dates';
+import { formatDateSpan, formatShortDate } from '@/lib/range-dates';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 
@@ -35,10 +35,15 @@ interface DateRangeButtonProps {
   onCustomDateChange: (start: Date | undefined, end: Date | undefined) => void;
 }
 
-/** The dates a preset covers: one day for Today and Yesterday, otherwise a span ending now. */
+/**
+ * The dates a preset covers, as the API reads them (`features/analytics/range`): one day for
+ * Today and Yesterday, otherwise today and the N−1 days before it. The span used to start N days
+ * back, a day earlier than the numbers below it.
+ */
 function presetDates(days: number, now: Date): string {
-  if (days === 1) return formatShortDate(new Date(now.getTime() - 86_400_000));
-  return formatRangeDates(days, now);
+  if (days === 0) return formatShortDate(now);
+  if (days === 1) return formatShortDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  return formatDateSpan(new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1)), now);
 }
 
 /** Preset groups, divided the way Plausible's menu is. */

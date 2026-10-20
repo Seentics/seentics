@@ -1,17 +1,18 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 export async function getSourcesAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
+  const { span, filters, useRollups } = readScope(query);
+  const days = span.days;
 
   // From the rollups: sessions by landing utm_source, with all their pageviews.
-  const rows = rollupsEnabled()
-    ? (await topRows(websiteId, "utm_source", days, 50)).map((r) => ({
+  const rows = useRollups
+    ? (await topRows(websiteId, "utm_source", span, 50)).map((r) => ({
         source: r.k,
         views: r.views,
         unique_visitors: r.unique_visitors,
@@ -28,11 +29,13 @@ export async function getSourcesAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND utm_source IS NOT NULL
         AND length(trim(utm_source)) > 0
         AND session_id IS NOT NULL
         AND length(trim(session_id)) > 0
+        ${filterSql(filters, websiteId, span)}
     ),
     first_src AS (
       -- id as tiebreaker so result is deterministic when two pageviews share the same timestamp
@@ -44,9 +47,11 @@ export async function getSourcesAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND session_id IS NOT NULL
         AND length(trim(session_id)) > 0
+        ${filterSql(filters, websiteId, span)}
       GROUP BY session_id
     )
     SELECT

@@ -5,6 +5,8 @@ import { usePathSegment } from '@/lib/path-segment';
 import { useMemo, useState } from 'react';
 import { ChevronRight, MousePointerClick } from 'lucide-react';
 import { useCustomEvents } from '@/features/analytics/queries';
+// What the tracker records on its own, shared with the overview's events list.
+import { isInternalEvent } from '@/features/analytics/internal-events';
 import {
   COLLECTION_SURFACE, CollectionEmpty, CollectionRow, CollectionSkeleton, CollectionTable, CountTabs, FilterToolbar, GroupedRows,
   LayoutSwitch, useLayoutPreference, type CollectionColumn,
@@ -35,12 +37,6 @@ type EventLayout = (typeof LAYOUTS)[number];
 /** Range names are in `analytics.events.ranges`, keyed by days. */
 const RANGE_DAYS = [7, 14, 30, 90] as const;
 
-/**
- * What the tracker records on its own. `performance` (web vitals, sent on every page) and
- * `identify` (an identify() call, not a tracked event) used to be listed — and counted in
- * the totals — as if the site had tracked them.
- */
-const INTERNAL = new Set(['pageview', 'session_start', 'session_end', '__sn_heartbeat', '__sn_leave', 'performance', 'identify']);
 
 const countOf = (e: EventSummary) => e.count ?? 0;
 const visitorsOf = (e: EventSummary) => e.unique_visitors ?? e.unique_users ?? 0;
@@ -71,7 +67,7 @@ export default function EventsPage() {
 
   const { data, isLoading } = useCustomEvents(websiteId, days);
   const events = useMemo(
-    () => ((data?.top_events ?? []) as EventSummary[]).filter((e) => !INTERNAL.has(e.event_type)),
+    () => ((data?.top_events ?? []) as EventSummary[]).filter((e) => !isInternalEvent(e.event_type)),
     [data],
   );
 

@@ -99,6 +99,7 @@ export class PostgresAutomationRepository implements AutomationRepository {
         id: string;
         website_id: string;
         name: string;
+        description: string;
         definition: Record<string, unknown>;
         is_active: boolean;
         created_at: Date;
@@ -110,7 +111,7 @@ export class PostgresAutomationRepository implements AutomationRepository {
       }[]
     >`
     SELECT
-      a.id, a.website_id, a.name, a.definition, a.is_active,
+      a.id, a.website_id, a.name, a.description, a.definition, a.is_active,
       a.created_at, a.updated_at,
       COUNT(e.id) FILTER (WHERE e.record_type = 'server_run')::int              AS total,
       COUNT(e.id) FILTER (WHERE e.record_type = 'action' AND e.status = 'success')::int  AS success_count,
@@ -127,6 +128,7 @@ export class PostgresAutomationRepository implements AutomationRepository {
       id: a.id,
       website_id: a.website_id,
       name: a.name,
+      description: a.description ?? "",
       definition: a.definition,
       is_active: a.is_active,
       created_at: toIsoString(a.created_at),
@@ -168,6 +170,7 @@ export class PostgresAutomationRepository implements AutomationRepository {
         websiteId,
         userId,
         name: input.name,
+        description: input.description ?? "",
         definition: input.definition,
         isActive: input.is_active ?? true,
       })
@@ -187,6 +190,7 @@ export class PostgresAutomationRepository implements AutomationRepository {
         // absent field must leave the column alone, and `undefined` in a Drizzle
         // `set` is a no-op only by accident of the driver.
         ...(patch.name != null ? { name: patch.name } : {}),
+        ...(patch.description != null ? { description: patch.description } : {}),
         ...(patch.definition != null ? { definition: patch.definition } : {}),
         ...(patch.is_active != null ? { isActive: patch.is_active } : {}),
         updatedAt: new Date(),

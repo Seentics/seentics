@@ -3,18 +3,22 @@
 import { usePathSegment } from '@/lib/path-segment';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 import { ReportPage } from '@/components/ui/linear-list';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Copy, Check, Zap, Code2 } from 'lucide-react';
+import { BookOpen, Copy, Check, Zap, Code2, ArrowUpRight, Loader2 } from 'lucide-react';
+import { SDK_GUIDES, type SdkGuide } from '@/components/docs/observability-content';
+import { useApiCatalogue } from '@/features/api-keys/queries';
+import { config } from '@/lib/config';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Code block with copy button
 // ---------------------------------------------------------------------------
-function CodeBlock({ code, lang = 'typescript' }: { code: string; lang?: string }) {
+function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(code);
@@ -51,78 +55,19 @@ function Section({ title, children, icon: Icon }: { title: string; children: Rea
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tab bar
-// ---------------------------------------------------------------------------
-const TABS = ['Node.js', 'Go'] as const;
-type Tab = typeof TABS[number];
+const Mono = ({ children }: { children: React.ReactNode }) => (
+  <code className="font-mono bg-muted px-1 rounded-lg text-foreground">{children}</code>
+);
 
 // ---------------------------------------------------------------------------
 // Snippets
+//
+// Taken from the public Observability guides (components/docs/observability-content.ts),
+// which are copied from the SDKs themselves (sdks/node, sdks/go, sdks/python), so this
+// page cannot show an install command or API that the packages do not have. Every guide
+// starts with "Install" then "Set up"; the rest lives in the full guide.
 // ---------------------------------------------------------------------------
-const INSTALL: Record<Tab, string> = {
-  'Node.js': `npm install @seentics/node`,
-  'Go':      `go get github.com/seentics/go-sdk`,
-};
-
-const QUICKSTART: Record<Tab, string> = {
-  'Node.js': `import { Seentics } from '@seentics/node';
-
-const seentics = new Seentics({
-  apiKey:    'sk_proj_YOUR_KEY',
-  projectId: 'YOUR_PROJECT_ID',
-  service:   'my-api',
-  environment: process.env.NODE_ENV,
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  await seentics.close();
-  process.exit(0);
-});`,
-  'Go': `import seentics "github.com/seentics/go-sdk"
-
-client := seentics.New(seentics.Config{
-    APIKey:    "sk_proj_YOUR_KEY",
-    ProjectID: "YOUR_PROJECT_ID",
-    Service:   "my-api",
-    Environment: os.Getenv("ENV"),
-})
-defer client.Shutdown(context.Background())`,
-};
-
-
-const NEXTJS_SNIPPET = `// instrumentation.ts  (Next.js 14 — placed in the project root)
-import { Seentics } from '@seentics/node';
-
-export const seentics = new Seentics({
-  apiKey:    process.env.SEENTICS_API_KEY!,
-  projectId: process.env.SEENTICS_PROJECT_ID!,
-  service:   'next-app',
-  environment: process.env.NODE_ENV,
-});
-
-export function register() {
-  process.on('SIGTERM', () => seentics.close());
-}
-
-// app/api/[...route]/route.ts — wrap handlers
-import { seentics } from '@/instrumentation';
-
-export async function POST(req: Request) {
-  const span = seentics.startSpan('POST /api/orders');
-  try {
-    const result = await processOrder(await req.json());
-    span.setStatus('ok');
-    return Response.json(result);
-  } catch (err) {
-    span.recordError(err as Error);
-    seentics.captureError(err);
-    throw err;
-  } finally {
-    span.end();
-  }
-}`;
+const snippetsOf = (guide: SdkGuide, step: number) => guide.steps[step]?.snippets ?? [];
 
 // ---------------------------------------------------------------------------
 // Page
@@ -130,8 +75,13 @@ export async function POST(req: Request) {
 export default function DocsPage() {
   const params = { websiteId: usePathSegment(1) ?? '' };
   const websiteId = params?.websiteId as string;
-  const [tab, setTab] = useState<Tab>('Node.js');
+  const [tab, setTab] = useState<SdkGuide['id']>('node');
+  const guide = SDK_GUIDES.find(g => g.id === tab) ?? SDK_GUIDES[0];
   const d = useT().developers.sdkDocs;
+  // The Data API's endpoint list comes from the server's own catalogue (public, no key
+  // needed), so it can't drift from the router the way a hand-written table did.
+  const { data: catalogue, isLoading, isError } = useApiCatalogue();
+  const developersHref = (tabId: string) => `/websites/${websiteId}/developers?tab=${tabId}`;
 
   return (
     <ReportPage
@@ -143,23 +93,23 @@ export default function DocsPage() {
 
       {/* SDK tabs */}
       <div className="flex items-center gap-1 mb-8 bg-muted/40 border border-border rounded-lg p-1 w-fit">
-        {TABS.map(t => (
+        {SDK_GUIDES.map(g => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={g.id}
+            onClick={() => setTab(g.id)}
             className={cn(
               'px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors',
-              tab === t
+              tab === g.id
                 ? 'bg-background text-foreground shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {t}
+            {g.label}
           </button>
         ))}
       </div>
 
-      {/* Project IDs callout */}
+      {/* Keys callout: the SDKs and the Data API use two different keys */}
       <Card className="border border-primary/20 bg-primary/5 mb-8">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
@@ -170,7 +120,18 @@ export default function DocsPage() {
                 {d.projectId} <code className="font-mono bg-muted px-1.5 py-0.5 rounded-lg text-foreground">{websiteId}</code>
               </p>
               <p className="text-muted-foreground">
-                {d.findKeyBefore} <strong>{d.findKeyPlace}</strong>{d.findKeyAfter}
+                {d.ingestKeyBefore}{' '}
+                <a href={`${config.observeUrl}/projects/${websiteId}`} className="font-semibold text-foreground hover:underline">
+                  {d.ingestKeyPlace}
+                </a>
+                {d.ingestKeyAfter}
+              </p>
+              <p className="text-muted-foreground">
+                {d.apiKeyBefore}{' '}
+                <Link href={developersHref('api-keys')} className="font-semibold text-foreground hover:underline">
+                  {d.apiKeyPlace}
+                </Link>
+                {d.apiKeyAfter}
               </p>
             </div>
           </div>
@@ -179,57 +140,76 @@ export default function DocsPage() {
 
       {/* Installation */}
       <Section title={d.installation} icon={Zap}>
-        <CodeBlock code={INSTALL[tab]} lang={tab === 'Go' ? 'bash' : 'bash'} />
+        <p className="text-xs text-muted-foreground">
+          <Mono>{guide.pkg}</Mono> · {guide.requires}
+        </p>
+        {snippetsOf(guide, 0).map((s, i) => (
+          <div key={i} className="space-y-1">
+            {s.filename && <p className="text-[11px] text-muted-foreground">{s.filename}</p>}
+            <CodeBlock code={s.code} />
+          </div>
+        ))}
       </Section>
 
-      {/* Quick start */}
-      <Section title={d.quickStart} icon={Code2}>
-        <CodeBlock code={QUICKSTART[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
+      {/* Set up */}
+      <Section title={d.setup} icon={Code2}>
+        {snippetsOf(guide, 1).map((s, i) => (
+          <div key={i} className="space-y-1">
+            {s.filename && <p className="text-[11px] text-muted-foreground">{s.filename}</p>}
+            <CodeBlock code={s.code} />
+          </div>
+        ))}
+        <Link
+          href={`/docs/observability/${guide.id}`}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+        >
+          {d.fullGuide.replace('{sdk}', guide.label)}
+          <ArrowUpRight className="h-3 w-3" />
+        </Link>
       </Section>
 
-      {/* Next.js */}
-      {tab === 'Node.js' && (
-        <Section title={d.nextjs}>
-          <p className="text-xs text-muted-foreground mb-2">
-            {d.nextjsBefore} <code className="font-mono bg-muted px-1 rounded-lg">instrumentation.ts</code> {d.nextjsAfter}
-          </p>
-          <CodeBlock code={NEXTJS_SNIPPET} lang="typescript" />
-        </Section>
-      )}
-
-      {/* API reference */}
+      {/* Data API */}
       <Section title={d.apiReference} icon={BookOpen}>
+        <p className="text-xs text-muted-foreground">
+          {d.apiIntro} <Mono>{catalogue?.meta.base_path ?? '/api/v1/raw'}</Mono>.
+        </p>
         <Card className="border border-border">
           <CardContent className="p-0">
-            {[
-              { method: 'POST', path: '/api/v1/collect',                        desc: d.endpoints.collect },
-              { method: 'GET',  path: '/api/v1/websites/:id/stats',             desc: d.endpoints.stats },
-              { method: 'GET',  path: '/api/v1/websites/:id/pageviews',         desc: d.endpoints.pageviews },
-              { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: d.endpoints.events },
-              { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: d.endpoints.goals },
-              { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: d.endpoints.funnel },
-            ].map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[10px] w-12 justify-center shrink-0 font-mono',
-                    r.method === 'POST'  && 'border-blue-400/60 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-300',
-                    r.method === 'GET'   && 'border-green-400/60 text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-300',
-                  )}
-                >
-                  {r.method}
-                </Badge>
-                <code className="text-[11px] font-mono text-foreground flex-1 min-w-0 truncate">{r.path}</code>
-                <span className="text-xs text-muted-foreground hidden md:block shrink-0 max-w-[260px] truncate">{r.desc}</span>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ))}
+            ) : isError || !catalogue ? (
+              <p className="px-4 py-3 text-xs text-muted-foreground">{d.catalogueFailed}</p>
+            ) : (
+              catalogue.data.map(r => (
+                <div key={r.path} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] w-12 justify-center shrink-0 font-mono border-green-400/60 text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-300"
+                  >
+                    {r.method}
+                  </Badge>
+                  <code className="text-[11px] font-mono text-foreground flex-1 min-w-0 truncate">
+                    {r.path.replace(':website_id', websiteId || ':website_id')}
+                  </code>
+                  <span className="text-xs text-muted-foreground hidden md:block shrink-0 max-w-[260px] truncate" title={r.summary}>{r.summary}</span>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
         <p className="text-xs text-muted-foreground mt-3">
-          {d.authBefore} <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>{d.authAfter}
-          {' '}{d.openApiBefore} <strong>{d.openApiPlace}</strong>{d.openApiAfter}
+          {d.authBefore} <Mono>X-API-Key: &lt;apiKey&gt;</Mono> {d.authAfter}
+          {' '}{d.referenceBefore}{' '}
+          <Link href={developersHref('data-api')} className="font-semibold text-foreground hover:underline">
+            {d.referencePlace}
+          </Link>
+          {d.referenceAfter}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {d.trackerBefore} <Mono>POST /api/v1/tracker/collect</Mono> {d.trackerMiddle} <Mono>seentics.track()</Mono>{d.trackerAfter}
         </p>
       </Section>
     </ReportPage>

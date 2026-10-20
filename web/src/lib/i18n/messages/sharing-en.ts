@@ -35,6 +35,19 @@ export const sharingEn = {
     tagline: 'Real-time, privacy-friendly website performance tracking.',
   },
 
+  /** The website settings card that turns the public /share link on and off. */
+  settingsCard: {
+    title: 'Public dashboard link',
+    hint: 'Anyone with the link can see this website\'s traffic: visitors, top pages, sources, countries and devices. No sign-in needed.',
+    enable: 'Share a public link',
+    copy: 'Copy link',
+    copied: 'Link copied',
+    open: 'Open',
+    enabled: 'Public link turned on',
+    disabled: 'Public link turned off. The old link no longer works.',
+    failed: "Couldn't change the public link",
+  },
+
   preview: {
     logs: 'Workflow Logs',
     restart: 'Restart',

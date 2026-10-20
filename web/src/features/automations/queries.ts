@@ -6,10 +6,10 @@ import { fetchAutomation, fetchAutomations } from './api';
 import { getAutomationStats, getAutomationDailyStats } from './api';
 
 // React Query Hooks
-export function useAutomations(websiteId: string, limit: number = 10, offset: number = 0) {
+export function useAutomations(websiteId: string) {
     return useQuery({
-        queryKey: ['automations', websiteId, limit, offset],
-        queryFn: () => fetchAutomations(websiteId, limit, offset),
+        queryKey: ['automations', websiteId],
+        queryFn: () => fetchAutomations(websiteId),
         enabled: isValidId(websiteId),
         staleTime: 5 * 60 * 1000,
         gcTime: 15 * 60 * 1000,

@@ -300,6 +300,7 @@ export const automations = pgTable(
     websiteId: uuid("website_id").notNull(),
     userId: uuid("user_id").notNull(),
     name: text("name").notNull(),
+    description: text("description").notNull().default(""),
     definition: jsonb("definition").notNull().$type<Record<string, unknown>>(),
     isActive: boolean("is_active").notNull().default(true),
     priority: integer("priority").notNull().default(50),

@@ -467,15 +467,17 @@ describe("funnel routes", () => {
       expect(funnels.removed).toEqual([]);
     });
 
-    it("defaults a missing `ids` to an empty batch", async () => {
-      const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/bulk-delete`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-
-      expect(res.status).toBe(204);
-      expect(funnels.bulkRemoved).toEqual([[]]);
+    it("rejects a missing or empty `ids` rather than deleting nothing", async () => {
+      // `{ funnelIds }` — the key the dashboard once sent — must fail loudly, not 204.
+      for (const body of [{}, { ids: [] }, { funnelIds: ["a"] }]) {
+        const res = await asOwner(`/api/v1/websites/${WEBSITE_UUID}/funnels/bulk-delete`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        expect(res.status).toBe(400);
+      }
+      expect(funnels.bulkRemoved).toEqual([]);
     });
 
     it("rejects a malformed body", async () => {

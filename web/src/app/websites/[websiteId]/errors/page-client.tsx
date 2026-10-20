@@ -76,9 +76,11 @@ export default function ErrorsPage() {
   // The API treats an empty status as "every status"; the tabs call that "All".
   const filters = { days, status: status === 'all' ? '' : status, search };
 
-  const { data: groups, isLoading, error } = useErrorGroups(websiteId, filters);
+  const { data: page, isLoading, error } = useErrorGroups(websiteId, filters);
   // Every status at once, for the tabs' counts; the same request as the list when All is open.
-  const { data: everyStatus } = useErrorGroups(websiteId, { ...filters, status: '' });
+  const { data: everyPage } = useErrorGroups(websiteId, { ...filters, status: '' });
+  const groups = page?.groups;
+  const everyStatus = everyPage?.groups;
   const detail    = useErrorGroup(websiteId, openFingerprint, days);
   const setStatusMutation = useSetErrorStatus(websiteId);
   const bulkStatus = useSetErrorStatuses(websiteId);
@@ -97,8 +99,17 @@ export default function ErrorsPage() {
     .filter((g) => !trend || errorBucket(g, rangeStart) === trend)
     .filter((g) => !kind || errorTypeOf(g.message) === kind)
     .sort(SORTS[sort].compare), [list, trend, kind, sort, rangeStart]);
-  /** Each tab's count: the same search, trend and kind, by status. */
+  /**
+   * Each tab's count: the same search, trend and kind, by status. Without a trend or kind
+   * filter these are the server's totals; the list itself stops at ERROR_GROUPS_LIMIT, so
+   * counting it would undercount a busy site. Trend and kind are worked out here, so with
+   * one of those set the count is over what was loaded.
+   */
   const countFor = (s: Status): number | undefined => {
+    const server = everyPage?.statusCounts;
+    if (server && !trend && !kind) {
+      return s === 'all' ? Object.values(server).reduce((a, n) => a + (n ?? 0), 0) : server[s] ?? 0;
+    }
     if (!everyStatus) return undefined;
     const kept = everyStatus
       .filter((g) => !trend || errorBucket(g, rangeStart) === trend)
@@ -127,8 +138,13 @@ export default function ErrorsPage() {
         >
           <ChevronLeft className="h-4 w-4" /> {t.page.allErrors}
         </Button>
-        {detail.isLoading || !detail.data?.group ? (
+        {detail.isLoading ? (
           <div className="mt-3 h-40 animate-pulse rounded-xl bg-muted/50" />
+        ) : !detail.data?.group ? (
+          // A fault that is gone (purged, or a stale link) used to leave the skeleton up forever.
+          <p role="status" className="mt-6 text-center text-sm text-muted-foreground">
+            {detail.isError ? t.page.loadFailed : t.page.notFound}
+          </p>
         ) : (
           <ErrorGroupDetail
             className="mt-3"
@@ -194,6 +210,12 @@ export default function ErrorsPage() {
         <Alert variant="destructive" className="m-4 w-auto">
           <AlertDescription>{(error as Error).message}</AlertDescription>
         </Alert>
+      )}
+
+      {page && page.total > page.groups.length && (
+        <p role="note" className="mx-4 mb-2 text-xs text-muted-foreground">
+          {t.page.capped(page.groups.length, page.total)}
+        </p>
       )}
 
       {isLoading ? <div className={COLLECTION_SURFACE}>{toolbar}<CollectionSkeleton /></div> : shown.length === 0 ? (

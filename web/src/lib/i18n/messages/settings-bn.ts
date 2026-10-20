@@ -412,6 +412,9 @@ export const settingsBn: SettingsMessages = {
   },
 
   privacy: {
+    ownerOnly: 'এই প্রাইভেসি সেটিংস শুধু ওয়েবসাইটের মালিক দেখতে ও বদলাতে পারেন।',
+    loadFailed: 'প্রাইভেসি সেটিংস লোড হয়নি।',
+    retry: 'আবার চেষ্টা করুন',
     settingUpdated: 'প্রাইভেসি সেটিং আপডেট হয়েছে',
     settingFailed: 'সেটিং সেভ করা গেল না',
     saved: 'প্রাইভেসি সেটিংস সেভ হয়েছে।',
@@ -481,9 +484,9 @@ export const settingsBn: SettingsMessages = {
     dataRetention: 'ডেটা কতদিন থাকে',
     retentionItems: {
       analytics: { label: 'Analytics', value: 'প্ল্যান অনুযায়ী' },
-      heatmaps: { label: 'Heatmap', value: '90 দিন' },
+      heatmaps: { label: 'Heatmap', value: '7 দিন' },
       replays: { label: 'রিপ্লে', value: '30 দিন' },
-      cleanup: { label: 'পরিষ্কার', value: 'সাপ্তাহিক' },
+      cleanup: { label: 'পরিষ্কার', value: 'দৈনিক' },
     },
     byDesign: 'শুরু থেকেই প্রাইভেসি',
     byDesignPoints: [

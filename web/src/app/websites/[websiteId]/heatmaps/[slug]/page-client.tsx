@@ -18,7 +18,7 @@ import { ArrowLeft, MousePointer, RefreshCw, Image as ImageIcon, TrendingDown, L
 
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
-import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPageSlug, normalizeHeatmapPagePath, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
+import { getHeatmapData, getHeatmapPageScreenshot, triggerPlaywrightScreenshot, heatmapPathFromSlug, weightedHeatmapCaptureViewportWidth, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
 import { DEFAULT_HEATMAP_DAYS, HEATMAP_RANGES } from '@/features/heatmaps/api';
 import { useSearchParams } from 'next/navigation';
 import { useAppNavigation } from '@/lib/embed-nav';
@@ -95,10 +95,7 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
   const [insightsOpen, setInsightsOpen] = useState(true);
   const insightsAvailable = !embed;
 
-  const urlPath = useMemo(() => {
-    const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
-    return normalizeHeatmapPagePath(raw);
-  }, [slug]);
+  const urlPath = useMemo(() => heatmapPathFromSlug(slug), [slug]);
 
   const isParamPath = urlPath.includes(':id');
 
@@ -133,7 +130,8 @@ export function HeatmapDetailView({ websiteId: websiteIdProp, slug: slugProp, em
   const { data: heatmapData, isLoading, isError, error, refetch } = useQuery({
     queryKey:  ['heatmap-data', websiteId, urlPath, heatType, days],
     queryFn:   () => getHeatmapData(websiteId, urlPath, heatType === 'scroll' ? 'scroll' : 'click', days),
-    enabled:   !isDemoMode,
+    // Not before the website id is known: an empty one requested `/heatmaps//data`.
+    enabled:   Boolean(websiteId && !isDemoMode),
     staleTime: 60_000,
   });
 

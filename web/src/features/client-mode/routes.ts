@@ -99,6 +99,8 @@ export const NAV_FEATURES: Record<NavId, FeatureId | 'settings' | null> = {
   'ai-reports': 'ai',
   errors: 'errors',
   developers: null,
+  // Embeddable widgets keyed to the account's own site: a developer tool, like Developers.
+  'ui-blocks': null,
   settings: 'settings',
 };
 

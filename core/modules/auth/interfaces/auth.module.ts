@@ -1,5 +1,5 @@
 import type { AuthedRouter, PublicRouter } from "../../../platform/http/router";
-import type { UserDirectory } from "./auth.interface";
+import type { ProfileEditor, UserDirectory } from "./auth.interface";
 import type { PasswordChanger } from "./authentication.interface";
 
 /**
@@ -14,6 +14,9 @@ export interface AuthModule {
 
   /** For the profile endpoint: a signed-in user changing their own password. */
   passwords: PasswordChanger;
+
+  /** For the profile endpoint: a signed-in user changing their own display name. */
+  profiles: ProfileEditor;
 
   /**
    * `/api/v1/auth` — register, login, refresh. No auth context: this is the router

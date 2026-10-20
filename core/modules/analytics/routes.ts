@@ -16,6 +16,7 @@ import * as dimensions from "./controllers/analytics-dimensions.controller";
 import { importAnalytics } from "./controllers/analytics-import.controller";
 import * as journey from "./controllers/analytics-journey.controller";
 import { getLiveVisitors } from "./controllers/analytics-realtime.controller";
+import { getRevenueTransaction } from "./controllers/revenue-transaction.controller";
 
 export function createAnalyticsRoutes(deps: AnalyticsControllerDeps) {
   const routes = new Hono<{ Variables: AuthVars }>();
@@ -63,6 +64,7 @@ export function createAnalyticsRoutes(deps: AnalyticsControllerDeps) {
   routes.get("/custom-events/:website_id", journey.getCustomEvents(deps));
   routes.get("/goals-stats/:website_id", getGoalsStats(deps));
   routes.get("/revenue/:website_id", getRevenue(deps));
+  routes.get("/revenue-transaction/:website_id", getRevenueTransaction(deps));
   routes.get("/export/:website_id", exportAnalytics(deps));
   routes.get("/live-visitors/:website_id", getLiveVisitors(deps));
   routes.post("/import", importAnalytics());

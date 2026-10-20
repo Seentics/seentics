@@ -42,6 +42,22 @@ export interface ErrorSample {
   occurred_at: string;
 }
 
+/**
+ * One page of faults and how many there are in all. The list stops at
+ * {@link ERROR_GROUPS_LIMIT}; `total` and `statusCounts` are the server's uncapped counts for
+ * the same window and search, so a capped list can say so and its tabs read true.
+ */
+export interface ErrorGroupList {
+  groups: ErrorGroup[];
+  /** Every fault matching the filters, of which `groups` is the most recently seen. */
+  total: number;
+  /** Per status, for the same window and search. */
+  statusCounts?: Partial<Record<ErrorStatus, number>>;
+}
+
+/** Most faults one list request returns — the server's own ceiling. */
+export const ERROR_GROUPS_LIMIT = 200;
+
 export interface ErrorGroupFilters {
   days:    number;
   /** Empty means every status. */

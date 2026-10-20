@@ -78,3 +78,9 @@ export interface UserDirectory {
    */
   listByIds(userIds: readonly string[]): Promise<Map<string, UserProfile>>;
 }
+
+/** A signed-in user renaming themselves, for the profile endpoint. */
+export interface ProfileEditor {
+  /** The updated client shape, or `null` when no such user. */
+  updateName(userId: string, name: string): Promise<FrontendUser | null>;
+}

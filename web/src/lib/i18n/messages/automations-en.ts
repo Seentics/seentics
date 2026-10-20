@@ -168,8 +168,8 @@ export const automationsEn = {
   editor: {
     untitled: 'Untitled Automation',
     namePlaceholder: 'Automation name',
+    descriptionPlaceholder: 'Add a short description (optional)',
     backToList: 'Back to automations',
-    draft: 'Automation builder · Draft',
     browseTemplates: 'Browse templates',
     workflowSettings: 'Workflow settings',
     viewJson: 'View or edit JSON',

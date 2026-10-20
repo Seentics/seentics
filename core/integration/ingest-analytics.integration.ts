@@ -249,7 +249,8 @@ describe("time zones", () => {
     for (const tz of ["UTC", "Asia/Tokyo", "America/Los_Angeles", "Asia/Kolkata"]) {
       const daily = await get("daily-stats", site, owner, { days: 3, timezone: tz });
       const hourly = await get("hourly-stats", site, owner, { days: 1, timezone: tz });
-      expect(daily.body.daily_stats).toEqual([{ date: localDay(at, tz), views: 1, unique: 1 }]);
+      // Every day of the window is listed (zero-filled); only the event's has views.
+      expect(daily.body.daily_stats.filter((d: { views: number }) => d.views)).toEqual([{ date: localDay(at, tz), views: 1, unique: 1 }]);
       // Kolkata is UTC+5:30, so its hour differs from UTC's by a half-hour shift in the bucket.
       expect(hourly.body.hourly_stats.map((h: { hour: number }) => h.hour)).toEqual([localHour(at, tz)]);
     }

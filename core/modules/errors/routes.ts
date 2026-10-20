@@ -62,6 +62,7 @@ export function createErrorRoutes(deps: ErrorControllerDeps) {
         status,
         search: c.req.query("search") ?? "",
         limit: Number(c.req.query("limit")) || undefined,
+        counts: true,
       }),
     );
   });

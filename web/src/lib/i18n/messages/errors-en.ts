@@ -15,6 +15,10 @@ export const errorsEn = {
     noUnresolved: 'No unresolved errors',
     noErrors: 'No errors here',
     noMatchesBody: 'No error matches these filters or that search in this range.',
+    notFound: 'This error is not on this site any more. It may have been purged.',
+    loadFailed: 'This error could not be loaded. Try again in a moment.',
+    capped: (shown: number, total: number) =>
+      `Showing the ${shown} most recently seen of ${total} errors. Search or pick a shorter range to find the rest.`,
     /** `status` is '' for "every status". */
     emptyBody: (status: '' | 'unresolved' | 'resolved' | 'ignored', period: string) =>
       `Nothing ${status ? `${status} ` : ''}${period}. Uncaught JavaScript errors from real visitors appear here, grouped by fault.`,

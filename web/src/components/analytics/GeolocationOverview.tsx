@@ -36,12 +36,13 @@ interface TopItem {
     percentage: number;
 }
 
+/** `continents` and `regions` are still in the API's response shape, always empty, and not shown. */
 interface GeolocationData {
     countries: TopItem[];
-    continents: TopItem[];
-    regions: TopItem[];
     cities: TopItem[];
 }
+
+type GeoTab = 'map2d' | 'map3d' | 'countries' | 'cities';
 
 interface GeolocationOverviewProps {
     data?: GeolocationData;
@@ -49,8 +50,8 @@ interface GeolocationOverviewProps {
     className?: string;
     onFilter?: (filter: Record<string, string>) => void;
     /** Optional controlled tab for embeds and content-engine captures. */
-    activeTab?: 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents';
-    onActiveTabChange?: (tab: 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents') => void;
+    activeTab?: GeoTab;
+    onActiveTabChange?: (tab: GeoTab) => void;
     /** Rendered beside the title — the overview puts its "Ask AI" button here. */
     headerAction?: React.ReactNode;
 }
@@ -66,20 +67,6 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
     const displayData = data;
     const hasGeoBreakdown =
         (displayData?.countries?.length ?? 0) > 0 || (displayData?.cities?.length ?? 0) > 0;
-
-    const getContinentEmoji = (continent: string): string => {
-        const continentMap: Record<string, string> = {
-            'North America': '🌎',
-            'South America': '🌎',
-            'Europe': '🌍',
-            'Asia': '🌏',
-            'Africa': '🌍',
-            'Australia': '🌏',
-            'Oceania': '🌏',
-            'Antarctica': '🧊'
-        };
-        return continentMap[continent] || '🌍';
-    };
 
     if (isLoading) {
         return (
@@ -107,7 +94,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {headerAction}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as 'map2d' | 'map3d' | 'countries' | 'cities' | 'continents')}>
+                    <Tabs value={selectedTab} onValueChange={(value) => handleTabChange(value as GeoTab)}>
                         <TabsList className="h-8 bg-muted p-0.5 rounded-lg gap-0.5 flex-wrap">
                             <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">{t.map2d}</TabsTrigger>
                             <TabsTrigger className='h-7 text-xs font-medium px-3 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">{t.map3d}</TabsTrigger>
@@ -155,7 +142,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {selectedTab === 'countries' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className={cn("flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
+                                <div key={country.name} className={cn("flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.code ?? country.name })}>
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border">
@@ -237,26 +224,6 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                         </div>
                     )}
 
-                    {selectedTab === 'continents' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
-                            {displayData?.continents?.map((continent, index) => (
-                                <div key={continent.name} className="flex items-center justify-between py-1.5 border-b border-border hover:bg-accent/5 transition-colors group px-1">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="p-2 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
-                                            <div className="text-lg">{getContinentEmoji(continent.name)}</div>
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{continent.name}</p>
-                                            <p className="text-xs text-muted-foreground">{t.ofTraffic(continent.percentage.toFixed(1))}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-sm leading-tight text-foreground">{(continent.count || 0).toLocaleString()}</p>                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                         </>
                     )}
                 </div>

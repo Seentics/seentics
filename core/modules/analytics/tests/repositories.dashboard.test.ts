@@ -99,7 +99,7 @@ describe("getDashboardStats", () => {
     dashboardRows();
     await getDashboardStats(SITE, { days: "7" });
 
-    // The three bounds appear many times each across the FILTER clauses, so dedupe
+    // The four bounds appear many times each across the FILTER clauses, so dedupe
     // before checking the spacing between them.
     const times = [
       ...new Set(
@@ -109,14 +109,16 @@ describe("getDashboardStats", () => {
       ),
     ].sort((a, b) => a - b);
 
-    expect(times).toHaveLength(3);
-    const [prevStart, start, end] = times as [number, number, number];
+    expect(times).toHaveLength(4);
+    const [prevStart, prevEnd, start, end] = times as [number, number, number, number];
 
     const day = 86_400_000;
-    // start − prevStart and end − start must both be the requested window, so the
-    // comparison covers exactly one prior period rather than an overlapping range.
-    expect(Math.round((start - prevStart) / day)).toBe(7);
-    expect(Math.round((end - start) / day)).toBe(7);
+    // The comparison starts seven local days earlier and is exactly as long as the current
+    // window, which runs from a midnight to now — so at 09:00 it stops at 09:00 too, and
+    // never overlaps the current window.
+    expect(start - prevStart).toBe(7 * day);
+    expect(prevEnd - prevStart).toBe(end - start);
+    expect(prevEnd).toBeLessThanOrEqual(start);
   });
 
   it("copies the aggregate counts onto the top-level fields", async () => {
@@ -458,6 +460,9 @@ describe("getGoalsStats", () => {
 
   it("labels the window with the clamped day count", async () => {
     goalRows(0, []);
-    expect((await getGoalsStats(SITE, { days: "0" })).date_range).toBe("7d");
+    expect((await getGoalsStats(SITE, { days: "99999" })).date_range).toBe("7d");
+    goalRows(0, []);
+    // 0 is "today", a one-day window — not a bad value.
+    expect((await getGoalsStats(SITE, { days: "0" })).date_range).toBe("1d");
   });
 });

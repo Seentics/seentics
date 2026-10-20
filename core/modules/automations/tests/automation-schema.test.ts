@@ -568,6 +568,35 @@ describe("patch body", () => {
   });
 });
 
+describe("node position", () => {
+  it("keeps where the builder placed each node", () => {
+    // Stripped by Zod before, so every save snapped a hand-arranged canvas back to auto-layout.
+    const placed = { ...node("a"), position: { x: 120, y: -40.5 } };
+    const out = automationDefinitionSchema.parse(definition({ graph: { entry: "a", nodes: [placed], edges: [] } }));
+    expect((out.graph.nodes[0] as { position?: unknown }).position).toEqual({ x: 120, y: -40.5 });
+  });
+
+  it("is optional, and must be two finite numbers when present", () => {
+    expect(automationDefinitionSchema.safeParse(definition()).success).toBe(true);
+    const ok = { entry: "a", nodes: [{ ...delayN("a", 5), position: { x: 0, y: 0 } }, node("b")], edges: [edge("a", "b")] };
+    expect(automationDefinitionSchema.safeParse(definition({ graph: ok })).success).toBe(true);
+    for (const position of [{ x: 1 }, { x: "1", y: 2 }, { x: Infinity, y: 0 }, { x: 1e9, y: 0 }]) {
+      const bad = { ...delayN("a", 5), position };
+      const graph = { entry: "a", nodes: [bad, node("b")], edges: [edge("a", "b")] };
+      expect(automationDefinitionSchema.safeParse(definition({ graph })).success).toBe(false);
+    }
+  });
+});
+
+describe("description", () => {
+  it("is carried on create and patch, and bounded", () => {
+    const body = { name: "A", description: "Shows the spring sale", definition: definition() };
+    expect(automationsUpsertBodySchema.parse(body)).toMatchObject({ description: "Shows the spring sale" });
+    expect(automationsPatchBodySchema.parse({ description: "" })).toEqual({ description: "" });
+    expect(automationsPatchBodySchema.safeParse({ description: "x".repeat(501) }).success).toBe(false);
+  });
+});
+
 describe("bulk delete body", () => {
   it("defaults to an empty id list", () => {
     expect(automationsBulkDeleteSchema.parse({})).toEqual({ ids: [] });

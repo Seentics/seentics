@@ -71,6 +71,33 @@ export async function listErrorGroups(
 }
 
 /**
+ * How many faults match the window and search, per status — the same filter as
+ * {@link listErrorGroups} without its cap, so a list that stops at 200 can still report
+ * the real totals. Counts rows of `error_groups`, one per fault, so it is as cheap as the
+ * list's own scan.
+ */
+export async function countErrorGroupsByStatus(
+  websiteId: string,
+  opts: { days: number; search?: string },
+): Promise<Record<string, number>> {
+  const since = windowStart(opts.days);
+  const search = (opts.search ?? "").trim();
+  const rows = await sql`
+    SELECT status, count(*)::int AS n
+    FROM error_groups
+    WHERE website_id = ${websiteId}::uuid
+      AND last_seen >= ${since}
+      AND (
+        ${search} = ''
+        OR message ILIKE ${"%" + search + "%"}
+        OR source_file ILIKE ${"%" + search + "%"}
+      )
+    GROUP BY status
+  `;
+  return Object.fromEntries((rows as Record<string, unknown>[]).map((r) => [String(r.status), Number(r.n ?? 0)]));
+}
+
+/**
  * This period's and the previous period's occurrences for the listed faults, with visitors and
  * pages. Only the faults on the page, through `ix_error_events_group_occurred`, so it stays as
  * bounded as the list itself.

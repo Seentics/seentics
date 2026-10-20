@@ -21,18 +21,24 @@ export default function CheckoutSuccessPage() {
 
     async function poll() {
       try {
-        const res = await api.get('/user/billing/usage');
-        const plan: string = (res.data?.data?.plan ?? 'free').toLowerCase();
-        const planId: string = String(res.data?.data?.planId ?? '').toLowerCase();
-
-        if (initialPlan.current === null) {
-          initialPlan.current = plan;
-        }
-
         // The gateway sends customers back with the plan they bought, so this is done the moment the
         // webhook has switched them to it (it may already have, by the time they are back here).
         const bought = new URLSearchParams(window.location.search).get('plan')?.toLowerCase();
-        const planChanged = bought ? planId === bought : plan !== initialPlan.current;
+        let planChanged: boolean;
+        if (bought === 'extra_usage') {
+          // Extra usage is an add-on: the plan stays Pro or Agency, so waiting for planId to read
+          // `extra_usage` never ended. The meter is null until the add-on is on.
+          const meter = await api.get('/user/billing/meter', { validateStatus: (s) => s < 400 || s === 503 });
+          planChanged = meter.status === 200 && meter.data?.data != null;
+        } else {
+          const res = await api.get('/user/billing/usage');
+          const plan: string = (res.data?.data?.plan ?? 'free').toLowerCase();
+          const planId: string = String(res.data?.data?.planId ?? '').toLowerCase();
+          if (initialPlan.current === null) {
+            initialPlan.current = plan;
+          }
+          planChanged = bought ? planId === bought : plan !== initialPlan.current;
+        }
         const elapsed = Date.now() - startedAt.current;
 
         if (planChanged) {

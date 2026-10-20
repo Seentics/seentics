@@ -160,8 +160,8 @@ export const automationsBn: AutomationsMessages = {
   editor: {
     untitled: 'নামহীন অটোমেশন',
     namePlaceholder: 'অটোমেশনের নাম',
+    descriptionPlaceholder: 'ছোট একটা বিবরণ দিন (ঐচ্ছিক)',
     backToList: 'অটোমেশনে ফিরে যান',
-    draft: 'অটোমেশন বিল্ডার · ড্রাফট',
     browseTemplates: 'টেমপ্লেট দেখুন',
     workflowSettings: 'ওয়ার্কফ্লো সেটিংস',
     viewJson: 'JSON দেখুন বা এডিট করুন',

@@ -34,7 +34,7 @@ export function createUserBranchRoutes(deps: {
 
   user.route("/auth", deps.authModule.userRoutes);
   user.route("/websites", deps.websites);
-  user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords }));
+  user.route("/users", createUserProfileRoutes({ users: deps.authModule.users, passwords: deps.authModule.passwords, profiles: deps.authModule.profiles }));
   user.route("/agency/api-keys", deps.agency.apiKeys);
 
   /**

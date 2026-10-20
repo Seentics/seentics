@@ -11,7 +11,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 /** The sidebar's pages, by a stable id. Overview and Settings cannot be hidden. */
 export const NAV_IDS = [
   'overview', 'recording', 'heatmaps', 'funnels', 'automations', 'leads', 'revenue',
-  'conversions', 'integrations', 'ai-reports', 'errors', 'developers', 'settings',
+  'conversions', 'integrations', 'ai-reports', 'errors', 'developers', 'ui-blocks', 'settings',
 ] as const;
 export type NavId = (typeof NAV_IDS)[number];
 

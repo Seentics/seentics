@@ -1,16 +1,16 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 export async function getLanguagesAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
+  const { span, filters, useRollups } = readScope(query);
 
-  const rows = rollupsEnabled()
-    ? (await topRows(websiteId, "language", days, 30)).map((r) => ({ language: r.k, views: r.views, unique: r.unique_visitors }))
+  const rows = useRollups
+    ? (await topRows(websiteId, "language", span, 30)).map((r) => ({ language: r.k, views: r.views, unique: r.unique_visitors }))
     : await pgSql<{ language: string; views: number; unique: number }[]>`
     -- Views and distinct visitors in two hash-aggregation steps: one row per (value,
     -- visitor), then one per value. count(DISTINCT …) always sorts, and over a large
@@ -26,9 +26,11 @@ export async function getLanguagesAnalytics(
       FROM analytics_events
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
-        AND occurred_at >= ${startIso}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND language IS NOT NULL
         AND length(trim(language)) > 0
+        ${filterSql(filters, websiteId, span)}
       GROUP BY 1, 2
     ) per_visitor
     GROUP BY language

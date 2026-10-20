@@ -182,8 +182,36 @@ export function weightedHeatmapCaptureViewportHeight(
   return Math.round(sh / iw);
 }
 
-/** URL slug segment for `/heatmaps/[slug]` (matches list page navigation). */
+/**
+ * URL slug segment for `/heatmaps/[slug]`: the page path as base64url.
+ *
+ * It used to be the path with `/` swapped for `_`, which the detail page undid by turning
+ * every `_` back into `/` — so `/pricing_plans` opened `/pricing/plans`. base64url is
+ * reversible and has no `/` or `%` to be mangled by a proxy. A path always starts with `/`,
+ * so a slug always starts with `L`; an old `_`-slug always starts with `_`, which is how
+ * {@link heatmapPathFromSlug} still opens bookmarked links.
+ */
 export function heatmapPageSlug(pagePath: string): string {
-  const p = normalizeHeatmapPagePath(pagePath);
-  return encodeURIComponent(p.replace(/\//g, '_'));
+  const bytes = new TextEncoder().encode(normalizeHeatmapPagePath(pagePath));
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The page path a `/heatmaps/[slug]` segment names — the inverse of {@link heatmapPageSlug}. */
+export function heatmapPathFromSlug(slug: string | undefined | null): string {
+  if (!slug) return '/';
+  let raw = slug;
+  try { raw = decodeURIComponent(slug); } catch { /* already plain */ }
+  // A pre-base64 link: `_` stood for `/`, so underscores in the path are lost either way.
+  const legacy = () => normalizeHeatmapPagePath(raw.replace(/_/g, '/'));
+  if (raw.startsWith('_')) return legacy();
+  try {
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+    const path = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+    return path.startsWith('/') ? normalizeHeatmapPagePath(path) : legacy();
+  } catch {
+    return legacy();
+  }
 }

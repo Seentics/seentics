@@ -4,14 +4,14 @@ import { usePathSegment } from '@/lib/path-segment';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useRevenueDashboard, formatMoney } from '@/lib/revenue-analytics';
+import { useRevenueTransaction, formatMoney } from '@/lib/revenue-analytics';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Receipt, Globe, Share2, Package, UserRound, Copy, CalendarClock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { fmtTime } from '@/features/revenue/format';
+import { fmtTime, lineItems } from '@/features/revenue/format';
 import { useLocale, useT } from '@/lib/i18n';
 
 export default function RevenueTransactionPage() {
@@ -22,9 +22,9 @@ export default function RevenueTransactionPage() {
   const { locale } = useLocale();
   const websiteId = params?.websiteId as string;
   const transactionId = params?.transactionId as string;
-  const { data, isLoading } = useRevenueDashboard(websiteId, 90);
-  const tx = data?.recent_transactions?.find((t) => t.id === decodeURIComponent(transactionId));
-  const cur = data?.summary?.currency ?? 'USD';
+  // The one order, read by id. It was looked up in the dashboard's latest 50, so any older
+  // order — and any failed request — read as "not found".
+  const { data: tx, isLoading, isError, refetch } = useRevenueTransaction(websiteId, decodeURIComponent(transactionId));
 
   if (isLoading) {
     return (
@@ -39,8 +39,13 @@ export default function RevenueTransactionPage() {
   if (!tx) {
     return (
       <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1100px] mx-auto text-center">
-        <p className="text-sm text-muted-foreground">{t.notFound}</p>
+        <p className="text-sm text-muted-foreground">{isError ? t.loadFailed : t.notFound}</p>
         <div className="mt-4 flex justify-center gap-2">
+          {isError && (
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              {all.actions.retry}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> {all.actions.back}
           </Button>
@@ -52,13 +57,12 @@ export default function RevenueTransactionPage() {
     );
   }
 
-  const money = (n: number) => formatMoney(n, tx.currency || cur);
-  const items = tx.items?.length
-    ? tx.items
-    : tx.product_name
-      ? [{ sku: '', name: tx.product_name, qty: 1, price: tx.value }]
-      : [];
-  const itemsTotal = items.reduce((sum, it) => sum + it.price * it.qty, 0);
+  const money = (n: number) => formatMoney(n, tx.currency || 'USD');
+  const items = lineItems(tx);
+  // Only a subtotal every line has a price for: a line without one would understate it.
+  const itemsTotal = items.every((it) => it.price !== null)
+    ? items.reduce((sum, it) => sum + (it.price ?? 0) * it.qty, 0)
+    : null;
   const customer = tx.user_type === 'new' ? t.newCustomer : tx.user_type === 'returning' ? t.returningCustomer : t.unknown;
   const medium = tx.medium && tx.medium !== 'none' ? tx.medium : '—';
 
@@ -155,12 +159,12 @@ export default function RevenueTransactionPage() {
                       </div>
                     </div>
                     <span className="text-right tabular-nums text-muted-foreground">×{it.qty}</span>
-                    <span className="text-right font-semibold tabular-nums">{money(it.price * it.qty)}</span>
+                    <span className="text-right font-semibold tabular-nums">{it.price === null ? '—' : money(it.price * it.qty)}</span>
                   </li>
                 ))}
               </ul>
               <div className="space-y-1.5 border-t border-border bg-muted/20 px-4 py-3 text-[13px]">
-                {Math.abs(itemsTotal - tx.value) > 0.005 && (
+                {itemsTotal !== null && Math.abs(itemsTotal - tx.value) > 0.005 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>{t.subtotal}</span>
                     <span className="tabular-nums">{money(itemsTotal)}</span>

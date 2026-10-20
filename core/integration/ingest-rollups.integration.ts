@@ -335,7 +335,9 @@ describe("time zones on the rollups", () => {
 
     for (const tz of ["UTC", "Asia/Tokyo", "America/Los_Angeles"]) {
       const res = await get("daily-stats", s, owner, { days: 3, timezone: tz });
-      expect([tz, res.body.daily_stats]).toEqual([tz, [{ date: localDay(at, tz), views: 1, unique: 1 }]]);
+      // Every day of the window is listed (zero-filled); only the event's has views.
+      const withViews = res.body.daily_stats.filter((d: { views: number }) => d.views);
+      expect([tz, withViews]).toEqual([tz, [{ date: localDay(at, tz), views: 1, unique: 1 }]]);
     }
   });
 

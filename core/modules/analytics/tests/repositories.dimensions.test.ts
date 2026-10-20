@@ -88,8 +88,9 @@ describe("getPagesAnalytics", () => {
     const start = sqlCalls[0]!.values.find(
       (v): v is string => typeof v === "string" && v.endsWith("Z"),
     )!;
+    // From local midnight six days back: today plus the six days before it.
     const days = (Date.now() - new Date(start).getTime()) / 86_400_000;
-    expect(Math.round(days)).toBe(7);
+    expect(Math.ceil(days - 0.001)).toBe(7);
   });
 });
 

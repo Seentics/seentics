@@ -70,6 +70,7 @@ function makeRow(over: Partial<AutomationRow> = {}): AutomationRow {
     websiteId: WEBSITE,
     userId: OWNER,
     name: "Exit intent banner",
+    description: "",
     definition: { trigger: { type: "exit_intent" }, actions: [] },
     isActive: true,
     priority: 0,
@@ -121,6 +122,7 @@ class FakeAutomations implements AutomationCrud, AutomationInsights {
       id: r.id,
       website_id: websiteRef,
       name: r.name,
+      description: r.description,
       definition: r.definition,
       is_active: r.isActive,
       created_at: r.createdAt.toISOString(),
@@ -317,6 +319,7 @@ describe("automation routes", () => {
       expect(Object.keys(body.data[0]!).sort()).toEqual([
         "created_at",
         "definition",
+        "description",
         "id",
         "is_active",
         "name",

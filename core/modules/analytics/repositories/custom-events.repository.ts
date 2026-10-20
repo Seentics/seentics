@@ -1,6 +1,7 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 /** Most (event, property, value) rows read for one window; the top ones by count. */
 const PROPERTY_ROWS = 2000;
@@ -41,21 +42,21 @@ export async function getCustomEventsAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const endIso   = new Date().toISOString();
-  const startIso = windowStartIso(days);
+  const { span, filters, useRollups } = readScope(query);
+  const { start: startIso, end: endIso } = span;
+  const where = () => filterSql(filters, websiteId, span);
 
   type EventRow = { event_type: string; c: number; unique_visitors: number; unique_sessions: number };
   type UtmRow   = { label: string; visits: number; unique_visitors: number };
 
-  const [rows, sourceRows, mediumRows, campaignRows] = rollupsEnabled() ? await Promise.all([
+  const [rows, sourceRows, mediumRows, campaignRows] = useRollups ? await Promise.all([
     // From the rollups. unique_sessions sums each day's distinct sessions, so a session
     // spanning midnight counts on both days.
-    topRows(websiteId, "event", days, 100).then((r) => r.map((x): EventRow => ({
+    topRows(websiteId, "event", span, 100).then((r) => r.map((x): EventRow => ({
       event_type: x.k, c: x.views, unique_visitors: x.unique_visitors, unique_sessions: x.sessions,
     }))),
     ...(["utm_source", "utm_medium", "utm_campaign"] as const).map((dim) =>
-      topRows(websiteId, dim, days, 50, "sessions").then((r) => r.map((x): UtmRow => ({
+      topRows(websiteId, dim, span, 50, "sessions").then((r) => r.map((x): UtmRow => ({
         label: x.k, visits: x.sessions, unique_visitors: x.unique_visitors,
       })))),
   ]) : await Promise.all([
@@ -93,7 +94,8 @@ export async function getCustomEventsAnalytics(
         WHERE website_id  = ${websiteId}
           AND event_type <> 'pageview'
           AND occurred_at >= ${startIso}
-          AND occurred_at <= ${endIso}
+          AND occurred_at < ${endIso}
+          ${where()}
       ) s
       GROUP BY event_type
       ORDER BY c DESC, event_type ASC
@@ -109,9 +111,10 @@ export async function getCustomEventsAnalytics(
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
-        AND occurred_at <= ${endIso}
+        AND occurred_at < ${endIso}
         AND utm_source IS NOT NULL
         AND length(trim(utm_source)) > 0
+        ${where()}
       GROUP BY utm_source
       ORDER BY visits DESC, label ASC
       LIMIT 50
@@ -126,9 +129,10 @@ export async function getCustomEventsAnalytics(
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
-        AND occurred_at <= ${endIso}
+        AND occurred_at < ${endIso}
         AND utm_medium IS NOT NULL
         AND length(trim(utm_medium)) > 0
+        ${where()}
       GROUP BY utm_medium
       ORDER BY visits DESC, label ASC
       LIMIT 50
@@ -143,9 +147,10 @@ export async function getCustomEventsAnalytics(
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
-        AND occurred_at <= ${endIso}
+        AND occurred_at < ${endIso}
         AND utm_campaign IS NOT NULL
         AND length(trim(utm_campaign)) > 0
+        ${where()}
       GROUP BY utm_campaign
       ORDER BY visits DESC, label ASC
       LIMIT 50
@@ -153,9 +158,9 @@ export async function getCustomEventsAnalytics(
   ]);
 
   // Property breakdowns, from the `event_prop` rollup (rollups/builder.ts) — so they
-  // cover any range. Without the rollups there are none.
-  const topProperties = rollupsEnabled()
-    ? groupEventProperties(await topRows(websiteId, "event_prop", days, PROPERTY_ROWS, "views", false))
+  // cover any range. Without the rollups, or filtered, there are none.
+  const topProperties = useRollups
+    ? groupEventProperties(await topRows(websiteId, "event_prop", span, PROPERTY_ROWS, "views", false))
     : new Map<string, Record<string, Record<string, number>>>();
 
   const eventPayload = rows.map((x) => ({

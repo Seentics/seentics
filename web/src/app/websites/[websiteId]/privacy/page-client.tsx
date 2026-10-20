@@ -1,41 +1,21 @@
 'use client';
 
-import { usePathSegment } from '@/lib/path-segment';
-
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
-import { EditGuard, ReadOnlyNote } from '@/features/client-mode/ClientMode';
-import { ReportPage } from '@/components/ui/linear-list';
-import { isEnterprise } from '@/lib/features';
-import { useT } from '@/lib/i18n';
+import { usePathSegment } from '@/lib/path-segment';
 
-export default function PrivacyPage() {
-    const params = { websiteId: usePathSegment(1) ?? '' };
-    const websiteId = params?.websiteId as string;
-    const router = useRouter();
-    const t = useT().settings.privacyPage;
+/**
+ * Privacy lives under Settings. This route rendered the same settings component as a
+ * second, unlinked copy of the page; it now forwards old links there. Client-side for the
+ * reason `settings/tracking` is — see src/lib/path-segment.ts.
+ */
+export default function PrivacyRedirectPage() {
+  const websiteId = usePathSegment(1); // /websites/:websiteId/privacy
+  const router = useRouter();
 
-    useEffect(() => {
-        if (!isEnterprise) {
-            router.replace(`/websites/${websiteId}`);
-        }
-    }, [router, websiteId]);
+  useEffect(() => {
+    if (websiteId) router.replace(`/websites/${websiteId}/settings/privacy`);
+  }, [websiteId, router]);
 
-    if (!isEnterprise) return null;
-
-    return (
-        <ReportPage
-          title={t.title}
-          description={t.description}
-          websiteId={websiteId}
-          bodyClassName="space-y-4"
-        >
-
-            <ReadOnlyNote feature="privacy" />
-            <EditGuard feature="privacy" mode="disable">
-                <PrivacySettingsComponent websiteId={websiteId} />
-            </EditGuard>
-        </ReportPage>
-    );
+  return null;
 }

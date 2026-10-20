@@ -1,4 +1,4 @@
-import type { FrontendUser, UserDirectory, UserProfile } from "../interfaces";
+import type { FrontendUser, ProfileEditor, UserDirectory, UserProfile } from "../interfaces";
 import type { UserRepository } from "../interfaces/user-repository.interface";
 import { toFrontendUser } from "../lib/user-presenter";
 
@@ -14,7 +14,7 @@ import { toFrontendUser } from "../lib/user-presenter";
  * wide shape. Everything a *peer* module sees goes through `UserProfile`, which has no
  * password hash to leak.
  */
-export class UserDirectoryService implements UserDirectory {
+export class UserDirectoryService implements UserDirectory, ProfileEditor {
   constructor(private readonly users: UserRepository) {}
 
   async getById(userId: string): Promise<UserProfile | null> {
@@ -27,6 +27,11 @@ export class UserDirectoryService implements UserDirectory {
 
   async getProfileForClient(userId: string): Promise<FrontendUser | null> {
     const row = await this.users.findById(userId);
+    return row ? toFrontendUser(row) : null;
+  }
+
+  async updateName(userId: string, name: string): Promise<FrontendUser | null> {
+    const row = await this.users.setName(userId, name);
     return row ? toFrontendUser(row) : null;
   }
 

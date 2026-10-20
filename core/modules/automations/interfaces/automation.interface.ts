@@ -28,6 +28,7 @@ export type AutomationRow = {
   websiteId: string;
   userId: string;
   name: string;
+  description: string;
   definition: Record<string, unknown>;
   isActive: boolean;
   priority: number;
@@ -56,6 +57,7 @@ export type AutomationListItem = {
   id: string;
   website_id: string;
   name: string;
+  description: string;
   definition: Record<string, unknown>;
   is_active: boolean;
   created_at: string;
@@ -91,6 +93,7 @@ export type AutomationDailyRuns = {
 
 export type CreateAutomationInput = {
   name: string;
+  description?: string;
   definition: Record<string, unknown>;
   is_active?: boolean;
 };
@@ -104,6 +107,7 @@ export type CreateAutomationInput = {
  */
 export type UpdateAutomationInput = Partial<{
   name: string;
+  description: string;
   definition: Record<string, unknown>;
   is_active: boolean;
 }>;

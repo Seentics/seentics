@@ -11,18 +11,14 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, Target } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
-import { useT, type Messages } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
-// Generate demo sparkline data
-function demoTrend(completions: number, day: Messages['analytics']['goalDetail']['day']) {
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: day(i + 1),
-    completions: Math.max(0, Math.floor((completions / 30) * (0.5 + Math.random()))),
-  }));
-}
+/*
+ * Only what the goals endpoint returns: completions, unique visitors and the conversion
+ * rate over the last 30 days. This page used to draw a "completions over 30 days" chart
+ * from Math.random() and show completions × 0.8 as visitors when there were none — there is
+ * no per-day goal series in the API, so the chart is gone rather than invented.
+ */
 
 export default function GoalDetailPage() {
   const params = { websiteId: usePathSegment(1) ?? '', goalId: usePathSegment(3) ?? '' };
@@ -59,8 +55,6 @@ export default function GoalDetailPage() {
     );
   }
 
-  const trendData = demoTrend(goal.completions || 0, t.goalDetail.day);
-
   return (
     <div className="p-4 md:p-5 lg:px-6 lg:py-5 max-w-[1200px] mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -92,6 +86,7 @@ export default function GoalDetailPage() {
 
       {/* Stats */}
       <StatCards
+        cols={3}
         cards={[
           {
             label: t.goals.completions,
@@ -103,41 +98,10 @@ export default function GoalDetailPage() {
           },
           {
             label: t.goalDetail.uniqueVisitors,
-            value: goal.unique_visitors || Math.floor((goal.completions || 0) * 0.8),
-          },
-          {
-            label: t.goalDetail.last30Days,
-            value: goal.completions ?? 0,
+            value: goal.unique_visitors ?? 0,
           },
         ]}
       />
-
-      {/* Chart */}
-      <Card className="border border-border mb-6">
-        <CardHeader className="px-5 py-4 border-b border-border">
-          <CardTitle className="text-sm font-semibold">{t.goalDetail.completionsOver30}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-5">
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={trendData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <defs>
-                <linearGradient id="goalGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval={4} />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
-              />
-              <Area type="monotone" dataKey="completions" stroke="hsl(var(--primary))" fill="url(#goalGrad)" strokeWidth={2} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
 
       {/* Conversion bar */}
       <Card className="border border-border">

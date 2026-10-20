@@ -246,7 +246,8 @@ export function SuiteRolesComponent() {
                   <p className="truncate text-xs text-muted-foreground">{member.email}</p>
                 </div>
                 <Select
-                  defaultValue="preset"
+                  // Bound to what the member holds: a fixed "preset" showed everyone on the preset.
+                  value={member.customRoleId ?? 'preset'}
                   disabled={assign.isPending}
                   onValueChange={(value) =>
                     assign.mutate({

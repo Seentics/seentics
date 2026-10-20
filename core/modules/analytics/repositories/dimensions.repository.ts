@@ -1,15 +1,15 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { withoutVersionSql } from "../lib/dimension-sql";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 async function topDimensionAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
   col: "country" | "browser" | "device" | "os",
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
+  const { span, filters, useRollups } = readScope(query);
 
   // pgSql([colName]) = postgres.js identifier escaping — safe for this trusted union type
   const colIdent = pgSql([col]);
@@ -17,7 +17,7 @@ async function topDimensionAnalytics(
   // Chrome 128 are one browser. See lib/dimension-sql.ts.
   const valueExpr = col === "browser" || col === "os" ? pgSql.unsafe(withoutVersionSql(col)) : colIdent;
 
-  const rows = rollupsEnabled() ? await topRows(websiteId, col, days, 50) : await pgSql<{
+  const rows = useRollups ? await topRows(websiteId, col, span, 50) : await pgSql<{
     k: string | null;
     views: number;
     unique_visitors: number;
@@ -36,9 +36,11 @@ async function topDimensionAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND ${colIdent} IS NOT NULL
         AND length(trim(${colIdent})) > 0
+        ${filterSql(filters, websiteId, span)}
       GROUP BY 1, 2
     ) per_visitor
     GROUP BY k

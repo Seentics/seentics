@@ -1,19 +1,21 @@
 import { analyticsReadSql as pgSql } from "../../../db";
 import { pagePathSql } from "../lib/dimension-sql";
-import { parseDays } from "./shared";
-import { newVisitorCount, rollupsEnabled, siteUniques, topRows } from "../rollups/reads";
+import { newVisitorCount, siteUniques, topRows } from "../rollups/reads";
+import { filteredSessionsSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
+import type { AnalyticsSpan } from "../lib/analytics-window";
 
 /**
  * The raw query's single row, from the rollups. New visitors are those first seen
  * inside the window; returning is everyone else in it — so the two always add up to the
  * window's unique visitors (itself a HyperLogLog estimate on large sites).
  */
-async function insightsFromRollups(websiteId: string, days: number) {
+async function insightsFromRollups(websiteId: string, span: AnalyticsSpan) {
   const [entry, exit, newVisitors, uv] = await Promise.all([
-    topRows(websiteId, "entry_page", days, 30, "sessions"),
-    topRows(websiteId, "exit_page", days, 30, "sessions"),
-    newVisitorCount(websiteId, days),
-    siteUniques(websiteId, days),
+    topRows(websiteId, "entry_page", span, 30, "sessions"),
+    topRows(websiteId, "exit_page", span, 30, "sessions"),
+    newVisitorCount(websiteId, span),
+    siteUniques(websiteId, span),
   ]);
   const clampedNew = Math.min(newVisitors, uv);
   return {
@@ -28,16 +30,16 @@ export async function getVisitorInsightsAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const end   = new Date();
-  const start = new Date(end.getTime() - days * 86400000);
-  const startIso    = start.toISOString();
-  const endIso      = end.toISOString();
-  const lookbackIso = new Date(start.getTime() - 365 * 86400000).toISOString();
+  const { span, filters, useRollups } = readScope(query);
+  const days = span.days;
+  const startIso    = span.start;
+  const endIso      = span.end;
+  const lookbackIso = new Date(Date.parse(startIso) - 365 * 86400000).toISOString();
 
   // Single query: materialise current-period rows once in `base`, derive all
-  // aggregates from it. prev_vids lookback is capped at 365 days.
-  const rows = rollupsEnabled() ? [await insightsFromRollups(websiteId, days)] : await pgSql<{
+  // aggregates from it. prev_vids lookback is capped at 365 days. Filtered, `base` is the
+  // sessions with a matching pageview, whole, so entry and exit are still their real ones.
+  const rows = useRollups ? [await insightsFromRollups(websiteId, span)] : await pgSql<{
     top_entry_pages:    { page: string; sessions: number }[] | null;
     top_exit_pages:     { page: string; sessions: number }[] | null;
     new_visitors:       number;
@@ -50,7 +52,8 @@ export async function getVisitorInsightsAnalytics(
       WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
-        AND occurred_at <= ${endIso}
+        AND occurred_at < ${endIso}
+        ${filteredSessionsSql(filters, websiteId, span)}
     ),
     -- Entry: first page per session using DISTINCT ON (cheaper than ROW_NUMBER)
     entry_raw AS (

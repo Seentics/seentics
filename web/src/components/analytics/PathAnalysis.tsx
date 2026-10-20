@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogIn, LogOut, Route, TrendingUp, MoveRight } from 'lucide-react';
-import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
 import { isDemo, demoPathAnalysis } from '@/lib/demo';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
@@ -52,7 +51,9 @@ export function usePathAnalysis(websiteId: string, dateRange: number) {
       ]);
       return pathAnalysisFrom(paths.data, insights);
     },
-    enabled: isValidId(websiteId) && (isEnterprise || isDemo(websiteId)),
+    // Not edition-gated: core serves path analysis in every build. Gating it on `isEnterprise`
+    // left the query disabled in OSS builds, so the Paths page stayed empty with no error.
+    enabled: isValidId(websiteId),
     staleTime: 60 * 1000,
   });
 }

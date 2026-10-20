@@ -73,6 +73,9 @@ export interface UserRepository {
   /** Replace an account's password hash. */
   setPasswordHash(id: string, passwordHash: string): Promise<void>;
 
+  /** Rename an account and return the updated row. `null` when no such user. */
+  setName(id: string, name: string): Promise<UserRow | null>;
+
   /** Narrow projection by id, for `UserDirectory`. */
   profileById(id: string): Promise<UserProfileRow | null>;
 

@@ -150,7 +150,7 @@ describe("automation drafts", () => {
 
 describe("AutomationDraftWriterService", () => {
   const calls: unknown[] = [];
-  const row = { id: AUTO, websiteId: SITE, userId: "u", name: "n", definition, isActive: false, priority: 0, status: "", createdAt: new Date(), updatedAt: new Date(V1) };
+  const row = { id: AUTO, websiteId: SITE, userId: "u", name: "n", description: "", definition, isActive: false, priority: 0, status: "", createdAt: new Date(), updatedAt: new Date(V1) };
   const writer = new AutomationDraftWriterService({
     create: async (w, u, input) => { calls.push(["create", input]); return { ...row }; },
     get: async (w, id) => (w === SITE && id === AUTO ? { ...row } : null),

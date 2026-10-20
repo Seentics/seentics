@@ -109,7 +109,6 @@ export default function FunnelDetailPage() {
         conversions={analytics?.total_conversions || 0}
         conversionRate={analytics?.conversion_rate || 0}
         dropOffRate={analytics?.drop_off_rate || 0}
-        avgTimeToConvert={analytics?.avg_time_to_convert}
         rangeLabel={funnelRangeLabel(days, all.funnels.ranges)}
         loading={analyticsLoading}
       />

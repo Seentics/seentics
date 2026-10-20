@@ -16,6 +16,7 @@ export const dashboardEn = {
       aiReports: { label: 'AI Reports', hint: 'Written reports on your traffic' },
       errors: { label: 'Errors', hint: 'JavaScript errors your visitors hit' },
       developers: { label: 'Developers', hint: 'API keys, API reference and setup guides' },
+      uiBlocks: { label: 'UI Blocks', hint: 'Embeddable widgets, badges and charts for your own site' },
       settings: { label: 'Settings', hint: 'Website, tracking and team' },
     },
     clientSettingsHint: 'Goals and privacy',

@@ -1,15 +1,16 @@
 import { analyticsReadSql as pgSql } from "../../../db";
-import { parseDays, windowStartIso } from "./shared";
-import { rollupsEnabled, topRows } from "../rollups/reads";
+import { topRows } from "../rollups/reads";
+import { filterSql } from "../lib/filter-sql";
+import { readScope } from "../lib/read-scope";
 
 export async function getResolutionsAnalytics(
   websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  const days = parseDays(query.days);
-  const startIso = windowStartIso(days);
-  const rows = rollupsEnabled()
-    ? (await topRows(websiteId, "resolution", days, 30)).map((r) => ({ resolution: r.k, views: r.views, unique: r.unique_visitors }))
+  const { span, filters, useRollups } = readScope(query);
+  const days = span.days;
+  const rows = useRollups
+    ? (await topRows(websiteId, "resolution", span, 30)).map((r) => ({ resolution: r.k, views: r.views, unique: r.unique_visitors }))
     : await pgSql<{ resolution: string; views: number; unique: number }[]>`
     -- Views and distinct visitors in two hash-aggregation steps: one row per (value,
     -- visitor), then one per value. count(DISTINCT …) always sorts, and over a large
@@ -29,9 +30,11 @@ export async function getResolutionsAnalytics(
       FROM analytics_events
       WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
+        AND occurred_at >= ${span.start}
+        AND occurred_at < ${span.end}
         AND screen_width IS NOT NULL
         AND screen_height IS NOT NULL
+        ${filterSql(filters, websiteId, span)}
       GROUP BY 1, 2, 3
     ) per_visitor
     GROUP BY screen_width, screen_height

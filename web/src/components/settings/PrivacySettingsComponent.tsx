@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,7 +36,6 @@ import {
   Clock,
   FileText,
   Globe,
-  Bot,
   Fingerprint,
   Lock,
   CheckCircle2,
@@ -46,51 +45,14 @@ import {
 } from 'lucide-react';
 import { privacyAPI, WebsitePrivacySettings } from '@/lib/privacy-api';
 import { useAuth } from '@/stores/useAuthStore';
-import { isEnterprise } from '@/lib/features';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { VisitorRequestCard } from './VisitorRequestCard';
 import { useT } from '@/lib/i18n';
+import { isDemo, demoMutationGuard } from '@/lib/demo';
 
 interface PrivacySettingsProps {
   websiteId?: string;
-}
-
-// --- Sub-components ---
-
-function PrivacyToggleCard({
-  icon: Icon,
-  title,
-  description,
-  checked,
-  onToggle,
-  color,
-  bgColor,
-  disabled,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  checked: boolean;
-  onToggle: (v: boolean) => void;
-  color: string;
-  bgColor: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-all group">
-      <div className="flex items-center gap-3.5">
-        <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105', bgColor)}>
-          <Icon className={cn('h-4.5 w-4.5', color)} />
-        </div>
-        <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 max-w-md leading-relaxed">{description}</p>
-        </div>
-      </div>
-      <Switch checked={checked} onCheckedChange={onToggle} disabled={disabled} />
-    </div>
-  );
 }
 
 // --- Main Component ---
@@ -107,77 +69,47 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  // --- OSS: local privacy toggles ---
-  const [ipAnonymization, setIpAnonymization] = useState(true);
-  const [cookielessMode, setCookielessMode] = useState(true);
-  const [respectDnt, setRespectDnt] = useState(true);
-  const [botFiltering, setBotFiltering] = useState(true);
-
-  // --- Enterprise: per-website settings ---
+  // --- Per-website settings (core's /websites/:id/privacy, in every edition) ---
   const [privacySettings, setPrivacySettings] = useState<WebsitePrivacySettings | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  /** Why the settings could not be read: `owner` (only the owner may see them) or `failed`. */
+  const [loadError, setLoadError] = useState<'owner' | 'failed' | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
 
-  // --- OSS: load from localStorage ---
+  // --- Load settings ---
+  // The OSS build used to keep these toggles in localStorage and toast "updated" while the tracker
+  // never saw them; core serves the same per-website settings to every edition. A failed read used
+  // to fill in made-up values, which Save then wrote over the real ones: now nothing is shown to edit.
   useEffect(() => {
-    if (isEnterprise) return;
-    try {
-      const saved = localStorage.getItem('seentics_oss_privacy');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setIpAnonymization(parsed.ipAnonymization ?? true);
-        setCookielessMode(parsed.cookielessMode ?? true);
-        setRespectDnt(parsed.respectDnt ?? true);
-        setBotFiltering(parsed.botFiltering ?? true);
-      }
-    } catch { /* use defaults */ }
-  }, []);
-
-  const handleOssToggle = useCallback((key: string, value: boolean) => {
-    const current = { ipAnonymization, cookielessMode, respectDnt, botFiltering };
-    const updated = { ...current, [key]: value };
-
-    if (key === 'ipAnonymization') setIpAnonymization(value);
-    else if (key === 'cookielessMode') setCookielessMode(value);
-    else if (key === 'respectDnt') setRespectDnt(value);
-    else if (key === 'botFiltering') setBotFiltering(value);
-
-    try {
-      localStorage.setItem('seentics_oss_privacy', JSON.stringify(updated));
-      toast.success(t.settingUpdated);
-    } catch {
-      toast.error(t.settingFailed);
+    if (!websiteId) return;
+    if (isDemo(websiteId)) {
+      setPrivacySettings({ ipAnonymization: 'partial', respectDnt: true, consentMode: 'cookieless', dataRetentionDays: null });
+      return;
     }
-  }, [ipAnonymization, cookielessMode, respectDnt, botFiltering, t]);
-
-  // --- Enterprise: load settings ---
-  useEffect(() => {
-    if (!isEnterprise || !websiteId) return;
     setIsLoadingSettings(true);
+    setLoadError(null);
     privacyAPI.getWebsitePrivacy(websiteId)
       .then(res => setPrivacySettings(res.data))
-      .catch(() => {
-        setPrivacySettings({
-          ipAnonymization: 'partial',
-          respectDnt: true,
-          consentMode: 'cookieless',
-          dataRetentionDays: null,
-        });
+      .catch((err: any) => {
+        setPrivacySettings(null);
+        setLoadError(err?.response?.status === 403 ? 'owner' : 'failed');
       })
       .finally(() => setIsLoadingSettings(false));
-  }, [websiteId]);
+  }, [websiteId, reloadKey]);
 
   // --- Handlers ---
 
   const handleSavePrivacy = async () => {
     if (!websiteId || !privacySettings) return;
+    if (demoMutationGuard(websiteId)) return;
     setIsSavingSettings(true);
     try {
       await privacyAPI.updateWebsitePrivacy(websiteId, privacySettings);
       toast.success(t.saved);
-    } catch {
-      toast.error(t.saveFailed);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t.saveFailed);
     } finally {
       setIsSavingSettings(false);
     }
@@ -240,8 +172,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
     }
   };
 
-  // --- Loading state for enterprise ---
-  if (isEnterprise && isLoadingSettings) {
+  // --- Loading state ---
+  if (isLoadingSettings) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -280,50 +212,22 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{t.controls}</h4>
         </div>
 
-        {/* OSS mode: local toggles */}
-        {!isEnterprise && (
-          <div className="space-y-2">
-            <PrivacyToggleCard
-              icon={EyeOff}
-              title={t.ipAnonymization}
-              description={t.ipAnonymizationBody}
-              checked={ipAnonymization}
-              onToggle={(v) => handleOssToggle('ipAnonymization', v)}
-              color="text-indigo-500"
-              bgColor="bg-indigo-500/10"
-            />
-            <PrivacyToggleCard
-              icon={Cookie}
-              title={t.cookieless}
-              description={t.cookielessBody}
-              checked={cookielessMode}
-              onToggle={(v) => handleOssToggle('cookielessMode', v)}
-              color="text-indigo-500"
-              bgColor="bg-indigo-500/10"
-            />
-            <PrivacyToggleCard
-              icon={Globe}
-              title={t.dnt}
-              description={t.dntBody}
-              checked={respectDnt}
-              onToggle={(v) => handleOssToggle('respectDnt', v)}
-              color="text-indigo-500"
-              bgColor="bg-indigo-500/10"
-            />
-            <PrivacyToggleCard
-              icon={Bot}
-              title={t.bots}
-              description={t.botsBody}
-              checked={botFiltering}
-              onToggle={(v) => handleOssToggle('botFiltering', v)}
-              color="text-teal-500"
-              bgColor="bg-teal-500/10"
-            />
-          </div>
+        {websiteId && loadError && (
+          <Card className="border-border bg-card">
+            <CardContent className="p-5 flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">{loadError === 'owner' ? t.ownerOnly : t.loadFailed}</p>
+              {loadError === 'failed' && (
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold" onClick={() => setReloadKey((k) => k + 1)}>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {t.retry}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         )}
 
-        {/* Enterprise mode: per-website settings */}
-        {isEnterprise && websiteId && privacySettings && (
+        {/* Per-website settings */}
+        {websiteId && privacySettings && (
           <Card className="border-border bg-card">
             <CardContent className="p-5 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

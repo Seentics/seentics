@@ -42,6 +42,9 @@ export const revenueEn = {
     transaction: 'Transaction',
     lineItems: 'Line items',
     openFullPage: 'Open full page',
+    otherCurrencies: (currency: string, parts: string) =>
+      `Totals are in ${currency}, the currency most orders used. Not converted or included: ${parts}.`,
+    ordersIn: (n: number, money: string) => `${n} order${n === 1 ? '' : 's'} (${money})`,
   },
 
   table: { name: 'Name', revenue: 'Revenue', orders: 'Orders', share: 'Share' },
@@ -57,7 +60,8 @@ export const revenueEn = {
   },
 
   transaction: {
-    notFound: 'This transaction is not in the last 90 days of data, or the id is invalid.',
+    notFound: 'No purchase with this id was found for this site.',
+    loadFailed: 'This transaction could not be loaded. Try again in a moment.',
     overview: 'Revenue overview',
     allRevenue: 'All revenue',
     purchase: 'Purchase',
