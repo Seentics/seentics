@@ -68,6 +68,8 @@ export type SiteSubmissionFilters = {
   /** ISO timestamps bounding `created_at`; '' leaves that side open. */
   from: string;
   to: string;
+  /** `failed`: only submissions at least one destination could not take; '' or absent for all. */
+  delivery?: 'failed' | '';
   limit: number;
   offset: number;
 };
@@ -109,6 +111,8 @@ export type Contact = {
   created_at: string;
   updated_at: string;
   first_channel: LeadChannel | null;
+  /** The UTM campaign of the page they first submitted on. */
+  first_campaign?: string | null;
   first_page_url: string | null;
   first_referrer: string | null;
 };
@@ -120,6 +124,10 @@ export type ContactFilters = {
   status: ContactStatus | '';
   tag: string;
   source: ContactSource | '';
+  /** Where they first came from; '' or absent for any. */
+  channel?: LeadChannel | '';
+  /** The UTM campaign of their first page; '' or absent for any. */
+  campaign?: string;
   sort: ContactSort;
   limit: number;
   offset: number;
@@ -134,3 +142,18 @@ export type ContactPatch = Omit<ContactInput, 'email'>;
 export type ContactBulkChange = { ids: string[]; status?: ContactStatus; add_tags?: string[]; remove_tags?: string[] };
 export type ImportRow = ContactInput;
 export type ImportResult = { created: number; updated: number; skipped: number; errors: { row: number; reason: string }[] };
+
+/**
+ * The leads page's numbers over the last `days` days (`GET /leads/:website/overview`): what came
+ * in and from where, the people who first arrived in the window and how many of them are
+ * customers now, and how many submissions a destination could not take.
+ */
+export type LeadsOverview = {
+  days: number;
+  submissions: number;
+  new_contacts: number;
+  customers: number;
+  by_channel: { channel: LeadChannel; count: number }[];
+  by_campaign: { campaign: string; count: number }[];
+  failed_deliveries: number;
+};

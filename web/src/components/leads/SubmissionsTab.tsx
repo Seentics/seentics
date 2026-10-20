@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/collection';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { relativeTime } from '@/features/errors/format';
+import { useRetryDelivery } from '@/features/integrations/mutations';
 import { useDeleteSiteSubmission } from '@/features/leads/mutations';
 import { useLeadForms, useSiteSubmissions } from '@/features/leads/queries';
 import { formLabel, type SiteSubmission, type SiteSubmissionFilters } from '@/features/leads/types';
@@ -30,7 +31,7 @@ export type SubmissionListFilters = Omit<SiteSubmissionFilters, 'limit' | 'offse
  * the submission was sent, and the recording of the visit. A row opens its contact.
  */
 export function SubmissionsTab({
-  websiteId, now, canEdit, onOpenContact, onFiltersChange, tabs,
+  websiteId, now, canEdit, onOpenContact, onFiltersChange, tabs, delivery,
 }: {
   websiteId: string;
   /** The demo's fixed clock; real sites use the browser's. */
@@ -41,8 +42,15 @@ export function SubmissionsTab({
   onFiltersChange?: (filters: SubmissionListFilters) => void;
   /** The page's tabs (People / Submissions), on the left of this tab's toolbar. */
   tabs?: ReactNode;
+  /** The Failed to send tab: only submissions an integration did not take. */
+  delivery?: 'failed';
 }) {
   const all = useT();
+  const retry = useRetryDelivery(websiteId);
+  const onRetry = canEdit ? (d: { id: string }) => retry.mutate(d.id, {
+    onSuccess: () => toast.success(all.leads.destinations.retried),
+    onError: () => toast.error(all.leads.destinations.retryFailed),
+  }) : undefined;
   const t = all.leads;
   const ts = t.submissions;
   const { locale } = useLocale();
@@ -56,7 +64,7 @@ export function SubmissionsTab({
 
   // Fixed per range choice: a `from` recomputed every render would be a new query each time.
   const from = useMemo(() => new Date((now ?? Date.now()) - days * DAY).toISOString(), [days, now]);
-  const listFilters: SubmissionListFilters = { search: search.trim(), form, from, to: '' };
+  const listFilters: SubmissionListFilters = { search: search.trim(), form, from, to: '', ...(delivery ? { delivery } : {}) };
   const filters: SiteSubmissionFilters = { ...listFilters, limit: PAGE_SIZE, offset: page * PAGE_SIZE };
   const list = useSiteSubmissions(websiteId, filters);
   const forms = useLeadForms(websiteId);
@@ -104,7 +112,7 @@ export function SubmissionsTab({
         return <span className={f.known ? 'text-foreground/80' : 'text-muted-foreground'} title={s.form_name ?? undefined}>{f.text}</span>;
       },
     },
-    { id: 'sent_to', header: ts.sentTo, cell: (s) => <span className="block overflow-hidden text-xs [&>span]:flex-nowrap"><SentTo deliveries={s.deliveries} /></span> },
+    { id: 'sent_to', header: ts.sentTo, cell: (s) => <span className="block overflow-hidden text-xs [&>span]:flex-nowrap"><SentTo deliveries={s.deliveries} onRetry={onRetry} retrying={retry.isPending} /></span> },
     {
       id: 'when', header: ts.when, width: '96px', align: 'right', sorted: true,
       cell: (s) => (

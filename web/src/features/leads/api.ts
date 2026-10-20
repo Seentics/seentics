@@ -11,11 +11,12 @@ import api from '@/lib/api';
 import { demoMutationGuard, isDemo } from '@/lib/demo';
 import { demoFormSummary, demoSubmissionsCsv, demoSubmissionsPage } from '@/lib/demo/submissions';
 import {
-  demoContactDetail, demoContactsCsv, demoContactsPage, demoContactTags, demoLeadForms, demoSiteSubmissionsCsv, demoSiteSubmissionsPage,
+  demoContactDetail, demoContactsCsv, demoContactsPage, demoContactTags, demoLeadForms, demoLeadsOverview, demoSiteSubmissionsCsv,
+  demoSiteSubmissionsPage,
 } from '@/lib/demo/leads';
 import type {
   Contact, ContactBulkChange, ContactDetail, ContactFilters, ContactInput, ContactPage, ContactPatch,
-  FormSummary, ImportResult, ImportRow, LeadForm, SiteSubmissionFilters, SiteSubmissionPage,
+  FormSummary, ImportResult, ImportRow, LeadForm, LeadsOverview, SiteSubmissionFilters, SiteSubmissionPage,
   SubmissionFilters, SubmissionPage,
 } from './types';
 
@@ -56,7 +57,7 @@ export class ContactExistsError extends Error {
 
 const site = (websiteId: string) => `/leads/${websiteId}`;
 /** Drop empty filters, so the query string carries only what narrows the list. */
-const params = (filters: Record<string, string | number>) =>
+const params = (filters: Record<string, string | number | undefined>) =>
   Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '' && v !== undefined));
 const EMPTY_STATUSES: ContactPage['statuses'] = { new: 0, contacted: 0, qualified: 0, customer: 0, lost: 0 };
 
@@ -89,6 +90,13 @@ export const leadsApi = {
     if (isDemo(websiteId)) return new Blob([demoSiteSubmissionsCsv(filters)], { type: 'text/csv' });
     const res = await api.get(`${site(websiteId)}/submissions.csv`, { params: params(filters), responseType: 'blob' });
     return res.data as Blob;
+  },
+
+  /** The leads page's numbers over the last `days` days. */
+  async overview(websiteId: string, days: number): Promise<LeadsOverview> {
+    if (isDemo(websiteId)) return demoLeadsOverview(days);
+    const res = await api.get(`${site(websiteId)}/overview`, { params: { days } });
+    return res.data.data as LeadsOverview;
   },
 
   async contacts(websiteId: string, filters: ContactFilters): Promise<ContactPage> {

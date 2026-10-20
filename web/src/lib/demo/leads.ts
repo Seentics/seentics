@@ -6,7 +6,7 @@
  * automation pages. Addresses are on `example.com`, a domain reserved for documentation.
  */
 import type {
-  Contact, ContactDetail, ContactFilters, ContactPage, ContactStatus, LeadChannel, LeadForm,
+  Contact, ContactDetail, ContactFilters, ContactPage, ContactStatus, LeadChannel, LeadForm, LeadsOverview,
   SiteSubmission, SiteSubmissionFilters, SiteSubmissionPage,
 } from '@/features/leads/types';
 import { CONTACT_STATUSES } from '@/features/leads/types';
@@ -64,7 +64,7 @@ const OTHERS: Contact[] = [
   id: contactId(`${c.slug}@example.com`), email: `${c.slug}@example.com`, name: c.name, phone: c.phone,
   status: c.status as ContactStatus, tags: c.tags, notes: c.notes, source: c.source as Contact['source'],
   submission_count: 0, first_seen_at: demoIso(-c.agoMs), last_activity_at: demoIso(-c.agoMs),
-  created_at: demoIso(-c.agoMs), updated_at: demoIso(-c.agoMs), first_channel: null, first_page_url: null, first_referrer: null,
+  created_at: demoIso(-c.agoMs), updated_at: demoIso(-c.agoMs), first_channel: null, first_campaign: null, first_page_url: null, first_referrer: null,
 }));
 
 function buildContacts(): Contact[] {
@@ -79,7 +79,7 @@ function buildContacts(): Contact[] {
       id: contactId(email), email, name: latest.name, phone: subs.find((s) => s.phone)?.phone ?? '',
       ...crm, source: 'form', submission_count: subs.length,
       first_seen_at: first.created_at, last_activity_at: latest.created_at, created_at: first.created_at, updated_at: latest.created_at,
-      first_channel: first.channel, first_page_url: first.page_url, first_referrer: first.referrer || null,
+      first_channel: first.channel, first_campaign: first.utm_campaign, first_page_url: first.page_url, first_referrer: first.referrer || null,
     };
   });
   return [...fromForms, ...OTHERS];
@@ -94,7 +94,8 @@ function filterSubmissions(f: Omit<SiteSubmissionFilters, 'limit' | 'offset'>): 
     matchesText(term, s.email, s.name, s.phone)
     && (!f.form || s.automation_id === f.form)
     && (!f.from || s.created_at >= f.from)
-    && (!f.to || s.created_at <= f.to));
+    && (!f.to || s.created_at <= f.to)
+    && (f.delivery !== 'failed' || s.deliveries.some((d) => d.status === 'failed')));
 }
 
 export function demoSiteSubmissionsPage(f: SiteSubmissionFilters): SiteSubmissionPage {
@@ -110,7 +111,8 @@ function filterContacts(f: Omit<ContactFilters, 'limit' | 'offset' | 'status'>):
   const term = f.search.trim().toLowerCase();
   const key = f.sort === 'created' ? 'created_at' : 'last_activity_at';
   return CONTACTS
-    .filter((c) => matchesText(term, c.email, c.name, c.phone) && (!f.tag || c.tags.includes(f.tag)) && (!f.source || c.source === f.source))
+    .filter((c) => matchesText(term, c.email, c.name, c.phone) && (!f.tag || c.tags.includes(f.tag)) && (!f.source || c.source === f.source)
+      && (!f.channel || c.first_channel === f.channel) && (!f.campaign || c.first_campaign === f.campaign))
     .sort((a, b) => b[key].localeCompare(a[key]));
 }
 
@@ -156,3 +158,26 @@ export function demoContactsCsv(f: Omit<ContactFilters, 'limit' | 'offset'>): st
   );
 }
 
+/**
+ * The demo's numbers, from the same submissions and contacts the lists show, over the window
+ * ending at the demo's fixed "now" (`demoIso(0)`).
+ */
+export function demoLeadsOverview(days: number): LeadsOverview {
+  const since = demoIso(-days * DAY);
+  const recent = SUBMISSIONS.filter((s) => s.created_at >= since);
+  const fresh = CONTACTS.filter((c) => c.first_seen_at >= since);
+  const tally = <K extends string>(keys: (K | null)[]) => {
+    const m = new Map<K, number>();
+    for (const k of keys) if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  return {
+    days,
+    submissions: recent.length,
+    new_contacts: fresh.length,
+    customers: fresh.filter((c) => c.status === 'customer').length,
+    by_channel: tally(recent.map((s) => s.channel)).map(([channel, count]) => ({ channel, count })),
+    by_campaign: tally(recent.map((s) => s.utm_campaign)).slice(0, 5).map(([campaign, count]) => ({ campaign, count })),
+    failed_deliveries: recent.filter((s) => s.deliveries.some((d) => d.status === 'failed')).length,
+  };
+}

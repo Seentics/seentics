@@ -139,33 +139,44 @@ const SITE_COLUMNS = sql`
   (SELECT c.id FROM contacts c WHERE c.website_id = s.website_id AND c.email = s.email) AS contact_id
 `;
 
-function siteFilters(websiteId: string, q: Pick<SiteSubmissionQuery, "search" | "form" | "from" | "to">) {
+/**
+ * `only`: the submissions to keep, when another module has narrowed them (the ones with a failed
+ * delivery). An empty list keeps none.
+ */
+function siteFilters(websiteId: string, q: Pick<SiteSubmissionQuery, "search" | "form" | "from" | "to">, only: readonly string[] | null = null) {
   const search = q.search
     ? sql`AND (s.email ILIKE ${likePattern(q.search)} OR s.name ILIKE ${likePattern(q.search)} OR s.phone ILIKE ${likePattern(q.search)})`
     : sql``;
   const form = q.form ? sql`AND s.automation_id = ${q.form}::uuid` : sql``;
   const from = q.from ? sql`AND s.created_at >= ${q.from}` : sql``;
   const to = q.to ? sql`AND s.created_at < ${q.to}` : sql``;
-  return sql`s.website_id = ${websiteId}::uuid ${search} ${form} ${from} ${to}`;
+  const ids = only ? sql`AND s.id = ANY(${only as string[]}::uuid[])` : sql``;
+  return sql`s.website_id = ${websiteId}::uuid ${search} ${form} ${from} ${to} ${ids}`;
 }
 
 export async function listSiteSubmissions(
   websiteId: string,
   q: SiteSubmissionQuery,
+  only: readonly string[] | null = null,
 ): Promise<{ rows: SiteSubmissionRow[]; total: number }> {
   const [rows, totals] = await Promise.all([
     sql<SiteSubmissionRow[]>`
-      SELECT ${SITE_COLUMNS} FROM form_submissions s WHERE ${siteFilters(websiteId, q)}
+      SELECT ${SITE_COLUMNS} FROM form_submissions s WHERE ${siteFilters(websiteId, q, only)}
       ORDER BY s.created_at DESC, s.id LIMIT ${q.limit} OFFSET ${q.offset}
     `,
-    sql<[{ c: number }]>`SELECT COUNT(*)::int AS c FROM form_submissions s WHERE ${siteFilters(websiteId, q)}`,
+    sql<[{ c: number }]>`SELECT COUNT(*)::int AS c FROM form_submissions s WHERE ${siteFilters(websiteId, q, only)}`,
   ]);
   return { rows: [...rows], total: totals[0]?.c ?? 0 };
 }
 
-export async function exportSiteSubmissions(websiteId: string, q: SiteSubmissionQuery, limit: number): Promise<SiteSubmissionRow[]> {
+export async function exportSiteSubmissions(
+  websiteId: string,
+  q: SiteSubmissionQuery,
+  limit: number,
+  only: readonly string[] | null = null,
+): Promise<SiteSubmissionRow[]> {
   const rows = await sql<SiteSubmissionRow[]>`
-    SELECT ${SITE_COLUMNS} FROM form_submissions s WHERE ${siteFilters(websiteId, q)}
+    SELECT ${SITE_COLUMNS} FROM form_submissions s WHERE ${siteFilters(websiteId, q, only)}
     ORDER BY s.created_at DESC, s.id LIMIT ${limit}
   `;
   return [...rows];
@@ -195,4 +206,22 @@ export async function formCounts(websiteId: string): Promise<{ id: string; count
 export async function deleteSiteSubmission(websiteId: string, id: string): Promise<boolean> {
   const rows = await sql`DELETE FROM form_submissions WHERE id = ${id}::uuid AND website_id = ${websiteId}::uuid RETURNING id`;
   return rows.length > 0;
+}
+
+/** Where each of the window's submissions came from, for the leads overview: newest first, at most `cap`. */
+export async function submissionOrigins(websiteId: string, since: Date, cap: number): Promise<{ page_url: string; referrer: string }[]> {
+  const rows = await sql<{ page_url: string; referrer: string }[]>`
+    SELECT page_url, referrer FROM form_submissions
+    WHERE website_id = ${websiteId}::uuid AND created_at >= ${since}
+    ORDER BY created_at DESC LIMIT ${cap}
+  `;
+  return [...rows];
+}
+
+/** How many submissions the window holds, uncapped. */
+export async function submissionCountSince(websiteId: string, since: Date): Promise<number> {
+  const [row] = await sql<[{ c: number }]>`
+    SELECT COUNT(*)::int AS c FROM form_submissions WHERE website_id = ${websiteId}::uuid AND created_at >= ${since}
+  `;
+  return row?.c ?? 0;
 }

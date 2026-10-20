@@ -10,7 +10,7 @@ const unused = async () => { throw new Error("not used by this test"); };
 mock.module("../repositories/delivery.repository", () => ({
   LEASE_SECONDS: 60, PAYLOAD_RETENTION_DAYS: 30, claimDue: async () => [],
   completeAttempt: unused, enqueueDeliveries: unused, requeueFailed: unused, recentDeliveries: unused,
-  deliveriesOfSubmissions: unused, forgetSubmissions: unused, purgeDeliveries: unused,
+  deliveriesOfSubmissions: unused, forgetSubmissions: unused, failedSubmissionIds: unused, purgeDeliveries: unused,
 }));
 
 const { DeliveryWorker, BATCH_SIZE, MAX_CONCURRENT_ATTEMPTS } = await import("../services/delivery-worker.service");

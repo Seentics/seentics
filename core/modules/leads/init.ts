@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { TrafficChannelClassifier } from "../analytics/interfaces";
 import type { AutomationDirectory } from "../automations/interfaces";
 import type { RecordingPresence } from "../recordings/interfaces";
@@ -32,7 +33,7 @@ export function initLeadsModule(deps: {
   /** Where a submission or contact came from, by the dashboard's channel rules. */
   channels: TrafficChannelClassifier;
 }): LeadsModule {
-  const capture = new LeadCaptureService(deps.automations, deps.sink);
+  const capture = new LeadCaptureService(deps.automations, deps.sink, randomUUID, deps.channels);
   const queries = new SubmissionQueryService(deps.sink);
   const mutations = new SubmissionMutationService(deps.sink);
   const site = new SiteLeadService({ automations: deps.automations, recordings: deps.recordings, channels: deps.channels, sink: deps.sink });

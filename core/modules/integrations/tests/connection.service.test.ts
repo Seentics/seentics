@@ -35,7 +35,7 @@ mock.module("../repositories/delivery.repository", () => ({
   recentDeliveries: async () => [],
   requeueFailed: async () => requeue,
   enqueueDeliveries: unused, claimDue: unused, completeAttempt: unused, deliveriesOfSubmissions: unused,
-  forgetSubmissions: unused, purgeDeliveries: unused,
+  forgetSubmissions: unused, failedSubmissionIds: unused, purgeDeliveries: unused,
 }));
 
 const { ConnectionService, MAX_CONNECTIONS_PER_WEBSITE } = await import("../services/connection.service");

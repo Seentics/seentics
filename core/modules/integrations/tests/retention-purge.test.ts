@@ -7,7 +7,7 @@ mock.module("../repositories/delivery.repository", () => ({
   LEASE_SECONDS: 60, PAYLOAD_RETENTION_DAYS: 30,
   purgeDeliveries: async (...a: unknown[]) => { purges.push(a); return { deleted: 5, expired: 2, scrubbed: 1 }; },
   enqueueDeliveries: unused, claimDue: unused, completeAttempt: unused, requeueFailed: unused,
-  recentDeliveries: unused, deliveriesOfSubmissions: unused, forgetSubmissions: unused,
+  recentDeliveries: unused, deliveriesOfSubmissions: unused, forgetSubmissions: unused, failedSubmissionIds: unused,
 }));
 
 const conversionPurges: any[] = [];

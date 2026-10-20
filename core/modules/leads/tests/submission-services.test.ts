@@ -15,6 +15,7 @@ mock.module("../repositories/submission.repository", () => ({
   purgeBefore: async (w: string, cutoff: Date) => { calls.push(`purge:${w}:${cutoff.toISOString()}`); return 4; },
   insertSubmission: unused, removeSubmissionById: unused,
   listSiteSubmissions: unused, exportSiteSubmissions: unused, submissionsForEmail: unused, formCounts: unused, deleteSiteSubmission: unused,
+  submissionOrigins: unused, submissionCountSince: unused,
 }));
 
 const { SubmissionQueryService, startOfMonthUtc } = await import("../services/submission-query.service");

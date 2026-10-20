@@ -128,6 +128,35 @@ export const leadsBn: LeadsMessages = {
     tableLabel: 'সাবমিশন',
   },
 
+  overview: {
+    label: 'গত ৩০ দিন',
+    leads: 'Lead',
+    newContacts: 'নতুন মানুষ',
+    customers: 'Customer হয়েছেন',
+    ofNew: (pct: number) => `নতুনদের ${pct}%`,
+    failed: 'পাঠানো যায়নি',
+    fix: 'দেখুন আর আবার পাঠান',
+    channels: 'কোথা থেকে এসেছেন',
+    campaigns: 'সেরা Campaign',
+    none: 'এখনো কোনো Lead নেই',
+  },
+  failedTab: 'পাঠানো যায়নি',
+  channel: 'Channel',
+  campaign: 'Campaign',
+
+  destinations: {
+    title: 'নতুন Lead যেখানে যায়',
+    manage: 'Integration ঠিক করুন',
+    none: 'Lead এখন শুধু এই Page-এই থাকে। আপনার ব্যবহার করা Tool-এ পাঠাতে যুক্ত করুন:',
+    connect: 'Connect করুন',
+    waiting: (n: number) => `${n}টি অপেক্ষায়`,
+    slackTip: 'নতুন Lead আসার সাথে সাথে Slack-এ মেসেজ পান।',
+    slackCta: 'Setup করুন',
+    retry: 'আবার পাঠান',
+    retried: 'আবার পাঠানোর জন্য রাখা হয়েছে',
+    retryFailed: 'আবার পাঠানো যায়নি। আবার চেষ্টা করুন।',
+  },
+
   drawer: {
     title: 'কন্টাক্ট',
     gone: 'এই কন্টাক্ট আর নেই।',

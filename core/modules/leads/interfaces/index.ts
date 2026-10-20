@@ -94,6 +94,11 @@ export interface LeadSink {
   kick(): void;
   /** Delivery state per submission, for the form's submissions list. */
   statuses(websiteId: string, submissionIds: readonly string[]): Promise<Map<string, SubmissionDelivery[]>>;
+  /**
+   * The site's submissions with at least one failed delivery, newest first, at most `limit`;
+   * since `since` when given. For the inbox's "failed to send" filter and the leads overview.
+   */
+  failedSubmissionIds(websiteId: string, since: Date | null, limit: number): Promise<string[]>;
   /** Cancel pending deliveries and clear the payloads of the rest, when submissions are erased. */
   forget(websiteId: string, submissionIds: readonly string[]): Promise<void>;
 }
@@ -202,6 +207,8 @@ export type SiteSubmissionQuery = {
   form: string | null;
   from: Date | null;
   to: Date | null;
+  /** `failed`: only submissions at least one destination could not take. */
+  delivery: "failed" | null;
   limit: number;
   offset: number;
 };
@@ -226,9 +233,12 @@ export type ContactRow = {
   updated_at: string;
   first_page_url: string;
   first_referrer: string;
+  /** Stored from 075 on; null on older rows, which are classified on view. */
+  first_channel: LeadChannel | null;
+  first_campaign: string | null;
 };
 
-export type ContactView = Omit<ContactRow, "first_page_url" | "first_referrer"> & {
+export type ContactView = Omit<ContactRow, "first_page_url" | "first_referrer" | "first_channel"> & {
   first_channel: LeadChannel | null;
   first_page_url: string | null;
   first_referrer: string | null;
@@ -239,6 +249,9 @@ export type ContactListQuery = {
   status: ContactStatus | null;
   tag: string | null;
   source: ContactSource | null;
+  /** Where they first came from: a channel, and the UTM campaign of that first page. */
+  channel: LeadChannel | null;
+  campaign: string | null;
   sort: "last_activity" | "created";
   limit: number;
   offset: number;
@@ -270,7 +283,29 @@ export interface SiteLeadQueries {
   contact(websiteId: string, id: string): Promise<{ contact: ContactView; submissions: SiteSubmissionView[] } | null>;
   /** Every tag in use on the site's contacts, with how many carry it. */
   tags(websiteId: string): Promise<{ tag: string; count: number }[]>;
+  /** The leads page's numbers for the last `days` days. */
+  overview(websiteId: string, days: number): Promise<LeadsOverview>;
 }
+
+/**
+ * The leads page's numbers over a window: submissions and where they came from, the people who
+ * first arrived in it and how many of those are customers now, and what failed to send.
+ */
+export type LeadsOverview = {
+  days: number;
+  /** Form submissions in the window. */
+  submissions: number;
+  /** Contacts first seen in the window. */
+  new_contacts: number;
+  /** Of those new contacts, the ones whose status is now Customer. */
+  customers: number;
+  /** The window's submissions by channel, most first. */
+  by_channel: { channel: LeadChannel; count: number }[];
+  /** The window's submissions by UTM campaign, the top five. */
+  by_campaign: { campaign: string; count: number }[];
+  /** The window's submissions that at least one destination could not take. */
+  failed_deliveries: number;
+};
 
 export interface ContactMutations {
   /** `exists` carries the id of the contact that already has this email. */

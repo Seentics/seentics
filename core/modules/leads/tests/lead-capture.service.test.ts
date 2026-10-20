@@ -22,12 +22,18 @@ mock.module("../repositories/submission.repository", () => ({
   listSubmissions: unused, formSummary: unused, websiteSummary: unused, exportSubmissions: unused,
   deleteSubmission: unused, countSince: unused, purgeBefore: unused,
   listSiteSubmissions: unused, exportSiteSubmissions: unused, submissionsForEmail: unused, formCounts: unused, deleteSiteSubmission: unused,
+  submissionOrigins: unused, submissionCountSince: unused,
 }));
 let failContact = false;
+const touches: unknown[] = [];
 mock.module("../repositories/contact.repository", () => ({
-  upsertFromSubmission: async (s: LeadSubmission) => { events.push(`contact:${s.email}`); if (failContact) throw new Error("contacts down"); },
+  upsertFromSubmission: async (s: LeadSubmission, _at: Date, touch?: unknown) => {
+    events.push(`contact:${s.email}`); touches.push(touch);
+    if (failContact) throw new Error("contacts down");
+  },
   listContacts: unused, exportContacts: unused, getContact: unused, contactIdsByEmail: unused, insertContact: unused,
   updateContact: unused, bulkUpdate: unused, deleteContacts: unused, importContacts: unused, tagCounts: unused,
+  newContactsSince: unused,
 }));
 mock.module("../repositories/prize.repository", () => ({
   claimPrize: async (_w: string, _a: string, hash: string, draw: () => Prize | null) => {
@@ -69,7 +75,7 @@ const sink = {
     return queued;
   },
   kick: () => { events.push("kick"); kicks++; },
-  statuses: unused, forget: unused,
+  statuses: unused, forget: unused, failedSubmissionIds: unused,
 };
 
 const service = () => new LeadCaptureService(directory, sink as any, () => "sub-1");
@@ -77,10 +83,24 @@ const service = () => new LeadCaptureService(directory, sink as any, () => "sub-
 beforeEach(() => {
   events.length = 0; inserted.length = 0; enqueued.length = 0; claims.length = 0;
   existingClaim = null; rewards = null; routing = { destinations: null }; queued = 2; failEnqueue = false; failRemove = false; kicks = 0;
-  failContact = false;
+  failContact = false; touches.length = 0;
 });
 
 describe("LeadCaptureService", () => {
+  it("stores where a new contact first came from: the channel by the dashboard's rules, and the campaign", async () => {
+    const seen: unknown[] = [];
+    const channels = { classify: (input: unknown) => { seen.push(input); return "paid" as const; } };
+    const svc = new LeadCaptureService(directory, sink as any, () => "sub-1", channels as any);
+    await svc.capture({ ...base, pageUrl: "https://shop.example/p?utm_source=facebook&utm_medium=cpc&utm_campaign=eid-sale", referrer: "https://m.facebook.com/" });
+    expect(touches[0]).toEqual({ channel: "paid", campaign: "eid-sale" });
+    expect(seen[0]).toEqual({ referrer: "https://m.facebook.com/", page: "https://shop.example/p?utm_source=facebook&utm_medium=cpc&utm_campaign=eid-sale", utmSource: "facebook", utmMedium: "cpc" });
+  });
+
+  it("leaves the channel for the dashboard when it has no rules to classify by, or no page to read", async () => {
+    await service().capture({ ...base, pageUrl: "https://shop.example/p?utm_campaign=eid-sale" });
+    expect(touches[0]).toEqual({ channel: null, campaign: "eid-sale" });
+  });
+
   it("keeps the lead when the contact cannot be refreshed: it catches up on their next one", async () => {
     failContact = true;
     const out = await service().capture(base);

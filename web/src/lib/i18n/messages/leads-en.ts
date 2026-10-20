@@ -126,6 +126,35 @@ export const leadsEn = {
     tableLabel: 'Submissions',
   },
 
+  overview: {
+    label: 'Last 30 days',
+    leads: 'Leads',
+    newContacts: 'New people',
+    customers: 'Became customers',
+    ofNew: (pct: number) => `${pct}% of new people`,
+    failed: 'Failed to send',
+    fix: 'See and retry',
+    channels: 'Where they came from',
+    campaigns: 'Top campaigns',
+    none: 'No leads yet',
+  },
+  failedTab: 'Failed to send',
+  channel: 'Channel',
+  campaign: 'Campaign',
+
+  destinations: {
+    title: 'New leads are sent to',
+    manage: 'Manage integrations',
+    none: 'Leads stay on this page only. Send each one on to the tools you already use:',
+    connect: 'Connect',
+    waiting: (n: number) => `${n} waiting`,
+    slackTip: 'Get a Slack message the moment a lead comes in.',
+    slackCta: 'Set up',
+    retry: 'Retry',
+    retried: 'Queued to send again',
+    retryFailed: 'Could not retry. Please try again.',
+  },
+
   drawer: {
     title: 'Contact',
     gone: 'This contact no longer exists.',

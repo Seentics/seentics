@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { log } from "../../../platform/observability/logger";
+import type { TrafficChannelClassifier } from "../../analytics/interfaces";
 import type { AutomationDirectory } from "../../automations/interfaces";
-import type { CapturedLead, LeadCapture, LeadSink, LeadSubmission, Prize } from "../interfaces";
+import type { CapturedLead, LeadCapture, LeadChannel, LeadSink, LeadSubmission, Prize } from "../interfaces";
 import { hashEmail } from "../lib/email-hash";
 import { couponPrize, pickWheelPrize, withoutPrizeFields } from "../lib/prize";
+import { utmOf } from "../lib/utm";
 import { claimPrize } from "../repositories/prize.repository";
 import { insertSubmission, removeSubmissionById } from "../repositories/submission.repository";
 import { upsertFromSubmission } from "../repositories/contact.repository";
@@ -29,7 +31,18 @@ export class LeadCaptureService implements LeadCapture {
     private readonly automations: AutomationDirectory,
     private readonly sink: LeadSink,
     private readonly newId: () => string = randomUUID,
+    /** Classifies the first touch a new contact is stored with; without it the channel is left for the dashboard. */
+    private readonly channels: TrafficChannelClassifier | null = null,
   ) {}
+
+  /** Where this submission came from: kept on the contact it creates (075), for filtering the contacts list. */
+  private firstTouch(s: LeadSubmission): { channel: LeadChannel | null; campaign: string | null } {
+    const utm = utmOf(s.pageUrl);
+    const channel = this.channels && (s.pageUrl || s.referrer)
+      ? this.channels.classify({ referrer: s.referrer || null, page: s.pageUrl || null, utmSource: utm.source, utmMedium: utm.medium })
+      : null;
+    return { channel, campaign: utm.campaign };
+  }
 
   async capture(input: LeadSubmission): Promise<CapturedLead> {
     const submission = await this.withVerifiedAttribution({ ...input, fields: withoutPrizeFields(input.fields) });
@@ -48,7 +61,7 @@ export class LeadCaptureService implements LeadCapture {
       throw err;
     }
     this.sink.kick();
-    await upsertFromSubmission(submission, new Date()).catch((e) =>
+    await upsertFromSubmission(submission, new Date(), this.firstTouch(submission)).catch((e) =>
       log.error({ msg: "lead_contact_upsert_failed", submissionId, err: e instanceof Error ? e.message : "unknown" }),
     );
     return { submissionId, prize, queuedFor };

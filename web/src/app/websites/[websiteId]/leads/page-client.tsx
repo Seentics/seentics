@@ -14,6 +14,8 @@ import { AddContactDialog } from '@/components/leads/AddContactDialog';
 import { ContactDrawer } from '@/components/leads/ContactDrawer';
 import { ContactsTab, type ContactListFilters } from '@/components/leads/ContactsTab';
 import { ImportContactsDialog } from '@/components/leads/ImportContactsDialog';
+import { LeadDestinations } from '@/components/leads/LeadDestinations';
+import { LeadsOverview } from '@/components/leads/LeadsOverview';
 import { downloadBlob } from '@/components/leads/lead-format';
 import { SubmissionsTab, type SubmissionListFilters } from '@/components/leads/SubmissionsTab';
 import { leadsApi } from '@/features/leads/api';
@@ -39,19 +41,20 @@ const HEADER_BUTTON = 'inline-flex h-8 items-center gap-1.5 rounded-md border bo
  * after mount (as the agency page does) so a reload or a shared link lands on them.
  */
 
-type Tab = 'submissions' | 'contacts';
+type Tab = 'submissions' | 'failed' | 'contacts';
 const DAY = 86_400_000;
 
 function writeUrl(tab: Tab, contact: string | null) {
   const params = new URLSearchParams();
-  if (tab === 'submissions') params.set('tab', 'submissions');
+  if (tab !== 'contacts') params.set('tab', tab);
   if (contact) params.set('contact', contact);
   const qs = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
 }
 
 export default function LeadsPage() {
-  const t = useT().leads.page;
+  const all = useT();
+  const t = all.leads.page;
   const websiteId = usePathSegment(1) ?? '';
   // In the landing page's preview the URL is the landing page's: tab and contact stay in memory.
   const embedded = useIsPathOverridden();
@@ -72,7 +75,8 @@ export default function LeadsPage() {
   useEffect(() => {
     if (embedded) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('tab') === 'submissions') setTab('submissions');
+    const asked = params.get('tab');
+    if (asked === 'submissions' || asked === 'failed') setTab(asked);
     const contact = params.get('contact');
     if (contact) setContactId(contact);
   }, [embedded]);
@@ -80,12 +84,17 @@ export default function LeadsPage() {
   const go = (next: Tab) => { setTab(next); if (!embedded) writeUrl(next, contactId); };
   const openContact = useCallback((id: string | null) => {
     setContactId(id);
-    if (!embedded) writeUrl(new URLSearchParams(window.location.search).get('tab') === 'submissions' ? 'submissions' : 'contacts', id);
+    if (!embedded) {
+      const current = new URLSearchParams(window.location.search).get('tab');
+      writeUrl(current === 'submissions' || current === 'failed' ? current : 'contacts', id);
+    }
   }, [embedded]);
 
   // The tab counts: one row each from the endpoints the tabs use, just the totals.
   const monthAgo = useMemo(() => new Date((now ?? Date.now()) - 30 * DAY).toISOString(), [now]);
   const recent = useSiteSubmissions(websiteId, { search: '', form: '', from: monthAgo, to: '', limit: 1, offset: 0 });
+  // Submissions an integration did not take, at any time: what the Failed to send tab lists.
+  const failed = useSiteSubmissions(websiteId, { search: '', form: '', from: '', to: '', delivery: 'failed', limit: 1, offset: 0 });
   const everyone = useContacts(websiteId, { search: '', status: '', tag: '', source: '', sort: 'last_activity', limit: 1, offset: 0 });
   /** The two tabs, on the left of whichever tab's toolbar is open. */
   const tabs = (
@@ -94,6 +103,7 @@ export default function LeadsPage() {
       tabs={[
         { id: 'contacts' as const, label: t.people, count: everyone.data?.total },
         { id: 'submissions' as const, label: t.submissions, count: recent.data?.total },
+        { id: 'failed' as const, label: all.leads.failedTab, count: failed.data?.total },
       ]}
       value={tab}
       onChange={go}
@@ -133,8 +143,16 @@ export default function LeadsPage() {
         <AiModeButton websiteId={websiteId} className="h-8" />
       </PageBar>
 
-      {tab === 'submissions' ? (
-        <SubmissionsTab websiteId={websiteId} now={now} canEdit={canEdit} onOpenContact={openContact} onFiltersChange={setSubmissionFilters} tabs={tabs} />
+      {/* The last 30 days in numbers, then where each new lead goes. */}
+      <LeadsOverview websiteId={websiteId} onShowFailed={() => go('failed')} />
+      <LeadDestinations websiteId={websiteId} />
+
+      {tab !== 'contacts' ? (
+        <SubmissionsTab
+          key={tab}
+          websiteId={websiteId} now={now} canEdit={canEdit} onOpenContact={openContact} onFiltersChange={setSubmissionFilters} tabs={tabs}
+          delivery={tab === 'failed' ? 'failed' : undefined}
+        />
       ) : (
         <ContactsTab
           websiteId={websiteId}

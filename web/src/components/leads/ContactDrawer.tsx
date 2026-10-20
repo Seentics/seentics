@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { PlayCircle, Trash2 } from 'lucide-react';
+import { PlayCircle, RotateCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { relativeTime } from '@/features/errors/format';
+import { useRetryDelivery } from '@/features/integrations/mutations';
 import { useUpdateContact } from '@/features/leads/mutations';
 import { useContact } from '@/features/leads/queries';
 import { formLabel, type Contact, type ContactStatus, type SiteSubmission, type SubmissionDelivery } from '@/features/leads/types';
@@ -55,6 +56,12 @@ export function ContactDrawer({
   const time = all.errors.time;
   const detail = useContact(websiteId, contactId);
   const update = useUpdateContact(websiteId);
+  const retry = useRetryDelivery(websiteId);
+  /** Sends a failed delivery again; for those who may change things. */
+  const onRetry = canEdit ? (deliveryId: string) => retry.mutate(deliveryId, {
+    onSuccess: () => toast.success(t.destinations.retried),
+    onError: () => toast.error(t.destinations.retryFailed),
+  }) : undefined;
   const contact = detail.data?.contact ?? null;
   const submissions = useMemo(() => detail.data?.submissions ?? [], [detail.data]);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -146,7 +153,7 @@ export function ContactDrawer({
                     <p className="text-xs text-muted-foreground">{contact.source === 'form' ? td.expired : td.noForms}</p>
                   ) : (
                     <ol className="space-y-3">
-                      {submissions.map((s) => <SubmissionCard key={s.id} s={s} websiteId={websiteId} ago={ago} />)}
+                      {submissions.map((s) => <SubmissionCard key={s.id} s={s} websiteId={websiteId} ago={ago} onRetry={onRetry} />)}
                     </ol>
                   )}
                 </section>
@@ -217,7 +224,7 @@ export function ContactDrawer({
 }
 
 /** One form submission: which form, when, from where, every field sent, and each delivery. */
-function SubmissionCard({ s, websiteId, ago }: { s: SiteSubmission; websiteId: string; ago: (iso: string) => string }) {
+function SubmissionCard({ s, websiteId, ago, onRetry }: { s: SiteSubmission; websiteId: string; ago: (iso: string) => string; onRetry?: (deliveryId: string) => void }) {
   const t = useT().leads;
   const td = t.drawer;
   const data: [string, React.ReactNode][] = [
@@ -260,15 +267,16 @@ function SubmissionCard({ s, websiteId, ago }: { s: SiteSubmission; websiteId: s
       {s.deliveries.length === 0 ? (
         <p className="text-xs text-muted-foreground">{td.notSentAnywhere}</p>
       ) : (
-        <ul className="divide-y divide-border/60">{s.deliveries.map((d) => <DeliveryRow key={d.id} d={d} ago={ago} />)}</ul>
+        <ul className="divide-y divide-border/60">{s.deliveries.map((d) => <DeliveryRow key={d.id} d={d} ago={ago} onRetry={onRetry} />)}</ul>
       )}
     </li>
   );
 }
 
 /** Where one submission went: the integration, how it went, how many tries, and why it failed. */
-function DeliveryRow({ d, ago }: { d: SubmissionDelivery; ago: (iso: string) => string }) {
-  const td = useT().leads.drawer;
+function DeliveryRow({ d, ago, onRetry }: { d: SubmissionDelivery; ago: (iso: string) => string; onRetry?: (deliveryId: string) => void }) {
+  const tl = useT().leads;
+  const td = tl.drawer;
   const { label, tone } = describeDelivery(d);
   return (
     <li className="py-2 text-[13px] first:pt-0 last:pb-0">
@@ -277,7 +285,14 @@ function DeliveryRow({ d, ago }: { d: SubmissionDelivery; ago: (iso: string) => 
           <span className="font-medium">{d.connection_name}</span>
           <span className="text-muted-foreground"> · <span className="capitalize">{d.provider}</span> · {td.attempts(d.attempt_count)}{d.completed_at ? ` · ${ago(d.completed_at)}` : ''}</span>
         </span>
-        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium', TONE[tone])}>{label}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          {d.status === 'failed' && onRetry && (
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 px-2.5 text-xs" onClick={() => onRetry(d.id)}>
+              <RotateCw className="h-3 w-3" />{tl.destinations.retry}
+            </Button>
+          )}
+          <span className={cn('rounded-full px-2 py-0.5 text-[11.5px] font-medium', TONE[tone])}>{label}</span>
+        </span>
       </div>
       {d.error && <p className="mt-1 text-xs text-rose-700 dark:text-rose-400">{d.error}</p>}
     </li>

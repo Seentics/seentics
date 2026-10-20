@@ -7,6 +7,7 @@ import type {
   ContactRow,
   ContactSource,
   ContactStatus,
+  LeadChannel,
   LeadSubmission,
 } from "../interfaces";
 import { CONTACT_STATUSES } from "../interfaces";
@@ -23,6 +24,7 @@ import type { ImportRow } from "../lib/contact-import";
 const COLUMNS = sql`
   c.id, c.email, c.name, c.phone, c.status, c.tags, c.notes, c.source,
   c.first_seen_at, c.last_activity_at, c.created_at, c.updated_at, c.first_page_url, c.first_referrer,
+  c.first_channel, c.first_campaign,
   (SELECT COUNT(*)::int FROM form_submissions s WHERE s.website_id = c.website_id AND s.email = c.email) AS submission_count
 `;
 
@@ -30,14 +32,16 @@ function likePattern(term: string): string {
   return `%${term.replace(/[\\%_]/g, "\\$&")}%`;
 }
 
-function filters(websiteId: string, q: Pick<ContactListQuery, "search" | "status" | "tag" | "source">) {
+function filters(websiteId: string, q: Pick<ContactListQuery, "search" | "status" | "tag" | "source" | "channel" | "campaign">) {
   const search = q.search
     ? sql`AND (c.email ILIKE ${likePattern(q.search)} OR c.name ILIKE ${likePattern(q.search)} OR c.phone ILIKE ${likePattern(q.search)})`
     : sql``;
   const status = q.status ? sql`AND c.status = ${q.status}` : sql``;
   const tag = q.tag ? sql`AND ${q.tag} = ANY(c.tags)` : sql``;
   const source = q.source ? sql`AND c.source = ${q.source}` : sql``;
-  return sql`c.website_id = ${websiteId}::uuid ${search} ${status} ${tag} ${source}`;
+  const channel = q.channel ? sql`AND c.first_channel = ${q.channel}` : sql``;
+  const campaign = q.campaign ? sql`AND c.first_campaign = ${q.campaign}` : sql``;
+  return sql`c.website_id = ${websiteId}::uuid ${search} ${status} ${tag} ${source} ${channel} ${campaign}`;
 }
 
 export async function listContacts(
@@ -181,12 +185,16 @@ export async function deleteContacts(
  * Name and phone are filled in where the contact has none, never overwritten — the owner may
  * have corrected them. The first-touch fields are only ever set on the row's creation.
  */
-export async function upsertFromSubmission(s: LeadSubmission, at: Date): Promise<void> {
+export async function upsertFromSubmission(
+  s: LeadSubmission,
+  at: Date,
+  firstTouch: { channel: LeadChannel | null; campaign: string | null } = { channel: null, campaign: null },
+): Promise<void> {
   await sql`
     INSERT INTO contacts (website_id, email, name, phone, source, first_page_url, first_referrer, anonymous_id,
-                          first_seen_at, last_activity_at)
+                          first_channel, first_campaign, first_seen_at, last_activity_at)
     VALUES (${s.websiteId}::uuid, ${s.email}, ${s.name}, ${s.phone}, 'form', ${s.pageUrl}, ${s.referrer}, ${s.anonymousId},
-            ${at}, ${at})
+            ${firstTouch.channel}, ${firstTouch.campaign}, ${at}, ${at})
     ON CONFLICT (website_id, email) DO UPDATE SET
       name = CASE WHEN contacts.name = '' THEN EXCLUDED.name ELSE contacts.name END,
       phone = CASE WHEN contacts.phone = '' THEN EXCLUDED.phone ELSE contacts.phone END,
@@ -249,4 +257,16 @@ export async function importContacts(
     `;
     return { created: inserted.length, updated: updated.length };
   });
+}
+
+/**
+ * The window's new contacts for the leads overview: how many were first seen in it, and how many
+ * of those are customers now (their status today, not when they arrived).
+ */
+export async function newContactsSince(websiteId: string, since: Date): Promise<{ total: number; customers: number }> {
+  const [row] = await sql<[{ total: number; customers: number }]>`
+    SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'customer')::int AS customers
+    FROM contacts WHERE website_id = ${websiteId}::uuid AND first_seen_at >= ${since}
+  `;
+  return { total: row?.total ?? 0, customers: row?.customers ?? 0 };
 }

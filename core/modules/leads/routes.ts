@@ -13,6 +13,7 @@ import {
   contactImportSchema,
   contactListSchema,
   contactPatchSchema,
+  leadsOverviewSchema,
   siteSubmissionListSchema,
   submissionListSchema,
 } from "./validators/lead.schema";
@@ -75,6 +76,16 @@ export function createLeadRoutes(deps: LeadControllerDeps) {
     const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
     if (denied) return denied;
     return c.json({ data: await deps.queries.websiteSummary(websiteId) });
+  });
+
+  // The leads page's numbers over a window: what came in, from where, and what failed to send.
+  routes.get("/:website_id/overview", async (c) => {
+    const websiteId = c.req.param("website_id");
+    const denied = await requireLeadAccess(c, deps, websiteId, { write: false });
+    if (denied) return denied;
+    const q = leadsOverviewSchema.safeParse(c.req.query());
+    if (!q.success) return c.json({ error: "invalid query" }, 400);
+    return c.json({ data: await deps.site.overview(websiteId, q.data.days) });
   });
 
   routes.get("/:website_id/forms/:automation_id/summary", async (c) => {

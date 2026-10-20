@@ -16,7 +16,7 @@ mock.module("../repositories/delivery.repository", () => ({
   LEASE_SECONDS: 60, PAYLOAD_RETENTION_DAYS: 30,
   completeAttempt: async (i: unknown) => { completed.push(i); return { disabled: disabledResult }; },
   enqueueDeliveries: unused, claimDue: unused, requeueFailed: unused, recentDeliveries: unused,
-  deliveriesOfSubmissions: unused, forgetSubmissions: unused, purgeDeliveries: unused,
+  deliveriesOfSubmissions: unused, forgetSubmissions: unused, failedSubmissionIds: unused, purgeDeliveries: unused,
 }));
 
 import { Vault } from "../lib/vault";

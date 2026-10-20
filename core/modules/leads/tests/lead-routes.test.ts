@@ -33,7 +33,7 @@ const contact = {
   id: CONTACT, email: "jane@example.com", name: "Jane", phone: "", status: "new" as const, tags: ["vip"], notes: "",
   source: "form" as const, submission_count: 1, first_seen_at: "2026-01-01T00:00:00.000Z", last_activity_at: "2026-01-02T00:00:00.000Z",
   created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-02T00:00:00.000Z", first_channel: "paid" as const,
-  first_page_url: "/p", first_referrer: null,
+  first_page_url: "/p", first_referrer: null, first_campaign: null,
 };
 
 function app() {
@@ -47,13 +47,17 @@ function app() {
     },
     mutations: { deleteSubmission: async (_s, f, id) => { calls.push(`delete:${f}:${id}`); return exists; } },
     site: {
-      listSubmissions: async (_s, q) => { calls.push(`site-list:${q.form}:${q.search}:${q.limit}`); return { submissions: [siteRow], total: 1 }; },
+      listSubmissions: async (_s, q) => { calls.push(`site-list:${q.form}:${q.search}:${q.limit}:${q.delivery}`); return { submissions: [siteRow], total: 1 }; },
       exportSubmissions: async () => [siteRow],
       forms: async () => [{ id: FORM, name: "Get 10% off", count: 3 }],
-      listContacts: async (_s, q) => { calls.push(`contacts:${q.status}:${q.tag}:${q.sort}`); return { contacts: [contact], total: 1, statuses: { new: 1, contacted: 0, qualified: 0, customer: 0, lost: 0 } }; },
+      listContacts: async (_s, q) => { calls.push(`contacts:${q.status}:${q.tag}:${q.sort}:${q.channel}:${q.campaign}`); return { contacts: [contact], total: 1, statuses: { new: 1, contacted: 0, qualified: 0, customer: 0, lost: 0 } }; },
       exportContacts: async () => [contact],
       contact: async (_s, id) => (id === CONTACT ? { contact, submissions: [siteRow] } : null),
       tags: async () => [{ tag: "vip", count: 2 }],
+      overview: async (_s, days) => {
+        calls.push(`overview:${days}`);
+        return { days, submissions: 12, new_contacts: 5, customers: 1, by_channel: [{ channel: "paid", count: 8 }], by_campaign: [{ campaign: "eid", count: 6 }], failed_deliveries: 2 };
+      },
     },
     contacts: {
       create: async (_s, input) => { calls.push(`create:${input.email}:${input.status}`); return input.email === "taken@example.com" ? { exists: CONTACT } : { contact }; },
@@ -142,8 +146,24 @@ describe("site-wide inbox routes", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.submissions[0]).toMatchObject({ form_name: "Get 10% off", has_replay: true, channel: "paid", contact_id: CONTACT });
-    expect(calls).toEqual([`site-list:${FORM}:jane:10`]);
+    expect(calls).toEqual([`site-list:${FORM}:jane:10:null`]);
     expect((await req("GET", "/submissions", "stranger")).status).toBe(403);
+  });
+
+  it("narrows to submissions a destination could not take", async () => {
+    expect((await req("GET", "/submissions?delivery=failed", "viewer")).status).toBe(200);
+    expect(calls).toEqual(["site-list:null::25:failed"]);
+    expect((await req("GET", "/submissions?delivery=sent")).status).toBe(400);
+  });
+
+  it("gives the leads overview over a window, 30 days unless asked", async () => {
+    const res = await req("GET", "/overview?days=7", "viewer");
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toMatchObject({ days: 7, submissions: 12, failed_deliveries: 2 });
+    expect((await req("GET", "/overview", "viewer")).status).toBe(200);
+    expect(calls).toEqual(["overview:7", "overview:30"]);
+    expect((await req("GET", "/overview?days=0")).status).toBe(400);
+    expect((await req("GET", "/overview", "stranger")).status).toBe(403);
   });
 
   it("rejects a bad form id or date", async () => {
@@ -175,8 +195,14 @@ describe("contact routes", () => {
     const res = await req("GET", "/contacts?status=new&tag=vip&sort=created", "viewer");
     expect(res.status).toBe(200);
     expect((await res.json()).data.statuses.new).toBe(1);
-    expect(calls).toEqual(["contacts:new:vip:created"]);
+    expect(calls).toEqual(["contacts:new:vip:created:null:null"]);
     expect((await req("GET", "/contacts?status=hot")).status).toBe(400);
+  });
+
+  it("filters contacts by where they first came from", async () => {
+    expect((await req("GET", "/contacts?channel=paid&campaign=eid-sale", "viewer")).status).toBe(200);
+    expect(calls).toEqual(["contacts:null:null:last_activity:paid:eid-sale"]);
+    expect((await req("GET", "/contacts?channel=billboard")).status).toBe(400);
   });
 
   it("lists the tags in use, not mistaking the path for a contact id", async () => {

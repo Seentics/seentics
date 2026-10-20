@@ -46,15 +46,21 @@ export const siteSubmissionListSchema = z.object({
   form: uuid.optional().transform((v) => v ?? null),
   from: isoDate.optional().transform((v) => v ?? null),
   to: isoDate.optional().transform((v) => v ?? null),
+  /** `failed`: only submissions at least one destination could not take. */
+  delivery: z.enum(["failed"]).optional().transform((v) => v ?? null),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 });
+
+const leadChannel = z.enum(["paid", "email", "social", "organic", "campaign", "internal", "referral", "direct"]);
 
 export const contactListSchema = z.object({
   search: z.string().trim().max(100).default(""),
   status: status.optional().transform((v) => v ?? null),
   tag: z.string().trim().min(1).max(100).optional().transform((v) => v ?? null),
   source: z.enum(["form", "manual", "import"]).optional().transform((v) => v ?? null),
+  channel: leadChannel.optional().transform((v) => v ?? null),
+  campaign: z.string().trim().min(1).max(200).optional().transform((v) => v ?? null),
   sort: z.enum(["last_activity", "created"]).default("last_activity"),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
@@ -102,4 +108,9 @@ export const contactImportSchema = z.object({
     notes: z.string().max(10_000).optional(),
   })).min(1).max(IMPORT_CHUNK),
   update_existing: z.boolean().default(false),
+});
+
+/** The leads overview's window, in days. */
+export const leadsOverviewSchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
 });

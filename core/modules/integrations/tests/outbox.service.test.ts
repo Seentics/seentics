@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 const enqueued: any[] = [];
 let statusRows: any[] = [];
 const forgotten: any[] = [];
+const failedAsked: any[] = [];
 const unused = async () => { throw new Error("not used by this test"); };
 // Complete on purpose: a mock.module stub must export everything the real module does.
 mock.module("../repositories/delivery.repository", () => ({
@@ -10,6 +11,7 @@ mock.module("../repositories/delivery.repository", () => ({
   enqueueDeliveries: async (i: unknown) => { enqueued.push(i); return 2; },
   deliveriesOfSubmissions: async () => statusRows,
   forgetSubmissions: async (...a: unknown[]) => { forgotten.push(a); },
+  failedSubmissionIds: async (...a: unknown[]) => { failedAsked.push(a); return ["s2"]; },
   claimDue: unused, completeAttempt: unused, requeueFailed: unused, recentDeliveries: unused, purgeDeliveries: unused,
 }));
 
@@ -61,5 +63,11 @@ describe("OutboxService", () => {
   it("forgets erased submissions", async () => {
     await new OutboxService(() => {}).forget("w1", ["s1"]);
     expect(forgotten).toEqual([["w1", ["s1"]]]);
+  });
+
+  it("names the submissions a destination could not take, for the leads inbox", async () => {
+    const since = new Date("2026-10-01T00:00:00Z");
+    expect(await new OutboxService(() => {}).failedSubmissionIds("w1", since, 50)).toEqual(["s2"]);
+    expect(failedAsked).toEqual([["w1", since, 50]]);
   });
 });

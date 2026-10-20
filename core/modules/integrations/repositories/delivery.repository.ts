@@ -212,6 +212,19 @@ export async function deliveriesOfSubmissions(websiteId: string, submissionIds: 
   return [...rows];
 }
 
+/** The site's submissions with a failed delivery, newest first: the leads inbox's "failed to send". */
+export async function failedSubmissionIds(websiteId: string, since: Date | null, limit: number): Promise<string[]> {
+  const rows = await sql<{ submission_id: string }[]>`
+    SELECT submission_id FROM integration_deliveries
+    WHERE website_id = ${websiteId}::uuid AND status = 'failed'
+      ${since ? sql`AND created_at >= ${since}` : sql``}
+    GROUP BY submission_id
+    ORDER BY MAX(created_at) DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => r.submission_id);
+}
+
 /** Cancel what is still waiting and drop the payload of the rest. For erased submissions. */
 export async function forgetSubmissions(websiteId: string, submissionIds: readonly string[]): Promise<void> {
   if (submissionIds.length === 0) return;

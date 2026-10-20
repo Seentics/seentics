@@ -3,7 +3,7 @@ import type { LeadSink, QueuedLead, SubmissionDelivery } from "../../leads/inter
 import type { AdContext, ConversionLeadInput } from "../interfaces/conversions";
 import { adContextOf } from "../lib/ad-context";
 import { toLeadPayload } from "../lib/lead-payload";
-import { deliveriesOfSubmissions, enqueueDeliveries, forgetSubmissions } from "../repositories/delivery.repository";
+import { deliveriesOfSubmissions, enqueueDeliveries, failedSubmissionIds, forgetSubmissions } from "../repositories/delivery.repository";
 
 /**
  * The integrations side of the leads module's `LeadSink`: the delivery outbox.
@@ -69,5 +69,9 @@ export class OutboxService implements LeadSink {
 
   forget(websiteId: string, submissionIds: readonly string[]): Promise<void> {
     return forgetSubmissions(websiteId, submissionIds);
+  }
+
+  failedSubmissionIds(websiteId: string, since: Date | null, limit: number): Promise<string[]> {
+    return failedSubmissionIds(websiteId, since, limit);
   }
 }

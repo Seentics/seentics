@@ -47,6 +47,7 @@ export const leadKeys = {
   tags:        (websiteId: string) => [...leadKeys.all, 'tags', websiteId] as const,
   contacts:    (websiteId: string, filters: ContactFilters) => [...leadKeys.all, 'contacts', websiteId, filters] as const,
   contact:     (websiteId: string, contactId: string) => [...leadKeys.all, 'contact', websiteId, contactId] as const,
+  overview:    (websiteId: string, days: number) => [...leadKeys.all, 'overview', websiteId, days] as const,
 };
 
 export function useSiteSubmissions(websiteId: string, filters: SiteSubmissionFilters, enabled = true) {
@@ -94,5 +95,17 @@ export function useContact(websiteId: string, contactId: string | null) {
     queryFn: () => leadsApi.contact(websiteId, contactId!),
     enabled: !!websiteId && !!contactId,
     staleTime: STALE_MS,
+  });
+}
+
+/** The leads page's numbers over the last `days` days; refreshed like the inbox, as leads come in. */
+export function useLeadsOverview(websiteId: string, days: number) {
+  return useQuery({
+    queryKey: leadKeys.overview(websiteId, days),
+    queryFn: () => leadsApi.overview(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: STALE_MS,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 }

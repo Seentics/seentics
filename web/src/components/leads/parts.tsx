@@ -13,19 +13,39 @@ import { STATUS_META } from './lead-format';
 
 const TONE_DOT = { success: 'bg-emerald-500', warning: 'bg-amber-500', danger: 'bg-rose-500', muted: 'bg-muted-foreground/50' } as const;
 
-/** Where a submission was sent, as quiet "● Name" pairs; the dot carries the outcome. */
-export function SentTo({ deliveries }: { deliveries: readonly SubmissionDelivery[] }) {
-  const t = useT().leads.parts;
+/**
+ * Where a submission was sent, as quiet "● Name" pairs; the dot carries the outcome. A failed one is
+ * named in red, with Retry beside it when `onRetry` is given (someone who may change things).
+ */
+export function SentTo({ deliveries, onRetry, retrying }: {
+  deliveries: readonly SubmissionDelivery[];
+  onRetry?: (delivery: SubmissionDelivery) => void;
+  retrying?: boolean;
+}) {
+  const all = useT();
+  const t = all.leads.parts;
   if (deliveries.length === 0) return <span className="text-muted-foreground">{t.notSent}</span>;
   return (
     <span className="flex flex-wrap gap-x-3 gap-y-1">
       {deliveries.map((d) => {
         const { label, tone } = describeDelivery(d);
+        const failed = d.status === 'failed';
         return (
           <span key={d.id} className="inline-flex items-center gap-1.5 whitespace-nowrap" title={`${d.connection_name}: ${label}${d.error ? ` — ${d.error}` : ''}`}>
             <span className={cn('h-1.5 w-1.5 rounded-full', TONE_DOT[tone])} aria-hidden />
-            <span className="text-foreground/80">{d.connection_name}</span>
+            <span className={failed ? 'font-medium text-rose-700 dark:text-rose-400' : 'text-foreground/80'}>{d.connection_name}</span>
             <span className="sr-only">{label}</span>
+            {failed && onRetry && (
+              <button
+                type="button"
+                disabled={retrying}
+                // A row opens its contact on click; Retry is for itself.
+                onClick={(e) => { e.stopPropagation(); onRetry(d); }}
+                className="rounded px-1 text-[11.5px] font-medium text-foreground underline underline-offset-2 hover:text-primary disabled:opacity-50"
+              >
+                {all.leads.destinations.retry}
+              </button>
+            )}
           </span>
         );
       })}

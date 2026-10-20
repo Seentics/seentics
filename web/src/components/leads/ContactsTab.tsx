@@ -18,8 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { relativeTime } from '@/features/errors/format';
 import { useBulkUpdateContacts, useDeleteContacts, useUpdateContact } from '@/features/leads/mutations';
-import { useContactTags, useContacts } from '@/features/leads/queries';
-import { CONTACT_STATUSES, type Contact, type ContactFilters, type ContactSort, type ContactSource, type ContactStatus } from '@/features/leads/types';
+import { useContactTags, useContacts, useLeadsOverview } from '@/features/leads/queries';
+import { CONTACT_STATUSES, type Contact, type ContactFilters, type ContactSort, type ContactSource, type ContactStatus, type LeadChannel } from '@/features/leads/types';
 import { cn } from '@/lib/utils';
 import { useLocale, useT } from '@/lib/i18n';
 import type { LeadsMessages } from '@/lib/i18n/messages/leads-en';
@@ -64,6 +64,11 @@ export function ContactsTab({
   const [status, setStatus] = useState<ContactStatus | ''>('');
   const [tag, setTag] = useState('');
   const [source, setSource] = useState<ContactSource | ''>('');
+  /** Where they first came from: the channel, and the ad campaign (utm_campaign). */
+  const [channel, setChannel] = useState<LeadChannel | ''>('');
+  const [campaign, setCampaign] = useState('');
+  // The campaigns that brought most leads lately, to choose from.
+  const recentCampaigns = useLeadsOverview(websiteId, 90).data?.by_campaign ?? [];
   const [sort, setSort] = useState<ContactSort>('last_activity');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Map<string, Contact>>(new Map());
@@ -73,7 +78,7 @@ export function ContactsTab({
 
   const board = layout === 'board';
   const size = board ? BOARD_SIZE : PAGE_SIZE;
-  const listFilters: ContactListFilters = { search: search.trim(), status, tag, source, sort };
+  const listFilters: ContactListFilters = { search: search.trim(), status, tag, source, channel, campaign, sort };
   const list = useContacts(websiteId, { ...listFilters, limit: size, offset: board ? 0 : page * size });
   const update = useUpdateContact(websiteId);
   const bulk = useBulkUpdateContacts(websiteId);
@@ -104,6 +109,14 @@ export function ContactsTab({
       id: 'source', label: tc.source, value: source, onChange: (v) => setSource(v as ContactSource | ''),
       options: (Object.keys(t.sources) as ContactSource[]).map((s) => ({ value: s, label: t.sources[s] })),
     },
+    {
+      id: 'channel', label: t.channel, value: channel, onChange: (v) => setChannel(v as LeadChannel | ''),
+      options: (Object.keys(t.channels) as LeadChannel[]).map((c) => ({ value: c, label: t.channels[c] })),
+    },
+    ...(recentCampaigns.length > 0 || campaign ? [{
+      id: 'campaign', label: t.campaign, value: campaign, onChange: setCampaign,
+      options: [...new Set([...recentCampaigns.map((c) => c.campaign), ...(campaign ? [campaign] : [])])].map((c) => ({ value: c, label: c })),
+    }] : []),
   ];
 
   const setStatusOf = (c: Contact, next: ContactStatus) => update.mutate(
