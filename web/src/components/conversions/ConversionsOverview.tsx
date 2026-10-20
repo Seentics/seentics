@@ -136,11 +136,12 @@ export function ConversionInsights({ websiteId, days }: { websiteId: string; day
 
 function Tile({ label, value, hint, tone }: { label: string; value: number | undefined; hint?: string; tone?: 'good' | 'bad' }) {
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-3 rounded-lg bg-card px-4 py-3">
-      <dt className="min-w-0 text-[13px] font-medium text-foreground/60">{label}{hint && <span className="mt-0.5 block text-[12px] font-normal text-muted-foreground">{hint}</span>}</dt>
-      <dd className={cn('shrink-0 text-[22px] font-semibold leading-none tabular-nums', tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
+    <div className="min-w-0 rounded-lg bg-card px-4 py-3">
+      <dt className="text-[13px] font-medium text-foreground/60">{label}</dt>
+      <dd className={cn('mt-1 text-[22px] font-semibold leading-tight tabular-nums', tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : tone === 'good' ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground')}>
         {value === undefined ? '—' : value.toLocaleString()}
       </dd>
+      {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
