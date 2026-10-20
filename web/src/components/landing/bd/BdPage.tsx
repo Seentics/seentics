@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, MessageCircle, PlayCircle, Server, X } from 'lucide-react';
+import { ArrowRight, Check, PlayCircle, X } from 'lucide-react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Footer from '@/components/landing/Footer';
 import { ACCENT, AnalyticsTabs, LiveDashboard, Marked, Points, StartLink, outlineBtn, panel, solidBtn } from '@/components/landing/fcommerce/parts';
 import { useLocale } from '@/lib/i18n';
 import { ProviderIcon } from '@/components/integrations/ProviderIcon';
+import { PlatformMark } from '@/components/conversions/parts';
+import { Logo } from '@/components/ui/logo';
 import { usePlans } from '@/features/plans/queries';
+import { usePlanSubscribe } from '@/features/billing/usePlanSubscribe';
 import { allowance } from '@/features/plans/pricing-spec';
 import type { Plan } from '@/features/plans/types';
 import { cn } from '@/lib/utils';
@@ -22,11 +25,29 @@ const PLATFORMS: Platform[] = ['woocommerce', 'shopify', 'custom'];
 const STORE_NEXT = '/websites?profile=store';
 /** The demo dashboard, in the online store's sidebar order. */
 const DEMO_HREF = '/websites/demo?profile=store';
-const LOGOS = [
-  { src: '/integrations/woocommerce.svg', name: 'WooCommerce' },
-  { src: '/integrations/shopify.svg', name: 'Shopify' },
-  { src: '/integrations/wordpress.svg', name: 'WordPress' },
-];
+type BdPlan = (typeof copy.pricing.plans)[number];
+
+/**
+ * A pricing card's button. Free signs up (or opens the dashboard) as an online store; a paid plan
+ * opens its taka invoice, after sign-up for a visitor without an account (CheckoutIntent). It used
+ * to be the same sign-up link as Free, so "Starter নিন" never reached a payment.
+ */
+function PlanCta({ plan, className }: { plan: BdPlan; className: string }) {
+  const { subscribe, loading } = usePlanSubscribe();
+  if (plan.tier === 'free') return <StartLink label={plan.cta} openLabel={copy.openDashboard} next={STORE_NEXT} className={className} />;
+  const taka = Number(plan.price.replace(/\D/g, ''));
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={loading}
+      aria-busy={loading}
+      onClick={() => subscribe({ plan: plan.tier, interval: 'month', price: taka, manual: true })}
+    >
+      {plan.cta}
+    </button>
+  );
+}
 
 /** A limit in words: lakh grouping, the way prices and counts are written in Bangladesh; -1 is unlimited. */
 function formatLimit(value: number | undefined): string {
@@ -41,13 +62,50 @@ function planLimit(plan: Plan | undefined, key: string, metered: boolean): numbe
   return metered ? allowance(plan, 'core', key) : plan.limits.core?.[key];
 }
 
+/** A logo from public/integrations (Simple Icons) as a glyph on its brand colour. */
+type Brand = { file: string; name: string; tile: string };
+const BRAND: Record<string, Brand> = {
+  woocommerce: { file: 'woocommerce', name: 'WooCommerce', tile: '#96588A' },
+  wordpress: { file: 'wordpress', name: 'WordPress', tile: '#21759B' },
+  shopify: { file: 'shopify', name: 'Shopify', tile: '#7AB55C' },
+  laravel: { file: 'laravel', name: 'Laravel', tile: '#FF2D20' },
+  nextjs: { file: 'nextdotjs', name: 'Next.js', tile: '#000000' },
+  html: { file: 'html5', name: 'HTML', tile: '#E34F26' },
+};
+
+/** Messenger's own mark, in its blue (Simple Icons), for the chat buttons. */
+function MessengerMark({ className = 'size-5', color = '#0866FF' }: { className?: string; color?: string }) {
+  const mask = 'url(/integrations/messenger.svg) center / contain no-repeat';
+  return <span aria-hidden className={cn('shrink-0', className)} style={{ background: color, WebkitMask: mask, mask }} />;
+}
+/** What each platform tab is, in logos: a custom site shows the stacks they are usually built on. */
+const PLATFORM_LOGOS: Record<Platform, Brand[]> = {
+  woocommerce: [BRAND.woocommerce!, BRAND.wordpress!],
+  shopify: [BRAND.shopify!],
+  custom: [BRAND.laravel!, BRAND.nextjs!, BRAND.html!],
+};
+
+function BrandTile({ brand, className = 'size-11' }: { brand: Brand; className?: string }) {
+  const mask = `url(/integrations/${brand.file}.svg) center / 56% no-repeat`;
+  return (
+    <span role="img" aria-label={brand.name} title={brand.name} className={cn('flex shrink-0 rounded-lg ring-2 ring-[var(--lx-panel)]', className)} style={{ background: brand.tile }}>
+      <span className="h-full w-full" style={{ background: '#FFFFFF', WebkitMask: mask, mask }} />
+    </span>
+  );
+}
+
+/** Several logos, overlapping a little. */
+function BrandStack({ brands, className }: { brands: Brand[]; className?: string }) {
+  return <span className="flex -space-x-1.5">{brands.map((b) => <BrandTile key={b.file} brand={b} className={className} />)}</span>;
+}
+
 const h2 = 'lx-display text-[1.7rem] !font-bold !leading-[1.3] [text-wrap:balance] sm:text-[2.4rem]';
 
 function MessengerLink({ className }: { className?: string }) {
   if (!MESSENGER_URL) return null;
   return (
     <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" className={className} style={{ borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}>
-      <MessageCircle className="h-5 w-5 text-[#0866ff]" />{copy.messenger}
+      <MessengerMark />{copy.messenger}
     </a>
   );
 }
@@ -75,7 +133,7 @@ function ServerFlow() {
       <Down />
       <Step n="২" title={f.server.title}>
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white"><Server className="h-5 w-5" /></span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--fc-soft)]"><Logo size="sm" /></span>
           <ul className="grid gap-1 text-[12.5px] text-zinc-700">
             {f.server.lines.map((l) => <li key={l} className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-600" strokeWidth={3} />{l}</li>)}
           </ul>
@@ -115,18 +173,27 @@ function HowItWorks() {
               role="tab"
               aria-selected={p === platform}
               onClick={() => setPlatform(p)}
-              className={cn('rounded-full px-5 py-2.5 text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              className={cn('rounded-full py-2 pl-2.5 pr-5 text-[15px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 p === platform ? 'bg-[var(--fc)] text-white' : 'border hover:bg-[var(--lx-line)]')}
               style={p === platform ? undefined : { borderColor: 'var(--lx-line-strong)', color: 'var(--lx-text)' }}
             >
-              {copy.how.tabs[p]}
+              <span className="flex items-center gap-2.5">
+                <BrandStack brands={PLATFORM_LOGOS[p]} className="size-6 rounded-md" />
+                {copy.how.tabs[p]}
+              </span>
             </button>
           ))}
         </div>
         <ol className="mt-6 grid gap-4 md:grid-cols-3">
           {copy.how.steps[platform].map((s, i) => (
             <li key={s.head} className="rounded-2xl border p-6" style={panel}>
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--fc)] text-[18px] font-bold text-white">{(i + 1).toLocaleString('bn-BD')}</span>
+              <div className="flex items-center justify-between gap-3">
+                {/* What the step is done in: the store's platform, Facebook, then Seentics. */}
+                {i === 0 ? <BrandStack brands={PLATFORM_LOGOS[platform]} />
+                  : i === 1 ? <PlatformMark platform="meta" className="h-11 w-11" />
+                    : <span className="flex size-11 items-center justify-center rounded-lg bg-[var(--fc-soft)]"><Logo size="sm" /></span>}
+                <span className="flex size-7 items-center justify-center rounded-full bg-[var(--fc)] text-[13px] font-bold text-white">{(i + 1).toLocaleString('bn-BD')}</span>
+              </div>
               <h3 className="mt-4 text-[18px] font-bold" style={{ color: 'var(--lx-text)' }}>{s.head}</h3>
               <p className="lx-dim mt-2 text-[15.5px] leading-relaxed">{s.text}</p>
             </li>
@@ -168,7 +235,7 @@ export default function BdPage() {
               </div>
               <div className="mt-8 flex flex-col items-center gap-3">
                 <div className="flex items-center gap-5">
-                  {LOGOS.map((l) => <img key={l.name} src={l.src} alt={l.name} className="h-7 w-7 opacity-80 dark:invert" />)}
+                  {[BRAND.woocommerce!, BRAND.shopify!, BRAND.wordpress!].map((b) => <BrandTile key={b.file} brand={b} className="size-9" />)}
                 </div>
                 <p className="lx-faint text-[14px]">{copy.platformsLine}</p>
               </div>
@@ -299,7 +366,7 @@ export default function BdPage() {
                       </li>
                     ))}
                   </ul>
-                  <StartLink label={plan.cta} openLabel={copy.openDashboard} next={STORE_NEXT} className={cn(plan.featured ? solidBtn : outlineBtn, 'mt-7 w-full')} />
+                  <PlanCta plan={plan} className={cn(plan.featured ? solidBtn : outlineBtn, 'mt-7 w-full')} />
                 </div>
               ))}
             </div>
@@ -342,7 +409,7 @@ export default function BdPage() {
               </Link>
               {MESSENGER_URL && (
                 <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="inline-flex h-12 items-center gap-2 rounded-[10px] border border-white/40 px-6 text-[16px] font-semibold text-white hover:bg-white/10">
-                  <MessageCircle className="h-5 w-5" />{copy.messenger}
+                  <MessengerMark color="#FFFFFF" />{copy.messenger}
                 </a>
               )}
             </div>
@@ -361,7 +428,7 @@ export default function BdPage() {
           className="fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0866ff] text-white shadow-[0_12px_30px_-8px_rgba(8,102,255,0.7)] transition-transform hover:scale-105"
           style={{ right: 'calc(20px + env(safe-area-inset-right, 0px))', bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
         >
-          <MessageCircle className="h-7 w-7" />
+          <MessengerMark className="size-7" color="#FFFFFF" />
         </a>
       )}
     </div>
