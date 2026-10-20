@@ -23,7 +23,7 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
   return (
     // Two rows with room to breathe: the four numbers across the width, then the channels and the
     // campaigns side by side, each its own block.
-    <section aria-label={t.label} className="mx-3 mt-1 space-y-3 md:mx-4">
+    <section aria-label={t.label} className="mx-3 mt-5 space-y-3 md:mx-4 md:mt-6">
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label={t.leads} value={data?.submissions} />
         <Tile label={t.newContacts} value={data?.new_contacts} />
