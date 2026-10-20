@@ -7,6 +7,7 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import Footer from '@/components/landing/Footer';
 import { ACCENT, AnalyticsTabs, LiveDashboard, Marked, Points, StartLink, outlineBtn, panel, solidBtn } from '@/components/landing/fcommerce/parts';
 import { useLocale } from '@/lib/i18n';
+import { ProviderIcon } from '@/components/integrations/ProviderIcon';
 import { usePlans } from '@/features/plans/queries';
 import { allowance } from '@/features/plans/pricing-spec';
 import type { Plan } from '@/features/plans/types';
@@ -243,12 +244,22 @@ export default function BdPage() {
         <section className="landing-section" aria-labelledby="extras-title">
           <div className="landing-container">
             <h2 id="extras-title" className={h2}>{copy.extras.title}</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {copy.extras.items.map((x) => (
                 <div key={x.head} className="rounded-3xl border p-6 sm:p-8" style={panel}>
                   {x.soon && <span className="mb-3 inline-block rounded-full bg-amber-400 px-3 py-0.5 text-[12.5px] font-semibold text-amber-950">{copy.extras.soon}</span>}
                   <h3 className="text-[20px] font-bold leading-snug" style={{ color: 'var(--lx-text)' }}>{x.head}</h3>
                   <p className="lx-dim mt-2 text-[16px] leading-relaxed">{x.text}</p>
+                  {'logos' in x && x.logos && (
+                    // The real tools a lead can go to: Zapier, Mailchimp, Klaviyo, HubSpot, and Slack by webhook.
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <ProviderIcon provider="zapier" hint="hooks.zapier.com" className="h-9 w-9" />
+                      <ProviderIcon provider="mailchimp" className="h-9 w-9" />
+                      <ProviderIcon provider="klaviyo" className="h-9 w-9" />
+                      <ProviderIcon provider="hubspot" className="h-9 w-9" />
+                      <ProviderIcon provider="zapier" hint="hooks.slack.com" className="h-9 w-9" />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -29,6 +29,7 @@ function AutomationsScreen() {
 const loadingPage = () => <div className="h-full w-full bg-background" />;
 const ErrorsPage = dynamic(() => import('@/app/websites/[websiteId]/errors/page-client'), { ssr: false, loading: loadingPage });
 const LeadsPage = dynamic(() => import('@/app/websites/[websiteId]/leads/page-client'), { ssr: false, loading: loadingPage });
+const IntegrationsPage = dynamic(() => import('@/app/websites/[websiteId]/integrations/page-client'), { ssr: false, loading: loadingPage });
 const ConversionsPage = dynamic(() => import('@/app/websites/[websiteId]/conversions/page-client'), { ssr: false, loading: loadingPage });
 const RevenuePage = dynamic(() => import('@/app/websites/[websiteId]/revenue/page-client'), { ssr: false, loading: loadingPage });
 const AiReportsPage = dynamic(() => import('@/app/websites/[websiteId]/ai-reports/page-client'), { ssr: false, loading: loadingPage });
@@ -73,6 +74,7 @@ const SCREENS: Record<MockNavLabel, ComponentType> = {
   Leads: () => <RealPage label="Leads" path="/websites/demo/leads"><LeadsPage /></RealPage>,
   Revenue: () => <RealPage label="Revenue" path="/websites/demo/revenue"><RevenuePage /></RealPage>,
   Conversions: () => <RealPage label="Conversions" path="/websites/demo/conversions"><ConversionsPage /></RealPage>,
+  Integrations: () => <RealPage label="Integrations" path="/websites/demo/integrations"><IntegrationsPage /></RealPage>,
   'AI Reports': () => <RealPage label="AI Reports" path="/websites/demo/ai-reports"><AiReportsPage /></RealPage>,
   Errors: () => <RealPage label="Errors" path="/websites/demo/errors"><ErrorsPage /></RealPage>,
   Developers: () => <RealPage label="Developers" path="/websites/demo/developers"><DevelopersPage /></RealPage>,

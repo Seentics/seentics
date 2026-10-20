@@ -88,6 +88,7 @@ export const bdCopy = {
     items: [
       { head: 'Fake Order-এ টাকা হারানো বন্ধ করুন', text: 'প্রতিটা অর্ডারে Risk Label, কারণসহ। আর Facebook শিখবে শুধু Confirmed অর্ডার থেকে, Fake অর্ডার থেকে না।', soon: true },
       { head: 'Popup আর Form দিয়ে Visitor-কে Customer বানান', text: 'Offer Popup, চলে যাওয়ার আগে Exit Popup আর Lead Form দিয়ে Visitor-এর ফোন নম্বর বা Email নিন।', soon: false },
+      { head: 'Lead সরাসরি আপনার অন্য Tool-এ', text: 'Form-এ আসা প্রতিটা Lead নিজে থেকেই Zapier, Mailchimp, Klaviyo, HubSpot বা যেকোনো Webhook-এ চলে যায়, যেমন Slack বা Google Sheets। পৌঁছাল কিনা, সেটাও দেখা যায়।', soon: false, logos: true },
     ],
     soon: 'শীঘ্রই আসছে',
   },
@@ -121,6 +122,7 @@ export const bdCopy = {
       'Heatmap',
       'Funnel',
       'Popup আর Lead Form',
+      'Zapier, Mailchimp, Klaviyo, HubSpot আর Webhook-এ Lead পাঠানো',
       'WooCommerce, Shopify আর যেকোনো Website',
     ],
     limitsNote: 'Pro Plan-এ সীমা পার হলে Extra Usage চালু করে চালিয়ে যেতে পারবেন।',
