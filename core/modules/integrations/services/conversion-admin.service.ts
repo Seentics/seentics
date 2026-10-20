@@ -136,7 +136,7 @@ export class ConversionAdminService implements ConversionAdmin {
     }
   }
 
-  async events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; limit: number; offset: number }) {
+  async events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; days?: number | null; limit: number; offset: number }) {
     const { rows, total } = await listConversionEvents(websiteId, q);
     return { events: rows, total };
   }

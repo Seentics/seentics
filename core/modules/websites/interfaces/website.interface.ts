@@ -17,6 +17,17 @@ import type { TrafficSummary } from "../../analytics/interfaces";
  * with a resolve step that turned one reference into a pair. Both columns and the
  * resolution are gone.
  */
+/**
+ * What kind of business the site is for: a Facebook seller on seentics.shop, an online store,
+ * a lead or service business, or anything else. It orders the dashboard's pages; nothing is gated on it.
+ */
+export const WEBSITE_PROFILES = ["fcommerce", "store", "leads", "other"] as const;
+export type WebsiteProfile = (typeof WEBSITE_PROFILES)[number];
+
+export function isWebsiteProfile(value: unknown): value is WebsiteProfile {
+  return typeof value === "string" && (WEBSITE_PROFILES as readonly string[]).includes(value);
+}
+
 export type Website = {
   id: string;
   ownerId: string;
@@ -29,6 +40,8 @@ export type Website = {
   automationEnabled: boolean;
   funnelEnabled: boolean;
   errorsEnabled: boolean;
+  /** Null until chosen or inferred. */
+  profile: WebsiteProfile | null;
   heatmapEnabled: boolean;
   heatmapIncludePatterns: string | null;
   heatmapExcludePatterns: string | null;
@@ -131,6 +144,7 @@ export type CreateWebsiteInput = {
    * client belongs to the same owner — `ClientService` is the only one that sets it.
    */
   clientId?: string | null;
+  profile?: WebsiteProfile | null;
 };
 
 /**
@@ -147,6 +161,8 @@ export type UpdateWebsiteInput = {
   automationEnabled?: boolean;
   funnelEnabled?: boolean;
   errorsEnabled?: boolean;
+  /** `null` clears it, back to the full list. */
+  profile?: WebsiteProfile | null;
   heatmapEnabled?: boolean;
   heatmapIncludePatterns?: string | null;
   heatmapExcludePatterns?: string | null;

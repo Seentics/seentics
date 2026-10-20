@@ -40,7 +40,7 @@ export function makeSite(ownerId: string, over: Partial<Website> = {}): Website 
   const at = tick();
   return {
     id: uuid(), ownerId, name: "site", url: "site.example", trackingId: "trk", isActive: true, isVerified: false,
-    automationEnabled: true, funnelEnabled: true, errorsEnabled: true, heatmapEnabled: true,
+    automationEnabled: true, funnelEnabled: true, errorsEnabled: true, profile: null, heatmapEnabled: true,
     heatmapIncludePatterns: null, heatmapExcludePatterns: null, heatmapLayoutEnabled: true,
     replayEnabled: true, replaySamplingRate: 1, replayIncludePatterns: null, replayExcludePatterns: null,
     maskAllText: false, maskTextPatterns: null, verificationToken: "v", publicShareId: null, clientId: null,

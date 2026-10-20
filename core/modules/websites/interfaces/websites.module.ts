@@ -46,6 +46,12 @@ export interface WebsitesModule extends ModuleLifecycle {
   mutations: Pick<WebsiteMutations, "update">;
 
   /**
+   * Creating and removing a website for another module's own records: the shop, whose every
+   * store is backed by a website on the shop host. Its routes check the caller themselves.
+   */
+  provisioning: Pick<WebsiteMutations, "create" | "delete">;
+
+  /**
    * Share-link resolution, for the public dashboard.
    *
    * Separate because the caller is anonymous and holds only a share id; revoking a

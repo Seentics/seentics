@@ -18,10 +18,11 @@ export type {
   WebsiteSettings,
   WebsiteTrafficReads,
   WebsiteWithTraffic,
+  WebsiteProfile,
 } from "./website.interface";
 
 /** Values, not types — the role predicates peer modules gate their deletes on. */
-export { normalizeWebsiteRole, roleAtLeast, roleCanDeleteData } from "./website.interface";
+export { normalizeWebsiteRole, roleAtLeast, roleCanDeleteData, WEBSITE_PROFILES, isWebsiteProfile } from "./website.interface";
 
 export type { WebsiteRepository } from "./website-repository.interface";
 

@@ -69,6 +69,7 @@ export function initWebsitesModule(deps: {
     query: cached,
     accessChecks: query,
     mutations,
+    provisioning: mutations,
     sharing: query,
     invitations,
     trackerWebsites: tracker,

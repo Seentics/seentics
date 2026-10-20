@@ -151,6 +151,8 @@ let putThrows = false;
 
 mock.module("../../../platform/storage/s3", () => ({
   s3: () => ({}),
+  putBytes: async () => {},
+  getBytes: async () => null,
   putJpeg: async (_bucket: string, key: string, body: Uint8Array) => {
     if (putThrows) throw new Error("s3 unreachable");
     jpegPuts.push({ key, bytes: body.length });

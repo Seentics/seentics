@@ -35,6 +35,8 @@ const eventsQuery = z.object({
   destination: z.string().uuid().optional().transform((v) => v ?? null),
   status: z.enum(["pending", "success", "failed", "skipped"]).optional().transform((v) => v ?? null),
   kind: z.enum(["purchase", "lead", "sign_up", "custom"]).optional().transform((v) => v ?? null),
+  /** Only events from the last this many days; absent for all of them. */
+  days: z.coerce.number().int().min(1).max(365).optional().transform((v) => v ?? null),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 });

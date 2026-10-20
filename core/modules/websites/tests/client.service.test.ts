@@ -24,7 +24,7 @@ const nextId = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}
 function site(ownerId: string, clientId: string | null = null): Website {
   return {
     id: nextId(), ownerId, name: "s", url: "s.example", trackingId: "t", isActive: true, isVerified: false,
-    automationEnabled: true, funnelEnabled: true, errorsEnabled: true, heatmapEnabled: true,
+    automationEnabled: true, funnelEnabled: true, errorsEnabled: true, profile: null, heatmapEnabled: true,
     heatmapIncludePatterns: null, heatmapExcludePatterns: null, heatmapLayoutEnabled: true,
     replayEnabled: true, replaySamplingRate: 1, replayIncludePatterns: null, replayExcludePatterns: null,
     maskAllText: false, maskTextPatterns: null, verificationToken: "v", publicShareId: null, clientId,

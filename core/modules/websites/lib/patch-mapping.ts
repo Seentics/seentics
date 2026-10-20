@@ -1,4 +1,4 @@
-import type { UpdateWebsiteInput } from "../interfaces";
+import { isWebsiteProfile, type UpdateWebsiteInput } from "../interfaces";
 
 /**
  * Wire patch (snake_case) → domain patch (camelCase).
@@ -25,6 +25,8 @@ export function toUpdateWebsiteInput(patch: Record<string, unknown>): UpdateWebs
   }
   if (typeof patch.funnel_enabled === "boolean") out.funnelEnabled = patch.funnel_enabled;
   if (typeof patch.errors_enabled === "boolean") out.errorsEnabled = patch.errors_enabled;
+  // Nullable like the patterns below: `null` clears it.
+  if ("profile" in patch) out.profile = isWebsiteProfile(patch.profile) ? patch.profile : null;
   if (typeof patch.heatmap_enabled === "boolean") out.heatmapEnabled = patch.heatmap_enabled;
   if (typeof patch.heatmap_layout_enabled === "boolean") {
     out.heatmapLayoutEnabled = patch.heatmap_layout_enabled;

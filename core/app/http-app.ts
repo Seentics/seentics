@@ -123,6 +123,10 @@ export function createHttpApp(cfg: AppConfig, application: Application, isReady:
   app.route("/api/v1/leads", application.routes.leads);
   app.route("/api/v1/integrations", application.routes.integrations);
   app.route("/api/v1/conversions", application.routes.conversions);
+  // Public first: the shop host's pages and order submit (service key only), ahead of the
+  // dashboard's routes, whose `/:website_id/...` paths would otherwise take `/public/...`.
+  app.route("/api/v1/shop/public", application.routes.shopPublic);
+  app.route("/api/v1/shop", application.routes.shop);
 
   app.route("/api/v1/replays", application.routes.recordings);
   app.route("/api/v1/heatmaps", application.routes.heatmaps);

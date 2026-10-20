@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zNonEmptyString, zUrl } from "../../../platform/validation";
 import { normalizeHostname } from "../lib/hostname";
+import { WEBSITE_PROFILES } from "../interfaces";
 
 /** A URL or bare host the site can be stored under (lib/hostname.ts). */
 export const zSiteAddress = z.string().trim().min(1).max(2048).refine((v) => {
@@ -15,6 +16,7 @@ export const zSiteAddress = z.string().trim().min(1).max(2048).refine((v) => {
 export const websiteCreateSchema = z.object({
   name: zNonEmptyString.max(120),
   url: zUrl,
+  profile: z.enum(WEBSITE_PROFILES).optional(),
 });
 
 /**
@@ -26,6 +28,7 @@ export const websitePatchSchema = z.object({
   name: zNonEmptyString.max(120).optional(),
   url: zSiteAddress.optional(),
   replay_sampling_rate: z.number().min(0).max(1).optional(),
+  profile: z.enum(WEBSITE_PROFILES).nullable().optional(),
 }).passthrough();
 
 export const goalCreateSchema = z.object({

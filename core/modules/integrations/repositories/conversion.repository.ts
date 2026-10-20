@@ -146,6 +146,22 @@ export async function enqueueConversions(rows: readonly QueuedConversion[]): Pro
   return inserted.length;
 }
 
+/**
+ * Each shop order's Purchase, across its destinations: `queued` while any is pending, `failed`
+ * when any failed or was skipped and none is pending, `sent` when all were accepted. An order
+ * missing from the map has no rows (none queued, or aged out of the 30-day log).
+ */
+export async function orderPurchaseStates(websiteId: string, orderIds: readonly string[]): Promise<Map<string, "queued" | "sent" | "failed">> {
+  const out = new Map<string, "queued" | "sent" | "failed">();
+  if (orderIds.length === 0) return out;
+  const keys = orderIds.map((id) => `order:${id}`);
+  const rows = await sql<{ event_id: string; pending: boolean; bad: boolean }[]>`
+    SELECT event_id, bool_or(status = 'pending') AS pending, bool_or(status IN ('failed', 'skipped')) AS bad
+    FROM conversion_events WHERE website_id = ${websiteId}::uuid AND event_id = ANY(${keys}::text[]) GROUP BY event_id`;
+  for (const r of rows) out.set(r.event_id.slice("order:".length), r.pending ? "queued" : r.bad ? "failed" : "sent");
+  return out;
+}
+
 export type ClaimedConversion = {
   id: string;
   destination_id: string;
@@ -241,12 +257,13 @@ export async function retryConversion(websiteId: string, id: string): Promise<bo
 // --- The delivery log and summary -------------------------------------------------
 
 export async function listConversionEvents(websiteId: string, q: {
-  destination: string | null; status: string | null; kind: string | null; limit: number; offset: number;
+  destination: string | null; status: string | null; kind: string | null; days?: number | null; limit: number; offset: number;
 }): Promise<{ rows: ConversionEventView[]; total: number }> {
   const where = sql`e.website_id = ${websiteId}::uuid
     ${q.destination ? sql`AND e.destination_id = ${q.destination}::uuid` : sql``}
     ${q.status ? sql`AND e.status = ${q.status}` : sql``}
-    ${q.kind ? sql`AND e.kind = ${q.kind}` : sql``}`;
+    ${q.kind ? sql`AND e.kind = ${q.kind}` : sql``}
+    ${q.days ? sql`AND e.created_at > NOW() - make_interval(days => ${q.days})` : sql``}`;
   const [rows, totals] = await Promise.all([
     sql<ConversionEventView[]>`
       SELECT e.id, e.destination_id, d.platform, e.kind, e.event_name, e.platform_event, e.status, e.error, e.attempt_count,

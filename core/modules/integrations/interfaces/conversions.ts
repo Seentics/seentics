@@ -52,6 +52,21 @@ export type ConversionLeadInput = {
 };
 
 /** Which event each kind is sent as; null turns that kind off. Custom events are opted in by name. */
+/** A shop order to report as a Purchase (modules/shop): taka, the buyer's number as E.164 digits. */
+export type ConversionOrderInput = {
+  websiteId: string;
+  orderId: string;
+  value: number;
+  currency: string;
+  phone: string;
+  occurredAt: number;
+  url: string;
+  visitorId: string | null;
+  ip: string;
+  userAgent: string;
+  ad: AdContext | null;
+};
+
 export type DestinationConfig = {
   events: { purchase: string | null; lead: string | null; sign_up: string | null };
   custom: { name: string; platform_event: string }[];
@@ -138,7 +153,7 @@ export interface ConversionAdmin {
     Promise<{ destination: ConversionDestinationView } | { error: "invalid_credentials"; message: string } | { error: "not_found" }>;
   remove(websiteId: string, id: string): Promise<boolean>;
   test(websiteId: string, id: string, testEventCode: string | null): Promise<{ ok: boolean; message: string } | null>;
-  events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; limit: number; offset: number }):
+  events(websiteId: string, q: { destination: string | null; status: string | null; kind: string | null; days?: number | null; limit: number; offset: number }):
     Promise<{ events: ConversionEventView[]; total: number }>;
   retry(websiteId: string, id: string): Promise<boolean>;
   summary(websiteId: string, days: number): Promise<ConversionSummary>;

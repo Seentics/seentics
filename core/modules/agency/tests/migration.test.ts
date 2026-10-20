@@ -14,9 +14,11 @@ const squash = (s: string) => s.replace(/\s+/g, " ");
 const columns = (t: Parameters<typeof getTableConfig>[0]) => getTableConfig(t).columns.map((c) => c.name);
 
 describe("migration 070", () => {
-  it("is the newest Core migration", () => {
+  it("runs after every migration numbered before it", () => {
     const files = readdirSync(SQL_DIR).filter((f) => f.endsWith(".sql")).sort();
-    expect(files[files.length - 1]).toBe("070_agency_workspace.sql");
+    const at = files.indexOf("070_agency_workspace.sql");
+    expect(at).toBeGreaterThan(-1);
+    expect(files.slice(at + 1).every((f) => f > "070_agency_workspace.sql" && !f.startsWith("070"))).toBe(true);
   });
 
   it("creates client_members keyed by (client, user), cascading from clients and users", () => {

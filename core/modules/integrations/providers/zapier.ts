@@ -51,7 +51,13 @@ export const zapier: IntegrationProvider<Credentials, Record<string, never>> = {
   ],
   credentialSchema,
   configSchema: configSchema as unknown as z.ZodType<Record<string, never>, z.ZodTypeDef, unknown>,
-  hint: (c) => lastChars(new URL(c.webhook_url).pathname.replace(/\/$/, "")),
+  // The host is not the secret (the path is): kept in the hint so the dashboard can show which tool
+  // the hook goes to (hooks.slack.com, hooks.zapier.com), with the path's last characters as before.
+  hint: (c) => {
+    const url = new URL(c.webhook_url);
+    // Capped to fit the column (120) with room for the tail: a host can be up to 253 characters.
+    return `${url.host.slice(-100)} …${lastChars(url.pathname.replace(/\/$/, ""))}`;
+  },
 
   async verify(credentials, config, ctx) {
     return this.deliver({ ...SAMPLE, test: true }, credentials, config, ctx);

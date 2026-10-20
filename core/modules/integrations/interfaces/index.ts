@@ -1,5 +1,11 @@
 import type { LaneSpec } from "../../ingest/interfaces";
-import type { ConversionAdmin } from "./conversions";
+import type { ConversionAdmin, ConversionOrderInput } from "./conversions";
+
+/** Verified purchases: the shop module's way to report an order, and to read back how it went. */
+export interface ConversionOrders {
+  enqueueOrderPurchase(order: ConversionOrderInput): Promise<number>;
+  orderPurchaseStatus(websiteId: string, orderIds: readonly string[]): Promise<Map<string, "queued" | "sent" | "failed">>;
+}
 import type { z } from "zod";
 import type { ModuleLifecycle } from "../../../app/module";
 import type { AuthedRouter } from "../../../platform/http/router";
@@ -186,7 +192,12 @@ export type IntegrationsModule = ModuleLifecycle & {
   /** Where the leads module hands over a captured submission. */
   sink: LeadSink;
   /** Server-side conversions: the ingest lane for consented tracker events, and the dashboard's admin. */
-  conversions: { lane: LaneSpec; admin: ConversionAdmin; routes: AuthedRouter };
+  conversions: { lane: LaneSpec; admin: ConversionAdmin; routes: AuthedRouter; orders: ConversionOrders };
+  /**
+   * Sealing secrets with the integrations key, for the shop's courier credentials: one key to
+   * keep and rotate. Null when no key is configured.
+   */
+  sealer: { seal(plaintext: string, context: string): string; open(ciphertext: string, context: string): string } | null;
   /** Ages out the delivery history and clears payloads that were never delivered. */
   retention: RetentionPurge;
   /** Conversions sent per site, for the agency overview. */

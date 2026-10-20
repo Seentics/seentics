@@ -128,6 +128,23 @@ export async function putJpeg(bucket: string, key: string, body: Uint8Array): Pr
   );
 }
 
+/** Any bytes, under the content type they are served back with. */
+export async function putBytes(bucket: string, key: string, body: Uint8Array, contentType: string): Promise<void> {
+  await s3().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+}
+
+/** One object's bytes and content type, or null when there is no such object. */
+export async function getBytes(bucket: string, key: string): Promise<{ body: Uint8Array; contentType: string | null } | null> {
+  try {
+    const out = await s3().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    return { body: await out.Body!.transformToByteArray(), contentType: out.ContentType ?? null };
+  } catch (err) {
+    const name = (err as { name?: string })?.name;
+    if (name === "NoSuchKey" || name === "NotFound") return null;
+    throw err;
+  }
+}
+
 export async function presignGet(bucket: string, key: string, expiresMs: number): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
   return getSignedUrl(s3ForPresign(), cmd, { expiresIn: Math.ceil(expiresMs / 1000) });

@@ -45,7 +45,11 @@ export function initIntegrationsModule(deps: { websitesModule: WebsitesModule; c
       lane: conversionsLane(() => router),
       admin: conversionAdmin,
       routes: createConversionRoutes({ admin: conversionAdmin, websites: deps.websitesModule.accessChecks }),
+      orders: router,
     },
+    sealer: vault.vault
+      ? { seal: (plaintext, context) => vault.vault!.encrypt(plaintext, context), open: (ciphertext, context) => vault.vault!.decrypt(ciphertext, context) }
+      : null,
     retention: new IntegrationsRetentionPurge(),
     agencyMetrics: new ConversionSiteMetrics(),
     routes: createIntegrationRoutes({ queries: connections, mutations: connections, websites: deps.websitesModule.accessChecks }),

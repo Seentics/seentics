@@ -99,6 +99,8 @@ export const websites = pgTable(
     automationEnabled: boolean("automation_enabled").notNull().default(true),
     funnelEnabled: boolean("funnel_enabled").notNull().default(true),
     errorsEnabled: boolean("errors_enabled").notNull().default(true),
+    /** fcommerce | store | leads | other; null until chosen (072_websites_profile.sql). */
+    profile: text("profile"),
     heatmapEnabled: boolean("heatmap_enabled").notNull().default(true),
     heatmapIncludePatterns: text("heatmap_include_patterns"),
     heatmapExcludePatterns: text("heatmap_exclude_patterns"),
@@ -1220,7 +1222,7 @@ export const integrationConnections = pgTable(
     provider: varchar("provider", { length: 32 }).notNull(),
     name: varchar("name", { length: 80 }).notNull().default(""),
     credentials: text("credentials").notNull(),
-    credentialsHint: varchar("credentials_hint", { length: 8 }).notNull().default(""),
+    credentialsHint: varchar("credentials_hint", { length: 120 }).notNull().default(""),  // 073: a webhook's host too
     config: jsonb("config").notNull().default({}),
     enabled: boolean("enabled").notNull().default(true),
     /** active | error */

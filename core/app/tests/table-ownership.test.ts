@@ -70,6 +70,11 @@ const TABLE_OWNER: Record<string, string> = {
   agency_white_label: "agency",
   client_members: "agency",
   agency_alerts: "agency",
+  shop_stores: "shop",
+  shop_pages: "shop",
+  shop_orders: "shop",
+  shop_blacklist: "shop",
+  shop_courier_checks: "shop",
 };
 
 /** Drizzle identifier → table name, for the builder form. */

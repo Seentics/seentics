@@ -12,7 +12,7 @@ import {
   websites,
 } from "../../../db";
 import { newTrackingId, newVerificationToken } from "../lib/ids";
-import { normalizeWebsiteRole, roleAtLeast } from "../interfaces/website.interface";
+import { isWebsiteProfile, normalizeWebsiteRole, roleAtLeast } from "../interfaces/website.interface";
 import type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
@@ -56,6 +56,7 @@ export function toDomain(row: WebsiteRow): Website {
     automationEnabled: row.automationEnabled,
     funnelEnabled: row.funnelEnabled,
     errorsEnabled: row.errorsEnabled,
+    profile: isWebsiteProfile(row.profile) ? row.profile : null,
     heatmapEnabled: row.heatmapEnabled,
     heatmapIncludePatterns: row.heatmapIncludePatterns,
     heatmapExcludePatterns: row.heatmapExcludePatterns,
@@ -201,6 +202,7 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
           replayEnabled: true,
           replaySamplingRate: 1,
           clientId: input.clientId ?? null,
+          profile: input.profile ?? null,
         })
         .returning();
 
@@ -295,6 +297,7 @@ function buildUpdatePatch(input: UpdateWebsiteInput): Partial<typeof websites.$i
   if (input.automationEnabled != null) patch.automationEnabled = input.automationEnabled;
   if (input.funnelEnabled != null) patch.funnelEnabled = input.funnelEnabled;
   if (input.errorsEnabled != null) patch.errorsEnabled = input.errorsEnabled;
+  if (input.profile !== undefined) patch.profile = input.profile;
   if (input.heatmapEnabled != null) patch.heatmapEnabled = input.heatmapEnabled;
   if (input.heatmapLayoutEnabled != null) patch.heatmapLayoutEnabled = input.heatmapLayoutEnabled;
   if (input.replayEnabled != null) patch.replayEnabled = input.replayEnabled;

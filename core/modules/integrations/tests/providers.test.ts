@@ -280,3 +280,15 @@ describe("provider context over HTTP", () => {
     }
   });
 });
+
+describe("zapier hint", () => {
+  it("keeps the webhook's host, which is not the secret, and only the tail of its path", () => {
+    expect(zapier.hint({ webhook_url: "https://hooks.slack.com/services/T000/B000/abcdefb71d90" })).toBe("hooks.slack.com …1d90");
+    expect(zapier.hint({ webhook_url: "https://hooks.zapier.com/hooks/catch/123/abc8f3a2c/" })).toBe("hooks.zapier.com …3a2c");
+  });
+
+  it("fits the column (VARCHAR 120) for any URL the schema accepts", () => {
+    const host = `${"a".repeat(63)}.${"b".repeat(63)}.${"c".repeat(63)}.example.com`;
+    expect(zapier.hint({ webhook_url: `https://${host}/x/${"y".repeat(40)}` }).length).toBeLessThanOrEqual(120);
+  });
+});

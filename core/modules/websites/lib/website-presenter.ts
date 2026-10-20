@@ -1,5 +1,5 @@
 import type { TrafficSummary } from "../../analytics/interfaces";
-import type { Website, WebsiteWithTraffic } from "../interfaces";
+import type { Website, WebsiteProfile, WebsiteWithTraffic } from "../interfaces";
 
 /**
  * Domain model → HTTP response body.
@@ -23,6 +23,7 @@ export type WebsiteResponse = {
   automation_enabled: boolean;
   funnel_enabled: boolean;
   errors_enabled: boolean;
+  profile: WebsiteProfile | null;
   heatmap_enabled: boolean;
   heatmap_include_patterns: string | null;
   heatmap_exclude_patterns: string | null;
@@ -67,6 +68,7 @@ export function presentWebsite(
     automation_enabled: website.automationEnabled,
     funnel_enabled: website.funnelEnabled,
     errors_enabled: website.errorsEnabled,
+    profile: website.profile,
     heatmap_enabled: website.heatmapEnabled,
     heatmap_include_patterns: website.heatmapIncludePatterns,
     heatmap_exclude_patterns: website.heatmapExcludePatterns,

@@ -275,6 +275,17 @@ const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000
     corsAllowedOrigins,
     frontendUrl,
     trackerScriptUrl,
+    /**
+     * Shop pages (modules/shop): the host sellers' landing pages are served on, through the
+     * gateway, and its public origin. A store's website is registered with this host, so the
+     * tracker on those pages is accepted for it. Product images are stored in `bucket`
+     * (default: the replay bucket) and served back through the gateway on the shop host.
+     */
+    shop: {
+      host: (process.env.SHOP_HOST ?? "seentics.shop").trim().toLowerCase(),
+      publicUrl: (process.env.SHOP_PUBLIC_URL ?? "https://seentics.shop").trim().replace(/\/$/, ""),
+      bucket: (process.env.S3_BUCKET_SHOP ?? "").trim() || (process.env.S3_BUCKET_REPLAYS ?? process.env.S3_BUCKET ?? "seentics-replays"),
+    },
     logLevel,
     diagnosticLog,
     slowRequestThresholdMs,

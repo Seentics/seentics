@@ -20,6 +20,8 @@ import { initAutomationsModule } from "../modules/automations/init";
 import { initIntegrationsModule } from "../modules/integrations/init";
 import type { IntegrationsModule } from "../modules/integrations/interfaces";
 import { initLeadsModule } from "../modules/leads/init";
+import { initShopModule } from "../modules/shop/init";
+import type { ShopModule } from "../modules/shop/interfaces";
 import type { LeadsModule } from "../modules/leads/interfaces";
 import { initFunnelsModule } from "../modules/funnels/init";
 import { initHeatmapsModule } from "../modules/heatmaps/init";
@@ -61,6 +63,7 @@ export type Application = {
     automations: AutomationsModule;
     leads: LeadsModule;
     integrations: IntegrationsModule;
+    shop: ShopModule;
     ai: AiModule;
     ingest: IngestModule;
   };
@@ -77,6 +80,8 @@ export type Application = {
     leadsTracker: LeadsModule["trackerRoutes"];
     integrations: IntegrationsModule["routes"];
     conversions: IntegrationsModule["conversions"]["routes"];
+    shop: ShopModule["routes"];
+    shopPublic: ShopModule["publicRoutes"];
     ai: AiModule["routes"];
     internal: ReturnType<typeof createInternalRoutes>;
   };
@@ -149,6 +154,18 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     sink: integrationsModule.sink,
     recordings: recordingsModule.presence,
     channels: analyticsModule.channels,
+  });
+  // Stores are websites on the shop host; their orders' Purchases go out through integrations.
+  const shopModule = initShopModule({
+    cfg,
+    websites: {
+      create: (ownerId, input) => websitesModule.provisioning.create(ownerId, input),
+      delete: (websiteId) => websitesModule.provisioning.delete(websiteId),
+      getRole: (websiteId, userId) => websitesModule.accessChecks.getRole(websiteId, userId),
+    },
+    purchases: integrationsModule.conversions.orders,
+    sealer: integrationsModule.sealer,
+    sessions: recordingsModule.presence,
   });
   const aiModule = initAiModule({
     websitesModule,
@@ -249,6 +266,7 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
     automations: automationsModule,
     leads: leadsModule,
     integrations: integrationsModule,
+    shop: shopModule,
     ai: aiModule,
     ingest: ingestModule,
   };
@@ -285,6 +303,8 @@ export function bootstrap(cfg: AppConfig, logger: Logger = log): Application {
       leadsTracker: leadsModule.trackerRoutes,
       integrations: integrationsModule.routes,
       conversions: integrationsModule.conversions.routes,
+      shop: shopModule.routes,
+      shopPublic: shopModule.publicRoutes,
       ai: aiModule.routes,
       // Reuses ingest's buffer: the internal collectors carry the same data over a
       // server-to-server API, so they get the same batching and exactly-once handling.

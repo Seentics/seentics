@@ -95,6 +95,8 @@ mock.module("../../../../platform/storage/s3", () => ({
   s3: () => ({}),
   putHtml: async () => {},
   putJpeg: async () => {},
+  putBytes: async () => {},
+  getBytes: async () => null,
   putCss: async (_bucket: string, key: string, body: string) => {
     cssObjects.set(key, body);
   },

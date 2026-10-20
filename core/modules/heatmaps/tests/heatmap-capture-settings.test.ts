@@ -15,7 +15,7 @@ function makeWebsite(overrides: Partial<Website> = {}): Website {
     isVerified: false,
     automationEnabled: true,
     funnelEnabled: true,
-    errorsEnabled: true,
+    errorsEnabled: true, profile: null,
     heatmapEnabled: true,
     heatmapIncludePatterns: null,
     heatmapExcludePatterns: null,

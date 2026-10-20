@@ -2,6 +2,7 @@ import { log } from "../../../platform/observability/logger";
 import type {
   AdContext,
   ConversionIngest,
+  ConversionOrderInput,
   ConversionKind,
   ConversionLeadInput,
   ConversionPayload,
@@ -26,7 +27,7 @@ import {
   withDefaults,
 } from "../lib/conversion-match";
 import { adContextOf } from "../lib/ad-context";
-import { enabledDestinations, enqueueConversions, type DestinationRow, type QueuedConversion } from "../repositories/conversion.repository";
+import { enabledDestinations, enqueueConversions, orderPurchaseStates, type DestinationRow, type QueuedConversion } from "../repositories/conversion.repository";
 
 /** How long a website's destinations are trusted from memory. A change shows within this. */
 const DESTINATION_CACHE_MS = 30_000;
@@ -201,5 +202,36 @@ export class ConversionRouter implements ConversionIngest {
       userAgent: lead.userAgent,
       ad: lead.ad,
     }]);
+  }
+
+  /**
+   * A shop order the seller confirmed (or that was delivered, or placed: the store chooses), as
+   * one Purchase per destination. Keyed `order:<id>`, so however often the order moves back and
+   * forth it is one Purchase to the platform. Its consent is the buyer's order itself: they gave
+   * their number to be called and shipped to, on a page that says the store uses Seentics.
+   */
+  async enqueueOrderPurchase(order: ConversionOrderInput): Promise<number> {
+    return this.route([{
+      websiteId: order.websiteId,
+      kind: "purchase",
+      name: "purchase",
+      eventId: `order:${order.orderId}`,
+      occurredAt: order.occurredAt,
+      url: order.url,
+      visitorId: order.visitorId,
+      value: order.value,
+      currency: order.currency,
+      orderId: order.orderId,
+      email: null,
+      phone: order.phone,
+      ip: order.ip,
+      userAgent: order.userAgent,
+      ad: adContextOf(order.ad),
+    }]);
+  }
+
+  /** Where each order's Purchase stands, by order id: pending anywhere is queued, else failed anywhere is failed. */
+  async orderPurchaseStatus(websiteId: string, orderIds: readonly string[]): Promise<Map<string, "queued" | "sent" | "failed">> {
+    return orderPurchaseStates(websiteId, orderIds);
   }
 }

@@ -15,7 +15,7 @@ mock.module("../repositories/conversion.repository", () => ({
   CONVERSION_LEASE_SECONDS: 60, CONVERSION_RETENTION_DAYS: 30,
   purgeConversionsBefore: async (...a: unknown[]) => { conversionPurges.push(a); return 3; },
   listDestinations: unused, getDestination: unused, enabledDestinations: unused, insertDestination: unused, updateDestination: unused,
-  deleteDestination: unused, countDestinations: unused, enqueueConversions: unused, claimDueConversions: unused,
+  deleteDestination: unused, countDestinations: unused, enqueueConversions: unused, claimDueConversions: unused, orderPurchaseStates: unused,
   completeConversion: unused, retryConversion: unused, listConversionEvents: unused, conversionSummary: unused,
 }));
 

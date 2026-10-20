@@ -59,6 +59,8 @@ const jpegPuts: { key: string; bytes: number }[] = [];
 
 mock.module("../../../platform/storage/s3", () => ({
   s3: () => ({}),
+  putBytes: async () => {},
+  getBytes: async () => null,
   putJpeg: async (_bucket: string, key: string, body: Uint8Array) => {
     jpegPuts.push({ key, bytes: body.length });
   },
