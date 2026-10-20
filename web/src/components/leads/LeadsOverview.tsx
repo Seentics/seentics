@@ -39,10 +39,10 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="min-w-0 rounded-lg bg-card px-5 py-4">
-          <p className="text-[13px] font-semibold text-foreground">{t.channels}</p>
+          <p className="-mx-5 border-b border-border/60 px-5 pb-3 text-[13px] font-semibold text-foreground">{t.channels}</p>
           {data && data.by_source.length > 0 ? (
             // The sites themselves (Facebook, Google…), each with its logo; channels when none is known.
-            <ul className="mt-3 space-y-2.5">
+            <ul className="mt-3.5 space-y-2.5">
               {data.by_source.slice(0, 5).map((s) => (
                 <li key={s.source} className="flex items-center gap-3 text-[13.5px]">
                   <SourceLogo source={s.source} />
@@ -54,7 +54,7 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
               ))}
             </ul>
           ) : data && total > 0 ? (
-            <ul className="mt-3 space-y-2.5">
+            <ul className="mt-3.5 space-y-2.5">
               {data.by_channel.slice(0, 5).map((c) => (
                 <li key={c.channel} className="text-[13.5px]">
                   <span className="flex justify-between gap-2"><span className="truncate text-foreground">{all.leads.channels[c.channel]}</span><span className="tabular-nums text-muted-foreground">{c.count.toLocaleString()}</span></span>
@@ -65,9 +65,9 @@ export function LeadsOverview({ websiteId, onShowFailed }: { websiteId: string; 
           ) : <p className="mt-2 text-[13px] text-muted-foreground">{t.none}</p>}
         </div>
         <div className="min-w-0 rounded-lg bg-card px-5 py-4">
-          <p className="text-[13px] font-semibold text-foreground">{t.campaigns}</p>
+          <p className="-mx-5 border-b border-border/60 px-5 pb-3 text-[13px] font-semibold text-foreground">{t.campaigns}</p>
           {data && data.by_campaign.length > 0 ? (
-            <ul className="mt-3 divide-y divide-border/60 text-[13.5px]">
+            <ul className="mt-3.5 divide-y divide-border/60 text-[13.5px]">
               {data.by_campaign.map((c) => (
                 <li key={c.campaign} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
                   {c.source ? <SourceLogo source={c.source} /> : <span aria-hidden className="size-6 shrink-0 rounded-md bg-muted" />}
