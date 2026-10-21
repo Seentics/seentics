@@ -35,7 +35,7 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0)}
-          className="lx-display text-[2.05rem] !font-bold sm:text-[3.4rem] lg:text-[4.5rem] xl:text-[4.85rem]"
+          className="lx-display text-[2.05rem] !font-bold sm:text-[3.1rem] lg:text-[4.1rem] xl:text-[4.4rem]"
         >
           {/* Two lines from sm up, the last sentence on the second; on a phone one sentence a line. */}
           {t.hero.title.split(/(?<=\.) /).map((part, i, parts) => (
