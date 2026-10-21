@@ -35,7 +35,7 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0)}
-          className="lx-display max-w-[26ch] text-[2.5rem] !font-bold sm:text-[3.25rem] lg:text-[4.25rem]"
+          className="lx-display text-[2.5rem] !font-bold sm:text-[2.6rem] lg:text-[3.35rem] xl:text-[3.6rem]"
         >
           {t.hero.titleA}{' '}<br className="hidden sm:block" />{t.hero.titleB}
         </motion.h1>

@@ -155,9 +155,9 @@ export const en = {
   },
 
   hero: {
-    titleA: 'Turn more ad clicks',
-    titleB: 'into customers.',
-    body: 'Seentics shows you what visitors do on your site, captures them with popups and forms before they leave, and sends every conversion to Meta and Google with server-side tracking. One tool instead of three.',
+    titleA: 'Track every ad conversion,',
+    titleB: 'understand every visitor, capture every lead.',
+    body: 'Server-side tracking sends every sale to Facebook, Google and TikTok, while analytics, heatmaps, session replay and popups show you what’s working, all from one simple script.',
     caption: 'The real dashboard, with demo data. Use the sidebar to look around, or',
     captionLink: 'open the full demo',
   },
