@@ -155,8 +155,7 @@ export const en = {
   },
 
   hero: {
-    titleA: 'Track every ad conversion,',
-    titleB: 'understand every visitor, capture every lead.',
+    title: 'Track ads. Understand visitors. Capture leads.',
     body: 'Server-side tracking sends every sale to Facebook, Google and TikTok, while analytics, heatmaps, session replay and popups show you what’s working, all from one simple script.',
     caption: 'The real dashboard, with demo data. Use the sidebar to look around, or',
     captionLink: 'open the full demo',

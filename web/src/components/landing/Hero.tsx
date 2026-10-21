@@ -35,9 +35,10 @@ export default function Hero() {
 
         <motion.h1
           {...rise(0)}
-          className="lx-display text-[2.5rem] !font-bold sm:text-[2.6rem] lg:text-[3.35rem] xl:text-[3.6rem]"
+          className="lx-display text-[2.05rem] !font-bold sm:text-[2.6rem] lg:text-[3.35rem] xl:text-[3.6rem]"
         >
-          {t.hero.titleA}{' '}<br className="hidden sm:block" />{t.hero.titleB}
+          {/* One line from sm up; on a phone each short sentence on its own line. */}
+          {t.hero.title.split(/(?<=\.) /).map((part, i) => <span key={i} className="block sm:inline">{i > 0 && <span className="hidden sm:inline"> </span>}{part}</span>)}
         </motion.h1>
 
         <motion.div {...rise(0.08)} className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
